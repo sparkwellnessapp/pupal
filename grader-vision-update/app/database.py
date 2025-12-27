@@ -17,6 +17,11 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_size=5,
     max_overflow=10,
+    pool_recycle=1800,  # Recycle connections every 30 mins
+    pool_timeout=30,    # Wait up to 30s for a connection
+    connect_args={
+        "statement_cache_size": 0,
+    },
 )
 
 # Create async session factory
@@ -49,11 +54,15 @@ async def init_db():
     Initialize the database by creating all tables.
     Called on application startup.
     """
-    async with engine.begin() as conn:
-        # Import models to ensure they're registered with Base
+    try:
         from .models import grading  # noqa: F401
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database tables created/verified successfully")
+        async with engine.connect() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+            await conn.commit()
+        logger.info("Database tables created/verified successfully")
+    except Exception as e:
+        logger.error(f"Error initializing database: {e}")
+
 
 
 async def close_db():

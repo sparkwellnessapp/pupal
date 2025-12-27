@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Any
 from pathlib import Path
 
 from openai import OpenAI
+from langsmith import traceable
 from pdf2image import convert_from_bytes
 from PIL import Image
 
@@ -180,6 +181,7 @@ STUDENT_NAME_EXTRACTION_PROMPT = """אתה מומחה בחילוץ שם תלמי
 }"""
 
 
+@traceable(name="extract_student_name", run_type="llm")
 def extract_student_name_from_page(image_b64: str) -> Optional[str]:
     """
     Extract student name from the first page of a test.
@@ -233,6 +235,7 @@ CODE_EXTRACTION_SYSTEM_PROMPT = """אתה מומחה בתמלול קוד תשו�
 }"""
 
 
+@traceable(name="extract_code_from_pages", run_type="llm")
 def extract_code_from_pages(
     images_b64: List[str],
     question_number: int,

@@ -21,6 +21,21 @@ logger = logging.getLogger(__name__)
 _grading_agent: Optional[GradingAgent] = None
 
 
+def sanitize_for_json(obj: Any) -> Any:
+    """
+    Recursively sanitize objects for JSON serialization.
+    Ensures non-standard objects (like OpenAI Usage) are converted to strings.
+    """
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_for_json(i) for i in obj]
+    elif isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+    else:
+        return str(obj)
+
+
 def get_grading_agent() -> GradingAgent:
     """Get or create the grading agent singleton."""
     global _grading_agent
@@ -167,14 +182,17 @@ async def save_graded_test(
     Returns:
         The created GradedTest model instance
     """
+    # Sanitize data to ensure it's valid JSON for database
+    sanitized_result = sanitize_for_json(grading_result)
+    
     graded_test = GradedTest(
         rubric_id=rubric_id,
-        student_name=grading_result.get("student_name", "Unknown"),
-        filename=grading_result.get("filename"),
-        graded_json=grading_result,
-        total_score=grading_result.get("total_score", 0),
-        total_possible=grading_result.get("total_possible", 0),
-        percentage=grading_result.get("percentage", 0),
+        student_name=sanitized_result.get("student_name", "Unknown"),
+        filename=sanitized_result.get("filename"),
+        graded_json=sanitized_result,
+        total_score=sanitized_result.get("total_score", 0),
+        total_possible=sanitized_result.get("total_possible", 0),
+        percentage=sanitized_result.get("percentage", 0),
     )
     
     db.add(graded_test)

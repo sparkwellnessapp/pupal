@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # OpenAI settings
     openai_api_key: str
-    openai_model: str = "gpt-4-turbo-preview"  # For text grading
+    openai_model: str = "gpt-4o"  # For text grading
     openai_vision_model: str = "gpt-4o"  # For vision/transcription tasks
     
     # Google Cloud settings

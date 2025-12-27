@@ -5,13 +5,14 @@ All endpoints for rubric extraction, test grading, and PDF annotation.
 Updated to support the new two-phase rubric extraction with sub-questions.
 """
 import logging
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
-from ...database import get_db
+from ...database import get_db, AsyncSessionLocal
 from ...models.grading import Rubric
 from ...services.pdf_preview_service import generate_pdf_previews
 from ...services.grading_service import (
@@ -21,6 +22,7 @@ from ...services.grading_service import (
     save_graded_test,
     get_graded_tests_by_rubric_id,
 )
+from ...services.rubric_service import get_rubric_by_id
 from ...schemas.grading import (
     # Preview schemas
     PagePreview,
@@ -59,6 +61,30 @@ router = APIRouter(prefix="/api/v0/grading", tags=["grading"])
 # =============================================================================
 # Rubric Endpoints
 # =============================================================================
+
+@router.get("/rubrics", response_model=list[dict])
+async def list_rubrics(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List all saved rubrics (name, id, created_at).
+    Returns newest first.
+    """
+    query = select(Rubric).order_by(Rubric.created_at.desc())
+    result = await db.execute(query)
+    rubrics = result.scalars().all()
+    
+    return [
+        {
+            "id": str(rubric.id),
+            "name": rubric.name,
+            "description": rubric.description,
+            "created_at": rubric.created_at.isoformat(),
+            "total_points": rubric.rubric_json.get("total_points") if rubric.rubric_json else None,
+            "rubric_json": rubric.rubric_json,
+        }
+        for rubric in rubrics
+    ]
 
 @router.post(
     "/preview_rubric_pdf",
@@ -462,22 +488,24 @@ async def grade_tests(
         
         for result in grading_results.get("graded_results", []):
             try:
-                saved = await save_graded_test(
-                    db=db,
-                    rubric_id=rubric_id,
-                    grading_result=result,
-                )
-                saved_tests.append(GradedTestResponse(
-                    id=saved.id,
-                    rubric_id=saved.rubric_id,
-                    created_at=saved.created_at,
-                    student_name=saved.student_name,
-                    filename=saved.filename,
-                    total_score=saved.total_score,
-                    total_possible=saved.total_possible,
-                    percentage=saved.percentage,
-                    graded_json=saved.graded_json,
-                ))
+                # Use a fresh session for each save to avoid connection issues
+                async with AsyncSessionLocal() as save_db:
+                    saved = await save_graded_test(
+                        db=save_db,
+                        rubric_id=rubric_id,
+                        grading_result=result,
+                    )
+                    saved_tests.append(GradedTestResponse(
+                        id=saved.id,
+                        rubric_id=saved.rubric_id,
+                        created_at=saved.created_at,
+                        student_name=saved.student_name,
+                        filename=saved.filename,
+                        total_score=saved.total_score,
+                        total_possible=saved.total_possible,
+                        percentage=saved.percentage,
+                        graded_json=saved.graded_json,
+                    ))
             except Exception as e:
                 logger.error(f"Error saving graded test: {e}")
                 save_errors.append(f"{result.get('student_name', 'Unknown')}: {str(e)}")

@@ -14,6 +14,7 @@ interface AnswerMappingPanelProps {
   onSetActiveAssignment: (assignment: AnswerMappingPanelProps['activeAssignment']) => void;
   firstPageIndex: number;
   onFirstPageIndexChange: (index: number) => void;
+  hideFirstPageSelector?: boolean;
 }
 
 export function AnswerMappingPanel({
@@ -24,6 +25,7 @@ export function AnswerMappingPanel({
   onSetActiveAssignment,
   firstPageIndex,
   onFirstPageIndexChange,
+  hideFirstPageSelector = false,
 }: AnswerMappingPanelProps) {
   // Initialize mappings from rubric structure if empty
   const initializeMappings = () => {
@@ -116,24 +118,26 @@ export function AnswerMappingPanel({
         </span>
       </div>
 
-      {/* First page (student name) selector */}
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="flex items-center gap-2 text-sm">
-          <FileText size={16} className="text-blue-500" />
-          <span className="font-medium text-blue-700">עמוד שם התלמיד:</span>
-          <select
-            value={firstPageIndex}
-            onChange={(e) => onFirstPageIndexChange(parseInt(e.target.value))}
-            className="bg-white border border-blue-300 rounded px-2 py-1 text-sm"
-          >
-            {[...Array(10)].map((_, i) => (
-              <option key={i} value={i}>
-                עמוד {i + 1}
-              </option>
-            ))}
-          </select>
+      {/* First page (student name) selector - only show if not hidden */}
+      {!hideFirstPageSelector && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-2 text-sm">
+            <FileText size={16} className="text-blue-500" />
+            <span className="font-medium text-blue-700">עמוד שם התלמיד:</span>
+            <select
+              value={firstPageIndex}
+              onChange={(e) => onFirstPageIndexChange(parseInt(e.target.value))}
+              className="bg-white border border-blue-300 rounded px-2 py-1 text-sm"
+            >
+              {[...Array(10)].map((_, i) => (
+                <option key={i} value={i}>
+                  עמוד {i + 1}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Answer mappings */}
       <div className="space-y-2">

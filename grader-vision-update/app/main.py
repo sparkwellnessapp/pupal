@@ -14,11 +14,28 @@ from .database import init_db, close_db
 from .api.v0 import grading as grading_v0
 
 # Configure logging
+import os
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def setup_tracing():
+    """Configure LangChain/LangSmith tracing based on settings."""
+    if settings.langchain_tracing_v2.lower() == "true":
+        logger.info("Enabling LangSmith tracing...")
+        os.environ["LANGCHAIN_TRACING_V2"] = "true"
+        os.environ["LANGCHAIN_ENDPOINT"] = settings.langchain_endpoint
+        if settings.langchain_api_key:
+            os.environ["LANGCHAIN_API_KEY"] = settings.langchain_api_key
+        if settings.langchain_project:
+            os.environ["LANGCHAIN_PROJECT"] = settings.langchain_project
+        logger.info(f"LangSmith project: {os.environ.get('LANGCHAIN_PROJECT')}")
+    else:
+        logger.info("LangSmith tracing is disabled")
+
 
 
 @asynccontextmanager
@@ -29,8 +46,13 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info("Starting Grader Vision API...")
-    await init_db()
-    logger.info("Database initialized")
+    
+    # Configure tracing
+    setup_tracing()
+    
+    import asyncio
+    asyncio.create_task(init_db())
+    logger.info("Database initialization started in background")
     
     yield
     
