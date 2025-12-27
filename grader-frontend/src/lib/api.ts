@@ -147,6 +147,21 @@ export interface GradedTestResult {
       points_possible: number;
       explanation?: string;
       confidence: string;
+      low_confidence_reason?: string;
+    }>;
+    question_grades?: Array<{
+      question_number: number;
+      grades: Array<{
+        question_number?: number;
+        sub_question_id?: string;
+        criterion: string;
+        mark: string;
+        points_earned: number;
+        points_possible: number;
+        explanation?: string;
+        confidence: string;
+        low_confidence_reason?: string;
+      }>;
     }>;
     low_confidence_items?: string[];
   };
@@ -274,7 +289,7 @@ export async function gradeTests(
   firstPageIndex: number = 0
 ): Promise<GradeTestsResponse> {
   const formData = new FormData();
-  
+
   // Append all files
   files.forEach((file) => {
     formData.append('files', file);
@@ -324,10 +339,10 @@ export async function gradeSingleTest(
   }
 
   const result: GradeTestsResponse = await response.json();
-  
+
   if (result.graded_tests.length > 0) {
     return result.graded_tests[0];
   }
-  
+
   throw new Error(result.errors[0] || 'Failed to grade test');
 }

@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { GradedTestResult } from '@/lib/api';
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  CheckCircle, 
-  XCircle, 
+import {
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   User,
   FileText,
@@ -31,7 +31,7 @@ interface Grade {
   mark: string;
   points_earned: number;
   points_possible: number;
-  explanation: string;
+  explanation?: string;
   confidence: string;
   low_confidence_reason?: string;
   question_number?: number;
@@ -49,7 +49,7 @@ export function GradingResults({
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (testId: string) => {
-    const newExpanded = new Set(expandedTests);
+    const newExpanded = new Set(Array.from(expandedTests));
     if (newExpanded.has(testId)) {
       newExpanded.delete(testId);
     } else {
@@ -59,7 +59,7 @@ export function GradingResults({
   };
 
   const toggleQuestion = (key: string) => {
-    const newExpanded = new Set(expandedQuestions);
+    const newExpanded = new Set(Array.from(expandedQuestions));
     if (newExpanded.has(key)) {
       newExpanded.add(key);
     } else {
@@ -100,11 +100,11 @@ export function GradingResults({
     if (result.graded_json.question_grades && result.graded_json.question_grades.length > 0) {
       return result.graded_json.question_grades;
     }
-    
+
     // Fall back to flat grades list (old format) - group by question_number
     const grades = result.graded_json.grades || [];
     const grouped: { [key: number]: Grade[] } = {};
-    
+
     grades.forEach((grade: Grade) => {
       const qNum = grade.question_number || 0;
       if (!grouped[qNum]) {
@@ -112,7 +112,7 @@ export function GradingResults({
       }
       grouped[qNum].push(grade);
     });
-    
+
     return Object.entries(grouped)
       .map(([qNum, qGrades]) => ({
         question_number: parseInt(qNum),
@@ -170,7 +170,7 @@ export function GradingResults({
       {/* Results List */}
       <div className="space-y-3">
         <h3 className="font-semibold text-lg">תוצאות מפורטות</h3>
-        
+
         {results.length === 0 ? (
           <div className="text-center py-8 text-gray-500 bg-surface-50 rounded-lg">
             אין תוצאות להצגה
@@ -180,7 +180,7 @@ export function GradingResults({
             .sort((a, b) => b.percentage - a.percentage)
             .map((result) => {
               const questionGrades = getQuestionGrades(result);
-              
+
               return (
                 <div
                   key={result.id}
@@ -197,12 +197,12 @@ export function GradingResults({
                       ) : (
                         <ChevronDown size={20} className="text-gray-400" />
                       )}
-                      
+
                       <div className="flex items-center gap-2">
                         <User size={18} className="text-gray-400" />
                         <span className="font-medium">{result.student_name}</span>
                       </div>
-                      
+
                       {result.filename && (
                         <div className="flex items-center gap-1 text-xs text-gray-400">
                           <FileText size={14} />
@@ -244,14 +244,14 @@ export function GradingResults({
                           const qScore = getQuestionScore(qg.grades);
                           const qKey = `${result.id}-q${qg.question_number}`;
                           const isExpanded = expandedQuestions.has(qKey);
-                          
+
                           return (
-                            <div 
+                            <div
                               key={qKey}
                               className={`bg-white rounded-lg border ${getScoreBorderColor(qScore.percentage)} overflow-hidden`}
                             >
                               {/* Question header */}
-                              <div 
+                              <div
                                 className="flex items-center justify-between p-3 cursor-pointer hover:bg-surface-50"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -280,7 +280,7 @@ export function GradingResults({
                                   </span>
                                 </div>
                               </div>
-                              
+
                               {/* Question grades table */}
                               {isExpanded && (
                                 <div className="border-t border-surface-100 overflow-x-auto">
@@ -295,11 +295,10 @@ export function GradingResults({
                                     </thead>
                                     <tbody>
                                       {qg.grades.map((grade, i) => (
-                                        <tr 
-                                          key={i} 
-                                          className={`border-b border-surface-100 hover:bg-surface-50 ${
-                                            grade.confidence === 'low' ? 'bg-amber-50/50' : ''
-                                          }`}
+                                        <tr
+                                          key={i}
+                                          className={`border-b border-surface-100 hover:bg-surface-50 ${grade.confidence === 'low' ? 'bg-amber-50/50' : ''
+                                            }`}
                                         >
                                           <td className="py-2 px-3">
                                             <span className="text-gray-700">{grade.criterion || 'קריטריון לא מזוהה'}</span>
@@ -311,10 +310,10 @@ export function GradingResults({
                                           </td>
                                           <td className="py-2 px-2 text-center">
                                             <span className={
-                                              grade.points_earned === grade.points_possible 
-                                                ? 'text-green-600 font-medium' 
-                                                : grade.points_earned === 0 
-                                                  ? 'text-red-600' 
+                                              grade.points_earned === grade.points_possible
+                                                ? 'text-green-600 font-medium'
+                                                : grade.points_earned === 0
+                                                  ? 'text-red-600'
                                                   : 'text-yellow-600'
                                             }>
                                               {grade.points_earned}/{grade.points_possible}

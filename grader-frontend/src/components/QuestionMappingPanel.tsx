@@ -46,7 +46,7 @@ export function QuestionMappingPanel({
         sub_questions: [],
       },
     ]);
-    setExpandedQuestions(new Set([...expandedQuestions, mappings.length]));
+    setExpandedQuestions(new Set([...Array.from(expandedQuestions), mappings.length]));
   };
 
   const removeQuestion = (index: number) => {
@@ -228,10 +228,10 @@ export function QuestionMappingPanel({
                                   isAssignmentActive(qIndex, 'sub_question_criteria', subQ.sub_question_id)
                                     ? null
                                     : {
-                                        questionIndex: qIndex,
-                                        type: 'sub_question_criteria',
-                                        subQuestionId: subQ.sub_question_id,
-                                      }
+                                      questionIndex: qIndex,
+                                      type: 'sub_question_criteria',
+                                      subQuestionId: subQ.sub_question_id,
+                                    }
                                 )
                               }
                               className={`flex items-center gap-1.5 px-2 py-1 text-xs border rounded transition-colors ${getButtonStyle(qIndex, 'sub_question_criteria', subQ.sub_question_id)}`}
