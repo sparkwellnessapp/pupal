@@ -9,18 +9,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Professional teacher-focused palette
+        // Turquoise-focused palette for Pupil
         primary: {
-          50: '#f0f7ff',
-          100: '#e0effe',
-          200: '#b9dffd',
-          300: '#7cc5fb',
-          400: '#36a7f6',
-          500: '#0c8ce7',
-          600: '#006fc5',
-          700: '#0159a0',
-          800: '#064b84',
-          900: '#0a3f6e',
+          50: '#f0fdfa',
+          100: '#ccfbf1',
+          200: '#99f6e4',
+          300: '#5eead4',
+          400: '#2dd4bf',
+          500: '#14b8a6',
+          600: '#0d9488',
+          700: '#0f766e',
+          800: '#115e59',
+          900: '#134e4a',
         },
         accent: {
           50: '#fef7ee',
@@ -36,9 +36,9 @@ const config: Config = {
         },
         surface: {
           50: '#fafafa',
-          100: '#f4f4f5',
-          200: '#e4e4e7',
-          300: '#d4d4d8',
+          100: '#f5f5f4',
+          200: '#e7e5e4',
+          300: '#d6d3d1',
         }
       },
       fontFamily: {

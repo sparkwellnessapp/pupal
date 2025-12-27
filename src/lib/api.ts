@@ -5,7 +5,7 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 // =============================================================================
-// Types matching backend schemas
+// Rubric Types
 // =============================================================================
 
 export interface PagePreview {
@@ -90,8 +90,79 @@ export interface SaveRubricResponse {
   num_criteria: number;
 }
 
+export interface RubricListItem {
+  id: string;
+  created_at: string;
+  name?: string;
+  description?: string;
+  total_points?: number;
+  rubric_json: {
+    questions: Array<{
+      question_number: number;
+      total_points: number;
+      question_text?: string;
+      criteria?: Array<{ description: string; points: number }>;
+      sub_questions?: Array<{
+        sub_question_id: string;
+        sub_question_text?: string;
+        criteria: Array<{ description: string; points: number }>;
+      }>;
+    }>;
+  };
+}
+
 // =============================================================================
-// API Functions
+// Student Test Types
+// =============================================================================
+
+export interface PreviewStudentTestResponse {
+  filename: string;
+  page_count: number;
+  pages: PagePreview[];
+  detected_student_name?: string;
+}
+
+export interface AnswerPageMapping {
+  question_number: number;
+  sub_question_id: string | null;
+  page_indexes: number[];
+}
+
+export interface GradedTestResult {
+  id: string;
+  rubric_id: string;
+  created_at: string;
+  student_name: string;
+  filename?: string;
+  total_score: number;
+  total_possible: number;
+  percentage: number;
+  graded_json: {
+    grades: Array<{
+      question_number?: number;
+      sub_question_id?: string;
+      criterion: string;
+      mark: string;
+      points_earned: number;
+      points_possible: number;
+      explanation?: string;
+      confidence: string;
+    }>;
+    low_confidence_items?: string[];
+  };
+}
+
+export interface GradeTestsResponse {
+  rubric_id: string;
+  total_tests: number;
+  successful: number;
+  failed: number;
+  graded_tests: GradedTestResult[];
+  errors: string[];
+}
+
+// =============================================================================
+// Rubric API Functions
 // =============================================================================
 
 export async function previewRubricPdf(file: File): Promise<PreviewRubricPdfResponse> {
@@ -118,7 +189,6 @@ export async function extractRubric(
   const formData = new FormData();
   formData.append('file', file);
 
-  // Build query params
   const params = new URLSearchParams();
   params.append('question_mappings', JSON.stringify(request.question_mappings));
   if (request.name) params.append('name', request.name);
@@ -152,4 +222,112 @@ export async function saveRubric(request: SaveRubricRequest): Promise<SaveRubric
   }
 
   return response.json();
+}
+
+export async function getRubric(rubricId: string): Promise<RubricListItem> {
+  const response = await fetch(`${API_BASE}/api/v0/grading/rubric/${rubricId}`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function listRubrics(): Promise<RubricListItem[]> {
+  const response = await fetch(`${API_BASE}/api/v0/grading/rubrics`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+// =============================================================================
+// Student Test API Functions
+// =============================================================================
+
+export async function previewStudentTestPdf(file: File): Promise<PreviewStudentTestResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE}/api/v0/grading/preview_student_test_pdf`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function gradeTests(
+  rubricId: string,
+  answerMappings: AnswerPageMapping[],
+  files: File[],
+  firstPageIndex: number = 0
+): Promise<GradeTestsResponse> {
+  const formData = new FormData();
+  
+  // Append all files
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
+
+  const params = new URLSearchParams();
+  params.append('rubric_id', rubricId);
+  params.append('answer_mappings', JSON.stringify(answerMappings));
+  params.append('first_page_index', firstPageIndex.toString());
+
+  const response = await fetch(`${API_BASE}/api/v0/grading/grade_tests?${params.toString()}`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+// Grade a single test - used for progress tracking
+export async function gradeSingleTest(
+  rubricId: string,
+  answerMappings: AnswerPageMapping[],
+  file: File,
+  firstPageIndex: number = 0
+): Promise<GradedTestResult> {
+  const formData = new FormData();
+  formData.append('files', file);
+
+  const params = new URLSearchParams();
+  params.append('rubric_id', rubricId);
+  params.append('answer_mappings', JSON.stringify(answerMappings));
+  params.append('first_page_index', firstPageIndex.toString());
+
+  const response = await fetch(`${API_BASE}/api/v0/grading/grade_tests?${params.toString()}`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+
+  const result: GradeTestsResponse = await response.json();
+  
+  if (result.graded_tests.length > 0) {
+    return result.graded_tests[0];
+  }
+  
+  throw new Error(result.errors[0] || 'Failed to grade test');
 }

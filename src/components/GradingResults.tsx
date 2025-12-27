@@ -10,7 +10,6 @@ import {
   AlertCircle,
   User,
   FileText,
-  Award
 } from 'lucide-react';
 
 interface GradingResultsProps {
@@ -21,6 +20,24 @@ interface GradingResultsProps {
   errors: string[];
 }
 
+interface QuestionGrade {
+  question_number: number;
+  grades: Grade[];
+}
+
+interface Grade {
+  criterion_index?: number;
+  criterion: string;
+  mark: string;
+  points_earned: number;
+  points_possible: number;
+  explanation: string;
+  confidence: string;
+  low_confidence_reason?: string;
+  question_number?: number;
+  sub_question_id?: string;
+}
+
 export function GradingResults({
   results,
   totalTests,
@@ -29,6 +46,7 @@ export function GradingResults({
   errors,
 }: GradingResultsProps) {
   const [expandedTests, setExpandedTests] = useState<Set<string>>(new Set());
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (testId: string) => {
     const newExpanded = new Set(expandedTests);
@@ -40,16 +58,74 @@ export function GradingResults({
     setExpandedTests(newExpanded);
   };
 
+  const toggleQuestion = (key: string) => {
+    const newExpanded = new Set(expandedQuestions);
+    if (newExpanded.has(key)) {
+      newExpanded.add(key);
+    } else {
+      newExpanded.add(key);
+    }
+    // Toggle: if exists remove, else add
+    if (expandedQuestions.has(key)) {
+      newExpanded.delete(key);
+    }
+    setExpandedQuestions(newExpanded);
+  };
+
   const getScoreColor = (percentage: number) => {
     if (percentage >= 80) return 'text-green-600 bg-green-50';
     if (percentage >= 60) return 'text-yellow-600 bg-yellow-50';
     return 'text-red-600 bg-red-50';
   };
 
+  const getScoreBorderColor = (percentage: number) => {
+    if (percentage >= 80) return 'border-green-200';
+    if (percentage >= 60) return 'border-yellow-200';
+    return 'border-red-200';
+  };
+
   const getMarkIcon = (mark: string) => {
-    if (mark === '✓') return <CheckCircle size={16} className="text-green-500" />;
-    if (mark === '✗') return <XCircle size={16} className="text-red-500" />;
+    if (mark === '✓' || mark === 'V' || mark === '✔') {
+      return <CheckCircle size={16} className="text-green-500" />;
+    }
+    if (mark === '✗' || mark === 'X' || mark === '✘') {
+      return <XCircle size={16} className="text-red-500" />;
+    }
     return <AlertCircle size={16} className="text-yellow-500" />;
+  };
+
+  // Group grades by question if not already grouped
+  const getQuestionGrades = (result: GradedTestResult): QuestionGrade[] => {
+    // Check if already grouped (new format)
+    if (result.graded_json.question_grades && result.graded_json.question_grades.length > 0) {
+      return result.graded_json.question_grades;
+    }
+    
+    // Fall back to flat grades list (old format) - group by question_number
+    const grades = result.graded_json.grades || [];
+    const grouped: { [key: number]: Grade[] } = {};
+    
+    grades.forEach((grade: Grade) => {
+      const qNum = grade.question_number || 0;
+      if (!grouped[qNum]) {
+        grouped[qNum] = [];
+      }
+      grouped[qNum].push(grade);
+    });
+    
+    return Object.entries(grouped)
+      .map(([qNum, qGrades]) => ({
+        question_number: parseInt(qNum),
+        grades: qGrades
+      }))
+      .sort((a, b) => a.question_number - b.question_number);
+  };
+
+  // Calculate question score
+  const getQuestionScore = (grades: Grade[]) => {
+    const earned = grades.reduce((sum, g) => sum + (g.points_earned || 0), 0);
+    const possible = grades.reduce((sum, g) => sum + (g.points_possible || 0), 0);
+    return { earned, possible, percentage: possible > 0 ? (earned / possible * 100) : 0 };
   };
 
   // Calculate statistics
@@ -102,115 +178,173 @@ export function GradingResults({
         ) : (
           results
             .sort((a, b) => b.percentage - a.percentage)
-            .map((result) => (
-              <div
-                key={result.id}
-                className="bg-white rounded-xl border border-surface-200 shadow-sm overflow-hidden"
-              >
-                {/* Header */}
+            .map((result) => {
+              const questionGrades = getQuestionGrades(result);
+              
+              return (
                 <div
-                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-surface-50 transition-colors"
-                  onClick={() => toggleExpanded(result.id)}
+                  key={result.id}
+                  className="bg-white rounded-xl border border-surface-200 shadow-sm overflow-hidden"
                 >
-                  <div className="flex items-center gap-4">
-                    {expandedTests.has(result.id) ? (
-                      <ChevronUp size={20} className="text-gray-400" />
-                    ) : (
-                      <ChevronDown size={20} className="text-gray-400" />
-                    )}
-                    
-                    <div className="flex items-center gap-2">
-                      <User size={18} className="text-gray-400" />
-                      <span className="font-medium">{result.student_name}</span>
-                    </div>
-                    
-                    {result.filename && (
-                      <div className="flex items-center gap-1 text-xs text-gray-400">
-                        <FileText size={14} />
-                        {result.filename}
+                  {/* Header */}
+                  <div
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-surface-50 transition-colors"
+                    onClick={() => toggleExpanded(result.id)}
+                  >
+                    <div className="flex items-center gap-4">
+                      {expandedTests.has(result.id) ? (
+                        <ChevronUp size={20} className="text-gray-400" />
+                      ) : (
+                        <ChevronDown size={20} className="text-gray-400" />
+                      )}
+                      
+                      <div className="flex items-center gap-2">
+                        <User size={18} className="text-gray-400" />
+                        <span className="font-medium">{result.student_name}</span>
                       </div>
-                    )}
+                      
+                      {result.filename && (
+                        <div className="flex items-center gap-1 text-xs text-gray-400">
+                          <FileText size={14} />
+                          <span className="truncate max-w-[200px]">{result.filename}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div className="text-sm text-gray-500">
+                        {result.total_score}/{result.total_possible}
+                      </div>
+                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(result.percentage)}`}>
+                        {result.percentage.toFixed(1)}%
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm text-gray-500">
-                      {result.total_score}/{result.total_possible}
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(result.percentage)}`}>
-                      {result.percentage.toFixed(1)}%
-                    </div>
-                  </div>
-                </div>
+                  {/* Expanded Details */}
+                  {expandedTests.has(result.id) && (
+                    <div className="border-t border-surface-200 p-4 bg-surface-50">
+                      {/* Low confidence items */}
+                      {result.graded_json.low_confidence_items && result.graded_json.low_confidence_items.length > 0 && (
+                        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                          <h5 className="font-medium text-amber-700 text-sm mb-1">
+                            ⚠️ פריטים לבדיקה ידנית:
+                          </h5>
+                          <ul className="text-xs text-amber-600 space-y-1">
+                            {result.graded_json.low_confidence_items.map((item: string, i: number) => (
+                              <li key={i}>• {item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
-                {/* Expanded Details */}
-                {expandedTests.has(result.id) && (
-                  <div className="border-t border-surface-200 p-4 bg-surface-50">
-                    {/* Low confidence items */}
-                    {result.graded_json.low_confidence_items && result.graded_json.low_confidence_items.length > 0 && (
-                      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                        <h5 className="font-medium text-amber-700 text-sm mb-1">
-                          ⚠️ פריטים לבדיקה ידנית:
-                        </h5>
-                        <ul className="text-xs text-amber-600 space-y-1">
-                          {result.graded_json.low_confidence_items.map((item, i) => (
-                            <li key={i}>• {item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Grades table */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-surface-200">
-                            <th className="text-right py-2 px-2 font-medium text-gray-600">קריטריון</th>
-                            <th className="text-center py-2 px-2 font-medium text-gray-600 w-16">ציון</th>
-                            <th className="text-center py-2 px-2 font-medium text-gray-600 w-20">נקודות</th>
-                            <th className="text-right py-2 px-2 font-medium text-gray-600">הסבר</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {result.graded_json.grades.map((grade, i) => (
-                            <tr key={i} className="border-b border-surface-100 hover:bg-white">
-                              <td className="py-2 px-2">
-                                <div className="flex items-start gap-2">
-                                  {grade.question_number && (
-                                    <span className="text-xs text-gray-400 whitespace-nowrap">
-                                      ש{grade.question_number}
-                                      {grade.sub_question_id && `-${grade.sub_question_id}`}
-                                    </span>
+                      {/* Question-grouped grades */}
+                      <div className="space-y-3">
+                        {questionGrades.map((qg) => {
+                          const qScore = getQuestionScore(qg.grades);
+                          const qKey = `${result.id}-q${qg.question_number}`;
+                          const isExpanded = expandedQuestions.has(qKey);
+                          
+                          return (
+                            <div 
+                              key={qKey}
+                              className={`bg-white rounded-lg border ${getScoreBorderColor(qScore.percentage)} overflow-hidden`}
+                            >
+                              {/* Question header */}
+                              <div 
+                                className="flex items-center justify-between p-3 cursor-pointer hover:bg-surface-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleQuestion(qKey);
+                                }}
+                              >
+                                <div className="flex items-center gap-3">
+                                  {isExpanded ? (
+                                    <ChevronUp size={16} className="text-gray-400" />
+                                  ) : (
+                                    <ChevronDown size={16} className="text-gray-400" />
                                   )}
-                                  <span className="text-gray-700">{grade.criterion}</span>
-                                </div>
-                              </td>
-                              <td className="py-2 px-2 text-center">
-                                <div className="flex items-center justify-center">
-                                  {getMarkIcon(grade.mark)}
-                                </div>
-                              </td>
-                              <td className="py-2 px-2 text-center">
-                                <span className={grade.points_earned === grade.points_possible ? 'text-green-600' : grade.points_earned === 0 ? 'text-red-600' : 'text-yellow-600'}>
-                                  {grade.points_earned}/{grade.points_possible}
-                                </span>
-                              </td>
-                              <td className="py-2 px-2 text-gray-500 text-xs">
-                                {grade.explanation}
-                                {grade.confidence !== 'high' && (
-                                  <span className="text-amber-500 mr-1">
-                                    ({grade.confidence})
+                                  <span className="font-medium text-gray-700">
+                                    שאלה {qg.question_number}
                                   </span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                                  <span className="text-xs text-gray-400">
+                                    ({qg.grades.length} קריטריונים)
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-sm text-gray-500">
+                                    {qScore.earned.toFixed(1)}/{qScore.possible.toFixed(1)}
+                                  </span>
+                                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${getScoreColor(qScore.percentage)}`}>
+                                    {qScore.percentage.toFixed(0)}%
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Question grades table */}
+                              {isExpanded && (
+                                <div className="border-t border-surface-100 overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="border-b border-surface-200 bg-surface-50">
+                                        <th className="text-right py-2 px-3 font-medium text-gray-600">קריטריון</th>
+                                        <th className="text-center py-2 px-2 font-medium text-gray-600 w-12">ציון</th>
+                                        <th className="text-center py-2 px-2 font-medium text-gray-600 w-20">נקודות</th>
+                                        <th className="text-right py-2 px-3 font-medium text-gray-600">הסבר</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {qg.grades.map((grade, i) => (
+                                        <tr 
+                                          key={i} 
+                                          className={`border-b border-surface-100 hover:bg-surface-50 ${
+                                            grade.confidence === 'low' ? 'bg-amber-50/50' : ''
+                                          }`}
+                                        >
+                                          <td className="py-2 px-3">
+                                            <span className="text-gray-700">{grade.criterion || 'קריטריון לא מזוהה'}</span>
+                                          </td>
+                                          <td className="py-2 px-2 text-center">
+                                            <div className="flex items-center justify-center">
+                                              {getMarkIcon(grade.mark)}
+                                            </div>
+                                          </td>
+                                          <td className="py-2 px-2 text-center">
+                                            <span className={
+                                              grade.points_earned === grade.points_possible 
+                                                ? 'text-green-600 font-medium' 
+                                                : grade.points_earned === 0 
+                                                  ? 'text-red-600' 
+                                                  : 'text-yellow-600'
+                                            }>
+                                              {grade.points_earned}/{grade.points_possible}
+                                            </span>
+                                          </td>
+                                          <td className="py-2 px-3 text-gray-500 text-xs">
+                                            <div className="flex items-start gap-1">
+                                              <span>{grade.explanation || '-'}</span>
+                                              {grade.confidence && grade.confidence !== 'high' && (
+                                                <span className="text-amber-500 whitespace-nowrap" title={grade.low_confidence_reason}>
+                                                  ({grade.confidence})
+                                                </span>
+                                              )}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))
+                  )}
+                </div>
+              );
+            })
         )}
       </div>
     </div>
