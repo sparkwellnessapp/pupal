@@ -18,117 +18,194 @@ Grader Vision is designed to **assist** teachers in grading, not replace them. T
 | **Validation-Based** | Teacher validates all transcriptions and grades before they're finalized |
 | **Transparent** | AI shows confidence levels and reasoning for each grading decision |
 | **Efficient** | Reduces grading time while maintaining teacher control |
-| **Simple UI** | Intuitive interface for reviewing and approving AI suggestions |
+| **User-Centric UI** | Modern React-based interface for effortless review and approval |
 
 ## Workflow
 
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  1. Upload      │ ──► │  2. AI Extracts  │ ──► │  3. Teacher     │
-│  Rubric PDF     │     │  Questions +     │     │  Validates      │
-│                 │     │  Criteria        │     │  Rubric         │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-                                                          │
-         ┌────────────────────────────────────────────────┘
-         ▼
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  4. Upload      │ ──► │  5. AI Grades    │ ──► │  6. Teacher     │
-│  Student Tests  │     │  Each Answer     │     │  Validates      │
-│                 │     │                  │     │  Grades         │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-                                                          │
-         ┌────────────────────────────────────────────────┘
-         ▼
-┌─────────────────┐
-│  7. Download    │
-│  Annotated PDFs │
-└─────────────────┘
+```mermaid
+graph TD
+    A[Upload Rubric PDF] --> B[AI Extracts Questions & Criteria]
+    B --> C[Teacher Validates Rubric]
+    C --> D[Upload Student Tests]
+    D --> E[AI Grades Each Answer]
+    E --> F[Teacher Validates Grades]
+    F --> G[Download Annotated PDFs]
 ```
 
 ---
 
 ## Current State
 
-### Backend Structure (FastAPI)
+### Project Structure
 
+The project is split into two main components:
+- **Backend**: FastAPI service for AI processing and data management.
+- **Frontend**: Next.js application for the user interface.
+
+#### Backend (FastAPI)
 ```
-app/
-├── main.py              # FastAPI entry point
-├── database.py          # Supabase/PostgreSQL setup
-├── config.py            # Environment configuration
-├── api/v0/grading.py    # 7 API endpoints (placeholder logic)
-├── models/grading.py    # Rubric, GradedTest, GradedTestPdf
-├── schemas/grading.py   # Pydantic request/response schemas
-└── services/            # Business logic layer
-    ├── rubric_service.py
-    ├── grading_service.py
-    ├── annotation_service.py
-    ├── document_parser.py   # Vision AI PDF parsing
-    ├── grading_agent.py     # LangGraph grading agent
-    └── pdf_annotator.py     # PDF annotation
+grader-vision-update/
+├── app/
+│   ├── main.py              # FastAPI entry point
+│   ├── database.py          # Supabase (PostgreSQL) configuration
+│   ├── config.py            # Settings and env management
+│   ├── api/v0/grading.py    # Grading API endpoints
+│   ├── models/grading.py    # SQLAlchemy models (Rubric, GradedTest, etc.)
+│   ├── schemas/grading.py   # Pydantic validation schemas
+│   └── services/            # Business logic layer
+│       ├── rubric_service.py      # Rubric extraction logic
+│       ├── grading_service.py     # Test grading orchestration
+│       ├── annotation_service.py  # PDF annotation & GCS uploads
+│       ├── document_parser.py     # Vision-based PDF to text extraction
+│       ├── grading_agent.py       # LangGraph-powered grading agent
+│       ├── pdf_annotator.py       # ReportLab PDF generator
+│       └── pdf_preview_service.py # PDF to image thumbnail service
 ```
 
-### API Endpoints
+#### Frontend (Next.js)
+```
+grader-frontend/
+├── src/
+│   ├── app/                 # Next.js App Router (page.tsx)
+│   ├── components/          # Reusable UI components (RubricEditor, GradingResults, etc.)
+│   └── lib/                 # Utility functions and API client (api.ts)
+```
 
-| Endpoint | Purpose | Status |
-|----------|---------|--------|
-| `POST /preview_rubric_pdf` | Split PDF into pages for selection | Placeholder |
-| `POST /extract_rubric` | Extract rubric with page mappings | Placeholder |
-| `GET /get_rubric` | Retrieve rubric by ID | Placeholder |
-| `POST /create_grade_test` | Grade student test | Placeholder |
-| `GET /get_graded_tests_jsons` | Get graded test results | Placeholder |
-| `POST /annotate_pdf_test` | Create annotated PDF | Placeholder |
-| `GET /get_graded_tests_pdfs` | Get annotated PDFs | Placeholder |
+### API Endpoints (`/api/v0/grading/...`)
 
-### Core Services (Implemented)
+| Endpoint | Method | Purpose | Implementation |
+|----------|--------|---------|----------------|
+| `/list_rubrics` | `GET` | List all saved rubrics | ✅ Implemented |
+| `/preview_rubric_pdf` | `POST` | Generate thumbnails for rubric PDF | ✅ Implemented |
+| `/extract_rubric` | `POST` | Extract structured rubric using Vision AI | ✅ Implemented |
+| `/save_rubric` | `POST` | Save reviewed rubric to database | ✅ Implemented |
+| `/get_rubric` | `GET` | Retrieve rubric by ID | ✅ Implemented |
+| `/preview_student_test_pdf` | `POST` | Thumbnails and name extraction for student test | ✅ Implemented |
+| `/grade_tests` | `POST` | Batch grade multiple student tests | ✅ Implemented |
+| `/create_grade_test` | `POST` | Grade a single student test | ✅ Implemented |
+| `/get_graded_tests` | `GET` | List all graded tests for a rubric | ✅ Implemented |
+| `/annotate_pdf_test` | `POST` | Create annotated PDF for a graded test | ✅ Implemented |
+| `/get_graded_pdfs` | `GET` | List all graded PDFs for a rubric | ✅ Implemented |
 
-- **Vision-based PDF parsing** - GPT-4o extracts text/code from PDF screenshots
-- **LangGraph grading agent** - Grades answers against rubric criteria
-- **PDF annotation** - Creates graded PDFs with cover pages
+### Core Services
 
----
-
-## Next Steps
-
-### 1. Backend Implementation
-- [ ] Implement endpoint logic in `api/v0/grading.py`
-- [ ] Implement GCS upload/download in `annotation_service.py`
-- [ ] Add PDF preview service (split PDF to thumbnails)
-- [ ] Set up Supabase database and run migrations
-
-### 2. Frontend Development
-- [ ] Create React/Next.js frontend
-- [ ] Rubric upload + page selection UI
-- [ ] Rubric validation/editing interface
-- [ ] Student test upload (batch)
-- [ ] Grading results review/validation UI
-- [ ] Download annotated PDFs
-
-### 3. Infrastructure
-- [ ] Update Dockerfile for new structure
-- [ ] Deploy to Cloud Run
-- [ ] Set up Supabase project
-- [ ] Configure GCS bucket for PDFs
+- **Vision-based PDF parsing** - GPT-4o processes PDF screenshots to extract text/code with high accuracy.
+- **LangGraph grading agent** - Advanced multi-step grading logic that maps student answers to rubric criteria.
+- **PDF annotation** - Generates profesional graded PDFs with cover pages and inline feedback.
+- **RTL Support** - Built-in support for Hebrew (RTL) in both the UI and generated PDFs.
 
 ---
 
 ## Environment Variables
 
+### Backend (`grader-vision-update/.env`)
 ```env
-# Required
+# AI Configuration
 OPENAI_API_KEY=sk-...
-DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/db
-GCS_BUCKET_NAME=your-bucket
+OPENAI_MODEL=gpt-4o
 
-# Optional
+# Database Configuration
+DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/db
+
+# Infrastructure
 GOOGLE_CLOUD_PROJECT=your-project
+GCS_BUCKET_NAME=grader-vision-pdfs
+TEACHER_EMAIL=your-email@example.com
+
+# App Settings
+APP_ENV=development
 LOG_LEVEL=INFO
+```
+
+### Frontend (`grader-frontend/.env.local`)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
 ## Tech Stack
 
-- **Backend**: FastAPI, SQLAlchemy (async), Pydantic
-- **Database**: Supabase (PostgreSQL)
-- **Storage**: Google Cloud Storage
-- **AI**: OpenAI GPT-4o (vision), LangGraph
-- **PDF Processing**: pdf2image, PyPDF2, ReportLab
+- **Backend**: FastAPI, SQLAlchemy (Async), Pydantic, PostgreSQL
+- **Frontend**: Next.js 14, React, Tailwind CSS, Lucide React
+- **AI**: OpenAI GPT-4o (Vision), LangGraph
+- **PDF**: pdf2image, ReportLab, PyPDF2
+- **Storage**: Google Cloud Storage (GCS)
+- **Infrastructure**: Docker, Google Cloud Run
+
+---
+
+## Local Development
+
+Follow these steps to set up and run the application on your local machine.
+
+### System Dependencies
+
+1. **Python 3.11+**: Ensure you have Python installed.
+2. **Node.js 18+**: Required for the frontend.
+3. **Poppler**: Required by `pdf2image` for PDF processing.
+   - **Windows**: Download from [poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases) and add the `bin` folder to your system PATH.
+   - **macOS**: `brew install poppler`
+   - **Linux**: `sudo apt-get install poppler-utils`
+
+### Backend Setup
+
+1. **Navigate to backend directory**:
+   ```bash
+   cd grader-vision-update
+   ```
+2. **Create and activate virtual environment**:
+   ```bash
+   python -m venv .venv
+   # Windows:
+   .\.venv\Scripts\activate
+   # macOS/Linux:
+   source .venv/bin/activate
+   ```
+3. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. **Configure environment**:
+   Create a `.env` file based on the template in the [Environment Variables](#environment-variables) section.
+5. **Run the server**:
+   ```bash
+   python -m uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+   ```
+
+### Frontend Setup
+
+1. **Navigate to frontend directory**:
+   ```bash
+   cd grader-frontend
+   ```
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+3. **Configure environment**:
+   Create a `.env.local` file with:
+   ```env
+   NEXT_PUBLIC_API_URL=http://localhost:8080
+   ```
+4. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
+   The app will be available at `http://localhost:3000`.
+
+---
+
+## Next Steps
+
+### 1. Finalize GCS Integration
+- [ ] Complete `upload_pdf_to_gcs` and `download_pdf_from_gcs` implementations in `annotation_service.py`.
+- [ ] Implement signed URL generation for secure PDF downloads.
+
+### 2. Infrastructure & Deployment
+- [ ] Configure CI/CD pipeline for Cloud Run deployment.
+- [ ] Set up Supabase project with automated migrations.
+- [ ] Verify GCS bucket permissions.
+
+### 3. UX Enhancements
+- [ ] Add real-time grading progress updates via WebSockets or polling.
+- [ ] Improve student name detection accuracy.
+- [ ] Add support for "re-grading" specific questions.

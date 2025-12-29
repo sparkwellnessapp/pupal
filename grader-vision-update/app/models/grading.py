@@ -78,6 +78,20 @@ class GradedTest(Base):
         ],
         "low_confidence_items": [...]
     }
+    
+    The student_answers_json contains the transcribed student answers:
+    {
+        "student_name": "...",
+        "filename": "...",
+        "answers": [
+            {
+                "question_number": 1,
+                "sub_question_id": null,
+                "answer_text": "code..."
+            },
+            ...
+        ]
+    }
     """
     __tablename__ = "graded_tests"
     
@@ -94,6 +108,9 @@ class GradedTest(Base):
     total_score = Column(Float, nullable=False)
     total_possible = Column(Float, nullable=False)
     percentage = Column(Float, nullable=False)
+    
+    # Student answers (transcribed code) - NEW COLUMN
+    student_answers_json = Column(JSON, nullable=True)
     
     # Relationships
     rubric = relationship("Rubric", back_populates="graded_tests")

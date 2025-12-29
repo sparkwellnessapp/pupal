@@ -22,7 +22,17 @@ from ...services.grading_service import (
     save_graded_test,
     get_graded_tests_by_rubric_id,
 )
-from ...services.rubric_service import get_rubric_by_id
+from ...services.rubric_service import (
+    get_rubric_by_id,
+    extract_rubric_with_page_mappings,
+    save_rubric as save_rubric_to_db,
+    list_rubrics as list_rubrics_service,
+)
+from ...services.document_parser import (
+    pdf_to_images,
+    image_to_base64,
+    extract_student_name_from_page,
+)
 from ...schemas.grading import (
     # Preview schemas
     PagePreview,
@@ -353,8 +363,6 @@ async def preview_student_test_pdf(
         preview_data = generate_pdf_previews(pdf_bytes)
         
         # Try to extract student name from first page
-        from ...services.document_parser import pdf_to_images, image_to_base64, extract_student_name_from_page
-        
         detected_name = None
         try:
             images = pdf_to_images(pdf_bytes, dpi=100)
@@ -482,18 +490,32 @@ async def grade_tests(
             student_tests=parsed_tests,
         )
         
+        # Build a lookup map for parsed tests by student name/filename
+        # This lets us match grading results back to their original parsed answers
+        parsed_tests_lookup: Dict[str, Dict[str, Any]] = {}
+        for parsed in parsed_tests:
+            # Use filename as primary key, student_name as fallback
+            key = parsed.get("filename") or parsed.get("student_name", "")
+            if key:
+                parsed_tests_lookup[key] = parsed
+        
         # Save results to database
         saved_tests = []
         save_errors = []
         
         for result in grading_results.get("graded_results", []):
             try:
+                # Find the matching parsed test to get student answers
+                result_key = result.get("filename") or result.get("student_name", "")
+                student_answers = parsed_tests_lookup.get(result_key)
+                
                 # Use a fresh session for each save to avoid connection issues
                 async with AsyncSessionLocal() as save_db:
                     saved = await save_graded_test(
                         db=save_db,
                         rubric_id=rubric_id,
                         grading_result=result,
+                        student_answers=student_answers,  # NEW: pass student answers
                     )
                     saved_tests.append(GradedTestResponse(
                         id=saved.id,
@@ -505,6 +527,7 @@ async def grade_tests(
                         total_possible=saved.total_possible,
                         percentage=saved.percentage,
                         graded_json=saved.graded_json,
+                        student_answers_json=saved.student_answers_json,  # NEW: include in response
                     ))
             except Exception as e:
                 logger.error(f"Error saving graded test: {e}")

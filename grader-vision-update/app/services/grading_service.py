@@ -170,6 +170,7 @@ async def save_graded_test(
     db: AsyncSession,
     rubric_id: UUID,
     grading_result: Dict[str, Any],
+    student_answers: Optional[Dict[str, Any]] = None,
 ) -> GradedTest:
     """
     Save a graded test to the database.
@@ -178,12 +179,14 @@ async def save_graded_test(
         db: Database session
         rubric_id: ID of the rubric used for grading
         grading_result: The full grading result dictionary
+        student_answers: The parsed student answers (code transcriptions)
         
     Returns:
         The created GradedTest model instance
     """
     # Sanitize data to ensure it's valid JSON for database
     sanitized_result = sanitize_for_json(grading_result)
+    sanitized_answers = sanitize_for_json(student_answers) if student_answers else None
     
     graded_test = GradedTest(
         rubric_id=rubric_id,
@@ -193,6 +196,7 @@ async def save_graded_test(
         total_score=sanitized_result.get("total_score", 0),
         total_possible=sanitized_result.get("total_possible", 0),
         percentage=sanitized_result.get("percentage", 0),
+        student_answers_json=sanitized_answers,
     )
     
     db.add(graded_test)

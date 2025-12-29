@@ -357,6 +357,7 @@ class GradeTestsResponse(BaseModel):
     failed: int
     graded_tests: List['GradedTestResponse'] = Field(default_factory=list)
     errors: List[str] = Field(default_factory=list)
+    
 
 
 # =============================================================================
@@ -398,6 +399,7 @@ class GradedTestResponse(BaseModel):
     total_possible: float
     percentage: float
     graded_json: Dict[str, Any]
+    student_answers_json: Optional[Dict[str, Any]] = None
     
     class Config:
         from_attributes = True

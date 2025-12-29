@@ -13,23 +13,23 @@ logger = logging.getLogger(__name__)
 
 def generate_pdf_previews(
     pdf_bytes: bytes,
-    thumbnail_max_size: int = 400,
-    dpi: int = 100,
+    thumbnail_max_size: int = 1000,
+    dpi: int = 125,
 ) -> Dict[str, Any]:
     """
     Generate page previews for a PDF file.
     
     Args:
         pdf_bytes: The PDF file as bytes
-        thumbnail_max_size: Maximum dimension for thumbnails
-        dpi: DPI for rendering (lower = smaller thumbnails, faster)
+        thumbnail_max_size: Maximum dimension for thumbnails (1200 for good expanded view)
+        dpi: DPI for rendering (150 = good balance of quality and speed)
         
     Returns:
         Dictionary with page_count and list of page previews
     """
     logger.info("Generating PDF page previews...")
     
-    # Convert PDF to images at lower DPI for thumbnails
+    # Convert PDF to images
     images = pdf_to_images(pdf_bytes, dpi=dpi)
     
     pages = []

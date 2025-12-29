@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     teacher_email: str
     
     # Application settings
-    app_env: str = "production"
+    app_env: str = "development"
     api_host: str = "0.0.0.0"
     api_port: int = 8080
     log_level: str = "INFO"
