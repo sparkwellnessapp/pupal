@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { GradedTestResult } from '@/lib/api';
+import { GradedTestResult, StudentAnswer } from '@/lib/api';
 import {
   ChevronDown,
   ChevronUp,
@@ -10,6 +10,7 @@ import {
   AlertCircle,
   User,
   FileText,
+  Code,
 } from 'lucide-react';
 
 interface GradingResultsProps {
@@ -47,6 +48,8 @@ export function GradingResults({
 }: GradingResultsProps) {
   const [expandedTests, setExpandedTests] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
+  // Changed: track COLLAPSED code sections instead of expanded (so default = shown)
+  const [collapsedCode, setCollapsedCode] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (testId: string) => {
     const newExpanded = new Set(Array.from(expandedTests));
@@ -61,15 +64,22 @@ export function GradingResults({
   const toggleQuestion = (key: string) => {
     const newExpanded = new Set(Array.from(expandedQuestions));
     if (newExpanded.has(key)) {
-      newExpanded.add(key);
+      newExpanded.delete(key);
     } else {
       newExpanded.add(key);
     }
-    // Toggle: if exists remove, else add
-    if (expandedQuestions.has(key)) {
-      newExpanded.delete(key);
-    }
     setExpandedQuestions(newExpanded);
+  };
+
+  const toggleCode = (key: string) => {
+    // Changed: toggle in collapsedCode set (inverted logic)
+    const newCollapsed = new Set(Array.from(collapsedCode));
+    if (newCollapsed.has(key)) {
+      newCollapsed.delete(key);
+    } else {
+      newCollapsed.add(key);
+    }
+    setCollapsedCode(newCollapsed);
   };
 
   const getScoreColor = (percentage: number) => {
@@ -92,6 +102,18 @@ export function GradingResults({
       return <XCircle size={16} className="text-red-500" />;
     }
     return <AlertCircle size={16} className="text-yellow-500" />;
+  };
+
+  // Get all answers for a question (including sub-questions)
+  const getQuestionAnswers = (
+    result: GradedTestResult,
+    questionNumber: number
+  ): StudentAnswer[] => {
+    if (!result.student_answers_json?.answers) return [];
+
+    return result.student_answers_json.answers.filter(
+      (a: StudentAnswer) => a.question_number === questionNumber
+    );
   };
 
   // Group grades by question if not already grouped
@@ -243,7 +265,11 @@ export function GradingResults({
                         {questionGrades.map((qg) => {
                           const qScore = getQuestionScore(qg.grades);
                           const qKey = `${result.id}-q${qg.question_number}`;
+                          const codeKey = `${result.id}-code${qg.question_number}`;
                           const isExpanded = expandedQuestions.has(qKey);
+                          // Changed: code is shown by default (when NOT in collapsedCode set)
+                          const isCodeExpanded = !collapsedCode.has(codeKey);
+                          const questionAnswers = getQuestionAnswers(result, qg.question_number);
 
                           return (
                             <div
@@ -281,58 +307,111 @@ export function GradingResults({
                                 </div>
                               </div>
 
-                              {/* Question grades table */}
+                              {/* Expanded question content */}
                               {isExpanded && (
-                                <div className="border-t border-surface-100 overflow-x-auto">
-                                  <table className="w-full text-sm">
-                                    <thead>
-                                      <tr className="border-b border-surface-200 bg-surface-50">
-                                        <th className="text-right py-2 px-3 font-medium text-gray-600">קריטריון</th>
-                                        <th className="text-center py-2 px-2 font-medium text-gray-600 w-12">ציון</th>
-                                        <th className="text-center py-2 px-2 font-medium text-gray-600 w-20">נקודות</th>
-                                        <th className="text-right py-2 px-3 font-medium text-gray-600">הסבר</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {qg.grades.map((grade, i) => (
-                                        <tr
-                                          key={i}
-                                          className={`border-b border-surface-100 hover:bg-surface-50 ${grade.confidence === 'low' ? 'bg-amber-50/50' : ''
-                                            }`}
-                                        >
-                                          <td className="py-2 px-3">
-                                            <span className="text-gray-700">{grade.criterion || 'קריטריון לא מזוהה'}</span>
-                                          </td>
-                                          <td className="py-2 px-2 text-center">
-                                            <div className="flex items-center justify-center">
-                                              {getMarkIcon(grade.mark)}
-                                            </div>
-                                          </td>
-                                          <td className="py-2 px-2 text-center">
-                                            <span className={
-                                              grade.points_earned === grade.points_possible
-                                                ? 'text-green-600 font-medium'
-                                                : grade.points_earned === 0
-                                                  ? 'text-red-600'
-                                                  : 'text-yellow-600'
-                                            }>
-                                              {grade.points_earned}/{grade.points_possible}
-                                            </span>
-                                          </td>
-                                          <td className="py-2 px-3 text-gray-500 text-xs">
-                                            <div className="flex items-start gap-1">
-                                              <span>{grade.explanation || '-'}</span>
-                                              {grade.confidence && grade.confidence !== 'high' && (
-                                                <span className="text-amber-500 whitespace-nowrap" title={grade.low_confidence_reason}>
-                                                  ({grade.confidence})
-                                                </span>
+                                <div className="border-t border-surface-100">
+                                  {/* Student Code Section */}
+                                  {questionAnswers.length > 0 && (
+                                    <div className="border-b border-surface-100">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleCode(codeKey);
+                                        }}
+                                        className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 transition-colors"
+                                      >
+                                        <div className="flex items-center gap-2 text-slate-600">
+                                          <Code size={16} />
+                                          <span className="text-sm font-medium">תשובת התלמיד</span>
+                                        </div>
+                                        {isCodeExpanded ? (
+                                          <ChevronUp size={16} className="text-slate-400" />
+                                        ) : (
+                                          <ChevronDown size={16} className="text-slate-400" />
+                                        )}
+                                      </button>
+
+                                      {isCodeExpanded && (
+                                        <div className="p-3 bg-slate-900 max-h-[400px] overflow-auto">
+                                          {questionAnswers.map((answer, idx) => (
+                                            <div key={idx} className="mb-4 last:mb-0">
+                                              {answer.sub_question_id && (
+                                                <div className="text-xs text-slate-400 mb-1">
+                                                  סעיף {answer.sub_question_id}
+                                                </div>
                                               )}
+                                              <pre
+                                                className="text-sm text-slate-100 font-mono whitespace-pre-wrap break-words"
+                                                dir="ltr"
+                                              >
+                                                {answer.answer_text || '(ללא תשובה)'}
+                                              </pre>
                                             </div>
-                                          </td>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Grades table */}
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="border-b border-surface-200 bg-surface-50">
+                                          <th className="text-right py-2 px-3 font-medium text-gray-600">קריטריון</th>
+                                          <th className="text-center py-2 px-2 font-medium text-gray-600 w-12">ציון</th>
+                                          <th className="text-center py-2 px-2 font-medium text-gray-600 w-20">נקודות</th>
+                                          <th className="text-right py-2 px-3 font-medium text-gray-600">הסבר</th>
                                         </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                                      </thead>
+                                      <tbody>
+                                        {qg.grades.map((grade, i) => (
+                                          <tr
+                                            key={i}
+                                            className={`border-b border-surface-100 hover:bg-surface-50 ${grade.confidence === 'low' ? 'bg-amber-50/50' : ''
+                                              }`}
+                                          >
+                                            <td className="py-2 px-3">
+                                              <div className="flex items-start gap-1">
+                                                {grade.sub_question_id && (
+                                                  <span className="text-xs text-gray-400 font-medium">
+                                                    ({grade.sub_question_id})
+                                                  </span>
+                                                )}
+                                                <span className="text-gray-700">{grade.criterion || 'קריטריון לא מזוהה'}</span>
+                                              </div>
+                                            </td>
+                                            <td className="py-2 px-2 text-center">
+                                              <div className="flex items-center justify-center">
+                                                {getMarkIcon(grade.mark)}
+                                              </div>
+                                            </td>
+                                            <td className="py-2 px-2 text-center">
+                                              <span className={
+                                                grade.points_earned === grade.points_possible
+                                                  ? 'text-green-600 font-medium'
+                                                  : grade.points_earned === 0
+                                                    ? 'text-red-600'
+                                                    : 'text-yellow-600'
+                                              }>
+                                                {grade.points_earned}/{grade.points_possible}
+                                              </span>
+                                            </td>
+                                            <td className="py-2 px-3 text-gray-500 text-xs">
+                                              <div className="flex items-start gap-1">
+                                                <span>{grade.explanation || '-'}</span>
+                                                {grade.confidence && grade.confidence !== 'high' && (
+                                                  <span className="text-amber-500 whitespace-nowrap" title={grade.low_confidence_reason}>
+                                                    ({grade.confidence})
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
                                 </div>
                               )}
                             </div>

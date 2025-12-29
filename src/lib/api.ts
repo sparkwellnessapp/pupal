@@ -128,6 +128,19 @@ export interface AnswerPageMapping {
   page_indexes: number[];
 }
 
+// Student answer structure (transcribed code)
+export interface StudentAnswer {
+  question_number: number;
+  sub_question_id: string | null;
+  answer_text: string;
+}
+
+export interface StudentAnswersJson {
+  student_name: string;
+  filename: string;
+  answers: StudentAnswer[];
+}
+
 export interface GradedTestResult {
   id: string;
   rubric_id: string;
@@ -165,6 +178,8 @@ export interface GradedTestResult {
     }>;
     low_confidence_items?: string[];
   };
+  // NEW: Student answers (transcribed code)
+  student_answers_json?: StudentAnswersJson;
 }
 
 export interface GradeTestsResponse {

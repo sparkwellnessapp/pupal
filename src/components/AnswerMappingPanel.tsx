@@ -30,7 +30,7 @@ export function AnswerMappingPanel({
   // Initialize mappings from rubric structure if empty
   const initializeMappings = () => {
     const newMappings: AnswerPageMapping[] = [];
-    
+
     for (const question of rubric.rubric_json.questions) {
       if (question.sub_questions && question.sub_questions.length > 0) {
         // Question has sub-questions
@@ -50,7 +50,7 @@ export function AnswerMappingPanel({
         });
       }
     }
-    
+
     onMappingsChange(newMappings);
   };
 
@@ -68,9 +68,9 @@ export function AnswerMappingPanel({
 
   const getMappingLabel = (mapping: AnswerPageMapping) => {
     if (mapping.sub_question_id) {
-      return `שאלה ${mapping.question_number} סעיף ${mapping.sub_question_id}`;
+      return `תשובה ${mapping.question_number} סעיף ${mapping.sub_question_id}`;
     }
-    return `שאלה ${mapping.question_number}`;
+    return `תשובה ${mapping.question_number}`;
   };
 
   const getQuestionPoints = (mapping: AnswerPageMapping) => {
@@ -78,14 +78,14 @@ export function AnswerMappingPanel({
       (q) => q.question_number === mapping.question_number
     );
     if (!question) return 0;
-    
+
     if (mapping.sub_question_id && question.sub_questions) {
       const sq = question.sub_questions.find(
         (s) => s.sub_question_id === mapping.sub_question_id
       );
       return sq?.criteria?.reduce((sum, c) => sum + c.points, 0) || 0;
     }
-    
+
     return question.total_points || 0;
   };
 
@@ -144,11 +144,10 @@ export function AnswerMappingPanel({
         {mappings.map((mapping, index) => (
           <div
             key={index}
-            className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
-              isAssignmentActive(index)
+            className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${isAssignmentActive(index)
                 ? 'bg-green-50 border-green-300'
                 : 'bg-white border-surface-200'
-            }`}
+              }`}
           >
             <button
               onClick={() =>
@@ -161,7 +160,7 @@ export function AnswerMappingPanel({
               <Code size={14} />
               {getMappingLabel(mapping)}
             </button>
-            
+
             <span className="text-xs text-gray-400">
               ({getQuestionPoints(mapping)} נק׳)
             </span>
