@@ -116,6 +116,8 @@ class PagePreview(BaseModel):
     thumbnail_base64: str = Field(..., description="Base64-encoded thumbnail image (PNG)")
     width: int = Field(..., description="Original page width in pixels")
     height: int = Field(..., description="Original page height in pixels")
+    page_pdf_url: Optional[str] = Field(None, description="Signed URL to individual page PDF")
+
 
 
 class PreviewRubricPdfResponse(BaseModel):

@@ -156,3 +156,13 @@ cython_debug/
 
 # VS Code
 .vscode/
+
+docs.md
+
+# Google Cloud Credentials
+gen-lang-client-*.json
+*.json
+!cors-config.json
+!package.json
+!tsconfig.json
+!next.config.json

@@ -62,6 +62,9 @@ from ...schemas.grading import (
     # Error
     ErrorResponse,
 )
+from ...services.gcs_service import get_gcs_service
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +149,25 @@ async def preview_rubric_pdf(
             )
             for p in preview_data["pages"]
         ]
+
+        # Upload PDF pages to GCS and get signed URLs
+        try:
+            gcs = get_gcs_service()
+            _, page_paths = gcs.upload_pdf_with_pages(
+                pdf_bytes, 
+                file.filename or "rubric.pdf",
+                folder="rubric-previews"
+            )
+            page_urls = gcs.get_signed_urls_for_pages(page_paths, expiration_minutes=120)
+            
+            # Add URLs to page previews
+            for i, page in enumerate(pages):
+                if i < len(page_urls):
+                    page.page_pdf_url = page_urls[i]
+                    
+        except Exception as e:
+            logger.warning(f"Failed to upload PDF pages to GCS: {e}")
+            # Graceful degradation - pages still work without URLs
         
         return PreviewRubricPdfResponse(
             filename=file.filename,
