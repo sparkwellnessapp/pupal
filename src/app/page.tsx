@@ -40,7 +40,8 @@ import {
 } from 'lucide-react';
 
 type MainMode = 'select' | 'rubric' | 'grading';
-type RubricStep = 'upload' | 'map' | 'review' | 'saved';
+// Added 'extracting' step between 'map' and 'review'
+type RubricStep = 'upload' | 'map' | 'extracting' | 'review' | 'saved';
 type GradingStep = 'select_rubric' | 'upload_batch' | 'map_answers' | 'grading' | 'results';
 
 interface ActiveRubricAssignment {
@@ -57,6 +58,13 @@ interface GradingProgress {
   current: number;
   total: number;
   currentFileName: string;
+}
+
+// NEW: Extraction progress tracking
+interface ExtractionProgress {
+  currentQuestion: number;
+  totalQuestions: number;
+  stage: 'preparing' | 'extracting_question' | 'extracting_criteria' | 'finalizing';
 }
 
 // Store mapping for each test
@@ -79,6 +87,8 @@ export default function Home() {
   const [extractedQuestions, setExtractedQuestions] = useState<ExtractedQuestion[]>([]);
   const [rubricName, setRubricName] = useState('');
   const [savedRubricId, setSavedRubricId] = useState<string | null>(null);
+  // NEW: Extraction progress
+  const [extractionProgress, setExtractionProgress] = useState<ExtractionProgress | null>(null);
 
   // Grading Flow State
   const [gradingStep, setGradingStep] = useState<GradingStep>('select_rubric');
@@ -177,18 +187,68 @@ export default function Home() {
     return hasQuestionPages && hasCriteria && subQuestionsValid;
   });
 
+  // UPDATED: Extract rubric with progress tracking
   const handleExtractRubric = async () => {
     if (!rubricFile || !canExtractRubric) return;
-    setIsLoading(true);
+
+    // Switch to extracting step first
+    setRubricStep('extracting');
     setError(null);
+
+    // Initialize progress
+    const totalQuestions = rubricMappings.length;
+    setExtractionProgress({
+      currentQuestion: 0,
+      totalQuestions,
+      stage: 'preparing'
+    });
+
+    // Simulate progress updates while extraction happens
+    // (The actual extraction is a single API call, but we show estimated progress)
+    const progressInterval = setInterval(() => {
+      setExtractionProgress(prev => {
+        if (!prev) return null;
+
+        // Cycle through stages with estimated timing
+        if (prev.stage === 'preparing') {
+          return { ...prev, stage: 'extracting_question', currentQuestion: 1 };
+        }
+
+        if (prev.stage === 'extracting_question') {
+          return { ...prev, stage: 'extracting_criteria' };
+        }
+
+        if (prev.stage === 'extracting_criteria') {
+          if (prev.currentQuestion < prev.totalQuestions) {
+            return {
+              ...prev,
+              stage: 'extracting_question',
+              currentQuestion: prev.currentQuestion + 1
+            };
+          } else {
+            return { ...prev, stage: 'finalizing' };
+          }
+        }
+
+        return prev;
+      });
+    }, 2000); // Update every 2 seconds
+
     try {
-      const response = await extractRubric(rubricFile, { name: rubricName || undefined, question_mappings: rubricMappings });
+      const response = await extractRubric(rubricFile, {
+        name: rubricName || undefined,
+        question_mappings: rubricMappings
+      });
+
+      clearInterval(progressInterval);
       setExtractedQuestions(response.questions);
+      setExtractionProgress(null);
       setRubricStep('review');
     } catch (err) {
+      clearInterval(progressInterval);
+      setExtractionProgress(null);
       setError(err instanceof Error ? err.message : 'שגיאה בחילוץ המחוון');
-    } finally {
-      setIsLoading(false);
+      setRubricStep('map'); // Go back to mapping on error
     }
   };
 
@@ -402,6 +462,7 @@ export default function Home() {
     setRubricMappings([]);
     setExtractedQuestions([]);
     setRubricName('');
+    setExtractionProgress(null);
     setGradingStep('select_rubric');
     setSelectedRubric(null);
     setTestFiles([]);
@@ -410,6 +471,22 @@ export default function Home() {
     setGradingResults([]);
     setGradingProgress(null);
     setError(null);
+  };
+
+  // Get stage message for extraction progress
+  const getExtractionStageMessage = (progress: ExtractionProgress): string => {
+    switch (progress.stage) {
+      case 'preparing':
+        return 'מכין את החילוץ...';
+      case 'extracting_question':
+        return `מחלץ טקסט שאלה ${progress.currentQuestion}...`;
+      case 'extracting_criteria':
+        return `מחלץ קריטריונים לשאלה ${progress.currentQuestion}...`;
+      case 'finalizing':
+        return 'מסיים את החילוץ...';
+      default:
+        return 'מחלץ מחוון...';
+    }
   };
 
   // Back button component
@@ -535,10 +612,66 @@ export default function Home() {
               </div>
             )}
 
+            {/* NEW: Extracting step with progress */}
+            {rubricStep === 'extracting' && (
+              <div className="max-w-xl mx-auto animate-fade-in">
+                <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                  <Loader2 className="mx-auto text-primary-500 mb-4 animate-spin" size={64} />
+                  <h2 className="text-xl font-semibold text-gray-800">מחלץ מחוון...</h2>
+
+                  {extractionProgress && (
+                    <div className="mt-6 space-y-4">
+                      {/* Progress bar */}
+                      <div className="w-full bg-surface-200 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="bg-primary-500 h-3 rounded-full transition-all duration-500 ease-out"
+                          style={{
+                            width: `${Math.min(
+                              ((extractionProgress.currentQuestion - 0.5 +
+                                (extractionProgress.stage === 'extracting_criteria' ? 0.5 : 0)) /
+                                extractionProgress.totalQuestions) * 100,
+                              95
+                            )}%`
+                          }}
+                        />
+                      </div>
+
+                      {/* Progress text */}
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-2xl font-bold text-primary-600">
+                          {extractionProgress.currentQuestion}
+                        </span>
+                        <span className="text-gray-400">/</span>
+                        <span className="text-lg text-gray-500">
+                          {extractionProgress.totalQuestions}
+                        </span>
+                        <span className="text-sm text-gray-400 mr-2">שאלות</span>
+                      </div>
+
+                      {/* Stage message */}
+                      <p className="text-sm text-gray-500">
+                        {getExtractionStageMessage(extractionProgress)}
+                      </p>
+                    </div>
+                  )}
+
+                  <p className="mt-6 text-xs text-gray-400">
+                    החילוץ עשוי לקחת מספר דקות בהתאם למספר השאלות
+                  </p>
+                </div>
+              </div>
+            )}
+
             {rubricStep === 'review' && (
               <div className="animate-fade-in">
                 <div className="bg-white rounded-xl shadow-lg p-6">
-                  <RubricEditor questions={extractedQuestions} onQuestionsChange={setExtractedQuestions} />
+                  {/* Pass rubricPages and rubricMappings to RubricEditor */}
+                  <RubricEditor
+                    questions={extractedQuestions}
+                    onQuestionsChange={setExtractedQuestions}
+                    pages={rubricPages}
+                    questionMappings={rubricMappings}
+                  />
                   {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
                   <div className="mt-6 pt-4 border-t border-surface-200 flex items-center justify-between">
                     <BackButton onClick={() => setRubricStep('map')} />

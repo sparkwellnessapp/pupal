@@ -1,15 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { ExtractedQuestion, ExtractedSubQuestion, ExtractedCriterion } from '@/lib/api';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, AlertCircle } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { ExtractedQuestion, ExtractedSubQuestion, ExtractedCriterion, PagePreview, QuestionPageMapping } from '@/lib/api';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, AlertCircle, FileText, ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
 
 interface RubricEditorProps {
   questions: ExtractedQuestion[];
   onQuestionsChange: (questions: ExtractedQuestion[]) => void;
+  // NEW: PDF pages and mappings for inline display
+  pages?: PagePreview[];
+  questionMappings?: QuestionPageMapping[];
 }
 
-export function RubricEditor({ questions, onQuestionsChange }: RubricEditorProps) {
+export function RubricEditor({ questions, onQuestionsChange, pages, questionMappings }: RubricEditorProps) {
   const [expandedQuestions, setExpandedQuestions] = useState<Set<number>>(
     new Set(questions.map((_, i) => i))
   );
@@ -106,6 +109,28 @@ export function RubricEditor({ questions, onQuestionsChange }: RubricEditorProps
     });
   };
 
+  // Get page indexes for a question's text
+  const getQuestionPageIndexes = (questionNumber: number): number[] => {
+    if (!questionMappings) return [];
+    const mapping = questionMappings.find(m => m.question_number === questionNumber);
+    return mapping?.question_page_indexes || [];
+  };
+
+  // Get page indexes for a question's criteria
+  const getCriteriaPageIndexes = (questionNumber: number): number[] => {
+    if (!questionMappings) return [];
+    const mapping = questionMappings.find(m => m.question_number === questionNumber);
+    return mapping?.criteria_page_indexes || [];
+  };
+
+  // Get page indexes for a sub-question's criteria
+  const getSubQuestionCriteriaPageIndexes = (questionNumber: number, subQuestionId: string): number[] => {
+    if (!questionMappings) return [];
+    const mapping = questionMappings.find(m => m.question_number === questionNumber);
+    const subQ = mapping?.sub_questions.find(sq => sq.sub_question_id === subQuestionId);
+    return subQ?.criteria_page_indexes || [];
+  };
+
   const totalPoints = questions.reduce((sum, q) => sum + q.total_points, 0);
   const totalCriteria = questions.reduce((sum, q) => {
     return sum + q.criteria.length + q.sub_questions.reduce((s, sq) => s + sq.criteria.length, 0);
@@ -153,6 +178,13 @@ export function RubricEditor({ questions, onQuestionsChange }: RubricEditorProps
             {/* Question content */}
             {expandedQuestions.has(qIndex) && (
               <div className="p-4 space-y-4 border-t border-surface-200">
+                {/* PDF Pages for Question Text */}
+                <PdfPagesDisplay
+                  pages={pages}
+                  pageIndexes={getQuestionPageIndexes(question.question_number)}
+                  label="עמודי השאלה במקור"
+                />
+
                 {/* Question text */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -160,9 +192,25 @@ export function RubricEditor({ questions, onQuestionsChange }: RubricEditorProps
                   </label>
                   <textarea
                     value={question.question_text || ''}
-                    onChange={(e) => updateQuestion(qIndex, { question_text: e.target.value })}
-                    className="w-full p-3 border border-surface-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400"
-                    rows={3}
+                    onChange={(e) => {
+                      updateQuestion(qIndex, { question_text: e.target.value });
+                      // Auto-resize
+                      e.target.style.height = 'auto';
+                      e.target.style.height = Math.min(e.target.scrollHeight, 240) + 'px';
+                    }}
+                    onFocus={(e) => {
+                      // Ensure proper height on focus
+                      e.target.style.height = 'auto';
+                      e.target.style.height = Math.min(e.target.scrollHeight, 240) + 'px';
+                    }}
+                    ref={(el) => {
+                      // Auto-resize on initial render
+                      if (el) {
+                        el.style.height = 'auto';
+                        el.style.height = Math.min(el.scrollHeight, 240) + 'px';
+                      }
+                    }}
+                    className="w-full p-3 border border-surface-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400 overflow-y-auto min-h-[60px] max-h-[240px]"
                     placeholder="טקסט השאלה..."
                     dir="rtl"
                   />
@@ -188,13 +236,32 @@ export function RubricEditor({ questions, onQuestionsChange }: RubricEditorProps
                         {/* Sub-question text */}
                         <textarea
                           value={subQ.sub_question_text || ''}
-                          onChange={(e) =>
-                            updateSubQuestion(qIndex, sqIndex, { sub_question_text: e.target.value })
-                          }
-                          className="w-full p-2 border border-surface-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-primary-300"
-                          rows={2}
+                          onChange={(e) => {
+                            updateSubQuestion(qIndex, sqIndex, { sub_question_text: e.target.value });
+                            // Auto-resize
+                            e.target.style.height = 'auto';
+                            e.target.style.height = Math.min(e.target.scrollHeight, 180) + 'px';
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = Math.min(e.target.scrollHeight, 180) + 'px';
+                          }}
+                          ref={(el) => {
+                            if (el) {
+                              el.style.height = 'auto';
+                              el.style.height = Math.min(el.scrollHeight, 180) + 'px';
+                            }
+                          }}
+                          className="w-full p-2 border border-surface-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-primary-300 overflow-y-auto min-h-[40px] max-h-[180px]"
                           placeholder="טקסט הסעיף..."
                           dir="rtl"
+                        />
+
+                        {/* PDF Pages for Sub-question Criteria */}
+                        <PdfPagesDisplay
+                          pages={pages}
+                          pageIndexes={getSubQuestionCriteriaPageIndexes(question.question_number, subQ.sub_question_id)}
+                          label="טבלת קריטריונים במקור"
                         />
 
                         {/* Sub-question criteria */}
@@ -210,18 +277,218 @@ export function RubricEditor({ questions, onQuestionsChange }: RubricEditorProps
                     ))}
                   </div>
                 ) : (
-                  /* Direct criteria */
-                  <CriteriaList
-                    criteria={question.criteria}
-                    onUpdateCriterion={(cIndex, updates) => updateCriterion(qIndex, cIndex, updates)}
-                    onAddCriterion={() => addCriterion(qIndex)}
-                    onRemoveCriterion={(cIndex) => removeCriterion(qIndex, cIndex)}
-                  />
+                  <>
+                    {/* PDF Pages for Direct Criteria */}
+                    <PdfPagesDisplay
+                      pages={pages}
+                      pageIndexes={getCriteriaPageIndexes(question.question_number)}
+                      label="טבלת קריטריונים במקור"
+                    />
+
+                    {/* Direct criteria */}
+                    <CriteriaList
+                      criteria={question.criteria}
+                      onUpdateCriterion={(cIndex, updates) => updateCriterion(qIndex, cIndex, updates)}
+                      onAddCriterion={() => addCriterion(qIndex)}
+                      onRemoveCriterion={(cIndex) => removeCriterion(qIndex, cIndex)}
+                    />
+                  </>
                 )}
               </div>
             )}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// PDF Pages Display Component
+// =============================================================================
+
+interface PdfPagesDisplayProps {
+  pages?: PagePreview[];
+  pageIndexes: number[];
+  label: string;
+}
+
+function PdfPagesDisplay({ pages, pageIndexes, label }: PdfPagesDisplayProps) {
+  const [currentPageIdx, setCurrentPageIdx] = useState(0);
+  const [expandedPage, setExpandedPage] = useState<number | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  if (!pages || pageIndexes.length === 0) return null;
+
+  const relevantPages = pageIndexes
+    .filter(idx => idx >= 0 && idx < pages.length)
+    .map(idx => pages[idx]);
+
+  if (relevantPages.length === 0) return null;
+
+  const hasPdfUrls = relevantPages.some(p => p.page_pdf_url);
+  const hasMultiplePages = relevantPages.length > 1;
+
+  const goToPrevPage = () => {
+    setCurrentPageIdx(prev => Math.max(0, prev - 1));
+  };
+
+  const goToNextPage = () => {
+    setCurrentPageIdx(prev => Math.min(relevantPages.length - 1, prev + 1));
+  };
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <FileText size={16} className="text-primary-500" />
+          <span className="font-medium">{label}</span>
+          {hasMultiplePages && (
+            <span className="text-gray-400">
+              (עמוד {currentPageIdx + 1} מתוך {relevantPages.length})
+            </span>
+          )}
+        </div>
+
+        {/* Navigation arrows for multiple pages */}
+        {hasMultiplePages && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={goToPrevPage}
+              disabled={currentPageIdx === 0}
+              className="p-1 rounded hover:bg-surface-100 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={18} className="text-gray-500" />
+            </button>
+            <button
+              onClick={goToNextPage}
+              disabled={currentPageIdx === relevantPages.length - 1}
+              className="p-1 rounded hover:bg-surface-100 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft size={18} className="text-gray-500" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* PDF/Thumbnail Display */}
+      <div className="relative bg-surface-50 rounded-lg border border-surface-200 overflow-hidden">
+        {hasPdfUrls ? (
+          // Display PDF in iframe for text selection
+          <div className="relative">
+            <iframe
+              src={`${relevantPages[currentPageIdx].page_pdf_url}#toolbar=0&navpanes=0&zoom=55`}
+              className="w-full h-[320px] border-0"
+              title={`עמוד ${relevantPages[currentPageIdx].page_number}`}
+            />
+            {/* Expand button */}
+            <button
+              onClick={() => setExpandedPage(currentPageIdx)}
+              className="absolute top-2 left-2 p-1.5 bg-white/90 hover:bg-white rounded-lg shadow-md transition-colors"
+              title="הגדל"
+            >
+              <Maximize2 size={16} className="text-gray-600" />
+            </button>
+          </div>
+        ) : (
+          // Fallback to thumbnail display
+          <div className="relative">
+            <img
+              src={`data:image/png;base64,${relevantPages[currentPageIdx].thumbnail_base64}`}
+              alt={`עמוד ${relevantPages[currentPageIdx].page_number}`}
+              className="w-full max-h-[320px] object-contain"
+            />
+            {/* Expand button */}
+            <button
+              onClick={() => setExpandedPage(currentPageIdx)}
+              className="absolute top-2 left-2 p-1.5 bg-white/90 hover:bg-white rounded-lg shadow-md transition-colors"
+              title="הגדל"
+            >
+              <Maximize2 size={16} className="text-gray-600" />
+            </button>
+            {/* Note about text selection */}
+            <div className="absolute bottom-2 right-2 px-2 py-1 bg-amber-100/90 rounded text-xs text-amber-700">
+              תצוגה מקדימה - העתקת טקסט לא זמינה
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Page indicator dots for multiple pages */}
+      {hasMultiplePages && (
+        <div className="flex items-center justify-center gap-1.5 mt-2">
+          {relevantPages.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentPageIdx(idx)}
+              className={`w-2 h-2 rounded-full transition-colors ${idx === currentPageIdx
+                  ? 'bg-primary-500'
+                  : 'bg-surface-300 hover:bg-surface-400'
+                }`}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Expanded Modal */}
+      {expandedPage !== null && (
+        <PageExpandedModal
+          page={relevantPages[expandedPage]}
+          hasPdfUrl={!!relevantPages[expandedPage].page_pdf_url}
+          onClose={() => setExpandedPage(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Page Expanded Modal Component
+// =============================================================================
+
+interface PageExpandedModalProps {
+  page: PagePreview;
+  hasPdfUrl: boolean;
+  onClose: () => void;
+}
+
+function PageExpandedModal({ page, hasPdfUrl, onClose }: PageExpandedModalProps) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative bg-white rounded-xl overflow-hidden max-w-[95vw] max-h-[95vh] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 left-3 z-10 p-2 bg-white/90 hover:bg-white rounded-full shadow-lg transition-colors"
+        >
+          <X size={20} className="text-gray-600" />
+        </button>
+
+        {/* Page number badge */}
+        <div className="absolute top-3 right-3 z-10 px-3 py-1 bg-white/90 rounded-full shadow text-sm font-medium text-gray-700">
+          עמוד {page.page_number}
+        </div>
+
+        {/* Content */}
+        {hasPdfUrl && page.page_pdf_url ? (
+          <iframe
+            src={`${page.page_pdf_url}#toolbar=1&navpanes=0`}
+            className="w-[90vw] h-[90vh] border-0"
+            title={`עמוד ${page.page_number}`}
+          />
+        ) : (
+          <img
+            src={`data:image/png;base64,${page.thumbnail_base64}`}
+            alt={`עמוד ${page.page_number}`}
+            className="max-w-[90vw] max-h-[90vh] object-contain"
+          />
+        )}
       </div>
     </div>
   );
@@ -259,23 +526,22 @@ function CriteriaList({
 
       {criteria.length === 0 ? (
         <div className="text-center py-4 text-gray-400 text-sm bg-surface-50 rounded-lg">
-          אין קריטריונים. לחץ על "הוסף קריטריון" כדי להוסיף.
+          אין קריטריונים. לחץ על &quot;הוסף קריטריון&quot; כדי להוסיף.
         </div>
       ) : (
         <div className="space-y-2">
           {criteria.map((criterion, cIndex) => (
             <div
               key={cIndex}
-              className={`flex items-center gap-2 p-2 bg-surface-50 rounded-lg border ${
-                criterion.extraction_confidence === 'low'
+              className={`flex items-center gap-2 p-2 bg-surface-50 rounded-lg border ${criterion.extraction_confidence === 'low'
                   ? 'border-amber-300 bg-amber-50'
                   : criterion.extraction_confidence === 'medium'
-                  ? 'border-yellow-200 bg-yellow-50'
-                  : 'border-surface-200'
-              }`}
+                    ? 'border-yellow-200 bg-yellow-50'
+                    : 'border-surface-200'
+                }`}
             >
               <GripVertical size={16} className="text-gray-300 cursor-grab" />
-              
+
               {criterion.extraction_confidence !== 'high' && (
                 <AlertCircle
                   size={16}

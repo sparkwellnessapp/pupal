@@ -14,6 +14,8 @@ export interface PagePreview {
   thumbnail_base64: string;
   width: number;
   height: number;
+  // NEW: Signed URL to individual page PDF for text selection/copying
+  page_pdf_url?: string;
 }
 
 export interface PreviewRubricPdfResponse {
@@ -178,7 +180,7 @@ export interface GradedTestResult {
     }>;
     low_confidence_items?: string[];
   };
-  // NEW: Student answers (transcribed code)
+  // Student answers (transcribed code)
   student_answers_json?: StudentAnswersJson;
 }
 
