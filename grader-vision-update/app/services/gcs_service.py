@@ -97,6 +97,7 @@ class GCSService:
         signing_credentials = None
         has_local_key = settings.gcs_credentials_file and os.path.exists(settings.gcs_credentials_file)
         
+        # We only use impersonation if we have an email and NO local JSON key
         if self.service_account_email and not has_local_key:
             try:
                 # Create impersonated credentials using the source credentials
@@ -109,16 +110,23 @@ class GCSService:
                 )
                 logger.debug(f"Using impersonated credentials for remote signing: {self.service_account_email}")
             except Exception as e:
-                logger.warning(f"Failed to create impersonated credentials: {e}")
+                logger.warning(f"Failed to create impersonated credentials for {self.service_account_email}: {e}")
             
-        url = blob.generate_signed_url(
-            version="v4",
-            expiration=timedelta(minutes=expiration_minutes),
-            method="GET",
-            service_account_email=self.service_account_email,
-            credentials=signing_credentials
-        )
-        return url
+        try:
+            url = blob.generate_signed_url(
+                version="v4",
+                expiration=timedelta(minutes=expiration_minutes),
+                method="GET",
+                service_account_email=self.service_account_email,
+                credentials=signing_credentials
+            )
+            return url
+        except Exception as e:
+            # If V4 fails, provide a helpful error message about IAM permissions
+            error_msg = str(e)
+            if "iam.serviceAccounts.signBlob" in error_msg:
+                logger.error(f"IAM Permission Error: Ensure 'IAM Service Account Credentials API' is enabled and {self.service_account_email} has 'Service Account Token Creator' role on itself.")
+            raise e
     
     def split_pdf_to_pages(self, pdf_bytes: bytes) -> List[bytes]:
         """
