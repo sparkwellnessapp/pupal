@@ -62,7 +62,7 @@ CRITERIA_EXTRACTION_SYSTEM_PROMPT = """אתה מומחה בחילוץ קריטר
 3. אם יש מספר עמודות נקודות (כמו "מלא" ו"חלקי"), השתמש בערך המקסימלי
 4. שמור על הטקסט העברי במדויק
 
-פורמט פלט (JSON בלבד, ללא markdown):
+פורמט פלט חובה (JSON בלבד, ללא markdown וללא טקסט נוסף):
 {
   "total_points": 40,
   "criteria": [
@@ -71,7 +71,7 @@ CRITERIA_EXTRACTION_SYSTEM_PROMPT = """אתה מומחה בחילוץ קריטר
   ]
 }
 
-חלץ את כל הקריטריונים. אל תדלג על אף אחד."""
+חשוב: החזר אך ורק את ה-JSON. אל תוסיף הסברים או הערות."""
 
 
 # =============================================================================
@@ -116,7 +116,11 @@ def _extract_question_text(
         )
         
         cleaned = _clean_json_response(response)
-        data = json.loads(cleaned)
+        try:
+            data = json.loads(cleaned)
+        except json.JSONDecodeError as je:
+            logger.error(f"JSON parsing error for question {question_number}. Raw response: {response}")
+            raise je
         
         return {
             "question_text": data.get("question_text", ""),
@@ -158,7 +162,11 @@ def _extract_criteria(
         )
         
         cleaned = _clean_json_response(response)
-        data = json.loads(cleaned)
+        try:
+            data = json.loads(cleaned)
+        except json.JSONDecodeError as je:
+            logger.error(f"JSON parsing error for criteria {context}. Raw response: {response}")
+            raise je
         
         criteria = data.get("criteria", [])
         total_points = data.get("total_points") or sum(c.get("points", 0) for c in criteria)

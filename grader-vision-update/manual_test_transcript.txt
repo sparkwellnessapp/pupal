@@ -1,0 +1,149 @@
+דין עזרא - שאלה 3:
+internal class Course
+{
+    private string courseName;
+    private int numberStudents;
+    private int hours;
+    private bool isMandatory;
+}
+
+public Course(string courseName, int numberStudents, int hours, bool isMandatory)
+{
+    this.courseName = courseName;
+    this.numberStudents = numberStudents;
+    this.hours = hours;
+    this.isMandatory = isMandatory;
+}
+
+public Course(string courseName, int hours, bool isMandatory)
+{
+    this.courseName = courseName;
+    this.numberStudents = 0;
+    this.hours = hours;
+    this.isMandatory = isMandatory;
+}
+----------------------------------------------------
+static void main
+{
+    Course[]arrCourses = new Course[50];
+    int count = 0;
+    string courseName;
+    int numStudents;
+    int hours; bool isMandatory;
+    for(int i = 0; i < 30; i++)
+    {
+        console.writeLine("Enter details for your course");
+        console.writeLine("Enter course name");
+        courseName = console.ReadLine();
+        console.writeLine("Enter num of students");
+        numStudents = int.Parse(console.ReadLine());
+        console.writeLine("Enter course");
+        hours = int.Parse(console.ReadLine());
+        Console.WriteLine("enter is mandatory or not");
+        isMandatory = bool.Parse(Console.ReadLine());
+
+        Course h = new Course(courseName, numStudents, hours, isMandatory);
+        arrCourse[count] = h;
+    }
+    
+    int countCourse = 0;
+
+    for (int i = 0; i < count; i++)
+    {
+        if (arrCourse[i].getIsMandatory() &&
+        arrCourse[i].getNumStudents() > 25 &&
+        arrCourse[i].getHours() > 4)
+        {
+            countCourse++;
+        }
+    }
+    Console.WriteLine(countCourse);
+
+}
+
+
+
+
+----------------------------------------------------------------------
+רז כהן - שאלה 2 :
+
+public class Employee // א.
+{
+    private int id;             
+    private double salary;       
+    private bool isSenior;   
+
+    public Employee(int id, double salary, bool isSenior) // ב.
+    {
+        this.id = id;            
+        this.salary = salary;    
+        this.isSenior = isSenior;
+    }
+
+
+    public Employee(int id, double salary) // ג.
+    {
+        this.id = id;
+        this.salary = salary;
+        this.isSenior = false;   // לא ותיק
+    }
+
+
+    public double CalcMonthlySalary() // ד.
+    {
+    int add = 0;
+
+    if (isSenior == false)
+    {
+        return salary; // מחזיר משכורת
+    }
+    else
+    {
+        add = salary * 0.3;   // תוספת
+        salary += add;        // עדכון משכורת
+        return salary;        // מחזיר משכורת
+    }
+}
+
+    public class Department // ה.
+    {
+        private Employee[] arrEmployees; // עובדים
+        private int current;             // מונה
+
+        public bool AddEmployee(Employee e)
+        {
+            if (current < arrEmployees.Length)
+            {
+                arrEmployees[current] = new Employee(e.GetId(), e.GetSalary(), e.GetIsSenior());
+                current++;
+                return true; // נוסף בהצלחה
+            }
+            return false; // אין מקום
+        }
+    }
+
+    public static double CalcDepartmentMonthlyCost(Department dep) 
+    {
+    double sum = 0;
+    double price;
+
+    Employee[] employees = dep.GetArrEmployees();
+    int count = dep.GetCurrent();
+
+    for (int i = 0; i < count; i++)
+    {
+        if (dep.GetIsSenior() == false)
+        {
+            price = employeesGetSalary;
+        }
+        else
+        {
+            price = employees[i].GetSalary * 1.3;
+        }
+
+        sum += price;
+    }
+
+    return sum;
+
+

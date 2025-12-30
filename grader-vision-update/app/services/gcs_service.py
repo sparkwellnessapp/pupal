@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple
 from io import BytesIO
 
 from google.cloud import storage
+from google.auth import impersonated_credentials
 from PyPDF2 import PdfReader, PdfWriter
 
 from ..config import settings
@@ -22,15 +23,37 @@ class GCSService:
     
     def __init__(self):
         self.bucket_name = settings.gcs_bucket_name
+        self.service_account_email = None
         
         # Initialize client with credentials file if provided, else ADC
         if settings.gcs_credentials_file and os.path.exists(settings.gcs_credentials_file):
             self.client = storage.Client.from_service_account_json(settings.gcs_credentials_file)
+            # When using a JSON file, we can get the email directly
+            self.service_account_email = self.client.get_service_account_email()
             logger.info(f"GCS Service initialized with credentials file: {settings.gcs_credentials_file}")
         else:
             # Uses Application Default Credentials (works on Cloud Run automatically)
-            # For local dev, set GOOGLE_APPLICATION_CREDENTIALS env var to service account JSON path
             self.client = storage.Client()
+            
+            # On Cloud Run/GCE, if we don't have a JSON file, 
+            # we need to get the SA email to support V4 signing via IAM.
+            # The most reliable way is the metadata server.
+            try:
+                import httpx
+                with httpx.Client() as client:
+                    response = client.get(
+                        "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email",
+                        headers={"Metadata-Flavor": "Google"},
+                        timeout=2.0
+                    )
+                    if response.status_code == 200:
+                        self.service_account_email = response.text
+                        logger.info(f"Detected service account email from metadata: {self.service_account_email}")
+            except Exception:
+                # Fallback to credentials object
+                if hasattr(self.client._credentials, 'service_account_email'):
+                    self.service_account_email = self.client._credentials.service_account_email
+                    logger.info(f"Detected service account email from credentials: {self.service_account_email}")
             
         self.bucket = self.client.bucket(self.bucket_name)
         logger.info(f"GCS Service initialized with bucket: {self.bucket_name}")
@@ -68,10 +91,32 @@ class GCSService:
             Signed URL string
         """
         blob = self.bucket.blob(object_path)
+        
+        # In production (Cloud Run), we use impersonated credentials for remote signing.
+        # This is needed because the default Compute Engine credentials lack a private key.
+        signing_credentials = None
+        has_local_key = settings.gcs_credentials_file and os.path.exists(settings.gcs_credentials_file)
+        
+        if self.service_account_email and not has_local_key:
+            try:
+                # Create impersonated credentials using the source credentials
+                # This automatically uses the IAM signBlob API for signing.
+                signing_credentials = impersonated_credentials.Credentials(
+                    source_credentials=self.client._credentials,
+                    target_principal=self.service_account_email,
+                    target_scopes=["https://www.googleapis.com/auth/devstorage.read_write"],
+                    lifetime=expiration_minutes * 60
+                )
+                logger.debug(f"Using impersonated credentials for remote signing: {self.service_account_email}")
+            except Exception as e:
+                logger.warning(f"Failed to create impersonated credentials: {e}")
+            
         url = blob.generate_signed_url(
             version="v4",
             expiration=timedelta(minutes=expiration_minutes),
             method="GET",
+            service_account_email=self.service_account_email,
+            credentials=signing_credentials
         )
         return url
     
