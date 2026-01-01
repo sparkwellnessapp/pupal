@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { GradedTestResult, StudentAnswer, PagePreview } from '@/lib/api';
+import React, { useState } from 'react';
+import { GradedTestResult, StudentAnswer, PagePreview, GradeItem, QuestionGrade as APIQuestionGrade, ExtraObservation, CodeEvidence } from '@/lib/api';
 import {
   ChevronDown,
   ChevronUp,
@@ -11,6 +11,12 @@ import {
   User,
   FileText,
   Code,
+  Eye,
+  EyeOff,
+  AlertTriangle,
+  Check,
+  X,
+  Edit3,
 } from 'lucide-react';
 
 interface GradingResultsProps {
@@ -26,23 +32,9 @@ interface GradingResultsProps {
   testPages?: Map<string, PagePreview[]>;
 }
 
-interface QuestionGrade {
-  question_number: number;
-  grades: Grade[];
-}
-
-interface Grade {
-  criterion_index?: number;
-  criterion: string;
-  mark: string;
-  points_earned: number;
-  points_possible: number;
-  explanation?: string;
-  confidence: string;
-  low_confidence_reason?: string;
-  question_number?: number;
-  sub_question_id?: string;
-}
+// Use the imported types, but keep local alias for compatibility
+type QuestionGrade = APIQuestionGrade;
+type Grade = GradeItem;
 
 export function GradingResults({
   results,
@@ -55,6 +47,36 @@ export function GradingResults({
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
   // Changed: track COLLAPSED code sections instead of expanded (so default = shown)
   const [collapsedCode, setCollapsedCode] = useState<Set<string>>(new Set());
+  // Track applied extra deductions per test result (key: testId-questionNumber, value: total deduction)
+  const [appliedDeductions, setAppliedDeductions] = useState<Map<string, number>>(new Map());
+
+  // Calculate adjusted score for a result
+  const getAdjustedScore = (result: GradedTestResult) => {
+    let totalDeduction = 0;
+    // Sum all deductions for this test's questions
+    appliedDeductions.forEach((deduction, key) => {
+      if (key.startsWith(result.id + '-')) {
+        totalDeduction += deduction;
+      }
+    });
+    const adjustedScore = Math.max(0, result.total_score - totalDeduction);
+    const adjustedPercentage = result.total_possible > 0 ? (adjustedScore / result.total_possible) * 100 : 0;
+    return { adjustedScore, adjustedPercentage, totalDeduction };
+  };
+
+  // Callback to update deductions for a specific question
+  const handleDeductionChange = (testId: string, questionNumber: number, deduction: number) => {
+    const key = `${testId}-${questionNumber}`;
+    setAppliedDeductions(prev => {
+      const newMap = new Map(prev);
+      if (deduction === 0) {
+        newMap.delete(key);
+      } else {
+        newMap.set(key, deduction);
+      }
+      return newMap;
+    });
+  };
 
   const toggleExpanded = (testId: string) => {
     const newExpanded = new Set(Array.from(expandedTests));
@@ -247,12 +269,27 @@ export function GradingResults({
                     </div>
 
                     <div className="flex items-center gap-4">
-                      <div className="text-sm text-gray-500">
-                        {result.total_score}/{result.total_possible}
-                      </div>
-                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(result.percentage)}`}>
-                        {result.percentage.toFixed(1)}%
-                      </div>
+                      {(() => {
+                        const { adjustedScore, adjustedPercentage, totalDeduction } = getAdjustedScore(result);
+                        return (
+                          <>
+                            <div className="text-sm text-gray-500">
+                              {totalDeduction > 0 ? (
+                                <span>
+                                  <span className="line-through text-gray-400">{result.total_score}</span>
+                                  <span className="text-red-600 font-medium ml-1">{adjustedScore}</span>
+                                  /{result.total_possible}
+                                </span>
+                              ) : (
+                                <span>{result.total_score}/{result.total_possible}</span>
+                              )}
+                            </div>
+                            <div className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(adjustedPercentage)}`}>
+                              {adjustedPercentage.toFixed(1)}%
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -371,12 +408,18 @@ export function GradingResults({
                                                   סעיף {answer.sub_question_id}
                                                 </div>
                                               )}
-                                              <pre
-                                                className="text-sm text-slate-100 font-mono whitespace-pre-wrap break-words"
-                                                dir="ltr"
-                                              >
-                                                {answer.answer_text || '(ללא תשובה)'}
-                                              </pre>
+                                              <div className="flex" dir="ltr">
+                                                {/* Line numbers */}
+                                                <div className="select-none text-right pr-3 border-r border-slate-700 text-slate-500 text-xs font-mono">
+                                                  {(answer.answer_text || '').split('\n').map((_, lineIdx) => (
+                                                    <div key={lineIdx} className="leading-5">{lineIdx + 1}</div>
+                                                  ))}
+                                                </div>
+                                                {/* Code content */}
+                                                <pre className="text-sm text-slate-100 font-mono whitespace-pre-wrap break-words pl-3 flex-1">
+                                                  {answer.answer_text || '(ללא תשובה)'}
+                                                </pre>
+                                              </div>
                                             </div>
                                           ))}
                                         </div>
@@ -392,57 +435,88 @@ export function GradingResults({
                                           <th className="text-right py-2 px-3 font-medium text-gray-600">קריטריון</th>
                                           <th className="text-center py-2 px-2 font-medium text-gray-600 w-12">ציון</th>
                                           <th className="text-center py-2 px-2 font-medium text-gray-600 w-20">נקודות</th>
-                                          <th className="text-right py-2 px-3 font-medium text-gray-600">הסבר</th>
+                                          <th className="text-right py-2 px-3 font-medium text-gray-600">הסבר וראיות</th>
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {qg.grades.map((grade, i) => (
-                                          <tr
-                                            key={i}
-                                            className={`border-b border-surface-100 hover:bg-surface-50 ${grade.confidence === 'low' ? 'bg-amber-50/50' : ''
-                                              }`}
-                                          >
-                                            <td className="py-2 px-3">
-                                              <div className="flex items-start gap-1">
-                                                {grade.sub_question_id && (
-                                                  <span className="text-xs text-gray-400 font-medium">
-                                                    ({grade.sub_question_id})
+                                        {qg.grades.map((grade, i) => {
+                                          const evidenceKey = `${qKey}-evidence-${i}`;
+                                          const isEvidenceExpanded = expandedQuestions.has(evidenceKey);
+                                          return (
+                                            <React.Fragment key={i}>
+                                              <tr
+                                                className={`border-b border-surface-100 hover:bg-surface-50 cursor-pointer ${grade.confidence === 'low' ? 'bg-amber-50/50' : ''}`}
+                                                onClick={() => toggleQuestion(evidenceKey)}
+                                              >
+                                                <td className="py-2 px-3">
+                                                  <div className="flex items-start gap-2">
+                                                    {isEvidenceExpanded ? (
+                                                      <ChevronUp size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                                                    ) : (
+                                                      <ChevronDown size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                                                    )}
+                                                    <div>
+                                                      {grade.sub_question_id && (
+                                                        <span className="text-xs text-gray-400 font-medium">
+                                                          ({grade.sub_question_id})
+                                                        </span>
+                                                      )}
+                                                      <span className="text-gray-700">{grade.criterion || 'קריטריון לא מזוהה'}</span>
+                                                    </div>
+                                                  </div>
+                                                </td>
+                                                <td className="py-2 px-2 text-center">
+                                                  <div className="flex items-center justify-center">
+                                                    {getMarkIcon(grade.mark)}
+                                                  </div>
+                                                </td>
+                                                <td className="py-2 px-2 text-center">
+                                                  <span className={
+                                                    grade.points_earned === grade.points_possible
+                                                      ? 'text-green-600 font-medium'
+                                                      : grade.points_earned === 0
+                                                        ? 'text-red-600'
+                                                        : 'text-yellow-600'
+                                                  }>
+                                                    {grade.points_earned}/{grade.points_possible}
                                                   </span>
-                                                )}
-                                                <span className="text-gray-700">{grade.criterion || 'קריטריון לא מזוהה'}</span>
-                                              </div>
-                                            </td>
-                                            <td className="py-2 px-2 text-center">
-                                              <div className="flex items-center justify-center">
-                                                {getMarkIcon(grade.mark)}
-                                              </div>
-                                            </td>
-                                            <td className="py-2 px-2 text-center">
-                                              <span className={
-                                                grade.points_earned === grade.points_possible
-                                                  ? 'text-green-600 font-medium'
-                                                  : grade.points_earned === 0
-                                                    ? 'text-red-600'
-                                                    : 'text-yellow-600'
-                                              }>
-                                                {grade.points_earned}/{grade.points_possible}
-                                              </span>
-                                            </td>
-                                            <td className="py-2 px-3 text-gray-500 text-xs">
-                                              <div className="flex items-start gap-1">
-                                                <span>{grade.explanation || '-'}</span>
-                                                {grade.confidence && grade.confidence !== 'high' && (
-                                                  <span className="text-amber-500 whitespace-nowrap" title={grade.low_confidence_reason}>
-                                                    ({grade.confidence})
-                                                  </span>
-                                                )}
-                                              </div>
-                                            </td>
-                                          </tr>
-                                        ))}
+                                                </td>
+                                                <td className="py-2 px-3 text-gray-500 text-xs max-w-[300px]">
+                                                  <div className="flex items-start gap-1 group">
+                                                    <span className="line-clamp-2 group-hover:line-clamp-none transition-all cursor-help">{grade.explanation || '-'}</span>
+                                                    {grade.confidence && grade.confidence !== 'high' && (
+                                                      <span className="text-amber-500 whitespace-nowrap" title={grade.low_confidence_reason}>
+                                                        ({grade.confidence})
+                                                      </span>
+                                                    )}
+                                                    {grade.evidence && (
+                                                      <Eye size={14} className="text-blue-400 flex-shrink-0" />
+                                                    )}
+                                                  </div>
+                                                </td>
+                                              </tr>
+                                              {/* Expanded Evidence Row */}
+                                              {isEvidenceExpanded && grade.evidence && (
+                                                <tr className="bg-blue-50/50">
+                                                  <td colSpan={4} className="p-3">
+                                                    <EvidenceDisplay evidence={grade.evidence} />
+                                                  </td>
+                                                </tr>
+                                              )}
+                                            </React.Fragment>
+                                          );
+                                        })}
                                       </tbody>
                                     </table>
                                   </div>
+
+                                  {/* Extra Observations (Beyond Rubric Errors) */}
+                                  {qg.extra_observations && qg.extra_observations.length > 0 && (
+                                    <ExtraObservationsPanel
+                                      observations={qg.extra_observations}
+                                      onDeductionChange={(deduction) => handleDeductionChange(result.id, qg.question_number, deduction)}
+                                    />
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -542,6 +616,245 @@ function HandwrittenPagesGallery({ pages }: HandwrittenPagesGalleryProps) {
           />
         </div>
       )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Evidence Display Component
+// =============================================================================
+
+interface EvidenceDisplayProps {
+  evidence: CodeEvidence;
+}
+
+function EvidenceDisplay({ evidence }: EvidenceDisplayProps) {
+  return (
+    <div className="space-y-3">
+      {/* Quoted Code */}
+      {evidence.quoted_code && (
+        <div>
+          <div className="flex items-center gap-2 text-xs font-medium text-blue-700 mb-1">
+            <Code size={14} />
+            <span>קוד רלוונטי</span>
+            {evidence.line_numbers && evidence.line_numbers.length > 0 && (
+              <span className="text-blue-500">(שורות {evidence.line_numbers.join(', ')})</span>
+            )}
+          </div>
+          <pre className="bg-slate-900 text-slate-100 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap overflow-x-auto" dir="ltr">
+            {evidence.quoted_code}
+          </pre>
+        </div>
+      )}
+
+      {/* Reasoning Chain */}
+      {evidence.reasoning_chain && evidence.reasoning_chain.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 text-xs font-medium text-blue-700 mb-1">
+            <Eye size={14} />
+            <span>ניתוח</span>
+          </div>
+          <ul className="space-y-1 text-xs text-gray-700 bg-white rounded-lg p-2 border border-blue-100">
+            {evidence.reasoning_chain.map((step, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="text-gray-400">•</span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Extra Observations Panel (Beyond Rubric Errors with Apply Button)
+// =============================================================================
+
+interface ExtraObservationsPanelProps {
+  observations: ExtraObservation[];
+  onDeductionChange?: (totalDeduction: number) => void;
+}
+
+function ExtraObservationsPanel({ observations, onDeductionChange }: ExtraObservationsPanelProps) {
+  const [appliedDeductions, setAppliedDeductions] = useState<Map<number, number>>(new Map());
+  const [dismissedIndexes, setDismissedIndexes] = useState<Set<number>>(new Set());
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'syntax_error': return <XCircle size={14} className="text-red-500" />;
+      case 'logic_error': return <AlertTriangle size={14} className="text-orange-500" />;
+      case 'style_warning': return <AlertCircle size={14} className="text-yellow-500" />;
+      case 'missing_feature': return <X size={14} className="text-purple-500" />;
+      default: return <AlertCircle size={14} className="text-gray-500" />;
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'syntax_error': return 'שגיאת תחביר';
+      case 'logic_error': return 'שגיאת לוגיקה';
+      case 'style_warning': return 'הערת סגנון';
+      case 'missing_feature': return 'פיצ\'ר חסר';
+      case 'security_issue': return 'בעיית אבטחה';
+      default: return type;
+    }
+  };
+
+  // Notify parent of deduction changes
+  const notifyParent = (newMap: Map<number, number>) => {
+    if (onDeductionChange) {
+      const total = Array.from(newMap.values()).reduce((sum, d) => sum + d, 0);
+      onDeductionChange(total);
+    }
+  };
+
+  const toggleApply = (index: number, suggestedDeduction: number) => {
+    const newMap = new Map(appliedDeductions);
+    if (newMap.has(index)) {
+      newMap.delete(index);
+    } else {
+      newMap.set(index, suggestedDeduction);
+    }
+    setAppliedDeductions(newMap);
+    notifyParent(newMap);
+    // Remove from dismissed if applying
+    if (dismissedIndexes.has(index)) {
+      const newDismissed = new Set(dismissedIndexes);
+      newDismissed.delete(index);
+      setDismissedIndexes(newDismissed);
+    }
+  };
+
+  const toggleDismiss = (index: number) => {
+    const newDismissed = new Set(dismissedIndexes);
+    if (newDismissed.has(index)) {
+      newDismissed.delete(index);
+    } else {
+      newDismissed.add(index);
+      // Remove from applied if dismissing
+      if (appliedDeductions.has(index)) {
+        const newMap = new Map(appliedDeductions);
+        newMap.delete(index);
+        setAppliedDeductions(newMap);
+        notifyParent(newMap);
+      }
+    }
+    setDismissedIndexes(newDismissed);
+  };
+
+  const updateDeduction = (index: number, value: number) => {
+    const newMap = new Map(appliedDeductions);
+    newMap.set(index, value);
+    setAppliedDeductions(newMap);
+    notifyParent(newMap);
+  };
+
+  const totalDeduction = Array.from(appliedDeductions.values()).reduce((sum, d) => sum + d, 0);
+
+  return (
+    <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2 text-md font-medium text-amber-700">
+          <AlertTriangle size={18} />
+          <span>הערות נוספות (מחוץ למחוון)</span>
+        </div>
+        {totalDeduction > 0 && (
+          <div className="text-sm font-medium text-red-600">
+            סה"כ ניכוי: -{totalDeduction} נקודות
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {observations.map((obs, i) => {
+          const isApplied = appliedDeductions.has(i);
+          const isDismissed = dismissedIndexes.has(i);
+          const currentDeduction = appliedDeductions.get(i) ?? obs.suggested_deduction;
+
+          return (
+            <div key={i} className={`flex items-start gap-3 p-2 rounded-lg transition-all ${isDismissed
+              ? 'bg-gray-100 border border-gray-200 opacity-50'
+              : isApplied
+                ? 'bg-red-50 border border-red-200'
+                : 'bg-white border border-amber-100'
+              }`}>
+              <div className="flex-shrink-0 mt-0.5">
+                {getTypeIcon(obs.type)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className={`font-medium ${isDismissed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{getTypeLabel(obs.type)}</span>
+                  {obs.line_number && (
+                    <span className="text-gray-400">שורה {obs.line_number}</span>
+                  )}
+                </div>
+                <p className={`text-xs mt-0.5 ${isDismissed ? 'text-gray-400' : 'text-gray-600'}`}>{obs.description}</p>
+                {obs.quoted_code && !isDismissed && (
+                  <pre className="mt-1 text-xs bg-gray-100 p-1 rounded font-mono text-gray-700" dir="ltr">
+                    {obs.quoted_code}
+                  </pre>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {!isDismissed && (
+                  <>
+                    {editingIndex === i ? (
+                      <input
+                        type="number"
+                        value={currentDeduction}
+                        onChange={(e) => updateDeduction(i, Math.abs(Number(e.target.value)))}
+                        onBlur={() => setEditingIndex(null)}
+                        className="w-12 text-center text-xs border rounded px-1 py-0.5"
+                        autoFocus
+                        min={0}
+                        max={20}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditingIndex(i)}
+                        className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                        title="ערוך ניכוי"
+                      >
+                        <Edit3 size={12} />
+                        -{currentDeduction}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => toggleApply(i, obs.suggested_deduction)}
+                      className={`text-xs px-2 py-1 rounded flex items-center gap-1 transition-colors ${isApplied
+                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                        : 'bg-green-100 text-green-700 hover:bg-green-200'
+                        }`}
+                    >
+                      {isApplied ? (
+                        <><X size={12} /> הסר</>
+                      ) : (
+                        <><Check size={12} /> החל</>
+                      )}
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => toggleDismiss(i)}
+                  className={`text-xs px-2 py-1 rounded flex items-center gap-1 transition-colors ${isDismissed
+                    ? 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                    : 'bg-red-100 text-red-600 hover:bg-red-200'
+                    }`}
+                >
+                  {isDismissed ? (
+                    <><Eye size={12} /> הצג</>
+                  ) : (
+                    <><EyeOff size={12} /> דחה</>
+                  )}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

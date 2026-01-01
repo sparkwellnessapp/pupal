@@ -143,6 +143,49 @@ export interface StudentAnswersJson {
   answers: StudentAnswer[];
 }
 
+// =============================================================================
+// Enhanced Grading Types (Evidence & Extra Observations)
+// =============================================================================
+
+export interface CodeEvidence {
+  quoted_code: string;
+  line_numbers?: number[];
+  reasoning_chain?: string[];
+}
+
+export interface ExtraObservation {
+  type: 'syntax_error' | 'logic_error' | 'style_warning' | 'missing_feature' | 'security_issue';
+  description: string;
+  suggested_deduction: number;
+  line_number?: number;
+  quoted_code?: string;
+  // Frontend-only: tracks if teacher applied this deduction
+  applied?: boolean;
+  // Frontend-only: allows teacher to adjust the deduction
+  adjusted_deduction?: number;
+}
+
+export interface GradeItem {
+  question_number?: number;
+  sub_question_id?: string;
+  criterion_index?: number;
+  criterion: string;
+  mark: string;
+  points_earned: number;
+  points_possible: number;
+  explanation?: string;
+  confidence: string;
+  low_confidence_reason?: string;
+  // New evidence fields
+  evidence?: CodeEvidence;
+}
+
+export interface QuestionGrade {
+  question_number: number;
+  grades: GradeItem[];
+  extra_observations?: ExtraObservation[];
+}
+
 export interface GradedTestResult {
   id: string;
   rubric_id: string;
@@ -153,31 +196,8 @@ export interface GradedTestResult {
   total_possible: number;
   percentage: number;
   graded_json: {
-    grades: Array<{
-      question_number?: number;
-      sub_question_id?: string;
-      criterion: string;
-      mark: string;
-      points_earned: number;
-      points_possible: number;
-      explanation?: string;
-      confidence: string;
-      low_confidence_reason?: string;
-    }>;
-    question_grades?: Array<{
-      question_number: number;
-      grades: Array<{
-        question_number?: number;
-        sub_question_id?: string;
-        criterion: string;
-        mark: string;
-        points_earned: number;
-        points_possible: number;
-        explanation?: string;
-        confidence: string;
-        low_confidence_reason?: string;
-      }>;
-    }>;
+    grades: GradeItem[];
+    question_grades?: QuestionGrade[];
     low_confidence_items?: string[];
     rubric_mismatch_detected?: boolean;
     rubric_mismatch_reason?: string;
