@@ -179,6 +179,8 @@ export interface GradedTestResult {
       }>;
     }>;
     low_confidence_items?: string[];
+    rubric_mismatch_detected?: boolean;
+    rubric_mismatch_reason?: string;
   };
   // Student answers (transcribed code)
   student_answers_json?: StudentAnswersJson;
@@ -362,4 +364,39 @@ export async function gradeSingleTest(
   }
 
   throw new Error(result.errors[0] || 'Failed to grade test');
+}
+
+
+
+/**
+ * Grade a handwritten test using VLM transcription
+ */
+
+export async function gradeHandwrittenTest(
+  rubricId: string,
+  testFile: File,
+  answeredQuestions?: number[],
+  firstPageIndex: number = 0
+): Promise<GradedTestResult> {
+  const formData = new FormData();
+  formData.append('test_file', testFile);
+  const params = new URLSearchParams();
+  params.append('rubric_id', rubricId);
+  params.append('first_page_index', firstPageIndex.toString());
+
+  if (answeredQuestions && answeredQuestions.length > 0) {
+    params.append('answered_questions', JSON.stringify(answeredQuestions));
+  }
+
+  const response = await fetch(`${API_BASE}/api/v0/grading/grade_handwritten_test?${params.toString()}`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+
+  return response.json();
 }

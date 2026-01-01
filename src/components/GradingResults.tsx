@@ -15,10 +15,13 @@ import {
 
 interface GradingResultsProps {
   results: GradedTestResult[];
-  totalTests: number;
-  successful: number;
-  failed: number;
-  errors: string[];
+  stats: {
+    total: number;
+    successful: number;
+    failed: number;
+    errors: string[];
+  };
+  onBack: () => void;
 }
 
 interface QuestionGrade {
@@ -41,11 +44,10 @@ interface Grade {
 
 export function GradingResults({
   results,
-  totalTests,
-  successful,
-  failed,
-  errors,
+  stats,
+  onBack,
 }: GradingResultsProps) {
+  const { total: totalTests, successful, failed, errors } = stats;
   const [expandedTests, setExpandedTests] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
   // Changed: track COLLAPSED code sections instead of expanded (so default = shown)
@@ -231,6 +233,14 @@ export function GradingResults({
                           <span className="truncate max-w-[200px]">{result.filename}</span>
                         </div>
                       )}
+
+                      {/* Mismatch Warning Badge - visible in header */}
+                      {result.graded_json.rubric_mismatch_detected && (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 border border-orange-300 rounded-md text-orange-700 text-xs font-medium">
+                          <AlertCircle size={14} />
+                          <span>חוסר התאמה!</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-4">
@@ -246,7 +256,6 @@ export function GradingResults({
                   {/* Expanded Details */}
                   {expandedTests.has(result.id) && (
                     <div className="border-t border-surface-200 p-4 bg-surface-50">
-                      {/* Low confidence items */}
                       {result.graded_json.low_confidence_items && result.graded_json.low_confidence_items.length > 0 && (
                         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                           <h5 className="font-medium text-amber-700 text-sm mb-1">
@@ -257,6 +266,20 @@ export function GradingResults({
                               <li key={i}>• {item}</li>
                             ))}
                           </ul>
+                        </div>
+                      )}
+
+                      {/* Rubric Mismatch Warning */}
+                      {result.graded_json.rubric_mismatch_detected && (
+                        <div className="mb-4 p-3 bg-orange-50 border border-orange-300 rounded-lg">
+                          <h5 className="font-medium text-orange-700 text-sm mb-1 flex items-center gap-2">
+                            <AlertCircle size={16} />
+                            אזהרה: חוסר התאמה בין המחוון לתשובות
+                          </h5>
+                          <p className="text-xs text-orange-600">
+                            {result.graded_json.rubric_mismatch_reason ||
+                              'נראה שהתשובות לא תואמות למחוון שנבחר. אנא וודאו שנבחר המחוון הנכון.'}
+                          </p>
                         </div>
                       )}
 
