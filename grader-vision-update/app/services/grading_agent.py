@@ -264,67 +264,77 @@ class GradingAgent:
         return {}
     
     def _build_system_prompt(self, rubric: Dict) -> str:
-        """Build system prompt for GPT-4 with explicit structure requirements."""
+        """Build system prompt for GPT-4 with evidence extraction and reasoning chains."""
         
-        # Build the expected structure based on actual rubric
         questions = rubric.get('questions', [])
-        structure_example = {
-            "question_grades": []
-        }
+        total_criteria = sum(len(q.get('criteria', [])) for q in questions)
         
-        for q in questions[:1]:  # Just show structure for first question as example
-            q_example = {
-                "question_number": q['question_number'],
-                "grades": []
-            }
-            for i, c in enumerate(q.get('criteria', [])[:2]):  # Show first 2 criteria
-                q_example["grades"].append({
-                    "criterion_index": i,
-                    "criterion": c['description'][:50] + "...",
-                    "mark": "✓",
-                    "points_earned": c['points'],
-                    "points_possible": c['points'],
-                    "explanation": "הסבר קצר בעברית",
-                    "confidence": "high"
-                })
-            structure_example["question_grades"].append(q_example)
-        
-        return f"""You are an expert Computer Science and C# teacher grading high school student programming tests.
+        return f"""You are a world-class Computer Science teacher grading high school programming tests.
+Your goal is to produce grades that are within 5 points of what the best human teacher would give.
 
 CONTEXT:
-- The student's code has been TRANSCRIBED from a scanned PDF using AI
-- There may be minor transcription errors (typos, formatting issues)
-- Be slightly lenient for transcription artifacts but strict on logic errors
+- The student's code has been TRANSCRIBED from handwritten scans using AI
+- Minor transcription errors (typos, formatting) may exist - be lenient for these
+- Be STRICT on logic errors, missing functionality, and incorrect implementations
 
-GRADING RULES:
-1. Grade STRICTLY according to the rubric - every single criterion must be graded
-2. Use these marks:
-   - ✓ (correct): Full points
-   - ✗ (incorrect): Zero points  
-   - ✓✗ (partial): Partial points (specify exactly how many)
-3. Provide a brief explanation in Hebrew for each criterion (NEVER leave empty)
-4. Assign confidence level: high, medium, or low
-5. If confidence is low or medium, explain why in low_confidence_reason
+═══════════════════════════════════════════════════════════════════════════════
+GRADING METHODOLOGY (Chain-of-Thought)
+═══════════════════════════════════════════════════════════════════════════════
 
-MISMATCH DETECTION (CRITICAL):
-Before grading, CHECK if the student's answers match the rubric topic:
-- If the rubric asks about "House" class but student wrote about "Employee" class → MISMATCH
-- If the rubric asks about array functions but student wrote about class definitions → MISMATCH
-- If class names, method names, or problem topics clearly don't match → MISMATCH
+For EACH criterion, follow this process:
+1. READ: Understand exactly what the criterion requires
+2. SEARCH: Find the relevant code in the student's answer
+3. QUOTE: Extract the exact code snippet that addresses this criterion
+4. REASON: Analyze step-by-step if the code meets requirements
+5. GRADE: Assign points based on your analysis
 
-If you detect a mismatch:
+═══════════════════════════════════════════════════════════════════════════════
+GRADING RULES
+═══════════════════════════════════════════════════════════════════════════════
+
+Marks:
+- ✓ (correct): Full points - criterion fully satisfied
+- ✗ (incorrect): Zero points - criterion not met at all
+- ✓✗ (partial): Partial points - partially met (specify exact points)
+
+Confidence levels:
+- high: Clear evidence, unambiguous grading
+- medium: Some ambiguity, may need teacher review
+- low: Significant uncertainty, definitely needs teacher review
+
+═══════════════════════════════════════════════════════════════════════════════
+MISMATCH DETECTION
+═══════════════════════════════════════════════════════════════════════════════
+
+Before grading, CHECK if answers match the rubric topic:
+- Rubric about "House" but student wrote "Employee" → MISMATCH
+- Rubric about arrays but student wrote about classes → MISMATCH
+
+If mismatch detected:
 - Set "rubric_mismatch_detected": true
-- Explain the mismatch in "rubric_mismatch_reason" (in Hebrew)
-- Still grade all criteria, but most will likely be 0 points
+- Explain in "rubric_mismatch_reason" (Hebrew)
+- Still grade all criteria (most will be 0)
 
-CRITICAL REQUIREMENTS:
-- You MUST grade EVERY criterion listed in the rubric
-- You MUST copy the EXACT criterion text from the rubric (do not abbreviate or leave empty)
-- You MUST provide an explanation for EVERY grade (never use empty string or newline)
-- NEVER output "\\n" or empty strings for any field
-- Output MUST be grouped by question_number
+═══════════════════════════════════════════════════════════════════════════════
+EXTRA ERROR DETECTION (Beyond Rubric)
+═══════════════════════════════════════════════════════════════════════════════
 
-OUTPUT FORMAT - Return ONLY valid JSON matching this EXACT structure:
+If you notice errors NOT covered by the rubric, report them in "extra_observations":
+- syntax_error: Missing semicolons, typos in keywords, wrong brackets
+- logic_error: Infinite loops, wrong conditions, off-by-one errors
+- style_warning: Poor naming, missing comments (no point deduction, just note)
+- missing_feature: Expected functionality not implemented
+
+Suggest reasonable point deductions (teacher can adjust):
+- Minor syntax issues: -1 to -2
+- Logic errors: -2 to -5
+- Style warnings: 0 (note only)
+
+═══════════════════════════════════════════════════════════════════════════════
+OUTPUT FORMAT
+═══════════════════════════════════════════════════════════════════════════════
+
+Return ONLY valid JSON:
 {{
   "rubric_mismatch_detected": false,
   "rubric_mismatch_reason": null,
@@ -334,24 +344,47 @@ OUTPUT FORMAT - Return ONLY valid JSON matching this EXACT structure:
       "grades": [
         {{
           "criterion_index": 0,
-          "criterion": "EXACT criterion text from rubric - NEVER empty",
+          "criterion": "הטקסט המדויק של הקריטריון מהמחוון",
           "mark": "✓" | "✗" | "✓✗",
-          "points_earned": number,
-          "points_possible": number,
-          "explanation": "הסבר בעברית - NEVER empty",
-          "confidence": "high" | "medium" | "low",
-          "low_confidence_reason": "reason if not high (optional)"
+          "points_earned": 8,
+          "points_possible": 10,
+          "evidence": {{
+            "quoted_code": "private int id;\\nprivate double salary;",
+            "line_numbers": [3, 4],
+            "reasoning_chain": [
+              "✓ נמצא שדה id מסוג int",
+              "✓ נמצא שדה salary מסוג double",
+              "✗ חסר שדה isSenior שנדרש לפי הקריטריון"
+            ]
+          }},
+          "explanation": "הוגדרו 2 מתוך 3 שדות נדרשים. חסר השדה isSenior.",
+          "confidence": "high",
+          "low_confidence_reason": null
+        }}
+      ],
+      "extra_observations": [
+        {{
+          "type": "syntax_error",
+          "description": "חסר נקודה-פסיק בסוף שורה 7",
+          "suggested_deduction": 1,
+          "line_number": 7,
+          "quoted_code": "public void PrintInfo()"
         }}
       ]
     }}
   ],
-  "low_confidence_items": ["Question X: reason for needing manual review"]
+  "low_confidence_items": ["שאלה 2: קריטריון 3 - לא ברור אם הלולאה נכונה"]
 }}
 
-EXAMPLE STRUCTURE (based on this rubric):
-{json.dumps(structure_example, ensure_ascii=False, indent=2)}
+═══════════════════════════════════════════════════════════════════════════════
+CRITICAL REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
 
-Remember: Grade ALL {sum(len(q.get('criteria', [])) for q in questions)} criteria across {len(questions)} questions. No empty fields allowed."""
+- Grade ALL {total_criteria} criteria across {len(questions)} questions
+- Copy EXACT criterion text from rubric (never abbreviate)
+- Always include "evidence" with quoted_code and reasoning_chain
+- Explanations in Hebrew (never empty)
+- Extra observations only for REAL errors (don't be noisy)"""
 
     def _build_user_prompt(self, rubric: Dict, student_test: Dict) -> str:
         """Construct user prompt with rubric and student answers."""
