@@ -306,11 +306,59 @@ def pdf_path_to_images(pdf_path: str, dpi: int = 200) -> List[Image.Image]:
     return images
 
 
-def image_to_base64(image: Image.Image, max_size: int = 2000) -> str:
+def enhance_for_transcription(image: Image.Image) -> Image.Image:
+    """
+    Enhance an image for better handwriting transcription.
+    
+    Applies:
+    1. Contrast enhancement (makes dark text darker, light background lighter)
+    2. Sharpening (improves edge definition)
+    3. Brightness normalization
+    """
+    from PIL import ImageEnhance, ImageFilter, ImageOps
+    
+    try:
+        # Convert to RGB if needed (handles grayscale or RGBA)
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # 1. Auto-contrast: stretches the histogram for better dynamic range
+        image = ImageOps.autocontrast(image, cutoff=1)
+        
+        # 2. Enhance contrast (make dark text stand out more)
+        contrast_enhancer = ImageEnhance.Contrast(image)
+        image = contrast_enhancer.enhance(1.4)  # 1.4x contrast boost
+        
+        # 3. Slight sharpening for clearer edges
+        sharpness_enhancer = ImageEnhance.Sharpness(image)
+        image = sharpness_enhancer.enhance(1.3)  # 1.3x sharpening
+        
+        # 4. Slight brightness adjustment to ensure background is white
+        brightness_enhancer = ImageEnhance.Brightness(image)
+        image = brightness_enhancer.enhance(1.05)  # Slight brightening
+        
+        logger.debug("Applied image enhancement for transcription")
+        return image
+        
+    except Exception as e:
+        logger.warning(f"Image enhancement failed, using original: {e}")
+        return image
+
+
+def image_to_base64(image: Image.Image, max_size: int = 2000, enhance: bool = True) -> str:
     """
     Convert PIL Image to base64 string, resizing if needed.
     Using higher max_size for better handwriting recognition.
+    
+    Args:
+        image: PIL Image
+        max_size: Maximum dimension (width or height)
+        enhance: Whether to apply contrast/sharpening enhancement
     """
+    # Apply enhancement for better transcription
+    if enhance:
+        image = enhance_for_transcription(image)
+    
     if max(image.size) > max_size:
         ratio = max_size / max(image.size)
         new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
@@ -580,6 +628,28 @@ class HandwritingTranscriptionService:
         )
         
         logger.info(f"Sending {len(images_b64)} pages to VLM...")
+        
+        # DEBUG: Save pages being sent to VLM
+        try:
+            import base64
+            from pathlib import Path
+            debug_dir = Path("debug_handwritten_pages")
+            debug_dir.mkdir(exist_ok=True)
+            
+            # Clear old debug files
+            for old_file in debug_dir.glob("*.png"):
+                old_file.unlink()
+            
+            # Save each page
+            safe_filename = "".join(c if c.isalnum() or c in "-_" else "_" for c in filename[:50])
+            for i, img_b64 in enumerate(images_b64):
+                img_bytes = base64.b64decode(img_b64)
+                page_path = debug_dir / f"{safe_filename}_page_{i + 1}.png"
+                page_path.write_bytes(img_bytes)
+            
+            logger.info(f"DEBUG: Saved {len(images_b64)} pages to {debug_dir.absolute()}")
+        except Exception as e:
+            logger.warning(f"DEBUG: Failed to save debug pages: {e}")
         
         response = self.vlm_provider.transcribe_images(
             images_b64=images_b64,

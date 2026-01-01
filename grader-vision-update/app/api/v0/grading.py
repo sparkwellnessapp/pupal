@@ -668,6 +668,7 @@ async def grade_handwritten_test(
             filename=filename,
             rubric_questions=rubric_questions,
             question_mappings=None,  # Auto-detection mode
+            answered_question_numbers=list(target_questions),  # Filter to answered questions only
             first_page_index=first_page_index,
             dpi=200,
         )
