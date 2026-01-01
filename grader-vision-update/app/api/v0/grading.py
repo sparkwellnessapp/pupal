@@ -8,10 +8,15 @@ import logging
 from typing import Optional, List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, Body, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-
+from ...services.handwriting_transcription_service import (
+    HandwritingTranscriptionService,
+    get_vlm_provider,
+    QuestionMapping,
+    RubricQuestion,
+)
 from ...database import get_db, AsyncSessionLocal
 from ...models.grading import Rubric
 from ...services.pdf_preview_service import generate_pdf_previews
@@ -167,6 +172,9 @@ async def preview_rubric_pdf(
                     
         except Exception as e:
             logger.warning(f"Failed to upload PDF pages to GCS: {e}")
+            logger.warning(f"GCS Error Type: {type(e).__name__}")
+            import traceback
+            logger.warning(f"GCS Traceback: {traceback.format_exc()}")
             # Graceful degradation - pages still work without URLs
         
         return PreviewRubricPdfResponse(
@@ -419,6 +427,10 @@ async def preview_student_test_pdf(
         raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
 
 
+# =============================================================================
+# Grading Endpoints
+# =============================================================================
+
 @router.post(
     "/grade_tests",
     response_model=GradeTestsResponse,
@@ -573,33 +585,189 @@ async def grade_tests(
         raise HTTPException(status_code=500, detail=f"Error grading tests: {str(e)}")
 
 
-# =============================================================================
-# Grading Endpoints
-# =============================================================================
+
 
 @router.post(
-    "/grade_test",
-    response_model=CreateGradeTestResponse,
+    "/grade_handwritten_test",
+    response_model=GradedTestResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
-    summary="Grade a student test",
-    description="Upload a student test PDF and grade it against an existing rubric.",
+    summary="Grade a handwritten test",
+    description="Transcribe and grade a handwritten student test PDF against a rubric.",
 )
-async def create_grade_test(
-    rubric_id: UUID = Query(..., description="ID of the rubric to grade against"),
-    file: UploadFile = File(..., description="Student test PDF file"),
+async def grade_handwritten_test(
+    rubric_id: UUID = Query(..., description="ID of the rubric"),
+    test_file: UploadFile = File(..., description="Handwritten test PDF"),
+    first_page_index: int = Query(0, description="Page index containing student name"),
+    answered_questions: Optional[str] = Query(None, description="Optional JSON list of question numbers answered (e.g. '[1, 2]')"),
     db: AsyncSession = Depends(get_db),
-) -> CreateGradeTestResponse:
+) -> GradedTestResponse:
     """
-    Grade a student test using the specified rubric.
+    Grade a handwritten test using Vision AI transcription.
     
     Process:
-    1. Parse student test PDF using Vision AI to transcribe answers
-    2. Grade answers against the rubric using GPT-4
-    3. Store grading results in database
-    4. Return grading results
+    1. Transcribe handwritten code via VLM (Vision Language Model).
+    2. Format transcription into structured student answers.
+    3. Grade answers against the rubric using the grading agent.
+    4. Save and return results.
     """
-    # TODO: Implement grading logic
-    raise HTTPException(status_code=501, detail="Endpoint not yet implemented")
+    import json
+    
+    # Validation: Parse active questions filter
+    question_numbers: Optional[List[int]] = None
+    if answered_questions:
+        try:
+            question_numbers = json.loads(answered_questions)
+            if not isinstance(question_numbers, list):
+                raise ValueError
+        except (json.JSONDecodeError, ValueError):
+            raise HTTPException(status_code=400, detail="answered_questions must be a valid JSON list of integers")
+
+    # Fetch Rubric
+    rubric = await get_rubric_by_id(db, rubric_id)
+    if not rubric:
+        raise HTTPException(status_code=404, detail=f"Rubric {rubric_id} not found")
+
+    # Read and Validate PDF
+    if not test_file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="File must be a PDF")
+        
+    pdf_bytes = await test_file.read()
+    if not pdf_bytes:
+        raise HTTPException(status_code=400, detail="Empty file uploaded")
+
+    filename = test_file.filename or "handwritten_test.pdf"
+    logger.info(f"Processing handwritten test: {filename} for rubric {rubric_id}")
+
+    # Prepare Rubric Structure for Guided Transcription
+    rubric_questions = []
+    all_q_nums = []
+    
+    for q in rubric.rubric_json.get("questions", []):
+        q_num = q.get("question_number", 1)
+        all_q_nums.append(q_num)
+        sub_ids = [sq.get("sub_question_id", "") for sq in q.get("sub_questions", [])]
+        
+        rubric_questions.append(RubricQuestion(
+            question_number=q_num,
+            question_text=q.get("question_text"),
+            sub_questions=sub_ids,
+            total_points=q.get("total_points", 0),
+        ))
+
+    # Default to all questions if no filter provided
+    target_questions = set(question_numbers) if question_numbers else set(all_q_nums)
+
+    # Initialize Transcription Service
+    try:
+        # Use OpenAI by default as per project standard
+        provider = get_vlm_provider("openai")
+        service = HandwritingTranscriptionService(vlm_provider=provider)
+        
+        transcription_result = service.transcribe_pdf(
+            pdf_bytes=pdf_bytes,
+            filename=filename,
+            rubric_questions=rubric_questions,
+            question_mappings=None,  # Auto-detection mode
+            first_page_index=first_page_index,
+            dpi=200,
+        )
+    except Exception as e:
+        logger.error(f"Transcription failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Transcription service error: {str(e)}")
+
+    # Format for Grading Agent
+    student_test_data = {
+        "student_name": transcription_result.student_name or "Unknown Student",
+        "filename": filename,
+        "answers": [
+            {
+                "question_number": ans.question_number,
+                "sub_question_id": ans.sub_question_id,
+                "answer_text": ans.answer_text,
+            }
+            for ans in transcription_result.answers
+            if ans.question_number in target_questions
+        ],
+    }
+
+    # Filter rubric to only include answered questions
+    filtered_rubric = {
+        **rubric.rubric_json,
+        "questions": [
+            q for q in rubric.rubric_json.get("questions", [])
+            if q.get("question_number") in target_questions
+        ]
+    }
+    # Recalculate total_points for filtered rubric
+    filtered_rubric["total_points"] = sum(
+        q.get("total_points", 0) for q in filtered_rubric["questions"]
+    )
+    
+    logger.info(f"Grading with filtered rubric: {len(filtered_rubric['questions'])} questions (target: {target_questions})")
+
+    # Execute Grading
+    try:
+        grading_result = await grade_student_test(
+            rubric=filtered_rubric,
+            student_test=student_test_data,
+        )
+    except Exception as e:
+        logger.error(f"Grading agent failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Grading agent error: {str(e)}")
+
+    # Save Results
+    try:
+        # Pass transcribed answers to be saved alongside grades
+        saved_test = await save_graded_test(
+            db=db,
+            rubric_id=rubric_id,
+            grading_result=grading_result,
+            student_answers=student_test_data,
+        )
+    except Exception as e:
+        logger.error(f"Database save failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to save grading results")
+
+    return GradedTestResponse(
+        id=saved_test.id,
+        rubric_id=saved_test.rubric_id,
+        created_at=saved_test.created_at,
+        student_name=saved_test.student_name,
+        filename=saved_test.filename,
+        total_score=saved_test.total_score,
+        total_possible=saved_test.total_possible,
+        percentage=saved_test.percentage,
+        graded_json=saved_test.graded_json,
+        student_answers_json=saved_test.student_answers_json,
+    )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 @router.get(

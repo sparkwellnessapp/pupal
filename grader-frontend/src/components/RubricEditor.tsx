@@ -377,7 +377,7 @@ function PdfPagesDisplay({ pages, pageIndexes, label }: PdfPagesDisplayProps) {
           // Display PDF in iframe for text selection
           <div className="relative">
             <iframe
-              src={`${relevantPages[currentPageIdx].page_pdf_url}#toolbar=0&navpanes=0&zoom=55`}
+              src={`${relevantPages[currentPageIdx].page_pdf_url}#toolbar=0&navpanes=0&zoom=70`}
               className="w-full h-[320px] border-0"
               title={`עמוד ${relevantPages[currentPageIdx].page_number}`}
             />
@@ -422,8 +422,8 @@ function PdfPagesDisplay({ pages, pageIndexes, label }: PdfPagesDisplayProps) {
               key={idx}
               onClick={() => setCurrentPageIdx(idx)}
               className={`w-2 h-2 rounded-full transition-colors ${idx === currentPageIdx
-                  ? 'bg-primary-500'
-                  : 'bg-surface-300 hover:bg-surface-400'
+                ? 'bg-primary-500'
+                : 'bg-surface-300 hover:bg-surface-400'
                 }`}
             />
           ))}
@@ -534,10 +534,10 @@ function CriteriaList({
             <div
               key={cIndex}
               className={`flex items-center gap-2 p-2 bg-surface-50 rounded-lg border ${criterion.extraction_confidence === 'low'
-                  ? 'border-amber-300 bg-amber-50'
-                  : criterion.extraction_confidence === 'medium'
-                    ? 'border-yellow-200 bg-yellow-50'
-                    : 'border-surface-200'
+                ? 'border-amber-300 bg-amber-50'
+                : criterion.extraction_confidence === 'medium'
+                  ? 'border-yellow-200 bg-yellow-50'
+                  : 'border-surface-200'
                 }`}
             >
               <GripVertical size={16} className="text-gray-300 cursor-grab" />

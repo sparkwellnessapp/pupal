@@ -15,6 +15,7 @@ import {
   saveRubric,
   previewStudentTestPdf,
   gradeSingleTest,
+  gradeHandwrittenTest, // NEW - add to api.ts
   PagePreview,
   QuestionPageMapping,
   ExtractedQuestion,
@@ -37,12 +38,14 @@ import {
   ClipboardCheck,
   Home as HomeIcon,
   User,
+  PenTool,
+  Printer,
 } from 'lucide-react';
 
 type MainMode = 'select' | 'rubric' | 'grading';
-// Added 'extracting' step between 'map' and 'review'
 type RubricStep = 'upload' | 'map' | 'extracting' | 'review' | 'saved';
 type GradingStep = 'select_rubric' | 'upload_batch' | 'map_answers' | 'grading' | 'results';
+type TranscriptionMode = 'handwritten' | 'printed' | null; // NEW
 
 interface ActiveRubricAssignment {
   questionIndex: number;
@@ -58,13 +61,7 @@ interface GradingProgress {
   current: number;
   total: number;
   currentFileName: string;
-}
-
-// NEW: Extraction progress tracking
-interface ExtractionProgress {
-  currentQuestion: number;
-  totalQuestions: number;
-  stage: 'preparing' | 'extracting_question' | 'extracting_criteria' | 'finalizing';
+  stage?: 'transcribing' | 'grading'; // NEW - for handwritten mode
 }
 
 // Store mapping for each test
@@ -74,6 +71,143 @@ interface TestMapping {
   answerMappings: AnswerPageMapping[];
   isLoaded: boolean;
 }
+
+// NEW: Store per-test question selections for handwritten mode
+interface HandwrittenTestConfig {
+  file: File;
+  answeredQuestions: number[]; // Which questions the student answered (empty = all)
+}
+
+// =============================================================================
+// Transcription Mode Toggle Component
+// =============================================================================
+
+interface TranscriptionModeToggleProps {
+  mode: TranscriptionMode;
+  onChange: (mode: TranscriptionMode) => void;
+}
+
+function TranscriptionModeToggle({ mode, onChange }: TranscriptionModeToggleProps) {
+  return (
+    <div className="mb-6 p-4 bg-surface-50 border border-surface-200 rounded-lg">
+      <label className="block text-sm font-medium text-gray-700 mb-3">
+        סוג המבחנים לבדיקה <span className="text-red-500">*</span>
+      </label>
+      <div className="flex gap-3">
+        <button
+          onClick={() => onChange('handwritten')}
+          className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${mode === 'handwritten'
+            ? 'border-primary-500 bg-primary-50 text-primary-700'
+            : 'border-surface-300 bg-white text-gray-600 hover:border-surface-400'
+            }`}
+        >
+          <PenTool size={20} />
+          <span className="font-medium">תמלול כתב יד</span>
+        </button>
+        <button
+          onClick={() => onChange('printed')}
+          className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${mode === 'printed'
+            ? 'border-primary-500 bg-primary-50 text-primary-700'
+            : 'border-surface-300 bg-white text-gray-600 hover:border-surface-400'
+            }`}
+        >
+          <Printer size={20} />
+          <span className="font-medium">תמלול דפוס</span>
+        </button>
+      </div>
+      {!mode && (
+        <p className="mt-2 text-sm text-amber-600 flex items-center gap-1">
+          <AlertCircle size={14} />
+          יש לבחור סוג מבחנים כדי להמשיך
+        </p>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Question Selection Component (for handwritten mode)
+// =============================================================================
+
+interface QuestionSelectionProps {
+  rubric: RubricListItem;
+  selectedQuestions: number[];
+  onChange: (questions: number[]) => void;
+  testName: string;
+}
+
+function QuestionSelection({ rubric, selectedQuestions, onChange, testName }: QuestionSelectionProps) {
+  const allQuestions = rubric.rubric_json.questions.map(q => q.question_number);
+  const allSelected = selectedQuestions.length === 0 || selectedQuestions.length === allQuestions.length;
+
+  const toggleQuestion = (qNum: number) => {
+    if (selectedQuestions.includes(qNum)) {
+      onChange(selectedQuestions.filter(q => q !== qNum));
+    } else {
+      onChange([...selectedQuestions, qNum].sort((a, b) => a - b));
+    }
+  };
+
+  const selectAll = () => {
+    onChange([]); // Empty means all questions
+  };
+
+  return (
+    <div className="p-3 bg-surface-50 rounded-lg border border-surface-200">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium text-gray-700 truncate max-w-[200px]" title={testName}>
+          {testName}
+        </span>
+        <button
+          onClick={selectAll}
+          className={`text-xs px-2 py-1 rounded ${allSelected
+            ? 'bg-primary-100 text-primary-700'
+            : 'bg-surface-200 text-gray-600 hover:bg-surface-300'
+            }`}
+        >
+          כל השאלות
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {allQuestions.map(qNum => {
+          const isSelected = allSelected || selectedQuestions.includes(qNum);
+          return (
+            <button
+              key={qNum}
+              onClick={() => toggleQuestion(qNum)}
+              className={`px-3 py-1 text-sm rounded-full border transition-colors ${isSelected
+                ? 'bg-primary-500 text-white border-primary-500'
+                : 'bg-white text-gray-600 border-surface-300 hover:border-primary-300'
+                }`}
+            >
+              שאלה {qNum}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Back Button Component
+// =============================================================================
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2 text-gray-500 hover:text-gray-700"
+    >
+      חזור
+      <ArrowRight size={18} />
+    </button>
+  );
+}
+
+// =============================================================================
+// Main Component
+// =============================================================================
 
 export default function Home() {
   const [mainMode, setMainMode] = useState<MainMode>('select');
@@ -87,8 +221,6 @@ export default function Home() {
   const [extractedQuestions, setExtractedQuestions] = useState<ExtractedQuestion[]>([]);
   const [rubricName, setRubricName] = useState('');
   const [savedRubricId, setSavedRubricId] = useState<string | null>(null);
-  // NEW: Extraction progress
-  const [extractionProgress, setExtractionProgress] = useState<ExtractionProgress | null>(null);
 
   // Grading Flow State
   const [gradingStep, setGradingStep] = useState<GradingStep>('select_rubric');
@@ -96,7 +228,13 @@ export default function Home() {
   const [testFiles, setTestFiles] = useState<File[]>([]);
   const [firstPageIndex, setFirstPageIndex] = useState(0);
 
-  // Per-test mapping state
+  // NEW: Transcription mode
+  const [transcriptionMode, setTranscriptionMode] = useState<TranscriptionMode>(null);
+
+  // NEW: Per-test question selection for handwritten mode
+  const [handwrittenConfigs, setHandwrittenConfigs] = useState<HandwrittenTestConfig[]>([]);
+
+  // Per-test mapping state (for printed mode)
   const [testMappings, setTestMappings] = useState<TestMapping[]>([]);
   const [currentTestIndex, setCurrentTestIndex] = useState(0);
   const [activeAnswerAssignment, setActiveAnswerAssignment] = useState<ActiveAnswerAssignment | null>(null);
@@ -109,8 +247,29 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Current test being mapped
+  // Current test being mapped (printed mode)
   const currentTest = testMappings[currentTestIndex];
+
+  // Initialize handwritten configs when files change
+  useEffect(() => {
+    if (transcriptionMode === 'handwritten' && testFiles.length > 0) {
+      setHandwrittenConfigs(
+        testFiles.map(file => ({
+          file,
+          answeredQuestions: [], // Empty = all questions
+        }))
+      );
+    }
+  }, [testFiles, transcriptionMode]);
+
+  // Reset transcription mode when going back to rubric selection
+  const handleBackToRubricSelect = () => {
+    setGradingStep('select_rubric');
+    setSelectedRubric(null);
+    setTestFiles([]);
+    setTranscriptionMode(null);
+    setHandwrittenConfigs([]);
+  };
 
   // Rubric Handlers
   const handleRubricFileChange = async (file: File | null) => {
@@ -187,68 +346,20 @@ export default function Home() {
     return hasQuestionPages && hasCriteria && subQuestionsValid;
   });
 
-  // UPDATED: Extract rubric with progress tracking
   const handleExtractRubric = async () => {
     if (!rubricFile || !canExtractRubric) return;
-
-    // Switch to extracting step first
     setRubricStep('extracting');
+    setIsLoading(true);
     setError(null);
-
-    // Initialize progress
-    const totalQuestions = rubricMappings.length;
-    setExtractionProgress({
-      currentQuestion: 0,
-      totalQuestions,
-      stage: 'preparing'
-    });
-
-    // Simulate progress updates while extraction happens
-    // (The actual extraction is a single API call, but we show estimated progress)
-    const progressInterval = setInterval(() => {
-      setExtractionProgress(prev => {
-        if (!prev) return null;
-
-        // Cycle through stages with estimated timing
-        if (prev.stage === 'preparing') {
-          return { ...prev, stage: 'extracting_question', currentQuestion: 1 };
-        }
-
-        if (prev.stage === 'extracting_question') {
-          return { ...prev, stage: 'extracting_criteria' };
-        }
-
-        if (prev.stage === 'extracting_criteria') {
-          if (prev.currentQuestion < prev.totalQuestions) {
-            return {
-              ...prev,
-              stage: 'extracting_question',
-              currentQuestion: prev.currentQuestion + 1
-            };
-          } else {
-            return { ...prev, stage: 'finalizing' };
-          }
-        }
-
-        return prev;
-      });
-    }, 2000); // Update every 2 seconds
-
     try {
-      const response = await extractRubric(rubricFile, {
-        name: rubricName || undefined,
-        question_mappings: rubricMappings
-      });
-
-      clearInterval(progressInterval);
+      const response = await extractRubric(rubricFile, { name: rubricName || undefined, question_mappings: rubricMappings });
       setExtractedQuestions(response.questions);
-      setExtractionProgress(null);
       setRubricStep('review');
     } catch (err) {
-      clearInterval(progressInterval);
-      setExtractionProgress(null);
       setError(err instanceof Error ? err.message : 'שגיאה בחילוץ המחוון');
-      setRubricStep('map'); // Go back to mapping on error
+      setRubricStep('map');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -272,11 +383,68 @@ export default function Home() {
     setGradingStep('upload_batch');
   };
 
-  // Initialize test mappings when files are uploaded and user proceeds
+  // Handle proceed based on transcription mode
+  const handleProceedFromUpload = async () => {
+    if (testFiles.length === 0 || !transcriptionMode) return;
+
+    if (transcriptionMode === 'handwritten') {
+      // Skip page mapping, go directly to grading
+      await handleGradeHandwritten();
+    } else {
+      // Printed mode - go to page mapping
+      await handleProceedToMapping();
+    }
+  };
+
+  // NEW: Grade handwritten tests
+  const handleGradeHandwritten = async () => {
+    if (!selectedRubric || handwrittenConfigs.length === 0) return;
+
+    setGradingStep('grading');
+    setGradingProgress({ current: 0, total: handwrittenConfigs.length, currentFileName: '', stage: 'transcribing' });
+
+    const results: GradedTestResult[] = [];
+    const errors: string[] = [];
+    let successful = 0;
+    let failed = 0;
+
+    for (let i = 0; i < handwrittenConfigs.length; i++) {
+      const config = handwrittenConfigs[i];
+      setGradingProgress({
+        current: i + 1,
+        total: handwrittenConfigs.length,
+        currentFileName: config.file.name,
+        stage: 'transcribing',
+      });
+
+      try {
+        // Call handwritten grading endpoint
+        const result = await gradeHandwrittenTest(
+          selectedRubric.id,
+          config.file,
+          config.answeredQuestions.length > 0 ? config.answeredQuestions : undefined,
+          firstPageIndex
+        );
+
+        results.push(result);
+        successful++;
+      } catch (err) {
+        const errorMsg = `${config.file.name}: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`;
+        errors.push(errorMsg);
+        failed++;
+      }
+    }
+
+    setGradingResults(results);
+    setGradingStats({ total: handwrittenConfigs.length, successful, failed, errors });
+    setGradingProgress(null);
+    setGradingStep('results');
+  };
+
+  // Initialize test mappings when files are uploaded and user proceeds (printed mode)
   const handleProceedToMapping = async () => {
     if (testFiles.length === 0) return;
 
-    // Initialize mappings array with empty mappings
     const initialMappings: TestMapping[] = testFiles.map(file => ({
       file,
       pages: [],
@@ -288,7 +456,6 @@ export default function Home() {
     setCurrentTestIndex(0);
     setGradingStep('map_answers');
 
-    // Load first test pages
     await loadTestPages(0, initialMappings);
   };
 
@@ -307,7 +474,6 @@ export default function Home() {
         ...newMappings[index],
         pages: response.pages,
         isLoaded: true,
-        // Pre-fill with previous test's mapping if available
         answerMappings: index > 0 && newMappings[index - 1].answerMappings.length > 0
           ? JSON.parse(JSON.stringify(newMappings[index - 1].answerMappings))
           : [],
@@ -321,105 +487,55 @@ export default function Home() {
     }
   };
 
-  // Handle page click for current test
-  const handleAnswerPageClick = useCallback((pageIndex: number) => {
-    if (!activeAnswerAssignment || !currentTest) return;
-
-    const newMappings = [...testMappings];
-    const currentMapping = newMappings[currentTestIndex];
-    const answerMapping = currentMapping.answerMappings[activeAnswerAssignment.mappingIndex];
-
-    if (!answerMapping) return;
-
-    const idx = answerMapping.page_indexes.indexOf(pageIndex);
-    if (idx >= 0) {
-      answerMapping.page_indexes.splice(idx, 1);
-    } else {
-      answerMapping.page_indexes.push(pageIndex);
-      answerMapping.page_indexes.sort((a, b) => a - b);
-    }
-
-    setTestMappings(newMappings);
-  }, [activeAnswerAssignment, currentTestIndex, testMappings, currentTest]);
-
-  // Get page selections for current test
-  const getAnswerPageSelections = useCallback(() => {
-    const selections = new Map<number, { label: string; color: string }>();
-    if (!currentTest) return selections;
-
-    currentTest.answerMappings.forEach((mapping) => {
-      mapping.page_indexes.forEach((pageIdx) => {
-        const label = mapping.sub_question_id
-          ? `${mapping.question_number}${mapping.sub_question_id}`
-          : `${mapping.question_number}`;
-        selections.set(pageIdx, { label, color: 'bg-primary-500' });
-      });
+  // Update handwritten config for a specific test
+  const updateHandwrittenConfig = (index: number, answeredQuestions: number[]) => {
+    setHandwrittenConfigs(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], answeredQuestions };
+      return updated;
     });
-    return selections;
-  }, [currentTest]);
-
-  // Update current test's mappings
-  const updateCurrentTestMappings = (newAnswerMappings: AnswerPageMapping[]) => {
-    const newMappings = [...testMappings];
-    newMappings[currentTestIndex] = {
-      ...newMappings[currentTestIndex],
-      answerMappings: newAnswerMappings,
-    };
-    setTestMappings(newMappings);
   };
 
-  // Check if current test mapping is valid
-  const isCurrentMappingValid = currentTest?.answerMappings.length > 0 &&
-    currentTest.answerMappings.every((m) => m.page_indexes.length > 0);
-
-  // Navigate to next test
-  const handleNextTest = async () => {
-    if (currentTestIndex < testMappings.length - 1) {
-      const nextIndex = currentTestIndex + 1;
-      setCurrentTestIndex(nextIndex);
-      setActiveAnswerAssignment(null);
-
-      // Load next test's pages if not loaded
-      if (!testMappings[nextIndex].isLoaded) {
-        await loadTestPages(nextIndex, testMappings);
-      }
-    } else {
-      // All tests mapped, proceed to grading
-      handleStartGrading();
-    }
-  };
-
-  // Navigate to previous test
+  // Navigation for printed mode
   const handlePrevTest = () => {
     if (currentTestIndex > 0) {
       setCurrentTestIndex(currentTestIndex - 1);
       setActiveAnswerAssignment(null);
     } else {
-      // Go back to batch upload
       setGradingStep('upload_batch');
       setTestMappings([]);
-      setCurrentTestIndex(0);
     }
   };
 
-  // Grade all tests
-  const handleStartGrading = async () => {
-    if (!selectedRubric || testMappings.length === 0) return;
+  const handleNextTest = async () => {
+    if (currentTestIndex < testMappings.length - 1) {
+      const nextIndex = currentTestIndex + 1;
+      setCurrentTestIndex(nextIndex);
+      setActiveAnswerAssignment(null);
+      await loadTestPages(nextIndex, testMappings);
+    } else {
+      await handleStartGrading();
+    }
+  };
 
-    setIsLoading(true);
-    setError(null);
+  // Start grading (printed mode)
+  const handleStartGrading = async () => {
+    if (!selectedRubric) return;
+
     setGradingStep('grading');
     setGradingProgress({ current: 0, total: testMappings.length, currentFileName: '' });
 
     const results: GradedTestResult[] = [];
     const errors: string[] = [];
+    let successful = 0;
+    let failed = 0;
 
     for (let i = 0; i < testMappings.length; i++) {
       const testMapping = testMappings[i];
       setGradingProgress({
-        current: i,
+        current: i + 1,
         total: testMappings.length,
-        currentFileName: testMapping.file.name
+        currentFileName: testMapping.file.name,
       });
 
       try {
@@ -430,135 +546,142 @@ export default function Home() {
           firstPageIndex
         );
         results.push(result);
+        successful++;
       } catch (err) {
-        errors.push(`${testMapping.file.name}: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`);
+        const errorMsg = `${testMapping.file.name}: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`;
+        errors.push(errorMsg);
+        failed++;
       }
-
-      setGradingProgress({
-        current: i + 1,
-        total: testMappings.length,
-        currentFileName: i + 1 < testMappings.length ? testMappings[i + 1].file.name : ''
-      });
     }
 
     setGradingResults(results);
-    setGradingStats({
-      total: testMappings.length,
-      successful: results.length,
-      failed: errors.length,
-      errors: errors,
-    });
+    setGradingStats({ total: testMappings.length, successful, failed, errors });
     setGradingProgress(null);
     setGradingStep('results');
-    setIsLoading(false);
   };
 
-  // Navigation - go to home (reset everything)
+  // Answer page click handler (printed mode)
+  const handleAnswerPageClick = useCallback((pageIndex: number) => {
+    if (!activeAnswerAssignment || !currentTest) return;
+
+    const newMappings = [...currentTest.answerMappings];
+    const mapping = newMappings[activeAnswerAssignment.mappingIndex];
+    if (!mapping) return;
+
+    const idx = mapping.page_indexes.indexOf(pageIndex);
+    if (idx >= 0) {
+      mapping.page_indexes.splice(idx, 1);
+    } else {
+      mapping.page_indexes.push(pageIndex);
+      mapping.page_indexes.sort((a, b) => a - b);
+    }
+
+    updateCurrentTestMappings(newMappings);
+  }, [activeAnswerAssignment, currentTest]);
+
+  const updateCurrentTestMappings = (newMappings: AnswerPageMapping[]) => {
+    setTestMappings(prev => {
+      const updated = [...prev];
+      updated[currentTestIndex] = {
+        ...updated[currentTestIndex],
+        answerMappings: newMappings,
+      };
+      return updated;
+    });
+  };
+
+  const getAnswerPageSelections = useCallback(() => {
+    if (!currentTest) return new Map();
+    const selections = new Map<number, { label: string; color: string }>();
+    currentTest.answerMappings.forEach((mapping) => {
+      mapping.page_indexes.forEach((pageIdx) => {
+        const existing = selections.get(pageIdx);
+        let label = `ש${mapping.question_number}`;
+        if (mapping.sub_question_id) label += mapping.sub_question_id;
+        selections.set(pageIdx, {
+          label: existing ? `${existing.label}, ${label}` : label,
+          color: 'bg-green-500',
+        });
+      });
+    });
+    return selections;
+  }, [currentTest]);
+
+  const isCurrentMappingValid = currentTest?.answerMappings.every(m => m.page_indexes.length > 0) ?? false;
+
   const goToHome = () => {
     setMainMode('select');
     setRubricStep('upload');
+    setGradingStep('select_rubric');
     setRubricFile(null);
     setRubricPages([]);
     setRubricMappings([]);
     setExtractedQuestions([]);
-    setRubricName('');
-    setExtractionProgress(null);
-    setGradingStep('select_rubric');
     setSelectedRubric(null);
     setTestFiles([]);
     setTestMappings([]);
-    setCurrentTestIndex(0);
     setGradingResults([]);
-    setGradingProgress(null);
+    setTranscriptionMode(null);
+    setHandwrittenConfigs([]);
     setError(null);
   };
 
-  // Get stage message for extraction progress
-  const getExtractionStageMessage = (progress: ExtractionProgress): string => {
-    switch (progress.stage) {
-      case 'preparing':
-        return 'מכין את החילוץ...';
-      case 'extracting_question':
-        return `מחלץ טקסט שאלה ${progress.currentQuestion}...`;
-      case 'extracting_criteria':
-        return `מחלץ קריטריונים לשאלה ${progress.currentQuestion}...`;
-      case 'finalizing':
-        return 'מסיים את החילוץ...';
-      default:
-        return 'מחלץ מחוון...';
-    }
-  };
-
-  // Back button component
-  const BackButton = ({ onClick }: { onClick: () => void }) => (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors"
-    >
-      <ArrowRight size={18} />
-      <span className="text-sm">חזור</span>
-    </button>
-  );
+  // Can proceed from upload page
+  const canProceedFromUpload = testFiles.length > 0 && transcriptionMode !== null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-surface-50 to-surface-100">
+    <main className="min-h-screen bg-gradient-to-br from-surface-50 via-primary-50/30 to-surface-100 p-6">
       {/* Header */}
-      <header className="bg-white border-b border-surface-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-primary-600">Pupil</h1>
-              {mainMode !== 'select' && (
-                <span className="text-sm text-gray-400 border-r border-gray-200 pr-3 mr-1">
-                  {mainMode === 'rubric' && 'יצירת מחוון'}
-                  {mainMode === 'grading' && 'בדיקת מבחנים'}
-                </span>
-              )}
+      <div className="max-w-7xl mx-auto mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-primary-500 text-white p-2 rounded-lg">
+              <GraduationCap size={28} />
             </div>
-
-            {mainMode !== 'select' && (
-              <button
-                onClick={goToHome}
-                className="flex items-center gap-2 text-gray-500 hover:text-primary-600 transition-colors px-3 py-1.5 rounded-lg hover:bg-primary-50"
-              >
-                <HomeIcon size={18} />
-                <span className="text-sm">לדף הבית</span>
-              </button>
-            )}
+            <div>
+              <h1 className="text-2xl font-bold text-primary-700">Pupal</h1>
+              <p className="text-sm text-gray-500">מערכת בדיקת מבחנים חכמה</p>
+            </div>
           </div>
+          {mainMode !== 'select' && (
+            <button onClick={goToHome} className="flex items-center gap-2 text-gray-500 hover:text-primary-600 transition-colors">
+              <HomeIcon size={18} />
+              <span>חזור לדף הבית</span>
+            </button>
+          )}
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Mode Selection */}
+      <div className="max-w-7xl mx-auto">
+        {/* MODE SELECTION */}
         {mainMode === 'select' && (
           <div className="max-w-3xl mx-auto animate-fade-in">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-2">מה תרצה לעשות?</h2>
-              <p className="text-gray-500">בחר פעולה כדי להתחיל</p>
+              <h2 className="text-3xl font-bold text-gray-800 mb-2">ברוכים הבאים ל-Pupal</h2>
+              <p className="text-gray-500">בחר את הפעולה הרצויה</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <button onClick={() => setMainMode('rubric')} className="bg-white rounded-2xl p-8 border-2 border-surface-200 hover:border-primary-400 hover:shadow-lg transition-all text-right group">
-                <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-primary-200 transition-colors">
-                  <BookOpen size={32} className="text-primary-600" />
+              <button
+                onClick={() => setMainMode('rubric')}
+                className="bg-white rounded-xl shadow-lg p-8 text-center hover:shadow-xl hover:scale-[1.02] transition-all group"
+              >
+                <div className="bg-primary-100 text-primary-600 p-4 rounded-full w-fit mx-auto mb-4 group-hover:bg-primary-200 transition-colors">
+                  <BookOpen size={32} />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">יצירת מחוון</h3>
-                <p className="text-gray-500 text-sm">העלה PDF של מחוון, מפה את השאלות והקריטריונים, ושמור למערכת</p>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">יצירת מחוון חדש</h3>
+                <p className="text-gray-500 text-sm">העלה PDF של מחוון וחלץ את הקריטריונים</p>
               </button>
-              <button onClick={() => setMainMode('grading')} className="bg-white rounded-2xl p-8 border-2 border-surface-200 hover:border-primary-400 hover:shadow-lg transition-all text-right group">
-                <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-primary-200 transition-colors">
-                  <GraduationCap size={32} className="text-primary-600" />
+              <button
+                onClick={() => setMainMode('grading')}
+                className="bg-white rounded-xl shadow-lg p-8 text-center hover:shadow-xl hover:scale-[1.02] transition-all group"
+              >
+                <div className="bg-green-100 text-green-600 p-4 rounded-full w-fit mx-auto mb-4 group-hover:bg-green-200 transition-colors">
+                  <GraduationCap size={32} />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">בדיקת מבחנים</h3>
-                <p className="text-gray-500 text-sm">בחר מחוון קיים, העלה מבחני תלמידים, וקבל ציונים אוטומטיים</p>
+                <p className="text-gray-500 text-sm">בדוק מבחני תלמידים עם מחוון קיים</p>
               </button>
             </div>
-            {savedRubricId && (
-              <div className="mt-8 p-4 bg-primary-50 border border-primary-200 rounded-xl text-center">
-                <p className="text-primary-700 text-sm mb-2">מחוון אחרון שנשמר: <code className="bg-primary-100 px-2 py-0.5 rounded">{savedRubricId}</code></p>
-                <button onClick={() => setMainMode('grading')} className="text-primary-600 hover:text-primary-800 text-sm font-medium">המשך לבדיקת מבחנים →</button>
-              </div>
-            )}
           </div>
         )}
 
@@ -571,9 +694,9 @@ export default function Home() {
                   <div className="text-center mb-6">
                     <Upload className="mx-auto text-primary-500 mb-3" size={48} />
                     <h2 className="text-xl font-semibold">העלאת מחוון</h2>
-                    <p className="text-gray-500 mt-1">העלה קובץ PDF של המחוון לחילוץ</p>
+                    <p className="text-gray-500 mt-1">העלה קובץ PDF של המחוון</p>
                   </div>
-                  <FileUpload file={rubricFile} onFileChange={handleRubricFileChange} label="העלה קובץ PDF של המחוון" />
+                  <FileUpload file={rubricFile} onFileChange={handleRubricFileChange} accept=".pdf" label="גרור קובץ PDF לכאן או לחץ לבחירה" />
                   {isLoading && <div className="mt-4 flex items-center justify-center gap-2 text-primary-600"><Loader2 className="animate-spin" size={20} /><span>מעבד את הקובץ...</span></div>}
                   {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center gap-2"><AlertCircle size={18} />{error}</div>}
                 </div>
@@ -612,52 +735,12 @@ export default function Home() {
               </div>
             )}
 
-            {/* NEW: Extracting step with progress */}
             {rubricStep === 'extracting' && (
               <div className="max-w-xl mx-auto animate-fade-in">
                 <div className="bg-white rounded-xl shadow-lg p-8 text-center">
                   <Loader2 className="mx-auto text-primary-500 mb-4 animate-spin" size={64} />
                   <h2 className="text-xl font-semibold text-gray-800">מחלץ מחוון...</h2>
-
-                  {extractionProgress && (
-                    <div className="mt-6 space-y-4">
-                      {/* Progress bar */}
-                      <div className="w-full bg-surface-200 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="bg-primary-500 h-3 rounded-full transition-all duration-500 ease-out"
-                          style={{
-                            width: `${Math.min(
-                              ((extractionProgress.currentQuestion - 0.5 +
-                                (extractionProgress.stage === 'extracting_criteria' ? 0.5 : 0)) /
-                                extractionProgress.totalQuestions) * 100,
-                              95
-                            )}%`
-                          }}
-                        />
-                      </div>
-
-                      {/* Progress text */}
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="text-2xl font-bold text-primary-600">
-                          {extractionProgress.currentQuestion}
-                        </span>
-                        <span className="text-gray-400">/</span>
-                        <span className="text-lg text-gray-500">
-                          {extractionProgress.totalQuestions}
-                        </span>
-                        <span className="text-sm text-gray-400 mr-2">שאלות</span>
-                      </div>
-
-                      {/* Stage message */}
-                      <p className="text-sm text-gray-500">
-                        {getExtractionStageMessage(extractionProgress)}
-                      </p>
-                    </div>
-                  )}
-
-                  <p className="mt-6 text-xs text-gray-400">
-                    החילוץ עשוי לקחת מספר דקות בהתאם למספר השאלות
-                  </p>
+                  <p className="text-gray-500 mt-2">אנא המתן בזמן שהמערכת מחלצת את המחוון</p>
                 </div>
               </div>
             )}
@@ -665,7 +748,6 @@ export default function Home() {
             {rubricStep === 'review' && (
               <div className="animate-fade-in">
                 <div className="bg-white rounded-xl shadow-lg p-6">
-                  {/* Pass rubricPages and rubricMappings to RubricEditor */}
                   <RubricEditor
                     questions={extractedQuestions}
                     onQuestionsChange={setExtractedQuestions}
@@ -734,6 +816,12 @@ export default function Home() {
                     <p className="text-gray-500 mt-1">העלה את כל מבחני התלמידים לבדיקה</p>
                   </div>
 
+                  {/* NEW: Transcription mode toggle */}
+                  <TranscriptionModeToggle
+                    mode={transcriptionMode}
+                    onChange={setTranscriptionMode}
+                  />
+
                   {/* First page index selector */}
                   <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-center gap-2 text-sm">
@@ -753,17 +841,50 @@ export default function Home() {
 
                   <MultiFileUpload files={testFiles} onFilesChange={setTestFiles} label="העלה מבחני תלמידים" maxFiles={50} />
 
+                  {/* NEW: Question selection for handwritten mode */}
+                  {transcriptionMode === 'handwritten' && testFiles.length > 0 && (
+                    <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-3">
+                        <PenTool size={16} className="text-amber-600" />
+                        <span className="font-medium text-amber-800">בחירת שאלות לכל מבחן (אופציונלי)</span>
+                      </div>
+                      <p className="text-sm text-amber-700 mb-3">
+                        אם התלמיד לא ענה על כל השאלות, בחר את השאלות שהוא ענה עליהן. השאר ריק אם ענה על כולן.
+                      </p>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {handwrittenConfigs.map((config, index) => (
+                          <QuestionSelection
+                            key={index}
+                            rubric={selectedRubric}
+                            selectedQuestions={config.answeredQuestions}
+                            onChange={(questions) => updateHandwrittenConfig(index, questions)}
+                            testName={config.file.name}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
 
                   <div className="mt-6 flex items-center justify-between">
-                    <BackButton onClick={() => { setGradingStep('select_rubric'); setSelectedRubric(null); setTestFiles([]); }} />
+                    <BackButton onClick={handleBackToRubricSelect} />
                     <button
-                      onClick={handleProceedToMapping}
-                      disabled={testFiles.length === 0 || isLoading}
+                      onClick={handleProceedFromUpload}
+                      disabled={!canProceedFromUpload || isLoading}
                       className="flex items-center gap-2 bg-primary-500 text-white px-6 py-2 rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
                     >
-                      המשך למיפוי תשובות
-                      <ArrowLeft size={18} />
+                      {transcriptionMode === 'handwritten' ? (
+                        <>
+                          <GraduationCap size={18} />
+                          התחל בדיקה ({testFiles.length} מבחנים)
+                        </>
+                      ) : (
+                        <>
+                          המשך למיפוי תשובות
+                          <ArrowLeft size={18} />
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -815,7 +936,6 @@ export default function Home() {
                       hideFirstPageSelector={true}
                     />
 
-                    {/* Navigation buttons */}
                     <div className="mt-6 flex items-center justify-between">
                       <BackButton onClick={handlePrevTest} />
 
@@ -846,29 +966,24 @@ export default function Home() {
               <div className="max-w-xl mx-auto animate-fade-in">
                 <div className="bg-white rounded-xl shadow-lg p-8 text-center">
                   <Loader2 className="mx-auto text-primary-500 mb-4 animate-spin" size={64} />
-                  <h2 className="text-xl font-semibold text-gray-800">בודק מבחנים...</h2>
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    {gradingProgress?.stage === 'transcribing' ? 'מתמלל כתב יד...' : 'בודק מבחנים...'}
+                  </h2>
 
                   {gradingProgress && (
                     <div className="mt-6 space-y-3">
                       <div className="w-full bg-surface-200 rounded-full h-3 overflow-hidden">
                         <div
-                          className="bg-primary-500 h-3 rounded-full transition-all duration-500 ease-out"
+                          className="bg-primary-500 h-3 transition-all duration-300"
                           style={{ width: `${(gradingProgress.current / gradingProgress.total) * 100}%` }}
                         />
                       </div>
-
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="text-2xl font-bold text-primary-600">{gradingProgress.current}</span>
-                        <span className="text-gray-400">/</span>
-                        <span className="text-lg text-gray-500">{gradingProgress.total}</span>
-                        <span className="text-sm text-gray-400 mr-2">מבחנים נבדקו</span>
-                      </div>
-
-                      {gradingProgress.currentFileName && gradingProgress.current < gradingProgress.total && (
-                        <p className="text-sm text-gray-400 truncate max-w-xs mx-auto">
-                          בודק: {gradingProgress.currentFileName}
-                        </p>
-                      )}
+                      <p className="text-sm text-gray-600">
+                        {gradingProgress.current} / {gradingProgress.total}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {gradingProgress.currentFileName}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -877,21 +992,16 @@ export default function Home() {
 
             {gradingStep === 'results' && (
               <div className="animate-fade-in">
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold">תוצאות הבדיקה</h2>
-                    <button onClick={goToHome} className="flex items-center gap-2 text-gray-500 hover:text-primary-600 transition-colors">
-                      <HomeIcon size={18} />
-                      <span className="text-sm">לדף הבית</span>
-                    </button>
-                  </div>
-                  <GradingResults results={gradingResults} totalTests={gradingStats.total} successful={gradingStats.successful} failed={gradingStats.failed} errors={gradingStats.errors} />
-                </div>
+                <GradingResults
+                  results={gradingResults}
+                  stats={gradingStats}
+                  onBack={goToHome}
+                />
               </div>
             )}
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }

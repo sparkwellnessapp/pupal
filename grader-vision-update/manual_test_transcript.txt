@@ -2,15 +2,15 @@
 internal class Course
 {
     private string courseName;
-    private int numberStudents;
+    private int numberStudents;   !!! private int numOfStudents;
     private int hours;
     private bool isMandatory;
-}
 
-public Course(string courseName, int numberStudents, int hours, bool isMandatory)
+
+public Course(string courseName, int numberStudents, int hours, bool isMandatory) !!! int numOfStudents
 {
     this.courseName = courseName;
-    this.numberStudents = numberStudents;
+    this.numberStudents = numberStudents;     !!! this.numOfStudents = numOfStudents;
     this.hours = hours;
     this.isMandatory = isMandatory;
 }
@@ -18,7 +18,7 @@ public Course(string courseName, int numberStudents, int hours, bool isMandatory
 public Course(string courseName, int hours, bool isMandatory)
 {
     this.courseName = courseName;
-    this.numberStudents = 0;
+    this.numberStudents = 0;   !!! this.numOfStudents = 0;
     this.hours = hours;
     this.isMandatory = isMandatory;
 }
@@ -33,17 +33,18 @@ static void main
     for(int i = 0; i < 30; i++)
     {
         console.writeLine("Enter details for your course");
-        console.writeLine("Enter course name");
+        console.writeLine("Enter course name"); 
         courseName = console.ReadLine();
         console.writeLine("Enter num of students");
-        numStudents = int.Parse(console.ReadLine());
-        console.writeLine("Enter course");
+        numStudents = int.Parse(console.ReadLine());      !!! numOfStudents = int.Parse(console.ReadLine());
+        console.writeLine("Enter course");         !!! Console.WriteLine("Enter how many hours your course:");
         hours = int.Parse(console.ReadLine());
         Console.WriteLine("enter is mandatory or not");
         isMandatory = bool.Parse(Console.ReadLine());
 
-        Course h = new Course(courseName, numStudents, hours, isMandatory);
-        arrCourse[count] = h;
+        Course h = new Course(courseName, numStudents, hours, isMandatory);    !!! Course course = new Course(courseName, numOfStudents, hours, isMandatory);
+        arrCourse[count] = h;    !!! arrCourse[count] = course;
+        !!! count++;
     }
     
     int countCourse = 0;
@@ -63,7 +64,11 @@ static void main
 
 
 
-
+Overall mistakes (noted by '!!!'): 9
+Repeating mistakes: 2
+Repeating mistake 1: Transcription recording numOfStudents instead of numStudents. 
+Repeating mistake 2: Transcription is adding fixes and patches to the code that were not in the original code. 
+Correct Rows: 54/63
 ----------------------------------------------------------------------
 רז כהן - שאלה 2 :
 
@@ -88,6 +93,7 @@ public class Employee // א.
         this.isSenior = false;   // לא ותיק
     }
 
+!!!  }
 
     public double CalcMonthlySalary() // ד.
     {
@@ -122,8 +128,8 @@ public class Employee // א.
         }
     }
 
-    public static double CalcDepartmentMonthlyCost(Department dep) 
-    {
+public static double CalcDepartmentMonthlyCost(Department dep) 
+{
     double sum = 0;
     double price;
 
@@ -132,9 +138,9 @@ public class Employee // א.
 
     for (int i = 0; i < count; i++)
     {
-        if (dep.GetIsSenior() == false)
+        if (dep.GetIsSenior() == false)    !!! if (employees[i].isSenior() == false)
         {
-            price = employeesGetSalary;
+            price = employees[i]GetSalary;    !! price = employees[i].GetSalary();
         }
         else
         {
@@ -145,5 +151,12 @@ public class Employee // א.
     }
 
     return sum;
+}
 
 
+
+Overall mistakes (noted by '!!!'): 2
+Repeating mistakes: 1
+Repeating mistake 1: Transcription is adding fixes and patches to the code that were not
+in the original answer. For example instead of the original line: """if (dep.GetIsSenior() == false)""" it transcribed: """if (employees[i].isSenior() == false)"""
+Correct Rows: 79/81

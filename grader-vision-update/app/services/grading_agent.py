@@ -306,6 +306,17 @@ GRADING RULES:
 4. Assign confidence level: high, medium, or low
 5. If confidence is low or medium, explain why in low_confidence_reason
 
+MISMATCH DETECTION (CRITICAL):
+Before grading, CHECK if the student's answers match the rubric topic:
+- If the rubric asks about "House" class but student wrote about "Employee" class → MISMATCH
+- If the rubric asks about array functions but student wrote about class definitions → MISMATCH
+- If class names, method names, or problem topics clearly don't match → MISMATCH
+
+If you detect a mismatch:
+- Set "rubric_mismatch_detected": true
+- Explain the mismatch in "rubric_mismatch_reason" (in Hebrew)
+- Still grade all criteria, but most will likely be 0 points
+
 CRITICAL REQUIREMENTS:
 - You MUST grade EVERY criterion listed in the rubric
 - You MUST copy the EXACT criterion text from the rubric (do not abbreviate or leave empty)
@@ -315,6 +326,8 @@ CRITICAL REQUIREMENTS:
 
 OUTPUT FORMAT - Return ONLY valid JSON matching this EXACT structure:
 {{
+  "rubric_mismatch_detected": false,
+  "rubric_mismatch_reason": null,
   "question_grades": [
     {{
       "question_number": 1,
@@ -436,6 +449,13 @@ Remember: Grade ALL {sum(len(q.get('criteria', [])) for q in questions)} criteri
             total_possible = sum(g.get("points_possible", 0) for g in flat_grades)
             percentage = (total_score / total_possible * 100) if total_possible > 0 else 0
             
+            # Extract mismatch detection flag
+            rubric_mismatch_detected = data.get("rubric_mismatch_detected", False)
+            rubric_mismatch_reason = data.get("rubric_mismatch_reason")
+            
+            if rubric_mismatch_detected:
+                logger.warning(f"⚠️ RUBRIC MISMATCH DETECTED: {rubric_mismatch_reason}")
+            
             return {
                 "student_name": student_test.get("student_name", "Unknown"),
                 "filename": student_test.get("filename", "Unknown"),
@@ -444,7 +464,9 @@ Remember: Grade ALL {sum(len(q.get('criteria', [])) for q in questions)} criteri
                 "percentage": percentage,
                 "question_grades": question_grades,
                 "grades": flat_grades,  # Flat list for backward compatibility
-                "low_confidence_items": data.get("low_confidence_items", [])
+                "low_confidence_items": data.get("low_confidence_items", []),
+                "rubric_mismatch_detected": rubric_mismatch_detected,
+                "rubric_mismatch_reason": rubric_mismatch_reason,
             }
             
         except json.JSONDecodeError as e:
