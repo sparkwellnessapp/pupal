@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { GradedTestResult, StudentAnswer } from '@/lib/api';
+import { GradedTestResult, StudentAnswer, PagePreview } from '@/lib/api';
 import {
   ChevronDown,
   ChevronUp,
@@ -22,6 +22,8 @@ interface GradingResultsProps {
     errors: string[];
   };
   onBack: () => void;
+  // Optional: PDF page thumbnails keyed by filename for handwritten test validation
+  testPages?: Map<string, PagePreview[]>;
 }
 
 interface QuestionGrade {
@@ -46,6 +48,7 @@ export function GradingResults({
   results,
   stats,
   onBack,
+  testPages,
 }: GradingResultsProps) {
   const { total: totalTests, successful, failed, errors } = stats;
   const [expandedTests, setExpandedTests] = useState<Set<string>>(new Set());
@@ -283,6 +286,11 @@ export function GradingResults({
                         </div>
                       )}
 
+                      {/* Handwritten Pages Gallery */}
+                      {testPages && result.filename && testPages.get(result.filename) && (
+                        <HandwrittenPagesGallery pages={testPages.get(result.filename)!} />
+                      )}
+
                       {/* Question-grouped grades */}
                       <div className="space-y-3">
                         {questionGrades.map((qg) => {
@@ -448,6 +456,92 @@ export function GradingResults({
             })
         )}
       </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Handwritten Pages Gallery Component
+// =============================================================================
+
+interface HandwrittenPagesGalleryProps {
+  pages: PagePreview[];
+}
+
+function HandwrittenPagesGallery({ pages }: HandwrittenPagesGalleryProps) {
+  const [expandedPage, setExpandedPage] = useState<number | null>(null);
+
+  if (!pages || pages.length === 0) return null;
+
+  return (
+    <div className="border-b border-surface-200 p-3 bg-amber-50">
+      <div className="flex items-center gap-2 mb-2 text-amber-700 text-sm font-medium">
+        <FileText size={16} />
+        <span>עמודים מקוריים (כתב יד)</span>
+        <span className="text-amber-600 text-xs">({pages.length} עמודים)</span>
+      </div>
+
+      {/* Thumbnail grid - centered */}
+      <div className="flex gap-4 overflow-x-auto pb-2 justify-center">
+        {pages.map((page, idx) => (
+          <div
+            key={page.page_index}
+            className="relative flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity border-2 border-amber-200 rounded-lg overflow-hidden shadow-md"
+            onClick={() => setExpandedPage(idx)}
+          >
+            {/* Page number badge */}
+            <div className="absolute top-2 left-2 z-10 bg-amber-600 text-white text-sm px-2 py-1 rounded font-medium">
+              {page.page_number}
+            </div>
+            <img
+              src={`data:image/png;base64,${page.thumbnail_base64}`}
+              alt={`עמוד ${page.page_number}`}
+              className="h-[480px] w-auto object-contain"
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Expanded modal */}
+      {expandedPage !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setExpandedPage(null)}
+        >
+          <button
+            onClick={() => setExpandedPage(null)}
+            className="absolute top-4 right-4 z-50 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full"
+          >
+            <ChevronUp size={24} />
+          </button>
+          <div className="absolute top-4 left-4 z-50 bg-white/10 text-white px-3 py-1.5 rounded-lg text-sm">
+            עמוד {pages[expandedPage].page_number} מתוך {pages.length}
+          </div>
+          {/* Navigation buttons */}
+          {expandedPage > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setExpandedPage(expandedPage - 1); }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-50 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full"
+            >
+              <ChevronDown size={24} className="rotate-90" />
+            </button>
+          )}
+          {expandedPage < pages.length - 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setExpandedPage(expandedPage + 1); }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-50 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full"
+            >
+              <ChevronDown size={24} className="-rotate-90" />
+            </button>
+          )}
+          <img
+            src={`data:image/png;base64,${pages[expandedPage].thumbnail_base64}`}
+            alt={`עמוד ${pages[expandedPage].page_number}`}
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

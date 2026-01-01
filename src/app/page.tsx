@@ -243,6 +243,8 @@ export default function Home() {
   const [gradingResults, setGradingResults] = useState<GradedTestResult[]>([]);
   const [gradingStats, setGradingStats] = useState({ total: 0, successful: 0, failed: 0, errors: [] as string[] });
   const [gradingProgress, setGradingProgress] = useState<GradingProgress | null>(null);
+  // NEW: Store test page thumbnails for validation in results view
+  const [testPagesMap, setTestPagesMap] = useState<Map<string, PagePreview[]>>(new Map());
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -408,6 +410,9 @@ export default function Home() {
     let successful = 0;
     let failed = 0;
 
+    // NEW: Collect page thumbnails for validation
+    const pagesMap = new Map<string, PagePreview[]>();
+
     for (let i = 0; i < handwrittenConfigs.length; i++) {
       const config = handwrittenConfigs[i];
       setGradingProgress({
@@ -418,6 +423,15 @@ export default function Home() {
       });
 
       try {
+        // Preview PDF first to get page thumbnails for validation
+        try {
+          const preview = await previewStudentTestPdf(config.file);
+          pagesMap.set(config.file.name, preview.pages);
+        } catch (previewErr) {
+          // Non-fatal: continue without thumbnails
+          console.warn(`Failed to preview ${config.file.name}:`, previewErr);
+        }
+
         // Call handwritten grading endpoint
         const result = await gradeHandwrittenTest(
           selectedRubric.id,
@@ -435,6 +449,7 @@ export default function Home() {
       }
     }
 
+    setTestPagesMap(pagesMap);
     setGradingResults(results);
     setGradingStats({ total: handwrittenConfigs.length, successful, failed, errors });
     setGradingProgress(null);
@@ -996,6 +1011,7 @@ export default function Home() {
                   results={gradingResults}
                   stats={gradingStats}
                   onBack={goToHome}
+                  testPages={testPagesMap}
                 />
               </div>
             )}
