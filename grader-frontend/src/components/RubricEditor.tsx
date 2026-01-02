@@ -96,6 +96,34 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
     onQuestionsChange(newQuestions);
   };
 
+  const reorderCriteria = (
+    qIndex: number,
+    fromIndex: number,
+    toIndex: number,
+    sqIndex?: number
+  ) => {
+    const newQuestions = [...questions];
+    let criteriaArray: ExtractedCriterion[];
+
+    if (sqIndex !== undefined) {
+      criteriaArray = [...newQuestions[qIndex].sub_questions[sqIndex].criteria];
+    } else {
+      criteriaArray = [...newQuestions[qIndex].criteria];
+    }
+
+    // Remove the item from original position and insert at new position
+    const [movedItem] = criteriaArray.splice(fromIndex, 1);
+    criteriaArray.splice(toIndex, 0, movedItem);
+
+    if (sqIndex !== undefined) {
+      newQuestions[qIndex].sub_questions[sqIndex].criteria = criteriaArray;
+    } else {
+      newQuestions[qIndex].criteria = criteriaArray;
+    }
+
+    onQuestionsChange(newQuestions);
+  };
+
   const recalculateTotals = (qs: ExtractedQuestion[]) => {
     qs.forEach((q) => {
       if (q.sub_questions.length > 0) {
@@ -272,6 +300,7 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
                           }
                           onAddCriterion={() => addCriterion(qIndex, sqIndex)}
                           onRemoveCriterion={(cIndex) => removeCriterion(qIndex, cIndex, sqIndex)}
+                          onReorderCriteria={(fromIndex, toIndex) => reorderCriteria(qIndex, fromIndex, toIndex, sqIndex)}
                         />
                       </div>
                     ))}
@@ -291,6 +320,7 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
                       onUpdateCriterion={(cIndex, updates) => updateCriterion(qIndex, cIndex, updates)}
                       onAddCriterion={() => addCriterion(qIndex)}
                       onRemoveCriterion={(cIndex) => removeCriterion(qIndex, cIndex)}
+                      onReorderCriteria={(fromIndex, toIndex) => reorderCriteria(qIndex, fromIndex, toIndex)}
                     />
                   </>
                 )}
@@ -503,6 +533,7 @@ interface CriteriaListProps {
   onUpdateCriterion: (index: number, updates: Partial<ExtractedCriterion>) => void;
   onAddCriterion: () => void;
   onRemoveCriterion: (index: number) => void;
+  onReorderCriteria: (fromIndex: number, toIndex: number) => void;
 }
 
 function CriteriaList({
@@ -510,7 +541,79 @@ function CriteriaList({
   onUpdateCriterion,
   onAddCriterion,
   onRemoveCriterion,
+  onReorderCriteria,
 }: CriteriaListProps) {
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dropPosition, setDropPosition] = useState<{ index: number; position: 'above' | 'below' } | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    if (draggedIndex === null || draggedIndex === index) {
+      setDropPosition(null);
+      return;
+    }
+
+    // Determine if cursor is in upper or lower half of the element
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    const position = e.clientY < midpoint ? 'above' : 'below';
+
+    setDropPosition({ index, position });
+  };
+
+  const handleDragLeave = () => {
+    setDropPosition(null);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+
+    if (draggedIndex === null || dropPosition === null) {
+      setDraggedIndex(null);
+      setDropPosition(null);
+      return;
+    }
+
+    let targetIndex = dropPosition.index;
+
+    // Calculate the actual insert position
+    if (dropPosition.position === 'below') {
+      targetIndex = targetIndex + 1;
+    }
+
+    // Adjust for the removal of the dragged item
+    if (draggedIndex < targetIndex) {
+      targetIndex = targetIndex - 1;
+    }
+
+    if (draggedIndex !== targetIndex) {
+      onReorderCriteria(draggedIndex, targetIndex);
+    }
+
+    setDraggedIndex(null);
+    setDropPosition(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDropPosition(null);
+  };
+
+  // Check if drop indicator should show above/below a specific item
+  const getDropIndicator = (index: number): 'above' | 'below' | null => {
+    if (!dropPosition || draggedIndex === null) return null;
+    if (dropPosition.index === index) return dropPosition.position;
+    return null;
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -529,54 +632,82 @@ function CriteriaList({
           אין קריטריונים. לחץ על &quot;הוסף קריטריון&quot; כדי להוסיף.
         </div>
       ) : (
-        <div className="space-y-2">
-          {criteria.map((criterion, cIndex) => (
-            <div
-              key={cIndex}
-              className={`flex items-center gap-2 p-2 bg-surface-50 rounded-lg border ${criterion.extraction_confidence === 'low'
-                ? 'border-amber-300 bg-amber-50'
-                : criterion.extraction_confidence === 'medium'
-                  ? 'border-yellow-200 bg-yellow-50'
-                  : 'border-surface-200'
-                }`}
-            >
-              <GripVertical size={16} className="text-gray-300 cursor-grab" />
+        <div className="space-y-0">
+          {criteria.map((criterion, cIndex) => {
+            const dropIndicator = getDropIndicator(cIndex);
+            return (
+              <div key={cIndex} className="relative">
+                {/* Drop indicator line - ABOVE */}
+                {dropIndicator === 'above' && (
+                  <div className="absolute -top-1 left-0 right-0 h-0.5 bg-primary-500 rounded-full z-10">
+                    <div className="absolute right-0 -top-1 w-2.5 h-2.5 bg-primary-500 rounded-full" />
+                  </div>
+                )}
 
-              {criterion.extraction_confidence !== 'high' && (
-                <AlertCircle
-                  size={16}
-                  className={
-                    criterion.extraction_confidence === 'low' ? 'text-amber-500' : 'text-yellow-500'
-                  }
-                />
-              )}
+                <div
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, cIndex)}
+                  onDragOver={(e) => handleDragOver(e, cIndex)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onDragEnd={handleDragEnd}
+                  className={`flex items-center gap-2 p-2 my-1 bg-surface-50 rounded-lg border transition-all duration-150 ${criterion.extraction_confidence === 'low'
+                    ? 'border-amber-300 bg-amber-50'
+                    : criterion.extraction_confidence === 'medium'
+                      ? 'border-yellow-200 bg-yellow-50'
+                      : 'border-surface-200'
+                    } ${draggedIndex === cIndex ? 'opacity-40 scale-[0.98]' : ''
+                    }`}
+                >
+                  <GripVertical
+                    size={16}
+                    className="text-gray-400 cursor-grab active:cursor-grabbing hover:text-gray-600 flex-shrink-0"
+                  />
 
-              <input
-                type="text"
-                value={criterion.description}
-                onChange={(e) => onUpdateCriterion(cIndex, { description: e.target.value })}
-                className="flex-1 bg-transparent border-none outline-none text-sm"
-                placeholder="תיאור הקריטריון..."
-                dir="rtl"
-              />
+                  {criterion.extraction_confidence !== 'high' && (
+                    <AlertCircle
+                      size={16}
+                      className={
+                        criterion.extraction_confidence === 'low' ? 'text-amber-500' : 'text-yellow-500'
+                      }
+                    />
+                  )}
 
-              <input
-                type="number"
-                value={criterion.points}
-                onChange={(e) => onUpdateCriterion(cIndex, { points: parseFloat(e.target.value) || 0 })}
-                className="w-16 text-center bg-white border border-surface-300 rounded px-2 py-1 text-sm font-medium"
-                min={0}
-                step={0.5}
-              />
+                  <input
+                    type="text"
+                    value={criterion.description}
+                    onChange={(e) => onUpdateCriterion(cIndex, { description: e.target.value })}
+                    className="flex-1 bg-transparent border-none outline-none text-sm"
+                    placeholder="תיאור הקריטריון..."
+                    dir="rtl"
+                  />
 
-              <button
-                onClick={() => onRemoveCriterion(cIndex)}
-                className="text-red-400 hover:text-red-600 p-1"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
+                  <input
+                    type="number"
+                    value={criterion.points}
+                    onChange={(e) => onUpdateCriterion(cIndex, { points: parseFloat(e.target.value) || 0 })}
+                    className="w-16 text-center bg-white border border-surface-300 rounded px-2 py-1 text-sm font-medium"
+                    min={0}
+                    step={0.5}
+                  />
+
+                  <button
+                    onClick={() => onRemoveCriterion(cIndex)}
+                    className="text-red-400 hover:text-red-600 p-1"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+
+                {/* Drop indicator line - BELOW */}
+                {dropIndicator === 'below' && (
+                  <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary-500 rounded-full z-10">
+                    <div className="absolute right-0 -top-1 w-2.5 h-2.5 bg-primary-500 rounded-full" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
