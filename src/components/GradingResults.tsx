@@ -399,31 +399,44 @@ export function GradingResults({
                                         )}
                                       </button>
 
-                                      {isCodeExpanded && (
-                                        <div className="p-3 bg-slate-900 max-h-[400px] overflow-auto">
-                                          {questionAnswers.map((answer, idx) => (
-                                            <div key={idx} className="mb-4 last:mb-0">
-                                              {answer.sub_question_id && (
-                                                <div className="text-xs text-slate-400 mb-1">
-                                                  סעיף {answer.sub_question_id}
+                                      {isCodeExpanded && (() => {
+                                        // Calculate cumulative line offsets for each answer block
+                                        let cumulativeLineOffset = 0;
+                                        const answerOffsets = questionAnswers.map((answer) => {
+                                          const offset = cumulativeLineOffset;
+                                          cumulativeLineOffset += (answer.answer_text || '').split('\n').length;
+                                          return offset;
+                                        });
+
+                                        return (
+                                          <div className="p-3 bg-slate-900 max-h-[400px] overflow-auto">
+                                            {questionAnswers.map((answer, idx) => {
+                                              const lineOffset = answerOffsets[idx];
+                                              return (
+                                                <div key={idx} className="mb-4 last:mb-0">
+                                                  {answer.sub_question_id && (
+                                                    <div className="text-xs text-slate-400 mb-1">
+                                                      סעיף {answer.sub_question_id}
+                                                    </div>
+                                                  )}
+                                                  <div className="flex" dir="ltr">
+                                                    {/* Line numbers - cumulative across all answer blocks */}
+                                                    <div className="select-none text-right pr-3 border-r border-slate-700 text-slate-500 text-xs font-mono">
+                                                      {(answer.answer_text || '').split('\n').map((_, lineIdx) => (
+                                                        <div key={lineIdx} className="leading-5">{lineOffset + lineIdx + 1}</div>
+                                                      ))}
+                                                    </div>
+                                                    {/* Code content */}
+                                                    <pre className="text-sm text-slate-100 font-mono whitespace-pre-wrap break-words pl-3 flex-1">
+                                                      {answer.answer_text || '(ללא תשובה)'}
+                                                    </pre>
+                                                  </div>
                                                 </div>
-                                              )}
-                                              <div className="flex" dir="ltr">
-                                                {/* Line numbers */}
-                                                <div className="select-none text-right pr-3 border-r border-slate-700 text-slate-500 text-xs font-mono">
-                                                  {(answer.answer_text || '').split('\n').map((_, lineIdx) => (
-                                                    <div key={lineIdx} className="leading-5">{lineIdx + 1}</div>
-                                                  ))}
-                                                </div>
-                                                {/* Code content */}
-                                                <pre className="text-sm text-slate-100 font-mono whitespace-pre-wrap break-words pl-3 flex-1">
-                                                  {answer.answer_text || '(ללא תשובה)'}
-                                                </pre>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
+                                              );
+                                            })}
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
                                   )}
 
