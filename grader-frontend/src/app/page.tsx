@@ -9,19 +9,25 @@ import { RubricEditor } from '@/components/RubricEditor';
 import { AnswerMappingPanel } from '@/components/AnswerMappingPanel';
 import { GradingResults } from '@/components/GradingResults';
 import { RubricSelector } from '@/components/RubricSelector';
+import { SidebarLayout } from '@/components/SidebarLayout';
+import { TranscriptionReviewPage } from '@/components/TranscriptionReviewPage';
 import {
   previewRubricPdf,
   extractRubric,
   saveRubric,
   previewStudentTestPdf,
   gradeSingleTest,
-  gradeHandwrittenTest, // NEW - add to api.ts
+  gradeHandwrittenTest,
+  transcribeHandwrittenTest,
+  gradeWithTranscription,
   PagePreview,
   QuestionPageMapping,
   ExtractedQuestion,
   RubricListItem,
   AnswerPageMapping,
   GradedTestResult,
+  TranscriptionReviewResponse,
+  StudentAnswerInput,
 } from '@/lib/api';
 import {
   Upload,
@@ -44,8 +50,8 @@ import {
 
 type MainMode = 'select' | 'rubric' | 'grading';
 type RubricStep = 'upload' | 'map' | 'extracting' | 'review' | 'saved';
-type GradingStep = 'select_rubric' | 'upload_batch' | 'map_answers' | 'grading' | 'results';
-type TranscriptionMode = 'handwritten' | 'printed' | null; // NEW
+type GradingStep = 'select_rubric' | 'upload_batch' | 'map_answers' | 'transcribing' | 'review_transcription' | 'grading' | 'results';
+type TranscriptionMode = 'handwritten' | 'printed' | null;
 
 interface ActiveRubricAssignment {
   questionIndex: number;
@@ -246,6 +252,10 @@ export default function Home() {
   // NEW: Store test page thumbnails for validation in results view
   const [testPagesMap, setTestPagesMap] = useState<Map<string, PagePreview[]>>(new Map());
 
+  // NEW: Transcription review state
+  const [currentTranscription, setCurrentTranscription] = useState<TranscriptionReviewResponse | null>(null);
+  const [currentTestFile, setCurrentTestFile] = useState<File | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -398,63 +408,86 @@ export default function Home() {
     }
   };
 
-  // NEW: Grade handwritten tests
+
+  // NEW: Transcribe handwritten tests (step 1 - shows review page)
   const handleGradeHandwritten = async () => {
     if (!selectedRubric || handwrittenConfigs.length === 0) return;
 
+    // For now, process first test only (can be extended to batch later)
+    const config = handwrittenConfigs[0];
+
+    setGradingStep('transcribing');
+    setGradingProgress({
+      current: 1,
+      total: handwrittenConfigs.length,
+      currentFileName: config.file.name,
+      stage: 'transcribing'
+    });
+    setCurrentTestFile(config.file);
+
+    try {
+      // Call new transcription endpoint with user-selected questions
+      const transcription = await transcribeHandwrittenTest(
+        selectedRubric.id,
+        config.file,
+        firstPageIndex,
+        config.answeredQuestions.length > 0 ? config.answeredQuestions : undefined
+      );
+
+      setCurrentTranscription(transcription);
+      setGradingProgress(null);
+      setGradingStep('review_transcription');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה בתמלול המבחן');
+      setGradingProgress(null);
+      setGradingStep('upload_batch');
+    }
+  };
+
+  // NEW: Handle continue from transcription review (step 2 - grade with edited answers)
+  const handleContinueFromReview = async (editedAnswers: StudentAnswerInput[]) => {
+    if (!selectedRubric || !currentTranscription || !currentTestFile) return;
+
     setGradingStep('grading');
-    setGradingProgress({ current: 0, total: handwrittenConfigs.length, currentFileName: '', stage: 'transcribing' });
+    setGradingProgress({
+      current: 1,
+      total: handwrittenConfigs.length,
+      currentFileName: currentTestFile.name,
+      stage: 'grading'
+    });
 
-    const results: GradedTestResult[] = [];
-    const errors: string[] = [];
-    let successful = 0;
-    let failed = 0;
-
-    // NEW: Collect page thumbnails for validation
-    const pagesMap = new Map<string, PagePreview[]>();
-
-    for (let i = 0; i < handwrittenConfigs.length; i++) {
-      const config = handwrittenConfigs[i];
-      setGradingProgress({
-        current: i + 1,
-        total: handwrittenConfigs.length,
-        currentFileName: config.file.name,
-        stage: 'transcribing',
+    try {
+      // Call grade_with_transcription endpoint
+      const result = await gradeWithTranscription({
+        rubric_id: selectedRubric.id,
+        student_name: currentTranscription.student_name,
+        filename: currentTranscription.filename,
+        answers: editedAnswers,
       });
 
-      try {
-        // Preview PDF first to get page thumbnails for validation
-        try {
-          const preview = await previewStudentTestPdf(config.file);
-          pagesMap.set(config.file.name, preview.pages);
-        } catch (previewErr) {
-          // Non-fatal: continue without thumbnails
-          console.warn(`Failed to preview ${config.file.name}:`, previewErr);
-        }
+      // Store page thumbnails for results view
+      const pagesMap = new Map<string, PagePreview[]>();
+      pagesMap.set(currentTranscription.filename, currentTranscription.pages);
+      setTestPagesMap(pagesMap);
 
-        // Call handwritten grading endpoint
-        const result = await gradeHandwrittenTest(
-          selectedRubric.id,
-          config.file,
-          config.answeredQuestions.length > 0 ? config.answeredQuestions : undefined,
-          firstPageIndex
-        );
-
-        results.push(result);
-        successful++;
-      } catch (err) {
-        const errorMsg = `${config.file.name}: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`;
-        errors.push(errorMsg);
-        failed++;
-      }
+      setGradingResults([result]);
+      setGradingStats({ total: 1, successful: 1, failed: 0, errors: [] });
+      setGradingProgress(null);
+      setGradingStep('results');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה בהערכת המבחן');
+      setGradingProgress(null);
+      setGradingStep('review_transcription');
     }
-
-    setTestPagesMap(pagesMap);
-    setGradingResults(results);
-    setGradingStats({ total: handwrittenConfigs.length, successful, failed, errors });
-    setGradingProgress(null);
-    setGradingStep('results');
   };
+
+  // Handle back from review - return to upload
+  const handleBackFromReview = () => {
+    setCurrentTranscription(null);
+    setCurrentTestFile(null);
+    setGradingStep('upload_batch');
+  };
+
 
   // Initialize test mappings when files are uploaded and user proceeds (printed mode)
   const handleProceedToMapping = async () => {
@@ -645,35 +678,14 @@ export default function Home() {
   const canProceedFromUpload = testFiles.length > 0 && transcriptionMode !== null;
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-surface-50 via-primary-50/30 to-surface-100 p-6">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary-500 text-white p-2 rounded-lg">
-              <GraduationCap size={28} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-primary-700">Pupal</h1>
-              <p className="text-sm text-gray-500">מערכת בדיקת מבחנים חכמה</p>
-            </div>
-          </div>
-          {mainMode !== 'select' && (
-            <button onClick={goToHome} className="flex items-center gap-2 text-gray-500 hover:text-primary-600 transition-colors">
-              <HomeIcon size={18} />
-              <span>חזור לדף הבית</span>
-            </button>
-          )}
-        </div>
-      </div>
-
+    <SidebarLayout>
       <div className="max-w-7xl mx-auto">
         {/* MODE SELECTION */}
         {mainMode === 'select' && (
           <div className="max-w-3xl mx-auto animate-fade-in">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">ברוכים הבאים ל-Pupal</h2>
-              <p className="text-gray-500">בחר את הפעולה הרצויה</p>
+              <h2 className="text-3xl font-bold text-gray-800 mb-2">במה אני יכולה לעזור?</h2>
+              <p className="text-gray-500">אנא בחרי את הפעולה הרצויה</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <button
@@ -683,18 +695,18 @@ export default function Home() {
                 <div className="bg-primary-100 text-primary-600 p-4 rounded-full w-fit mx-auto mb-4 group-hover:bg-primary-200 transition-colors">
                   <BookOpen size={32} />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">יצירת מחוון חדש</h3>
-                <p className="text-gray-500 text-sm">העלה PDF של מחוון וחלץ את הקריטריונים</p>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">העלאת מחוון חדש</h3>
+                <p className="text-gray-500 text-sm">העלי PDF של מחוון וחלץ את הקריטריונים</p>
               </button>
               <button
                 onClick={() => setMainMode('grading')}
                 className="bg-white rounded-xl shadow-lg p-8 text-center hover:shadow-xl hover:scale-[1.02] transition-all group"
               >
-                <div className="bg-green-100 text-green-600 p-4 rounded-full w-fit mx-auto mb-4 group-hover:bg-green-200 transition-colors">
+                <div className="bg-[#aa77f7]/20 text-[#aa77f7] p-4 rounded-full w-fit mx-auto mb-4 group-hover:bg-[#aa77f7]/30 transition-colors">
                   <GraduationCap size={32} />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">בדיקת מבחנים</h3>
-                <p className="text-gray-500 text-sm">בדוק מבחני תלמידים עם מחוון קיים</p>
+                <p className="text-gray-500 text-sm">בדקי מבחני תלמידים עם מחוון קיים</p>
               </button>
             </div>
           </div>
@@ -709,7 +721,7 @@ export default function Home() {
                   <div className="text-center mb-6">
                     <Upload className="mx-auto text-primary-500 mb-3" size={48} />
                     <h2 className="text-xl font-semibold">העלאת מחוון</h2>
-                    <p className="text-gray-500 mt-1">העלה קובץ PDF של המחוון</p>
+                    <p className="text-gray-500 mt-1">העלי קובץ PDF של המחוון</p>
                   </div>
                   <FileUpload file={rubricFile} onFileChange={handleRubricFileChange} accept=".pdf" label="גרור קובץ PDF לכאן או לחץ לבחירה" />
                   {isLoading && <div className="mt-4 flex items-center justify-center gap-2 text-primary-600"><Loader2 className="animate-spin" size={20} /><span>מעבד את הקובץ...</span></div>}
@@ -808,7 +820,7 @@ export default function Home() {
                   <div className="text-center mb-6">
                     <BookOpen className="mx-auto text-primary-500 mb-3" size={48} />
                     <h2 className="text-xl font-semibold">בחירת מחוון</h2>
-                    <p className="text-gray-500 mt-1">בחר מחוון קיים לבדיקת מבחנים</p>
+                    <p className="text-gray-500 mt-1">בחרי מחוון קיים לבדיקת מבחנים</p>
                   </div>
                   <RubricSelector onSelect={handleRubricSelect} />
                   {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center gap-2"><AlertCircle size={18} />{error}</div>}
@@ -828,7 +840,7 @@ export default function Home() {
                   <div className="text-center mb-6">
                     <ClipboardCheck className="mx-auto text-primary-500 mb-3" size={48} />
                     <h2 className="text-xl font-semibold">העלאת מבחנים</h2>
-                    <p className="text-gray-500 mt-1">העלה את כל מבחני התלמידים לבדיקה</p>
+                    <p className="text-gray-500 mt-1">העלי את כל מבחני התלמידים לבדיקה</p>
                   </div>
 
                   {/* NEW: Transcription mode toggle */}
@@ -854,7 +866,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <MultiFileUpload files={testFiles} onFilesChange={setTestFiles} label="העלה מבחני תלמידים" maxFiles={50} />
+                  <MultiFileUpload files={testFiles} onFilesChange={setTestFiles} label="העלי מבחני תלמידים" maxFiles={50} />
 
                   {/* NEW: Question selection for handwritten mode */}
                   {transcriptionMode === 'handwritten' && testFiles.length > 0 && (
@@ -977,12 +989,49 @@ export default function Home() {
               </div>
             )}
 
-            {gradingStep === 'grading' && (
+            {/* Transcribing step - show loading while VLM transcribes */}
+            {gradingStep === 'transcribing' && (
+              <div className="max-w-xl mx-auto animate-fade-in">
+                <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                  <Loader2 className="mx-auto text-primary-500 mb-4 animate-spin" size={64} />
+                  <h2 className="text-xl font-semibold text-gray-800">מתמלל כתב יד...</h2>
+                  <p className="text-gray-500 mt-2">
+                    ה-AI קורא את המבחן ומתמלל את התשובות
+                  </p>
+
+                  {gradingProgress && (
+                    <div className="mt-6 space-y-3">
+                      <div className="w-full bg-surface-200 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="bg-primary-500 h-3 transition-all duration-300 animate-pulse"
+                          style={{ width: '50%' }}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-400 truncate">
+                        {gradingProgress.currentFileName}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Review transcription step - show TranscriptionReviewPage */}
+            {gradingStep === 'review_transcription' && currentTranscription && (
+              <TranscriptionReviewPage
+                transcriptionData={currentTranscription}
+                onContinueToGrading={handleContinueFromReview}
+                onBack={handleBackFromReview}
+                isGrading={false}
+              />
+            )}
+
+            {(gradingStep === 'grading') && (
               <div className="max-w-xl mx-auto animate-fade-in">
                 <div className="bg-white rounded-xl shadow-lg p-8 text-center">
                   <Loader2 className="mx-auto text-primary-500 mb-4 animate-spin" size={64} />
                   <h2 className="text-xl font-semibold text-gray-800">
-                    {gradingProgress?.stage === 'transcribing' ? 'מתמלל כתב יד...' : 'בודק מבחנים...'}
+                    בודק מבחנים...
                   </h2>
 
                   {gradingProgress && (
@@ -1005,6 +1054,7 @@ export default function Home() {
               </div>
             )}
 
+
             {gradingStep === 'results' && (
               <div className="animate-fade-in">
                 <GradingResults
@@ -1018,6 +1068,6 @@ export default function Home() {
           </>
         )}
       </div>
-    </main>
+    </SidebarLayout>
   );
 }

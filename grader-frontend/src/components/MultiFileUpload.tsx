@@ -15,7 +15,7 @@ export function MultiFileUpload({
   files,
   onFilesChange,
   accept = '.pdf',
-  label = 'העלה קבצי PDF',
+  label = 'העלי קבצי PDF',
   maxFiles = 50,
 }: MultiFileUploadProps) {
   const handleDrop = useCallback(

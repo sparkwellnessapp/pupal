@@ -26,6 +26,7 @@ from ...services.grading_service import (
     grade_student_tests_batch,
     save_graded_test,
     get_graded_tests_by_rubric_id,
+    get_graded_test_by_id,
 )
 from ...services.rubric_service import (
     get_rubric_by_id,
@@ -66,6 +67,11 @@ from ...schemas.grading import (
     GradedPdfsListResponse,
     # Error
     ErrorResponse,
+    # Transcription review schemas
+    TranscribedAnswerWithPages,
+    TranscriptionReviewResponse,
+    StudentAnswerInput,
+    GradeWithTranscriptionRequest,
 )
 from ...services.gcs_service import get_gcs_service
 
@@ -350,6 +356,67 @@ async def get_rubric(
     except Exception as e:
         logger.error(f"Error getting rubric: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error getting rubric: {str(e)}")
+
+
+@router.put(
+    "/rubric/{rubric_id}",
+    response_model=RubricResponse,
+    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    summary="Update rubric by ID",
+    description="Update an existing rubric's name, description, or content.",
+)
+async def update_rubric(
+    rubric_id: UUID,
+    request: SaveRubricRequest,
+    db: AsyncSession = Depends(get_db),
+) -> RubricResponse:
+    """
+    Update an existing rubric.
+    """
+    try:
+        rubric = await get_rubric_by_id(db, rubric_id)
+        
+        if not rubric:
+            raise HTTPException(status_code=404, detail=f"Rubric {rubric_id} not found")
+        
+        # Update fields
+        if request.name is not None:
+            rubric.name = request.name
+        if request.description is not None:
+            rubric.description = request.description
+        
+        # Update rubric_json with questions
+        rubric_content = {
+            "questions": [q.model_dump() for q in request.questions]
+        }
+        rubric.rubric_json = rubric_content
+        
+        # Recalculate total points
+        total_points = 0
+        for q in request.questions:
+            total_points += q.total_points or 0
+        rubric.total_points = total_points
+        
+        await db.commit()
+        await db.refresh(rubric)
+        
+        logger.info(f"Updated rubric {rubric_id}: {rubric.name}")
+        
+        return RubricResponse(
+            id=rubric.id,
+            created_at=rubric.created_at,
+            name=rubric.name,
+            description=rubric.description,
+            total_points=rubric.total_points,
+            rubric_json=rubric.rubric_json,
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating rubric: {e}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating rubric: {str(e)}")
 
 
 # =============================================================================
@@ -743,6 +810,244 @@ async def grade_handwritten_test(
     )
 
 
+# =============================================================================
+# Transcription Review Endpoints (separate transcribe → review → grade flow)
+# =============================================================================
+
+@router.post(
+    "/transcribe_handwritten_test",
+    response_model=TranscriptionReviewResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    summary="Transcribe handwritten test for review",
+    description="Transcribe a handwritten test PDF and return results for teacher review/editing before grading.",
+)
+async def transcribe_handwritten_test(
+    rubric_id: UUID = Query(..., description="ID of the rubric"),
+    test_file: UploadFile = File(..., description="Handwritten test PDF"),
+    first_page_index: int = Query(0, description="Page index containing student name"),
+    answered_questions: Optional[str] = Query(None, description="JSON list of question numbers answered (e.g. '[2]' for only Q2)"),
+    db: AsyncSession = Depends(get_db),
+) -> TranscriptionReviewResponse:
+    """
+    Transcribe a handwritten test for teacher review.
+    
+    Returns page thumbnails alongside transcribed answers so the teacher can:
+    1. Compare AI transcription with original handwriting
+    2. Edit/correct any transcription errors
+    3. Then proceed to grading with the corrected transcription
+    
+    This is step 1 of the transcribe → review → grade flow.
+    """
+    import uuid
+    
+    # Fetch Rubric
+    rubric = await get_rubric_by_id(db, rubric_id)
+    if not rubric:
+        raise HTTPException(status_code=404, detail=f"Rubric {rubric_id} not found")
+
+    # Read and Validate PDF
+    if not test_file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="File must be a PDF")
+        
+    pdf_bytes = await test_file.read()
+    if not pdf_bytes:
+        raise HTTPException(status_code=400, detail="Empty file uploaded")
+
+    filename = test_file.filename or "handwritten_test.pdf"
+    logger.info(f"Transcribing handwritten test for review: {filename}")
+
+    # Convert PDF to images for thumbnails
+    try:
+        images = pdf_to_images(pdf_bytes, dpi=150)
+        page_previews = []
+        for i, img in enumerate(images):
+            thumb_b64 = image_to_base64(img, max_size=800)
+            page_previews.append(PagePreview(
+                page_index=i,
+                page_number=i + 1,
+                thumbnail_base64=thumb_b64,
+                width=img.width,
+                height=img.height,
+            ))
+    except Exception as e:
+        logger.error(f"Failed to generate page previews: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process PDF: {str(e)}")
+
+    # Prepare Rubric Structure for Guided Transcription
+    rubric_questions = []
+    all_q_nums = []
+    
+    for q in rubric.rubric_json.get("questions", []):
+        q_num = q.get("question_number", 1)
+        all_q_nums.append(q_num)
+        sub_ids = [sq.get("sub_question_id", "") for sq in q.get("sub_questions", [])]
+        
+        rubric_questions.append(RubricQuestion(
+            question_number=q_num,
+            question_text=q.get("question_text"),
+            sub_questions=sub_ids,
+            total_points=q.get("total_points", 0),
+        ))
+
+    # Parse answered_questions if provided
+    import json as json_module
+    target_q_nums: Optional[List[int]] = None
+    if answered_questions:
+        try:
+            target_q_nums = json_module.loads(answered_questions)
+            if not isinstance(target_q_nums, list):
+                raise ValueError("Must be a list")
+            logger.info(f"Filtering to answered questions: {target_q_nums}")
+        except (json_module.JSONDecodeError, ValueError) as e:
+            logger.warning(f"Invalid answered_questions format: {answered_questions}, using all questions")
+            target_q_nums = None
+    
+    # Use filtered questions or all
+    questions_to_transcribe = target_q_nums if target_q_nums else all_q_nums
+    logger.info(f"Transcribing questions: {questions_to_transcribe}")
+
+    # Transcribe using VLM
+    try:
+        provider = get_vlm_provider("openai")
+        service = HandwritingTranscriptionService(vlm_provider=provider)
+        
+        transcription_result = service.transcribe_pdf(
+            pdf_bytes=pdf_bytes,
+            filename=filename,
+            rubric_questions=rubric_questions,
+            question_mappings=None,  # Auto-detection mode
+            answered_question_numbers=questions_to_transcribe,
+            first_page_index=first_page_index,
+            dpi=200,
+        )
+    except Exception as e:
+        logger.error(f"Transcription failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Transcription service error: {str(e)}")
+
+    # Build response with page context
+    answers_with_pages = []
+    for ans in transcription_result.answers:
+        answers_with_pages.append(TranscribedAnswerWithPages(
+            question_number=ans.question_number,
+            sub_question_id=ans.sub_question_id,
+            answer_text=ans.answer_text,
+            confidence=ans.confidence,
+            transcription_notes=ans.transcription_notes,
+            page_indexes=[],  # VLM doesn't track per-answer pages in auto mode
+        ))
+
+    logger.info(f"Transcription complete: {len(answers_with_pages)} answers for {filename}")
+
+    return TranscriptionReviewResponse(
+        transcription_id=str(uuid.uuid4()),
+        rubric_id=str(rubric_id),
+        student_name=transcription_result.student_name or "Unknown Student",
+        filename=filename,
+        total_pages=len(page_previews),
+        pages=page_previews,
+        answers=answers_with_pages,
+        raw_transcription=transcription_result.raw_transcription,
+    )
+
+
+@router.post(
+    "/grade_with_transcription",
+    response_model=GradedTestResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    summary="Grade using teacher-edited transcription",
+    description="Grade a test using teacher-reviewed/edited transcription. Step 2 of transcribe → review → grade flow.",
+)
+async def grade_with_edited_transcription(
+    request: GradeWithTranscriptionRequest,
+    db: AsyncSession = Depends(get_db),
+) -> GradedTestResponse:
+    """
+    Grade a test using teacher-edited transcription.
+    
+    This is step 2 of the transcribe → review → grade flow.
+    The teacher has already reviewed and corrected the AI transcription,
+    so we skip the VLM transcription step and grade directly.
+    """
+    # Fetch Rubric
+    rubric = await get_rubric_by_id(db, request.rubric_id)
+    if not rubric:
+        raise HTTPException(status_code=404, detail=f"Rubric {request.rubric_id} not found")
+
+    logger.info(f"Grading with edited transcription: {request.filename} ({len(request.answers)} answers)")
+
+    # Determine which questions to grade
+    all_q_nums = [q.get("question_number") for q in rubric.rubric_json.get("questions", [])]
+    target_questions = set(request.answered_question_numbers or all_q_nums)
+
+    # Format for Grading Agent
+    student_test_data = {
+        "student_name": request.student_name,
+        "filename": request.filename,
+        "answers": [
+            {
+                "question_number": ans.question_number,
+                "sub_question_id": ans.sub_question_id,
+                "answer_text": ans.answer_text,
+            }
+            for ans in request.answers
+            if ans.question_number in target_questions
+        ],
+    }
+
+    # Filter rubric to only include answered questions
+    filtered_rubric = {
+        **rubric.rubric_json,
+        "questions": [
+            q for q in rubric.rubric_json.get("questions", [])
+            if q.get("question_number") in target_questions
+        ]
+    }
+    filtered_rubric["total_points"] = sum(
+        q.get("total_points", 0) for q in filtered_rubric["questions"]
+    )
+
+    # Execute Grading
+    try:
+        grading_result = await grade_student_test(
+            rubric_json=filtered_rubric,
+            student_test=student_test_data,
+        )
+    except Exception as e:
+        logger.error(f"Grading failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Grading failed: {str(e)}")
+
+    # Save Result
+    graded_test = GradedTest(
+        rubric_id=request.rubric_id,
+        student_name=request.student_name,
+        student_answers_json=student_test_data,
+        graded_json=grading_result,
+        total_score=grading_result.get("total_score", 0),
+        total_possible=filtered_rubric["total_points"],
+        percentage=round(
+            grading_result.get("total_score", 0) / filtered_rubric["total_points"] * 100
+            if filtered_rubric["total_points"] > 0 else 0,
+            1
+        ),
+    )
+    
+    db.add(graded_test)
+    await db.commit()
+    await db.refresh(graded_test)
+
+    logger.info(f"Grading complete: {request.student_name} scored {graded_test.total_score}/{graded_test.total_possible}")
+
+    return GradedTestResponse(
+        id=graded_test.id,
+        rubric_id=graded_test.rubric_id,
+        created_at=graded_test.created_at,
+        student_name=graded_test.student_name,
+        total_score=graded_test.total_score,
+        total_possible=graded_test.total_possible,
+        percentage=graded_test.percentage,
+        graded_json=graded_test.graded_json,
+        student_answers_json=graded_test.student_answers_json,
+    )
 
 
 
@@ -785,8 +1090,93 @@ async def get_graded_tests(
     """
     Get all graded tests for a given rubric ID.
     """
-    # TODO: Implement get graded tests logic
-    raise HTTPException(status_code=501, detail="Endpoint not yet implemented")
+    tests = await get_graded_tests_by_rubric_id(db, rubric_id)
+    
+    return GradedTestsListResponse(
+        rubric_id=rubric_id,
+        count=len(tests),
+        graded_tests=[
+            GradedTestResponse(
+                id=t.id,
+                rubric_id=t.rubric_id,
+                created_at=t.created_at,
+                student_name=t.student_name,
+                filename=t.filename,
+                total_score=t.total_score,
+                total_possible=t.total_possible,
+                percentage=t.percentage,
+                graded_json=t.graded_json,
+                student_answers_json=t.student_answers_json,
+            )
+            for t in tests
+        ],
+    )
+
+
+@router.get(
+    "/rubric/{rubric_id}/graded_tests",
+    response_model=list[GradedTestResponse],
+    responses={404: {"model": ErrorResponse}},
+    summary="Get all graded tests for a rubric (path param)",
+    description="Retrieve all graded tests for a rubric using path parameter.",
+)
+async def get_graded_tests_by_rubric(
+    rubric_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> list[GradedTestResponse]:
+    """
+    Get all graded tests for a given rubric ID (path parameter version).
+    """
+    tests = await get_graded_tests_by_rubric_id(db, rubric_id)
+    
+    return [
+        GradedTestResponse(
+            id=t.id,
+            rubric_id=t.rubric_id,
+            created_at=t.created_at,
+            student_name=t.student_name,
+            filename=t.filename,
+            total_score=t.total_score,
+            total_possible=t.total_possible,
+            percentage=t.percentage,
+            graded_json=t.graded_json,
+            student_answers_json=t.student_answers_json,
+        )
+        for t in tests
+    ]
+
+
+@router.get(
+    "/graded_test/{graded_test_id}",
+    response_model=GradedTestResponse,
+    responses={404: {"model": ErrorResponse}},
+    summary="Get a single graded test by ID",
+    description="Retrieve full details of a graded test by its ID.",
+)
+async def get_single_graded_test(
+    graded_test_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> GradedTestResponse:
+    """
+    Get full details of a graded test by ID.
+    """
+    test = await get_graded_test_by_id(db, graded_test_id)
+    
+    if not test:
+        raise HTTPException(status_code=404, detail=f"Graded test {graded_test_id} not found")
+    
+    return GradedTestResponse(
+        id=test.id,
+        rubric_id=test.rubric_id,
+        created_at=test.created_at,
+        student_name=test.student_name,
+        filename=test.filename,
+        total_score=test.total_score,
+        total_possible=test.total_possible,
+        percentage=test.percentage,
+        graded_json=test.graded_json,
+        student_answers_json=test.student_answers_json,
+    )
 
 
 # =============================================================================

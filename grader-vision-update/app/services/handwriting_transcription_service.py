@@ -376,24 +376,44 @@ def image_to_base64(image: Image.Image, max_size: int = 2000, enhance: bool = Tr
 # Prompts
 # =============================================================================
 
-HANDWRITING_SYSTEM_PROMPT = """You are a world-class expert in literal handwriting transcription for technical programming and CS exams .
-Your absolute priority is FIDELITY. You are a biological scanner, NOT a programmer.
+HANDWRITING_SYSTEM_PROMPT = """You are a FORENSIC HANDWRITING OCR SCANNER. Your job is character-level transcription.
 
-STRICT TRANSCRIPTION RULES:
-1. NO AUTO-FIXING: Do NOT fix syntax errors, typos, or logic bugs. If the student wrote it wrong, transcribe it wrong.
-2. NO VARIABLE HALLUCINATION: Transcribe variable names EXACTLY as written (e.g., if they wrote 'numStudents' do not write 'numOfStudents').
-3. TRUST EYES OVER BRAIN: Visual evidence from the image ALWAYS overrides your linguistic or programming internal knowledge.
-4. LITERAL CHARACTER MAPPING: 
-   - If a line is missing a semicolon, do not add it.
-   - If braces are mismatched, keep them mismatched.
-   - Preserve all original casing unless visually ambiguous.
+=== CORE IDENTITY ===
+You are NOT a programmer. You are NOT a code reviewer. You are a HUMAN PHOTOCOPIER.
+Your output must be a pixel-perfect text representation of what the student's hand wrote.
+If grading discovers bugs, that is intentional - the teacher uses YOUR transcription to grade THEIR mistakes.
 
-HEBREW & VISUAL ANCHORS HANDLING:
-- **Structural Markers**: You will see Hebrew markers indicating questions (e.g., "שאלה 1", "סעיף א", "א.", "ב)", "ג-"). 
-  -> Do NOT transcribe these markers into the code. They are external structure.
-- **Embedded Comments**: If Hebrew text appears *inside* the code line (e.g., "int x = 5; // מונה"), transcribe it exactly as is.
+=== CRITICAL RULES ===
+1. TRANSCRIBE BUGS AS WRITTEN
+   - Student wrote "if (x = 5)" instead of "if (x == 5)"? → Output "if (x = 5)"
+   - Missing semicolon? → Keep it missing
+   - Wrong variable name "numStudnets"? → Write "numStudnets" (typo preserved)
+   - Infinite loop? → Transcribe the infinite loop
+   - Syntax error? → Transcribe the syntax error
 
-OUTPUT: Return ONLY a valid JSON object. No conversational text. No markdown blocks."""
+2. NEVER INVENT CHARACTERS
+   - If you can't read a character clearly, use [?] as placeholder
+   - Do NOT guess what "should logically be there"
+   - Example: You see "ret_rn x" but can't read middle char → write "ret[?]rn x", NOT "return x"
+
+3. PRESERVE WHITESPACE & FORMATTING
+   - Match the student's indentation exactly (use spaces, not tabs unless specifically visible)
+   - Preserve blank lines as written
+   - Do not "beautify" or reformat
+
+4. HEBREW STRUCTURAL MARKERS
+   - "שאלה 1", "סעיף א", "א.", "ב)" etc. are SECTION HEADERS, not code
+   - Do NOT include these in answer_text
+   - Hebrew COMMENTS inside code (e.g., "// מונה") ARE transcribed
+
+=== CONFIDENCE SCORING ===
+- 1.0 = Every character is clearly legible
+- 0.8-0.9 = Some characters required careful interpretation
+- 0.5-0.7 = Significant portions unclear, used [?] placeholders
+- Below 0.5 = Mostly illegible, transcription unreliable
+
+=== OUTPUT ===
+Return ONLY valid JSON. No markdown. No explanation. No code blocks."""
 
 
 def build_extraction_prompt(
@@ -423,26 +443,29 @@ def build_extraction_prompt(
         
         questions_str = ", ".join(questions_info)
         
-        return f"""תמלל את הקוד מהתמונות הבאות.
-השאלות שצריך לתמלל: {questions_str}
+        return f"""Transcribe the handwritten code from the images.
+Questions to transcribe: {questions_str}
 
-החזר JSON בפורמט הבא:
+⚠️ CRITICAL: Transcribe EXACTLY what is written, including ALL errors, typos, and bugs.
+Do NOT fix anything. If the student wrote wrong code, output wrong code.
+
+Return JSON in this format:
 {{
-  "student_name": "שם התלמיד אם מופיע בראש הדף, אחרת null",
+  "student_name": "Student name if visible at top of page, otherwise null",
   "answers": [
     {{
       "question_number": 1,
-      "sub_question_id": "א" או null אם אין סעיף,
-      "answer_text": "הקוד המתומלל כאן",
+      "sub_question_id": "א" or null if no sub-question,
+      "answer_text": "The EXACT transcribed code here - bugs and all",
       "confidence": 0.95
     }}
   ]
 }}
 
-הערות:
-- תמלל כל שאלה/סעיף בנפרד
-- confidence הוא מספר בין 0 ל-1 המציין את הביטחון בתמלול
-- אם חלק מהקוד לא קריא, ציין זאת ב-confidence נמוך יותר"""
+Rules:
+- Transcribe each question/sub-question separately
+- confidence is 0-1 indicating transcription clarity (NOT code correctness)
+- Use [?] for illegible characters - do NOT guess"""
 
     elif rubric_questions:
         # Rubric-aware extraction - auto-detect questions based on rubric structure
@@ -461,59 +484,66 @@ def build_extraction_prompt(
         
         questions_str = "\n".join(f"  - {q}" for q in questions_info)
         
-        return f"""תמלל את הקוד מהתמונות הבאות.
+        return f"""Transcribe the handwritten code from the images.
 
-התלמיד עונה על השאלות הבאות:
+Student answered these questions:
 {questions_str}
 
-זהה את התשובות לפי סימונים שהתלמיד כתב בדף, כגון:
-- מספור: "1.", "2)", "3:"
-- כותרות: "שאלה 1", "שאלה 2"
-- סימוני סעיפים: "א.", "ב.", "ג." או "א)", "ב)", "ג)"
-- קווים מפרידים בין שאלות
+Identify answers by handwritten markers like:
+- Numbers: "1.", "2)", "3:"
+- Headers: "שאלה 1", "שאלה 2"
+- Sub-question markers: "א.", "ב.", "ג." or "א)", "ב)", "ג)"
+- Separator lines between questions
 
-החזר JSON בפורמט הבא:
+⚠️ CRITICAL: Transcribe EXACTLY what is written, including ALL errors, typos, and bugs.
+- Student wrote "if (x = 5)" instead of "=="? → Output "if (x = 5)"
+- Missing semicolon? → Keep it missing
+- Typo in variable name? → Keep the typo
+- Do NOT fix, improve, or beautify the code in any way
+
+Return JSON:
 {{
-  "student_name": "שם התלמיד אם מופיע בראש הדף, אחרת null",
+  "student_name": "Student name if visible, otherwise null",
   "answers": [
     {{
       "question_number": 1,
-      "sub_question_id": "א" או null אם אין סעיף,
-      "answer_text": "הקוד המתומלל כאן",
+      "sub_question_id": "א" or null,
+      "answer_text": "EXACT transcribed code - preserve all bugs",
       "confidence": 0.95
     }}
   ]
 }}
 
-הערות חשובות:
-- תמלל כל שאלה/סעיף בנפרד כאובייקט נפרד במערך answers
-- אם יש סעיפים (א, ב, ג), צור אובייקט נפרד לכל סעיף עם sub_question_id מתאים
-- confidence הוא מספר בין 0 ל-1 המציין את הביטחון בתמלול
-- אם חלק מהקוד לא קריא, ציין confidence נמוך יותר
-- תמלל את הקוד בדיוק כפי שנכתב, כולל שגיאות"""
+Notes:
+- Create separate object for each sub-question (א, ב, ג)
+- confidence = transcription clarity (NOT code quality)
+- Use [?] for unclear characters - never guess"""
 
     else:
         # Unguided extraction - transcribe everything visible
-        return """תמלל את כל הקוד מהתמונות הבאות.
-זהה שאלות וסעיפים לפי הסימונים בדף (שאלה 1, סעיף א, וכו').
+        return """Transcribe ALL handwritten code from the images.
+Identify questions/sub-questions by markers like "שאלה 1", "סעיף א", etc.
 
-החזר JSON בפורמט הבא:
+⚠️ CRITICAL: Transcribe EXACTLY what is written, including ALL errors.
+Do NOT fix syntax errors, typos, or logic bugs. Output exactly what you see.
+
+Return JSON:
 {
-  "student_name": "שם התלמיד אם מופיע בראש הדף, אחרת null",
+  "student_name": "Student name if visible, otherwise null",
   "answers": [
     {
       "question_number": 1,
-      "sub_question_id": "א" או null אם אין סעיף,
-      "answer_text": "הקוד המתומלל כאן",
+      "sub_question_id": "א" or null,
+      "answer_text": "EXACT code as written - bugs preserved",
       "confidence": 0.95
     }
   ]
 }
 
-הערות:
-- תמלל כל שאלה/סעיף בנפרד
-- confidence הוא מספר בין 0 ל-1 המציין את הביטחון בתמלול
-- אם יש מספר שאלות בדף, תמלל את כולן"""
+Rules:
+- Transcribe each question separately
+- confidence = how clearly you can read it (NOT code correctness)
+- Use [?] for illegible characters"""
 
 
 # =============================================================================

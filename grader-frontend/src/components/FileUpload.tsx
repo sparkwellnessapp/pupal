@@ -14,7 +14,7 @@ export function FileUpload({
   file,
   onFileChange,
   accept = '.pdf',
-  label = 'העלה קובץ PDF',
+  label = 'העלי קובץ PDF',
 }: FileUploadProps) {
   const handleDrop = useCallback(
     (e: React.DragEvent) => {

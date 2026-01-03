@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { AuthProvider } from '@/lib/auth'
 
 export const metadata: Metadata = {
-  title: 'Grader Vision - מערכת בדיקת מבחנים',
+  title: 'Pupal - מערכת בדיקת מבחנים',
   description: 'מערכת AI לבדיקת מבחנים בתכנות',
 }
 
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl">
       <body className="min-h-screen bg-surface-50">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )

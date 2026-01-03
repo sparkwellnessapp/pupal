@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 :root {
-  --background: #fafafa;
+  --background: #FFFaf2;
   --foreground: #171717;
 }
 
@@ -72,4 +72,28 @@ body {
 
 .criterion-row .points-input {
   @apply w-16 text-center bg-surface-100 rounded px-2 py-1 text-sm font-medium;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }

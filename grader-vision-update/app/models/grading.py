@@ -46,7 +46,16 @@ class Rubric(Base):
     description = Column(Text, nullable=True)
     total_points = Column(Float, nullable=True)
     
+    # User ownership
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    
+    # Link to original AI extraction
+    raw_rubric_id = Column(UUID(as_uuid=True), ForeignKey("raw_rubrics.id", ondelete="SET NULL"), nullable=True, unique=True)
+    
     # Relationships
+    user = relationship("User", back_populates="rubrics")
+    raw_rubric = relationship("RawRubric", back_populates="rubric")
+    shares = relationship("RubricShare", back_populates="rubric", cascade="all, delete-orphan")
     graded_tests = relationship("GradedTest", back_populates="rubric", cascade="all, delete-orphan")
     graded_pdfs = relationship("GradedTestPdf", back_populates="rubric", cascade="all, delete-orphan")
     
@@ -112,7 +121,15 @@ class GradedTest(Base):
     # Student answers (transcribed code) - NEW COLUMN
     student_answers_json = Column(JSON, nullable=True)
     
+    # User ownership
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    
+    # Link to original AI grading
+    raw_graded_test_id = Column(UUID(as_uuid=True), ForeignKey("raw_graded_tests.id", ondelete="SET NULL"), nullable=True, unique=True)
+    
     # Relationships
+    user = relationship("User", back_populates="graded_tests")
+    raw_graded_test = relationship("RawGradedTest", back_populates="graded_test")
     rubric = relationship("Rubric", back_populates="graded_tests")
     graded_pdf = relationship("GradedTestPdf", back_populates="graded_test", uselist=False, cascade="all, delete-orphan")
     

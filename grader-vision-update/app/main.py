@@ -12,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import init_db, close_db
 from .api.v0 import grading as grading_v0
+from .api.v0 import users as users_v0
+from .api.v0 import auth as auth_v0
 
 # Configure logging
 import os
@@ -96,6 +98,8 @@ app.add_middleware(
 
 # Register API routers
 app.include_router(grading_v0.router)
+app.include_router(users_v0.router)
+app.include_router(auth_v0.router)
 
 
 @app.get("/", tags=["health"])

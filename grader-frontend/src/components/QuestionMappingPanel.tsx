@@ -276,7 +276,7 @@ export function QuestionMappingPanel({
           {activeAssignment.type === 'question' && `בחר עמודי שאלה ${mappings[activeAssignment.questionIndex]?.question_number}`}
           {activeAssignment.type === 'criteria' && `בחר עמודי מחוון לשאלה ${mappings[activeAssignment.questionIndex]?.question_number}`}
           {activeAssignment.type === 'sub_question_criteria' &&
-            `בחר עמודי מחוון לסעיף ${activeAssignment.subQuestionId} בשאלה ${mappings[activeAssignment.questionIndex]?.question_number}`}
+            `בחרי עמודי מחוון לסעיף ${activeAssignment.subQuestionId} בשאלה ${mappings[activeAssignment.questionIndex]?.question_number}`}
           <br />
           <span className="text-xs">לחץ על עמודים בצד שמאל כדי להוסיף/להסיר</span>
         </div>

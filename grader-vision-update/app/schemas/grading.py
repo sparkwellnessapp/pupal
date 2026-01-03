@@ -474,3 +474,48 @@ class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
     status_code: int = 400
+
+
+# =============================================================================
+# Transcription Review Schemas (for handwritten test review before grading)
+# =============================================================================
+
+class TranscribedAnswerWithPages(BaseModel):
+    """A single transcribed answer with page context for review."""
+    question_number: int = Field(..., description="Question number (1-based)")
+    sub_question_id: Optional[str] = Field(None, description="Sub-question identifier (א, ב, ג...)")
+    answer_text: str = Field(..., description="Transcribed answer text (editable)")
+    confidence: float = Field(1.0, description="Transcription confidence (0.0-1.0)")
+    transcription_notes: Optional[str] = Field(None, description="Notes about transcription quality")
+    page_indexes: List[int] = Field(default_factory=list, description="Page indexes containing this answer")
+
+
+class TranscriptionReviewResponse(BaseModel):
+    """Response from transcribe_handwritten_test for review/editing."""
+    transcription_id: str = Field(..., description="Unique ID for this transcription session")
+    rubric_id: str = Field(..., description="ID of the rubric being used")
+    student_name: str = Field(..., description="Detected student name")
+    filename: str = Field(..., description="Original filename")
+    total_pages: int = Field(..., description="Total number of pages in the PDF")
+    pages: List[PagePreview] = Field(default_factory=list, description="All page thumbnails for display")
+    answers: List[TranscribedAnswerWithPages] = Field(default_factory=list, description="Transcribed answers")
+    raw_transcription: Optional[str] = Field(None, description="Raw VLM output for debugging")
+
+
+class StudentAnswerInput(BaseModel):
+    """A single student answer for grading (edited by teacher)."""
+    question_number: int = Field(..., description="Question number")
+    sub_question_id: Optional[str] = Field(None, description="Sub-question identifier")
+    answer_text: str = Field(..., description="Answer text (may be edited by teacher)")
+
+
+class GradeWithTranscriptionRequest(BaseModel):
+    """Request to grade using teacher-edited transcription."""
+    rubric_id: UUID = Field(..., description="ID of the rubric to grade against")
+    student_name: str = Field(..., description="Student name")
+    filename: str = Field(..., description="Original filename")
+    answers: List[StudentAnswerInput] = Field(..., description="Edited student answers")
+    answered_question_numbers: Optional[List[int]] = Field(
+        None, 
+        description="Optional list of question numbers to grade (if not all)"
+    )
