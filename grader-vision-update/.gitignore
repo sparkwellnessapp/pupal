@@ -158,7 +158,7 @@ cython_debug/
 .vscode/
 
 shortcuts.md
-
+documentation.md
 # Google Cloud Credentials
 gen-lang-client-*.json
 *.json
