@@ -102,7 +102,7 @@ export function AnswerMappingPanel({
             className="flex items-center gap-2 mx-auto bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
           >
             <Plus size={18} />
-            צור מיפוי מהמחוון
+            צרי מיפוי מהמחוון
           </button>
         </div>
       </div>
@@ -145,8 +145,8 @@ export function AnswerMappingPanel({
           <div
             key={index}
             className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${isAssignmentActive(index)
-                ? 'bg-green-50 border-green-300'
-                : 'bg-white border-surface-200'
+              ? 'bg-green-50 border-green-300'
+              : 'bg-white border-surface-200'
               }`}
           >
             <button
@@ -168,7 +168,7 @@ export function AnswerMappingPanel({
             <span className="flex-1 text-xs text-gray-500">
               {mapping.page_indexes.length > 0
                 ? `עמודים: ${mapping.page_indexes.map((p) => p + 1).join(', ')}`
-                : 'לחץ ובחר עמודים'}
+                : 'לחצי ובחרי עמודים'}
             </span>
           </div>
         ))}

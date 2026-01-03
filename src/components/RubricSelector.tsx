@@ -67,7 +67,7 @@ export function RubricSelector({ onSelect }: RubricSelectorProps) {
       <div className="text-center py-12 bg-surface-50 rounded-xl">
         <FileText className="mx-auto text-gray-300 mb-3" size={48} />
         <p className="text-gray-500">אין מחוונים שמורים</p>
-        <p className="text-gray-400 text-sm mt-1">צור מחוון חדש כדי להתחיל</p>
+        <p className="text-gray-400 text-sm mt-1">צרי מחוון חדש כדי להתחיל</p>
       </div>
     );
   }
@@ -75,7 +75,7 @@ export function RubricSelector({ onSelect }: RubricSelectorProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-medium text-gray-700">בחר מחוון</h3>
+        <h3 className="font-medium text-gray-700">בחרי מחוון</h3>
         <button
           onClick={loadRubrics}
           className="text-gray-400 hover:text-primary-500 transition-colors"
@@ -102,9 +102,9 @@ export function RubricSelector({ onSelect }: RubricSelectorProps) {
                 <div className="h-2 bg-surface-300/50 rounded w-2/3"></div>
                 <div className="h-2 bg-surface-300/50 rounded w-4/5"></div>
               </div>
-              <FileText 
-                className="text-primary-300 group-hover:text-primary-400 transition-colors absolute bottom-2 right-2" 
-                size={24} 
+              <FileText
+                className="text-primary-300 group-hover:text-primary-400 transition-colors absolute bottom-2 right-2"
+                size={24}
               />
             </div>
 
@@ -112,7 +112,7 @@ export function RubricSelector({ onSelect }: RubricSelectorProps) {
             <h4 className="font-medium text-gray-800 truncate group-hover:text-primary-700 transition-colors">
               {rubric.name || 'מחוון ללא שם'}
             </h4>
-            
+
             <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
               <Calendar size={12} />
               <span>{formatDate(rubric.created_at)}</span>
