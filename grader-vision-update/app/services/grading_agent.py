@@ -38,7 +38,7 @@ class GradingAgent:
         self.llm = ChatOpenAI(
             model=model_name,
             temperature=0.2,
-            max_tokens=8192, 
+            max_tokens=14384,  # Increased from 8192 to handle large rubrics
             api_key=settings.openai_api_key,
             model_kwargs={"response_format": {"type": "json_object"}}
         )
