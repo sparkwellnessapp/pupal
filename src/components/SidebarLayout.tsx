@@ -186,7 +186,7 @@ export function SidebarLayout({ children }: SidebarProps) {
                     <Menu size={24} />
                 </button>
                 <div className="flex items-center">
-                    <img src="/VIVI-logo-no-slogan.png" alt="Vivi" className="h-8 w-auto" />
+                    <img src="/vivi-logo-no-background-no-slogan.png" alt="Vivi" className="h-8 w-auto" />
                 </div>
                 <ProfileDropdown />
             </div>
@@ -285,7 +285,7 @@ export function SidebarLayout({ children }: SidebarProps) {
                 <header className="hidden lg:flex h-16 bg-[#fcfbf5] border-b border-surface-200 items-center justify-between px-6 sticky top-0 z-30">
                     <ProfileDropdown />
                     <div className="absolute left-1/2 transform -translate-x-1/2">
-                        <img src="/VIVI-logo-no-slogan.png" alt="Vivi" className="h-12 w-auto" />
+                        <img src="/vivi-logo-no-background-no-slogan.png" alt="Vivi" className="h-12 w-auto" />
                     </div>
                     <div></div>
                 </header>
