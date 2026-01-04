@@ -10,7 +10,6 @@ import {
     EyeOff,
     Loader2,
     AlertCircle,
-    GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
@@ -46,15 +45,16 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-surface-50 via-primary-50/30 to-surface-100 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-[#fcfbf5] via-[#f5f0e8] to-[#fcfbf5] flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 {/* Logo */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-500 text-white rounded-2xl mb-4">
-                        <GraduationCap size={32} />
-                    </div>
-                    <h1 className="text-3xl font-bold text-primary-700">Pupal</h1>
-                    <p className="text-gray-500 mt-1">מערכת בדיקת מבחנים חכמה</p>
+                    <img
+                        src="/vivi-logo-no-background-no-slogan.png"
+                        alt="Vivi"
+                        className="h-20 w-auto mx-auto mb-4"
+                    />
+                    <p className="text-gray-600 mt-1 text-lg italic">Make your evenings yours again.</p>
                 </div>
 
                 {/* Login Card */}
@@ -150,7 +150,7 @@ export default function LoginPage() {
 
                 {/* Footer */}
                 <p className="text-center text-xs text-gray-400 mt-6">
-                    © 2026 Pupal. כל הזכויות שמורות.
+                    © 2026 Vivi. All rights reserved.
                 </p>
             </div>
         </div>

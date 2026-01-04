@@ -1009,7 +1009,7 @@ async def grade_with_edited_transcription(
     # Execute Grading
     try:
         grading_result = await grade_student_test(
-            rubric_json=filtered_rubric,
+            rubric=filtered_rubric,
             student_test=student_test_data,
         )
     except Exception as e:
