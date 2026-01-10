@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { ExtractedQuestion, ExtractedSubQuestion, ExtractedCriterion, PagePreview, QuestionPageMapping } from '@/lib/api';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, AlertCircle, FileText, ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, AlertCircle, AlertTriangle, FileText, ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
 
 interface RubricEditorProps {
   questions: ExtractedQuestion[];
@@ -301,6 +301,8 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
                           onAddCriterion={() => addCriterion(qIndex, sqIndex)}
                           onRemoveCriterion={(cIndex) => removeCriterion(qIndex, cIndex, sqIndex)}
                           onReorderCriteria={(fromIndex, toIndex) => reorderCriteria(qIndex, fromIndex, toIndex, sqIndex)}
+                          extractionStatus={subQ.extraction_status}
+                          extractionError={subQ.extraction_error}
                         />
                       </div>
                     ))}
@@ -321,6 +323,8 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
                       onAddCriterion={() => addCriterion(qIndex)}
                       onRemoveCriterion={(cIndex) => removeCriterion(qIndex, cIndex)}
                       onReorderCriteria={(fromIndex, toIndex) => reorderCriteria(qIndex, fromIndex, toIndex)}
+                      extractionStatus={question.extraction_status}
+                      extractionError={question.extraction_error}
                     />
                   </>
                 )}
@@ -534,6 +538,9 @@ interface CriteriaListProps {
   onAddCriterion: () => void;
   onRemoveCriterion: (index: number) => void;
   onReorderCriteria: (fromIndex: number, toIndex: number) => void;
+  // Extraction status for showing warnings
+  extractionStatus?: 'success' | 'partial' | 'failed';
+  extractionError?: string | null;
 }
 
 function CriteriaList({
@@ -542,6 +549,8 @@ function CriteriaList({
   onAddCriterion,
   onRemoveCriterion,
   onReorderCriteria,
+  extractionStatus = 'success',
+  extractionError,
 }: CriteriaListProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dropPosition, setDropPosition] = useState<{ index: number; position: 'above' | 'below' } | null>(null);
@@ -626,6 +635,27 @@ function CriteriaList({
           הוסף קריטריון
         </button>
       </div>
+
+      {/* Extraction Status Warning */}
+      {extractionStatus === 'failed' && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700 mb-2">
+          <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <div className="font-medium">שגיאה בחילוץ קריטריונים</div>
+            <div className="text-red-600">{extractionError || 'לא הצלחנו לחלץ קריטריונים מהעמוד'}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Empty criteria with success status - pages might be wrong */}
+      {criteria.length === 0 && extractionStatus === 'success' && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-amber-700 mb-2">
+          <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            לא נמצאו קריטריונים בעמודים שסומנו. ודא שסימנת את העמודים הנכונים או הוסף ידנית.
+          </div>
+        </div>
+      )}
 
       {criteria.length === 0 ? (
         <div className="text-center py-4 text-gray-400 text-sm bg-surface-50 rounded-lg">
