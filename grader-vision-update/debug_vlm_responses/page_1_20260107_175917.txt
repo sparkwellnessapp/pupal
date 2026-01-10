@@ -1,0 +1,111 @@
+================================================================================
+RAW VLM RESPONSE DEBUG - Page 1
+Timestamp: 2026-01-07T17:59:17.669611
+================================================================================
+
+--- PROMPT SENT ---
+Look at this handwritten code page and transcribe it.
+
+=== STEP 1: IDENTIFY (fill visual_grounding FIRST) ===
+Read the page carefully. What class name do you see after the word "class"?
+What method names can you physically see written?
+
+=== STEP 2: TRANSCRIBE (fill transcription SECOND) ===
+Copy the code CHARACTER BY CHARACTER. The class name you write MUST match what you identified in Step 1.
+
+{
+  "visual_grounding": {
+    "class_name": "The EXACT word written after 'class' (copy letter by letter) or null",
+    "method_names": ["list each method name you can physically see"],
+    "field_names": ["list variable names you can see"],
+    "approximate_lines": 0
+  },
+  "transcription": {
+    "student_name": "name at top of page or null",
+    "page_number": 1,
+    "answers": [
+      {
+        "question_number": 1,
+        "sub_question_id": null,
+        "answer_text": "COPY the code here - class name MUST match visual_grounding.class_name",
+        "confidence": 0.95
+      }
+    ]
+  }
+}
+
+=== VALIDATION BEFORE RESPONDING ===
+✓ Check: Does the class name in answer_text match visual_grounding.class_name?
+✓ Check: Did you preserve typos, missing semicolons, and errors?
+✓ Check: Are you transcribing what's written, not what's expected?
+
+Student may have answered: שאלה 2
+
+--- RAW RESPONSE ---
+```json
+{
+  "visual_grounding": {
+    "class_name": "Emploeyee",
+    "method_names": ["Emploeyee", "calcMonthlySalary"],
+    "field_names": ["id", "salary", "issenior"],
+    "approximate_lines": 20
+  },
+  "transcription": {
+    "student_name": "null",
+    "page_number": 1,
+    "answers": [
+      {
+        "question_number": 2,
+        "sub_question_id": null,
+        "answer_text": "public class Emploeyee\n{\n    private int id;\n    private double salary;\n    private bool issenior;\n\n    Public Emploeyee(int id, double salary, bool issenior)\n    {\n        this.id = id;\n        this.salary = salary;\n        this.issenior = hassib;\n    }\n\n    Public Emploeyee(int id, double salary)\n    {\n        this.id = id;\n        this.salary = salary;\n        this.issenior = false;\n    }\n\n    public double calcMonthlySalary()\n    {\n        if(this.issenior == true)\n        {\n            return this.salary + this.salary/0.5;\n        }\n        return this.salary;\n    }\n}",
+        "confidence": 0.95
+      }
+    ]
+  }
+}
+```
+
+--- PARSED VISUAL GROUNDING ---
+Class Name: Emploeyee
+Method Names: ['Emploeyee', 'calcMonthlySalary']
+Field Names: ['id', 'salary', 'issenior']
+Approx Lines: 20
+
+--- PARSED TRANSCRIPTION ---
+Student Name: null
+Page Number: 1
+Answers:
+
+  Answer 1:
+    Question: 2
+    Confidence: 0.95
+    Code:
+      public class Emploeyee
+      {
+          private int id;
+          private double salary;
+          private bool issenior;
+      
+          Public Emploeyee(int id, double salary, bool issenior)
+          {
+              this.id = id;
+              this.salary = salary;
+              this.issenior = hassib;
+          }
+      
+          Public Emploeyee(int id, double salary)
+          {
+              this.id = id;
+              this.salary = salary;
+              this.issenior = false;
+          }
+      
+          public double calcMonthlySalary()
+          {
+              if(this.issenior == true)
+              {
+                  return this.salary + this.salary/0.5;
+              }
+              return this.salary;
+          }
+      }

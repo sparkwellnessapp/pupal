@@ -55,6 +55,9 @@ export interface ExtractedSubQuestion {
   criteria: ExtractedCriterion[];
   total_points: number;
   source_pages: number[];
+  // Extraction status reporting
+  extraction_status?: 'success' | 'partial' | 'failed';
+  extraction_error?: string | null;
 }
 
 export interface ExtractedQuestion {
@@ -64,6 +67,9 @@ export interface ExtractedQuestion {
   criteria: ExtractedCriterion[];
   sub_questions: ExtractedSubQuestion[];
   source_pages: number[];
+  // Extraction status reporting
+  extraction_status?: 'success' | 'partial' | 'failed';
+  extraction_error?: string | null;
 }
 
 export interface ExtractRubricResponse {
@@ -608,4 +614,477 @@ export async function gradeWithTranscription(
   }
 
   return response.json();
+}
+
+// =============================================================================
+// Streaming Transcription Types & Functions
+// =============================================================================
+
+export type TranscriptionPhase = 'loading' | 'transcribing' | 'verifying' | 'done';
+
+export interface StreamingCallbacks {
+  onMetadata: (transcriptionId: string, studentName: string, filename: string, totalPages: number) => void;
+  onPage: (page: PagePreview) => void;
+  onPhase: (phase: TranscriptionPhase, currentPage?: number, totalPages?: number) => void;
+  onChunk: (page: number, delta: string) => void;
+  onAnswer: (answer: TranscribedAnswerWithPages) => void;
+  onDone: (totalAnswers: number) => void;
+  onError: (message: string) => void;
+}
+
+/**
+ * Stream transcription of a handwritten test using SSE.
+ * Uses fetch with ReadableStream since EventSource doesn't support POST with file upload.
+ * 
+ * @returns A function to abort the stream
+ */
+export function streamTranscription(
+  rubricId: string,
+  testFile: File,
+  callbacks: StreamingCallbacks,
+  options?: { firstPageIndex?: number; answeredQuestions?: number[] }
+): { abort: () => void } {
+  const abortController = new AbortController();
+
+  const runStream = async () => {
+    try {
+      const formData = new FormData();
+      formData.append('test_file', testFile);
+
+      const params = new URLSearchParams();
+      params.set('rubric_id', rubricId);
+      params.set('first_page_index', (options?.firstPageIndex ?? 0).toString());
+
+      if (options?.answeredQuestions && options.answeredQuestions.length > 0) {
+        params.set('answered_questions', JSON.stringify(options.answeredQuestions));
+      }
+
+      const response = await fetch(
+        `${API_BASE}/api/v0/grading/stream_transcription?${params.toString()}`,
+        {
+          method: 'POST',
+          body: formData,
+          signal: abortController.signal,
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Stream failed' }));
+        callbacks.onError(error.detail || `Stream failed: ${response.status}`);
+        return;
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let currentEvent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete events (separated by double newlines)
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || ''; // Keep incomplete part
+
+        for (const part of parts) {
+          if (!part.trim()) continue;
+
+          const lines = part.split('\n');
+          let eventType = '';
+          let eventData = '';
+
+          for (const line of lines) {
+            if (line.startsWith('event:')) {
+              eventType = line.slice(6).trim();
+            } else if (line.startsWith('data:')) {
+              eventData = line.slice(5).trim();
+            }
+          }
+
+          if (!eventType || !eventData) continue;
+
+          try {
+            const data = JSON.parse(eventData);
+
+            switch (eventType) {
+              case 'metadata':
+                callbacks.onMetadata(
+                  data.transcription_id,
+                  data.student_name,
+                  data.filename,
+                  data.total_pages
+                );
+                break;
+
+              case 'page':
+                callbacks.onPage({
+                  page_index: data.page_index,
+                  page_number: data.page_number,
+                  thumbnail_base64: data.thumbnail_base64,
+                  width: data.width,
+                  height: data.height,
+                });
+                break;
+
+              case 'phase':
+                callbacks.onPhase(
+                  data.phase as TranscriptionPhase,
+                  data.current_page,
+                  data.total_pages
+                );
+                break;
+
+              case 'chunk':
+                callbacks.onChunk(data.page, data.delta);
+                break;
+
+              case 'answer':
+                callbacks.onAnswer({
+                  question_number: data.question_number,
+                  sub_question_id: data.sub_question_id,
+                  answer_text: data.answer_text,
+                  confidence: data.confidence,
+                  transcription_notes: null,
+                  page_indexes: data.page_indexes || [],
+                });
+                break;
+
+              case 'done':
+                callbacks.onDone(data.total_answers || 0);
+                break;
+
+              case 'error':
+                callbacks.onError(data.message);
+                break;
+            }
+          } catch (parseError) {
+            console.warn('Failed to parse SSE event:', eventType, eventData, parseError);
+          }
+        }
+      }
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') {
+        console.log('Stream aborted');
+        return;
+      }
+      callbacks.onError((error as Error).message || 'Stream connection failed');
+    }
+  };
+
+  // Start the stream
+  runStream();
+
+  return {
+    abort: () => abortController.abort(),
+  };
+}
+// =============================================================================
+// Streaming Transcription Types & Functions (TWO-PHASE)
+// =============================================================================
+
+export interface PageStreamState {
+  pageNumber: number;
+  rawText: string;
+  verifiedText: string;
+  markedText: string;  // Text with <Q#> markers
+  detectedQuestions: number[];  // Question numbers detected on this page
+  confidenceScores: Record<number, number>;  // Confidence per question
+  phase: 'raw' | 'verifying' | 'complete';
+  isStreaming: boolean;
+}
+
+export interface TranscriptionStreamState {
+  transcriptionId: string;
+  rubricId: string;
+  studentName: string;
+  filename: string;
+  totalPages: number;
+  pages: PagePreview[];
+  currentPhase: TranscriptionPhase;
+  currentPage: number;
+  phaseMessage: string;
+  pageStates: Map<number, PageStreamState>;
+  answers: TranscribedAnswerWithPages[];
+  isComplete: boolean;
+  error: string | null;
+}
+
+export interface StreamingCallbacksV2 {
+  onMetadata: (data: {
+    transcriptionId: string;
+    studentName: string;
+    filename: string;
+    totalPages: number;
+    rubricId: string;
+  }) => void;
+  onPage: (page: PagePreview) => void;
+  onPhase: (phase: TranscriptionPhase, currentPage: number, totalPages: number, message: string) => void;
+  onRawChunk: (pageNumber: number, delta: string) => void;
+  onRawComplete: (pageNumber: number, fullText: string) => void;
+  onVerifiedChunk: (pageNumber: number, delta: string) => void;
+  onPageComplete: (pageNumber: number, pageIndex: number, markedText: string, detectedQuestions: number[], confidenceScores: Record<number, number>) => void;
+  onAnswer: (answer: TranscribedAnswerWithPages) => void;
+  onDone: (totalAnswers: number) => void;
+  onError: (message: string) => void;
+}
+
+/**
+ * Stream two-phase transcription using SSE.
+ */
+export function streamTranscriptionV2(
+  rubricId: string,
+  testFile: File,
+  callbacks: StreamingCallbacksV2,
+  options?: {
+    firstPageIndex?: number;
+    answeredQuestions?: number[];
+  }
+): { abort: () => void } {
+  const abortController = new AbortController();
+
+  const runStream = async () => {
+    try {
+      const formData = new FormData();
+      formData.append('test_file', testFile);
+
+      const params = new URLSearchParams();
+      params.set('rubric_id', rubricId);
+      params.set('first_page_index', (options?.firstPageIndex ?? 0).toString());
+
+      if (options?.answeredQuestions && options.answeredQuestions.length > 0) {
+        params.set('answered_questions', JSON.stringify(options.answeredQuestions));
+      }
+
+      const response = await fetch(
+        `${API_BASE}/api/v0/grading/stream_transcription_v2?${params.toString()}`,
+        {
+          method: 'POST',
+          body: formData,
+          signal: abortController.signal,
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Stream failed' }));
+        callbacks.onError(error.detail || `Stream failed: ${response.status}`);
+        return;
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
+
+        for (const part of parts) {
+          if (!part.trim()) continue;
+
+          const lines = part.split('\n');
+          let eventType = '';
+          let eventData = '';
+
+          for (const line of lines) {
+            if (line.startsWith('event:')) {
+              eventType = line.slice(6).trim();
+            } else if (line.startsWith('data:')) {
+              eventData = line.slice(5).trim();
+            }
+          }
+
+          if (!eventType || !eventData) continue;
+
+          try {
+            const data = JSON.parse(eventData);
+
+            switch (eventType) {
+              case 'metadata':
+                callbacks.onMetadata({
+                  transcriptionId: data.transcription_id,
+                  studentName: data.student_name,
+                  filename: data.filename,
+                  totalPages: data.total_pages,
+                  rubricId: data.rubric_id,
+                });
+                break;
+              case 'page':
+                callbacks.onPage({
+                  page_index: data.page_index,
+                  page_number: data.page_number,
+                  thumbnail_base64: data.thumbnail_base64,
+                  width: data.width,
+                  height: data.height,
+                });
+                break;
+              case 'phase':
+                callbacks.onPhase(
+                  data.phase as TranscriptionPhase,
+                  data.current_page || 0,
+                  data.total_pages || 0,
+                  data.message || ''
+                );
+                break;
+              case 'raw_chunk':
+                callbacks.onRawChunk(data.page, data.delta);
+                break;
+              case 'raw_complete':
+                callbacks.onRawComplete(data.page, data.full_text);
+                break;
+              case 'verified_chunk':
+                callbacks.onVerifiedChunk(data.page, data.delta);
+                break;
+              case 'chunk': // Legacy compatibility
+                callbacks.onRawChunk(data.page, data.delta);
+                break;
+              case 'answer':
+                callbacks.onAnswer({
+                  question_number: data.question_number,
+                  sub_question_id: data.sub_question_id,
+                  answer_text: data.answer_text,
+                  confidence: data.confidence,
+                  transcription_notes: null,
+                  page_indexes: data.page_indexes || [],
+                });
+                break;
+              case 'page_complete':
+                callbacks.onPageComplete(
+                  data.page_number,
+                  data.page_index,
+                  data.text,
+                  data.detected_questions || [],
+                  data.confidence_scores || {}
+                );
+                break;
+              case 'done':
+                callbacks.onDone(data.total_answers || 0);
+                break;
+              case 'error':
+                callbacks.onError(data.message);
+                break;
+            }
+          } catch (parseError) {
+            console.warn('Failed to parse SSE event:', eventType, eventData, parseError);
+          }
+        }
+      }
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') return;
+      callbacks.onError((error as Error).message || 'Stream connection failed');
+    }
+  };
+
+  runStream();
+  return { abort: () => abortController.abort() };
+}
+
+// State management helpers
+export function createInitialStreamState(): TranscriptionStreamState {
+  return {
+    transcriptionId: '',
+    rubricId: '',
+    studentName: '',
+    filename: '',
+    totalPages: 0,
+    pages: [],
+    currentPhase: 'loading',
+    currentPage: 0,
+    phaseMessage: 'מעבד PDF...',
+    pageStates: new Map(),
+    answers: [],
+    isComplete: false,
+    error: null,
+  };
+}
+
+export type StreamAction =
+  | { type: 'METADATA'; payload: { transcriptionId: string; studentName: string; filename: string; totalPages: number; rubricId: string } }
+  | { type: 'PAGE'; payload: PagePreview }
+  | { type: 'PHASE'; payload: { phase: TranscriptionPhase; currentPage: number; totalPages: number; message: string } }
+  | { type: 'RAW_CHUNK'; payload: { pageNumber: number; delta: string } }
+  | { type: 'RAW_COMPLETE'; payload: { pageNumber: number; fullText: string } }
+  | { type: 'VERIFIED_CHUNK'; payload: { pageNumber: number; delta: string } }
+  | { type: 'PAGE_COMPLETE'; payload: { pageNumber: number; pageIndex: number; markedText: string; detectedQuestions: number[]; confidenceScores: Record<number, number> } }
+  | { type: 'ANSWER'; payload: TranscribedAnswerWithPages }
+  | { type: 'DONE'; payload: { totalAnswers: number } }
+  | { type: 'ERROR'; payload: { message: string } }
+  | { type: 'RESET' };
+
+export function streamReducer(state: TranscriptionStreamState, action: StreamAction): TranscriptionStreamState {
+  switch (action.type) {
+    case 'METADATA':
+      return { ...state, ...action.payload };
+    case 'PAGE':
+      return { ...state, pages: [...state.pages, action.payload] };
+    case 'PHASE':
+      return { ...state, currentPhase: action.payload.phase, currentPage: action.payload.currentPage, phaseMessage: action.payload.message };
+    case 'RAW_CHUNK': {
+      const pageStates = new Map(state.pageStates);
+      const existing = pageStates.get(action.payload.pageNumber) || { pageNumber: action.payload.pageNumber, rawText: '', verifiedText: '', markedText: '', detectedQuestions: [], confidenceScores: {}, phase: 'raw' as const, isStreaming: true };
+      pageStates.set(action.payload.pageNumber, { ...existing, rawText: existing.rawText + action.payload.delta, phase: 'raw', isStreaming: true });
+      return { ...state, pageStates };
+    }
+    case 'RAW_COMPLETE': {
+      const pageStates = new Map(state.pageStates);
+      const existing = pageStates.get(action.payload.pageNumber);
+      if (existing) pageStates.set(action.payload.pageNumber, { ...existing, rawText: action.payload.fullText, phase: 'verifying', isStreaming: false });
+      return { ...state, pageStates };
+    }
+    case 'VERIFIED_CHUNK': {
+      const pageStates = new Map(state.pageStates);
+      const existing = pageStates.get(action.payload.pageNumber) || { pageNumber: action.payload.pageNumber, rawText: '', verifiedText: '', markedText: '', detectedQuestions: [], confidenceScores: {}, phase: 'verifying' as const, isStreaming: true };
+      pageStates.set(action.payload.pageNumber, { ...existing, verifiedText: existing.verifiedText + action.payload.delta, phase: 'verifying', isStreaming: true });
+      return { ...state, pageStates };
+    }
+    case 'PAGE_COMPLETE': {
+      const pageStates = new Map(state.pageStates);
+      const existing = pageStates.get(action.payload.pageNumber) || { pageNumber: action.payload.pageNumber, rawText: '', verifiedText: '', markedText: '', detectedQuestions: [], confidenceScores: {}, phase: 'complete' as const, isStreaming: false };
+      pageStates.set(action.payload.pageNumber, {
+        ...existing,
+        markedText: action.payload.markedText,
+        detectedQuestions: action.payload.detectedQuestions,
+        confidenceScores: action.payload.confidenceScores,
+        phase: 'complete',
+        isStreaming: false,
+      });
+      return { ...state, pageStates };
+    }
+    case 'ANSWER': {
+      const pageStates = new Map(state.pageStates);
+      const pageIdx = action.payload.page_indexes[0];
+      if (pageIdx !== undefined) {
+        const existing = pageStates.get(pageIdx + 1);
+        if (existing) pageStates.set(pageIdx + 1, { ...existing, phase: 'complete', isStreaming: false });
+      }
+      return { ...state, pageStates, answers: [...state.answers, action.payload] };
+    }
+    case 'DONE':
+      return { ...state, currentPhase: 'done', phaseMessage: 'התמלול הושלם!', isComplete: true };
+    case 'ERROR':
+      return { ...state, error: action.payload.message };
+    case 'RESET':
+      return createInitialStreamState();
+    default:
+      return state;
+  }
+}
+
+export function streamStateToReviewResponse(state: TranscriptionStreamState): TranscriptionReviewResponse {
+  return {
+    transcription_id: state.transcriptionId,
+    rubric_id: state.rubricId,
+    student_name: state.studentName,
+    filename: state.filename,
+    total_pages: state.totalPages,
+    pages: state.pages,
+    answers: state.answers,
+    raw_transcription: null,
+  };
 }

@@ -1,0 +1,89 @@
+================================================================================
+SINGLE PAGE DEBUG - Page 2
+Provider: OpenAI/gpt-4o
+Timestamp: 2026-01-06T13:56:18.322517
+================================================================================
+
+--- SYSTEM PROMPT ---
+You are a HANDWRITING OCR SCANNER - NOT a code generator.
+
+=== CRITICAL DISTINCTION ===
+❌ WRONG: Generating code you think the student SHOULD have written
+✅ RIGHT: Copying character-by-character what is ACTUALLY written
+
+=== YOUR TASK ===
+1. FIRST: Read the page and identify what class/methods/fields are PHYSICALLY WRITTEN
+2. THEN: Copy the code character-by-character, including all mistakes
+
+=== STRICT RULES ===
+• Transcribe ONLY visible handwritten ink marks on the paper
+• If the student wrote "Emploeyy" with a typo → output "Emploeyy"
+• If a semicolon is missing → leave it missing
+• If a brace is wrong → keep it wrong
+• Use [?] for illegible characters - NEVER guess
+• Do NOT complete, fix, or beautify anything
+
+=== OUTPUT ===
+Return ONLY valid JSON matching the schema. No explanations.
+
+--- USER PROMPT ---
+Look at this handwritten code page and transcribe it.
+
+=== STEP 1: IDENTIFY (fill visual_grounding FIRST) ===
+Read the page carefully. What class name do you see after the word "class"?
+What method names can you physically see written?
+
+=== STEP 2: TRANSCRIBE (fill transcription SECOND) ===
+Copy the code CHARACTER BY CHARACTER. The class name you write MUST match what you identified in Step 1.
+
+{
+  "visual_grounding": {
+    "class_name": "The EXACT word written after 'class' (copy letter by letter) or null",
+    "method_names": ["list each method name you can physically see"],
+    "field_names": ["list variable names you can see"],
+    "approximate_lines": 0
+  },
+  "transcription": {
+    "student_name": "name at top of page or null",
+    "page_number": 2,
+    "answers": [
+      {
+        "question_number": 1,
+        "sub_question_id": null,
+        "answer_text": "COPY the code here - class name MUST match visual_grounding.class_name",
+        "confidence": 0.95
+      }
+    ]
+  }
+}
+
+=== VALIDATION BEFORE RESPONDING ===
+✓ Check: Does the class name in answer_text match visual_grounding.class_name?
+✓ Check: Did you preserve typos, missing semicolons, and errors?
+✓ Check: Are you transcribing what's written, not what's expected?
+
+
+
+--- RAW RESPONSE ---
+```json
+{
+  "visual_grounding": {
+    "class_name": "Department",
+    "method_names": ["Department", "AddEmployee", "CalcDepartmentMonthlyCost"],
+    "field_names": ["arrEmployees", "current"],
+    "approximate_lines": 20
+  },
+  "transcription": {
+    "student_name": null,
+    "page_number": 2,
+    "answers": [
+      {
+        "question_number": 1,
+        "sub_question_id": null,
+        "answer_text": "public class Department\nprivate Employee[] arrEmployees;\nprivate int current;\npublic Department()\n{\nthis.current= arrEmployees;\n}\npublic bool AddEmployee(Employee e)\n{\nif(current<arrEmployees.Length)\n{\narrEmployees[current]=new Employee(e.GetEmployee());\narrEmployees[current]=e;\ncurrent++;\nreturn ture;\n}\nreturn false;\n}\npublic static double CalcDepartmentMonthlyCost(Department dep)\n{\ndouble sum=0;\ndouble alary;\nEmployee[];\n",
+        "confidence": 0.95
+      }
+    ]
+  }
+}
+```

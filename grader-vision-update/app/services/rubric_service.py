@@ -4,12 +4,22 @@ Rubric service layer.
 Handles rubric extraction from PDFs with support for:
 - Questions with direct criteria
 - Questions with sub-questions (א, ב, ג...), each having their own criteria
+
+World-class features:
+- Structured JSON output with OpenAI JSON mode
+- Pydantic validation layer for type safety
+- Retry mechanism with escalating prompts
+- Multi-strategy JSON parsing fallback
 """
 import logging
 import json
+import re
+import hashlib
 from typing import Optional, Dict, Any, List
 from uuid import UUID
 
+from pydantic import BaseModel, Field, ValidationError
+from langsmith import traceable
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -23,9 +33,72 @@ from ..schemas.grading import (
     ExtractRubricResponse,
     SaveRubricRequest,
 )
-from .document_parser import pdf_to_images, image_to_base64, call_vision_llm
+from .document_parser import pdf_to_images, image_to_base64, call_vision_llm, get_openai_client
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Pydantic Validation Models for VLM Output
+# =============================================================================
+
+class CriterionOutput(BaseModel):
+    """Validated criterion from VLM extraction."""
+    description: str = Field(..., min_length=1, description="Criterion description in Hebrew")
+    points: float = Field(..., ge=0, le=200, description="Points for this criterion")
+
+
+class CriteriaExtractionOutput(BaseModel):
+    """Validated output from criteria extraction VLM call."""
+    total_points: float = Field(0, ge=0, description="Total points (can be 0 if criteria sum is used)")
+    criteria: List[CriterionOutput] = Field(default_factory=list, description="List of extracted criteria")
+
+    def compute_total(self) -> float:
+        """Compute total from criteria if not provided."""
+        return self.total_points or sum(c.points for c in self.criteria)
+
+
+# =============================================================================
+# Semantic Caching for Criteria Extraction
+# =============================================================================
+
+# In-memory cache for criteria extraction results (keyed by image hash)
+# In production, consider using Redis for persistence across restarts
+_criteria_cache: Dict[str, Dict[str, Any]] = {}
+_CACHE_MAX_SIZE = 100  # Prevent unbounded memory growth
+
+
+def _hash_images(images_b64: List[str]) -> str:
+    """Create stable hash for image content."""
+    combined = "".join(images_b64)
+    return hashlib.sha256(combined.encode()).hexdigest()[:24]
+
+
+def _get_cached_criteria(images_b64: List[str]) -> Optional[Dict[str, Any]]:
+    """Check if criteria for these images are already cached."""
+    cache_key = _hash_images(images_b64)
+    if cache_key in _criteria_cache:
+        logger.info(f"Cache HIT for criteria extraction (key={cache_key[:8]}...)")
+        return _criteria_cache[cache_key]
+    return None
+
+
+def _cache_criteria(images_b64: List[str], result: Dict[str, Any]) -> None:
+    """Cache successful criteria extraction result."""
+    # Only cache successful extractions
+    if result.get("extraction_status") != "success":
+        return
+    
+    cache_key = _hash_images(images_b64)
+    
+    # Evict oldest entries if cache is full
+    if len(_criteria_cache) >= _CACHE_MAX_SIZE:
+        oldest_key = next(iter(_criteria_cache))
+        del _criteria_cache[oldest_key]
+        logger.debug(f"Evicted cache entry {oldest_key[:8]}...")
+    
+    _criteria_cache[cache_key] = result
+    logger.info(f"Cached criteria extraction (key={cache_key[:8]}..., {len(result.get('criteria', []))} criteria)")
 
 
 # =============================================================================
@@ -53,25 +126,71 @@ QUESTION_EXTRACTION_SYSTEM_PROMPT = """אתה מומחה בחילוץ שאלות
 
 אם אין תת-שאלות, החזר רשימה ריקה עבור sub_questions."""
 
-CRITERIA_EXTRACTION_SYSTEM_PROMPT = """אתה מומחה בחילוץ קריטריוני הערכה מטבלאות מחוונים.
-משימתך: לחלץ את כל קריטריוני ההערכה וערכי הנקודות שלהם מהתמונה.
+CRITERIA_EXTRACTION_SYSTEM_PROMPT = """אתה מומחה בחילוץ קריטריוני הערכה מטבלאות מחוונים למבחנים בתכנות.
 
-הוראות:
-1. חלץ כל קריטריון בדיוק כפי שמופיע בטבלה
-2. חלץ את מספר הנקודות לכל קריטריון
-3. אם יש מספר עמודות נקודות (כמו "מלא" ו"חלקי"), השתמש בערך המקסימלי
-4. שמור על הטקסט העברי במדויק
+=== דוגמה 1: טבלת קריטריונים פשוטה ===
+[תמונה של טבלה עם שלושה קריטריונים]
 
-פורמט פלט חובה (JSON בלבד, ללא markdown וללא טקסט נוסף):
+פלט נכון:
 {
-  "total_points": 40,
+  "total_points": 25,
   "criteria": [
-    {"description": "תיאור הקריטריון בעברית", "points": 5},
-    {"description": "קריטריון נוסף", "points": 10}
+    {"description": "הגדרת משתנים פרטיים (private)", "points": 5},
+    {"description": "בנאי עם שני פרמטרים", "points": 10},
+    {"description": "מתודת toString() מוחזרת כראוי", "points": 10}
   ]
 }
 
-חשוב: החזר אך ורק את ה-JSON. אל תוסיף הסברים או הערות."""
+=== דוגמה 2: טבלה עם עמודות מלא/חלקי ===
+[תמונה של טבלה עם עמודות "מלא" ו"חלקי"]
+
+| קריטריון | מלא | חלקי |
+|----------|-----|------|
+| לולאת for נכונה | 8 | 4 |
+| תנאי עצירה | 7 | 3 |
+
+פלט נכון (השתמש בערך "מלא"):
+{
+  "total_points": 15,
+  "criteria": [
+    {"description": "לולאת for נכונה", "points": 8},
+    {"description": "תנאי עצירה", "points": 7}
+  ]
+}
+
+=== דוגמה 3: רשימת קריטריונים ללא טבלה ===
+[תמונה עם רשימה:]
+• הגדרת מערך - 5 נק'
+• מילוי המערך בלולאה - 10 נק'
+• הדפסת התוצאה - 5 נק'
+
+פלט נכון:
+{
+  "total_points": 20,
+  "criteria": [
+    {"description": "הגדרת מערך", "points": 5},
+    {"description": "מילוי המערך בלולאה", "points": 10},
+    {"description": "הדפסת התוצאה", "points": 5}
+  ]
+}
+
+=== הוראות ===
+1. חלץ כל קריטריון בדיוק כפי שמופיע (טבלה, רשימה, או כל פורמט אחר)
+2. חלץ את מספר הנקודות לכל קריטריון
+3. אם יש עמודות "מלא" ו"חלקי", השתמש בערך המקסימלי ("מלא")
+4. שמור על הטקסט העברי במדויק - אל תתרגם או תשנה
+5. אם אין קריטריונים גלויים, החזר criteria ריק
+
+פורמט פלט חובה (JSON בלבד):
+{
+  "total_points": <סכום כל הנקודות>,
+  "criteria": [
+    {"description": "<תיאור מדויק>", "points": <מספר>},
+    ...
+  ]
+}
+
+חשוב: החזר אך ורק JSON. אל תוסיף הסברים, markdown, או טקסט אחר."""
 
 
 # =============================================================================
@@ -79,7 +198,7 @@ CRITERIA_EXTRACTION_SYSTEM_PROMPT = """אתה מומחה בחילוץ קריטר
 # =============================================================================
 
 def _clean_json_response(response: str) -> str:
-    """Clean markdown formatting from JSON response."""
+    """Clean markdown formatting from JSON response (kept for backwards compat)."""
     cleaned = response.strip()
     if cleaned.startswith("```"):
         lines = cleaned.split("\n")
@@ -88,6 +207,75 @@ def _clean_json_response(response: str) -> str:
         if cleaned.startswith("json"):
             cleaned = cleaned[4:].strip()
     return cleaned
+
+
+def _robust_json_parse(response: str, context: str = "") -> Dict[str, Any]:
+    """
+    Robustly parse JSON from VLM response, handling:
+    - Markdown code blocks
+    - Leading/trailing text
+    - Truncated JSON
+    - Multiple JSON objects
+    
+    Returns parsed dict or empty structure on failure.
+    """
+    import re
+    
+    if not response or not response.strip():
+        logger.warning(f"Empty VLM response for {context}")
+        return {"criteria": [], "total_points": 0, "_parse_error": "Empty response"}
+    
+    original = response
+    
+    # Try 1: Direct parse
+    try:
+        return json.loads(response.strip())
+    except json.JSONDecodeError:
+        pass
+    
+    # Try 2: Remove markdown code blocks
+    cleaned = response.strip()
+    if "```" in cleaned:
+        # Extract content between ``` markers
+        match = re.search(r'```(?:json)?\s*([\s\S]*?)```', cleaned)
+        if match:
+            cleaned = match.group(1).strip()
+            try:
+                return json.loads(cleaned)
+            except json.JSONDecodeError:
+                pass
+    
+    # Try 3: Find JSON object in response
+    start = cleaned.find('{')
+    end = cleaned.rfind('}')
+    if start != -1 and end != -1 and end > start:
+        json_str = cleaned[start:end+1]
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            # Try to fix common issues
+            fixed = json_str.replace("'", '"')
+            try:
+                return json.loads(fixed)
+            except json.JSONDecodeError:
+                pass
+    
+    # Try 4: Find JSON array in response
+    start = cleaned.find('[')
+    end = cleaned.rfind(']')
+    if start != -1 and end != -1 and end > start:
+        json_str = cleaned[start:end+1]
+        try:
+            arr = json.loads(json_str)
+            # If we got an array of criteria, wrap it
+            if isinstance(arr, list) and len(arr) > 0:
+                return {"criteria": arr, "total_points": sum(c.get("points", 0) for c in arr if isinstance(c, dict))}
+        except json.JSONDecodeError:
+            pass
+    
+    # All parsing attempts failed
+    logger.error(f"JSON parsing failed for {context}. Response preview: {original[:200]}...")
+    return {"criteria": [], "total_points": 0, "_parse_error": f"Could not parse: {original[:100]}..."}
 
 
 def _extract_question_text(
@@ -137,57 +325,199 @@ def _extract_question_text(
         }
 
 
-def _extract_criteria(
+@traceable(name="extract_criteria_structured", run_type="llm")
+def _extract_criteria_structured(
     images_b64: List[str],
-    context: str  # e.g., "שאלה 1" or "שאלה 2 סעיף א"
+    context: str,
+    temperature: float = 0.1
 ) -> Dict[str, Any]:
     """
-    Extract criteria from rubric table images.
+    Extract criteria using OpenAI's JSON mode for guaranteed valid JSON.
+    
+    This is the primary extraction strategy - uses response_format=json_object
+    which guarantees the response is valid JSON.
+    """
+    try:
+        client = get_openai_client()
+        
+        # Build content with images
+        content = [
+            {
+                "type": "image_url", 
+                "image_url": {
+                    "url": f"data:image/png;base64,{img}", 
+                    "detail": "high"
+                }
+            } 
+            for img in images_b64
+        ]
+        content.append({
+            "type": "text", 
+            "text": f"חלץ את כל קריטריוני ההערכה עבור {context} מטבלת המחוון."
+        })
+        
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": CRITERIA_EXTRACTION_SYSTEM_PROMPT},
+                {"role": "user", "content": content}
+            ],
+            response_format={"type": "json_object"},  # Guaranteed JSON!
+            max_tokens=4000,
+            temperature=temperature
+        )
+        
+        raw_json = response.choices[0].message.content
+        
+        # Pydantic validation for type safety
+        try:
+            validated = CriteriaExtractionOutput.model_validate_json(raw_json)
+            return {
+                "criteria": [c.model_dump() for c in validated.criteria],
+                "total_points": validated.compute_total(),
+                "extraction_status": "success" if validated.criteria else "partial",
+                "extraction_error": None if validated.criteria else "לא נמצאו קריטריונים בטבלה"
+            }
+        except ValidationError as e:
+            logger.warning(f"Pydantic validation failed for {context}: {e}")
+            # Fall back to robust parsing
+            return None
+            
+    except Exception as e:
+        logger.warning(f"Structured extraction failed for {context}: {e}")
+        return None
+
+
+@traceable(name="extract_criteria", run_type="chain")
+def _extract_criteria(
+    images_b64: List[str],
+    context: str,  # e.g., "שאלה 1" or "שאלה 2 סעיף א"
+    max_retries: int = 2
+) -> Dict[str, Any]:
+    """
+    Extract criteria from rubric table images with retry mechanism.
+    
+    World-class features:
+    - Semantic caching (avoids redundant API calls for identical images)
+    - LangSmith tracing (full observability)
+    - Two-tier extraction (JSON mode → fallback parsing)
+    - Pydantic validation
+    - Retry with escalation
     
     Returns:
         {
             "total_points": float,
-            "criteria": [{"description": "...", "points": float}, ...]
+            "criteria": [{"description": "...", "points": float}, ...],
+            "extraction_status": "success" | "partial" | "failed",
+            "extraction_error": Optional[str]
         }
     """
-    user_prompt = f"חלץ את כל קריטריוני ההערכה עבור {context} מטבלת המחוון. החזר JSON בלבד."
+    # Check cache first
+    cached = _get_cached_criteria(images_b64)
+    if cached:
+        return cached
     
-    try:
-        response = call_vision_llm(
-            images_b64=images_b64,
-            system_prompt=CRITERIA_EXTRACTION_SYSTEM_PROMPT,
-            user_prompt=user_prompt,
-            max_tokens=3000,
-            temperature=0.1
-        )
-        
-        cleaned = _clean_json_response(response)
+    last_error = None
+    
+    for attempt in range(max_retries + 1):
         try:
-            data = json.loads(cleaned)
-        except json.JSONDecodeError as je:
-            logger.error(f"JSON parsing error for criteria {context}. Raw response: {response}")
-            raise je
-        
-        criteria = data.get("criteria", [])
-        total_points = data.get("total_points") or sum(c.get("points", 0) for c in criteria)
-        
-        return {
-            "total_points": total_points,
-            "criteria": criteria
-        }
-        
-    except Exception as e:
-        logger.error(f"Error extracting criteria for {context}: {e}")
-        return {
-            "total_points": 0,
-            "criteria": []
-        }
+            temperature = 0.1 if attempt == 0 else 0.05
+            
+            logger.info(f"Extracting criteria for {context} (attempt {attempt + 1}/{max_retries + 1})")
+            
+            # Tier 1: Try structured extraction with JSON mode
+            result = _extract_criteria_structured(images_b64, context, temperature)
+            if result and result.get("criteria"):
+                logger.info(f"Structured extraction successful: {len(result['criteria'])} criteria for {context}")
+                _cache_criteria(images_b64, result)  # Cache successful result
+                return result
+            
+            # Tier 2: Fallback to generic VLM + robust parsing
+            if attempt == 0:
+                user_prompt = f"חלץ את כל קריטריוני ההערכה עבור {context} מטבלת המחוון. החזר JSON בלבד."
+            else:
+                # Retry with more explicit instructions
+                user_prompt = f"""חלץ קריטריונים עבור {context}.
+
+חובה להחזיר JSON בפורמט הבא ללא טקסט נוסף:
+{{
+  "total_points": <מספר>,
+  "criteria": [
+    {{"description": "<תיאור הקריטריון>", "points": <נקודות>}},
+    ...
+  ]
+}}
+
+אם אתה רואה טבלה עם קריטריונים, חלץ כל שורה. אם אין טבלה, החזר criteria ריק."""
+            
+            response = call_vision_llm(
+                images_b64=images_b64,
+                system_prompt=CRITERIA_EXTRACTION_SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+                max_tokens=4000,
+                temperature=temperature
+            )
+            
+            # Use robust parser
+            data = _robust_json_parse(response, context)
+            
+            # Try Pydantic validation on parsed data
+            try:
+                validated = CriteriaExtractionOutput.model_validate(data)
+                if validated.criteria:
+                    logger.info(f"Fallback extraction successful: {len(validated.criteria)} criteria for {context}")
+                    result = {
+                        "total_points": validated.compute_total(),
+                        "criteria": [c.model_dump() for c in validated.criteria],
+                        "extraction_status": "success",
+                        "extraction_error": None
+                    }
+                    _cache_criteria(images_b64, result)  # Cache successful result
+                    return result
+            except ValidationError as ve:
+                logger.warning(f"Validation failed for {context}: {ve}")
+            
+            # Raw criteria without validation (last resort)
+            criteria = data.get("criteria", [])
+            parse_error = data.get("_parse_error")
+            
+            if criteria:
+                total_points = data.get("total_points") or sum(c.get("points", 0) for c in criteria)
+                logger.info(f"Unvalidated extraction: {len(criteria)} criteria for {context}")
+                return {
+                    "total_points": total_points,
+                    "criteria": criteria,
+                    "extraction_status": "partial",  # Mark as partial since not validated
+                    "extraction_error": None
+                }
+            
+            # No criteria found
+            if parse_error:
+                last_error = parse_error
+                logger.warning(f"Attempt {attempt + 1} for {context}: parse error - {parse_error}")
+            else:
+                last_error = "לא נמצאו קריטריונים בעמוד"
+                logger.warning(f"Attempt {attempt + 1} for {context}: VLM returned empty criteria")
+            
+        except Exception as e:
+            last_error = str(e)
+            logger.error(f"Attempt {attempt + 1} for {context} failed: {e}")
+    
+    # All retries exhausted
+    logger.error(f"All {max_retries + 1} attempts failed for {context}")
+    return {
+        "total_points": 0,
+        "criteria": [],
+        "extraction_status": "failed",
+        "extraction_error": f"לא הצלחנו לחלץ קריטריונים ({last_error}). נסה לסמן עמודים אחרים או הוסף ידנית."
+    }
 
 
 # =============================================================================
 # Main Extraction Function
 # =============================================================================
 
+@traceable(name="extract_rubric_with_page_mappings", run_type="chain")
 async def extract_rubric_with_page_mappings(
     pdf_bytes: bytes,
     question_mappings: List[QuestionPageMapping],
@@ -279,10 +609,21 @@ async def extract_rubric_with_page_mappings(
                         for c in criteria_data.get("criteria", [])
                     ],
                     total_points=criteria_data.get("total_points", 0),
-                    source_pages=sq_mapping.criteria_page_indexes
+                    source_pages=sq_mapping.criteria_page_indexes,
+                    extraction_status=criteria_data.get("extraction_status", "success"),
+                    extraction_error=criteria_data.get("extraction_error")
                 ))
             
             # Create question with sub-questions
+            # Determine overall extraction status from sub-questions
+            sub_statuses = [sq.extraction_status for sq in extracted_sub_questions]
+            if all(s == "success" for s in sub_statuses):
+                overall_status = "success"
+            elif any(s == "failed" for s in sub_statuses):
+                overall_status = "partial" if any(s == "success" for s in sub_statuses) else "failed"
+            else:
+                overall_status = "partial"
+            
             total_pts = sum(sq.total_points for sq in extracted_sub_questions)
             extracted_questions.append(ExtractedQuestion(
                 question_number=q_num,
@@ -290,7 +631,9 @@ async def extract_rubric_with_page_mappings(
                 total_points=total_pts,
                 criteria=[],  # No direct criteria
                 sub_questions=extracted_sub_questions,
-                source_pages=mapping.question_page_indexes
+                source_pages=mapping.question_page_indexes,
+                extraction_status=overall_status,
+                extraction_error=None if overall_status == "success" else "חלק מהסעיפים לא חולצו בהצלחה"
             ))
             
         else:
@@ -322,7 +665,9 @@ async def extract_rubric_with_page_mappings(
                     for c in criteria_data.get("criteria", [])
                 ],
                 sub_questions=[],
-                source_pages=mapping.question_page_indexes + mapping.criteria_page_indexes
+                source_pages=mapping.question_page_indexes + mapping.criteria_page_indexes,
+                extraction_status=criteria_data.get("extraction_status", "success"),
+                extraction_error=criteria_data.get("extraction_error")
             ))
     
     # Build response

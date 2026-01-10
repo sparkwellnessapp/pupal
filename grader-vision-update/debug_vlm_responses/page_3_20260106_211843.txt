@@ -1,0 +1,91 @@
+================================================================================
+RAW VLM RESPONSE DEBUG - Page 3
+Timestamp: 2026-01-06T21:18:43.829416
+================================================================================
+
+--- PROMPT SENT ---
+Look at this handwritten code page and transcribe it.
+
+=== STEP 1: IDENTIFY (fill visual_grounding FIRST) ===
+Read the page carefully. What class name do you see after the word "class"?
+What method names can you physically see written?
+
+=== STEP 2: TRANSCRIBE (fill transcription SECOND) ===
+Copy the code CHARACTER BY CHARACTER. The class name you write MUST match what you identified in Step 1.
+
+{
+  "visual_grounding": {
+    "class_name": "The EXACT word written after 'class' (copy letter by letter) or null",
+    "method_names": ["list each method name you can physically see"],
+    "field_names": ["list variable names you can see"],
+    "approximate_lines": 0
+  },
+  "transcription": {
+    "student_name": "name at top of page or null",
+    "page_number": 3,
+    "answers": [
+      {
+        "question_number": 1,
+        "sub_question_id": null,
+        "answer_text": "COPY the code here - class name MUST match visual_grounding.class_name",
+        "confidence": 0.95
+      }
+    ]
+  }
+}
+
+=== VALIDATION BEFORE RESPONDING ===
+✓ Check: Does the class name in answer_text match visual_grounding.class_name?
+✓ Check: Did you preserve typos, missing semicolons, and errors?
+✓ Check: Are you transcribing what's written, not what's expected?
+
+Student may have answered: שאלה 2
+
+--- RAW RESPONSE ---
+```json
+{
+  "visual_grounding": {
+    "class_name": null,
+    "method_names": [],
+    "field_names": ["arr", "carr", "salary", "sum"],
+    "approximate_lines": 12
+  },
+  "transcription": {
+    "student_name": "אלי כהן",
+    "page_number": 3,
+    "answers": [
+      {
+        "question_number": 1,
+        "sub_question_id": null,
+        "answer_text": "Employee[] arr = dep.GetAVVEmploeey;\nint carr = dep.GetCurrent()\nfor (int i=0; i<carr; i++)\n{\n salary = arr[i].GetSalary();\n if(arr[i].GetIsSenior())\n  salary = salary*1.33;\n sum = salary;\n return sum;",
+        "confidence": 0.95
+      }
+    ]
+  }
+}
+```
+
+--- PARSED VISUAL GROUNDING ---
+Class Name: None
+Method Names: []
+Field Names: ['arr', 'carr', 'salary', 'sum']
+Approx Lines: 12
+
+--- PARSED TRANSCRIPTION ---
+Student Name: אלי כהן
+Page Number: 3
+Answers:
+
+  Answer 1:
+    Question: 1
+    Confidence: 0.95
+    Code:
+      Employee[] arr = dep.GetAVVEmploeey;
+      int carr = dep.GetCurrent()
+      for (int i=0; i<carr; i++)
+      {
+       salary = arr[i].GetSalary();
+       if(arr[i].GetIsSenior())
+        salary = salary*1.33;
+       sum = salary;
+       return sum;

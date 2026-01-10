@@ -10,7 +10,9 @@ import { AnswerMappingPanel } from '@/components/AnswerMappingPanel';
 import { GradingResults } from '@/components/GradingResults';
 import { RubricSelector } from '@/components/RubricSelector';
 import { SidebarLayout } from '@/components/SidebarLayout';
-import { TranscriptionReviewPage } from '@/components/TranscriptionReviewPage';
+import TranscriptionReviewPage from '@/components/TranscriptionReviewPage';
+import PdfProcessingPage from '@/components/PdfProcessingPage';
+import { useStreamingTranscription } from '@/lib/useStreamingTranscription';
 import {
   previewRubricPdf,
   extractRubric,
@@ -50,7 +52,8 @@ import {
 
 type MainMode = 'select' | 'rubric' | 'grading';
 type RubricStep = 'upload' | 'map' | 'extracting' | 'review' | 'saved';
-type GradingStep = 'select_rubric' | 'upload_batch' | 'map_answers' | 'transcribing' | 'review_transcription' | 'grading' | 'results';
+// UPDATED: Added 'pdf_processing' step
+type GradingStep = 'select_rubric' | 'upload_batch' | 'map_answers' | 'pdf_processing' | 'review_transcription' | 'grading' | 'results';
 type TranscriptionMode = 'handwritten' | 'printed' | null;
 
 interface ActiveRubricAssignment {
@@ -67,7 +70,7 @@ interface GradingProgress {
   current: number;
   total: number;
   currentFileName: string;
-  stage?: 'transcribing' | 'grading'; // NEW - for handwritten mode
+  stage?: 'transcribing' | 'grading';
 }
 
 // Store mapping for each test
@@ -78,7 +81,7 @@ interface TestMapping {
   isLoaded: boolean;
 }
 
-// NEW: Store per-test question selections for handwritten mode
+// Store per-test question selections for handwritten mode
 interface HandwrittenTestConfig {
   file: File;
   answeredQuestions: number[]; // Which questions the student answered (empty = all)
@@ -232,12 +235,12 @@ export default function Home() {
   const [gradingStep, setGradingStep] = useState<GradingStep>('select_rubric');
   const [selectedRubric, setSelectedRubric] = useState<RubricListItem | null>(null);
   const [testFiles, setTestFiles] = useState<File[]>([]);
-  const [firstPageIndex, setFirstPageIndex] = useState(0);
+  const [studentName, setStudentName] = useState('');
 
-  // NEW: Transcription mode
+  // Transcription mode
   const [transcriptionMode, setTranscriptionMode] = useState<TranscriptionMode>(null);
 
-  // NEW: Per-test question selection for handwritten mode
+  // Per-test question selection for handwritten mode
   const [handwrittenConfigs, setHandwrittenConfigs] = useState<HandwrittenTestConfig[]>([]);
 
   // Per-test mapping state (for printed mode)
@@ -249,15 +252,36 @@ export default function Home() {
   const [gradingResults, setGradingResults] = useState<GradedTestResult[]>([]);
   const [gradingStats, setGradingStats] = useState({ total: 0, successful: 0, failed: 0, errors: [] as string[] });
   const [gradingProgress, setGradingProgress] = useState<GradingProgress | null>(null);
-  // NEW: Store test page thumbnails for validation in results view
+  // Store test page thumbnails for validation in results view
   const [testPagesMap, setTestPagesMap] = useState<Map<string, PagePreview[]>>(new Map());
 
-  // NEW: Transcription review state
-  const [currentTranscription, setCurrentTranscription] = useState<TranscriptionReviewResponse | null>(null);
+  // Current test file being processed (for handwritten mode)
   const [currentTestFile, setCurrentTestFile] = useState<File | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // =============================================================================
+  // NEW: Streaming Transcription Hook
+  // =============================================================================
+  const streaming = useStreamingTranscription({
+    // Called when PDF processing is complete and pages are ready
+    // This triggers navigation from loading screen to review page
+    onPagesReady: ({ pages, studentName, filename }) => {
+      console.log(`PDF processed: ${pages} pages, student: ${studentName}`);
+      // Navigate to review page
+      setGradingStep('review_transcription');
+    },
+    onComplete: (data) => {
+      console.log('Transcription complete:', data.student_name, data.answers.length, 'answers');
+    },
+    onError: (err) => {
+      console.error('Streaming error:', err);
+      setError(err);
+      // Go back to upload step on error
+      setGradingStep('upload_batch');
+    },
+  });
 
   // Current test being mapped (printed mode)
   const currentTest = testMappings[currentTestIndex];
@@ -276,6 +300,7 @@ export default function Home() {
 
   // Reset transcription mode when going back to rubric selection
   const handleBackToRubricSelect = () => {
+    streaming.reset();
     setGradingStep('select_rubric');
     setSelectedRubric(null);
     setTestFiles([]);
@@ -400,7 +425,7 @@ export default function Home() {
     if (testFiles.length === 0 || !transcriptionMode) return;
 
     if (transcriptionMode === 'handwritten') {
-      // Skip page mapping, go directly to grading
+      // Skip page mapping, start streaming transcription
       await handleGradeHandwritten();
     } else {
       // Printed mode - go to page mapping
@@ -409,44 +434,33 @@ export default function Home() {
   };
 
 
-  // NEW: Transcribe handwritten tests (step 1 - shows review page)
+  // =============================================================================
+  // NEW: Handwritten transcription with two-phase streaming
+  // Flow: Upload → PDF Processing Page → Review Page (with streaming)
+  // =============================================================================
   const handleGradeHandwritten = async () => {
     if (!selectedRubric || handwrittenConfigs.length === 0) return;
 
     // For now, process first test only (can be extended to batch later)
     const config = handwrittenConfigs[0];
 
-    setGradingStep('transcribing');
-    setGradingProgress({
-      current: 1,
-      total: handwrittenConfigs.length,
-      currentFileName: config.file.name,
-      stage: 'transcribing'
-    });
     setCurrentTestFile(config.file);
+    setError(null);
 
-    try {
-      // Call new transcription endpoint with user-selected questions
-      const transcription = await transcribeHandwrittenTest(
-        selectedRubric.id,
-        config.file,
-        firstPageIndex,
-        config.answeredQuestions.length > 0 ? config.answeredQuestions : undefined
-      );
+    // Step 1: Show PDF processing loading page
+    setGradingStep('pdf_processing');
 
-      setCurrentTranscription(transcription);
-      setGradingProgress(null);
-      setGradingStep('review_transcription');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה בתמלול המבחן');
-      setGradingProgress(null);
-      setGradingStep('upload_batch');
-    }
+    // Step 2: Start streaming transcription
+    // The hook will call onPagesReady when PDF is processed, which navigates to review page
+    streaming.startTranscription(selectedRubric.id, config.file, {
+      firstPageIndex: 0,
+      answeredQuestions: config.answeredQuestions.length > 0 ? config.answeredQuestions : undefined,
+    });
   };
 
-  // NEW: Handle continue from transcription review (step 2 - grade with edited answers)
+  // Handle continue from transcription review (grade with edited answers)
   const handleContinueFromReview = async (editedAnswers: StudentAnswerInput[]) => {
-    if (!selectedRubric || !currentTranscription || !currentTestFile) return;
+    if (!selectedRubric || !streaming.transcriptionData || !currentTestFile) return;
 
     setGradingStep('grading');
     setGradingProgress({
@@ -460,14 +474,14 @@ export default function Home() {
       // Call grade_with_transcription endpoint
       const result = await gradeWithTranscription({
         rubric_id: selectedRubric.id,
-        student_name: currentTranscription.student_name,
-        filename: currentTranscription.filename,
+        student_name: streaming.transcriptionData.student_name,
+        filename: streaming.transcriptionData.filename,
         answers: editedAnswers,
       });
 
       // Store page thumbnails for results view
       const pagesMap = new Map<string, PagePreview[]>();
-      pagesMap.set(currentTranscription.filename, currentTranscription.pages);
+      pagesMap.set(streaming.transcriptionData.filename, streaming.transcriptionData.pages);
       setTestPagesMap(pagesMap);
 
       setGradingResults([result]);
@@ -481,9 +495,18 @@ export default function Home() {
     }
   };
 
+  // Handle back from PDF processing - return to upload
+  const handleBackFromPdfProcessing = () => {
+    streaming.abort();
+    streaming.reset();
+    setCurrentTestFile(null);
+    setGradingStep('upload_batch');
+  };
+
   // Handle back from review - return to upload
   const handleBackFromReview = () => {
-    setCurrentTranscription(null);
+    streaming.abort();
+    streaming.reset();
     setCurrentTestFile(null);
     setGradingStep('upload_batch');
   };
@@ -591,7 +614,7 @@ export default function Home() {
           selectedRubric.id,
           testMapping.answerMappings,
           testMapping.file,
-          firstPageIndex
+          0  // firstPageIndex no longer used
         );
         results.push(result);
         successful++;
@@ -658,6 +681,7 @@ export default function Home() {
   const isCurrentMappingValid = currentTest?.answerMappings.every(m => m.page_indexes.length > 0) ?? false;
 
   const goToHome = () => {
+    streaming.reset();
     setMainMode('select');
     setRubricStep('upload');
     setGradingStep('select_rubric');
@@ -671,6 +695,7 @@ export default function Home() {
     setGradingResults([]);
     setTranscriptionMode(null);
     setHandwrittenConfigs([]);
+    setCurrentTestFile(null);
     setError(null);
   };
 
@@ -767,7 +792,7 @@ export default function Home() {
                 <div className="bg-white rounded-xl shadow-lg p-8 text-center">
                   <Loader2 className="mx-auto text-primary-500 mb-4 animate-spin" size={64} />
                   <h2 className="text-xl font-semibold text-gray-800">מחלץ מחוון...</h2>
-                  <p className="text-gray-500 mt-2">אנא המתן בזמן שהמערכת מחלצת את המחוון</p>
+                  <p className="text-gray-500 mt-2">אנא המתיני בזמן שהמערכת מחלצת את המחוון</p>
                 </div>
               </div>
             )}
@@ -843,32 +868,31 @@ export default function Home() {
                     <p className="text-gray-500 mt-1">העלי את כל מבחני התלמידים לבדיקה</p>
                   </div>
 
-                  {/* NEW: Transcription mode toggle */}
+                  {/* Transcription mode toggle */}
                   <TranscriptionModeToggle
                     mode={transcriptionMode}
                     onChange={setTranscriptionMode}
                   />
 
-                  {/* First page index selector */}
+                  {/* Student name input */}
                   <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-center gap-2 text-sm">
                       <User size={16} className="text-blue-500" />
-                      <span className="font-medium text-blue-700">עמוד שם התלמיד (בכל המבחנים):</span>
-                      <select
-                        value={firstPageIndex}
-                        onChange={(e) => setFirstPageIndex(parseInt(e.target.value))}
-                        className="bg-white border border-blue-300 rounded px-2 py-1 text-sm"
-                      >
-                        {[...Array(10)].map((_, i) => (
-                          <option key={i} value={i}>עמוד {i + 1}</option>
-                        ))}
-                      </select>
+                      <span className="font-medium text-blue-700">שם התלמיד:</span>
+                      <input
+                        type="text"
+                        value={studentName}
+                        onChange={(e) => setStudentName(e.target.value)}
+                        placeholder="הכנס שם תלמיד"
+                        className="bg-white border border-blue-300 rounded px-3 py-1 text-sm flex-1"
+                        dir="rtl"
+                      />
                     </div>
                   </div>
 
                   <MultiFileUpload files={testFiles} onFilesChange={setTestFiles} label="העלי מבחני תלמידים" maxFiles={50} />
 
-                  {/* NEW: Question selection for handwritten mode */}
+                  {/* Question selection for handwritten mode */}
                   {transcriptionMode === 'handwritten' && testFiles.length > 0 && (
                     <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                       <div className="flex items-center gap-2 mb-3">
@@ -958,8 +982,8 @@ export default function Home() {
                       onMappingsChange={updateCurrentTestMappings}
                       activeAssignment={activeAnswerAssignment}
                       onSetActiveAssignment={setActiveAnswerAssignment}
-                      firstPageIndex={firstPageIndex}
-                      onFirstPageIndexChange={setFirstPageIndex}
+                      firstPageIndex={0}
+                      onFirstPageIndexChange={() => { }}
                       hideFirstPageSelector={true}
                     />
 
@@ -989,40 +1013,34 @@ export default function Home() {
               </div>
             )}
 
-            {/* Transcribing step - show loading while VLM transcribes */}
-            {gradingStep === 'transcribing' && (
-              <div className="max-w-xl mx-auto animate-fade-in">
-                <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-                  <Loader2 className="mx-auto text-primary-500 mb-4 animate-spin" size={64} />
-                  <h2 className="text-xl font-semibold text-gray-800">מתמלל כתב יד...</h2>
-                  <p className="text-gray-500 mt-2">
-                    ה-AI קורא את המבחן ומתמלל את התשובות
-                  </p>
-
-                  {gradingProgress && (
-                    <div className="mt-6 space-y-3">
-                      <div className="w-full bg-surface-200 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="bg-primary-500 h-3 transition-all duration-300 animate-pulse"
-                          style={{ width: '50%' }}
-                        />
-                      </div>
-                      <p className="text-xs text-gray-400 truncate">
-                        {gradingProgress.currentFileName}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
+            {/* NEW: PDF Processing step - show loading while PDF is being parsed */}
+            {gradingStep === 'pdf_processing' && currentTestFile && (
+              <PdfProcessingPage
+                filename={currentTestFile.name}
+                onPagesReady={() => setGradingStep('review_transcription')}
+                onError={(msg) => {
+                  setError(msg);
+                  setGradingStep('upload_batch');
+                }}
+                progress={{
+                  currentPage: streaming.pagesReceived,
+                  totalPages: streaming.totalPages,
+                }}
+              />
             )}
 
-            {/* Review transcription step - show TranscriptionReviewPage */}
-            {gradingStep === 'review_transcription' && currentTranscription && (
+            {/* Review transcription step - show TranscriptionReviewPage with streaming */}
+            {gradingStep === 'review_transcription' && selectedRubric && currentTestFile && (
               <TranscriptionReviewPage
-                transcriptionData={currentTranscription}
+                rubricId={selectedRubric.id}
+                testFile={currentTestFile}
+                answeredQuestions={handwrittenConfigs[0]?.answeredQuestions}
+                studentName={studentName}
                 onContinueToGrading={handleContinueFromReview}
                 onBack={handleBackFromReview}
                 isGrading={false}
+                externalStreamState={streaming.state}
+                externalTranscriptionData={streaming.transcriptionData}
               />
             )}
 
