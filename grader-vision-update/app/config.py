@@ -24,14 +24,14 @@ class Settings(BaseSettings):
     teacher_email: Optional[str] = None  # Only needed for email-based grading
     
     # Application settings
-    app_env: str = "production"
+    app_env: str = "development"
     api_host: str = "0.0.0.0"
     api_port: int = 8080
     log_level: str = "INFO"
     
     # CORS settings (comma-separated list of allowed origins)
     # In production, set this to your frontend URL(s)
-    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3000/my-rubrics,http://localhost:3000/my-graded-tests"
     
     # Grading settings
     confidence_threshold: float = 0.7
