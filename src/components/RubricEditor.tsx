@@ -555,106 +555,224 @@ function PageExpandedModal({ page, hasPdfUrl, onClose }: PageExpandedModalProps)
 }
 
 // =============================================================================
-// Reduction Rules Display Component - World-Class Design
+// Editable Reduction Rules Component - Full CRUD Support
 // =============================================================================
 
-interface ReductionRulesDisplayProps {
+interface EditableReductionRulesProps {
   rules: ReductionRule[];
+  totalPoints: number;
+  onRulesChange: (rules: ReductionRule[]) => void;
 }
 
-function ReductionRulesDisplay({ rules }: ReductionRulesDisplayProps) {
+function EditableReductionRules({ rules, totalPoints, onRulesChange }: EditableReductionRulesProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  if (!rules || rules.length === 0) return null;
-
-  const explicitRules = rules.filter(r => r.is_explicit);
-  const inferredRules = rules.filter(r => !r.is_explicit);
   const totalDeduction = rules.reduce((sum, r) => sum + r.reduction_value, 0);
+  const hasRules = rules && rules.length > 0;
+
+  // Add a new reduction rule
+  const addRule = () => {
+    const remainingPoints = Math.max(0, totalPoints - totalDeduction);
+    const newRule: ReductionRule = {
+      description: '',
+      reduction_value: remainingPoints > 0 ? Math.min(1, remainingPoints) : 1,
+      is_explicit: false,
+    };
+    onRulesChange([...rules, newRule]);
+    setIsExpanded(true);
+  };
+
+  // Update a rule's description or value
+  const updateRule = (index: number, updates: Partial<ReductionRule>) => {
+    const newRules = [...rules];
+    newRules[index] = { ...newRules[index], ...updates };
+    onRulesChange(newRules);
+  };
+
+  // Delete a rule and redistribute its points to remaining rules
+  const deleteRule = (index: number) => {
+    const deletedRule = rules[index];
+    const remainingRules = rules.filter((_, i) => i !== index);
+
+    if (remainingRules.length === 0) {
+      // No rules left - that's fine, criterion has no detailed deduction rules
+      onRulesChange([]);
+      return;
+    }
+
+    // Smart redistribution: distribute deleted points proportionally
+    const deletedPoints = deletedRule.reduction_value;
+    const currentTotal = remainingRules.reduce((sum, r) => sum + r.reduction_value, 0);
+
+    if (currentTotal > 0 && deletedPoints > 0) {
+      // Distribute proportionally based on each rule's share
+      const redistributedRules = remainingRules.map(rule => ({
+        ...rule,
+        reduction_value: Math.round((rule.reduction_value + (rule.reduction_value / currentTotal) * deletedPoints) * 100) / 100
+      }));
+
+      // Fix rounding errors - adjust last rule to match total
+      const newTotal = redistributedRules.reduce((sum, r) => sum + r.reduction_value, 0);
+      const targetTotal = currentTotal + deletedPoints;
+      if (Math.abs(newTotal - targetTotal) > 0.01) {
+        redistributedRules[redistributedRules.length - 1].reduction_value +=
+          Math.round((targetTotal - newTotal) * 100) / 100;
+      }
+
+      onRulesChange(redistributedRules);
+    } else {
+      onRulesChange(remainingRules);
+    }
+  };
+
+  // Clear all rules
+  const clearAllRules = () => {
+    onRulesChange([]);
+    setIsExpanded(false);
+  };
 
   return (
     <div className="mt-3" dir="rtl">
-      {/* Collapse/Expand Toggle - Premium Design */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="group flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-gradient-to-l from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-150 border border-slate-200 transition-all duration-200"
-      >
-        <div className="flex items-center gap-2 flex-1">
-          {isExpanded ? (
-            <ChevronUp size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+      {/* Header with expand/collapse and add button */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="group flex items-center gap-2 flex-1 px-3 py-2 rounded-lg bg-gradient-to-l from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-150 border border-slate-200 transition-all duration-200"
+        >
+          <div className="flex items-center gap-2 flex-1">
+            {isExpanded ? (
+              <ChevronUp size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+            ) : (
+              <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+            )}
+            <span className="text-sm font-medium text-slate-600">
+              כללי הורדה ({rules.length})
+            </span>
+          </div>
+
+          {/* Total deduction badge */}
+          {hasRules ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-l from-red-500 to-rose-500 text-white text-xs font-bold shadow-sm">
+              <span>סה״כ</span>
+              <span className="font-mono">{totalDeduction}</span>
+              <span>נק׳</span>
+            </div>
           ) : (
-            <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
-          )}
-          <span className="text-sm font-medium text-slate-600">
-            כללי ניקוד ({rules.length})
-          </span>
-        </div>
-
-        {/* Total deduction badge */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-l from-red-500 to-rose-500 text-white text-xs font-bold shadow-sm">
-          <span>סה״כ</span>
-          <span className="font-mono">{totalDeduction}</span>
-          <span>נק׳</span>
-        </div>
-      </button>
-
-      {/* Expanded Content - Premium Card Design */}
-      {isExpanded && (
-        <div className="mt-2 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          {/* Explicit Rules Section */}
-          {explicitRules.length > 0 && (
-            <div className="px-4 py-3">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  במחוון המקורי
-                </span>
-              </div>
-              <div className="space-y-2">
-                {explicitRules.map((rule, idx) => (
-                  <div
-                    key={`explicit-${idx}`}
-                    className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-red-50 border border-red-100"
-                  >
-                    <span className="text-sm text-slate-700 leading-relaxed flex-1">
-                      {rule.description}
-                    </span>
-                    <div className="flex-shrink-0 px-2.5 py-1 rounded-md bg-red-500 text-white text-xs font-bold shadow-sm">
-                      -{rule.reduction_value}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-200 text-slate-500 text-xs font-medium">
+              <span>ללא כללים</span>
             </div>
           )}
+        </button>
 
-          {/* Separator if both sections exist */}
-          {explicitRules.length > 0 && inferredRules.length > 0 && (
-            <div className="h-px bg-gradient-to-l from-transparent via-slate-200 to-transparent mx-4" />
-          )}
+        {/* Add rule button */}
+        <button
+          onClick={addRule}
+          className="p-2 rounded-lg bg-primary-50 hover:bg-primary-100 border border-primary-200 text-primary-600 hover:text-primary-700 transition-colors"
+          title="הוסף כלל הורדה"
+        >
+          <Plus size={14} />
+        </button>
+      </div>
 
-          {/* Inferred Rules Section */}
-          {inferredRules.length > 0 && (
-            <div className="px-4 py-3">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                  מוסקים (לשיקולך)
-                </span>
+      {/* Expanded Content - Editable Rules */}
+      {isExpanded && (
+        <div className="mt-2 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          {!hasRules ? (
+            // Empty state
+            <div className="px-4 py-6 text-center">
+              <div className="flex items-center justify-center gap-2 text-slate-400 mb-3">
+                <Info size={18} />
+                <span className="text-sm">אין כללי הורדה מוגדרים</span>
               </div>
-              <div className="space-y-2">
-                {inferredRules.map((rule, idx) => (
+              <p className="text-xs text-slate-400 mb-3">
+                ניתן להוסיף כללי הורדה ספציפיים או להשאיר ריק - במקרה זה הקריטריון ייבחן כיחידה אחת
+              </p>
+              <button
+                onClick={addRule}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 hover:bg-primary-100 text-primary-600 text-sm font-medium transition-colors"
+              >
+                <Plus size={14} />
+                <span>הוסף כלל הורדה</span>
+              </button>
+            </div>
+          ) : (
+            <div className="p-3 space-y-2">
+              {rules.map((rule, idx) => (
+                <div
+                  key={idx}
+                  className={`flex items-center gap-2 p-2.5 rounded-lg border ${rule.is_explicit
+                    ? 'bg-red-50 border-red-100'
+                    : 'bg-amber-50/70 border-amber-100'
+                    }`}
+                >
+                  {/* Explicit/Inferred indicator */}
                   <div
-                    key={`inferred-${idx}`}
-                    className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-amber-50/70 border border-amber-100"
-                  >
-                    <span className="text-sm text-slate-600 leading-relaxed flex-1">
-                      {rule.description}
-                    </span>
-                    <div className="flex-shrink-0 px-2.5 py-1 rounded-md bg-amber-400 text-amber-900 text-xs font-bold">
-                      -{rule.reduction_value}
-                    </div>
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${rule.is_explicit ? 'bg-red-500' : 'bg-amber-400'
+                      }`}
+                    title={rule.is_explicit ? 'מהמחוון המקורי' : 'כלל מוסק'}
+                  />
+
+                  {/* Description input */}
+                  <input
+                    type="text"
+                    value={rule.description}
+                    onChange={(e) => updateRule(idx, { description: e.target.value })}
+                    className="flex-1 bg-transparent border-none outline-none text-sm text-slate-700 placeholder-slate-400"
+                    placeholder="תיאור הכלל..."
+                    dir="rtl"
+                  />
+
+                  {/* Points input */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <span className="text-slate-400 text-sm">-</span>
+                    <input
+                      type="number"
+                      value={rule.reduction_value}
+                      onChange={(e) => updateRule(idx, { reduction_value: parseFloat(e.target.value) || 0 })}
+                      className={`w-14 text-center text-xs font-bold rounded-md px-2 py-1 ${rule.is_explicit
+                        ? 'bg-red-500 text-white'
+                        : 'bg-amber-400 text-amber-900'
+                        }`}
+                      min={0}
+                      step={0.5}
+                    />
                   </div>
-                ))}
+
+                  {/* Delete button */}
+                  <button
+                    onClick={() => deleteRule(idx)}
+                    className="p-1 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0"
+                    title="מחק כלל"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+
+              {/* Footer actions */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                <button
+                  onClick={addRule}
+                  className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"
+                >
+                  <Plus size={12} />
+                  <span>הוסף כלל</span>
+                </button>
+
+                {/* Warning if rules don't sum to total */}
+                {hasRules && Math.abs(totalDeduction - totalPoints) > 0.01 && (
+                  <div className="flex items-center gap-1 text-xs text-amber-600">
+                    <AlertTriangle size={12} />
+                    <span>סה״כ ({totalDeduction}) ≠ נקודות ({totalPoints})</span>
+                  </div>
+                )}
+
+                <button
+                  onClick={clearAllRules}
+                  className="text-xs text-slate-400 hover:text-red-500"
+                >
+                  נקה הכל
+                </button>
               </div>
             </div>
           )}
@@ -804,7 +922,6 @@ function CriteriaList({
             // Get display values (support both old and new format)
             const displayDescription = criterion.criterion_description || criterion.description || '';
             const displayPoints = criterion.total_points ?? criterion.points ?? 0;
-            const hasReductionRules = criterion.reduction_rules && criterion.reduction_rules.length > 0;
 
             return (
               <div key={cIndex} className="relative">
@@ -882,10 +999,12 @@ function CriteriaList({
                     </button>
                   </div>
 
-                  {/* Reduction rules section (collapsible) */}
-                  {hasReductionRules && (
-                    <ReductionRulesDisplay rules={criterion.reduction_rules} />
-                  )}
+                  {/* Reduction rules section (always shown so teachers can add/edit) */}
+                  <EditableReductionRules
+                    rules={criterion.reduction_rules || []}
+                    totalPoints={displayPoints}
+                    onRulesChange={(newRules) => onUpdateCriterion(cIndex, { reduction_rules: newRules })}
+                  />
                 </div>
 
                 {/* Drop indicator line - BELOW */}
