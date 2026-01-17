@@ -2,6 +2,8 @@
  * API client for Grader Vision backend
  */
 
+import { getAuthHeaders } from './auth';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 // =============================================================================
@@ -32,7 +34,7 @@ export interface SubQuestionPageMapping {
 
 export interface QuestionPageMapping {
   question_number: number;
-  question_page_indexes: number[];
+  question_page_indexes?: number[];  // Optional - question text now auto-extracted from PDF
   criteria_page_indexes: number[];
   sub_questions: SubQuestionPageMapping[];
 }
@@ -43,10 +45,26 @@ export interface ExtractRubricRequest {
   question_mappings: QuestionPageMapping[];
 }
 
-export interface ExtractedCriterion {
+// NEW: Reduction rule for detailed grading
+export interface ReductionRule {
   description: string;
-  points: number;
+  reduction_value: number;
+  is_explicit: boolean;
+}
+
+// UPDATED: Enhanced criterion with structured reduction rules
+export interface ExtractedCriterion {
+  // Primary fields for enhanced format
+  criterion_description: string;
+  total_points: number;
+  reduction_rules: ReductionRule[];
+  notes?: string | null;
+  raw_text?: string | null;
   extraction_confidence: 'high' | 'medium' | 'low';
+
+  // Legacy compatibility fields (for backward compatibility with old rubrics)
+  description?: string;
+  points?: number;
 }
 
 export interface ExtractedSubQuestion {
@@ -785,6 +803,11 @@ export function streamTranscription(
 // Streaming Transcription Types & Functions (TWO-PHASE)
 // =============================================================================
 
+export interface ReviewFlag {
+  line: number;
+  reason: string;
+}
+
 export interface PageStreamState {
   pageNumber: number;
   rawText: string;
@@ -794,6 +817,7 @@ export interface PageStreamState {
   confidenceScores: Record<number, number>;  // Confidence per question
   phase: 'raw' | 'verifying' | 'complete';
   isStreaming: boolean;
+  reviewFlags: ReviewFlag[];  // Lines flagged for review by error detection
 }
 
 export interface TranscriptionStreamState {
@@ -826,6 +850,7 @@ export interface StreamingCallbacksV2 {
   onRawComplete: (pageNumber: number, fullText: string) => void;
   onVerifiedChunk: (pageNumber: number, delta: string) => void;
   onPageComplete: (pageNumber: number, pageIndex: number, markedText: string, detectedQuestions: number[], confidenceScores: Record<number, number>) => void;
+  onReviewFlags?: (pageNumber: number, flags: ReviewFlag[]) => void;  // NEW: error detection results
   onAnswer: (answer: TranscribedAnswerWithPages) => void;
   onDone: (totalAnswers: number) => void;
   onError: (message: string) => void;
@@ -963,6 +988,15 @@ export function streamTranscriptionV2(
                   data.confidence_scores || {}
                 );
                 break;
+              case 'review_flags':  // NEW: error detection results
+                if (callbacks.onReviewFlags) {
+                  const flags = (data.lines_to_review || []).map((lineNum: number) => ({
+                    line: lineNum,
+                    reason: data.reasons?.[String(lineNum)] || 'needs review'
+                  }));
+                  callbacks.onReviewFlags(data.page, flags);
+                }
+                break;
               case 'done':
                 callbacks.onDone(data.total_answers || 0);
                 break;
@@ -1012,6 +1046,7 @@ export type StreamAction =
   | { type: 'RAW_COMPLETE'; payload: { pageNumber: number; fullText: string } }
   | { type: 'VERIFIED_CHUNK'; payload: { pageNumber: number; delta: string } }
   | { type: 'PAGE_COMPLETE'; payload: { pageNumber: number; pageIndex: number; markedText: string; detectedQuestions: number[]; confidenceScores: Record<number, number> } }
+  | { type: 'REVIEW_FLAGS'; payload: { pageNumber: number; flags: ReviewFlag[] } }  // NEW
   | { type: 'ANSWER'; payload: TranscribedAnswerWithPages }
   | { type: 'DONE'; payload: { totalAnswers: number } }
   | { type: 'ERROR'; payload: { message: string } }
@@ -1027,7 +1062,7 @@ export function streamReducer(state: TranscriptionStreamState, action: StreamAct
       return { ...state, currentPhase: action.payload.phase, currentPage: action.payload.currentPage, phaseMessage: action.payload.message };
     case 'RAW_CHUNK': {
       const pageStates = new Map(state.pageStates);
-      const existing = pageStates.get(action.payload.pageNumber) || { pageNumber: action.payload.pageNumber, rawText: '', verifiedText: '', markedText: '', detectedQuestions: [], confidenceScores: {}, phase: 'raw' as const, isStreaming: true };
+      const existing = pageStates.get(action.payload.pageNumber) || { pageNumber: action.payload.pageNumber, rawText: '', verifiedText: '', markedText: '', detectedQuestions: [], confidenceScores: {}, phase: 'raw' as const, isStreaming: true, reviewFlags: [] };
       pageStates.set(action.payload.pageNumber, { ...existing, rawText: existing.rawText + action.payload.delta, phase: 'raw', isStreaming: true });
       return { ...state, pageStates };
     }
@@ -1039,13 +1074,13 @@ export function streamReducer(state: TranscriptionStreamState, action: StreamAct
     }
     case 'VERIFIED_CHUNK': {
       const pageStates = new Map(state.pageStates);
-      const existing = pageStates.get(action.payload.pageNumber) || { pageNumber: action.payload.pageNumber, rawText: '', verifiedText: '', markedText: '', detectedQuestions: [], confidenceScores: {}, phase: 'verifying' as const, isStreaming: true };
+      const existing = pageStates.get(action.payload.pageNumber) || { pageNumber: action.payload.pageNumber, rawText: '', verifiedText: '', markedText: '', detectedQuestions: [], confidenceScores: {}, phase: 'verifying' as const, isStreaming: true, reviewFlags: [] };
       pageStates.set(action.payload.pageNumber, { ...existing, verifiedText: existing.verifiedText + action.payload.delta, phase: 'verifying', isStreaming: true });
       return { ...state, pageStates };
     }
     case 'PAGE_COMPLETE': {
       const pageStates = new Map(state.pageStates);
-      const existing = pageStates.get(action.payload.pageNumber) || { pageNumber: action.payload.pageNumber, rawText: '', verifiedText: '', markedText: '', detectedQuestions: [], confidenceScores: {}, phase: 'complete' as const, isStreaming: false };
+      const existing = pageStates.get(action.payload.pageNumber) || { pageNumber: action.payload.pageNumber, rawText: '', verifiedText: '', markedText: '', detectedQuestions: [], confidenceScores: {}, phase: 'complete' as const, isStreaming: false, reviewFlags: [] };
       pageStates.set(action.payload.pageNumber, {
         ...existing,
         markedText: action.payload.markedText,
@@ -1054,6 +1089,14 @@ export function streamReducer(state: TranscriptionStreamState, action: StreamAct
         phase: 'complete',
         isStreaming: false,
       });
+      return { ...state, pageStates };
+    }
+    case 'REVIEW_FLAGS': {  // NEW: handle review flags
+      const pageStates = new Map(state.pageStates);
+      const existing = pageStates.get(action.payload.pageNumber);
+      if (existing) {
+        pageStates.set(action.payload.pageNumber, { ...existing, reviewFlags: action.payload.flags });
+      }
       return { ...state, pageStates };
     }
     case 'ANSWER': {
@@ -1088,3 +1131,294 @@ export function streamStateToReviewResponse(state: TranscriptionStreamState): Tr
     raw_transcription: null,
   };
 }
+
+// =============================================================================
+// Rubric Generator Types & Functions
+// =============================================================================
+
+export interface DetectedQuestion {
+  question_number: number;
+  question_text: string;
+  page_indexes: number[];
+  sub_questions: string[];
+  suggested_points: number | null;
+  teacher_points: number | null;
+}
+
+export interface UploadPdfResponse {
+  upload_id: string;
+  page_count: number;
+  file_size_mb: number;
+}
+
+export interface DetectionEvent {
+  type: 'progress' | 'question' | 'complete' | 'error';
+  data?: DetectedQuestion | { total_questions: number; questions: DetectedQuestion[] };
+  message?: string;
+}
+
+export interface ShareHistoryItem {
+  id: string;
+  recipient_email: string;
+  shared_at: string;
+  status: 'pending' | 'accepted' | 'revoked';
+  accepted_at?: string;
+}
+
+/**
+ * Upload PDF for rubric generation.
+ * Validates size (25MB max) and format.
+ */
+export async function uploadPdfForGeneration(file: File): Promise<UploadPdfResponse> {
+  const MAX_SIZE_MB = 25;
+  if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+    throw new Error(`הקובץ גדול מדי (${(file.size / 1024 / 1024).toFixed(1)}MB). המקסימום הוא ${MAX_SIZE_MB}MB`);
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE}/api/v0/rubric_generator/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+    throw new Error(error.detail || `Upload failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Stream question detection using SSE.
+ * Supports reconnection with lastEventId.
+ */
+export function streamQuestionDetection(
+  uploadId: string,
+  callbacks: {
+    onProgress: (message: string) => void;
+    onQuestion: (question: DetectedQuestion) => void;
+    onComplete: (questions: DetectedQuestion[]) => void;
+    onError: (error: string) => void;
+    onReconnecting?: () => void;
+  },
+  options?: { maxRetries?: number }
+): () => void {
+  const maxRetries = options?.maxRetries ?? 3;
+  let retryCount = 0;
+  let lastEventId: string | null = null;
+  let eventSource: EventSource | null = null;
+  let isClosed = false;
+  const detectedQuestions: DetectedQuestion[] = [];
+
+  const connect = () => {
+    if (isClosed) return;
+
+    let url = `${API_BASE}/api/v0/rubric_generator/detect_questions/${uploadId}`;
+    if (lastEventId) {
+      url += `?lastEventId=${encodeURIComponent(lastEventId)}`;
+    }
+
+    eventSource = new EventSource(url);
+
+    eventSource.onmessage = (event) => {
+      retryCount = 0; // Reset on success
+      lastEventId = event.lastEventId;
+
+      try {
+        const data = JSON.parse(event.data);
+
+        switch (data.type) {
+          case 'progress':
+            callbacks.onProgress(data.message || '');
+            break;
+          case 'question':
+            const question = data.data as DetectedQuestion;
+            detectedQuestions.push(question);
+            callbacks.onQuestion(question);
+            break;
+          case 'complete':
+            callbacks.onComplete(data.data?.questions || detectedQuestions);
+            eventSource?.close();
+            break;
+          case 'error':
+            callbacks.onError(data.message || 'שגיאה בזיהוי שאלות');
+            eventSource?.close();
+            break;
+        }
+      } catch (e) {
+        console.error('Failed to parse SSE event:', e);
+      }
+    };
+
+    eventSource.onerror = () => {
+      eventSource?.close();
+      if (isClosed) return;
+
+      if (retryCount < maxRetries) {
+        retryCount++;
+        callbacks.onReconnecting?.();
+        const delay = Math.pow(2, retryCount - 1) * 1000;
+        setTimeout(connect, delay);
+      } else {
+        callbacks.onError('החיבור נכשל. אנא רענן את הדף ונסה שוב.');
+      }
+    };
+  };
+
+  connect();
+
+  return () => {
+    isClosed = true;
+    eventSource?.close();
+  };
+}
+
+/**
+ * Generate criteria for all questions.
+ */
+export async function generateCriteria(
+  questions: DetectedQuestion[],
+  rubricName?: string,
+  rubricDescription?: string
+): Promise<ExtractRubricResponse> {
+  const response = await fetch(`${API_BASE}/api/v0/rubric_generator/generate_criteria`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      questions,
+      rubric_name: rubricName,
+      rubric_description: rubricDescription,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Generation failed' }));
+    throw new Error(error.detail || `Generation failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Regenerate criteria for a single question.
+ */
+export async function regenerateQuestion(
+  questionNumber: number,
+  questionText: string,
+  subQuestions: string[],
+  totalPoints: number
+): Promise<ExtractedQuestion> {
+  const response = await fetch(`${API_BASE}/api/v0/rubric_generator/regenerate_question`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      question_number: questionNumber,
+      question_text: questionText,
+      sub_questions: subQuestions,
+      total_points: totalPoints,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Regeneration failed' }));
+    throw new Error(error.detail || `Regeneration failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Create annotated PDF with rubric tables.
+ */
+export async function createRubricPdf(
+  rubricId?: string,
+  questions?: ExtractedQuestion[],
+  includeOriginal: boolean = false,
+  originalPdfUploadId?: string
+): Promise<{ download_url: string; filename: string }> {
+  const response = await fetch(`${API_BASE}/api/v0/rubric_generator/create_pdf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      rubric_id: rubricId,
+      questions: questions,
+      include_original: includeOriginal,
+      original_pdf_upload_id: originalPdfUploadId,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'PDF creation failed' }));
+    throw new Error(error.detail || `PDF creation failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Share rubric via email.
+ */
+export async function shareRubricViaEmail(
+  rubricId: string,
+  recipientEmail: string,
+  senderName: string,
+  includePdf: boolean = true
+): Promise<{ success: boolean; message: string; share_id?: string }> {
+  const response = await fetch(`${API_BASE}/api/v0/rubric_generator/share_email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({
+      rubric_id: rubricId,
+      recipient_email: recipientEmail,
+      sender_name: senderName,
+      include_pdf: includePdf,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Share failed' }));
+    throw new Error(error.detail || `Share failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Accept a shared rubric (copy to user's account).
+ */
+export async function acceptRubricShare(
+  token: string
+): Promise<{ success: boolean; message: string; rubric_id?: string; redirect_url?: string }> {
+  const response = await fetch(`${API_BASE}/api/v0/rubric_generator/accept_share/${token}`, {
+    headers: { ...getAuthHeaders() },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Accept failed' }));
+    throw new Error(error.detail || `Accept failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get share history for a rubric.
+ */
+export async function getShareHistory(
+  rubricId: string
+): Promise<{ shares: ShareHistoryItem[]; total_count: number }> {
+  const response = await fetch(`${API_BASE}/api/v0/rubric_generator/share_history/${rubricId}`, {
+    headers: { ...getAuthHeaders() },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to fetch history' }));
+    throw new Error(error.detail || `Failed to fetch history: ${response.status}`);
+  }
+
+  return response.json();
+}
+

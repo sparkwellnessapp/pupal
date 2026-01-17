@@ -1,22 +1,53 @@
 """
-LangGraph-based grading agent.
-VISION-COMPATIBLE VERSION: Works with transcribed code from Vision AI.
+Enhanced LangGraph-based grading agent.
+
+WORLD-CLASS FEATURES:
+- Rule-by-rule evaluation with index-based matching
+- Pydantic-enforced LLM output validation
+- Validation & repair layer for 100% rule coverage
+- Retry with exponential backoff
+- GradingTrace observability
+- Backward compatibility with legacy rubric format
 """
 import json
 import logging
-from typing import Dict, List, TypedDict, Literal, Any
+import asyncio
+import time
+from typing import Dict, List, TypedDict, Literal, Any, Optional
+from pydantic import ValidationError
+
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 
 from ..config import settings
+from ..schemas.grading_agent_models import (
+    ConfidenceLevel,
+    GradingRule,
+    GradingCriterion,
+    GradingQuestion,
+    NormalizedRubric,
+    RuleVerdict,
+    CriterionEvaluation,
+    GradingLLMResponse,
+    CriterionResult,
+    QuestionResult,
+    GradingResult,
+    GradingTrace,
+)
+from .rubric_normalizer import normalize_rubric
 
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# GRADING STATE
+# =============================================================================
+
 class GradingState(TypedDict):
     """State for the grading workflow."""
-    rubric: Dict
+    rubric: Dict                        # Raw rubric (normalized internally)
+    normalized_rubric: Optional[NormalizedRubric]
     student_tests: List[Dict]
     current_test_index: int
     graded_results: List[Dict]
@@ -25,26 +56,116 @@ class GradingState(TypedDict):
     original_message_id: str
 
 
+# =============================================================================
+# PROMPTS
+# =============================================================================
+
+RULE_GRADING_SYSTEM_PROMPT = """You are a world-class Computer Science teacher grading high school programming tests.
+
+═══════════════════════════════════════════════════════════════════════════════
+GRADING METHODOLOGY: Rule-by-Rule Evaluation
+═══════════════════════════════════════════════════════════════════════════════
+
+For EACH reduction rule, you must answer: "Is this rule VIOLATED?"
+
+Verdicts:
+- PASS = Student code SATISFIES this requirement (no deduction)
+- FAIL = Student code VIOLATES this requirement (points deducted)
+
+Process for each rule:
+1. FIND: Search student code for relevant implementation
+2. DECIDE: Is the rule violated? (YES=FAIL, NO=PASS)
+3. QUOTE: Copy exact code evidence
+4. EXPLAIN: Brief Hebrew explanation
+
+═══════════════════════════════════════════════════════════════════════════════
+CONFIDENCE CALIBRATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Assign confidence based on evidence quality:
+- HIGH: Found exact matching/non-matching code (>95% sure)
+- MEDIUM: Code is ambiguous, uses non-standard patterns (70-95% sure)  
+- LOW: Cannot find relevant code, transcription unclear, guessing (<70%)
+
+When confidence is LOW, still make your best guess - teacher will review.
+
+═══════════════════════════════════════════════════════════════════════════════
+CRITICAL REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Evaluate EVERY rule by its [index] - never skip any
+2. Output the EXACT rule_index from the prompt
+3. ALWAYS provide code evidence or "לא נמצא קוד רלוונטי"
+4. Explanations in Hebrew
+
+═══════════════════════════════════════════════════════════════════════════════
+OUTPUT FORMAT (JSON only)
+═══════════════════════════════════════════════════════════════════════════════
+
+{
+  "evaluations": [
+    {
+      "criterion_index": 0,
+      "rule_verdicts": [
+        {
+          "rule_index": 0,
+          "verdict": "PASS",
+          "evidence": "נמצא: private int _id;",
+          "confidence": "high",
+          "explanation": "השדה הוגדר כנדרש"
+        },
+        {
+          "rule_index": 1,
+          "verdict": "FAIL",
+          "evidence": "לא נמצא שדה name בקוד",
+          "confidence": "high",
+          "explanation": "חסר הגדרת שדה name"
+        }
+      ]
+    }
+  ],
+  "rubric_mismatch_detected": false,
+  "rubric_mismatch_reason": null,
+  "low_confidence_items": []
+}"""
+
+
+# =============================================================================
+# GRADING AGENT
+# =============================================================================
+
 class GradingAgent:
-    """Agent that grades student tests using GPT-4 and rubric criteria."""
+    """
+    Enhanced grading agent with rule-by-rule evaluation.
+    
+    Key features:
+    - Normalizes any rubric format to canonical models
+    - Index-based rule matching (100% reliable)
+    - Pydantic validation of LLM output
+    - Validation + repair layer for missing rules
+    - Retry with exponential backoff
+    - Observability via GradingTrace
+    """
     
     def __init__(self):
         """Initialize the grading agent with JSON mode enabled."""
+        model_name = getattr(settings, 'openai_model', None) or "gpt-4-turbo-preview"
         
-        model_name = settings.openai_model if settings.openai_model else "gpt-4-turbo-preview"
-        
-        logger.info(f"Initializing GradingAgent with model: {model_name}")
+        logger.info(f"Initializing EnhancedGradingAgent with model: {model_name}")
         
         self.llm = ChatOpenAI(
             model=model_name,
-            temperature=0.2,
-            max_tokens=14384,  # Increased from 8192 to handle large rubrics
+            temperature=0.15,  # Lower for more deterministic grading
+            max_tokens=14384,
             api_key=settings.openai_api_key,
             model_kwargs={"response_format": {"type": "json_object"}}
         )
         
+        self.max_retries = 3
+        self.timeout_seconds = getattr(settings, 'grading_timeout_seconds', 60)
+        
         self.workflow = self._build_workflow()
-        logger.info("GradingAgent initialized successfully")
+        logger.info("EnhancedGradingAgent initialized successfully")
     
     def grade_tests(
         self,
@@ -55,14 +176,22 @@ class GradingAgent:
     ) -> Dict:
         """
         Public entry point to run the grading workflow.
+        
+        Returns dict with:
+        - graded_results: List of grading results (legacy format)
+        - low_confidence_notes: List of items needing review
         """
-        logger.info("\n" + "=" * 80)
-        logger.info("STARTING GRADING WORKFLOW")
+        logger.info("=" * 80)
+        logger.info("STARTING ENHANCED GRADING WORKFLOW")
         logger.info(f"Number of student tests: {len(student_tests)}")
         logger.info("=" * 80)
-
+        
+        # Normalize rubric at entry point
+        normalized = normalize_rubric(rubric)
+        
         initial_state: GradingState = {
             "rubric": rubric,
+            "normalized_rubric": normalized,
             "student_tests": student_tests,
             "current_test_index": 0,
             "graded_results": [],
@@ -77,14 +206,13 @@ class GradingAgent:
                 "tags": ["grading-workflow", f"model-{self.llm.model_name}"],
                 "metadata": {
                     "teacher_email": teacher_email,
-                    "original_message_id": original_message_id,
                     "test_count": len(student_tests),
                 }
             }
         )
         
-        logger.info("\n" + "=" * 80)
-        logger.info("GRADING WORKFLOW COMPLETE")
+        logger.info("=" * 80)
+        logger.info("ENHANCED GRADING WORKFLOW COMPLETE")
         logger.info(f"Total results: {len(final_state['graded_results'])}")
         logger.info("=" * 80)
         
@@ -92,7 +220,7 @@ class GradingAgent:
             "graded_results": final_state["graded_results"],
             "low_confidence_notes": final_state["low_confidence_notes"]
         }
-
+    
     def _build_workflow(self) -> StateGraph:
         """Build the LangGraph workflow."""
         workflow = StateGraph(GradingState)
@@ -118,516 +246,319 @@ class GradingAgent:
     
     def _initialize_grading(self, state: GradingState) -> Dict:
         """Initialize grading batch."""
-        logger.info("=" * 80)
-        logger.info("INITIALIZING GRADING WORKFLOW")
-        logger.info("=" * 80)
-        logger.info(f"Rubric: {len(state['rubric'].get('questions', []))} questions")
-        logger.info(f"Student tests to grade: {len(state['student_tests'])}")
-        
-        for q in state['rubric'].get('questions', []):
-            logger.info(f"\nQuestion {q['question_number']}:")
-            logger.info(f"  - Total points: {q['total_points']}")
-            logger.info(f"  - Number of criteria: {len(q['criteria'])}")
-        
-        logger.info("\nInitialization complete. Starting grading loop...")
+        normalized = state.get("normalized_rubric")
+        if normalized:
+            logger.info(f"Rubric: {len(normalized.questions)} questions, "
+                       f"{normalized.total_criteria} criteria, "
+                       f"{normalized.total_rules} rules")
+        logger.info(f"Students to grade: {len(state['student_tests'])}")
         return {}
     
     def _grade_single_test(self, state: GradingState) -> Dict:
-        """Grade a single student test."""
+        """Grade a single student test using rule-by-rule evaluation."""
         current_idx = state["current_test_index"]
         student_test = state["student_tests"][current_idx]
-        rubric = state["rubric"]
+        normalized = state.get("normalized_rubric")
         
         logger.info("=" * 80)
         logger.info(f"GRADING TEST {current_idx + 1}/{len(state['student_tests'])}")
-        logger.info("=" * 80)
         logger.info(f"Student: {student_test.get('student_name')}")
-        logger.info(f"Filename: {student_test.get('filename')}")
-        
-        answers = student_test.get('answers', [])
-        logger.info(f"Transcribed answers: {len(answers)}")
-        
-        for ans in answers:
-            preview = ans.get('answer_text', '')[:100].replace('\n', ' ')
-            logger.info(f"  Answer Q{ans.get('question_number', '?')}: {preview}...")
+        logger.info("=" * 80)
         
         grading_result = None
         new_low_confidence = []
         
         try:
-            logger.info("\nSENDING TO GPT-4 FOR GRADING...")
+            if normalized:
+                result = self._grade_with_rules(normalized, student_test)
+                grading_result = result.to_legacy_format()
+                
+                # Collect low confidence items
+                for qr in result.question_results:
+                    for cr in qr.criterion_results:
+                        if cr.low_confidence_count > 0:
+                            new_low_confidence.append(
+                                f"{student_test.get('student_name')}: Q{qr.question_number} - {cr.criterion.description[:40]}..."
+                            )
+            else:
+                # Fallback to legacy grading
+                grading_result = self._grade_legacy(state["rubric"], student_test)
             
-            system_prompt = self._build_system_prompt(rubric)
-            user_prompt = self._build_user_prompt(rubric, student_test)
+            logger.info(f"✅ Grading complete: {grading_result.get('total_score')}/{grading_result.get('total_possible')}")
             
-            logger.info(f"System prompt length: {len(system_prompt)} chars")
-            logger.info(f"User prompt length: {len(user_prompt)} chars")
-
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ]
-            
-            response = self.llm.invoke(messages)
-            
-            logger.info(f"GPT-4 response length: {len(response.content)} chars")
-            
-            # Parse and post-process to fill any missing data
-            grading_result = self._parse_grading_response(response.content, student_test, rubric)
-            
-            logger.info(f"Total score: {grading_result.get('total_score')}/{grading_result.get('total_possible')}")
-            logger.info(f"Percentage: {grading_result.get('percentage'):.1f}%")
-            logger.info(f"Number of question grades: {len(grading_result.get('question_grades', []))}")
-            
-            # Flatten grades for backward compatibility
-            all_grades = []
-            for qg in grading_result.get('question_grades', []):
-                all_grades.extend(qg.get('grades', []))
-            logger.info(f"Total criteria graded: {len(all_grades)}")
-            
-            # Collect low confidence notes
-            if grading_result.get("low_confidence_items"):
-                for item in grading_result["low_confidence_items"]:
-                    note = f"Test: {student_test['student_name']}, {item}"
-                    new_low_confidence.append(note)
-                    logger.warning(f"⚠️ Low confidence: {note}")
-            
-            # Check for low confidence in individual grades
-            for qg in grading_result.get('question_grades', []):
-                for grade in qg.get('grades', []):
-                    if grade.get('confidence') in ['low', 'medium']:
-                        reason = grade.get('low_confidence_reason', grade.get('explanation', ''))
-                        note = f"Test: {student_test['student_name']}, Q{qg.get('question_number')}: {grade.get('criterion', '')[:40]}... - {reason}"
-                        if note not in new_low_confidence:
-                            new_low_confidence.append(note)
-            
-            logger.info(f"✅ Grading complete for {student_test['student_name']}")
-
         except Exception as e:
             logger.error(f"Error grading test: {e}", exc_info=True)
             grading_result = {
                 "student_name": student_test.get("student_name", "Unknown"),
-                "filename": student_test.get("filename", "Unknown"),
+                "filename": student_test.get("filename"),
                 "total_score": 0,
                 "total_possible": 0,
                 "percentage": 0,
                 "error": str(e),
                 "question_grades": [],
-                "grades": [],  # Flat list for backward compatibility
-                "low_confidence_items": [f"Error: {str(e)}"]
+                "grades": [],
             }
-            new_low_confidence.append(f"Test: {student_test.get('student_name')}, Error: {str(e)}")
-        
-        # Return NEW lists (immutable update pattern)
-        updated_results = state["graded_results"] + [grading_result]
-        updated_notes = state["low_confidence_notes"] + new_low_confidence
+            new_low_confidence.append(f"{student_test.get('student_name')}: Error - {str(e)}")
         
         return {
             "current_test_index": current_idx + 1,
-            "graded_results": updated_results,
-            "low_confidence_notes": updated_notes
+            "graded_results": state["graded_results"] + [grading_result],
+            "low_confidence_notes": state["low_confidence_notes"] + new_low_confidence
+        }
+    
+    def _grade_with_rules(
+        self, 
+        rubric: NormalizedRubric, 
+        student_test: Dict
+    ) -> GradingResult:
+        """Grade using rule-by-rule evaluation."""
+        question_results = []
+        
+        for question in rubric.questions:
+            # Get student answer for this question
+            student_code = self._get_student_answer(student_test, question.question_number)
+            
+            # Build prompt
+            prompt = self._build_rule_prompt(question, student_code)
+            
+            # Grade with retry
+            trace = GradingTrace(
+                question_number=question.question_number,
+                criterion_count=len(question.all_criteria),
+                rule_count=sum(len(c.rules) for c in question.all_criteria),
+                student_code_length=len(student_code),
+            )
+            
+            start_time = time.time()
+            
+            try:
+                llm_response = self._call_llm_with_retry(prompt, trace)
+                criterion_results = self._validate_and_repair(llm_response, question, trace)
+            except Exception as e:
+                logger.error(f"LLM grading failed for Q{question.question_number}: {e}")
+                criterion_results = self._create_fallback_results(question)
+                trace.parse_success = False
+                trace.validation_errors.append(str(e))
+            
+            trace.llm_latency_ms = int((time.time() - start_time) * 1000)
+            trace.final_score = sum(cr.points_earned for cr in criterion_results)
+            trace.total_possible = sum(cr.criterion.total_points for cr in criterion_results)
+            
+            logger.info(trace.log_summary())
+            
+            question_results.append(QuestionResult(
+                question_number=question.question_number,
+                criterion_results=criterion_results,
+            ))
+        
+        return GradingResult(
+            student_name=student_test.get("student_name", "Unknown"),
+            filename=student_test.get("filename"),
+            question_results=question_results,
+        )
+    
+    def _build_rule_prompt(self, question: GradingQuestion, student_code: str) -> str:
+        """Build prompt with indexed rules for reliable matching."""
+        prompt = f"=== QUESTION {question.question_number} ===\n\n"
+        
+        for criterion in question.all_criteria:
+            prompt += f"CRITERION [{criterion.index}]: {criterion.description}\n"
+            prompt += f"Total Points: {criterion.total_points}\n"
+            prompt += "REDUCTION RULES (evaluate EACH by index):\n"
+            
+            for rule in criterion.rules:
+                prompt += f"  [{rule.index}] {rule.description} (-{rule.deduction_points} pts)\n"
+            prompt += "\n"
+        
+        prompt += "=" * 50 + "\n"
+        prompt += "=== STUDENT CODE ===\n"
+        
+        if student_code.strip():
+            prompt += f"```\n{student_code}\n```\n"
+        else:
+            prompt += "⚠️ NO CODE SUBMITTED - Grade all rules as FAIL\n"
+        
+        prompt += "\n" + "=" * 50 + "\n"
+        prompt += "Grade EVERY rule by its [index]. Output JSON only."
+        
+        return prompt
+    
+    def _call_llm_with_retry(self, prompt: str, trace: GradingTrace) -> GradingLLMResponse:
+        """Call LLM with retry and Pydantic validation."""
+        last_error = None
+        
+        for attempt in range(self.max_retries):
+            try:
+                messages = [
+                    SystemMessage(content=RULE_GRADING_SYSTEM_PROMPT),
+                    HumanMessage(content=prompt)
+                ]
+                
+                response = self.llm.invoke(messages)
+                raw_content = response.content
+                
+                trace.raw_response_preview = raw_content[:500]
+                
+                # Clean markdown wrappers
+                cleaned = self._clean_json_response(raw_content)
+                
+                # Parse and validate with Pydantic
+                parsed = GradingLLMResponse.model_validate_json(cleaned)
+                trace.parse_success = True
+                
+                return parsed
+                
+            except (ValidationError, json.JSONDecodeError) as e:
+                last_error = e
+                wait_time = 2 ** attempt
+                logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {wait_time}s...")
+                time.sleep(wait_time)
+                trace.validation_errors.append(f"Attempt {attempt + 1}: {str(e)}")
+        
+        raise last_error or Exception("All retries failed")
+    
+    def _validate_and_repair(
+        self, 
+        response: GradingLLMResponse, 
+        question: GradingQuestion,
+        trace: GradingTrace
+    ) -> List[CriterionResult]:
+        """Ensure 100% rule coverage, repair missing evaluations."""
+        results = []
+        
+        # Build lookup by criterion index
+        eval_lookup = {e.criterion_index: e for e in response.evaluations}
+        
+        for criterion in question.all_criteria:
+            evaluation = eval_lookup.get(criterion.index)
+            
+            # Build lookup by rule index
+            verdict_lookup = {}
+            if evaluation:
+                verdict_lookup = {v.rule_index: v for v in evaluation.rule_verdicts}
+            
+            verdicts = []
+            for rule in criterion.rules:
+                verdict = verdict_lookup.get(rule.index)
+                
+                if verdict:
+                    verdicts.append(verdict)
+                    trace.rules_evaluated += 1
+                else:
+                    # Missing rule → conservative fallback
+                    verdicts.append(RuleVerdict(
+                        rule_index=rule.index,
+                        verdict="FAIL",
+                        evidence="Not evaluated by AI",
+                        confidence=ConfidenceLevel.LOW,
+                        explanation="נדרשת בדיקה ידנית"
+                    ))
+                    trace.rules_repaired += 1
+                    logger.warning(f"Repaired missing rule [{rule.index}]: {rule.description[:30]}...")
+            
+            # Calculate score
+            deductions = sum(
+                criterion.rules[v.rule_index].deduction_points
+                for v in verdicts 
+                if v.verdict == "FAIL" and v.rule_index < len(criterion.rules)
+            )
+            earned = max(0, criterion.total_points - deductions)
+            
+            low_conf_count = sum(1 for v in verdicts if v.confidence == ConfidenceLevel.LOW)
+            trace.low_confidence_count += low_conf_count
+            
+            results.append(CriterionResult(
+                criterion=criterion,
+                verdicts=verdicts,
+                points_earned=earned,
+                points_deducted=deductions,
+                fully_evaluated=low_conf_count == 0,
+            ))
+        
+        return results
+    
+    def _create_fallback_results(self, question: GradingQuestion) -> List[CriterionResult]:
+        """Create fallback results when LLM completely fails."""
+        results = []
+        
+        for criterion in question.all_criteria:
+            verdicts = [
+                RuleVerdict(
+                    rule_index=rule.index,
+                    verdict="FAIL",
+                    evidence="LLM failure - manual review required",
+                    confidence=ConfidenceLevel.LOW,
+                    explanation="שגיאת מערכת - נדרשת בדיקה ידנית"
+                )
+                for rule in criterion.rules
+            ]
+            
+            results.append(CriterionResult(
+                criterion=criterion,
+                verdicts=verdicts,
+                points_earned=0,
+                points_deducted=criterion.total_points,
+                fully_evaluated=False,
+            ))
+        
+        return results
+    
+    def _get_student_answer(self, student_test: Dict, question_number: int) -> str:
+        """Get student's answer for a specific question."""
+        answers = student_test.get("answers", [])
+        
+        # Find matching answer
+        for ans in answers:
+            if ans.get("question_number") == question_number:
+                return ans.get("answer_text", "")
+        
+        # Try to find any answer for this question (including sub-questions)
+        matching = [a for a in answers if a.get("question_number") == question_number]
+        if matching:
+            return "\n\n".join(a.get("answer_text", "") for a in matching)
+        
+        return ""
+    
+    def _clean_json_response(self, content: str) -> str:
+        """Clean markdown wrappers from LLM response."""
+        cleaned = content.strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.split("\n")
+            cleaned = "\n".join(lines[1:-1]) if len(lines) > 2 else cleaned
+            if cleaned.startswith("json"):
+                cleaned = cleaned[4:].strip()
+        return cleaned
+    
+    def _grade_legacy(self, rubric: Dict, student_test: Dict) -> Dict:
+        """Fallback legacy grading when normalization not available."""
+        # Just return minimal result
+        return {
+            "student_name": student_test.get("student_name", "Unknown"),
+            "filename": student_test.get("filename"),
+            "total_score": 0,
+            "total_possible": 0,
+            "percentage": 0,
+            "question_grades": [],
+            "grades": [],
+            "error": "Legacy grading not implemented in enhanced agent"
         }
     
     def _should_continue_grading(self, state: GradingState) -> Literal["continue", "finish"]:
         """Determine if we should continue grading more tests."""
-        current_idx = state["current_test_index"]
-        total_tests = len(state["student_tests"])
-        
-        logger.info(f"Check continue: index={current_idx}, total={total_tests}")
-        
-        if current_idx < total_tests:
-            logger.info("→ Continuing to next test")
+        if state["current_test_index"] < len(state["student_tests"]):
             return "continue"
-        else:
-            logger.info("→ All tests graded, finishing...")
-            return "finish"
+        return "finish"
     
     def _compile_results(self, state: GradingState) -> Dict:
         """Compile and summarize all grading results."""
-        logger.info("=" * 80)
-        logger.info("COMPILING FINAL RESULTS")
-        logger.info("=" * 80)
-        
         results = state["graded_results"]
-        logger.info(f"Total tests graded: {len(results)}")
-        logger.info(f"Low confidence items: {len(state['low_confidence_notes'])}")
+        logger.info(f"Compiled {len(results)} grading results")
         
         if results:
-            valid_results = [r for r in results if r.get('total_possible', 0) > 0]
-            if valid_results:
-                scores = [r.get('percentage', 0) for r in valid_results]
-                logger.info(f"\nScore summary:")
-                logger.info(f"  - Average: {sum(scores) / len(scores):.1f}%")
-                logger.info(f"  - Min: {min(scores):.1f}%")
-                logger.info(f"  - Max: {max(scores):.1f}%")
+            valid = [r for r in results if r.get("total_possible", 0) > 0]
+            if valid:
+                scores = [r.get("percentage", 0) for r in valid]
+                logger.info(f"Score summary: avg={sum(scores)/len(scores):.1f}%, "
+                           f"min={min(scores):.1f}%, max={max(scores):.1f}%")
         
         return {}
-    
-    def _build_system_prompt(self, rubric: Dict) -> str:
-        """Build system prompt for GPT-4 with evidence extraction and reasoning chains."""
-        
-        questions = rubric.get('questions', [])
-        total_criteria = sum(len(q.get('criteria', [])) for q in questions)
-        
-        return f"""You are a world-class Computer Science teacher grading high school programming tests.
-Your goal is to produce grades that are within 5 points of what the best human teacher would give.
-
-CONTEXT:
-- The student's code has been TRANSCRIBED from handwritten scans using AI
-- Minor transcription errors (typos, formatting) may exist - be lenient for these
-- Be STRICT on logic errors, missing functionality, and incorrect implementations
-
-═══════════════════════════════════════════════════════════════════════════════
-GRADING METHODOLOGY (Chain-of-Thought)
-═══════════════════════════════════════════════════════════════════════════════
-
-For EACH criterion, follow this process:
-1. READ: Understand exactly what the criterion requires
-2. SEARCH: Find the relevant code in the student's answer
-3. QUOTE: Extract the exact code snippet that addresses this criterion
-4. REASON: Analyze step-by-step if the code meets requirements
-5. GRADE: Assign points based on your analysis
-
-═══════════════════════════════════════════════════════════════════════════════
-GRADING RULES
-═══════════════════════════════════════════════════════════════════════════════
-
-Marks:
-- ✓ (correct): Full points - criterion fully satisfied
-- ✗ (incorrect): Zero points - criterion not met at all
-- ✓✗ (partial): Partial points - partially met (specify exact points)
-
-Confidence levels:
-- high: Clear evidence, unambiguous grading
-- medium: Some ambiguity, may need teacher review
-- low: Significant uncertainty, definitely needs teacher review
-
-═══════════════════════════════════════════════════════════════════════════════
-MISMATCH DETECTION
-═══════════════════════════════════════════════════════════════════════════════
-
-Before grading, CHECK if answers match the rubric topic:
-- Rubric about "House" but student wrote "Employee" → MISMATCH
-- Rubric about arrays but student wrote about classes → MISMATCH
-
-If mismatch detected:
-- Set "rubric_mismatch_detected": true
-- Explain in "rubric_mismatch_reason" (Hebrew)
-- Still grade all criteria (most will be 0)
-
-═══════════════════════════════════════════════════════════════════════════════
-EXTRA ERROR DETECTION (Beyond Rubric)
-═══════════════════════════════════════════════════════════════════════════════
-
-If you notice errors NOT covered by the rubric, report them in "extra_observations":
-- syntax_error: Missing semicolons, typos in keywords, wrong brackets
-- logic_error: Infinite loops, wrong conditions, off-by-one errors
-- style_warning: Poor naming, missing comments (no point deduction, just note)
-- missing_feature: Expected functionality not implemented
-
-Suggest reasonable point deductions (teacher can adjust):
-- Minor syntax issues: -1 to -2
-- Logic errors: -2 to -5
-- Style warnings: 0 (note only)
-
-═══════════════════════════════════════════════════════════════════════════════
-OUTPUT FORMAT
-═══════════════════════════════════════════════════════════════════════════════
-
-Return ONLY valid JSON:
-{{
-  "rubric_mismatch_detected": false,
-  "rubric_mismatch_reason": null,
-  "question_grades": [
-    {{
-      "question_number": 1,
-      "grades": [
-        {{
-          "criterion_index": 0,
-          "criterion": "הטקסט המדויק של הקריטריון מהמחוון",
-          "mark": "✓" | "✗" | "✓✗",
-          "points_earned": 8,
-          "points_possible": 10,
-          "evidence": {{
-            "quoted_code": "private int id;\\nprivate double salary;",
-            "line_numbers": [3, 4],
-            "reasoning_chain": [
-              "✓ נמצא שדה id מסוג int",
-              "✓ נמצא שדה salary מסוג double",
-              "✗ חסר שדה isSenior שנדרש לפי הקריטריון"
-            ]
-          }},
-          "explanation": "הוגדרו 2 מתוך 3 שדות נדרשים. חסר השדה isSenior.",
-          "confidence": "high",
-          "low_confidence_reason": null
-        }}
-      ],
-      "extra_observations": [
-        {{
-          "type": "syntax_error",
-          "description": "חסר נקודה-פסיק בסוף שורה 7",
-          "suggested_deduction": 1,
-          "line_number": 7,
-          "quoted_code": "public void PrintInfo()"
-        }}
-      ]
-    }}
-  ],
-  "low_confidence_items": ["שאלה 2: קריטריון 3 - לא ברור אם הלולאה נכונה"]
-}}
-
-═══════════════════════════════════════════════════════════════════════════════
-CRITICAL REQUIREMENTS
-═══════════════════════════════════════════════════════════════════════════════
-
-- Grade ALL {total_criteria} criteria across {len(questions)} questions
-- Copy EXACT criterion text from rubric (never abbreviate)
-- Always include "evidence" with quoted_code and reasoning_chain
-- Explanations in Hebrew (never empty)
-- Extra observations only for REAL errors (don't be noisy)"""
-
-    def _build_user_prompt(self, rubric: Dict, student_test: Dict) -> str:
-        """Construct user prompt with rubric and student answers."""
-        prompt = "=== RUBRIC (Grade EVERY criterion below) ===\n\n"
-        
-        for q in rubric.get('questions', []):
-            prompt += f"Question {q['question_number']} (Total: {q['total_points']} points)\n"
-            prompt += f"Criteria to grade ({len(q['criteria'])} items):\n"
-            for i, c in enumerate(q['criteria']):
-                prompt += f"  [{i}] {c['description']} ({c['points']} points)\n"
-            prompt += "\n"
-            
-        prompt += "=" * 50 + "\n"
-        prompt += "=== STUDENT ANSWERS (Transcribed from PDF) ===\n\n"
-        answers = student_test.get('answers', [])
-        
-        if not answers:
-            prompt += "⚠️ NO ANSWERS TRANSCRIBED - Student may not have submitted code.\n"
-            prompt += "Grade all criteria as ✗ (incorrect) with 0 points.\n"
-        else:
-            # Group answers by question number for clarity
-            answers_by_q = {}
-            for ans in answers:
-                q_num = ans.get('question_number', 0)
-                if q_num not in answers_by_q:
-                    answers_by_q[q_num] = []
-                answers_by_q[q_num].append(ans)
-            
-            for q_num in sorted(answers_by_q.keys()):
-                for ans in answers_by_q[q_num]:
-                    answer_text = ans.get('answer_text', '').strip()
-                    sub_q = ans.get('sub_question_id', '')
-                    q_label = f"Question {q_num}" + (f" ({sub_q})" if sub_q else "")
-                    prompt += f"{q_label}:\n"
-                    if answer_text:
-                        prompt += f"```csharp\n{answer_text}\n```\n\n"
-                    else:
-                        prompt += "⚠️ [EMPTY - No code transcribed]\n\n"
-        
-        prompt += "=" * 50 + "\n"
-        prompt += """INSTRUCTIONS:
-1. Grade EVERY criterion from the rubric above
-2. Copy the EXACT criterion text (never abbreviate)
-3. Provide Hebrew explanation for each (never empty)
-4. Group results by question_number
-5. Output valid JSON only - no markdown, no extra text"""
-            
-        return prompt
-
-    def _parse_grading_response(self, response_text: str, student_test: Dict, rubric: Dict) -> Dict:
-        """Parse JSON response and fill in any missing data from rubric."""
-        try:
-            # Clean markdown wrappers
-            cleaned = response_text.strip()
-            if cleaned.startswith("```"):
-                lines = cleaned.split("\n")
-                cleaned = "\n".join(lines[1:-1]) if len(lines) > 2 else cleaned
-                if cleaned.startswith("json"):
-                    cleaned = cleaned[4:].strip()
-            
-            data = json.loads(cleaned)
-            
-            # Build rubric lookup for filling missing data
-            rubric_lookup = self._build_rubric_lookup(rubric)
-            
-            # Process question_grades and fill missing data
-            question_grades = data.get("question_grades", [])
-            flat_grades = []  # For backward compatibility
-            total_score = 0
-            total_possible = 0
-            
-            for qg in question_grades:
-                q_num = qg.get("question_number")
-                processed_grades = []
-                
-                for grade in qg.get("grades", []):
-                    # Fill missing criterion text from rubric
-                    processed_grade = self._process_grade(grade, q_num, rubric_lookup)
-                    processed_grades.append(processed_grade)
-                    
-                    # Add question info for flat list
-                    flat_grade = {**processed_grade, "question_number": q_num}
-                    flat_grades.append(flat_grade)
-                    
-                    total_score += processed_grade.get("points_earned", 0)
-                    total_possible += processed_grade.get("points_possible", 0)
-                
-                qg["grades"] = processed_grades
-            
-            # Check for missing criteria and add them
-            question_grades = self._ensure_all_criteria_graded(question_grades, rubric, flat_grades)
-            
-            # Recalculate totals after ensuring all criteria
-            total_score = sum(g.get("points_earned", 0) for g in flat_grades)
-            total_possible = sum(g.get("points_possible", 0) for g in flat_grades)
-            percentage = (total_score / total_possible * 100) if total_possible > 0 else 0
-            
-            # Extract mismatch detection flag
-            rubric_mismatch_detected = data.get("rubric_mismatch_detected", False)
-            rubric_mismatch_reason = data.get("rubric_mismatch_reason")
-            
-            if rubric_mismatch_detected:
-                logger.warning(f"⚠️ RUBRIC MISMATCH DETECTED: {rubric_mismatch_reason}")
-            
-            return {
-                "student_name": student_test.get("student_name", "Unknown"),
-                "filename": student_test.get("filename", "Unknown"),
-                "total_score": total_score,
-                "total_possible": total_possible,
-                "percentage": percentage,
-                "question_grades": question_grades,
-                "grades": flat_grades,  # Flat list for backward compatibility
-                "low_confidence_items": data.get("low_confidence_items", []),
-                "rubric_mismatch_detected": rubric_mismatch_detected,
-                "rubric_mismatch_reason": rubric_mismatch_reason,
-            }
-            
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON Parsing failed: {e}")
-            logger.error(f"Raw response: {response_text[:500]}...")
-            raise
-    
-    def _build_rubric_lookup(self, rubric: Dict) -> Dict[str, Dict]:
-        """Build a lookup dictionary for rubric criteria."""
-        lookup = {}
-        for q in rubric.get('questions', []):
-            q_num = q['question_number']
-            lookup[q_num] = {
-                'total_points': q['total_points'],
-                'criteria': {}
-            }
-            for i, c in enumerate(q.get('criteria', [])):
-                lookup[q_num]['criteria'][i] = {
-                    'description': c['description'],
-                    'points': c['points']
-                }
-        return lookup
-    
-    def _process_grade(self, grade: Dict, question_number: int, rubric_lookup: Dict) -> Dict:
-        """Process a single grade, filling missing data from rubric."""
-        processed = {**grade}
-        
-        criterion_idx = grade.get('criterion_index')
-        criterion_text = grade.get('criterion', '').strip()
-        explanation = grade.get('explanation', '').strip()
-        mark = grade.get('mark', '').strip()
-        
-        # Fix empty or newline-only values
-        if not criterion_text or criterion_text == '\n':
-            # Try to get from rubric using index
-            if criterion_idx is not None and question_number in rubric_lookup:
-                q_criteria = rubric_lookup[question_number].get('criteria', {})
-                if criterion_idx in q_criteria:
-                    processed['criterion'] = q_criteria[criterion_idx]['description']
-                    logger.warning(f"Filled missing criterion text for Q{question_number}[{criterion_idx}]")
-                else:
-                    processed['criterion'] = f"קריטריון {criterion_idx + 1}"
-            else:
-                processed['criterion'] = f"קריטריון לא מזוהה"
-        
-        if not explanation or explanation == '\n':
-            # Generate placeholder explanation based on score
-            points_earned = grade.get('points_earned', 0)
-            points_possible = grade.get('points_possible', 0)
-            if points_earned == points_possible:
-                processed['explanation'] = "נכון"
-            elif points_earned == 0:
-                processed['explanation'] = "לא נכון / חסר"
-            else:
-                processed['explanation'] = f"נכון חלקית ({points_earned}/{points_possible})"
-            logger.warning(f"Filled missing explanation for Q{question_number}")
-        
-        if not mark or mark == '\n':
-            # Infer mark from points
-            points_earned = grade.get('points_earned', 0)
-            points_possible = grade.get('points_possible', 0)
-            if points_earned == points_possible:
-                processed['mark'] = '✓'
-            elif points_earned == 0:
-                processed['mark'] = '✗'
-            else:
-                processed['mark'] = '✓✗'
-            logger.warning(f"Filled missing mark for Q{question_number}")
-        
-        return processed
-    
-    def _ensure_all_criteria_graded(
-        self, 
-        question_grades: List[Dict], 
-        rubric: Dict,
-        flat_grades: List[Dict]
-    ) -> List[Dict]:
-        """Ensure all rubric criteria have been graded, add missing ones."""
-        
-        # Build set of graded criteria
-        graded_set = set()
-        for qg in question_grades:
-            q_num = qg.get("question_number")
-            for grade in qg.get("grades", []):
-                criterion_idx = grade.get("criterion_index")
-                if criterion_idx is not None:
-                    graded_set.add((q_num, criterion_idx))
-        
-        # Check for missing criteria
-        for q in rubric.get('questions', []):
-            q_num = q['question_number']
-            
-            # Find or create question_grade entry
-            qg_entry = None
-            for qg in question_grades:
-                if qg.get("question_number") == q_num:
-                    qg_entry = qg
-                    break
-            
-            if qg_entry is None:
-                qg_entry = {"question_number": q_num, "grades": []}
-                question_grades.append(qg_entry)
-            
-            for i, c in enumerate(q.get('criteria', [])):
-                if (q_num, i) not in graded_set:
-                    # Add missing criterion with 0 points and low confidence
-                    missing_grade = {
-                        "criterion_index": i,
-                        "criterion": c['description'],
-                        "mark": "✗",
-                        "points_earned": 0,
-                        "points_possible": c['points'],
-                        "explanation": "לא נבדק על ידי המערכת",
-                        "confidence": "low",
-                        "low_confidence_reason": "הקריטריון לא נבדק - נדרשת בדיקה ידנית"
-                    }
-                    qg_entry["grades"].append(missing_grade)
-                    
-                    # Also add to flat list
-                    flat_grades.append({**missing_grade, "question_number": q_num})
-                    
-                    logger.warning(f"Added missing criterion: Q{q_num}[{i}] - {c['description'][:50]}...")
-        
-        # Sort question_grades by question number
-        question_grades.sort(key=lambda x: x.get("question_number", 0))
-        
-        # Sort grades within each question by criterion_index
-        for qg in question_grades:
-            qg["grades"].sort(key=lambda x: x.get("criterion_index", 0))
-        
-        return question_grades

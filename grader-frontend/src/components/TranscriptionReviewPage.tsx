@@ -235,39 +235,247 @@ function ConfidenceBadge({ confidence }: { confidence: number }) {
 // Transcribed Text Display (Editable)
 // =============================================================================
 
+interface ReviewFlag {
+    line: number;
+    reason: string;
+}
+
 function TranscribedTextDisplay({
     text,
     onChange,
     readOnly = false,
+    reviewFlags = [],
 }: {
     text: string;
     onChange: (newText: string) => void;
     readOnly?: boolean;
+    reviewFlags?: ReviewFlag[];
 }) {
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const backdropRef = useRef<HTMLDivElement>(null);
+
     const hasUncertainLines = text.includes('[?]');
     const lineCount = text.split('\n').length;
-    const minHeight = Math.max(150, lineCount * 22 + 40);
+    const minHeight = Math.max(200, lineCount * 20 + 40);
+    const hasFlaggedLines = reviewFlags.length > 0;
 
+    // Create a map of flagged line numbers for quick lookup
+    const flaggedLines = new Map(reviewFlags.map(f => [f.line, f.reason]));
+    const lines = text.split('\n');
+
+    // Sync scroll between textarea and backdrop
+    const handleScroll = useCallback(() => {
+        if (textareaRef.current && backdropRef.current) {
+            backdropRef.current.scrollTop = textareaRef.current.scrollTop;
+            backdropRef.current.scrollLeft = textareaRef.current.scrollLeft;
+        }
+    }, []);
+
+    // If no flags, use simple textarea
+    if (!hasFlaggedLines) {
+        return (
+            <div className="relative">
+                <textarea
+                    value={text}
+                    onChange={(e) => onChange(e.target.value)}
+                    readOnly={readOnly}
+                    className={`w-full p-3 font-mono text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y ${hasUncertainLines
+                        ? 'bg-red-50/30 border-red-200 focus:border-red-300'
+                        : 'bg-surface-50 border-surface-300'
+                        } ${readOnly ? 'cursor-not-allowed opacity-70' : ''}`}
+                    dir="ltr"
+                    style={{ minHeight: `${minHeight}px`, whiteSpace: 'pre-wrap' }}
+                    placeholder="תמלול ריק - ניתן להקליד כאן"
+                />
+                {hasUncertainLines && (
+                    <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">
+                        <AlertTriangle size={12} />
+                        מכיל תווים לא ברורים [?]
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Overlay technique: highlighted backdrop + transparent textarea on top
     return (
         <div className="relative">
-            <textarea
-                value={text}
-                onChange={(e) => onChange(e.target.value)}
-                readOnly={readOnly}
-                className={`w-full p-3 font-mono text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y ${hasUncertainLines
-                    ? 'bg-red-50/30 border-red-200 focus:border-red-300'
-                    : 'bg-surface-50 border-surface-300'
-                    } ${readOnly ? 'cursor-not-allowed opacity-70' : ''}`}
-                dir="ltr"
-                style={{ minHeight: `${minHeight}px`, whiteSpace: 'pre-wrap' }}
-                placeholder="תמלול ריק - ניתן להקליד כאן"
-            />
-            {hasUncertainLines && (
-                <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">
-                    <AlertTriangle size={12} />
-                    מכיל תווים לא ברורים [?]
+            {/* Header with flag count */}
+            <div className="flex items-center gap-2 text-amber-700 text-sm mb-2">
+                <AlertTriangle size={16} />
+                <span className="font-medium">{reviewFlags.length} שורות לבדיקה</span>
+                <span className="text-xs text-gray-500">(העבר עכבר לסיבה)</span>
+            </div>
+
+            {/* Container for layered editor */}
+            <div
+                className="relative border rounded-lg overflow-hidden bg-white"
+                style={{ minHeight: `${minHeight}px` }}
+            >
+                {/* Backdrop layer: highlighted lines (behind textarea) */}
+                <div
+                    ref={backdropRef}
+                    className="absolute inset-0 p-3 font-mono text-sm overflow-hidden pointer-events-none"
+                    style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
+                    dir="ltr"
+                    aria-hidden="true"
+                >
+                    {lines.map((line, idx) => {
+                        const lineNumber = idx + 1;
+                        const isFlagged = flaggedLines.has(lineNumber);
+                        const reason = flaggedLines.get(lineNumber);
+
+                        return (
+                            <div
+                                key={idx}
+                                className={`relative group ${isFlagged ? 'bg-red-200/70 -mx-3 px-3 border-l-4 border-red-500' : ''}`}
+                                style={{ minHeight: '20px' }}
+                            >
+                                {/* Render the line content (invisible - just for height matching) */}
+                                <span style={{ visibility: 'hidden' }}>{line || ' '}</span>
+
+                                {/* Tooltip - shown on line hover via parent group */}
+                                {isFlagged && (
+                                    <div
+                                        className="absolute left-0 top-0 -translate-x-full -ml-2 bg-red-600 text-white text-xs px-2 py-1 rounded shadow-lg z-30 whitespace-nowrap max-w-xs pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        {reason}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
-            )}
+
+                {/* Textarea layer: transparent, captures input (on top) */}
+                <textarea
+                    ref={textareaRef}
+                    value={text}
+                    onChange={(e) => onChange(e.target.value)}
+                    onScroll={handleScroll}
+                    readOnly={readOnly}
+                    className={`relative w-full h-full p-3 font-mono text-sm bg-transparent resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg ${readOnly ? 'cursor-not-allowed' : ''}`}
+                    dir="ltr"
+                    style={{
+                        minHeight: `${minHeight}px`,
+                        whiteSpace: 'pre-wrap',
+                        caretColor: '#1a1a1a',
+                    }}
+                    placeholder="תמלול ריק - ניתן להקליד כאן"
+                />
+            </div>
+        </div>
+    );
+}
+
+
+// =============================================================================
+// Page Pair Row - PDF and Transcription side-by-side with matched heights
+// =============================================================================
+
+interface PagePairRowProps {
+    page: { page_number: number; page_index: number; thumbnail_base64: string };
+    pageState?: { rawText: string; verifiedText: string; markedText: string; detectedQuestions: number[]; phase: string; isStreaming: boolean; reviewFlags: ReviewFlag[] };
+    editedText: string;
+    onTextChange: (text: string) => void;
+    isStreaming?: boolean;
+}
+
+function PagePairRow({ page, pageState, editedText, onTextChange, isStreaming = false }: PagePairRowProps) {
+    const [imageHeight, setImageHeight] = useState<number | null>(null);
+    const imageRef = useRef<HTMLImageElement>(null);
+
+    // Measure image height when it loads
+    const handleImageLoad = useCallback(() => {
+        if (imageRef.current) {
+            setImageHeight(imageRef.current.offsetHeight);
+        }
+    }, []);
+
+    // Also handle resize
+    useEffect(() => {
+        const handleResize = () => {
+            if (imageRef.current) {
+                setImageHeight(imageRef.current.offsetHeight);
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const displayText = pageState?.markedText || pageState?.verifiedText || pageState?.rawText || '';
+    const questions = pageState?.detectedQuestions || [];
+    const questionLabel = questions.length > 0 ? `שאלה ${questions.join(', ')}` : '';
+    const isActivelyStreaming = pageState?.isStreaming || pageState?.phase === 'verifying';
+    const isCompleted = pageState?.phase === 'complete';
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            {/* Left: PDF Page */}
+            <div className="bg-white rounded-xl border border-surface-200 p-4">
+                <div className="text-sm text-gray-500 mb-2 font-medium flex items-center justify-between">
+                    <span>עמוד {page.page_number}</span>
+                    {isActivelyStreaming && (
+                        <span className="flex items-center gap-1 text-primary-600">
+                            <Loader2 className="animate-spin" size={14} />
+                            מתמלל
+                        </span>
+                    )}
+                </div>
+                <img
+                    ref={imageRef}
+                    src={`data:image/png;base64,${page.thumbnail_base64}`}
+                    alt={`עמוד ${page.page_number}`}
+                    className="w-full h-auto rounded border border-surface-100"
+                    onLoad={handleImageLoad}
+                />
+            </div>
+
+            {/* Right: Transcription */}
+            <div
+                className={`bg-white rounded-lg border shadow-sm overflow-hidden flex flex-col ${isActivelyStreaming ? 'border-primary-200' :
+                    isCompleted ? 'border-green-200' : 'border-surface-200'
+                    }`}
+            >
+                <div className={`flex items-center justify-between px-4 py-2 border-b flex-shrink-0 ${isActivelyStreaming ? 'bg-primary-50 border-primary-200' :
+                    isCompleted ? 'bg-green-50 border-green-200' : 'bg-surface-50 border-surface-200'
+                    }`}>
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900">עמוד {page.page_number}</span>
+                        {questions.length > 0 && (
+                            <span className="bg-primary-100 text-primary-700 text-xs px-2 py-0.5 rounded">
+                                {questionLabel}
+                            </span>
+                        )}
+                    </div>
+                    {isCompleted && (
+                        <span className="text-xs text-green-600 flex items-center gap-1">
+                            <CheckCircle2 size={12} />
+                            הושלם
+                        </span>
+                    )}
+                </div>
+                <div
+                    className="p-4 flex-1 overflow-y-auto"
+                    style={imageHeight ? { height: `${imageHeight - 40}px` } : { minHeight: '200px' }}
+                >
+                    {isStreaming && pageState ? (
+                        <StreamingTextDisplay
+                            rawText={pageState.rawText}
+                            verifiedText={pageState.verifiedText}
+                            phase={pageState.phase as 'raw' | 'verifying' | 'complete'}
+                            isStreaming={pageState.isStreaming}
+                        />
+                    ) : (
+                        <TranscribedTextDisplay
+                            text={editedText || displayText.replace(/<Q\d+>/g, '')}
+                            onChange={onTextChange}
+                            readOnly={false}
+                            reviewFlags={pageState?.reviewFlags || []}
+                        />
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
@@ -487,6 +695,8 @@ export default function TranscriptionReviewPage({
                     dispatch({ type: 'VERIFIED_CHUNK', payload: { pageNumber, delta } }),
                 onPageComplete: (pageNumber, pageIndex, markedText, detectedQuestions, confidenceScores) =>
                     dispatch({ type: 'PAGE_COMPLETE', payload: { pageNumber, pageIndex, markedText, detectedQuestions, confidenceScores } }),
+                onReviewFlags: (pageNumber, flags) =>
+                    dispatch({ type: 'REVIEW_FLAGS', payload: { pageNumber, flags } }),
                 onAnswer: (answer) => dispatch({ type: 'ANSWER', payload: answer }),
                 onDone: (totalAnswers) => dispatch({ type: 'DONE', payload: { totalAnswers } }),
                 onError: (message) => dispatch({ type: 'ERROR', payload: { message } }),
@@ -789,179 +999,60 @@ export default function TranscriptionReviewPage({
 
             {/* Main content */}
             <div className="max-w-7xl mx-auto p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Left Panel - PDF Pages */}
+                {/* Loading state */}
+                {(transcriptionData?.pages?.length === 0 || !transcriptionData?.pages) && (
+                    <div className="bg-white rounded-xl border border-surface-200 p-8 text-center">
+                        <Loader2 className="animate-spin mx-auto mb-2 text-primary-500" size={24} />
+                        <p className="text-gray-500">טוען עמודים...</p>
+                    </div>
+                )}
+
+                {/* Page rows - PDF and Transcription side by side */}
+                {(transcriptionData?.pages || []).map((page) => {
+                    const pageNum = page.page_number;
+                    const pageKey = `page-${pageNum}`;
+                    const pageState = streamState.pageStates.get(pageNum);
+                    const displayText = pageState?.markedText || pageState?.verifiedText || pageState?.rawText || '';
+
+                    return (
+                        <PagePairRow
+                            key={page.page_index}
+                            page={page}
+                            pageState={pageState as any}
+                            editedText={editedTexts[pageKey] ?? displayText.replace(/<Q\d+>/g, '')}
+                            onTextChange={(newText) => handleTextChange(pageKey, newText)}
+                            isStreaming={isStreaming}
+                        />
+                    );
+                })}
+
+                {/* Fallback for answers without page states */}
+                {!isStreaming && streamState.pageStates.size === 0 && sortedAnswers.length > 0 && (
                     <div className="space-y-4">
-                        {(transcriptionData?.pages || []).map((page) => (
-                            <div
-                                key={page.page_index}
-                                className="bg-white rounded-xl border border-surface-200 p-4"
-                            >
-                                <div className="text-sm text-gray-500 mb-2 font-medium flex items-center justify-between">
-                                    <span>עמוד {page.page_number}</span>
-                                    {isStreamingMode && streamState.pageStates.get(page.page_number)?.isStreaming && (
-                                        <span className="flex items-center gap-1 text-primary-600">
-                                            <Loader2 className="animate-spin" size={14} />
-                                            מתמלל
-                                        </span>
-                                    )}
-                                </div>
-                                <img
-                                    src={`data:image/png;base64,${page.thumbnail_base64}`}
-                                    alt={`עמוד ${page.page_number}`}
-                                    className="w-full h-auto rounded border border-surface-100"
+                        {sortedAnswers.map((answer) => {
+                            const key = getAnswerKey(answer);
+                            const pageLabel = getPageLabel(answer);
+
+                            return (
+                                <AnswerEditor
+                                    key={key}
+                                    answer={answer}
+                                    editedText={editedTexts[key] ?? answer.answer_text}
+                                    onTextChange={(text) => handleTextChange(key, text)}
+                                    pageLabel={pageLabel}
+                                    isStreaming={false}
                                 />
-                            </div>
-                        ))}
-
-                        {(transcriptionData?.pages?.length === 0 || !transcriptionData?.pages) && (
-                            <div className="bg-white rounded-xl border border-surface-200 p-8 text-center">
-                                <Loader2 className="animate-spin mx-auto mb-2 text-primary-500" size={24} />
-                                <p className="text-gray-500">טוען עמודים...</p>
-                            </div>
-                        )}
+                            );
+                        })}
                     </div>
+                )}
 
-                    {/* Right Panel - Transcriptions */}
-                    <div className="space-y-4">
-                        {/* 
-                          Unified display logic:
-                          - During streaming: Show page-by-page streaming content
-                          - After streaming: Show the final structured answers (by question)
-                          
-                          Key insight: We need a smooth transition. When streaming ends,
-                          answers should already be populated. If not, we fall back to 
-                          showing raw page content to avoid losing any transcribed text.
-                        */}
-
-                        {/* During active streaming: Show page-based streaming content */}
-                        {isStreaming && (
-                            <>
-                                {streamState.pageStates.size > 0 ? (
-                                    Array.from(streamState.pageStates.entries())
-                                        .sort(([a], [b]) => a - b)
-                                        .filter(([_, state]) => state.rawText || state.verifiedText)
-                                        .map(([pageNum, pageState]) => {
-                                            const isActivelyStreaming = pageState.isStreaming || pageState.phase === 'verifying';
-                                            const isCompleted = pageState.phase === 'complete';
-
-                                            return (
-                                                <div
-                                                    key={`streaming-${pageNum}`}
-                                                    className={`bg-white rounded-lg border shadow-sm overflow-hidden ${isActivelyStreaming ? 'border-primary-200' :
-                                                        isCompleted ? 'border-green-200' : 'border-surface-200'
-                                                        }`}
-                                                >
-                                                    <div className={`flex items-center justify-between px-4 py-2 border-b ${isActivelyStreaming ? 'bg-primary-50 border-primary-200' :
-                                                        isCompleted ? 'bg-green-50 border-green-200' : 'bg-surface-50 border-surface-200'
-                                                        }`}>
-                                                        <span className="font-medium text-gray-900">עמוד {pageNum}</span>
-                                                        {isActivelyStreaming ? (
-                                                            <span className="text-xs text-primary-600 flex items-center gap-1">
-                                                                <Loader2 className="animate-spin" size={12} />
-                                                                {pageState.phase === 'raw' ? 'קורא תשובות...' : 'מאמת...'}
-                                                            </span>
-                                                        ) : isCompleted ? (
-                                                            <span className="text-xs text-green-600 flex items-center gap-1">
-                                                                <CheckCircle2 size={12} />
-                                                                הושלם
-                                                            </span>
-                                                        ) : null}
-                                                    </div>
-                                                    <div className="p-4">
-                                                        <StreamingTextDisplay
-                                                            rawText={pageState.rawText}
-                                                            verifiedText={pageState.verifiedText}
-                                                            phase={pageState.phase as 'raw' | 'verifying' | 'complete'}
-                                                            isStreaming={pageState.isStreaming}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                ) : (
-                                    <div className="bg-white rounded-xl border border-surface-200 p-8 text-center">
-                                        <Loader2 className="animate-spin mx-auto mb-2 text-primary-500" size={24} />
-                                        <p className="text-gray-500">מתמלל...</p>
-                                    </div>
-                                )}
-                            </>
-                        )}
-
-                        {/* After streaming completes: Show page-based content with question badges */}
-                        {!isStreaming && (
-                            <>
-                                {streamState.pageStates.size > 0 ? (
-                                    Array.from(streamState.pageStates.entries())
-                                        .sort(([a], [b]) => a - b)
-                                        .filter(([_, state]) => state.rawText || state.verifiedText || state.markedText)
-                                        .map(([pageNum, pageState]) => {
-                                            // Create a unique key for this page
-                                            const pageKey = `page-${pageNum}`;
-                                            // Get the text to display (prefer markedText, then verifiedText, then rawText)
-                                            const displayText = pageState.markedText || pageState.verifiedText || pageState.rawText;
-                                            // Get detected questions for this page
-                                            const questions = pageState.detectedQuestions || [];
-                                            // Build the header label
-                                            const questionLabel = questions.length > 0
-                                                ? `שאלה ${questions.join(', ')}`
-                                                : '';
-
-                                            return (
-                                                <div
-                                                    key={pageKey}
-                                                    className="bg-white rounded-lg border border-green-200 shadow-sm overflow-hidden"
-                                                >
-                                                    <div className="flex items-center justify-between px-4 py-2 border-b bg-green-50 border-green-200">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="font-medium text-gray-900">עמוד {pageNum}</span>
-                                                            {questions.length > 0 && (
-                                                                <span className="bg-primary-100 text-primary-700 text-xs px-2 py-0.5 rounded">
-                                                                    {questionLabel}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <span className="text-xs text-green-600 flex items-center gap-1">
-                                                            <CheckCircle2 size={12} />
-                                                            הושלם
-                                                        </span>
-                                                    </div>
-                                                    <div className="p-4">
-                                                        <TranscribedTextDisplay
-                                                            text={editedTexts[pageKey] ?? displayText.replace(/<Q\d+>/g, '')}
-                                                            onChange={(newText) => handleTextChange(pageKey, newText)}
-                                                            readOnly={false}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                ) : sortedAnswers.length > 0 ? (
-                                    /* Fallback: If no pageStates but we have answers, show by question */
-                                    sortedAnswers.map((answer) => {
-                                        const key = getAnswerKey(answer);
-                                        const pageLabel = getPageLabel(answer);
-
-                                        return (
-                                            <AnswerEditor
-                                                key={key}
-                                                answer={answer}
-                                                editedText={editedTexts[key] ?? answer.answer_text}
-                                                onTextChange={(text) => handleTextChange(key, text)}
-                                                pageLabel={pageLabel}
-                                                isStreaming={false}
-                                            />
-                                        );
-                                    })
-                                ) : (
-                                    <div className="bg-white rounded-xl border border-surface-200 p-8 text-center">
-                                        <p className="text-gray-500">לא נמצאו תשובות בתמלול</p>
-                                    </div>
-                                )}
-                            </>
-                        )}
+                {/* No answers found */}
+                {!isStreaming && streamState.pageStates.size === 0 && sortedAnswers.length === 0 && transcriptionData?.pages?.length === 0 && (
+                    <div className="bg-white rounded-xl border border-surface-200 p-8 text-center">
+                        <p className="text-gray-500">לא נמצאו תשובות בתמלול</p>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Confirmation Modal */}

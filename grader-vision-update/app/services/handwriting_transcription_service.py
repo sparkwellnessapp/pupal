@@ -230,6 +230,103 @@ class OpenAIProvider(VLMProvider):
                 yield chunk.choices[0].delta.content
 
 
+class AsyncOpenAIProvider(VLMProvider):
+    """
+    Async OpenAI GPT-4o Vision provider.
+    
+    Uses the native AsyncOpenAI client for proper async support.
+    This allows asyncio.wait_for() to actually cancel the HTTP request
+    instead of just abandoning a thread (which still consumes tokens).
+    """
+    
+    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o"):
+        from openai import OpenAI, AsyncOpenAI
+        self._api_key = api_key or os.getenv("OPENAI_API_KEY")
+        # Keep sync client for backwards compatibility with sync methods
+        self._sync_client = OpenAI(api_key=self._api_key)
+        # Async client for new async methods
+        self._async_client = AsyncOpenAI(api_key=self._api_key)
+        self.model = model
+    
+    @property
+    def name(self) -> str:
+        return f"AsyncOpenAI/{self.model}"
+    
+    @traceable(run_type="llm", name="OpenAI Vision Sync")
+    def transcribe_images(
+        self,
+        images_b64: List[str],
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 4000,
+        temperature: float = 0.1
+    ) -> str:
+        """Sync transcription - for backwards compatibility."""
+        content = []
+        
+        for img_b64 in images_b64:
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/png;base64,{img_b64}",
+                    "detail": "high"
+                }
+            })
+        
+        content.append({"type": "text", "text": user_prompt})
+        
+        response = self._sync_client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": content}
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+        
+        return response.choices[0].message.content
+    
+    @traceable(run_type="llm", name="OpenAI Vision Async")
+    async def transcribe_images_async(
+        self,
+        images_b64: List[str],
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 4000,
+        temperature: float = 0.1
+    ) -> str:
+        """
+        Native async transcription - allows proper timeout cancellation.
+        
+        When asyncio.wait_for() times out, this will actually cancel
+        the HTTP request instead of leaving it running in a thread.
+        """
+        content = []
+        
+        for img_b64 in images_b64:
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/png;base64,{img_b64}",
+                    "detail": "high"
+                }
+            })
+        
+        content.append({"type": "text", "text": user_prompt})
+        
+        response = await self._async_client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": content}
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+        
+        return response.choices[0].message.content
+
 class AnthropicProvider(VLMProvider):
     """Anthropic Claude Vision provider."""
     
@@ -329,14 +426,17 @@ def get_vlm_provider(provider_name: str = "openai", **kwargs) -> VLMProvider:
     Factory function to get VLM provider by name.
     
     Args:
-        provider_name: One of "openai", "anthropic", "google"
+        provider_name: One of "openai", "async_openai", "anthropic", "google"
         **kwargs: Provider-specific arguments (api_key, model, etc.)
         
     Returns:
         VLMProvider instance
+        
+    Note: Use "async_openai" for parallel transcription with proper timeout cancellation.
     """
     providers = {
         "openai": OpenAIProvider,
+        "async_openai": AsyncOpenAIProvider,  # Native async for parallel processing
         "anthropic": AnthropicProvider,
         "google": GoogleProvider,
     }

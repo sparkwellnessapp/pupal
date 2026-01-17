@@ -14,6 +14,8 @@ from .database import init_db, close_db
 from .api.v0 import grading as grading_v0
 from .api.v0 import users as users_v0
 from .api.v0 import auth as auth_v0
+from .api.v0 import rubric_generator as rubric_generator_v0
+from .services.temp_storage_service import start_cleanup_worker
 
 # Configure logging
 import os
@@ -56,10 +58,23 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(init_db())
     logger.info("Database initialization started in background")
     
+    # Start temp storage cleanup worker (capture task for cancellation)
+    cleanup_task = start_cleanup_worker()
+    logger.info("Temp storage cleanup worker started")
+    
     yield
     
     # Shutdown
     logger.info("Shutting down Grader Vision API...")
+    
+    # Cancel cleanup worker
+    if cleanup_task:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            logger.info("Cleanup worker cancelled")
+    
     await close_db()
     logger.info("Database connections closed")
 
@@ -88,9 +103,13 @@ app = FastAPI(
 )
 
 # Configure CORS
+# Parse allowed origins from config (comma-separated string)
+allowed_origins = [origin.strip() for origin in settings.allowed_origins.split(",") if origin.strip()]
+logger.info(f"CORS allowed origins: {allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -100,6 +119,7 @@ app.add_middleware(
 app.include_router(grading_v0.router)
 app.include_router(users_v0.router)
 app.include_router(auth_v0.router)
+app.include_router(rubric_generator_v0.router)
 
 
 @app.get("/", tags=["health"])

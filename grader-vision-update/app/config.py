@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     api_port: int = 8080
     log_level: str = "INFO"
     
+    # CORS settings (comma-separated list of allowed origins)
+    # In production, set this to your frontend URL(s)
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    
     # Grading settings
     confidence_threshold: float = 0.7
     max_concurrent_jobs: int = 3
@@ -38,6 +42,13 @@ class Settings(BaseSettings):
     # Vision processing settings
     vision_dpi: int = 150  # DPI for PDF to image conversion
     vision_max_image_size: int = 1500  # Max dimension for images sent to VLM
+    
+    # Parallel transcription settings
+    parallel_transcription_enabled: bool = True  # Feature flag for async parallel processing
+    max_parallel_pages: int = 3  # Max concurrent VLM calls (reduced to avoid overwhelming API)
+    vlm_timeout_seconds: int = 90  # Per-call timeout for VLM requests (increased for vision)
+    vlm_max_retries: int = 2  # Number of retry attempts before degraded fallback
+    vlm_retry_backoff_base: int = 3  # Exponential backoff base: 3s, 9s
     
     # LangSmith settings
     langchain_tracing_v2: Optional[str] = "false"
@@ -51,6 +62,15 @@ class Settings(BaseSettings):
     # Google Cloud Storage settings
     gcs_bucket_name: str = "grader-vision-pdfs"
     gcs_credentials_file: Optional[str] = None  # Uses default credentials if not set
+    
+    # Rubric Generator settings
+    frontend_base_url: str = "http://localhost:3000"  # Production: https://vivi.app
+    rubric_generation_model: str = "gpt-4o"
+    rubric_llm_timeout_seconds: int = 60
+    
+    # Grading Agent settings
+    grading_timeout_seconds: int = 60  # Timeout for each LLM grading call
+    grading_max_retries: int = 3       # Max retry attempts for transient failures
     
     class Config:
         env_file = ".env"

@@ -56,6 +56,7 @@ class Rubric(Base):
     user = relationship("User", back_populates="rubrics")
     raw_rubric = relationship("RawRubric", back_populates="rubric")
     shares = relationship("RubricShare", back_populates="rubric", cascade="all, delete-orphan")
+    share_history = relationship("RubricShareHistory", back_populates="rubric", cascade="all, delete-orphan")
     graded_tests = relationship("GradedTest", back_populates="rubric", cascade="all, delete-orphan")
     graded_pdfs = relationship("GradedTestPdf", back_populates="rubric", cascade="all, delete-orphan")
     

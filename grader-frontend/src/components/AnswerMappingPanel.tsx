@@ -83,7 +83,8 @@ export function AnswerMappingPanel({
       const sq = question.sub_questions.find(
         (s) => s.sub_question_id === mapping.sub_question_id
       );
-      return sq?.criteria?.reduce((sum, c) => sum + c.points, 0) || 0;
+      // Support both new (total_points) and legacy (points) format
+      return sq?.criteria?.reduce((sum, c) => sum + (c.total_points ?? c.points ?? 0), 0) || 0;
     }
 
     return question.total_points || 0;

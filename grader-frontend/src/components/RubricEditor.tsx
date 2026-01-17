@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ExtractedQuestion, ExtractedSubQuestion, ExtractedCriterion, PagePreview, QuestionPageMapping } from '@/lib/api';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, AlertCircle, AlertTriangle, FileText, ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
+import { ExtractedQuestion, ExtractedSubQuestion, ExtractedCriterion, ReductionRule, PagePreview, QuestionPageMapping } from '@/lib/api';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, AlertCircle, AlertTriangle, FileText, ChevronLeft, ChevronRight, Maximize2, X, Info } from 'lucide-react';
 
 interface RubricEditorProps {
   questions: ExtractedQuestion[];
@@ -72,10 +72,14 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
 
   const addCriterion = (qIndex: number, sqIndex?: number) => {
     const newQuestions = [...questions];
+    // Create new enhanced criterion with empty reduction rules
     const newCriterion: ExtractedCriterion = {
-      description: '',
-      points: 0,
+      criterion_description: '',
+      total_points: 0,
+      reduction_rules: [],
       extraction_confidence: 'high',
+      notes: null,
+      raw_text: null,
     };
     if (sqIndex !== undefined) {
       newQuestions[qIndex].sub_questions[sqIndex].criteria.push(newCriterion);
@@ -128,20 +132,42 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
     qs.forEach((q) => {
       if (q.sub_questions.length > 0) {
         q.sub_questions.forEach((sq) => {
-          sq.total_points = sq.criteria.reduce((sum, c) => sum + c.points, 0);
+          // Use total_points from enhanced format
+          sq.total_points = sq.criteria.reduce((sum, c) => sum + (c.total_points || c.points || 0), 0);
         });
         q.total_points = q.sub_questions.reduce((sum, sq) => sum + sq.total_points, 0);
       } else {
-        q.total_points = q.criteria.reduce((sum, c) => sum + c.points, 0);
+        // Use total_points from enhanced format
+        q.total_points = q.criteria.reduce((sum, c) => sum + (c.total_points || c.points || 0), 0);
       }
     });
   };
 
   // Get page indexes for a question's text
+  // Inferred as: the page before the first rubric table page
   const getQuestionPageIndexes = (questionNumber: number): number[] => {
     if (!questionMappings) return [];
     const mapping = questionMappings.find(m => m.question_number === questionNumber);
-    return mapping?.question_page_indexes || [];
+    if (!mapping) return [];
+
+    // Get all criterion page indexes (from direct criteria or sub-questions)
+    let criteriaPages: number[] = [];
+    if (mapping.criteria_page_indexes.length > 0) {
+      criteriaPages = mapping.criteria_page_indexes;
+    } else if (mapping.sub_questions.length > 0) {
+      // Get earliest page from any sub-question
+      const allSubQPages = mapping.sub_questions.flatMap(sq => sq.criteria_page_indexes);
+      criteriaPages = allSubQPages;
+    }
+
+    if (criteriaPages.length === 0) return [];
+
+    // Question page is the one before the first rubric table page
+    const firstCriteriaPage = Math.min(...criteriaPages);
+    const inferredQuestionPage = firstCriteriaPage - 1;
+
+    // Return if valid page index (>= 0)
+    return inferredQuestionPage >= 0 ? [inferredQuestionPage] : [];
   };
 
   // Get page indexes for a question's criteria
@@ -529,6 +555,116 @@ function PageExpandedModal({ page, hasPdfUrl, onClose }: PageExpandedModalProps)
 }
 
 // =============================================================================
+// Reduction Rules Display Component - World-Class Design
+// =============================================================================
+
+interface ReductionRulesDisplayProps {
+  rules: ReductionRule[];
+}
+
+function ReductionRulesDisplay({ rules }: ReductionRulesDisplayProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!rules || rules.length === 0) return null;
+
+  const explicitRules = rules.filter(r => r.is_explicit);
+  const inferredRules = rules.filter(r => !r.is_explicit);
+  const totalDeduction = rules.reduce((sum, r) => sum + r.reduction_value, 0);
+
+  return (
+    <div className="mt-3" dir="rtl">
+      {/* Collapse/Expand Toggle - Premium Design */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="group flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-gradient-to-l from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-150 border border-slate-200 transition-all duration-200"
+      >
+        <div className="flex items-center gap-2 flex-1">
+          {isExpanded ? (
+            <ChevronUp size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+          ) : (
+            <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+          )}
+          <span className="text-sm font-medium text-slate-600">
+            כללי ניקוד ({rules.length})
+          </span>
+        </div>
+
+        {/* Total deduction badge */}
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-l from-red-500 to-rose-500 text-white text-xs font-bold shadow-sm">
+          <span>סה״כ</span>
+          <span className="font-mono">{totalDeduction}</span>
+          <span>נק׳</span>
+        </div>
+      </button>
+
+      {/* Expanded Content - Premium Card Design */}
+      {isExpanded && (
+        <div className="mt-2 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          {/* Explicit Rules Section */}
+          {explicitRules.length > 0 && (
+            <div className="px-4 py-3">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  במחוון המקורי
+                </span>
+              </div>
+              <div className="space-y-2">
+                {explicitRules.map((rule, idx) => (
+                  <div
+                    key={`explicit-${idx}`}
+                    className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-red-50 border border-red-100"
+                  >
+                    <span className="text-sm text-slate-700 leading-relaxed flex-1">
+                      {rule.description}
+                    </span>
+                    <div className="flex-shrink-0 px-2.5 py-1 rounded-md bg-red-500 text-white text-xs font-bold shadow-sm">
+                      -{rule.reduction_value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Separator if both sections exist */}
+          {explicitRules.length > 0 && inferredRules.length > 0 && (
+            <div className="h-px bg-gradient-to-l from-transparent via-slate-200 to-transparent mx-4" />
+          )}
+
+          {/* Inferred Rules Section */}
+          {inferredRules.length > 0 && (
+            <div className="px-4 py-3">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                  מוסקים (לשיקולך)
+                </span>
+              </div>
+              <div className="space-y-2">
+                {inferredRules.map((rule, idx) => (
+                  <div
+                    key={`inferred-${idx}`}
+                    className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-amber-50/70 border border-amber-100"
+                  >
+                    <span className="text-sm text-slate-600 leading-relaxed flex-1">
+                      {rule.description}
+                    </span>
+                    <div className="flex-shrink-0 px-2.5 py-1 rounded-md bg-amber-400 text-amber-900 text-xs font-bold">
+                      -{rule.reduction_value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
 // Criteria List Component
 // =============================================================================
 
@@ -662,9 +798,14 @@ function CriteriaList({
           אין קריטריונים. לחץ על &quot;הוסף קריטריון&quot; כדי להוסיף.
         </div>
       ) : (
-        <div className="space-y-0">
+        <div className="space-y-2">
           {criteria.map((criterion, cIndex) => {
             const dropIndicator = getDropIndicator(cIndex);
+            // Get display values (support both old and new format)
+            const displayDescription = criterion.criterion_description || criterion.description || '';
+            const displayPoints = criterion.total_points ?? criterion.points ?? 0;
+            const hasReductionRules = criterion.reduction_rules && criterion.reduction_rules.length > 0;
+
             return (
               <div key={cIndex} className="relative">
                 {/* Drop indicator line - ABOVE */}
@@ -681,7 +822,7 @@ function CriteriaList({
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   onDragEnd={handleDragEnd}
-                  className={`flex items-center gap-2 p-2 my-1 bg-surface-50 rounded-lg border transition-all duration-150 ${criterion.extraction_confidence === 'low'
+                  className={`p-3 my-1 bg-surface-50 rounded-lg border transition-all duration-150 ${criterion.extraction_confidence === 'low'
                     ? 'border-amber-300 bg-amber-50'
                     : criterion.extraction_confidence === 'medium'
                       ? 'border-yellow-200 bg-yellow-50'
@@ -689,44 +830,62 @@ function CriteriaList({
                     } ${draggedIndex === cIndex ? 'opacity-40 scale-[0.98]' : ''
                     }`}
                 >
-                  <GripVertical
-                    size={16}
-                    className="text-gray-400 cursor-grab active:cursor-grabbing hover:text-gray-600 flex-shrink-0"
-                  />
-
-                  {criterion.extraction_confidence !== 'high' && (
-                    <AlertCircle
+                  {/* Main criterion row - RTL for Hebrew */}
+                  <div className="flex items-center gap-2" dir="rtl">
+                    <GripVertical
                       size={16}
-                      className={
-                        criterion.extraction_confidence === 'low' ? 'text-amber-500' : 'text-yellow-500'
-                      }
+                      className="text-gray-400 cursor-grab active:cursor-grabbing hover:text-gray-600 flex-shrink-0"
                     />
+
+                    {criterion.extraction_confidence !== 'high' && (
+                      <AlertCircle
+                        size={16}
+                        className={
+                          criterion.extraction_confidence === 'low' ? 'text-amber-500' : 'text-yellow-500'
+                        }
+                      />
+                    )}
+
+                    <input
+                      type="text"
+                      value={displayDescription}
+                      onChange={(e) => onUpdateCriterion(cIndex, {
+                        criterion_description: e.target.value,
+                        description: e.target.value
+                      })}
+                      className="flex-1 bg-transparent border-none outline-none text-sm text-right"
+                      placeholder="תיאור הקריטריון..."
+                      dir="rtl"
+                      style={{ unicodeBidi: 'plaintext' }}
+                    />
+
+                    <input
+                      type="number"
+                      value={displayPoints}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 0;
+                        onUpdateCriterion(cIndex, {
+                          total_points: value,
+                          points: value
+                        });
+                      }}
+                      className="w-16 text-center bg-white border border-surface-300 rounded px-2 py-1 text-sm font-medium"
+                      min={0}
+                      step={0.5}
+                    />
+
+                    <button
+                      onClick={() => onRemoveCriterion(cIndex)}
+                      className="text-red-400 hover:text-red-600 p-1"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+
+                  {/* Reduction rules section (collapsible) */}
+                  {hasReductionRules && (
+                    <ReductionRulesDisplay rules={criterion.reduction_rules} />
                   )}
-
-                  <input
-                    type="text"
-                    value={criterion.description}
-                    onChange={(e) => onUpdateCriterion(cIndex, { description: e.target.value })}
-                    className="flex-1 bg-transparent border-none outline-none text-sm"
-                    placeholder="תיאור הקריטריון..."
-                    dir="rtl"
-                  />
-
-                  <input
-                    type="number"
-                    value={criterion.points}
-                    onChange={(e) => onUpdateCriterion(cIndex, { points: parseFloat(e.target.value) || 0 })}
-                    className="w-16 text-center bg-white border border-surface-300 rounded px-2 py-1 text-sm font-medium"
-                    min={0}
-                    step={0.5}
-                  />
-
-                  <button
-                    onClick={() => onRemoveCriterion(cIndex)}
-                    className="text-red-400 hover:text-red-600 p-1"
-                  >
-                    <Trash2 size={14} />
-                  </button>
                 </div>
 
                 {/* Drop indicator line - BELOW */}

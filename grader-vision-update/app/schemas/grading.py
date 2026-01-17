@@ -198,21 +198,50 @@ class ExtractRubricRequest(BaseModel):
 # =============================================================================
 
 class ExtractedCriterion(BaseModel):
-    """An extracted criterion, editable by teacher."""
+    """An extracted criterion, editable by teacher (legacy format)."""
     description: str
     points: float
     # Metadata for UI
     extraction_confidence: Literal["high", "medium", "low"] = "high"
 
 
+class ReductionRule(BaseModel):
+    """A specific point deduction rule within a criterion."""
+    description: str = Field(..., min_length=1, description="What mistake triggers this deduction")
+    reduction_value: float = Field(..., gt=0, description="Points to deduct for this mistake")
+    is_explicit: bool = Field(True, description="True if rule was explicit in rubric, False if inferred")
+
+
+class EnhancedCriterion(BaseModel):
+    """Criterion with structured reduction rules for better grading."""
+    criterion_description: str = Field(..., min_length=1, description="Clean description of what's evaluated")
+    total_points: float = Field(..., gt=0, description="Maximum points for this criterion")
+    reduction_rules: List[ReductionRule] = Field(..., min_length=1, description="List of deduction rules")
+    notes: Optional[str] = Field(None, description="Additional grading notes")
+    raw_text: Optional[str] = Field(None, description="Original unprocessed text")
+    extraction_confidence: Literal["high", "medium", "low"] = Field("high")
+    
+    @model_validator(mode='after')
+    def validate_reduction_rules_sum(self) -> 'EnhancedCriterion':
+        """Ensure reduction rules sum to total_points."""
+        rules_sum = sum(rule.reduction_value for rule in self.reduction_rules)
+        if abs(rules_sum - self.total_points) > 0.01:
+            raise ValueError(
+                f"Reduction rules sum ({rules_sum}) must equal total_points ({self.total_points})"
+            )
+        return self
+
+
 class ExtractedSubQuestion(BaseModel):
     """An extracted sub-question, editable by teacher."""
     sub_question_id: str
     sub_question_text: Optional[str] = None
-    criteria: List[ExtractedCriterion] = Field(default_factory=list)
+    criteria: List[EnhancedCriterion] = Field(default_factory=list)
     total_points: float = 0
     # Metadata
     source_pages: List[int] = Field(default_factory=list, description="Pages this was extracted from")
+    extraction_status: Literal["success", "partial", "failed"] = "success"
+    extraction_error: Optional[str] = None
 
 
 class ExtractedQuestion(BaseModel):
@@ -222,11 +251,13 @@ class ExtractedQuestion(BaseModel):
     total_points: float = 0
     
     # Either direct criteria OR sub-questions
-    criteria: List[ExtractedCriterion] = Field(default_factory=list)
+    criteria: List[EnhancedCriterion] = Field(default_factory=list)
     sub_questions: List[ExtractedSubQuestion] = Field(default_factory=list)
     
     # Metadata
     source_pages: List[int] = Field(default_factory=list, description="Pages this was extracted from")
+    extraction_status: Literal["success", "partial", "failed"] = "success"
+    extraction_error: Optional[str] = None
 
 
 class ExtractRubricResponse(BaseModel):
@@ -258,10 +289,11 @@ class ExtractRubricResponse(BaseModel):
         total_pts = 0
         for q in self.questions:
             total_criteria += len(q.criteria)
-            total_pts += sum(c.points for c in q.criteria)
+            # Use total_points for EnhancedCriterion format
+            total_pts += sum(c.total_points for c in q.criteria)
             for sq in q.sub_questions:
                 total_criteria += len(sq.criteria)
-                total_pts += sum(c.points for c in sq.criteria)
+                total_pts += sum(c.total_points for c in sq.criteria)
         
         self.num_criteria = total_criteria
         self.total_points = total_pts

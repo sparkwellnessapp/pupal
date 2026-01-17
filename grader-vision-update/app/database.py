@@ -55,7 +55,7 @@ async def init_db():
     Called on application startup.
     """
     try:
-        from .models import grading  # noqa: F401
+        from .models import grading, rubric_share  # noqa: F401
         async with engine.connect() as conn:
             await conn.run_sync(Base.metadata.create_all)
             await conn.commit()

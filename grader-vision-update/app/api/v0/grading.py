@@ -39,6 +39,7 @@ from ...services.rubric_service import (
 )
 from ...services.document_parser import (
     pdf_to_images,
+    convert_pdf_parallel,  # Parallel PDF→Image conversion
     image_to_base64,
     extract_student_name_from_page,
 )
@@ -77,8 +78,11 @@ from ...schemas.grading import (
     GradeWithTranscriptionRequest,
 )
 from ...services.gcs_service import get_gcs_service
+from ...config import settings
 
 import os
+import time
+import asyncio
 
 # Feature flag for new Document AI pipeline
 USE_DOCAI_PIPELINE = os.getenv("USE_DOCAI_PIPELINE", "false").lower() == "true"
@@ -1492,6 +1496,350 @@ def extract_visual_grounding(parsed: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+# =============================================================================
+# Error Detection Stage - "Reviewer" VLM for catching transcription mistakes
+# =============================================================================
+
+ERROR_DETECTION_SYSTEM_PROMPT = """You are a transcription accuracy reviewer. Your ONLY job is to find lines where the digital transcription does NOT match what is actually written in the handwritten image.
+
+CRITICAL DISTINCTION:
+- You are NOT a code reviewer or spell checker
+- You do NOT care about spelling mistakes, grammar, or naming conventions
+- You ONLY care if the TRANSCRIPTION matches the HANDWRITTEN TEXT exactly
+
+WHAT TO FLAG (transcription errors):
+✓ The transcription says "getName" but the handwriting clearly shows "getname" → FLAG (different text)
+✓ The transcription added a line that doesn't exist in the image → FLAG (hallucinated content)
+✓ The transcription is missing a line that IS in the image → FLAG (omitted content)
+✓ The transcription has "return x" but the handwriting shows "return y" → FLAG (wrong character/word)
+✓ The transcription completely misread a word → FLAG (clear misread)
+
+WHAT TO IGNORE (NOT transcription errors):
+✗ Student wrote "issenior" instead of "isSenior" → IGNORE (preserve student's actual writing)
+✗ Student misspelled "deparment" instead of "department" → IGNORE (preserve student's actual writing)  
+✗ Bad handwriting that's genuinely ambiguous → IGNORE unless you're 90%+ confident it's wrong
+✗ Missing semicolons or brackets that student actually forgot → IGNORE (it's what they wrote)
+✗ Any coding style issues → IGNORE (not your job)
+
+HIGH BAR FOR FLAGGING:
+Only flag if you are at least 80% confident the transcription is WRONG.
+Ask yourself: "Is the digital text clearly DIFFERENT from what I see in the handwriting?"
+If you can't clearly see a difference, DO NOT FLAG."""
+
+ERROR_DETECTION_USER_PROMPT = """Compare this transcription against the handwritten page image.
+
+TRANSCRIPTION (with line numbers):
+```
+{numbered_transcription}
+```
+
+YOUR TASK: Find lines where the TRANSCRIPTION does not match the HANDWRITING.
+
+Remember:
+- Spelling mistakes BY THE STUDENT should be preserved, not flagged
+- Only flag where the transcription got it WRONG (different from what student wrote)
+- If handwriting is unclear but transcription is a reasonable interpretation, do NOT flag
+- Be conservative - fewer false positives is better than flagging everything
+
+OUTPUT EXACTLY THIS JSON FORMAT (no markdown, no extra text):
+{{
+  "lines_to_review": [
+    {{"line": 3, "reason": "transcription shows 'getValue' but handwriting clearly shows 'getvalue'"}},
+    {{"line": 7, "reason": "this line appears to be hallucinated - not visible in image"}}
+  ]
+}}
+
+If all transcriptions look accurate: {{"lines_to_review": []}}"""
+
+
+async def detect_transcription_errors(
+    page_b64: str,
+    transcribed_text: str,
+    provider,
+    timeout: int = 45
+) -> Dict[str, Any]:
+    """
+    Compare page image with transcribed text to find potential errors.
+    
+    Uses a "fresh perspective" VLM call to catch errors the transcriber missed.
+    Returns list of {line, reason} for lines that need human review.
+    
+    Args:
+        page_b64: Base64-encoded page image
+        transcribed_text: The transcription to review
+        provider: VLM provider with transcribe_images_async method
+        timeout: Timeout for VLM call
+        
+    Returns:
+        Dict with 'lines_to_review' list and 'error' flag if failed
+    """
+    try:
+        # Format transcription with explicit line numbers
+        lines = transcribed_text.split('\n')
+        numbered_lines = [f"{i+1}: {line}" for i, line in enumerate(lines)]
+        numbered_transcription = '\n'.join(numbered_lines)
+        
+        user_prompt = ERROR_DETECTION_USER_PROMPT.format(
+            numbered_transcription=numbered_transcription
+        )
+        
+        result = await asyncio.wait_for(
+            provider.transcribe_images_async(
+                images_b64=[page_b64],
+                system_prompt=ERROR_DETECTION_SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+                max_tokens=1000,  # Small output expected
+                temperature=0.1,
+            ),
+            timeout=timeout
+        )
+        
+        # Parse JSON response
+        parsed = parse_json_response(result)
+        if parsed and "lines_to_review" in parsed:
+            return {
+                "lines_to_review": parsed["lines_to_review"],
+                "had_error": False
+            }
+        else:
+            logger.warning(f"Error detection returned unexpected format: {result[:200]}")
+            return {"lines_to_review": [], "had_error": True}
+            
+    except asyncio.TimeoutError:
+        logger.warning("Error detection timed out")
+        return {"lines_to_review": [], "had_error": True}
+    except Exception as e:
+        logger.warning(f"Error detection failed: {e}")
+        return {"lines_to_review": [], "had_error": True}
+
+
+async def process_single_page_with_retry(
+    page_idx: int,
+    hires_img,
+    provider,
+    student_name: str,
+    question_context: str,
+    target_q_nums: Optional[List[int]],
+    all_q_nums: List[int],
+    rubric_questions: List[RubricQuestion],
+    semaphore: asyncio.Semaphore,  # NEW: limit concurrent VLM calls
+) -> Dict[str, Any]:
+    """
+    Process one page with robust retry logic.
+    
+    GUARANTEES: Always returns a result (may be degraded on failures).
+    Uses asyncio.to_thread to run sync VLM calls without blocking the event loop.
+    Uses semaphore to limit concurrent VLM requests to avoid overwhelming the API.
+    
+    Note: OpenAI's sync client is thread-safe, so this is safe for concurrent use.
+    """
+    import json as json_module
+    from ...services.question_boundary_detector import QuestionBoundaryDetector
+    
+    page_number = page_idx + 1
+    
+    # Acquire semaphore before doing any VLM work - this limits concurrency
+    async with semaphore:
+        logger.info(f"Page {page_number}: Acquired VLM semaphore, starting transcription")
+        # Reduced from 2000 to 1500 for faster upload + VLM inference
+        page_b64 = image_to_base64(hires_img, max_size=1500)
+        
+        # Configuration from settings
+        VLM_TIMEOUT = settings.vlm_timeout_seconds
+        MAX_RETRIES = settings.vlm_max_retries
+        BACKOFF_BASE = settings.vlm_retry_backoff_base
+        
+        last_error: Optional[Exception] = None
+        raw_result: Optional[str] = None
+        verified_result: Optional[str] = None
+        had_errors = False
+        
+        user_prompt = GROUNDED_TRANSCRIPTION_PROMPT.format(
+            page_number=page_number,
+            question_context=question_context,
+        )
+        
+        # === PHASE 1: Raw Transcription with Retries ===
+        for attempt in range(MAX_RETRIES):
+            try:
+                # Use native async VLM call - allows proper timeout cancellation
+                raw_result = await asyncio.wait_for(
+                    provider.transcribe_images_async(
+                        images_b64=[page_b64],
+                        system_prompt=GROUNDED_SYSTEM_PROMPT,
+                        user_prompt=user_prompt,
+                        max_tokens=4000,
+                        temperature=0.1,
+                    ),
+                    timeout=VLM_TIMEOUT
+                )
+                break  # Success
+            except asyncio.TimeoutError:
+                last_error = TimeoutError(f"Raw transcription timeout on page {page_number}, attempt {attempt + 1}")
+                logger.warning(str(last_error))
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Raw transcription error on page {page_number}, attempt {attempt + 1}: {e}")
+            
+            if attempt < MAX_RETRIES - 1:
+                await asyncio.sleep(BACKOFF_BASE ** attempt)
+        
+        # If raw transcription completely failed, return degraded result
+        if raw_result is None:
+            logger.error(f"Page {page_number}: All raw transcription attempts failed. Using fallback.")
+            first_q = (target_q_nums[0] if target_q_nums else all_q_nums[0]) if (target_q_nums or all_q_nums) else 1
+            return {
+                "page_idx": page_idx,
+                "page_number": page_number,
+                "raw_text": f"[שגיאה: לא ניתן לקרוא את העמוד - {last_error}]",
+                "verified_text": "",
+                "marked_text": f"<Q{first_q}>[שגיאה בתמלול עמוד {page_number}]",
+                "detected_questions": [first_q],
+                "confidence_scores": {first_q: 0.0},
+                "verified_answers": [{
+                    "question_number": first_q,
+                    "sub_question_id": None,
+                    "answer_text": f"[שגיאה בתמלול - נא לבדוק ידנית]",
+                    "confidence": 0.0,
+                }],
+                "had_errors": True,
+            }
+        
+        # Parse raw result
+        raw_parsed = parse_json_response(raw_result)
+        grounding = extract_visual_grounding(raw_parsed) if raw_parsed else {}
+        raw_answers = raw_parsed.get("transcription", {}).get("answers", []) if raw_parsed else []
+        raw_text = "\n".join([a.get("answer_text", "") for a in raw_answers]) if raw_answers else raw_result
+        
+        # === PHASE 2: Verification with Retries ===
+        for attempt in range(MAX_RETRIES):
+            try:
+                verify_prompt = VERIFICATION_PROMPT.format(
+                    raw_transcription=raw_text,
+                    class_name=grounding.get("class_name", "unknown"),
+                    methods=grounding.get("methods", []),
+                    fields=grounding.get("fields", []),
+                    student_name=student_name or "null",
+                    page_number=page_number,
+                    question_context=question_context,
+                )
+                
+                # Use native async VLM call for verification
+                verified_result = await asyncio.wait_for(
+                    provider.transcribe_images_async(
+                        images_b64=[page_b64],
+                        system_prompt=VERIFICATION_SYSTEM_PROMPT,
+                        user_prompt=verify_prompt,
+                        max_tokens=4000,
+                        temperature=0.0,
+                    ),
+                    timeout=VLM_TIMEOUT
+                )
+                break  # Success
+            except asyncio.TimeoutError:
+                last_error = TimeoutError(f"Verification timeout on page {page_number}, attempt {attempt + 1}")
+                logger.warning(str(last_error))
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Verification error on page {page_number}, attempt {attempt + 1}: {e}")
+            
+            if attempt < MAX_RETRIES - 1:
+                await asyncio.sleep(BACKOFF_BASE ** attempt)
+        
+        # If verification failed, use raw transcription as fallback
+        if verified_result is None:
+            logger.warning(f"Page {page_number}: Verification failed, using raw transcription as fallback.")
+            verified_result = raw_result
+            verified_answers = raw_answers
+            verified_text = raw_text
+            had_errors = True
+        else:
+            verified_parsed = parse_json_response(verified_result)
+            verified_answers = verified_parsed.get("transcription", {}).get("answers", []) if verified_parsed else raw_answers
+            verified_text = "\n".join([a.get("answer_text", "") for a in verified_answers])
+        
+        # === PHASE 3: Boundary Detection + Error Detection (PARALLEL) ===
+        marked_text = None
+        detected_questions = None
+        confidence_scores = None
+        lines_to_review = []  # NEW: for error detection results
+        
+        questions_to_transcribe = target_q_nums if target_q_nums else all_q_nums
+        sub_questions_dict = {str(rq.question_number): rq.sub_questions for rq in rubric_questions if rq.sub_questions}
+        
+        # Create both tasks to run in parallel
+        async def run_boundary_detection():
+            """Run boundary detection with retries."""
+            for attempt in range(MAX_RETRIES):
+                try:
+                    detector = QuestionBoundaryDetector(provider)
+                    return await asyncio.wait_for(
+                        detector.detect_boundaries(
+                            page_image_b64=page_b64,
+                            raw_text=raw_text,
+                            verified_text=verified_text,
+                            answered_questions=questions_to_transcribe,
+                            sub_questions=sub_questions_dict,
+                            page_number=page_number,
+                        ),
+                        timeout=VLM_TIMEOUT
+                    )
+                except Exception as e:
+                    logger.warning(f"Boundary detection error on page {page_number}, attempt {attempt + 1}: {e}")
+                    if attempt < MAX_RETRIES - 1:
+                        await asyncio.sleep(BACKOFF_BASE ** attempt)
+            return None  # All retries failed
+        
+        # Run both in parallel - error detection is non-blocking
+        boundary_task = asyncio.create_task(run_boundary_detection())
+        error_task = asyncio.create_task(
+            detect_transcription_errors(page_b64, verified_text, provider, timeout=45)
+        )
+        
+        # Wait for both, handle failures gracefully
+        boundary_result, error_result = await asyncio.gather(
+            boundary_task, error_task, return_exceptions=True
+        )
+        
+        # Process boundary result
+        if isinstance(boundary_result, Exception) or boundary_result is None:
+            logger.warning(f"Page {page_number}: Boundary detection failed, using first question as default.")
+            first_q = questions_to_transcribe[0] if questions_to_transcribe else 1
+            marked_text = f"<Q{first_q}>{verified_text}"
+            detected_questions = [first_q]
+            confidence_scores = {first_q: 0.7}
+            had_errors = True
+        else:
+            marked_text = boundary_result.marked_text
+            detected_questions = boundary_result.detected_questions
+            confidence_scores = boundary_result.confidence_scores
+        
+        # Process error detection result (non-blocking)
+        if isinstance(error_result, Exception):
+            logger.warning(f"Page {page_number}: Error detection failed: {error_result}")
+            lines_to_review = []
+        elif error_result and "lines_to_review" in error_result:
+            lines_to_review = error_result["lines_to_review"]
+            if lines_to_review:
+                logger.info(f"Page {page_number}: Flagged {len(lines_to_review)} lines for review")
+        else:
+            lines_to_review = []
+        
+        logger.info(f"Page {page_number}: Completed transcription, releasing semaphore")
+        return {
+            "page_idx": page_idx,
+            "page_number": page_number,
+            "raw_text": raw_result,
+            "verified_text": verified_result,
+            "marked_text": marked_text,
+            "detected_questions": detected_questions,
+            "confidence_scores": confidence_scores,
+            "verified_answers": verified_answers,
+            "had_errors": had_errors,
+            "lines_to_review": lines_to_review,  # NEW: error detection results
+        }
+
+
 @router.post(
     "/stream_transcription_v2",
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
@@ -1503,6 +1851,7 @@ async def stream_transcription_v2(
     test_file: UploadFile = File(..., description="Handwritten test PDF"),
     first_page_index: int = Query(0, description="Page index containing student name"),
     answered_questions: Optional[str] = Query(None, description="JSON list of question numbers answered"),
+    parallel: bool = Query(True, description="Enable parallel page processing (set to false for debugging)"),
     db: AsyncSession = Depends(get_db),
 ):
     """Two-phase streaming transcription endpoint."""
@@ -1533,14 +1882,17 @@ async def stream_transcription_v2(
     filename = test_file.filename or "handwritten_test.pdf"
     logger.info(f"Starting two-phase streaming transcription: {filename}")
     
-    # Process PDF to images
+    # Process PDF to images - PARALLEL for 40-50s savings
+    pdf_start_time = time.time()
     try:
-        images_thumbnail = pdf_to_images(pdf_bytes, dpi=150)
-        images_hires = pdf_to_images(pdf_bytes, dpi=200)
+        images_thumbnail, images_hires = await convert_pdf_parallel(pdf_bytes)
+        pdf_time = time.time() - pdf_start_time
+        logger.info(f"Parallel PDF conversion completed in {pdf_time:.1f}s")
     except Exception as e:
-        logger.error(f"Failed to process PDF: {e}")
+        error_msg = str(e)  # Capture before nested function
+        logger.error(f"Failed to process PDF: {error_msg}")
         async def error_gen():
-            yield f"event: error\ndata: {json_module.dumps({'message': f'Failed to process PDF: {str(e)}'})}\n\n"
+            yield f"event: error\ndata: {json_module.dumps({'message': f'Failed to process PDF: {error_msg}'})}\n\n"
         return StreamingResponse(error_gen(), media_type="text/event-stream")
     
     # Prepare rubric structure
@@ -1581,8 +1933,8 @@ async def stream_transcription_v2(
         if questions_info:
             question_context = f"Student may have answered: {', '.join(questions_info)}"
     
-    # Get VLM provider
-    provider = get_vlm_provider("openai")
+    # Get VLM provider - using async_openai for native async support
+    provider = get_vlm_provider("async_openai")
     
     # Student name - extracted from filename (teacher provides name via frontend)
     name_match = re.match(r'^([^-_0-9]+)', filename)
@@ -1591,6 +1943,7 @@ async def stream_transcription_v2(
     transcription_id = str(uuid_module.uuid4())
     
     async def event_generator():
+        start_time = time.time()
         try:
             # 1. Send metadata
             yield f"event: metadata\ndata: {json_module.dumps({'transcription_id': transcription_id, 'student_name': student_name, 'filename': filename, 'total_pages': len(images_thumbnail), 'rubric_id': str(rubric_id)})}\n\n"
@@ -1607,192 +1960,304 @@ async def stream_transcription_v2(
                 }
                 yield f"event: page\ndata: {json_module.dumps(page_data)}\n\n"
             
-            # 3. Process each page
+            # 3. Process pages - parallel or sequential based on feature flag
             all_answers = []
+            use_parallel = parallel and settings.parallel_transcription_enabled
             
-            for page_idx, (thumb_img, hires_img) in enumerate(zip(images_thumbnail, images_hires)):
-                page_number = page_idx + 1
+            if use_parallel and len(images_hires) > 1:
+                # ============================================================
+                # PARALLEL PROCESSING with ordered emission
+                # ============================================================
+                logger.info(f"Using PARALLEL transcription for {len(images_hires)} pages (max_workers={settings.max_parallel_pages})")
                 
-                # Phase 1: Raw transcription
-                yield f"event: phase\ndata: {json_module.dumps({'phase': 'transcribing', 'current_page': page_number, 'total_pages': len(images_hires), 'message': 'קורא תשובות בכתב יד...'})}\n\n"
+                # Create semaphore to limit concurrent VLM calls
+                vlm_semaphore = asyncio.Semaphore(settings.max_parallel_pages)
                 
-                page_b64 = image_to_base64(hires_img, max_size=2000)
-                user_prompt = GROUNDED_TRANSCRIPTION_PROMPT.format(
-                    page_number=page_number,
-                    question_context=question_context,
-                )
-                
-                # Stream raw transcription
-                raw_accumulated = ""
-                try:
-                    if hasattr(provider, 'transcribe_images_stream'):
-                        for chunk in provider.transcribe_images_stream(
-                            images_b64=[page_b64],
-                            system_prompt=GROUNDED_SYSTEM_PROMPT,
-                            user_prompt=user_prompt,
-                            max_tokens=4000,
-                            temperature=0.1,
-                        ):
-                            raw_accumulated += chunk
-                            yield f"event: raw_chunk\ndata: {json_module.dumps({'page': page_number, 'delta': chunk})}\n\n"
-                            await asyncio.sleep(0.005)
-                    else:
-                        raw_accumulated = provider.transcribe_images(
-                            images_b64=[page_b64],
-                            system_prompt=GROUNDED_SYSTEM_PROMPT,
-                            user_prompt=user_prompt,
+                # Create all page tasks
+                page_tasks = [
+                    asyncio.create_task(
+                        process_single_page_with_retry(
+                            page_idx=idx,
+                            hires_img=hires,
+                            provider=provider,
+                            student_name=student_name,
+                            question_context=question_context,
+                            target_q_nums=target_q_nums,
+                            all_q_nums=all_q_nums,
+                            rubric_questions=rubric_questions,
+                            semaphore=vlm_semaphore,
                         )
-                        yield f"event: raw_chunk\ndata: {json_module.dumps({'page': page_number, 'delta': raw_accumulated})}\n\n"
-                except Exception as e:
-                    logger.error(f"Raw transcription error on page {page_number}: {e}")
-                    yield f"event: error\ndata: {json_module.dumps({'message': f'Transcription error on page {page_number}: {str(e)}'})}\n\n"
-                    continue
+                    )
+                    for idx, hires in enumerate(images_hires)
+                ]
                 
-                yield f"event: raw_complete\ndata: {json_module.dumps({'page': page_number, 'full_text': raw_accumulated})}\n\n"
+                # Buffer for ordered emission
+                completed_results: Dict[int, dict] = {}
+                next_to_emit = 0
                 
-                # Parse raw response
-                raw_parsed = parse_json_response(raw_accumulated)
-                if not raw_parsed:
-                    answer_data = {
-                        "question_number": 1,
-                        "sub_question_id": None,
-                        "answer_text": raw_accumulated,
-                        "confidence": 0.5,
-                        "page_indexes": [page_idx],
-                    }
-                    all_answers.append(answer_data)
-                    yield f"event: answer\ndata: {json_module.dumps(answer_data)}\n\n"
-                    continue
+                # Process as tasks complete, emit in order
+                for completed_task in asyncio.as_completed(page_tasks):
+                    try:
+                        result = await completed_task
+                        page_idx = result["page_idx"]
+                        completed_results[page_idx] = result
+                        
+                        # Drain buffer - emit all consecutive completed pages
+                        while next_to_emit in completed_results:
+                            res = completed_results[next_to_emit]
+                            page_number = res["page_number"]
+                            
+                            # Emit phase: transcribing (bulk - already complete, just sending)
+                            yield f"event: phase\ndata: {json_module.dumps({'phase': 'transcribing', 'current_page': page_number, 'total_pages': len(images_hires), 'message': 'קורא תשובות בכתב יד...'})}\n\n"
+                            
+                            # Emit raw transcription (full text in parallel mode)
+                            yield f"event: raw_chunk\ndata: {json_module.dumps({'page': page_number, 'delta': res['raw_text']})}\n\n"
+                            yield f"event: raw_complete\ndata: {json_module.dumps({'page': page_number, 'full_text': res['raw_text']})}\n\n"
+                            
+                            # Emit phase: verifying
+                            yield f"event: phase\ndata: {json_module.dumps({'phase': 'verifying', 'current_page': page_number, 'total_pages': len(images_hires), 'message': 'מאמת ומתקן טעויות...'})}\n\n"
+                            yield f"event: verified_chunk\ndata: {json_module.dumps({'page': page_number, 'delta': res['verified_text']})}\n\n"
+                            
+                            # Emit page_complete
+                            page_complete_data = {
+                                "page_number": page_number,
+                                "page_index": res["page_idx"],
+                                "text": res["marked_text"],
+                                "detected_questions": res["detected_questions"],
+                                "confidence_scores": res["confidence_scores"],
+                            }
+                            yield f"event: page_complete\ndata: {json_module.dumps(page_complete_data)}\n\n"
+                            
+                            # Emit review_flags if any lines were flagged for review
+                            lines_to_review = res.get("lines_to_review", [])
+                            if lines_to_review:
+                                # Format: {page, lines_to_review: [{line, reason}], reasons: {line_num: reason}}
+                                line_nums = [item.get("line") for item in lines_to_review if "line" in item]
+                                reasons_dict = {str(item.get("line")): item.get("reason", "") for item in lines_to_review if "line" in item}
+                                review_flags_data = {
+                                    "page": page_number,
+                                    "lines_to_review": line_nums,
+                                    "reasons": reasons_dict,
+                                }
+                                yield f"event: review_flags\ndata: {json_module.dumps(review_flags_data)}\n\n"
+                            
+                            # Emit answer events
+                            for ans in res["verified_answers"]:
+                                q_num = res["detected_questions"][0] if res["detected_questions"] else ans.get("question_number", 1)
+                                answer_data = {
+                                    "question_number": q_num,
+                                    "sub_question_id": ans.get("sub_question_id"),
+                                    "answer_text": ans.get("answer_text", ""),
+                                    "confidence": ans.get("confidence", 0.95) if not res.get("had_errors") else 0.0,
+                                    "page_indexes": [res["page_idx"]],
+                                }
+                                all_answers.append(answer_data)
+                                yield f"event: answer\ndata: {json_module.dumps(answer_data)}\n\n"
+                            
+                            # Log if page had errors
+                            if res.get("had_errors"):
+                                logger.warning(f"Page {page_number} emitted with errors - user will see low confidence warning")
+                            
+                            del completed_results[next_to_emit]
+                            next_to_emit += 1
+                            
+                    except Exception as e:
+                        logger.error(f"Unexpected error in task completion: {e}", exc_info=True)
+            
+            else:
+                # ============================================================
+                # SEQUENTIAL PROCESSING (fallback or single page)
+                # ============================================================
+                logger.info(f"Using SEQUENTIAL transcription for {len(images_hires)} pages (parallel={parallel}, feature_flag={settings.parallel_transcription_enabled})")
                 
-                grounding = extract_visual_grounding(raw_parsed)
-                raw_transcription = raw_parsed.get("transcription", {})
-                raw_answers = raw_transcription.get("answers", [])
-                
-                # Phase 2: Verification
-                yield f"event: phase\ndata: {json_module.dumps({'phase': 'verifying', 'current_page': page_number, 'total_pages': len(images_hires), 'message': 'מאמת ומתקן טעויות...'})}\n\n"
-                
-                raw_text_for_verify = "\n".join([a.get("answer_text", "") for a in raw_answers]) if raw_answers else raw_accumulated
-                
-                verify_prompt = VERIFICATION_PROMPT.format(
-                    raw_transcription=raw_text_for_verify,
-                    class_name=grounding.get("class_name", "unknown"),
-                    methods=grounding.get("methods", []),
-                    fields=grounding.get("fields", []),
-                    student_name=student_name or "null",
-                    page_number=page_number,
-                    question_context=question_context,
-                )
-                
-                verified_accumulated = ""
-                try:
-                    if hasattr(provider, 'transcribe_images_stream'):
-                        for chunk in provider.transcribe_images_stream(
-                            images_b64=[page_b64],
-                            system_prompt=VERIFICATION_SYSTEM_PROMPT,
-                            user_prompt=verify_prompt,
-                            max_tokens=4000,
-                            temperature=0.0,
-                        ):
-                            verified_accumulated += chunk
-                            yield f"event: verified_chunk\ndata: {json_module.dumps({'page': page_number, 'delta': chunk})}\n\n"
-                            await asyncio.sleep(0.005)
-                    else:
-                        verified_accumulated = provider.transcribe_images(
-                            images_b64=[page_b64],
-                            system_prompt=VERIFICATION_SYSTEM_PROMPT,
-                            user_prompt=verify_prompt,
-                        )
-                        yield f"event: verified_chunk\ndata: {json_module.dumps({'page': page_number, 'delta': verified_accumulated})}\n\n"
-                except Exception as e:
-                    logger.error(f"Verification error on page {page_number}: {e}")
-                    for raw_ans in raw_answers:
+                for page_idx, (thumb_img, hires_img) in enumerate(zip(images_thumbnail, images_hires)):
+                    page_number = page_idx + 1
+                    
+                    # Phase 1: Raw transcription
+                    yield f"event: phase\ndata: {json_module.dumps({'phase': 'transcribing', 'current_page': page_number, 'total_pages': len(images_hires), 'message': 'קורא תשובות בכתב יד...'})}\n\n"
+                    
+                    page_b64 = image_to_base64(hires_img, max_size=2000)
+                    user_prompt = GROUNDED_TRANSCRIPTION_PROMPT.format(
+                        page_number=page_number,
+                        question_context=question_context,
+                    )
+                    
+                    # Stream raw transcription
+                    raw_accumulated = ""
+                    try:
+                        if hasattr(provider, 'transcribe_images_stream'):
+                            for chunk in provider.transcribe_images_stream(
+                                images_b64=[page_b64],
+                                system_prompt=GROUNDED_SYSTEM_PROMPT,
+                                user_prompt=user_prompt,
+                                max_tokens=4000,
+                                temperature=0.1,
+                            ):
+                                raw_accumulated += chunk
+                                yield f"event: raw_chunk\ndata: {json_module.dumps({'page': page_number, 'delta': chunk})}\n\n"
+                                await asyncio.sleep(0.005)
+                        else:
+                            raw_accumulated = provider.transcribe_images(
+                                images_b64=[page_b64],
+                                system_prompt=GROUNDED_SYSTEM_PROMPT,
+                                user_prompt=user_prompt,
+                            )
+                            yield f"event: raw_chunk\ndata: {json_module.dumps({'page': page_number, 'delta': raw_accumulated})}\n\n"
+                    except Exception as e:
+                        logger.error(f"Raw transcription error on page {page_number}: {e}")
+                        yield f"event: error\ndata: {json_module.dumps({'message': f'Transcription error on page {page_number}: {str(e)}'})}\n\n"
+                        continue
+                    
+                    yield f"event: raw_complete\ndata: {json_module.dumps({'page': page_number, 'full_text': raw_accumulated})}\n\n"
+                    
+                    # Parse raw response
+                    raw_parsed = parse_json_response(raw_accumulated)
+                    if not raw_parsed:
                         answer_data = {
-                            "question_number": raw_ans.get("question_number", 1),
-                            "sub_question_id": raw_ans.get("sub_question_id"),
-                            "answer_text": raw_ans.get("answer_text", ""),
-                            "confidence": raw_ans.get("confidence", 0.8),
+                            "question_number": 1,
+                            "sub_question_id": None,
+                            "answer_text": raw_accumulated,
+                            "confidence": 0.5,
                             "page_indexes": [page_idx],
                         }
                         all_answers.append(answer_data)
                         yield f"event: answer\ndata: {json_module.dumps(answer_data)}\n\n"
-                    continue
-                
-                # Parse verified response
-                verified_parsed = parse_json_response(verified_accumulated)
-                verified_answers = []
-                verified_text_for_boundary = ""
-                
-                if verified_parsed:
-                    verified_transcription = verified_parsed.get("transcription", {})
-                    verified_answers = verified_transcription.get("answers", [])
-                    verified_text_for_boundary = "\n".join([a.get("answer_text", "") for a in verified_answers])
-                else:
-                    # Fallback to raw answers if verification parse fails
-                    verified_answers = raw_answers
-                    verified_text_for_boundary = "\n".join([a.get("answer_text", "") for a in raw_answers]) if raw_answers else raw_accumulated
-                
-                # Phase 3: Question Boundary Detection
-                # Import detector here to avoid circular imports
-                from ...services.question_boundary_detector import QuestionBoundaryDetector
-                
-                questions_to_transcribe = target_q_nums if target_q_nums else all_q_nums
-                detector = QuestionBoundaryDetector(provider)
-                
-                # Build sub-questions dict from rubric
-                sub_questions_dict = {}
-                for rq in rubric_questions:
-                    if rq.sub_questions:
-                        sub_questions_dict[str(rq.question_number)] = rq.sub_questions
-                
-                try:
-                    boundary_result = await detector.detect_boundaries(
-                        page_image_b64=page_b64,
-                        raw_text=raw_text_for_verify,
-                        verified_text=verified_text_for_boundary,
-                        answered_questions=questions_to_transcribe,
-                        sub_questions=sub_questions_dict,
+                        continue
+                    
+                    grounding = extract_visual_grounding(raw_parsed)
+                    raw_transcription = raw_parsed.get("transcription", {})
+                    raw_answers = raw_transcription.get("answers", [])
+                    
+                    # Phase 2: Verification
+                    yield f"event: phase\ndata: {json_module.dumps({'phase': 'verifying', 'current_page': page_number, 'total_pages': len(images_hires), 'message': 'מאמת ומתקן טעויות...'})}\n\n"
+                    
+                    raw_text_for_verify = "\n".join([a.get("answer_text", "") for a in raw_answers]) if raw_answers else raw_accumulated
+                    
+                    verify_prompt = VERIFICATION_PROMPT.format(
+                        raw_transcription=raw_text_for_verify,
+                        class_name=grounding.get("class_name", "unknown"),
+                        methods=grounding.get("methods", []),
+                        fields=grounding.get("fields", []),
+                        student_name=student_name or "null",
                         page_number=page_number,
+                        question_context=question_context,
                     )
                     
-                    marked_text = boundary_result.marked_text
-                    detected_questions = boundary_result.detected_questions
-                    confidence_scores = boundary_result.confidence_scores
+                    verified_accumulated = ""
+                    try:
+                        if hasattr(provider, 'transcribe_images_stream'):
+                            for chunk in provider.transcribe_images_stream(
+                                images_b64=[page_b64],
+                                system_prompt=VERIFICATION_SYSTEM_PROMPT,
+                                user_prompt=verify_prompt,
+                                max_tokens=4000,
+                                temperature=0.0,
+                            ):
+                                verified_accumulated += chunk
+                                yield f"event: verified_chunk\ndata: {json_module.dumps({'page': page_number, 'delta': chunk})}\n\n"
+                                await asyncio.sleep(0.005)
+                        else:
+                            verified_accumulated = provider.transcribe_images(
+                                images_b64=[page_b64],
+                                system_prompt=VERIFICATION_SYSTEM_PROMPT,
+                                user_prompt=verify_prompt,
+                            )
+                            yield f"event: verified_chunk\ndata: {json_module.dumps({'page': page_number, 'delta': verified_accumulated})}\n\n"
+                    except Exception as e:
+                        logger.error(f"Verification error on page {page_number}: {e}")
+                        for raw_ans in raw_answers:
+                            answer_data = {
+                                "question_number": raw_ans.get("question_number", 1),
+                                "sub_question_id": raw_ans.get("sub_question_id"),
+                                "answer_text": raw_ans.get("answer_text", ""),
+                                "confidence": raw_ans.get("confidence", 0.8),
+                                "page_indexes": [page_idx],
+                            }
+                            all_answers.append(answer_data)
+                            yield f"event: answer\ndata: {json_module.dumps(answer_data)}\n\n"
+                        continue
                     
-                except Exception as e:
-                    logger.warning(f"Boundary detection failed on page {page_number}: {e}")
-                    # Fallback: use first answered question
-                    first_q = questions_to_transcribe[0] if questions_to_transcribe else 1
-                    marked_text = f"<Q{first_q}>{verified_text_for_boundary}"
-                    detected_questions = [first_q]
-                    confidence_scores = {first_q: 0.7}
-                
-                # Emit page_complete event with marked text
-                page_complete_data = {
-                    "page_number": page_number,
-                    "page_index": page_idx,
-                    "text": marked_text,
-                    "detected_questions": detected_questions,
-                    "confidence_scores": confidence_scores,
-                }
-                yield f"event: page_complete\ndata: {json_module.dumps(page_complete_data)}\n\n"
-                
-                # Also emit individual answer events for backwards compatibility
-                for ans in verified_answers:
-                    # Determine question number from boundary detection or answer
-                    q_num = detected_questions[0] if detected_questions else ans.get("question_number", 1)
-                    answer_data = {
-                        "question_number": q_num,
-                        "sub_question_id": ans.get("sub_question_id"),
-                        "answer_text": ans.get("answer_text", ""),
-                        "confidence": ans.get("confidence", 0.95),
-                        "page_indexes": [page_idx],
+                    # Parse verified response
+                    verified_parsed = parse_json_response(verified_accumulated)
+                    verified_answers = []
+                    verified_text_for_boundary = ""
+                    
+                    if verified_parsed:
+                        verified_transcription = verified_parsed.get("transcription", {})
+                        verified_answers = verified_transcription.get("answers", [])
+                        verified_text_for_boundary = "\n".join([a.get("answer_text", "") for a in verified_answers])
+                    else:
+                        # Fallback to raw answers if verification parse fails
+                        verified_answers = raw_answers
+                        verified_text_for_boundary = "\n".join([a.get("answer_text", "") for a in raw_answers]) if raw_answers else raw_accumulated
+                    
+                    # Phase 3: Question Boundary Detection
+                    from ...services.question_boundary_detector import QuestionBoundaryDetector
+                    
+                    questions_to_transcribe = target_q_nums if target_q_nums else all_q_nums
+                    detector = QuestionBoundaryDetector(provider)
+                    
+                    # Build sub-questions dict from rubric
+                    sub_questions_dict = {}
+                    for rq in rubric_questions:
+                        if rq.sub_questions:
+                            sub_questions_dict[str(rq.question_number)] = rq.sub_questions
+                    
+                    try:
+                        boundary_result = await detector.detect_boundaries(
+                            page_image_b64=page_b64,
+                            raw_text=raw_text_for_verify,
+                            verified_text=verified_text_for_boundary,
+                            answered_questions=questions_to_transcribe,
+                            sub_questions=sub_questions_dict,
+                            page_number=page_number,
+                        )
+                        
+                        marked_text = boundary_result.marked_text
+                        detected_questions = boundary_result.detected_questions
+                        confidence_scores = boundary_result.confidence_scores
+                        
+                    except Exception as e:
+                        logger.warning(f"Boundary detection failed on page {page_number}: {e}")
+                        # Fallback: use first answered question
+                        first_q = questions_to_transcribe[0] if questions_to_transcribe else 1
+                        marked_text = f"<Q{first_q}>{verified_text_for_boundary}"
+                        detected_questions = [first_q]
+                        confidence_scores = {first_q: 0.7}
+                    
+                    # Emit page_complete event with marked text
+                    page_complete_data = {
+                        "page_number": page_number,
+                        "page_index": page_idx,
+                        "text": marked_text,
+                        "detected_questions": detected_questions,
+                        "confidence_scores": confidence_scores,
                     }
-                    all_answers.append(answer_data)
-                    yield f"event: answer\ndata: {json_module.dumps(answer_data)}\n\n"
+                    yield f"event: page_complete\ndata: {json_module.dumps(page_complete_data)}\n\n"
+                    
+                    # Also emit individual answer events for backwards compatibility
+                    for ans in verified_answers:
+                        # Determine question number from boundary detection or answer
+                        q_num = detected_questions[0] if detected_questions else ans.get("question_number", 1)
+                        answer_data = {
+                            "question_number": q_num,
+                            "sub_question_id": ans.get("sub_question_id"),
+                            "answer_text": ans.get("answer_text", ""),
+                            "confidence": ans.get("confidence", 0.95),
+                            "page_indexes": [page_idx],
+                        }
+                        all_answers.append(answer_data)
+                        yield f"event: answer\ndata: {json_module.dumps(answer_data)}\n\n"
             
-            # 4. Done
+            # 4. Done - with observability metrics
+            total_time = time.time() - start_time
+            sequential_estimate = len(images_hires) * 18  # ~18s per page sequential estimate
+            speedup = sequential_estimate / total_time if total_time > 0 else 1.0
+            
+            logger.info(f"Transcription complete: {total_time:.1f}s for {len(images_hires)} pages (estimated sequential: {sequential_estimate}s, speedup: {speedup:.1f}x, mode={'parallel' if use_parallel else 'sequential'})")
+            
             yield f"event: phase\ndata: {json_module.dumps({'phase': 'done', 'current_page': len(images_hires), 'total_pages': len(images_hires), 'message': 'התמלול הושלם!'})}\n\n"
-            yield f"event: done\ndata: {json_module.dumps({'total_answers': len(all_answers)})}\n\n"
+            yield f"event: done\ndata: {json_module.dumps({'total_answers': len(all_answers), 'processing_time_seconds': round(total_time, 2), 'speedup_factor': round(speedup, 2)})}\n\n"
             
         except Exception as e:
             logger.error(f"Stream generator error: {e}", exc_info=True)

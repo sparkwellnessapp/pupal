@@ -157,6 +157,20 @@ export default function MyRubricsPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [isLoadingRubric, setIsLoadingRubric] = useState(false);
 
+    // Check for share success in URL
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const sharedId = params.get('shared');
+            if (sharedId) {
+                // Show success toast
+                alert('✓ המחוון נוסף למחוונים שלך בהצלחה! 🎉');
+                // Remove the param from URL without reload
+                window.history.replaceState({}, '', '/my-rubrics');
+            }
+        }
+    }, []);
+
     useEffect(() => {
         const fetchRubrics = async () => {
             try {

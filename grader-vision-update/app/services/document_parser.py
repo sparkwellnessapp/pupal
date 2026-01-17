@@ -55,6 +55,43 @@ def pdf_to_images(pdf_bytes: bytes, dpi: int = 150) -> List[Image.Image]:
         raise
 
 
+async def convert_pdf_parallel(pdf_bytes: bytes, thumbnail_dpi: int = 150, hires_dpi: int = 200) -> tuple:
+    """
+    Convert PDF to thumbnail and hires images in parallel using ThreadPoolExecutor.
+    
+    This is faster than sequential conversion because the two DPI conversions 
+    are completely independent. We use ThreadPoolExecutor because:
+    - pdf2image calls Poppler which is mainly I/O (subprocess)
+    - ProcessPoolExecutor has pickle issues with closures
+    
+    Args:
+        pdf_bytes: PDF file as bytes
+        thumbnail_dpi: DPI for thumbnail images (default 150)
+        hires_dpi: DPI for high-resolution images (default 200)
+        
+    Returns:
+        Tuple of (thumbnail_images, hires_images) - both lists of PIL Images
+    """
+    import asyncio
+    import concurrent.futures
+    
+    def _do_convert(dpi: int) -> List[Image.Image]:
+        """Convert PDF at specific DPI - runs in thread pool."""
+        return convert_from_bytes(pdf_bytes, dpi=dpi, fmt='PNG')
+    
+    loop = asyncio.get_running_loop()
+    
+    # Use ThreadPoolExecutor - pdf2image is mainly I/O (subprocess to Poppler)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        thumb_future = loop.run_in_executor(executor, _do_convert, thumbnail_dpi)
+        hires_future = loop.run_in_executor(executor, _do_convert, hires_dpi)
+        
+        images_thumbnail, images_hires = await asyncio.gather(thumb_future, hires_future)
+    
+    logger.info(f"Parallel PDF conversion complete: {len(images_thumbnail)} pages at {thumbnail_dpi}/{hires_dpi} DPI")
+    return images_thumbnail, images_hires
+
+
 def image_to_base64(image: Image.Image, max_size: int = 1500) -> str:
     """
     Convert PIL Image to base64 string, resizing if needed.

@@ -160,6 +160,8 @@ export function useStreamingTranscription(
                     dispatch({ type: 'VERIFIED_CHUNK', payload: { pageNumber, delta } }),
                 onPageComplete: (pageNumber, pageIndex, markedText, detectedQuestions, confidenceScores) =>
                     dispatch({ type: 'PAGE_COMPLETE', payload: { pageNumber, pageIndex, markedText, detectedQuestions, confidenceScores } }),
+                onReviewFlags: (pageNumber, flags) =>
+                    dispatch({ type: 'REVIEW_FLAGS', payload: { pageNumber, flags } }),
                 onAnswer: (answer) => dispatch({ type: 'ANSWER', payload: answer }),
                 onDone: (totalAnswers) => {
                     dispatch({ type: 'DONE', payload: { totalAnswers } });

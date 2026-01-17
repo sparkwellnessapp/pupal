@@ -168,3 +168,50 @@ gen-lang-client-*.json
 !next.config.json
 
 transcription_rnd/
+
+# =============================================================================
+# Project-specific ignores
+# =============================================================================
+
+# Debug directories (local development only)
+debug_handwritten_pages/
+debug_vlm_responses/
+
+# Deprecated/archived code
+deprecated/
+
+# Test scripts (not needed for deployment)
+debug_single_page.py
+local_test_vision.py
+test_enhanced_rubric_extraction.py
+test_enhanced_verification.py
+test_pdf_gen.py
+
+# Test/sample PDF files (large binary files)
+*.pdf
+!migrations/*.pdf
+
+# Manual test transcripts
+manual_test_transcript.txt
+app/tests_manual_transcription.txt
+
+# Local documentation (not needed for deployment)
+handwritten_transcription.md
+STRUCTURE.md
+shortcuts.md
+documentation.md
+
+# Temp/cache directories
+temp/
+logs/
+.cache/
+
+# IDE/Editor specific
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db

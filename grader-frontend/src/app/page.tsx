@@ -333,11 +333,8 @@ export default function Home() {
     const question = newMappings[activeRubricAssignment.questionIndex];
     if (!question) return;
 
-    if (activeRubricAssignment.type === 'question') {
-      const idx = question.question_page_indexes.indexOf(pageIndex);
-      if (idx >= 0) question.question_page_indexes.splice(idx, 1);
-      else { question.question_page_indexes.push(pageIndex); question.question_page_indexes.sort((a, b) => a - b); }
-    } else if (activeRubricAssignment.type === 'criteria') {
+    // Note: 'question' type is deprecated - question text is now auto-extracted
+    if (activeRubricAssignment.type === 'criteria') {
       const idx = question.criteria_page_indexes.indexOf(pageIndex);
       if (idx >= 0) question.criteria_page_indexes.splice(idx, 1);
       else { question.criteria_page_indexes.push(pageIndex); question.criteria_page_indexes.sort((a, b) => a - b); }
@@ -355,7 +352,8 @@ export default function Home() {
   const getRubricPageSelections = useCallback(() => {
     const selections = new Map<number, { label: string; color: string }>();
     rubricMappings.forEach((q) => {
-      q.question_page_indexes.forEach((pageIdx) => {
+      // question_page_indexes is now optional - skip if not present
+      (q.question_page_indexes || []).forEach((pageIdx) => {
         const existing = selections.get(pageIdx);
         const label = `ש${q.question_number}`;
         selections.set(pageIdx, { label: existing ? `${existing.label}, ${label}` : label, color: 'bg-primary-500' });
@@ -377,10 +375,10 @@ export default function Home() {
   }, [rubricMappings]);
 
   const canExtractRubric = rubricMappings.length > 0 && rubricMappings.every((m) => {
-    const hasQuestionPages = m.question_page_indexes.length > 0;
+    // Question text is now auto-extracted from PDF - only need rubric page mapping
     const hasCriteria = m.criteria_page_indexes.length > 0 || m.sub_questions.length > 0;
     const subQuestionsValid = m.sub_questions.every((sq) => sq.criteria_page_indexes.length > 0);
-    return hasQuestionPages && hasCriteria && subQuestionsValid;
+    return hasCriteria && subQuestionsValid;
   });
 
   const handleExtractRubric = async () => {
