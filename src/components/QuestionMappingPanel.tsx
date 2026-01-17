@@ -140,11 +140,9 @@ export function QuestionMappingPanel({
                   )}
                   <span className="font-medium">שאלה {mapping.question_number}</span>
                   <span className="text-xs text-gray-500">
-                    ({mapping.question_page_indexes.length} עמודי שאלה,{' '}
-                    {mapping.sub_questions.length > 0
+                    ({mapping.sub_questions.length > 0
                       ? `${mapping.sub_questions.length} סעיפים`
-                      : `${mapping.criteria_page_indexes.length} עמודי מחוון`}
-                    )
+                      : `${mapping.criteria_page_indexes.length} עמודי מחוון`})
                   </span>
                 </div>
                 <button
@@ -158,30 +156,11 @@ export function QuestionMappingPanel({
                 </button>
               </div>
 
+
               {/* Question content */}
               {expandedQuestions.has(qIndex) && (
                 <div className="p-3 space-y-3 border-t border-surface-200">
-                  {/* Question pages assignment */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() =>
-                        onSetActiveAssignment(
-                          isAssignmentActive(qIndex, 'question')
-                            ? null
-                            : { questionIndex: qIndex, type: 'question' }
-                        )
-                      }
-                      className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg transition-colors ${getButtonStyle(qIndex, 'question')}`}
-                    >
-                      <FileText size={14} />
-                      עמודי שאלה
-                    </button>
-                    <span className="text-xs text-gray-500">
-                      {mapping.question_page_indexes.length > 0
-                        ? `עמודים: ${mapping.question_page_indexes.map((p) => p + 1).join(', ')}`
-                        : 'לא נבחרו עמודים'}
-                    </span>
-                  </div>
+                  {/* Question text is now auto-extracted from PDF - no page mapping needed */}
 
                   {/* Sub-questions or direct criteria */}
                   {mapping.sub_questions.length === 0 ? (

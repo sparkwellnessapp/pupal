@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { RubricListItem, listRubrics } from '@/lib/api';
-import { FileText, Calendar, Loader2, RefreshCw } from 'lucide-react';
+import { FileText, Calendar, Loader2, RefreshCw, Plus } from 'lucide-react';
 
 interface RubricSelectorProps {
   onSelect: (rubric: RubricListItem) => void;
@@ -76,13 +77,22 @@ export function RubricSelector({ onSelect }: RubricSelectorProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-700">בחרי מחוון</h3>
-        <button
-          onClick={loadRubrics}
-          className="text-gray-400 hover:text-primary-500 transition-colors"
-          title="רענן רשימה"
-        >
-          <RefreshCw size={16} />
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/rubric-generator"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors"
+          >
+            <Plus size={16} />
+            יצירת מחוון חדש
+          </Link>
+          <button
+            onClick={loadRubrics}
+            className="text-gray-400 hover:text-primary-500 transition-colors"
+            title="רענן רשימה"
+          >
+            <RefreshCw size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-1">

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/lib/auth'
+import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
   title: 'Pupal - מערכת בדיקת מבחנים',
@@ -18,6 +19,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
         </AuthProvider>
+        <Toaster position="top-center" richColors dir="rtl" />
       </body>
     </html>
   )
