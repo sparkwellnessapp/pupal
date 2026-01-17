@@ -18,13 +18,13 @@ class Settings(BaseSettings):
     google_cloud_project: str
     pubsub_topic_name: str = "gmail-test-grader"
     
-    # Gmail settings
+    # Gmail settings (optional - only for legacy email-based grading)
     gmail_credentials_file: str = "config/gmail_credentials.json"
     gmail_token_file: str = "config/token.json"
-    teacher_email: str
+    teacher_email: Optional[str] = None  # Only needed for email-based grading
     
     # Application settings
-    app_env: str = "development"
+    app_env: str = "production"
     api_host: str = "0.0.0.0"
     api_port: int = 8080
     log_level: str = "INFO"

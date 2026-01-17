@@ -216,14 +216,17 @@ class EnhancedCriterion(BaseModel):
     """Criterion with structured reduction rules for better grading."""
     criterion_description: str = Field(..., min_length=1, description="Clean description of what's evaluated")
     total_points: float = Field(..., gt=0, description="Maximum points for this criterion")
-    reduction_rules: List[ReductionRule] = Field(..., min_length=1, description="List of deduction rules")
+    reduction_rules: List[ReductionRule] = Field(default_factory=list, description="List of deduction rules (optional for teacher-added criteria)")
     notes: Optional[str] = Field(None, description="Additional grading notes")
     raw_text: Optional[str] = Field(None, description="Original unprocessed text")
     extraction_confidence: Literal["high", "medium", "low"] = Field("high")
     
     @model_validator(mode='after')
     def validate_reduction_rules_sum(self) -> 'EnhancedCriterion':
-        """Ensure reduction rules sum to total_points."""
+        """Ensure reduction rules sum to total_points (only when rules are provided)."""
+        # Skip validation if no reduction rules - allows teacher-added criteria without rules
+        if not self.reduction_rules:
+            return self
         rules_sum = sum(rule.reduction_value for rule in self.reduction_rules)
         if abs(rules_sum - self.total_points) > 0.01:
             raise ValueError(
