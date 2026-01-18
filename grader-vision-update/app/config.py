@@ -24,14 +24,14 @@ class Settings(BaseSettings):
     teacher_email: Optional[str] = None  # Only needed for email-based grading
     
     # Application settings
-    app_env: str = "development"
+    app_env: str = "production"
     api_host: str = "0.0.0.0"
     api_port: int = 8080
     log_level: str = "INFO"
     
     # CORS settings (comma-separated list of allowed origins)
-    # In production, set this to your frontend URL(s)
-    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3000/my-rubrics,http://localhost:3000/my-graded-tests"
+    # IMPORTANT: CORS origins must be scheme://host:port only - NO paths!
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://vivi-assistant.com"
     
     # Grading settings
     confidence_threshold: float = 0.7
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     gcs_credentials_file: Optional[str] = None  # Uses default credentials if not set
     
     # Rubric Generator settings
-    frontend_base_url: str = "http://localhost:3000"  # Production: https://vivi.app
+    frontend_base_url: str = "https://vivi-assistant.com"  # Production domain
     rubric_generation_model: str = "gpt-4o"
     rubric_llm_timeout_seconds: int = 60
     

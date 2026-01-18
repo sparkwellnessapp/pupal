@@ -2,7 +2,9 @@
     {
         "origin": [
             "http://localhost:3000",
-            "https://pupal.vercel.app"
+            "https://pupal.vercel.app",
+            "https://vivi-assistant.com",
+            "https://www.vivi-assistant.com"
         ],
         "method": [
             "GET",

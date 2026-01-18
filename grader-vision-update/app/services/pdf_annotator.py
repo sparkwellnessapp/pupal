@@ -479,7 +479,7 @@ def generate_email_body(
     lines = []
     lines.append("שלום!")
     lines.append("")
-    lines.append(f"הדירוג הושלם עבור {len(graded_results)} מבחן/ים.")
+    lines.append(f"הבדיקה הושלמה עבור {len(graded_results)} מבחן/ים.")
     lines.append("")
     
     # Detailed grading for each student
@@ -540,7 +540,7 @@ def generate_email_body(
     lines.append("קבצי PDF מדורגים מצורפים.")
     lines.append("")
     lines.append("בברכה,")
-    lines.append("מערכת הדירוג האוטומטית")
+    lines.append("מערכת הבדיקה האוטומטית")
     
     return "\n".join(lines)
 

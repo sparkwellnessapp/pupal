@@ -587,7 +587,7 @@ function ConfirmationModal({
                         <CheckCircle2 className="text-primary-600" size={24} />
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        להמשיך לדירוג?
+                        להמשיך לניקוד?
                     </h3>
 
                     {(hasUncertainAnswers || lowConfidenceCount > 0) ? (
@@ -606,7 +606,7 @@ function ConfirmationModal({
                         </div>
                     ) : (
                         <p className="text-gray-600 mb-4">
-                            וידאת שהתמלול נכון ומוכן לדירוג?
+                            וידאת שהתמלול נכון ומוכן לבדיקה?
                         </p>
                     )}
 
@@ -621,7 +621,7 @@ function ConfirmationModal({
                             onClick={onConfirm}
                             className="px-4 py-2 text-white bg-primary-500 rounded-lg hover:bg-primary-600 transition-colors"
                         >
-                            המשך לדירוג
+                            המשך לבדיקה
                         </button>
                     </div>
                 </div>
@@ -960,7 +960,7 @@ export default function TranscriptionReviewPage({
                                     </>
                                 ) : (
                                     <>
-                                        אישור והמשך לדירוג
+                                        אישור והמשך לבדיקה
                                         <ChevronLeft size={18} />
                                     </>
                                 )}

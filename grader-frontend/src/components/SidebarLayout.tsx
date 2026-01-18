@@ -178,7 +178,7 @@ export function SidebarLayout({ children }: SidebarProps) {
     return (
         <div className="min-h-screen bg-[#FFFaf2]">
             {/* Mobile Header */}
-            <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#fcfbf5] border-b border-surface-200 z-40 flex items-center justify-between px-4">
+            <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#fcfbf5]/80 backdrop-blur-sm border-b border-surface-200/50 z-40 flex items-center justify-between px-4">
                 <button
                     onClick={() => setIsMobileOpen(!isMobileOpen)}
                     className="p-2 text-gray-600 hover:text-primary-600 transition-colors"
@@ -202,14 +202,14 @@ export function SidebarLayout({ children }: SidebarProps) {
             {/* Sidebar */}
             <aside
                 className={`
-          fixed top-0 right-0 h-full bg-[#fcfbf5] border-l border-surface-200 z-50
+          fixed top-0 right-0 h-full bg-[#fcfbf5]/90 backdrop-blur-md border-l border-surface-200/50 z-50
           transition-all duration-300 ease-in-out
           ${isCollapsed ? 'w-20' : 'w-64'}
           ${isMobileOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
         `}
             >
                 {/* Sidebar Header */}
-                <div className="h-16 flex items-center justify-start px-4 border-b border-surface-200">
+                <div className="h-16 flex items-center justify-start px-4 border-b border-surface-200/50">
                     <button
                         onClick={() => setIsCollapsed(!isCollapsed)}
                         className="p-2 text-gray-500 hover:text-gray-700 hover:bg-surface-100 rounded-lg transition-colors"
@@ -248,7 +248,7 @@ export function SidebarLayout({ children }: SidebarProps) {
                 </nav>
 
                 {/* Sidebar Footer */}
-                <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-surface-200">
+                <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-surface-200/50">
                     {!isCollapsed ? (
                         <div className="flex items-center gap-3 px-3 py-2">
                             <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
@@ -276,22 +276,39 @@ export function SidebarLayout({ children }: SidebarProps) {
             {/* Main Content */}
             <div
                 className={`
-          transition-all duration-300
+          transition-all duration-300 relative overflow-hidden
           ${isCollapsed ? 'lg:mr-20' : 'lg:mr-64'}
           pt-16 lg:pt-0
         `}
             >
+                {/* Decorative background elements */}
+                <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+                    {/* Gradient orbs */}
+                    <div className="absolute top-[-15%] left-[-5%] w-[500px] h-[500px] rounded-full bg-gradient-to-br from-primary-200/30 via-primary-300/15 to-transparent blur-3xl" />
+                    <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[#aa77f7]/15 via-[#aa77f7]/8 to-transparent blur-3xl" />
+                    <div className="absolute top-[50%] right-[20%] w-[250px] h-[250px] rounded-full bg-gradient-to-br from-amber-200/20 to-transparent blur-2xl" />
+
+                    {/* Subtle grid pattern */}
+                    <div
+                        className="absolute inset-0 opacity-[0.015]"
+                        style={{
+                            backgroundImage: `linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)`,
+                            backgroundSize: '50px 50px'
+                        }}
+                    />
+                </div>
+
                 {/* Desktop Header */}
-                <header className="hidden lg:flex h-16 bg-[#fcfbf5] border-b border-surface-200 items-center justify-between px-6 sticky top-0 z-30">
+                <header className="hidden lg:flex h-16 bg-[#fcfbf5]/80 backdrop-blur-sm border-b border-surface-200/50 items-center justify-between px-6 sticky top-0 z-30">
                     <ProfileDropdown />
                     <div className="absolute left-1/2 transform -translate-x-1/2">
-                        <img src="/vivi-logo-no-background-no-slogan.png" alt="Vivi" className="h-12 w-auto" />
+                        <img src="/vivi-logo-no-background-no-slogan.png" alt="Vivi" className="h-14 w-auto" />
                     </div>
                     <div></div>
                 </header>
 
                 {/* Page Content */}
-                <main className="p-6">
+                <main className="p-6 relative z-10">
                     {children}
                 </main>
             </div>

@@ -144,7 +144,7 @@ class GradingOrchestrator:
         logger.info("STEP 4: Sending email...")
         logger.info("-" * 40)
         
-        subject = f"דירוג הושלם - {len(graded_results)} מבחנים"
+        subject = f"בדיקה הושלמה - {len(graded_results)} מבחנים"
         
         message_id = self.gmail.send_email(
             to=teacher_email,
