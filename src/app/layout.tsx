@@ -4,8 +4,8 @@ import { AuthProvider } from '@/lib/auth'
 import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
-  title: 'Pupal - מערכת בדיקת מבחנים',
-  description: 'מערכת AI לבדיקת מבחנים בתכנות',
+  title: 'Vivi - עוזר המורה',
+  description: 'פלטפורמת AI לבדיקת מבחנים, יצירת מחוונים, ניהול תלמידים ועוד.',
 }
 
 export default function RootLayout({
