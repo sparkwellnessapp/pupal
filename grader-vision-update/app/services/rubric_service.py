@@ -44,6 +44,7 @@ from ..schemas.grading import (
     ReductionRule,
     ExtractRubricResponse,
     SaveRubricRequest,
+    EXAMPLE_SOLUTION_CONFIG,
 )
 from .document_parser import pdf_to_images, image_to_base64, call_vision_llm, get_openai_client
 from .vlm_rubric_extractor import QUESTION_EXTRACTION_SYSTEM_PROMPT
@@ -338,12 +339,133 @@ async def _extract_tables_vlm_fallback(
 
 
 # =============================================================================
+# Stage 1c: Example Solution Extraction
+# =============================================================================
+
+# Injection patterns to filter from extracted code (keeps pedagogical comments)
+INJECTION_PATTERNS = [
+    r'ignore\s+(all\s+)?(previous|above|prior)',
+    r'disregard\s+(all\s+)?instructions',
+    r'system\s*:',
+    r'<\s*/?system\s*>',
+    r'\[\s*INST\s*\]',
+    r'<\s*/?instructions?\s*>',
+]
+
+EXAMPLE_SOLUTION_EXTRACTION_PROMPT = """אתה מומחה בחילוץ פתרונות לדוגמה ממבחני בגרות.
+
+=== משימה ===
+חפש בתמונות קוד תחת כותרות כמו:
+- "פתרון לדוגמה"
+- "פתרון המורה"
+- "פתרון מוצע"
+- "דוגמת פתרון"
+- "Example Solution"
+
+=== הוראות ===
+1. אם מצאת קוד פתרון, העתק אותו בדיוק כפי שהוא
+2. כלול הערות השייכות לקוד (יכולות להכיל רמזים לבדיקה)
+3. אם יש יותר מפתרון אחד, החזר את כולם
+4. אם אין פתרון לדוגמה כלל, החזר רשימה ריקה
+
+=== פורמט פלט (JSON בלבד) ===
+{
+  "example_solutions": [
+    "// פתרון ראשון\\nint foo(int x) { ... }",
+    "// פתרון חלופי\\nint foo(int x) { ... }"
+  ]
+}"""
+
+
+def _truncate_to_tokens(text: str, max_tokens: int) -> str:
+    """Truncate text to approximate token count (rough estimate: 4 chars = 1 token)."""
+    max_chars = max_tokens * 4
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars] + "\n// ... [truncated]"
+
+
+def sanitize_example_solution(code: str) -> str:
+    """
+    Sanitize extracted code to prevent prompt injection.
+    
+    Strategy: Filter injection patterns but keep pedagogical comments intact.
+    Teachers often include grading hints in comments like:
+        // חייב להיות int ולא double
+    """
+    if not code:
+        return code
+    
+    max_tokens = EXAMPLE_SOLUTION_CONFIG["max_tokens"]
+    
+    # Filter known injection patterns
+    for pattern in INJECTION_PATTERNS:
+        code = re.sub(pattern, '[FILTERED]', code, flags=re.IGNORECASE)
+    
+    # Truncate to max tokens
+    return _truncate_to_tokens(code, max_tokens)
+
+
+@traceable(name="extract_example_solutions_from_pages", run_type="llm")
+async def extract_example_solutions_from_pages(
+    images_b64: List[str],
+    context: str
+) -> List[str]:
+    """
+    Extract example solutions from PDF pages using VLM.
+    
+    Looks for solution sections with titles like "פתרון לדוגמה", "פתרון המורה".
+    Returns list of sanitized solutions (may be empty if none found).
+    """
+    if not images_b64:
+        return []
+    
+    try:
+        client = get_openai_client()
+        
+        content = [
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img}", "detail": "high"}} 
+            for img in images_b64
+        ]
+        content.append({"type": "text", "text": f"חפש פתרון לדוגמה עבור {context}."})
+        
+        response = await asyncio.to_thread(
+            client.chat.completions.create,
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": EXAMPLE_SOLUTION_EXTRACTION_PROMPT},
+                {"role": "user", "content": content}
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=4000,
+            temperature=0.0
+        )
+        
+        data = json.loads(response.choices[0].message.content)
+        raw_solutions = data.get("example_solutions", [])
+        
+        # Sanitize each solution
+        sanitized = [sanitize_example_solution(s) for s in raw_solutions if s and len(s.strip()) > 10]
+        
+        if sanitized:
+            logger.info(f"[{context}] Extracted {len(sanitized)} example solution(s)")
+        else:
+            logger.debug(f"[{context}] No example solutions found")
+        
+        return sanitized
+        
+    except Exception as e:
+        logger.warning(f"[{context}] Example solution extraction failed: {e}")
+        return []
+
+
+# =============================================================================
 # Stage 2: LLM Criterion Enhancement
 # =============================================================================
 
 CRITERION_ENHANCEMENT_PROMPT = """<role>
 אתה פרופסור ומומחה עולמי להוראת מדעי המחשב, עם 25 שנות ניסיון ביצירת מחוונים, הערכת מבחני בגרות, והכשרת מורים.
-אתה מבין לעומק את סוגי השגיאות הנפוצות של תלמידי תיכון בתכנות.
+אתה מבין לעומק את סוגי השגיאות הנפוצות של תלמידי תיכון בתכנות. 
 </role>
 
 <task>
@@ -395,6 +517,8 @@ CRITERION_ENHANCEMENT_PROMPT = """<role>
 | קלט/פלט | print, Scanner | פורמט שגוי, nextLine vs nextInt, הודעה למשתמש |
 | ערכים | return, משתנים | return שגוי, אתחול חסר, סוג משתנה שגוי |
 </error_taxonomy>
+
+{example_solution_section}
 
 <thinking_process>
 לפני שתענה, עבור על שלבי החשיבה הבאים (פנימית, לא להציג בפלט):
@@ -509,6 +633,49 @@ total_points: 4
 </final_checklist>"""
 
 
+# Template for example solution context (inserted when example solution available)
+EXAMPLE_SOLUTION_SECTION_TEMPLATE = """<example_solution_context>
+<example_code type="reference_only">
+{example_solution}
+</example_code>
+
+<grading_instructions>
+DO - כללים נכונים:
+- השתמש בפתרון להבנת הדרישות הלוגיות (מה הקוד חייב לעשות)
+- חלץ קונספטים שחייבים להופיע (למשל: "שימוש בלולאה", "בדיקת קלט")
+- אפשר כל מימוש שונה סינטקטית אך משיג את אותה תוצאה
+
+DO NOT - טעויות להימנע:
+- אל תוריד על שמות משתנים שונים, רווחים, או סגנון קוד
+- אל תדרוש את האלגוריתם המדויק (for-loop ו-while-loop שקולים)
+- אל תוריד על תוספות מעבר לדרישות
+- אל תיצור כללים שתואמים תבניות טקסט מהפתרון הספציפי הזה
+</grading_instructions>
+
+<few_shot_example>
+שאלה: "כתוב פונקציה שמחשבת עצרת"
+פתרון לדוגמה:
+int factorial(int n) {
+    int result = 1;
+    for(int i = 1; i <= n; i++) {
+        result *= i;
+    }
+    return result;
+}
+
+כללים טובים ✓:
+- "הפונקציה לא מחזירה int" (בודק קונספט, לא קוד ספציפי)
+- "חסרה לולאה או רקורסיה לחישוב" (מאפשר חלופות)
+- "ערך התחלתי של המכפלה שגוי" (ספציפי אך גמיש)
+
+כללים גרועים ✗:
+- "לא השתמש במשתנה result" (ספציפי מדי לדוגמה)
+- "השתמש ב-while במקום for" (מעניש גישה תקינה חלופית)
+- "שם הפונקציה לא factorial" (אלא אם צוין בשאלה)
+</few_shot_example>
+</example_solution_context>"""
+
+
 def _extract_json_from_response(content: str) -> Optional[Dict]:
     """
     Extract JSON from LLM response that may contain markdown or reasoning text.
@@ -557,7 +724,7 @@ def _create_fallback_criterion(criterion_text: str, total_points: float) -> Dict
             "reduction_value": total_points,
             "is_explicit": True
         }],
-        "notes": "הוזן ללא פירוק לכללים - יש לערוך ידנית",
+        "notes": "הוזן ללא פירוק לכללי הורדת ניקוד, יש להוסיף ידנית במידת הצורך",
         "raw_text": criterion_text,
         "extraction_confidence": "low"
     }
@@ -567,7 +734,8 @@ def _create_fallback_criterion(criterion_text: str, total_points: float) -> Dict
 async def enhance_criterion_with_rules(
     raw_criterion: Dict,
     total_question_points: float,
-    max_retries: int = 2
+    max_retries: int = 2,
+    example_solution: Optional[str] = None
 ) -> Optional[Dict]:
     """
     Transform raw criterion into structured format with reduction rules.
@@ -576,12 +744,33 @@ async def enhance_criterion_with_rules(
     - Retry logic for transient failures
     - JSON extraction from various response formats
     - Fallback to raw criterion on complete failure
+    - Optional example solution context for better rule generation
+    
+    Args:
+        raw_criterion: Dict with criterion_full_text and points
+        total_question_points: Total points for the question (for context)
+        max_retries: Number of retry attempts
+        example_solution: Optional sanitized example solution code for reference
     """
     criterion_text = raw_criterion.get("criterion_full_text", "")
     total_points = float(raw_criterion.get("points", 0))
     
     if not criterion_text or total_points <= 0:
         return None
+    
+    # Build prompt with optional example solution section
+    example_section = ""
+    if example_solution and len(example_solution.strip()) > 10:
+        example_section = EXAMPLE_SOLUTION_SECTION_TEMPLATE.format(
+            example_solution=example_solution
+        )
+        logger.debug(f"Including example solution context ({len(example_solution)} chars)")
+    
+    # Insert example section into prompt (replaces placeholder)
+    system_prompt = CRITERION_ENHANCEMENT_PROMPT.replace(
+        "{example_solution_section}",
+        example_section
+    )
     
     last_error = None
     
@@ -594,7 +783,7 @@ async def enhance_criterion_with_rules(
                 client.chat.completions.create,
                 model="gpt-4o",  # Back to gpt-4o for JSON reliability
                 messages=[
-                    {"role": "system", "content": CRITERION_ENHANCEMENT_PROMPT},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"קריטריון: \"{criterion_text}\"\ntotal_points: {total_points}"}
                 ],
                 response_format={"type": "json_object"},  # Ensure JSON output
@@ -706,6 +895,9 @@ async def extract_criteria_enhanced(
 ) -> Dict[str, Any]:
     """
     Enhanced 3-stage criteria extraction pipeline.
+    stage 1: pdf-native extraction/vlm fallback
+    stage 2: parallel criteria enhancement
+    stage 3: validation based on llm confidence levels.
     
     Returns:
         {
@@ -794,9 +986,15 @@ async def extract_criteria_enhanced(
     total_points = sum(c.get("points", 0) for c in raw_criteria)
     logger.info(f"[{context}] Enhancing {len(raw_criteria)} criteria in parallel")
     
-    # Stage 2: Enhance all criteria in PARALLEL
+    # Stage 1c: Extract example solutions (in parallel with enhancement prep)
+    example_solutions_task = extract_example_solutions_from_pages(images_b64, context)
+    
+    # Stage 2: Enhance all criteria in PARALLEL (with example solution if found)
+    example_solutions = await example_solutions_task
+    example_solution = example_solutions[0] if example_solutions else None
+    
     enhancement_tasks = [
-        enhance_criterion_with_rules(raw, total_points) 
+        enhance_criterion_with_rules(raw, total_points, example_solution=example_solution) 
         for raw in raw_criteria
     ]
     enhanced_results = await asyncio.gather(*enhancement_tasks, return_exceptions=True)
@@ -835,7 +1033,9 @@ async def extract_criteria_enhanced(
         "total_points": total_points,
         "extraction_status": status,
         "extraction_method": extraction_method,
-        "extraction_error": None if status != "failed" else "שגיאה בהפקת כללי הורדה"
+        "extraction_error": None if status != "failed" else "שגיאה בהפקת כללי הורדה",
+        "example_solutions": example_solutions if example_solutions else None,
+        "example_solution_source": "extracted" if example_solutions else None
     }
 
 

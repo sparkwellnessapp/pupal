@@ -2,12 +2,14 @@
 
 import { useCallback } from 'react';
 import { Upload, FileText, X } from 'lucide-react';
+import { RubricFormatGuide } from './RubricFormatGuide';
 
 interface FileUploadProps {
   file: File | null;
   onFileChange: (file: File | null) => void;
   accept?: string;
   label?: string;
+  showFormatGuide?: boolean; // Show rubric format tips for rubric uploads
 }
 
 export function FileUpload({
@@ -15,6 +17,7 @@ export function FileUpload({
   onFileChange,
   accept = '.pdf',
   label = 'העלי קובץ PDF',
+  showFormatGuide = false,
 }: FileUploadProps) {
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -62,20 +65,29 @@ export function FileUpload({
   }
 
   return (
-    <div
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      className="relative border-2 border-dashed border-surface-300 rounded-lg p-8 text-center hover:border-primary-400 hover:bg-primary-50/50 transition-colors cursor-pointer"
-    >
-      <input
-        type="file"
-        accept={accept}
-        onChange={handleFileInput}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-      />
-      <Upload className="mx-auto text-gray-400 mb-3" size={40} />
-      <p className="text-gray-600 font-medium">{label}</p>
-      <p className="text-sm text-gray-400 mt-1">גרור קובץ לכאן או לחץ לבחירה</p>
+    <div className="space-y-2">
+      {/* Format Guide (for rubric uploads) */}
+      {showFormatGuide && (
+        <RubricFormatGuide className="flex justify-end" />
+      )}
+
+      {/* Drop Zone */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        className="relative border-2 border-dashed border-surface-300 rounded-lg p-8 text-center hover:border-primary-400 hover:bg-primary-50/50 transition-colors cursor-pointer"
+      >
+        <input
+          type="file"
+          accept={accept}
+          onChange={handleFileInput}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        />
+        <Upload className="mx-auto text-gray-400 mb-3" size={40} />
+        <p className="text-gray-600 font-medium">{label}</p>
+        <p className="text-sm text-gray-400 mt-1">גרור קובץ לכאן או לחץ לבחירה</p>
+      </div>
     </div>
   );
 }
+

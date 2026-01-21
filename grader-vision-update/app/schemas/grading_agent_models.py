@@ -220,6 +220,29 @@ class GradingResult:
         for qr in self.question_results:
             q_grades = []
             for cr in qr.criterion_results:
+                # Aggregate evidence from all rule verdicts into structured format
+                # Filter to non-trivial evidence (skip "לא נמצא קוד רלוונטי" and similar)
+                meaningful_evidences = [
+                    v.evidence for v in cr.verdicts 
+                    if v.evidence and len(v.evidence) > 5 and "לא נמצא" not in v.evidence
+                ]
+                
+                # Build reasoning chain from rule explanations and verdicts
+                reasoning_chain = []
+                for v in cr.verdicts:
+                    if v.explanation:
+                        verdict_text = "✓" if v.verdict == "PASS" else "✗"
+                        reasoning_chain.append(f"{verdict_text} {v.explanation}")
+                
+                # Construct evidence object matching frontend CodeEvidence interface
+                evidence_obj = None
+                if meaningful_evidences or reasoning_chain:
+                    evidence_obj = {
+                        "quoted_code": "\n".join(meaningful_evidences) if meaningful_evidences else None,
+                        "line_numbers": None,  # TODO: Extract from evidence if present
+                        "reasoning_chain": reasoning_chain if reasoning_chain else None
+                    }
+                
                 grade = {
                     "criterion": cr.criterion.description,
                     "criterion_index": cr.criterion.index,
@@ -230,6 +253,7 @@ class GradingResult:
                     ),
                     "confidence": "low" if cr.low_confidence_count > 0 else "high",
                     "explanation": ", ".join(v.explanation for v in cr.verdicts if v.explanation),
+                    "evidence": evidence_obj,  # Structured evidence for frontend
                     "rule_verdicts": [
                         {
                             "rule_index": v.rule_index,

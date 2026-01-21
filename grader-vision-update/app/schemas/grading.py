@@ -10,6 +10,16 @@ from pydantic import BaseModel, Field, model_validator
 
 
 # =============================================================================
+# Example Solution Configuration
+# =============================================================================
+
+EXAMPLE_SOLUTION_CONFIG = {
+    "max_tokens": 2000,
+    "supported_languages": ["java", "python", "c", "cpp", "csharp", "javascript"],
+}
+
+
+# =============================================================================
 # Rubric Schemas (with sub-question support)
 # =============================================================================
 
@@ -241,6 +251,12 @@ class ExtractedSubQuestion(BaseModel):
     sub_question_text: Optional[str] = None
     criteria: List[EnhancedCriterion] = Field(default_factory=list)
     total_points: float = 0
+    # Example solution support
+    example_solutions: Optional[List[str]] = Field(
+        None, 
+        description="Teacher's example solutions (may have multiple valid approaches)"
+    )
+    example_solution_source: Optional[Literal["extracted", "generated"]] = None
     # Metadata
     source_pages: List[int] = Field(default_factory=list, description="Pages this was extracted from")
     extraction_status: Literal["success", "partial", "failed"] = "success"
@@ -256,6 +272,13 @@ class ExtractedQuestion(BaseModel):
     # Either direct criteria OR sub-questions
     criteria: List[EnhancedCriterion] = Field(default_factory=list)
     sub_questions: List[ExtractedSubQuestion] = Field(default_factory=list)
+    
+    # Example solution support
+    example_solutions: Optional[List[str]] = Field(
+        None, 
+        description="Teacher's example solutions (may have multiple valid approaches)"
+    )
+    example_solution_source: Optional[Literal["extracted", "generated"]] = None
     
     # Metadata
     source_pages: List[int] = Field(default_factory=list, description="Pages this was extracted from")
