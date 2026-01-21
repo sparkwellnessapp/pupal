@@ -228,6 +228,7 @@ async def extract_rubric(
     name: Optional[str] = Query(None, description="Optional name for the rubric"),
     description: Optional[str] = Query(None, description="Optional description"),
     question_mappings: str = Query(..., description="JSON-encoded list of QuestionPageMapping objects"),
+    programming_language: Optional[str] = Query(None, description="Programming language (e.g., Java, Python, C#)"),
 ) -> ExtractRubricResponse:
     """
     Extract rubric from a PDF file using Vision AI with page mappings.
@@ -275,6 +276,7 @@ async def extract_rubric(
             question_mappings=parsed_mappings,
             name=name,
             description=description,
+            programming_language=programming_language,
         )
         
         return response

@@ -318,8 +318,8 @@ class GradingAgent:
             # Get student answer for this question
             student_code = self._get_student_answer(student_test, question.question_number)
             
-            # Build prompt
-            prompt = self._build_rule_prompt(question, student_code)
+            # Build prompt with language context from rubric
+            prompt = self._build_rule_prompt(question, student_code, rubric)
             
             # Grade with retry
             trace = GradingTrace(
@@ -357,9 +357,27 @@ class GradingAgent:
             question_results=question_results,
         )
     
-    def _build_rule_prompt(self, question: GradingQuestion, student_code: str) -> str:
+    def _build_rule_prompt(
+        self, 
+        question: GradingQuestion, 
+        student_code: str,
+        rubric: NormalizedRubric = None
+    ) -> str:
         """Build prompt with indexed rules for reliable matching."""
-        prompt = f"=== QUESTION {question.question_number} ===\n\n"
+        prompt = ""
+        
+        # Add programming language context if available
+        if rubric and rubric.programming_language:
+            lang = rubric.programming_language
+            is_pseudocode = lang.lower() == "pseudocode"
+            prompt += f"=== שפת תכנות: {lang} ===\n"
+            if is_pseudocode:
+                prompt += "התמקד בלוגיקה בלבד, התעלם משגיאות תחביר.\n"
+            else:
+                prompt += f"בדוק לפי מוסכמות ותחביר של {lang}.\n"
+            prompt += "\n"
+        
+        prompt += f"=== QUESTION {question.question_number} ===\n\n"
         
         for criterion in question.all_criteria:
             prompt += f"CRITERION [{criterion.index}]: {criterion.description}\n"

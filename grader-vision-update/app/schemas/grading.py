@@ -201,6 +201,10 @@ class ExtractRubricRequest(BaseModel):
         ..., 
         description="List of question-to-page mappings"
     )
+    programming_language: Optional[str] = Field(
+        None,
+        description="Programming language for context (e.g., Java, Python, C#)"
+    )
 
 
 # =============================================================================
@@ -305,6 +309,7 @@ class ExtractRubricResponse(BaseModel):
     # Optional metadata passed through
     name: Optional[str] = None
     description: Optional[str] = None
+    programming_language: Optional[str] = None
     
     @model_validator(mode='after')
     def calculate_stats(self):
@@ -335,6 +340,10 @@ class SaveRubricRequest(BaseModel):
     name: Optional[str] = Field(None, description="Name for the rubric")
     description: Optional[str] = Field(None, description="Description")
     questions: List[ExtractedQuestion] = Field(..., description="The reviewed/edited questions")
+    programming_language: Optional[str] = Field(
+        None,
+        description="Programming language for context (e.g., Java, Python, C#)"
+    )
 
 
 class SaveRubricResponse(BaseModel):

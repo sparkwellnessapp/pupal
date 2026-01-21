@@ -106,6 +106,7 @@ class NormalizedRubric:
     questions: List[GradingQuestion]
     name: Optional[str] = None
     description: Optional[str] = None
+    programming_language: Optional[str] = None
     
     @property
     def total_points(self) -> float:

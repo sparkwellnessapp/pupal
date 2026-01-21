@@ -43,6 +43,7 @@ export interface ExtractRubricRequest {
   name?: string;
   description?: string;
   question_mappings: QuestionPageMapping[];
+  programming_language?: string;
 }
 
 // NEW: Reduction rule for detailed grading
@@ -98,12 +99,14 @@ export interface ExtractRubricResponse {
   num_criteria: number;
   name?: string;
   description?: string;
+  programming_language?: string;
 }
 
 export interface SaveRubricRequest {
   name?: string;
   description?: string;
   questions: ExtractedQuestion[];
+  programming_language?: string;
 }
 
 export interface SaveRubricResponse {
@@ -261,6 +264,7 @@ export async function extractRubric(
   params.append('question_mappings', JSON.stringify(request.question_mappings));
   if (request.name) params.append('name', request.name);
   if (request.description) params.append('description', request.description);
+  if (request.programming_language) params.append('programming_language', request.programming_language);
 
   const response = await fetch(`${API_BASE}/api/v0/grading/extract_rubric?${params.toString()}`, {
     method: 'POST',
@@ -1282,7 +1286,8 @@ export function streamQuestionDetection(
 export async function generateCriteria(
   questions: DetectedQuestion[],
   rubricName?: string,
-  rubricDescription?: string
+  rubricDescription?: string,
+  programmingLanguage?: string
 ): Promise<ExtractRubricResponse> {
   const response = await fetch(`${API_BASE}/api/v0/rubric_generator/generate_criteria`, {
     method: 'POST',
@@ -1291,6 +1296,7 @@ export async function generateCriteria(
       questions,
       rubric_name: rubricName,
       rubric_description: rubricDescription,
+      programming_language: programmingLanguage,
     }),
   });
 
@@ -1309,7 +1315,8 @@ export async function regenerateQuestion(
   questionNumber: number,
   questionText: string,
   subQuestions: string[],
-  totalPoints: number
+  totalPoints: number,
+  programmingLanguage?: string
 ): Promise<ExtractedQuestion> {
   const response = await fetch(`${API_BASE}/api/v0/rubric_generator/regenerate_question`, {
     method: 'POST',
@@ -1319,6 +1326,7 @@ export async function regenerateQuestion(
       question_text: questionText,
       sub_questions: subQuestions,
       total_points: totalPoints,
+      programming_language: programmingLanguage,
     }),
   });
 

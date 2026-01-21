@@ -85,6 +85,101 @@ def _normalize_rtl_text(text: str) -> str:
 
 
 # =============================================================================
+# Programming Language Normalization
+# =============================================================================
+
+LANGUAGE_ALIASES: Dict[str, str] = {
+    # Java
+    "java": "Java", "java8": "Java", "java11": "Java", "java17": "Java",
+    # C/C++
+    "c": "C", "c++": "C++", "cpp": "C++", "c plus plus": "C++",
+    # C#
+    "c#": "C#", "csharp": "C#", "c sharp": "C#",
+    # Python
+    "python": "Python", "py": "Python", "python3": "Python",
+    # JavaScript/TypeScript
+    "javascript": "JavaScript", "js": "JavaScript", 
+    "typescript": "TypeScript", "ts": "TypeScript",
+    # Web
+    "html": "HTML", "css": "CSS", "html/css": "HTML/CSS",
+    # Other
+    "sql": "SQL", "assembly": "Assembly", "asm": "Assembly",
+    # Pseudocode (Hebrew + English)
+    "pseudo": "Pseudocode", "pseudocode": "Pseudocode",
+    "פסאודו": "Pseudocode", "פסאודו-קוד": "Pseudocode", "פסאודוקוד": "Pseudocode",
+}
+
+# Patterns that indicate prompt injection attempts
+INJECTION_PATTERNS = [
+    r'\b(ignore|disregard|skip|forget)\b.*\b(rules?|errors?|syntax|instructions?)\b',
+    r'\b(always|never)\b.*\b(give|award|deduct)\b',
+    r'\bgive\s+(full|100|maximum)\s+(points?|credit|score)',
+]
+
+
+def normalize_language(raw: str) -> tuple:
+    """
+    Normalize user-provided programming language input.
+    
+    Returns: (normalized_language, is_recognized)
+    
+    Handles variations like "java", "Java", "JAVA", "java 17" → ("Java", True)
+    Unknown languages like "Kotlin" → ("Kotlin", False)
+    """
+    if not raw:
+        return ("", False)
+    
+    # Sanitize: remove dangerous characters, keep alphanumeric + Hebrew + common symbols
+    sanitized = re.sub(r'[^a-zA-Z0-9\s+#/\u0590-\u05FF]', '', raw)[:50].strip()
+    
+    # Check for injection patterns
+    for pattern in INJECTION_PATTERNS:
+        if re.search(pattern, sanitized, re.IGNORECASE):
+            logger.warning(f"Suspicious language input blocked: {sanitized[:100]}")
+            first_word = sanitized.split()[0] if sanitized.split() else ""
+            return (first_word.title()[:20], False)
+    
+    # Normalize: lowercase for lookup
+    cleaned = sanitized.lower()
+    # Remove version numbers (java17 → java)
+    cleaned = re.sub(r'\s*\d+(\.\d+)*\s*$', '', cleaned)
+    
+    if cleaned in LANGUAGE_ALIASES:
+        return (LANGUAGE_ALIASES[cleaned], True)
+    
+    # Unknown language - title case it
+    return (sanitized.title(), False)
+
+
+def get_language_prompt_context(programming_language: Optional[str]) -> str:
+    """
+    Generate a concise prompt section for programming language context.
+    
+    Uses minimal tokens while activating the LLM's existing knowledge.
+    """
+    if not programming_language:
+        return ""
+    
+    lang, is_recognized = normalize_language(programming_language)
+    if not lang:
+        return ""
+    
+    is_pseudocode = lang.lower() == "pseudocode"
+    
+    if is_pseudocode:
+        return f"""
+=== שפת תכנות: {lang} ===
+התמקד בלוגיקה ובאלגוריתם בלבד.
+אל תוריד נקודות על שגיאות תחביר, סימני פיסוק חסרים, או פורמט.
+"""
+    else:
+        return f"""
+=== שפת תכנות: {lang} ===
+בדוק את הקוד לפי מוסכמות ותחביר של {lang}.
+"""
+
+
+# =============================================================================
 # Stage 1: PDF-Native Table Extraction
 # =============================================================================
 
@@ -735,7 +830,8 @@ async def enhance_criterion_with_rules(
     raw_criterion: Dict,
     total_question_points: float,
     max_retries: int = 2,
-    example_solution: Optional[str] = None
+    example_solution: Optional[str] = None,
+    programming_language: Optional[str] = None
 ) -> Optional[Dict]:
     """
     Transform raw criterion into structured format with reduction rules.
@@ -745,12 +841,14 @@ async def enhance_criterion_with_rules(
     - JSON extraction from various response formats
     - Fallback to raw criterion on complete failure
     - Optional example solution context for better rule generation
+    - Optional programming language context for language-specific rules
     
     Args:
         raw_criterion: Dict with criterion_full_text and points
         total_question_points: Total points for the question (for context)
         max_retries: Number of retry attempts
         example_solution: Optional sanitized example solution code for reference
+        programming_language: Optional programming language for context (e.g., Java, Python)
     """
     criterion_text = raw_criterion.get("criterion_full_text", "")
     total_points = float(raw_criterion.get("points", 0))
@@ -772,6 +870,10 @@ async def enhance_criterion_with_rules(
         example_section
     )
     
+    # Build user message with optional language context
+    language_context = get_language_prompt_context(programming_language)
+    user_message = f"{language_context}קריטריון: \"{criterion_text}\"\ntotal_points: {total_points}"
+    
     last_error = None
     
     for attempt in range(max_retries):
@@ -784,7 +886,7 @@ async def enhance_criterion_with_rules(
                 model="gpt-4o",  # Back to gpt-4o for JSON reliability
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"קריטריון: \"{criterion_text}\"\ntotal_points: {total_points}"}
+                    {"role": "user", "content": user_message}
                 ],
                 response_format={"type": "json_object"},  # Ensure JSON output
                 max_tokens=2000,
@@ -891,13 +993,21 @@ async def extract_criteria_enhanced(
     pdf_bytes: bytes,
     images_b64: List[str],
     page_indexes: List[int],
-    context: str
+    context: str,
+    programming_language: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Enhanced 3-stage criteria extraction pipeline.
     stage 1: pdf-native extraction/vlm fallback
     stage 2: parallel criteria enhancement
     stage 3: validation based on llm confidence levels.
+    
+    Args:
+        pdf_bytes: PDF file bytes
+        images_b64: Base64-encoded page images
+        page_indexes: Pages to extract from
+        context: Context string for logging
+        programming_language: Optional language for context (e.g., Java, Python)
     
     Returns:
         {
@@ -994,7 +1104,12 @@ async def extract_criteria_enhanced(
     example_solution = example_solutions[0] if example_solutions else None
     
     enhancement_tasks = [
-        enhance_criterion_with_rules(raw, total_points, example_solution=example_solution) 
+        enhance_criterion_with_rules(
+            raw, 
+            total_points, 
+            example_solution=example_solution,
+            programming_language=programming_language
+        ) 
         for raw in raw_criteria
     ]
     enhanced_results = await asyncio.gather(*enhancement_tasks, return_exceptions=True)
@@ -1375,6 +1490,7 @@ async def extract_rubric_with_page_mappings(
     question_mappings: List[QuestionPageMapping],
     name: Optional[str] = None,
     description: Optional[str] = None,
+    programming_language: Optional[str] = None,
 ) -> ExtractRubricResponse:
     """
     Extract rubric from specific PDF pages based on user-defined mappings.
@@ -1388,6 +1504,7 @@ async def extract_rubric_with_page_mappings(
         question_mappings: List of QuestionPageMapping objects
         name: Optional rubric name
         description: Optional description
+        programming_language: Optional programming language for context (e.g., Java, Python)
             
     Returns:
         ExtractRubricResponse with extracted questions for teacher review
@@ -1462,7 +1579,8 @@ async def extract_rubric_with_page_mappings(
                         pdf_bytes=pdf_bytes,
                         images_b64=criteria_images_b64,
                         page_indexes=sq_mapping.criteria_page_indexes,
-                        context=context
+                        context=context,
+                        programming_language=programming_language
                     )
                     logger.info(f"Q{q_num}-{sq_id}: extracted {len(criteria_data['criteria'])} criteria")
                 
@@ -1527,7 +1645,8 @@ async def extract_rubric_with_page_mappings(
                     pdf_bytes=pdf_bytes,
                     images_b64=criteria_images_b64,
                     page_indexes=mapping.criteria_page_indexes,
-                    context=context
+                    context=context,
+                    programming_language=programming_language
                 )
                 logger.info(f"Q{q_num}: extracted {len(criteria_data['criteria'])} criteria")
             
@@ -1558,7 +1677,8 @@ async def extract_rubric_with_page_mappings(
     response = ExtractRubricResponse(
         questions=extracted_questions,
         name=name,
-        description=description
+        description=description,
+        programming_language=programming_language
     )
     
     logger.info(
@@ -1667,6 +1787,11 @@ async def save_rubric(
         questions_json.append(q_data)
     
     rubric_json = {"questions": questions_json}
+    
+    # Include programming language if provided
+    if request.programming_language:
+        lang, _ = normalize_language(request.programming_language)
+        rubric_json["programming_language"] = lang
     
     rubric = Rubric(
         rubric_json=rubric_json,

@@ -79,6 +79,7 @@ class GenerateCriteriaRequestSchema(BaseModel):
     questions: List[DetectedQuestion]
     rubric_name: Optional[str] = None
     rubric_description: Optional[str] = None
+    programming_language: Optional[str] = None
 
 
 class RegenerateQuestionRequestSchema(BaseModel):
@@ -87,6 +88,7 @@ class RegenerateQuestionRequestSchema(BaseModel):
     question_text: str
     sub_questions: List[str] = []
     total_points: float
+    programming_language: Optional[str] = None
 
 
 class CreatePdfRequest(BaseModel):
@@ -307,6 +309,7 @@ async def generate_criteria_endpoint(
             questions=request.questions,
             rubric_name=request.rubric_name,
             rubric_description=request.rubric_description,
+            programming_language=request.programming_language,
         )
         return response
     except Exception as e:
@@ -334,6 +337,7 @@ async def regenerate_question_endpoint(
             question_text=request.question_text,
             sub_questions=request.sub_questions,
             total_points=request.total_points,
+            programming_language=request.programming_language,
         )
         return result
     except Exception as e:

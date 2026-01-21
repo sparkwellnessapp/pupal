@@ -40,12 +40,14 @@ def normalize_rubric(raw_rubric: Dict[str, Any]) -> NormalizedRubric:
         questions=questions,
         name=raw_rubric.get("name"),
         description=raw_rubric.get("description"),
+        programming_language=raw_rubric.get("programming_language"),
     )
     
     logger.info(
         f"Normalized rubric: {len(questions)} questions, "
         f"{rubric.total_criteria} criteria, {rubric.total_rules} rules, "
         f"{rubric.total_points} total points"
+        + (f", language: {rubric.programming_language}" if rubric.programming_language else "")
     )
     
     return rubric

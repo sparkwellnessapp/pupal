@@ -24,6 +24,7 @@ from .rubric_service import (
     validate_and_fix_enhanced_criterion,
     _extract_json_from_response,
     get_openai_client,
+    get_language_prompt_context,
 )
 from ..schemas.grading import (
     ExtractedQuestion,
@@ -404,6 +405,7 @@ async def generate_criteria_for_question(
     question: DetectedQuestion,
     total_points: float,
     subject_context: Optional[str] = None,
+    programming_language: Optional[str] = None,
     max_retries: int = 3,
 ) -> ExtractedQuestion:
     """
@@ -412,6 +414,8 @@ async def generate_criteria_for_question(
     Args:
         question: The detected question with text
         total_points: Total points for this question
+        subject_context: Optional subject description
+        programming_language: Optional programming language for context
         max_retries: Number of retry attempts
         
     Returns:
@@ -433,8 +437,11 @@ async def generate_criteria_for_question(
     if subject_context:
         context_info = f"\nנושא המבחן: {subject_context}"
     
+    # Add programming language context if provided
+    language_context = get_language_prompt_context(programming_language)
+    
     user_content = f"""שאלה {question.question_number}:{sub_q_info}{context_info}
-
+{language_context}
 {question.question_text}
 
 סה"כ נקודות: {total_points}
@@ -615,6 +622,7 @@ async def generate_full_rubric(
     questions: List[DetectedQuestion],
     rubric_name: Optional[str] = None,
     rubric_description: Optional[str] = None,
+    programming_language: Optional[str] = None,
 ) -> ExtractRubricResponse:
     """
     Generate complete rubric from detected questions.
@@ -625,6 +633,7 @@ async def generate_full_rubric(
         questions: List of detected questions with points set
         rubric_name: Optional name for the rubric
         rubric_description: Optional description
+        programming_language: Optional programming language for context
         
     Returns:
         ExtractRubricResponse ready for RubricEditor display
@@ -634,6 +643,7 @@ async def generate_full_rubric(
             questions=[],
             name=rubric_name,
             description=rubric_description,
+            programming_language=programming_language,
         )
     
     logger.info(f"Generating rubric with {len(questions)} questions")
@@ -643,7 +653,8 @@ async def generate_full_rubric(
         generate_criteria_for_question(
             question=q,
             total_points=q.teacher_points or q.suggested_points or 10,
-            subject_context=rubric_description,  # Pass subject matter for context
+            subject_context=rubric_description,
+            programming_language=programming_language,
         )
         for q in questions
     ]
@@ -666,6 +677,7 @@ async def generate_full_rubric(
         questions=extracted_questions,
         name=rubric_name,
         description=rubric_description,
+        programming_language=programming_language,
     )
     
     logger.info(f"Generated rubric: {response.num_questions} questions, {response.num_criteria} criteria, {response.total_points} points")
@@ -678,6 +690,7 @@ async def regenerate_single_question(
     question_text: str,
     sub_questions: List[str],
     total_points: float,
+    programming_language: Optional[str] = None,
 ) -> ExtractedQuestion:
     """
     Regenerate criteria for a single question.
@@ -689,6 +702,7 @@ async def regenerate_single_question(
         question_text: Full question text
         sub_questions: List of sub-question IDs
         total_points: Total points for the question
+        programming_language: Optional programming language for context
         
     Returns:
         New ExtractedQuestion with regenerated criteria
@@ -699,4 +713,8 @@ async def regenerate_single_question(
         sub_questions=sub_questions,
     )
     
-    return await generate_criteria_for_question(detected, total_points)
+    return await generate_criteria_for_question(
+        detected, 
+        total_points,
+        programming_language=programming_language,
+    )
