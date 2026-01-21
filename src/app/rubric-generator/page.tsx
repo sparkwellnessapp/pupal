@@ -33,6 +33,7 @@ import {
 } from '@/lib/api';
 import { RubricEditor } from '@/components/RubricEditor';
 import { SidebarLayout } from '@/components/SidebarLayout';
+import { LanguageSelector } from '@/components/LanguageSelector';
 
 // =============================================================================
 // Constants & Types
@@ -55,6 +56,7 @@ interface WizardState {
     generatedRubric: ExtractRubricResponse | null;
     rubricName: string;
     subjectMatter: string;
+    programmingLanguage: string;
     savedRubricId: string | null;
 }
 
@@ -157,6 +159,7 @@ export default function RubricGeneratorPage() {
         generatedRubric: null,
         rubricName: '',
         subjectMatter: '',
+        programmingLanguage: '',
         savedRubricId: null,
     });
 
@@ -394,7 +397,8 @@ export default function RubricGeneratorPage() {
             const rubric = await generateCriteria(
                 state.detectedQuestions,
                 state.rubricName || undefined,
-                state.subjectMatter || undefined  // Pass subject matter for better LLM context
+                state.subjectMatter || undefined,
+                state.programmingLanguage || undefined
             );
 
             setState((prev) => ({ ...prev, generatedRubric: rubric }));
@@ -424,7 +428,8 @@ export default function RubricGeneratorPage() {
                 questionNumber,
                 question.question_text,
                 question.sub_questions,
-                question.teacher_points || question.suggested_points || 10
+                question.teacher_points || question.suggested_points || 10,
+                state.programmingLanguage || undefined
             );
 
             setState((prev) => ({
@@ -467,6 +472,7 @@ export default function RubricGeneratorPage() {
             const response = await saveRubric({
                 name: state.rubricName || 'מחוון חדש',
                 questions: state.generatedRubric.questions,
+                programming_language: state.programmingLanguage || undefined,
             });
 
             setState((prev) => ({ ...prev, savedRubricId: response.id }));
@@ -697,7 +703,7 @@ export default function RubricGeneratorPage() {
                                 {/* Test Name and Subject Matter - above questions */}
                                 {!isDetecting && state.detectedQuestions.length > 0 && (
                                     <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm mb-6">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1 text-right">
                                                     שם המבחן / המחוון
@@ -726,9 +732,15 @@ export default function RubricGeneratorPage() {
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-right focus:border-primary-400 focus:ring-1 focus:ring-primary-200 outline-none"
                                                 />
                                             </div>
+                                            <LanguageSelector
+                                                value={state.programmingLanguage}
+                                                onChange={(lang) =>
+                                                    setState((prev) => ({ ...prev, programmingLanguage: lang }))
+                                                }
+                                            />
                                         </div>
                                         <p className="text-xs text-gray-500 mt-2 text-right">
-                                            תיאור הנושא יעזור למערכת ליצור קריטריונים מדויקים יותר
+                                            בחירת שפת תכנות תעזור למערכת להתאים את הבדיקה למוסכמות השפה
                                         </p>
                                     </div>
                                 )}
