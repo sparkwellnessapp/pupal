@@ -104,7 +104,7 @@ export default function SignupPage() {
                         />
                     </div>
                     <p className="text-gray-500 mt-1 text-lg font-light tracking-wide">
-                        העוזרת האישית למורים
+                        העוזרת האישית למורה
                     </p>
                 </div>
 

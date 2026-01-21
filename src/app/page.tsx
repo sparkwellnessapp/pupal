@@ -746,7 +746,7 @@ export default function Home() {
                     <h2 className="text-xl font-semibold">העלאת מחוון</h2>
                     <p className="text-gray-500 mt-1">העלי קובץ PDF של המחוון</p>
                   </div>
-                  <FileUpload file={rubricFile} onFileChange={handleRubricFileChange} accept=".pdf" label="גרור קובץ PDF לכאן או לחץ לבחירה" />
+                  <FileUpload file={rubricFile} onFileChange={handleRubricFileChange} accept=".pdf" label="גרור קובץ PDF לכאן או לחץ לבחירה" showFormatGuide />
                   {isLoading && <div className="mt-4 flex items-center justify-center gap-2 text-primary-600"><Loader2 className="animate-spin" size={20} /><span>מעבד את הקובץ...</span></div>}
                   {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center gap-2"><AlertCircle size={18} />{error}</div>}
                 </div>

@@ -81,7 +81,7 @@ export default function LoginPage() {
                         />
                     </div>
                     <p className="text-gray-500 mt-2 text-lg font-light tracking-wide">
-                        העוזרת האישית למורים
+                        העוזרת האישית למורה
                     </p>
                 </div>
 
