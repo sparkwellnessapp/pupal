@@ -21,7 +21,20 @@ import {
 } from 'lucide-react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { RubricEditor } from '@/components/RubricEditor';
-import { listRubrics, getRubric, updateRubric, RubricListItem, ExtractedQuestion } from '@/lib/api';
+import { RubricWarningsModal, RubricErrorDisplay } from '@/components/RubricSaveFlow';
+import {
+    listRubrics,
+    getRubric,
+    updateOntologyRubric,
+    isWarningsResponse,
+    RubricSaveError,
+    RubricListItem,
+    RubricDetailItem,
+    SaveOntologyRubricWarnings,
+} from '@/lib/api';
+import type { RubricQuestion } from '@/types/rubric';
+import { hydrateAnyQuestions, dehydrateQuestions } from '@/utils/rubric-transform';
+import { hasErrors } from '@/utils/rubric-validation';
 
 // Rubric Card Component
 function RubricCard({
@@ -37,14 +50,7 @@ function RubricCard({
 }) {
     const [showMenu, setShowMenu] = useState(false);
 
-    const questionCount = rubric.rubric_json?.questions?.length || 0;
-    const criteriaCount = rubric.rubric_json?.questions?.reduce((acc, q) => {
-        let count = q.criteria?.length || 0;
-        if (q.sub_questions) {
-            count += q.sub_questions.reduce((sqAcc, sq) => sqAcc + (sq.criteria?.length || 0), 0);
-        }
-        return acc + count;
-    }, 0) || 0;
+    const questionCount = rubric.total_questions ?? 0;
 
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
@@ -120,10 +126,6 @@ function RubricCard({
                     <FileText size={12} />
                     {questionCount} שאלות
                 </span>
-                <span className="flex items-center gap-1">
-                    <BookOpen size={12} />
-                    {criteriaCount} קריטריונים
-                </span>
                 <span className="font-medium text-primary-600">
                     {rubric.total_points || 0} נק׳
                 </span>
@@ -149,13 +151,17 @@ export default function MyRubricsPage() {
     const [error, setError] = useState<string | null>(null);
 
     // View/Edit modal state
-    const [selectedRubric, setSelectedRubric] = useState<RubricListItem | null>(null);
+    const [selectedRubric, setSelectedRubric] = useState<RubricDetailItem | null>(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [editedQuestions, setEditedQuestions] = useState<ExtractedQuestion[]>([]);
+    const [editedQuestions, setEditedQuestions] = useState<RubricQuestion[]>([]);
     const [editedName, setEditedName] = useState('');
     const [editedDescription, setEditedDescription] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isLoadingRubric, setIsLoadingRubric] = useState(false);
+
+    // Warning/error state for ontology API
+    const [saveWarnings, setSaveWarnings] = useState<SaveOntologyRubricWarnings | null>(null);
+    const [saveError, setSaveError] = useState<RubricSaveError | null>(null);
 
     // Check for share success in URL
     useEffect(() => {
@@ -195,7 +201,8 @@ export default function MyRubricsPage() {
             const fullRubric = await getRubric(rubric.id);
             setSelectedRubric(fullRubric);
             setIsEditing(false);
-            setEditedQuestions(fullRubric.rubric_json?.questions || []);
+            // Hydrate: convert backend string points → frontend numbers
+            setEditedQuestions(hydrateAnyQuestions((fullRubric.draft_json?.questions as unknown[] | undefined) ?? []));
             setEditedName(fullRubric.name || '');
             setEditedDescription(fullRubric.description || '');
         } catch (err) {
@@ -212,7 +219,8 @@ export default function MyRubricsPage() {
             const fullRubric = await getRubric(rubric.id);
             setSelectedRubric(fullRubric);
             setIsEditing(true);
-            setEditedQuestions(fullRubric.rubric_json?.questions || []);
+            // Hydrate: convert backend string points → frontend numbers
+            setEditedQuestions(hydrateAnyQuestions((fullRubric.draft_json?.questions as unknown[] | undefined) ?? []));
             setEditedName(fullRubric.name || '');
             setEditedDescription(fullRubric.description || '');
         } catch (err) {
@@ -223,27 +231,85 @@ export default function MyRubricsPage() {
         }
     };
 
-    const handleSaveRubric = async () => {
+    const handleSaveRubric = async (acknowledgedWarningIds: string[] = []) => {
         if (!selectedRubric) return;
 
+        // Block save if validation errors exist (INV-R1: point sums don't match)
+        if (hasErrors(editedQuestions)) {
+            setError('יש שגיאות בבדיקת המחוון. אנא תקני את הנקודות לפני שמירה.');
+            return;
+        }
+
+        setIsSaving(true);
+        setSaveError(null);
+        setSaveWarnings(null);
+
         try {
-            setIsSaving(true);
-            const updated = await updateRubric(selectedRubric.id, {
-                name: editedName,
-                description: editedDescription,
-                questions: editedQuestions,
+            // Dehydrate: convert frontend numbers → backend string points
+            const dehydrated = dehydrateQuestions(editedQuestions);
+
+            // Calculate totals from the frontend state (already numbers)
+            const totalPoints = editedQuestions.reduce((sum, q) => sum + q.total_points, 0);
+            const numSubQuestions = editedQuestions.reduce((sum, q) => sum + (q.sub_questions?.length || 0), 0);
+            const numCriteria = editedQuestions.reduce((sum, q) => {
+                let count = q.criteria?.length || 0;
+                if (q.sub_questions) {
+                    count += q.sub_questions.reduce((sqSum, sq) => sqSum + (sq.criteria?.length || 0), 0);
+                }
+                return sum + count;
+            }, 0);
+
+            // Use atomic update+compile with ontology API
+            const response = await updateOntologyRubric(selectedRubric.id, {
+                draft: {
+                    questions: dehydrated,
+                    total_points: totalPoints,
+                    num_questions: editedQuestions.length,
+                    num_sub_questions: numSubQuestions,
+                    num_criteria: numCriteria,
+                },
+                acknowledged_warning_ids: acknowledgedWarningIds,
             });
 
-            // Update local state
-            setRubrics(prev => prev.map(r => r.id === updated.id ? updated : r));
-            setSelectedRubric(updated);
+            // Check if response contains warnings that need acknowledgment
+            if (isWarningsResponse(response)) {
+                setSaveWarnings(response);
+                setIsSaving(false);
+                return;
+            }
+
+            // Success - rubric is now saved AND compiled
+            const newTotalPoints = response.stats.total_points;
+            const updatedRubric: RubricDetailItem = {
+                ...selectedRubric,
+                name: editedName,
+                description: editedDescription,
+                total_points: newTotalPoints,
+                total_questions: editedQuestions.length,
+                draft_json: { questions: dehydrated },
+            };
+            setRubrics(prev => prev.map(r => r.id === selectedRubric.id ? updatedRubric : r));
+            setSelectedRubric(updatedRubric);
             setIsEditing(false);
-        } catch (err) {
-            console.error('Failed to save rubric:', err);
-            setError('שגיאה בשמירת המחוון');
+        } catch (e) {
+            if (e instanceof RubricSaveError) {
+                setSaveError(e);
+            } else {
+                setError('שגיאה בשמירת המחוון: ' + (e as Error).message);
+            }
         } finally {
             setIsSaving(false);
         }
+    };
+
+    // Handle warning acknowledgment
+    const handleAcknowledgeWarnings = (warningIds: string[]) => {
+        setSaveWarnings(null);
+        handleSaveRubric(warningIds);
+    };
+
+    const handleCancelWarnings = () => {
+        setSaveWarnings(null);
     };
 
     const handleCloseModal = () => {
@@ -288,7 +354,7 @@ export default function MyRubricsPage() {
                                         ביטול
                                     </button>
                                     <button
-                                        onClick={handleSaveRubric}
+                                        onClick={() => handleSaveRubric()}
                                         disabled={isSaving}
                                         className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
                                     >
@@ -370,7 +436,28 @@ export default function MyRubricsPage() {
                             />
                         )}
                     </div>
+
+                    {/* Save error display */}
+                    {saveError && (
+                        <div className="mt-6">
+                            <RubricErrorDisplay
+                                error={saveError}
+                                onDismiss={() => setSaveError(null)}
+                            />
+                        </div>
+                    )}
                 </div>
+
+                {/* Warnings Modal */}
+                {saveWarnings && (
+                    <RubricWarningsModal
+                        warnings={saveWarnings.warnings}
+                        messageHe={saveWarnings.message_he}
+                        onAcknowledge={handleAcknowledgeWarnings}
+                        onCancel={handleCancelWarnings}
+                        isSubmitting={isSaving}
+                    />
+                )}
             </SidebarLayout>
         );
     }

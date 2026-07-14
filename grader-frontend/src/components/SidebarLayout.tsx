@@ -43,6 +43,12 @@ const navItems: NavItem[] = [
         description: 'צפה ונהל את המחוונים שלך',
     },
     {
+        href: '/my-classroom',
+        label: 'הכיתות שלי',
+        icon: <GraduationCap size={20} />,
+        description: 'ניהול תלמידים וכיתות',
+    },
+    {
         href: '/my-graded-tests',
         label: 'מבחנים בדוקים',
         icon: <ClipboardCheck size={20} />,

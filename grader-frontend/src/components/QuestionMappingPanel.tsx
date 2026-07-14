@@ -64,7 +64,6 @@ export function QuestionMappingPanel({
     const nextId = SUB_QUESTION_IDS[question.sub_questions.length] || `${question.sub_questions.length + 1}`;
     question.sub_questions.push({
       sub_question_id: nextId,
-      sub_question_page_indexes: [],
       criteria_page_indexes: [],
     });
     // Clear direct criteria when adding sub-questions

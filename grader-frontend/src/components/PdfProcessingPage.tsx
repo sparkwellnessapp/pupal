@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 interface PdfProcessingPageProps {
     filename: string;
     // Called when PDF processing is complete and pages are ready
-    onPagesReady: () => void;
+    onPagesReady?: () => void;
     // Called on error
     onError: (message: string) => void;
     // Progress info (optional)
@@ -14,6 +14,18 @@ interface PdfProcessingPageProps {
         totalPages?: number;
     };
 }
+
+// Elapsed-time-staged status messages for the two-phase + trust pipeline.
+// Timings mirror the measured pipeline (render+upload → P1+readers concurrent
+// → segmentation): honest narration, not fake precision. A full exam takes
+// ~1–3 minutes.
+const STAGES: { at: number; title: string; sub: string }[] = [
+    { at: 0, title: 'מעבד את הסריקה...', sub: 'טוען את עמודי המבחן' },
+    { at: 12, title: 'קורא את כתב היד...', sub: 'תמלול מדויק, עמוד אחר עמוד' },
+    { at: 45, title: 'מצליב קריאות...', sub: 'מספר קוראים בלתי תלויים בודקים את התמלול ומסמנים אזורים לבדיקה' },
+    { at: 90, title: 'מפריד את התשובות לשאלות...', sub: 'משייך כל קטע קוד לשאלה ולעמוד המקור שלו' },
+    { at: 130, title: 'עוד רגע...', sub: 'מכין את התמלול לבדיקה שלך' },
+];
 
 /**
  * Intermediate loading page shown while PDF is being processed.
@@ -38,6 +50,18 @@ export default function PdfProcessingPage({
     const progressPercent = progress?.totalPages && progress?.currentPage
         ? Math.round((progress.currentPage / progress.totalPages) * 100)
         : null;
+
+    // Elapsed-time stage narration + a monotone progress estimate that
+    // approaches (never reaches) done — the call is blocking, so this is the
+    // only honest signal we can give.
+    const [elapsed, setElapsed] = useState(0);
+    useEffect(() => {
+        const t = setInterval(() => setElapsed(e => e + 1), 1000);
+        return () => clearInterval(t);
+    }, []);
+    const stage = [...STAGES].reverse().find(s => elapsed >= s.at) ?? STAGES[0];
+    // ~120s typical: ease toward 95% cap
+    const estPercent = Math.min(95, Math.round(100 * (1 - Math.exp(-elapsed / 55))));
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-surface-50 via-primary-50/20 to-surface-100 flex flex-col">
@@ -85,31 +109,32 @@ export default function PdfProcessingPage({
                         </div>
                     </div>
 
-                    {/* Title */}
+                    {/* Title — staged narration */}
                     <h1 className="text-2xl font-bold text-gray-900 mb-3" dir="rtl">
-                        מתמלל כתב יד...
+                        {stage.title}
                     </h1>
 
                     {/* Description */}
                     <p className="text-gray-500 mb-8" dir="rtl">
-                        ה-AI קורא את המבחן ומתמלל את התשובות
+                        {stage.sub}
                     </p>
 
                     {/* Progress bar with turquoise-purple gradient */}
                     <div className="mb-4">
                         <div className="h-2 bg-surface-100 rounded-full overflow-hidden">
                             <div
-                                className="h-full bg-gradient-to-r from-primary-400 via-primary-500 to-violet-500 transition-all duration-500 ease-out"
+                                className="h-full bg-gradient-to-r from-primary-400 via-primary-500 to-violet-500 transition-all duration-1000 ease-out"
                                 style={{
-                                    width: progressPercent !== null ? `${progressPercent}%` : '60%',
-                                    // Animate width if no progress info
-                                    animation: progressPercent === null ? 'pulse-width 2s ease-in-out infinite' : 'none'
+                                    width: `${progressPercent ?? estPercent}%`,
                                 }}
                             />
                         </div>
                     </div>
 
-                    {/* Filename */}
+                    {/* Expectation + filename */}
+                    <p className="text-xs text-gray-400 mb-2" dir="rtl">
+                        בדיקה יסודית של כל המבחן — אורכת בדרך כלל כדקה־שתיים
+                    </p>
                     <p className="text-sm text-gray-400" dir="ltr">
                         {filename}
                     </p>

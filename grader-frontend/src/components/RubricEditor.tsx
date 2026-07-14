@@ -1,21 +1,105 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { ExtractedQuestion, ExtractedSubQuestion, ExtractedCriterion, ReductionRule, PagePreview, QuestionPageMapping } from '@/lib/api';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, AlertCircle, AlertTriangle, FileText, ChevronLeft, ChevronRight, Maximize2, X, Info } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import type {
+  RubricQuestion,
+  RubricSubQuestion,
+  RubricCriterion,
+  RubricSubCriterion,
+  ContextTableData,
+  ProposalSet,
+  ProposedCriterion,
+} from '@/types/rubric';
+import { parseQuestionNumber, recalculateParentsFromCriteria } from '@/utils/rubric-transform';
+import { defaultSubQuestionTitle } from '@/utils/rubric-display';
+import { validateAllQuestions, getQuestionErrorCount } from '@/utils/rubric-validation';
+import {
+  addQuestion,
+  removeQuestion,
+  changeQuestionPoints,
+  addSubQuestion,
+  removeSubQuestion,
+  changeSubQuestionPoints,
+  setExampleSolution,
+  setQuestionType,
+} from '@/utils/rubric-editor-ops';
+import { RubricMetadataEditor } from '@/components/RubricMetadataEditor';
+import { ExampleSolutionEditor } from '@/components/ExampleSolutionEditor';
+import { MarkdownTextRenderer } from '@/components/MarkdownTextRenderer';
+import { PagePreview, QuestionPageMapping, ExtractionMetadata, TraceTableData, Annotation } from '@/lib/api';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, AlertCircle, AlertTriangle, FileText, ChevronLeft, ChevronRight, Maximize2, X, Info, Code, Table, Lightbulb, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 
 interface RubricEditorProps {
-  questions: ExtractedQuestion[];
-  onQuestionsChange: (questions: ExtractedQuestion[]) => void;
-  // NEW: PDF pages and mappings for inline display
+  questions: RubricQuestion[];
+  onQuestionsChange: (questions: RubricQuestion[]) => void;
+  // PDF pages and mappings for inline display
   pages?: PagePreview[];
   questionMappings?: QuestionPageMapping[];
+  // NEW: DOCX extraction metadata
+  metadata?: ExtractionMetadata;
+  // NEW: Source type indicator
+  sourceType?: 'pdf' | 'docx';
+  // NEW: Programming language for display
+  programmingLanguage?: string;
+  // Rubric ID for post-acceptance enhancement API calls
+  rubricId?: string;
+  // Metadata fields — editable at rubric level
+  rubricName?: string;
+  subject?: string;
+  rubricTotalPoints?: number;
+  /** Called when metadata fields (name, subject, programmingLanguage) change */
+  onMetadataChange?: (patch: { rubric_name?: string; subject?: string; programming_language?: string }) => void;
+  /** Called when total_points changes at rubric level (triggers full cascade) */
+  onTotalPointsChange?: (newTotal: number) => void;
+  /** Highlights the name field with an error border */
+  hasNameError?: boolean;
+  /** Extraction-time annotations to render inline (rubric_mismatch warnings, etc.). */
+  annotations?: Annotation[];
+  /** Ref exposed to parent so the parent's blocked save button can scroll to the error banner. */
+  errorBannerRef?: RefObject<HTMLDivElement>;
 }
 
-export function RubricEditor({ questions, onQuestionsChange, pages, questionMappings }: RubricEditorProps) {
+export function RubricEditor({
+  questions,
+  onQuestionsChange,
+  pages,
+  questionMappings,
+  metadata,
+  sourceType,
+  programmingLanguage,
+  rubricId,
+  rubricName = '',
+  subject = '',
+  rubricTotalPoints,
+  onMetadataChange,
+  onTotalPointsChange,
+  hasNameError = false,
+  annotations = [],
+  errorBannerRef: externalErrorBannerRef,
+}: RubricEditorProps) {
   const [expandedQuestions, setExpandedQuestions] = useState<Set<number>>(
     new Set(questions.map((_, i) => i))
   );
+
+  // Save-blocking UX
+  const internalErrorBannerRef = useRef<HTMLDivElement>(null);
+  const errorBannerRef = externalErrorBannerRef || internalErrorBannerRef;
+  const errorAnnotations = useMemo(
+    () => annotations.filter(a => a.severity === 'error'),
+    [annotations]
+  );
+  const hasBlockingErrors = errorAnnotations.length > 0;
+
+  const scrollToScope = useCallback((targetId: string | null) => {
+    const selector = targetId ? `[data-scope-id="${targetId}"]` : null;
+    const el = selector ? document.querySelector(selector) : null;
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
+
+  // Track criteria currently being enhanced (post-acceptance Call 2)
+  const [enhancingCriterionIds, setEnhancingCriterionIds] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (index: number) => {
     const newExpanded = new Set(expandedQuestions);
@@ -27,31 +111,41 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
     setExpandedQuestions(newExpanded);
   };
 
-  const updateQuestion = (index: number, updates: Partial<ExtractedQuestion>) => {
+  // Live validation: recomputes whenever questions change
+  // Note: relies on immutable updates (new array references) from all update functions
+  const validationIssues = useMemo(
+    () => validateAllQuestions(questions),
+    [questions]
+  );
+
+  const updateQuestion = (index: number, updates: Partial<RubricQuestion>) => {
     const newQuestions = [...questions];
     newQuestions[index] = { ...newQuestions[index], ...updates };
-    recalculateTotals(newQuestions);
+    // No cascade — non-criterion updates never move points.
     onQuestionsChange(newQuestions);
   };
 
   const updateSubQuestion = (
     qIndex: number,
     sqIndex: number,
-    updates: Partial<ExtractedSubQuestion>
+    updates: Partial<RubricSubQuestion>
   ) => {
     const newQuestions = [...questions];
+    if (!newQuestions[qIndex].sub_questions) {
+      newQuestions[qIndex].sub_questions = [];
+    }
     newQuestions[qIndex].sub_questions[sqIndex] = {
       ...newQuestions[qIndex].sub_questions[sqIndex],
       ...updates,
     };
-    recalculateTotals(newQuestions);
+    // No cascade — non-criterion updates never move points.
     onQuestionsChange(newQuestions);
   };
 
   const updateCriterion = (
     qIndex: number,
     cIndex: number,
-    updates: Partial<ExtractedCriterion>,
+    updates: Partial<RubricCriterion>,
     sqIndex?: number
   ) => {
     const newQuestions = [...questions];
@@ -66,20 +160,24 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
         ...updates,
       };
     }
-    recalculateTotals(newQuestions);
-    onQuestionsChange(newQuestions);
+    // THE ONE CASCADE SITE: a criterion.points edit propagates one level up
+    // to its direct structural parent. See recalculateParentsFromCriteria
+    // in rubric-transform.ts.
+    onQuestionsChange(recalculateParentsFromCriteria(newQuestions));
   };
 
   const addCriterion = (qIndex: number, sqIndex?: number) => {
     const newQuestions = [...questions];
-    // Create new enhanced criterion with empty reduction rules
-    const newCriterion: ExtractedCriterion = {
-      criterion_description: '',
-      total_points: 0,
-      reduction_rules: [],
+    const newCriterion: RubricCriterion = {
+      criterion_id: `c${Date.now()}`,
+      index: sqIndex !== undefined
+        ? newQuestions[qIndex].sub_questions[sqIndex].criteria.length
+        : newQuestions[qIndex].criteria.length,
+      description: '',
+      points: 0,
+      sub_criteria: null,
       extraction_confidence: 'high',
       notes: null,
-      raw_text: null,
     };
     if (sqIndex !== undefined) {
       newQuestions[qIndex].sub_questions[sqIndex].criteria.push(newCriterion);
@@ -90,13 +188,29 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
   };
 
   const removeCriterion = (qIndex: number, cIndex: number, sqIndex?: number) => {
+    // Strict per Q1: removing a criterion leaves a hole. No redistribution
+    // among surviving criteria. INV-R1 / INV-R1b will fire on the resulting
+    // mismatch (Σ criteria.points < parent.points); the teacher resolves it
+    // by editing the parent down or another criterion up.
+    //
+    // The surviving criteria are reindexed so the `.index` field stays
+    // contiguous (positional metadata, not point math).
     const newQuestions = [...questions];
+    const sourceArray = sqIndex !== undefined
+      ? newQuestions[qIndex].sub_questions[sqIndex].criteria
+      : newQuestions[qIndex].criteria;
+
+    const reindexed = sourceArray
+      .filter((_, i) => i !== cIndex)
+      .map((c, i) => ({ ...c, index: i }));
+
     if (sqIndex !== undefined) {
-      newQuestions[qIndex].sub_questions[sqIndex].criteria.splice(cIndex, 1);
+      newQuestions[qIndex].sub_questions[sqIndex].criteria = reindexed;
     } else {
-      newQuestions[qIndex].criteria.splice(cIndex, 1);
+      newQuestions[qIndex].criteria = reindexed;
     }
-    recalculateTotals(newQuestions);
+
+    // No cascade — Q1 strict.
     onQuestionsChange(newQuestions);
   };
 
@@ -107,7 +221,7 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
     sqIndex?: number
   ) => {
     const newQuestions = [...questions];
-    let criteriaArray: ExtractedCriterion[];
+    let criteriaArray: RubricCriterion[];
 
     if (sqIndex !== undefined) {
       criteriaArray = [...newQuestions[qIndex].sub_questions[sqIndex].criteria];
@@ -115,7 +229,6 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
       criteriaArray = [...newQuestions[qIndex].criteria];
     }
 
-    // Remove the item from original position and insert at new position
     const [movedItem] = criteriaArray.splice(fromIndex, 1);
     criteriaArray.splice(toIndex, 0, movedItem);
 
@@ -128,20 +241,181 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
     onQuestionsChange(newQuestions);
   };
 
-  const recalculateTotals = (qs: ExtractedQuestion[]) => {
-    qs.forEach((q) => {
-      if (q.sub_questions.length > 0) {
-        q.sub_questions.forEach((sq) => {
-          // Use total_points from enhanced format
-          sq.total_points = sq.criteria.reduce((sum, c) => sum + (c.total_points || c.points || 0), 0);
+  // ─── Proposal Accept / Reject ─────────────────────────────────────────────
+
+  /**
+   * Accept all proposed criteria for a scope (question or sub-question).
+   * 1. Apply enhanced_distribution points to existing criteria
+   * 2. Convert proposed criteria to normal RubricCriterion (empty rules[])
+   * 3. Clear proposals from state
+   * 4. Trigger post-acceptance Call 2 for new criteria
+   */
+  const acceptProposals = (qIndex: number, sqIndex?: number) => {
+    const newQuestions = [...questions];
+
+    const scope = sqIndex !== undefined
+      ? newQuestions[qIndex].sub_questions[sqIndex]
+      : newQuestions[qIndex];
+
+    const proposals = scope.proposals;
+    if (!proposals || proposals.proposed_criteria.length === 0) return;
+
+    // Capture question_purpose BEFORE clearing proposals (needed for Call 2)
+    const questionPurpose = proposals.question_purpose || '';
+
+    // Step 1: Apply enhanced_distribution points to existing criteria.
+    //   Also proportionally scale each criterion's sub_criteria so that
+    //   sum(sub_criteria.points) continues to equal the (new) criterion points.
+    if (proposals.enhanced_distribution.length > 0) {
+      const distMap = new Map(
+        proposals.enhanced_distribution.map(entry => [entry.criterion_id, entry.points])
+      );
+      const r2 = (n: number) => Math.round(n * 100) / 100;
+
+      scope.criteria = scope.criteria.map(c => {
+        const newPts = distMap.get(c.criterion_id);
+        if (newPts === undefined) return c;
+
+        // Scale sub_criteria proportionally if present
+        const oldPts = c.points;
+        if (!c.sub_criteria?.length || oldPts === 0) {
+          return { ...c, points: newPts };
+        }
+
+        const ratio = newPts / oldPts;
+        let running = 0;
+        const scaledSubCriteria = c.sub_criteria.map((sc, scIdx) => {
+          let scaledPts: number;
+          if (scIdx === c.sub_criteria!.length - 1) {
+            scaledPts = r2(newPts - running);
+          } else {
+            scaledPts = r2(sc.points * ratio);
+            running += scaledPts;
+          }
+          return { ...sc, points: scaledPts };
         });
-        q.total_points = q.sub_questions.reduce((sum, sq) => sum + sq.total_points, 0);
-      } else {
-        // Use total_points from enhanced format
-        q.total_points = q.criteria.reduce((sum, c) => sum + (c.total_points || c.points || 0), 0);
-      }
-    });
+
+        return { ...c, points: newPts, sub_criteria: scaledSubCriteria };
+      });
+    }
+
+    // Step 2: Convert proposed criteria to normal RubricCriterion
+    const newCriteria: RubricCriterion[] = proposals.proposed_criteria.map(
+      (pc, idx) => ({
+        criterion_id: pc.temp_id || `c_proposed_${Date.now()}_${idx}`,
+        index: scope.criteria.length + idx,
+        description: pc.description,
+        points: pc.points,
+        sub_criteria: null,
+        extraction_confidence: 'high' as const,
+        notes: null,
+      })
+    );
+
+    // Step 3: Append and clear proposals
+    scope.criteria = [...scope.criteria, ...newCriteria];
+    scope.proposals = null;
+
+    // No cascade — proposals are legacy (V3 pipeline doesn't generate them);
+    // this entire code path is slated for full removal in a separate PR.
+    onQuestionsChange(newQuestions);
+
+    // Step 4: Trigger post-acceptance Call 2 (async, does not block UI)
+    _triggerPostAcceptanceEnhancement(newCriteria, questionPurpose, qIndex, sqIndex);
   };
+
+  /**
+   * Reject all proposed criteria for a scope. Clears proposals, keeps original points.
+   */
+  const rejectProposals = (qIndex: number, sqIndex?: number) => {
+    const newQuestions = [...questions];
+
+    if (sqIndex !== undefined) {
+      newQuestions[qIndex].sub_questions[sqIndex] = {
+        ...newQuestions[qIndex].sub_questions[sqIndex],
+        proposals: null,
+      };
+    } else {
+      newQuestions[qIndex] = {
+        ...newQuestions[qIndex],
+        proposals: null,
+      };
+    }
+
+    onQuestionsChange(newQuestions);
+  };
+
+  /**
+   * Trigger Call 2 (rules + levels) for newly accepted criteria.
+   * Async: sets loading state, calls API, merges results.
+   */
+  const _triggerPostAcceptanceEnhancement = async (
+    newCriteria: RubricCriterion[],
+    questionPurpose: string,
+    qIndex: number,
+    sqIndex?: number,
+  ) => {
+    if (!rubricId || newCriteria.length === 0) {
+      console.info('[Vivi] Post-acceptance enhancement skipped: no rubricId or empty criteria');
+      return;
+    }
+
+    const criterionIds = newCriteria.map(c => c.criterion_id);
+
+    // Set loading state
+    setEnhancingCriterionIds(prev => {
+      const next = new Set(prev);
+      criterionIds.forEach(id => next.add(id));
+      return next;
+    });
+
+    try {
+      // Get optional context from the question
+      const question = questions[qIndex];
+      const subQuestion = sqIndex !== undefined ? question?.sub_questions?.[sqIndex] : undefined;
+
+      const response = await fetch(`/api/v0/rubrics/${rubricId}/enhance-criteria`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          criteria: newCriteria.map(c => ({
+            criterion_id: c.criterion_id,
+            description: c.description,
+            points: c.points,
+          })),
+          question_purpose: questionPurpose,
+          sub_question_text: subQuestion?.text || null,
+          example_solution: question?.example_solution || null,
+          programming_language: programmingLanguage || null,
+          locale: 'he-IL',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[Vivi] Enhancement API error:', response.status, errorText);
+        return;
+      }
+
+      const data = await response.json();
+      // DEAD UNTIL grader redesign — see grader-migration-TODO
+      // Enhancement endpoint previously returned reduction_rules; now a no-op merge.
+      console.info(
+        `[Vivi] Post-acceptance enhancement complete: ${data.total_sub_criteria || 0} sub-criteria for ${criterionIds.length} criteria`
+      );
+
+    } catch (err) {
+      console.error('[Vivi] Post-acceptance enhancement failed:', err);
+    } finally {
+      // Clear loading state
+      setEnhancingCriterionIds(prev => {
+        const next = new Set(prev);
+        criterionIds.forEach(id => next.delete(id));
+        return next;
+      });
+    }
+  };
+
 
   // Get page indexes for a question's text
   // Inferred as: the page before the first rubric table page
@@ -170,6 +444,57 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
     return inferredQuestionPage >= 0 ? [inferredQuestionPage] : [];
   };
 
+  // ─── Question / Sub-question CRUD handlers ────────────────────────────────
+
+  const handleAddQuestion = () => {
+    onQuestionsChange(addQuestion(questions));
+  };
+
+  const handleRemoveQuestion = (qIndex: number) => {
+    // Strict per Q1: no redistribution. Σ q.total_points changes; INV-R3
+    // fires against the unchanged rubricDeclaredTotal; teacher resolves.
+    onQuestionsChange(removeQuestion(questions, qIndex));
+  };
+
+  const handleQuestionPointsChange = (qIndex: number, newPts: number) => {
+    onQuestionsChange(changeQuestionPoints(questions, qIndex, newPts));
+  };
+
+  const handleRubricTotalChange = (newTotal: number) => {
+    // The rubric-level total is owned by page.tsx state (rubricDeclaredTotal),
+    // not by the questions[] array. We just forward the new value upstream;
+    // INV-R3 in combinedAnnotations will fire if it no longer matches
+    // Σ q.total_points.
+    onTotalPointsChange?.(newTotal);
+  };
+
+  const handleAddSubQuestion = (qIndex: number) => {
+    onQuestionsChange(addSubQuestion(questions, qIndex));
+  };
+
+  const handleRemoveSubQuestion = (qIndex: number, sqIndex: number) => {
+    onQuestionsChange(removeSubQuestion(questions, qIndex, sqIndex));
+  };
+
+  const handleSubQuestionPointsChange = (qIndex: number, sqIndex: number, newPts: number) => {
+    onQuestionsChange(changeSubQuestionPoints(questions, qIndex, sqIndex, newPts));
+  };
+
+  const handleExampleSolutionChange = (qIndex: number, val: string | null) => {
+    onQuestionsChange(setExampleSolution(questions, qIndex, val));
+  };
+
+  const handleQuestionTypeChange = (qIndex: number, type: RubricQuestion['question_type']) => {
+    onQuestionsChange(setQuestionType(questions, qIndex, type));
+  };
+
+  // Derived: rubric-level total points for the metadata editor display.
+  // INV-R3 (Σ q.total_points vs. rubric.total_points) is enforced centrally
+  // in page.tsx's combinedAnnotations and rendered through the unified
+  // global-annotations path below — not locally here.
+  const effectiveTotalPoints = rubricTotalPoints ?? questions.reduce((s, q) => s + q.total_points, 0);
+
+
   // Get page indexes for a question's criteria
   const getCriteriaPageIndexes = (questionNumber: number): number[] => {
     if (!questionMappings) return [];
@@ -185,21 +510,134 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
     return subQ?.criteria_page_indexes || [];
   };
 
+  // Calculate statistics
+  const stats = useMemo(() => {
+    let totalCriteria = 0;
+    let totalSubCriteria = 0;
+    let highConfidence = 0;
+    let mediumConfidence = 0;
+    let lowConfidence = 0;
+
+    questions.forEach(q => {
+      const qCriteria = q.criteria || [];
+      const qSubQuestions = q.sub_questions || [];
+
+      qCriteria.forEach(c => {
+        totalCriteria++;
+        totalSubCriteria += c.sub_criteria?.length || 0;
+        const conf = c.extraction_confidence || 'medium';
+        if (conf === 'high') highConfidence++;
+        else if (conf === 'medium') mediumConfidence++;
+        else lowConfidence++;
+      });
+      qSubQuestions.forEach(sq => {
+        const sqCriteria = sq.criteria || [];
+        sqCriteria.forEach(c => {
+          totalCriteria++;
+          totalSubCriteria += c.sub_criteria?.length || 0;
+          const conf = c.extraction_confidence || 'medium';
+          if (conf === 'high') highConfidence++;
+          else if (conf === 'medium') mediumConfidence++;
+          else lowConfidence++;
+        });
+      });
+    });
+
+    return { totalCriteria, totalSubCriteria, highConfidence, mediumConfidence, lowConfidence };
+  }, [questions]);
+
   const totalPoints = questions.reduce((sum, q) => sum + q.total_points, 0);
-  const totalCriteria = questions.reduce((sum, q) => {
-    return sum + q.criteria.length + q.sub_questions.reduce((s, sq) => s + sq.criteria.length, 0);
-  }, 0);
+  const testTitleStr = typeof metadata?.test_title === 'string' ? metadata.test_title.trim() : '';
+  const backendTestDateStr = typeof metadata?.test_date === 'string' ? metadata.test_date.trim() : '';
+  const titleDateMatch = testTitleStr.match(/\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\b/);
+  const testDateStr = backendTestDateStr || titleDateMatch?.[1] || '';
 
   return (
     <div className="space-y-4">
+      {/* Metadata editor — shown when onMetadataChange is provided */}
+      {onMetadataChange && (
+        <RubricMetadataEditor
+          rubricName={rubricName}
+          subject={subject}
+          programmingLanguage={programmingLanguage ?? ''}
+          totalPoints={effectiveTotalPoints}
+          onChange={onMetadataChange}
+          onTotalPointsChange={handleRubricTotalChange}
+          hasNameError={hasNameError}
+        />
+      )}
+
+      {/* Save-blocking error summary banner — shown when any ERROR annotations exist */}
+      {hasBlockingErrors && (
+        <div ref={errorBannerRef} className="bg-red-50 border border-red-300 rounded-lg p-3 text-sm text-red-800" dir="rtl">
+          <div className="font-semibold flex items-center gap-2">
+            <AlertCircle size={15} />
+            לא ניתן לשמור: {errorAnnotations.length} בעיות חסימה
+          </div>
+          <ul className="mt-2 space-y-1 list-disc list-inside">
+            {errorAnnotations.map(a => (
+              <li key={a.id}>
+                {a.target_id ? (
+                  <button
+                    className="underline text-red-700 hover:text-red-900"
+                    onClick={() => scrollToScope(a.target_id)}
+                  >
+                    {a.target_id}
+                  </button>
+                ) : (
+                  <span>שאלון</span>
+                )}
+                {' — '}{a.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Global annotations.
+          Two scopes: 'rubric' from live INV-R3, and null from legacy backend
+          rubric-scope annotations. Both render as global banners above the
+          summary header. */}
+      {annotations.filter(a => a.target_id === null || a.target_id === 'rubric').map(a => (
+        <AnnotationBanner key={a.id} annotation={a} />
+      ))}
+
       {/* Summary header */}
       <div className="flex items-center justify-between p-4 bg-primary-50 border border-primary-200 rounded-lg">
         <div>
           <h3 className="font-semibold text-lg text-primary-800">סיכום מחוון</h3>
-          <p className="text-sm text-primary-600">
-            {questions.length} שאלות · {totalCriteria} קריטריונים · {totalPoints} נקודות
-          </p>
+          <div className="text-sm text-primary-700 mt-1 space-y-0.5">
+            {testTitleStr && (
+              <div className="font-medium" dir={/[\u0590-\u05FF]/.test(testTitleStr) ? 'rtl' : 'ltr'}>
+                {testTitleStr}
+              </div>
+            )}
+            {testDateStr && (
+              <div className="text-primary-600">
+                תאריך: {testDateStr}
+              </div>
+            )}
+            <div className="text-primary-600">
+              {questions.length} שאלות · {totalPoints} נקודות · {stats.totalCriteria} קריטריונים
+            </div>
+          </div>
         </div>
+
+        {/* Confidence breakdown */}
+        {stats.totalCriteria > 0 && (
+          <div className="flex items-center gap-2">
+            {stats.highConfidence > 0 && (
+              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                ✓ {stats.highConfidence} בטוחים
+              </span>
+            )}
+            {stats.lowConfidence > 0 && (
+              <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
+                ! {stats.lowConfidence} לבדיקה
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Questions */}
@@ -207,116 +645,250 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
         {questions.map((question, qIndex) => (
           <div
             key={qIndex}
+            data-scope-id={question.question_id}
             className="border border-surface-200 rounded-lg bg-white overflow-hidden shadow-sm"
           >
             {/* Question header */}
             <div
-              className="flex items-center justify-between p-4 bg-surface-50 cursor-pointer"
-              onClick={() => toggleExpanded(qIndex)}
+              className="flex items-center justify-between p-4 bg-surface-50"
+              dir="rtl"
             >
-              <div className="flex items-center gap-3">
+              {/* Toggle chevron + title (clicking title area expands) */}
+              <div
+                className="flex items-center gap-3 flex-1 cursor-pointer min-w-0"
+                onClick={() => toggleExpanded(qIndex)}
+              >
                 {expandedQuestions.has(qIndex) ? (
-                  <ChevronUp size={20} className="text-gray-400" />
+                  <ChevronUp size={20} className="text-gray-400 flex-shrink-0" />
                 ) : (
-                  <ChevronDown size={20} className="text-gray-400" />
+                  <ChevronDown size={20} className="text-gray-400 flex-shrink-0" />
                 )}
-                <div>
-                  <span className="font-semibold text-lg">שאלה {question.question_number}</span>
-                  <span className="mr-3 text-sm text-gray-500">
-                    ({question.total_points} נקודות)
-                  </span>
-                </div>
+                <span className="font-semibold text-lg whitespace-nowrap">שאלה {parseQuestionNumber(question.question_id)}</span>
               </div>
+
+              {/* Points input — click to stop propagation */}
+              <div className="flex items-center gap-1.5 flex-shrink-0 mx-3" onClick={e => e.stopPropagation()}>
+                <input
+                  type="number"
+                  defaultValue={question.total_points}
+                  key={question.total_points}
+                  onBlur={e => {
+                    const val = parseFloat(e.target.value);
+                    if (!isNaN(val) && val > 0) handleQuestionPointsChange(qIndex, val);
+                    else e.target.value = String(question.total_points);
+                  }}
+                  min={0.25}
+                  step={0.25}
+                  className="w-16 text-center text-sm border border-surface-300 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-primary-300 font-semibold"
+                  title="נקודות השאלה"
+                />
+                <span className="text-xs text-gray-400">נק׳</span>
+              </div>
+
+              {/* Question-type selector */}
+              <select
+                value={question.question_type || 'short_answer'}
+                onChange={e => handleQuestionTypeChange(qIndex, e.target.value as RubricQuestion['question_type'])}
+                onClick={e => e.stopPropagation()}
+                className="text-xs border border-surface-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-200 flex-shrink-0"
+                dir="rtl"
+              >
+                <option value="short_answer">תשובה קצרה</option>
+                <option value="coding_task">תכנות</option>
+                <option value="trace_table">טבלת מעקב</option>
+                <option value="computation">חישוב</option>
+                <option value="proof">הוכחה</option>
+                <option value="essay">חיבור</option>
+                <option value="source_analysis">ניתוח מקור</option>
+              </select>
+
+              {/* Badges row */}
+              <div className="flex items-center gap-2 flex-shrink-0 mr-2">
+                {question.code_blocks && question.code_blocks.length > 0 && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
+                    <Code size={12} />
+                    {question.code_blocks.length} קוד
+                  </span>
+                )}
+                {question.trace_tables && question.trace_tables.length > 0 && (
+                  <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full flex items-center gap-1">
+                    <Table size={12} />
+                    {question.trace_tables.length} טבלת מעקב
+                  </span>
+                )}
+                {question.example_solution && (
+                  <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full flex items-center gap-1">
+                    <Lightbulb size={12} />
+                    פתרון
+                  </span>
+                )}
+                {/* Validation error badge */}
+                {(() => {
+                  const errorCount = getQuestionErrorCount(question, qIndex, questions);
+                  return errorCount > 0 ? (
+                    <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full flex items-center gap-1 font-medium">
+                      <AlertCircle size={12} />
+                      {errorCount} שגיאות
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+
+              {/* Remove question button */}
+              <button
+                onClick={e => { e.stopPropagation(); handleRemoveQuestion(qIndex); }}
+                title="הסר שאלה"
+                className="flex-shrink-0 text-gray-300 hover:text-red-500 transition-colors p-1 rounded"
+              >
+                <Trash2 size={15} />
+              </button>
             </div>
 
             {/* Question content */}
             {expandedQuestions.has(qIndex) && (
               <div className="p-4 space-y-4 border-t border-surface-200">
-                {/* PDF Pages for Question Text */}
-                <PdfPagesDisplay
-                  pages={pages}
-                  pageIndexes={getQuestionPageIndexes(question.question_number)}
-                  label="עמודי השאלה במקור"
-                />
+                {/* Question-level annotations.
+                    Two clauses: legacy backend "q1" format and raw question_id
+                    from live validators (INV-R1). */}
+                {annotations
+                  .filter(a =>
+                    a.target_id === `q${parseQuestionNumber(question.question_id)}` ||
+                    a.target_id === question.question_id
+                  )
+                  .map(a => <AnnotationBanner key={a.id} annotation={a} />)
+                }
+
+                {/* PDF Pages for Question Text (PDF source only) */}
+                {sourceType === 'pdf' && (
+                  <PdfPagesDisplay
+                    pages={pages}
+                    pageIndexes={getQuestionPageIndexes(parseQuestionNumber(question.question_id))}
+                    label="עמודי השאלה במקור"
+                  />
+                )}
 
                 {/* Question text */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     טקסט השאלה
                   </label>
-                  <textarea
+                  <MarkdownTextRenderer
                     value={question.question_text || ''}
-                    onChange={(e) => {
-                      updateQuestion(qIndex, { question_text: e.target.value });
-                      // Auto-resize
-                      e.target.style.height = 'auto';
-                      e.target.style.height = Math.min(e.target.scrollHeight, 240) + 'px';
-                    }}
-                    onFocus={(e) => {
-                      // Ensure proper height on focus
-                      e.target.style.height = 'auto';
-                      e.target.style.height = Math.min(e.target.scrollHeight, 240) + 'px';
-                    }}
-                    ref={(el) => {
-                      // Auto-resize on initial render
-                      if (el) {
-                        el.style.height = 'auto';
-                        el.style.height = Math.min(el.scrollHeight, 240) + 'px';
-                      }
-                    }}
-                    className="w-full p-3 border border-surface-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400 overflow-y-auto min-h-[60px] max-h-[240px]"
+                    onChange={(val) => updateQuestion(qIndex, { question_text: val })}
                     placeholder="טקסט השאלה..."
-                    dir="rtl"
+                    minHeight="60px"
+                    maxHeight="240px"
                   />
                 </div>
 
+                {/* Code Blocks (DOCX source) */}
+                {question.code_blocks && question.code_blocks.length > 0 && (
+                  <CodeBlocksDisplay
+                    codeBlocks={question.code_blocks}
+                    language={programmingLanguage}
+                  />
+                )}
+
+                {/* Context Tables (DOCX source) — class interfaces, I/O data tables */}
+                {question.context_tables && question.context_tables.length > 0 && (
+                  <QuestionContextTablesDisplay contextTables={question.context_tables} />
+                )}
+
+                {/* Example Solution — editable */}
+                <ExampleSolutionEditor
+                  value={question.example_solution}
+                  onChange={val => handleExampleSolutionChange(qIndex, val)}
+                />
+
+                {/* Trace Tables (DOCX source) */}
+                {question.trace_tables && question.trace_tables.length > 0 && (
+                  <TraceTablesDisplay traceTables={question.trace_tables} />
+                )}
+
                 {/* Sub-questions or direct criteria */}
-                {question.sub_questions.length > 0 ? (
+                {(question.sub_questions?.length ?? 0) > 0 ? (
                   <div className="space-y-4">
                     {question.sub_questions.map((subQ, sqIndex) => (
                       <div
                         key={sqIndex}
+                        data-scope-id={subQ.sub_question_id}
                         className="mr-4 border-r-2 border-primary-200 pr-4 space-y-3"
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-primary-700">
-                            סעיף {subQ.sub_question_id}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            ({subQ.total_points} נקודות)
-                          </span>
+                        {/* Sub-question header row */}
+                        <div className="flex items-center gap-2" dir="rtl">
+                          <input
+                            type="text"
+                            defaultValue={subQ.title || ''}
+                            key={`${subQ.sub_question_id}-${subQ.title ?? ''}`}
+                            placeholder={defaultSubQuestionTitle(sqIndex)}
+                            onBlur={(e) => {
+                              const trimmed = e.target.value.trim();
+                              updateSubQuestion(qIndex, sqIndex, { title: trimmed || null });
+                            }}
+                            className="font-semibold text-primary-700 bg-transparent border-b border-transparent hover:border-primary-200 focus:border-primary-500 focus:outline-none px-1 min-w-[80px]"
+                            dir="rtl"
+                            aria-label="כותרת הסעיף"
+                          />
+                          {/* Sub-question points input */}
+                          <input
+                            type="number"
+                            defaultValue={subQ.points}
+                            key={subQ.points}
+                            onBlur={e => {
+                              const val = parseFloat(e.target.value);
+                              if (!isNaN(val) && val >= 0) handleSubQuestionPointsChange(qIndex, sqIndex, val);
+                              else e.target.value = String(subQ.points);
+                            }}
+                            min={0}
+                            step={0.25}
+                            className="w-14 text-center text-xs border border-surface-200 rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-primary-200 font-semibold"
+                            title="נקודות הסעיף"
+                          />
+                          <span className="text-xs text-gray-400">נק׳</span>
+                          <div className="flex-1" />
+                          {/* Remove sub-question */}
+                          <button
+                            onClick={() => handleRemoveSubQuestion(qIndex, sqIndex)}
+                            title="הסר סעיף"
+                            className="text-gray-300 hover:text-red-400 transition-colors p-0.5 rounded"
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         </div>
 
+                        {/* Sub-question-level annotations.
+                            Two clauses: legacy backend "q1.sq_xyz" format and
+                            raw sub_question_id from live validators (INV-R1b). */}
+                        {annotations
+                          .filter(a =>
+                            a.target_id === `q${parseQuestionNumber(question.question_id)}.${subQ.sub_question_id}` ||
+                            a.target_id === subQ.sub_question_id
+                          )
+                          .map(a => <AnnotationBanner key={a.id} annotation={a} />)
+                        }
+
                         {/* Sub-question text */}
-                        <textarea
-                          value={subQ.sub_question_text || ''}
-                          onChange={(e) => {
-                            updateSubQuestion(qIndex, sqIndex, { sub_question_text: e.target.value });
-                            // Auto-resize
-                            e.target.style.height = 'auto';
-                            e.target.style.height = Math.min(e.target.scrollHeight, 180) + 'px';
-                          }}
-                          onFocus={(e) => {
-                            e.target.style.height = 'auto';
-                            e.target.style.height = Math.min(e.target.scrollHeight, 180) + 'px';
-                          }}
-                          ref={(el) => {
-                            if (el) {
-                              el.style.height = 'auto';
-                              el.style.height = Math.min(el.scrollHeight, 180) + 'px';
-                            }
-                          }}
-                          className="w-full p-2 border border-surface-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-primary-300 overflow-y-auto min-h-[40px] max-h-[180px]"
+                        <MarkdownTextRenderer
+                          value={subQ.text || ''}
+                          onChange={(val) => updateSubQuestion(qIndex, sqIndex, { text: val })}
                           placeholder="טקסט הסעיף..."
-                          dir="rtl"
+                          minHeight="40px"
+                          maxHeight="180px"
                         />
 
                         {/* PDF Pages for Sub-question Criteria */}
-                        <PdfPagesDisplay
-                          pages={pages}
-                          pageIndexes={getSubQuestionCriteriaPageIndexes(question.question_number, subQ.sub_question_id)}
-                          label="טבלת קריטריונים במקור"
-                        />
+                        {sourceType === 'pdf' && (
+                          <PdfPagesDisplay
+                            pages={pages}
+                            pageIndexes={getSubQuestionCriteriaPageIndexes(parseQuestionNumber(question.question_id), subQ.sub_question_id)}
+                            label="טבלת קריטריונים במקור"
+                          />
+                        )}
+
+                        {/* Sub-question trace tables */}
+                        {subQ.trace_tables && subQ.trace_tables.length > 0 && (
+                          <TraceTablesDisplay traceTables={subQ.trace_tables} />
+                        )}
 
                         {/* Sub-question criteria */}
                         <CriteriaList
@@ -329,18 +901,34 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
                           onReorderCriteria={(fromIndex, toIndex) => reorderCriteria(qIndex, fromIndex, toIndex, sqIndex)}
                           extractionStatus={subQ.extraction_status}
                           extractionError={subQ.extraction_error}
+                          proposals={subQ.proposals}
+                          onAcceptProposals={() => acceptProposals(qIndex, sqIndex)}
+                          onRejectProposals={() => rejectProposals(qIndex, sqIndex)}
+                          enhancingCriterionIds={enhancingCriterionIds}
                         />
                       </div>
                     ))}
+
+                    {/* Add sub-question button */}
+                    <button
+                      onClick={() => handleAddSubQuestion(qIndex)}
+                      className="flex items-center gap-1.5 text-xs text-primary-500 hover:text-primary-700 transition-colors mt-1"
+                      dir="rtl"
+                    >
+                      <Plus size={13} />
+                      <span>הוסף סעיף</span>
+                    </button>
                   </div>
                 ) : (
                   <>
                     {/* PDF Pages for Direct Criteria */}
-                    <PdfPagesDisplay
-                      pages={pages}
-                      pageIndexes={getCriteriaPageIndexes(question.question_number)}
-                      label="טבלת קריטריונים במקור"
-                    />
+                    {sourceType === 'pdf' && (
+                      <PdfPagesDisplay
+                        pages={pages}
+                        pageIndexes={getCriteriaPageIndexes(parseQuestionNumber(question.question_id))}
+                        label="טבלת קריטריונים במקור"
+                      />
+                    )}
 
                     {/* Direct criteria */}
                     <CriteriaList
@@ -351,7 +939,21 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
                       onReorderCriteria={(fromIndex, toIndex) => reorderCriteria(qIndex, fromIndex, toIndex)}
                       extractionStatus={question.extraction_status}
                       extractionError={question.extraction_error}
+                      proposals={question.proposals}
+                      onAcceptProposals={() => acceptProposals(qIndex)}
+                      onRejectProposals={() => rejectProposals(qIndex)}
+                      enhancingCriterionIds={enhancingCriterionIds}
                     />
+
+                    {/* Add sub-question button */}
+                    <button
+                      onClick={() => handleAddSubQuestion(qIndex)}
+                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-primary-500 transition-colors mt-1"
+                      dir="rtl"
+                    >
+                      <Plus size={13} />
+                      <span>הוסף סעיף (עבור למבנה עם תת-שאלות)</span>
+                    </button>
                   </>
                 )}
               </div>
@@ -359,6 +961,310 @@ export function RubricEditor({ questions, onQuestionsChange, pages, questionMapp
           </div>
         ))}
       </div>
+
+      {/* Add question button */}
+      <button
+        onClick={handleAddQuestion}
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-primary-200 rounded-lg text-sm text-primary-500 hover:border-primary-400 hover:text-primary-700 hover:bg-primary-50 transition-all"
+        dir="rtl"
+      >
+        <Plus size={16} />
+        <span>הוסף שאלה</span>
+      </button>
+    </div>
+  );
+}
+
+// Code Blocks Display (NEW - DOCX Pipeline)
+// =============================================================================
+
+interface CodeBlocksDisplayProps {
+  codeBlocks: string[];
+  language?: string;
+}
+
+function CodeBlocksDisplay({ codeBlocks, language }: CodeBlocksDisplayProps) {
+  const [expandedBlock, setExpandedBlock] = useState<number | null>(null);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm text-gray-600">
+        <Code size={16} className="text-blue-500" />
+        <span className="font-medium">בלוקי קוד ({codeBlocks.length})</span>
+        {language && <span className="text-xs text-gray-400">{language}</span>}
+      </div>
+
+      <div className="space-y-2">
+        {codeBlocks.map((code, idx) => (
+          <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setExpandedBlock(expandedBlock === idx ? null : idx)}
+              className="w-full flex items-center justify-between p-2 bg-gray-50 hover:bg-gray-100 text-sm"
+            >
+              <span className="font-mono text-gray-600 truncate max-w-[80%]">
+                {code.split('\n')[0].slice(0, 50)}...
+              </span>
+              {expandedBlock === idx ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            {expandedBlock === idx && (
+              <pre className="p-3 bg-gray-900 text-gray-100 text-xs overflow-x-auto max-h-[300px]" dir="ltr">
+                <code>{code}</code>
+              </pre>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Example Solution Display (NEW - DOCX Pipeline)
+// =============================================================================
+
+interface ExampleSolutionDisplayProps {
+  solution: string;
+  language?: string;
+}
+
+function ExampleSolutionDisplay({ solution, language }: ExampleSolutionDisplayProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="border border-green-200 rounded-lg overflow-hidden bg-green-50">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-green-100"
+      >
+        <div className="flex items-center gap-2 text-green-700">
+          <Lightbulb size={16} />
+          <span className="font-medium text-sm">פתרון לדוגמה</span>
+          {language && <span className="text-xs text-green-500">({language})</span>}
+        </div>
+        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+
+      {isExpanded && (
+        <pre className="p-3 bg-gray-900 text-gray-100 text-xs overflow-x-auto max-h-[400px]" dir="ltr">
+          <code>{solution}</code>
+        </pre>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Trace Tables Display (NEW - DOCX Pipeline)
+// =============================================================================
+
+interface TraceTablesDisplayProps {
+  traceTables: TraceTableData[];
+}
+
+function TraceTablesDisplay({ traceTables }: TraceTablesDisplayProps) {
+  const [expandedTable, setExpandedTable] = useState<number | null>(0);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm text-gray-600">
+        <Table size={16} className="text-purple-500" />
+        <span className="font-medium">טבלאות מעקב ({traceTables.length})</span>
+      </div>
+
+      {traceTables.map((table, idx) => (
+        <div key={idx} className="border border-purple-200 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setExpandedTable(expandedTable === idx ? null : idx)}
+            className="w-full flex items-center justify-between p-2 bg-purple-50 hover:bg-purple-100 text-sm"
+          >
+            <span className="text-purple-700">
+              טבלה {idx + 1}: {table.headers.slice(0, 4).join(', ')}
+              {table.headers.length > 4 && '...'}
+            </span>
+            <span className="text-xs text-purple-500">{table.row_count} שורות</span>
+          </button>
+
+          {expandedTable === idx && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs" dir="ltr">
+                <thead className="bg-purple-100">
+                  <tr>
+                    {table.headers.map((h: string, i: number) => (
+                      <th key={i} className="px-2 py-1 text-right font-medium text-purple-800 border-b">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {table.rows.slice(0, 10).map((row: Record<string, string>, rowIdx: number) => (
+                    <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-purple-50/50'}>
+                      {table.headers.map((h: string, colIdx: number) => (
+                        <td key={colIdx} className="px-2 py-1 border-b border-purple-100 font-mono">
+                          {row[h] || '-'}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {table.row_count > 10 && (
+                <div className="p-2 text-center text-xs text-purple-500 bg-purple-50">
+                  ... ועוד {table.row_count - 10} שורות
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// =============================================================================
+// Question Context Tables Display Component
+// Renders QUESTION_LAYOUT_TABLE / EXAMPLE_DATA_TABLE content that is part of
+// the question itself — e.g. a class interface definition or an I/O data table.
+// Visually distinct from trace tables (blue-grey palette, different label).
+// =============================================================================
+
+interface QuestionContextTablesDisplayProps {
+  contextTables: ContextTableData[];
+}
+
+function QuestionContextTablesDisplay({ contextTables }: QuestionContextTablesDisplayProps) {
+  const [expandedTables, setExpandedTables] = useState<Set<number>>(
+    () => new Set(contextTables.map((_, i) => i))
+  );
+
+  if (!contextTables || contextTables.length === 0) return null;
+
+  // Default behavior: show (expand) all context tables. Reset when count changes
+  // (e.g., when switching to another rubric/question).
+  useEffect(() => {
+    setExpandedTables(new Set(contextTables.map((_, i) => i)));
+  }, [contextTables.length]);
+
+  // Infer per-table direction. Some DOCX "context tables" are actually LTR (arrays, code-ish I/O),
+  // even inside an overall Hebrew/RTL document. Rendering them with dir="rtl" reverses columns.
+  const inferGridDir = (grid: string[][]): 'rtl' | 'ltr' => {
+    const hebrewRe = /[\u0590-\u05FF]/;
+    const latinRe = /[A-Za-z]/;
+    for (const row of grid) {
+      for (const cell of row) {
+        const s = (cell ?? '').trim();
+        if (!s) continue;
+        if (hebrewRe.test(s)) return 'rtl';
+        if (latinRe.test(s)) return 'ltr';
+      }
+    }
+    // Digits/punctuation-only tables (common for arrays) should default to LTR to preserve order.
+    return 'ltr';
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm text-gray-600">
+        <Table size={16} className="text-blue-500" />
+        <span className="font-medium text-blue-700">
+          {contextTables.length === 1 ? 'טבלת הקשר לשאלה' : `טבלאות הקשר לשאלה (${contextTables.length})`}
+        </span>
+      </div>
+
+      {contextTables.map((table, idx) => {
+        // Defensive: backend may still send old {headers, rows} shape if server
+        // hasn't restarted with the new transformer. Normalise to grid on the fly.
+        const raw = table as unknown as Record<string, unknown>;
+        const title =
+          (typeof (table as unknown as { title?: unknown }).title === 'string'
+            ? ((table as unknown as { title?: string }).title ?? '').trim()
+            : typeof raw['title'] === 'string'
+              ? (raw['title'] as string).trim()
+              : '') || '';
+        const grid: string[][] = Array.isArray(table.grid)
+          ? table.grid
+          : Array.isArray(raw['headers'])
+            ? [raw['headers'] as string[], ...(raw['rows'] as Record<string, string>[]).map(
+              row => (raw['headers'] as string[]).map(h => row[h] ?? '')
+            )]
+            : [];
+
+        const rowCount = table.row_count ?? grid.length;
+        const colCount = (table as ContextTableData).col_count ?? (grid[0]?.length ?? 0);
+        const tableDir = inferGridDir(grid);
+        const titleDir: 'rtl' | 'ltr' = /[\u0590-\u05FF]/.test(title) ? 'rtl' : 'ltr';
+        const buttonLabel = `טבלה ${idx + 1}`;
+        const isExpanded = expandedTables.has(idx);
+
+        return (
+          <div key={idx} className="border border-blue-200 rounded-lg overflow-hidden">
+            <button
+              onClick={() => {
+                setExpandedTables(prev => {
+                  const next = new Set(prev);
+                  if (next.has(idx)) next.delete(idx);
+                  else next.add(idx);
+                  return next;
+                });
+              }}
+              className="w-full flex items-center justify-between p-2 bg-blue-50 hover:bg-blue-100 text-sm transition-colors"
+            >
+              <span className="text-gray-900 font-medium truncate max-w-xs">
+                {buttonLabel}
+              </span>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-xs text-blue-400">
+                  {rowCount} × {colCount}
+                </span>
+                {isExpanded
+                  ? <ChevronUp size={14} className="text-blue-400" />
+                  : <ChevronDown size={14} className="text-blue-400" />
+                }
+              </div>
+            </button>
+
+            {isExpanded && (
+              <div className="overflow-x-auto">
+                {title && (
+                  <div
+                    className="px-3 py-2 text-sm font-medium text-blue-900 bg-blue-50 border-b border-blue-100"
+                    dir={titleDir}
+                  >
+                    {title}
+                  </div>
+                )}
+                <table className="text-xs border-collapse" dir={tableDir}>
+                  <tbody>
+                    {grid.map((row: string[], rowIdx: number) => (
+                      <tr
+                        key={rowIdx}
+                        className={rowIdx === 0 ? 'bg-blue-100' : rowIdx % 2 === 0 ? 'bg-white' : 'bg-blue-50/40'}
+                      >
+                        {row.map((cell: string, colIdx: number) => {
+                          const Tag = rowIdx === 0 ? 'th' : 'td';
+                          return (
+                            <Tag
+                              key={colIdx}
+                              className={[
+                                'px-3 py-2 border border-blue-100 align-top',
+                                tableDir === 'rtl' ? 'text-right' : 'text-left',
+                                rowIdx === 0 ? 'font-semibold text-blue-900' : 'text-gray-700',
+                                !cell ? 'text-gray-300' : '',
+                              ].join(' ')}
+                            >
+                              {cell || ''}
+                            </Tag>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -376,7 +1282,6 @@ interface PdfPagesDisplayProps {
 function PdfPagesDisplay({ pages, pageIndexes, label }: PdfPagesDisplayProps) {
   const [currentPageIdx, setCurrentPageIdx] = useState(0);
   const [expandedPage, setExpandedPage] = useState<number | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   if (!pages || pageIndexes.length === 0) return null;
 
@@ -451,14 +1356,13 @@ function PdfPagesDisplay({ pages, pageIndexes, label }: PdfPagesDisplayProps) {
             </button>
           </div>
         ) : (
-          // Fallback to thumbnail display
+          // Fallback to thumbnail
           <div className="relative">
             <img
               src={`data:image/png;base64,${relevantPages[currentPageIdx].thumbnail_base64}`}
               alt={`עמוד ${relevantPages[currentPageIdx].page_number}`}
               className="w-full max-h-[320px] object-contain"
             />
-            {/* Expand button */}
             <button
               onClick={() => setExpandedPage(currentPageIdx)}
               className="absolute top-2 left-2 p-1.5 bg-white/90 hover:bg-white rounded-lg shadow-md transition-colors"
@@ -466,318 +1370,227 @@ function PdfPagesDisplay({ pages, pageIndexes, label }: PdfPagesDisplayProps) {
             >
               <Maximize2 size={16} className="text-gray-600" />
             </button>
-            {/* Note about text selection */}
-            <div className="absolute bottom-2 right-2 px-2 py-1 bg-amber-100/90 rounded text-xs text-amber-700">
-              תצוגה מקדימה - העתקת טקסט לא זמינה
-            </div>
           </div>
         )}
       </div>
 
-      {/* Page indicator dots for multiple pages */}
-      {hasMultiplePages && (
-        <div className="flex items-center justify-center gap-1.5 mt-2">
-          {relevantPages.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentPageIdx(idx)}
-              className={`w-2 h-2 rounded-full transition-colors ${idx === currentPageIdx
-                ? 'bg-primary-500'
-                : 'bg-surface-300 hover:bg-surface-400'
-                }`}
-            />
-          ))}
-        </div>
-      )}
-
       {/* Expanded Modal */}
       {expandedPage !== null && (
-        <PageExpandedModal
-          page={relevantPages[expandedPage]}
-          hasPdfUrl={!!relevantPages[expandedPage].page_pdf_url}
-          onClose={() => setExpandedPage(null)}
-        />
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setExpandedPage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] w-full bg-white rounded-lg overflow-hidden" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setExpandedPage(null)}
+              className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white z-10"
+            >
+              <X size={20} />
+            </button>
+            {hasPdfUrls ? (
+              <iframe
+                src={`${relevantPages[expandedPage].page_pdf_url}#toolbar=0&navpanes=0`}
+                className="w-full h-[85vh] border-0"
+                title={`עמוד ${relevantPages[expandedPage].page_number}`}
+              />
+            ) : (
+              <img
+                src={`data:image/png;base64,${relevantPages[expandedPage].thumbnail_base64}`}
+                alt={`עמוד ${relevantPages[expandedPage].page_number}`}
+                className="w-full h-auto max-h-[85vh] object-contain"
+              />
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
 // =============================================================================
-// Page Expanded Modal Component
+// Sub-Criteria Editor Component — add/edit/delete sub-criteria with point inputs
 // =============================================================================
 
-interface PageExpandedModalProps {
-  page: PagePreview;
-  hasPdfUrl: boolean;
-  onClose: () => void;
-}
-
-function PageExpandedModal({ page, hasPdfUrl, onClose }: PageExpandedModalProps) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative bg-white rounded-xl overflow-hidden max-w-[95vw] max-h-[95vh] shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-3 left-3 z-10 p-2 bg-white/90 hover:bg-white rounded-full shadow-lg transition-colors"
-        >
-          <X size={20} className="text-gray-600" />
-        </button>
-
-        {/* Page number badge */}
-        <div className="absolute top-3 right-3 z-10 px-3 py-1 bg-white/90 rounded-full shadow text-sm font-medium text-gray-700">
-          עמוד {page.page_number}
-        </div>
-
-        {/* Content */}
-        {hasPdfUrl && page.page_pdf_url ? (
-          <iframe
-            src={`${page.page_pdf_url}#toolbar=1&navpanes=0`}
-            className="w-[90vw] h-[90vh] border-0"
-            title={`עמוד ${page.page_number}`}
-          />
-        ) : (
-          <img
-            src={`data:image/png;base64,${page.thumbnail_base64}`}
-            alt={`עמוד ${page.page_number}`}
-            className="max-w-[90vw] max-h-[90vh] object-contain"
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-// =============================================================================
-// Editable Reduction Rules Component - Full CRUD Support
-// =============================================================================
-
-interface EditableReductionRulesProps {
-  rules: ReductionRule[];
+interface SubCriteriaEditorProps {
+  subCriteria: RubricSubCriterion[] | null;
   totalPoints: number;
-  onRulesChange: (rules: ReductionRule[]) => void;
+  onSubCriteriaChange: (sc: RubricSubCriterion[] | null) => void;
 }
 
-function EditableReductionRules({ rules, totalPoints, onRulesChange }: EditableReductionRulesProps) {
+function SubCriteriaEditor({ subCriteria, totalPoints, onSubCriteriaChange }: SubCriteriaEditorProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const list = subCriteria || [];
+  const subSum = list.reduce((s, sc) => s + sc.points, 0);
+  const hasMismatch = list.length > 0 && Math.abs(subSum - totalPoints) > 0.01;
 
-  const totalDeduction = rules.reduce((sum, r) => sum + r.reduction_value, 0);
-  const hasRules = rules && rules.length > 0;
-
-  // Add a new reduction rule
-  const addRule = () => {
-    const remainingPoints = Math.max(0, totalPoints - totalDeduction);
-    const newRule: ReductionRule = {
+  const addSubCriterion = () => {
+    const remaining = Math.max(0, totalPoints - subSum);
+    const newSc: RubricSubCriterion = {
+      sub_criterion_id: `sc${Date.now()}`,
+      index: list.length,
       description: '',
-      reduction_value: remainingPoints > 0 ? Math.min(1, remainingPoints) : 1,
-      is_explicit: false,
+      points: remaining > 0 ? Math.min(1, remaining) : 1,
     };
-    onRulesChange([...rules, newRule]);
+    onSubCriteriaChange([...list, newSc]);
     setIsExpanded(true);
   };
 
-  // Update a rule's description or value
-  const updateRule = (index: number, updates: Partial<ReductionRule>) => {
-    const newRules = [...rules];
-    newRules[index] = { ...newRules[index], ...updates };
-    onRulesChange(newRules);
+  const updateSubCriterion = (idx: number, patch: Partial<RubricSubCriterion>) => {
+    const next = [...list];
+    next[idx] = { ...next[idx], ...patch };
+    onSubCriteriaChange(next);
   };
 
-  // Delete a rule and redistribute its points to remaining rules
-  const deleteRule = (index: number) => {
-    const deletedRule = rules[index];
-    const remainingRules = rules.filter((_, i) => i !== index);
-
-    if (remainingRules.length === 0) {
-      // No rules left - that's fine, criterion has no detailed deduction rules
-      onRulesChange([]);
-      return;
-    }
-
-    // Smart redistribution: distribute deleted points proportionally
-    const deletedPoints = deletedRule.reduction_value;
-    const currentTotal = remainingRules.reduce((sum, r) => sum + r.reduction_value, 0);
-
-    if (currentTotal > 0 && deletedPoints > 0) {
-      // Distribute proportionally based on each rule's share
-      const redistributedRules = remainingRules.map(rule => ({
-        ...rule,
-        reduction_value: Math.round((rule.reduction_value + (rule.reduction_value / currentTotal) * deletedPoints) * 100) / 100
-      }));
-
-      // Fix rounding errors - adjust last rule to match total
-      const newTotal = redistributedRules.reduce((sum, r) => sum + r.reduction_value, 0);
-      const targetTotal = currentTotal + deletedPoints;
-      if (Math.abs(newTotal - targetTotal) > 0.01) {
-        redistributedRules[redistributedRules.length - 1].reduction_value +=
-          Math.round((targetTotal - newTotal) * 100) / 100;
-      }
-
-      onRulesChange(redistributedRules);
-    } else {
-      onRulesChange(remainingRules);
-    }
-  };
-
-  // Clear all rules
-  const clearAllRules = () => {
-    onRulesChange([]);
-    setIsExpanded(false);
+  const deleteSubCriterion = (idx: number) => {
+    const next = list.filter((_, i) => i !== idx).map((sc, i) => ({ ...sc, index: i }));
+    onSubCriteriaChange(next.length > 0 ? next : null);
+    if (next.length === 0) setIsExpanded(false);
   };
 
   return (
     <div className="mt-3" dir="rtl">
-      {/* Header with expand/collapse and add button */}
       <div className="flex items-center gap-2">
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="group flex items-center gap-2 flex-1 px-3 py-2 rounded-lg bg-gradient-to-l from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-150 border border-slate-200 transition-all duration-200"
+          className="group flex items-center gap-2 flex-1 px-3 py-2 rounded-lg bg-gradient-to-l from-slate-50 to-slate-100 hover:from-slate-100 border border-slate-200 transition-all duration-200"
         >
           <div className="flex items-center gap-2 flex-1">
-            {isExpanded ? (
-              <ChevronUp size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
-            ) : (
-              <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
-            )}
+            {isExpanded
+              ? <ChevronUp size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+              : <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+            }
             <span className="text-sm font-medium text-slate-600">
-              כללי הורדה ({rules.length})
+              {list.length > 0 ? `פירוט ניקוד (${list.length})` : 'פירוט ניקוד'}
             </span>
           </div>
-
-          {/* Total deduction badge */}
-          {hasRules ? (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-l from-red-500 to-rose-500 text-white text-xs font-bold shadow-sm">
+          {list.length > 0 && (
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold shadow-sm ${
+              hasMismatch
+                ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                : 'bg-gradient-to-l from-blue-500 to-indigo-500 text-white'
+            }`}>
               <span>סה״כ</span>
-              <span className="font-mono">{totalDeduction}</span>
+              <span className="font-mono">{subSum}</span>
               <span>נק׳</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-200 text-slate-500 text-xs font-medium">
-              <span>ללא כללים</span>
             </div>
           )}
         </button>
-
-        {/* Add rule button */}
         <button
-          onClick={addRule}
+          onClick={addSubCriterion}
           className="p-2 rounded-lg bg-primary-50 hover:bg-primary-100 border border-primary-200 text-primary-600 hover:text-primary-700 transition-colors"
-          title="הוסף כלל הורדה"
+          title="הוסף פירוט"
         >
           <Plus size={14} />
         </button>
       </div>
 
-      {/* Expanded Content - Editable Rules */}
       {isExpanded && (
         <div className="mt-2 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          {!hasRules ? (
-            // Empty state
-            <div className="px-4 py-6 text-center">
-              <div className="flex items-center justify-center gap-2 text-slate-400 mb-3">
-                <Info size={18} />
-                <span className="text-sm">אין כללי הורדה מוגדרים</span>
-              </div>
+          {list.length === 0 ? (
+            <div className="px-4 py-5 text-center">
               <p className="text-xs text-slate-400 mb-3">
-                ניתן להוסיף כללי הורדה ספציפיים או להשאיר ריק - במקרה זה הקריטריון ייבחן כיחידה אחת
+                אין פירוט ניקוד. ניתן להוסיף תת-קריטריונים לפירוט הניקוד.
               </p>
               <button
-                onClick={addRule}
+                onClick={addSubCriterion}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 hover:bg-primary-100 text-primary-600 text-sm font-medium transition-colors"
               >
                 <Plus size={14} />
-                <span>הוסף כלל הורדה</span>
+                <span>הוסף פירוט</span>
               </button>
             </div>
           ) : (
             <div className="p-3 space-y-2">
-              {rules.map((rule, idx) => (
-                <div
-                  key={idx}
-                  className={`flex items-center gap-2 p-2.5 rounded-lg border ${rule.is_explicit
-                    ? 'bg-red-50 border-red-100'
-                    : 'bg-amber-50/70 border-amber-100'
-                    }`}
-                >
-                  {/* Explicit/Inferred indicator */}
-                  <div
-                    className={`w-2 h-2 rounded-full flex-shrink-0 ${rule.is_explicit ? 'bg-red-500' : 'bg-amber-400'
-                      }`}
-                    title={rule.is_explicit ? 'מהמחוון המקורי' : 'כלל מוסק'}
-                  />
-
-                  {/* Description input */}
+              {list.map((sc, idx) => (
+                <div key={sc.sub_criterion_id} className="flex items-center gap-2 p-2.5 rounded-lg bg-blue-50 border border-blue-100">
+                  <div className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
                   <input
                     type="text"
-                    value={rule.description}
-                    onChange={(e) => updateRule(idx, { description: e.target.value })}
+                    value={sc.description}
+                    onChange={(e) => updateSubCriterion(idx, { description: e.target.value })}
                     className="flex-1 bg-transparent border-none outline-none text-sm text-slate-700 placeholder-slate-400"
-                    placeholder="תיאור הכלל..."
+                    placeholder="תיאור..."
                     dir="rtl"
                   />
-
-                  {/* Points input */}
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className="text-slate-400 text-sm">-</span>
-                    <input
-                      type="number"
-                      value={rule.reduction_value}
-                      onChange={(e) => updateRule(idx, { reduction_value: parseFloat(e.target.value) || 0 })}
-                      className={`w-14 text-center text-xs font-bold rounded-md px-2 py-1 ${rule.is_explicit
-                        ? 'bg-red-500 text-white'
-                        : 'bg-amber-400 text-amber-900'
-                        }`}
-                      min={0}
-                      step={0.5}
-                    />
-                  </div>
-
-                  {/* Delete button */}
+                  <input
+                    type="number"
+                    defaultValue={sc.points}
+                    key={`${sc.sub_criterion_id}-${sc.points}`}
+                    onBlur={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value) && value >= 0) {
+                        updateSubCriterion(idx, { points: value });
+                      } else {
+                        e.target.value = String(sc.points);
+                      }
+                    }}
+                    className="w-14 text-center text-xs font-bold rounded-md px-2 py-1 bg-blue-500 text-white"
+                    min={0}
+                    step={0.25}
+                  />
                   <button
-                    onClick={() => deleteRule(idx)}
+                    onClick={() => deleteSubCriterion(idx)}
                     className="p-1 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0"
-                    title="מחק כלל"
+                    title="מחק"
                   >
                     <Trash2 size={14} />
                   </button>
                 </div>
               ))}
-
-              {/* Footer actions */}
               <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                 <button
-                  onClick={addRule}
+                  onClick={addSubCriterion}
                   className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"
                 >
                   <Plus size={12} />
-                  <span>הוסף כלל</span>
+                  <span>הוסף פירוט</span>
                 </button>
-
-                {/* Warning if rules don't sum to total */}
-                {hasRules && Math.abs(totalDeduction - totalPoints) > 0.01 && (
-                  <div className="flex items-center gap-1 text-xs text-amber-600">
-                    <AlertTriangle size={12} />
-                    <span>סה״כ ({totalDeduction}) ≠ נקודות ({totalPoints})</span>
+                {hasMismatch && (
+                  <div className="flex items-center gap-1.5 text-xs text-amber-700 font-medium" dir="rtl">
+                    <AlertTriangle size={12} className="flex-shrink-0" />
+                    <span>
+                      {subSum < totalPoints
+                        ? `חסרות ${(totalPoints - subSum).toFixed(2)} נק׳ בפירוט הניקוד (סה״כ פירוט ${subSum}, נקודות הקריטריון ${totalPoints})`
+                        : `יש עודף של ${(subSum - totalPoints).toFixed(2)} נק׳ בפירוט הניקוד (סה״כ פירוט ${subSum}, נקודות הקריטריון ${totalPoints})`}
+                    </span>
                   </div>
                 )}
-
-                <button
-                  onClick={clearAllRules}
-                  className="text-xs text-slate-400 hover:text-red-500"
-                >
-                  נקה הכל
-                </button>
               </div>
             </div>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Annotation Banner — canonical rendering path for ExtractRubricResponse.annotations.
+// One component handles all severities (ERROR / WARNING / INFO).
+// =============================================================================
+
+interface AnnotationBannerProps {
+  annotation: Annotation;
+}
+
+function AnnotationBanner({ annotation }: AnnotationBannerProps) {
+  const styles: Record<string, string> = {
+    error:   'bg-red-50 border-red-300 text-red-800',
+    warning: 'bg-amber-50 border-amber-300 text-amber-800',
+    info:    'bg-blue-50 border-blue-300 text-blue-700',
+  };
+  const icons: Record<string, React.ReactNode> = {
+    error:   <AlertCircle   size={15} className="flex-shrink-0 mt-0.5 text-red-500"    />,
+    warning: <AlertTriangle size={15} className="flex-shrink-0 mt-0.5 text-amber-500"  />,
+    info:    <Info          size={15} className="flex-shrink-0 mt-0.5 text-blue-500"   />,
+  };
+  return (
+    <div
+      className={`flex items-start gap-2 px-3 py-2 border rounded-lg text-sm ${styles[annotation.severity] ?? styles.info}`}
+      dir="rtl"
+    >
+      {icons[annotation.severity] ?? icons.info}
+      <span>{annotation.message}</span>
     </div>
   );
 }
@@ -787,14 +1600,22 @@ function EditableReductionRules({ rules, totalPoints, onRulesChange }: EditableR
 // =============================================================================
 
 interface CriteriaListProps {
-  criteria: ExtractedCriterion[];
-  onUpdateCriterion: (index: number, updates: Partial<ExtractedCriterion>) => void;
+  criteria: RubricCriterion[];
+  onUpdateCriterion: (index: number, updates: Partial<RubricCriterion>) => void;
   onAddCriterion: () => void;
   onRemoveCriterion: (index: number) => void;
   onReorderCriteria: (fromIndex: number, toIndex: number) => void;
   // Extraction status for showing warnings
   extractionStatus?: 'success' | 'partial' | 'failed';
   extractionError?: string | null;
+  // Proposal support
+  proposals?: ProposalSet | null;
+  onAcceptProposals?: () => void;
+  onRejectProposals?: () => void;
+  // Post-acceptance loading state
+  enhancingCriterionIds?: Set<string>;
+  // Annotations for per-criterion banners
+  annotations?: Annotation[];
 }
 
 function CriteriaList({
@@ -805,6 +1626,11 @@ function CriteriaList({
   onReorderCriteria,
   extractionStatus = 'success',
   extractionError,
+  proposals,
+  onAcceptProposals,
+  onRejectProposals,
+  enhancingCriterionIds,
+  annotations = [],
 }: CriteriaListProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dropPosition, setDropPosition] = useState<{ index: number; position: 'above' | 'below' } | null>(null);
@@ -919,9 +1745,8 @@ function CriteriaList({
         <div className="space-y-2">
           {criteria.map((criterion, cIndex) => {
             const dropIndicator = getDropIndicator(cIndex);
-            // Get display values (support both old and new format)
-            const displayDescription = criterion.criterion_description || criterion.description || '';
-            const displayPoints = criterion.total_points ?? criterion.points ?? 0;
+            const displayDescription = criterion.description || '';
+            const displayPoints = criterion.points;
 
             return (
               <div key={cIndex} className="relative">
@@ -934,6 +1759,7 @@ function CriteriaList({
 
                 <div
                   draggable
+                  data-scope-id={criterion.criterion_id}
                   onDragStart={(e) => handleDragStart(e, cIndex)}
                   onDragOver={(e) => handleDragOver(e, cIndex)}
                   onDragLeave={handleDragLeave}
@@ -967,8 +1793,7 @@ function CriteriaList({
                       type="text"
                       value={displayDescription}
                       onChange={(e) => onUpdateCriterion(cIndex, {
-                        criterion_description: e.target.value,
-                        description: e.target.value
+                        description: e.target.value,
                       })}
                       className="flex-1 bg-transparent border-none outline-none text-sm text-right"
                       placeholder="תיאור הקריטריון..."
@@ -978,17 +1803,19 @@ function CriteriaList({
 
                     <input
                       type="number"
-                      value={displayPoints}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 0;
-                        onUpdateCriterion(cIndex, {
-                          total_points: value,
-                          points: value
-                        });
+                      defaultValue={displayPoints}
+                      key={`${criterion.criterion_id}-${displayPoints}`}
+                      onBlur={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value) && value >= 0) {
+                          onUpdateCriterion(cIndex, { points: value });
+                        } else {
+                          e.target.value = String(displayPoints);
+                        }
                       }}
                       className="w-16 text-center bg-white border border-surface-300 rounded px-2 py-1 text-sm font-medium"
                       min={0}
-                      step={0.5}
+                      step={0.25}
                     />
 
                     <button
@@ -999,12 +1826,31 @@ function CriteriaList({
                     </button>
                   </div>
 
-                  {/* Reduction rules section (always shown so teachers can add/edit) */}
-                  <EditableReductionRules
-                    rules={criterion.reduction_rules || []}
-                    totalPoints={displayPoints}
-                    onRulesChange={(newRules) => onUpdateCriterion(cIndex, { reduction_rules: newRules })}
-                  />
+                  {/* Sub-criteria (v3 pipeline) or reduction rules (legacy) */}
+                  {enhancingCriterionIds?.has(criterion.criterion_id) ? (
+                    <div className="mt-3 px-3 py-3 rounded-lg bg-violet-50 border border-violet-200 animate-pulse" dir="rtl">
+                      <div className="flex items-center gap-2 text-xs text-violet-500">
+                        <Loader2 size={12} className="animate-spin" />
+                        <span>מייצר כללי הורדה...</span>
+                      </div>
+                      <div className="mt-2 space-y-1.5">
+                        <div className="h-3 bg-violet-200 rounded w-3/4" />
+                        <div className="h-3 bg-violet-200 rounded w-1/2" />
+                      </div>
+                    </div>
+                  ) : (
+                    <SubCriteriaEditor
+                      subCriteria={criterion.sub_criteria ?? null}
+                      totalPoints={displayPoints}
+                      onSubCriteriaChange={(sc) => onUpdateCriterion(cIndex, { sub_criteria: sc })}
+                    />
+                  )}
+
+                  {/* Per-criterion annotations */}
+                  {annotations
+                    .filter(a => a.target_id === criterion.criterion_id)
+                    .map(a => <AnnotationBanner key={a.id} annotation={a} />)
+                  }
                 </div>
 
                 {/* Drop indicator line - BELOW */}
@@ -1016,6 +1862,110 @@ function CriteriaList({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* AI Proposal Banner — shown when proposals exist for this scope */}
+      {proposals && proposals.proposed_criteria.length > 0 && onAcceptProposals && onRejectProposals && (
+        <ProposalBanner
+          proposals={proposals}
+          onAccept={onAcceptProposals}
+          onReject={onRejectProposals}
+        />
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// AI Proposal Banner Component
+// =============================================================================
+
+interface ProposalBannerProps {
+  proposals: ProposalSet;
+  onAccept: () => void;
+  onReject: () => void;
+}
+
+function ProposalBanner({ proposals, onAccept, onReject }: ProposalBannerProps) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const count = proposals.proposed_criteria.length;
+
+  return (
+    <div
+      className="mt-3 rounded-xl border-2 border-dashed border-violet-300 bg-gradient-to-l from-violet-50 to-indigo-50 overflow-hidden"
+      dir="rtl"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center gap-2 flex-1"
+        >
+          <Sparkles size={16} className="text-violet-500" />
+          <span className="text-sm font-semibold text-violet-800">
+            הצעות AI לקריטריונים נוספים ({count})
+          </span>
+          {isExpanded
+            ? <ChevronUp size={14} className="text-violet-400" />
+            : <ChevronDown size={14} className="text-violet-400" />
+          }
+        </button>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={onReject}
+            className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            דחה הכל
+          </button>
+          <button
+            onClick={onAccept}
+            className="px-3 py-1.5 text-xs font-medium text-white bg-violet-600 border border-violet-700 rounded-lg hover:bg-violet-700 transition-colors"
+          >
+            אשר הכל
+          </button>
+        </div>
+      </div>
+
+      {/* Expanded content: list of proposed criteria */}
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-2">
+          {proposals.proposed_criteria.map((pc) => (
+            <div
+              key={pc.temp_id}
+              className="flex items-start gap-3 p-3 rounded-lg bg-white/70 border border-violet-200"
+            >
+              {/* AI indicator dot */}
+              <div className="w-2 h-2 mt-1.5 rounded-full bg-violet-400 flex-shrink-0" />
+
+              <div className="flex-1 min-w-0">
+                {/* Description */}
+                <p className="text-sm text-gray-800 leading-relaxed">
+                  {pc.description}
+                </p>
+
+                {/* Explanation */}
+                <p className="mt-1 text-xs text-violet-600 leading-relaxed">
+                  <Lightbulb size={11} className="inline ml-1 -mt-0.5" />
+                  {pc.explanation}
+                </p>
+              </div>
+
+              {/* Points badge */}
+              <div className="flex-shrink-0 px-2.5 py-1 rounded-full bg-violet-100 text-violet-700 text-xs font-bold">
+                {pc.points} נק׳
+              </div>
+            </div>
+          ))}
+
+          {/* Redistribution note */}
+          {proposals.enhanced_distribution.length > 0 && (
+            <p className="text-xs text-violet-500 pt-1">
+              <Info size={11} className="inline ml-1 -mt-0.5" />
+              אישור ההצעות יעדכן את חלוקת הנקודות של הקריטריונים הקיימים.
+            </p>
+          )}
         </div>
       )}
     </div>

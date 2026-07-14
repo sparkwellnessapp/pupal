@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -25,9 +25,14 @@ export default function LoginPage() {
     const [error, setError] = useState<string | null>(null);
     const [focusedField, setFocusedField] = useState<'email' | 'password' | null>(null);
 
-    // Redirect if already authenticated
+    // Redirect if already authenticated (avoid setState/navigation during render)
+    useEffect(() => {
+        if (isAuthenticated) {
+            router.push('/');
+        }
+    }, [isAuthenticated, router]);
+
     if (isAuthenticated) {
-        router.push('/');
         return null;
     }
 
