@@ -15,15 +15,18 @@ interface FileUploadProps {
 export function FileUpload({
   file,
   onFileChange,
-  accept = '.pdf',
-  label = 'העלי קובץ PDF',
+  accept = '.pdf,.docx',
+  label = 'Upload PDF or DOCX file',
   showFormatGuide = false,
 }: FileUploadProps) {
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile && droppedFile.type === 'application/pdf') {
+      if (droppedFile && (
+        droppedFile.type === 'application/pdf' ||
+        droppedFile.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      )) {
         onFileChange(droppedFile);
       }
     },

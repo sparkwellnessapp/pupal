@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { RubricListItem, listRubrics } from '@/lib/api';
-import { FileText, Calendar, Loader2, RefreshCw, Plus } from 'lucide-react';
+import { FileText, Calendar, Loader2, RefreshCw, Plus, Lock } from 'lucide-react';
 
 interface RubricSelectorProps {
   onSelect: (rubric: RubricListItem) => void;
@@ -96,39 +96,55 @@ export function RubricSelector({ onSelect }: RubricSelectorProps) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-1">
-        {rubrics.map((rubric) => (
-          <button
-            key={rubric.id}
-            onClick={() => onSelect(rubric)}
-            className="group bg-white rounded-xl border-2 border-surface-200 hover:border-primary-400 hover:shadow-lg transition-all p-4 text-right"
-          >
-            {/* Mini PDF preview placeholder */}
-            <div className="bg-gradient-to-br from-surface-100 to-surface-200 rounded-lg h-24 mb-3 flex items-center justify-center relative overflow-hidden">
-              {/* Fake PDF lines */}
-              <div className="absolute inset-3 space-y-2">
-                <div className="h-2 bg-surface-300/50 rounded w-3/4"></div>
-                <div className="h-2 bg-surface-300/50 rounded w-full"></div>
-                <div className="h-2 bg-surface-300/50 rounded w-5/6"></div>
-                <div className="h-2 bg-surface-300/50 rounded w-2/3"></div>
-                <div className="h-2 bg-surface-300/50 rounded w-4/5"></div>
+        {rubrics.map((rubric) => {
+          const notCompiled = rubric.is_compiled === false;
+          return (
+            <button
+              key={rubric.id}
+              onClick={() => !notCompiled && onSelect(rubric)}
+              disabled={notCompiled}
+              className={`group rounded-xl border-2 transition-all p-4 text-right ${
+                notCompiled
+                  ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
+                  : 'bg-white border-surface-200 hover:border-primary-400 hover:shadow-lg cursor-pointer'
+              }`}
+              title={notCompiled ? 'המחוון לא הורכב — ערכי אותו ושמרי שוב' : undefined}
+            >
+              {/* Mini PDF preview placeholder */}
+              <div className="bg-gradient-to-br from-surface-100 to-surface-200 rounded-lg h-24 mb-3 flex items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-3 space-y-2">
+                  <div className="h-2 bg-surface-300/50 rounded w-3/4"></div>
+                  <div className="h-2 bg-surface-300/50 rounded w-full"></div>
+                  <div className="h-2 bg-surface-300/50 rounded w-5/6"></div>
+                  <div className="h-2 bg-surface-300/50 rounded w-2/3"></div>
+                  <div className="h-2 bg-surface-300/50 rounded w-4/5"></div>
+                </div>
+                {notCompiled ? (
+                  <Lock className="text-gray-400 absolute bottom-2 right-2" size={24} />
+                ) : (
+                  <FileText
+                    className="text-primary-300 group-hover:text-primary-400 transition-colors absolute bottom-2 right-2"
+                    size={24}
+                  />
+                )}
               </div>
-              <FileText
-                className="text-primary-300 group-hover:text-primary-400 transition-colors absolute bottom-2 right-2"
-                size={24}
-              />
-            </div>
 
-            {/* Rubric info */}
-            <h4 className="font-medium text-gray-800 truncate group-hover:text-primary-700 transition-colors">
-              {rubric.name || 'מחוון ללא שם'}
-            </h4>
+              {/* Rubric info */}
+              <h4 className={`font-medium truncate ${notCompiled ? 'text-gray-500' : 'text-gray-800 group-hover:text-primary-700'} transition-colors`}>
+                {rubric.name || 'מחוון ללא שם'}
+              </h4>
 
-            <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
-              <Calendar size={12} />
-              <span>{formatDate(rubric.created_at)}</span>
-            </div>
-          </button>
-        ))}
+              {notCompiled && (
+                <p className="text-xs text-amber-600 mt-1">טרם הורכב</p>
+              )}
+
+              <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
+                <Calendar size={12} />
+                <span>{formatDate(rubric.created_at)}</span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -27,31 +27,8 @@ export function AnswerMappingPanel({
   onFirstPageIndexChange,
   hideFirstPageSelector = false,
 }: AnswerMappingPanelProps) {
-  // Initialize mappings from rubric structure if empty
   const initializeMappings = () => {
-    const newMappings: AnswerPageMapping[] = [];
-
-    for (const question of rubric.rubric_json.questions) {
-      if (question.sub_questions && question.sub_questions.length > 0) {
-        // Question has sub-questions
-        for (const sq of question.sub_questions) {
-          newMappings.push({
-            question_number: question.question_number,
-            sub_question_id: sq.sub_question_id,
-            page_indexes: [],
-          });
-        }
-      } else {
-        // Question without sub-questions
-        newMappings.push({
-          question_number: question.question_number,
-          sub_question_id: null,
-          page_indexes: [],
-        });
-      }
-    }
-
-    onMappingsChange(newMappings);
+    onMappingsChange([]);
   };
 
   const isAssignmentActive = (mappingIndex: number) => {
@@ -73,22 +50,7 @@ export function AnswerMappingPanel({
     return `תשובה ${mapping.question_number}`;
   };
 
-  const getQuestionPoints = (mapping: AnswerPageMapping) => {
-    const question = rubric.rubric_json.questions.find(
-      (q) => q.question_number === mapping.question_number
-    );
-    if (!question) return 0;
-
-    if (mapping.sub_question_id && question.sub_questions) {
-      const sq = question.sub_questions.find(
-        (s) => s.sub_question_id === mapping.sub_question_id
-      );
-      // Support both new (total_points) and legacy (points) format
-      return sq?.criteria?.reduce((sum, c) => sum + (c.total_points ?? c.points ?? 0), 0) || 0;
-    }
-
-    return question.total_points || 0;
-  };
+  const getQuestionPoints = (_mapping: AnswerPageMapping) => 0;
 
   if (mappings.length === 0) {
     return (
@@ -96,7 +58,7 @@ export function AnswerMappingPanel({
         <h3 className="font-semibold text-lg">מיפוי תשובות</h3>
         <div className="text-center py-8 bg-surface-100 rounded-lg">
           <p className="text-gray-500 mb-4">
-            המחוון מכיל {rubric.rubric_json.questions.length} שאלות
+            המחוון מכיל {rubric.total_questions ?? 0} שאלות
           </p>
           <button
             onClick={initializeMappings}

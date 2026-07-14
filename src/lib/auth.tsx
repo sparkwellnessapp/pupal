@@ -1,8 +1,21 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+
+import { shouldRenew } from './session';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+// NOTE (PR-2): the auth calls in this file deliberately use RAW fetch and do NOT
+// route through apiFetch. A wrong password legitimately returns 401 — if login
+// threw ApiAuthError it would be reported as "session expired" and would trigger
+// the stash-and-logout flow on a failed login attempt. Auth is the one place where
+// a 401 is a normal answer, not a session failure.
+
+/** How often we re-check whether the token is close enough to expiry to renew.
+ * Cheap: it only decodes a local JWT; the network call happens at most once per
+ * renewal window. */
+const RENEWAL_CHECK_INTERVAL_MS = 15 * 60 * 1000;   // 15 min
 
 // Types
 interface User {
@@ -178,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
     }, []);
 
-    // Refresh user data
+    // Refresh user data (profile only — NOT the token; see renewToken below)
     const refreshUser = useCallback(async () => {
         if (!state.token) return;
 
@@ -198,6 +211,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Ignore errors
         }
     }, [state.token]);
+
+    // ── PR-2: sliding renewal (C9) ──────────────────────────────────────────
+    // POST /auth/refresh already existed and nothing called it. It is gated on a
+    // VALID token, so it can only renew BEFORE expiry — which is exactly what we
+    // do. With a 7-day TTL and a 48h renewal window, any teacher who opens the app
+    // even once every 5 days never sees an expiry. Zero backend change.
+    const renewing = useRef(false);
+
+    const renewToken = useCallback(async (token: string) => {
+        if (renewing.current) return;
+        renewing.current = true;
+        try {
+            const response = await fetch(`${API_BASE}/api/v0/auth/refresh`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!response.ok) return;    // still valid until it isn't; never log out from here
+            const data = await response.json();
+            if (!data?.access_token) return;
+            localStorage.setItem(TOKEN_KEY, data.access_token);
+            if (data.user) localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+            setState(prev => ({
+                ...prev,
+                token: data.access_token,
+                user: data.user ?? prev.user,
+            }));
+        } catch {
+            // Offline / transient — the token is still valid; try again next tick.
+        } finally {
+            renewing.current = false;
+        }
+    }, []);
+
+    // Check on mount and on a low-frequency interval while the tab lives.
+    useEffect(() => {
+        if (!state.isAuthenticated) return;
+
+        const check = () => {
+            const token = localStorage.getItem(TOKEN_KEY);
+            if (token && shouldRenew(token)) void renewToken(token);
+        };
+        check();
+        const id = setInterval(check, RENEWAL_CHECK_INTERVAL_MS);
+        // Also re-check when the tab regains focus — a laptop reopened after days
+        // is exactly the case where the token drifted into the renewal window.
+        window.addEventListener('focus', check);
+        return () => {
+            clearInterval(id);
+            window.removeEventListener('focus', check);
+        };
+    }, [state.isAuthenticated, renewToken]);
 
     return (
         <AuthContext.Provider value={{ ...state, login, signup, logout, refreshUser }}>

@@ -20,24 +20,31 @@ import {
     Edit3,
 } from 'lucide-react';
 import {
-    uploadPdfForGeneration,
-    streamQuestionDetection,
-    generateCriteria,
-    regenerateQuestion,
-    saveRubric,
-    createRubricPdf,
+    saveOntologyRubric,
+    isWarningsResponse,
+    RubricSaveError,
     shareRubricViaEmail,
     DetectedQuestion,
     ExtractRubricResponse,
-    ExtractedQuestion,
+    SaveOntologyRubricWarnings,
 } from '@/lib/api';
 import { RubricEditor } from '@/components/RubricEditor';
+import type { RubricQuestion } from '@/types/rubric';
+import { hydrateAnyQuestions, dehydrateQuestions } from '@/utils/rubric-transform';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { LanguageSelector } from '@/components/LanguageSelector';
+import { RubricWarningsModal, RubricErrorDisplay } from '@/components/RubricSaveFlow';
+import { hasErrors } from '@/utils/rubric-validation';
 
 // =============================================================================
 // Constants & Types
 // =============================================================================
+
+// TODO(Sprint 2+): Full ontology migration for rubric-generator page.
+// Currently uses ExtractRubricResponse (legacy envelope) + hydrated RubricQuestion[]
+// for the editor. The generateCriteria/regenerateQuestion APIs still return legacy
+// types. Full migration requires updating those backend endpoints to return
+// ontology format, then removing the hydration adapter here.
 
 type WizardStep = 'upload' | 'questions' | 'rubric' | 'share';
 
@@ -172,6 +179,15 @@ export default function RubricGeneratorPage() {
     const [progressMessage, setProgressMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
 
+    // Hydrated rubric questions for the editor (RubricQuestion[] with number points).
+    // Kept separate from generatedRubric (which holds the raw API response envelope
+    // with stats). Synced when generatedRubric.questions changes.
+    const [editedQuestions, setEditedQuestions] = useState<RubricQuestion[]>([]);
+
+    // Rubric save warnings/errors state
+    const [saveWarnings, setSaveWarnings] = useState<SaveOntologyRubricWarnings | null>(null);
+    const [saveError, setSaveError] = useState<RubricSaveError | null>(null);
+
     // Share form
     const [shareEmail, setShareEmail] = useState('');
     const [senderName, setSenderName] = useState('');
@@ -192,6 +208,10 @@ export default function RubricGeneratorPage() {
                 setState(draft.state);
                 setCurrentStep(draft.currentStep);
                 setCompletedSteps(draft.completedSteps);
+                // Hydrate restored rubric questions for the editor
+                if (draft.state?.generatedRubric?.questions) {
+                    setEditedQuestions(hydrateAnyQuestions(draft.state.generatedRubric.questions));
+                }
                 toast.info('טיוטה נטענה', { description: 'ממשיך מהמקום שעצרת' });
             } catch (e) {
                 console.warn('Failed to load draft:', e);
@@ -257,83 +277,21 @@ export default function RubricGeneratorPage() {
     // Step 1: Upload
     // =============================================================================
 
-    const handleFileSelect = async (file: File) => {
-        setError(null);
-        setIsUploading(true);
-
-        try {
-            const response = await uploadPdfForGeneration(file);
-
-            setState((prev) => ({ ...prev, uploadId: response.upload_id }));
-            setCompletedSteps((prev) => [...prev, 'upload']);
-            celebrations.uploadComplete();
-
-            // Auto-advance and start detection
-            setCurrentStep('questions');
-            startDetection(response.upload_id);
-        } catch (e) {
-            setError((e as Error).message);
-            toast.error('שגיאה בהעלאה', { description: (e as Error).message });
-        } finally {
-            setIsUploading(false);
-        }
+    const handleFileSelect = async (_file: File) => {
+        toast.error('פיצ׳ר זה אינו זמין כרגע');
     };
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
-        const file = e.dataTransfer.files[0];
-        if (file?.type === 'application/pdf') {
-            handleFileSelect(file);
-        } else {
-            toast.error('יש להעלות קובץ PDF בלבד');
-        }
+        toast.error('פיצ׳ר זה אינו זמין כרגע');
     };
 
     // =============================================================================
     // Step 2: Question Detection
     // =============================================================================
 
-    const startDetection = (uploadId: string) => {
-        setIsDetecting(true);
-        setProgressMessage('מחלץ טקסט מהמסמך...');
-        setState((prev) => ({ ...prev, detectedQuestions: [] }));
-
-        const cleanup = streamQuestionDetection(uploadId, {
-            onProgress: (message) => setProgressMessage(message),
-            onQuestion: (question) => {
-                setState((prev) => ({
-                    ...prev,
-                    detectedQuestions: [...prev.detectedQuestions, question],
-                }));
-            },
-            onComplete: (questions) => {
-                setIsDetecting(false);
-                setProgressMessage('');
-
-                // Normalize points: if explicit points found, use them; otherwise distribute to sum to 100
-                const questionsWithNormalizedPoints = normalizePointsToTotal(questions, 100);
-
-                setState((prev) => ({
-                    ...prev,
-                    detectedQuestions: questionsWithNormalizedPoints,
-                }));
-
-                if (questions.length > 0) {
-                    setCompletedSteps((prev) => [...prev, 'questions']);
-                    celebrations.questionsDetected(questions.length);
-                }
-            },
-            onError: (err) => {
-                setIsDetecting(false);
-                setError(err);
-                toast.error('שגיאה בזיהוי שאלות', { description: err });
-            },
-            onReconnecting: () => {
-                toast.info('מתחבר מחדש...', { duration: 2000 });
-            },
-        });
-
-        return cleanup;
+    const startDetection = (_uploadId: string) => {
+        // No-op: backend not implemented
     };
 
     const updateQuestionPoints = (questionNumber: number, points: number) => {
@@ -390,121 +348,88 @@ export default function RubricGeneratorPage() {
     // =============================================================================
 
     const handleGenerateRubric = async () => {
-        setError(null);
-        setIsGenerating(true);
-
-        try {
-            const rubric = await generateCriteria(
-                state.detectedQuestions,
-                state.rubricName || undefined,
-                state.subjectMatter || undefined,
-                state.programmingLanguage || undefined
-            );
-
-            setState((prev) => ({ ...prev, generatedRubric: rubric }));
-            setCompletedSteps((prev) => [...prev, 'rubric']);
-            celebrations.rubricGenerated();
-            setCurrentStep('rubric');
-        } catch (e) {
-            setError((e as Error).message);
-            toast.error('שגיאה ביצירת המחוון', { description: (e as Error).message });
-        } finally {
-            setIsGenerating(false);
-        }
+        toast.error('פיצ׳ר זה אינו זמין כרגע');
     };
 
-    const handleRegenerateQuestion = async (questionNumber: number) => {
-        if (!state.generatedRubric) return;
-
-        const question = state.detectedQuestions.find(
-            (q) => q.question_number === questionNumber
-        );
-        if (!question) return;
-
-        toast.info(`מרענן קריטריונים לשאלה ${questionNumber}...`);
-
-        try {
-            const regenerated = await regenerateQuestion(
-                questionNumber,
-                question.question_text,
-                question.sub_questions,
-                question.teacher_points || question.suggested_points || 10,
-                state.programmingLanguage || undefined
-            );
-
-            setState((prev) => ({
-                ...prev,
-                generatedRubric: prev.generatedRubric
-                    ? {
-                        ...prev.generatedRubric,
-                        questions: prev.generatedRubric.questions.map((q) =>
-                            q.question_number === questionNumber ? regenerated : q
-                        ),
-                    }
-                    : null,
-            }));
-
-            toast.success(`שאלה ${questionNumber} רועננה!`);
-        } catch (e) {
-            toast.error('שגיאה ברענון', { description: (e as Error).message });
-        }
+    const handleRegenerateQuestion = async (_questionNumber: number) => {
+        toast.error('פיצ׳ר זה אינו זמין כרגע');
     };
 
-    const handleRubricChange = (updatedQuestions: ExtractedQuestion[]) => {
-        setState((prev) => ({
-            ...prev,
-            generatedRubric: prev.generatedRubric
-                ? { ...prev.generatedRubric, questions: updatedQuestions }
-                : null,
-        }));
+    const handleRubricChange = (updatedQuestions: RubricQuestion[]) => {
+        setEditedQuestions(updatedQuestions);
     };
 
     // =============================================================================
     // Step 4: Save & Share
     // =============================================================================
 
-    const handleSaveRubric = async () => {
+    const handleSaveRubric = async (acknowledgedWarningIds: string[] = []) => {
         if (!state.generatedRubric) return;
 
+        // Block save if validation errors exist (INV-R1: point sums don't match)
+        if (hasErrors(editedQuestions)) {
+            toast.error('יש שגיאות בבדיקת המחוון. אנא תקני את הנקודות לפני שמירה.');
+            return;
+        }
+
         setIsSaving(true);
+        setSaveError(null);
+        setSaveWarnings(null);
 
         try {
-            const response = await saveRubric({
+            // Dehydrate: convert number point fields back to strings for backend
+            const dehydrated = dehydrateQuestions(editedQuestions);
+            const response = await saveOntologyRubric({
                 name: state.rubricName || 'מחוון חדש',
-                questions: state.generatedRubric.questions,
-                programming_language: state.programmingLanguage || undefined,
+                description: state.subjectMatter || undefined,
+                draft: {
+                    questions: dehydrated,
+                    total_points: editedQuestions.reduce((sum, q) => sum + q.total_points, 0),
+                    num_questions: editedQuestions.length,
+                    num_sub_questions: editedQuestions.reduce((sum, q) => sum + (q.sub_questions?.length || 0), 0),
+                    num_criteria: editedQuestions.reduce((sum, q) =>
+                        sum + q.criteria.length + (q.sub_questions || []).reduce((s, sq) => s + sq.criteria.length, 0), 0
+                    ),
+                },
+                acknowledged_warning_ids: acknowledgedWarningIds,
             });
 
-            setState((prev) => ({ ...prev, savedRubricId: response.id }));
+            // Check if response contains warnings that need acknowledgment
+            if (isWarningsResponse(response)) {
+                setSaveWarnings(response);
+                setIsSaving(false);
+                return;
+            }
+
+            // Success - rubric is now saved AND compiled
+            setState((prev) => ({ ...prev, savedRubricId: response.rubric_id }));
             setCompletedSteps((prev) => [...prev, 'share']);
             clearDraft();
             celebrations.rubricSaved();
         } catch (e) {
-            toast.error('שגיאה בשמירה', { description: (e as Error).message });
+            if (e instanceof RubricSaveError) {
+                setSaveError(e);
+                toast.error('שגיאה בשמירת המחוון', { description: e.messageHe });
+            } else {
+                toast.error('שגיאה בשמירה', { description: (e as Error).message });
+            }
         } finally {
             setIsSaving(false);
         }
     };
 
+    // Handle warning acknowledgment
+    const handleAcknowledgeWarnings = (warningIds: string[]) => {
+        setSaveWarnings(null);
+        handleSaveRubric(warningIds);
+    };
+
+    const handleCancelWarnings = () => {
+        setSaveWarnings(null);
+    };
+
     const handleDownloadPdf = async () => {
-        if (!state.generatedRubric) return;
-
-        try {
-            toast.info('יוצר PDF מאוחד עם המסמך המקורי...');
-
-            const { download_url } = await createRubricPdf(
-                state.savedRubricId || undefined,
-                state.generatedRubric.questions,
-                true,  // includeOriginal - preserve original document
-                state.uploadId || undefined  // pass upload ID for original PDF
-            );
-
-            // Open download in new tab
-            window.open(download_url, '_blank');
-            toast.success('ה-PDF המאוחד מוכן להורדה!');
-        } catch (e) {
-            toast.error('שגיאה ביצירת PDF', { description: (e as Error).message });
-        }
+        toast.error('פיצ׳ר זה אינו זמין כרגע');
     };
 
     const handleShareEmail = async () => {
@@ -890,10 +815,8 @@ export default function RubricGeneratorPage() {
                                 exit={{ opacity: 0, x: -20 }}
                             >
                                 <RubricEditor
-                                    questions={state.generatedRubric.questions}
-                                    onQuestionsChange={(updatedQuestions: ExtractedQuestion[]) =>
-                                        handleRubricChange(updatedQuestions)
-                                    }
+                                    questions={editedQuestions}
+                                    onQuestionsChange={handleRubricChange}
                                     pages={[]}
                                 />
 
@@ -966,7 +889,7 @@ export default function RubricGeneratorPage() {
 
                                     <div className="space-y-3">
                                         <button
-                                            onClick={handleSaveRubric}
+                                            onClick={() => handleSaveRubric()}
                                             disabled={isSaving || !!state.savedRubricId}
                                             className={`w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${state.savedRubricId
                                                 ? 'bg-green-100 text-green-700'
@@ -1052,6 +975,27 @@ export default function RubricGeneratorPage() {
                     </AnimatePresence>
                 </main>
             </div>
+
+            {/* Warnings Modal */}
+            {saveWarnings && (
+                <RubricWarningsModal
+                    warnings={saveWarnings.warnings}
+                    messageHe={saveWarnings.message_he}
+                    onAcknowledge={handleAcknowledgeWarnings}
+                    onCancel={handleCancelWarnings}
+                    isSubmitting={isSaving}
+                />
+            )}
+
+            {/* Error Display - shown in a fixed position */}
+            {saveError && (
+                <div className="fixed bottom-4 left-4 right-4 max-w-lg mx-auto z-40">
+                    <RubricErrorDisplay
+                        error={saveError}
+                        onDismiss={() => setSaveError(null)}
+                    />
+                </div>
+            )}
         </SidebarLayout >
     );
 }
