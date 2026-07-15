@@ -266,3 +266,106 @@ export function setSubQuestionText(
         return { ...q, sub_questions: updatedSubQs };
     });
 }
+
+// =============================================================================
+// PATH-ADDRESSED OPS (B-11) — edit a sub-question at ANY nesting depth.
+//
+// `sqPath` is a chain of positional indices into `sub_questions`, from the
+// question down: [0] is the first sub-question, [0, 1] its second child. All ops
+// are pure and immutable (an improvement over the depth-1 in-place editor code).
+// Structural add/remove of a NESTED sub-question node is deliberately NOT here —
+// MVP edits within the extracted structure; the top-level add/removeSubQuestion
+// above still serve the depth-1 list.
+// =============================================================================
+
+/** Walk to the sub-question at (qIndex, sqPath) and replace it via `updater`. */
+export function updateSubQuestionAtPath(
+    questions: RubricQuestion[],
+    qIndex: number,
+    sqPath: number[],
+    updater: (sq: RubricSubQuestion) => RubricSubQuestion,
+): RubricQuestion[] {
+    return questions.map((q, i) =>
+        i !== qIndex ? q : { ...q, sub_questions: updateInSubList(q.sub_questions, sqPath, updater) }
+    );
+}
+
+function updateInSubList(
+    list: RubricSubQuestion[],
+    path: number[],
+    updater: (sq: RubricSubQuestion) => RubricSubQuestion,
+): RubricSubQuestion[] {
+    const [head, ...tail] = path;
+    return list.map((sq, i) => {
+        if (i !== head) return sq;
+        if (tail.length === 0) return updater(sq);
+        return { ...sq, sub_questions: updateInSubList(sq.sub_questions ?? [], tail, updater) };
+    });
+}
+
+/**
+ * Map the criteria array of the node at (qIndex, sqPath). An empty `sqPath`
+ * targets the question's DIRECT criteria; a non-empty path targets a leaf
+ * sub-question's criteria. This is the one place all criteria CRUD routes through.
+ */
+export function mapCriteriaAtPath(
+    questions: RubricQuestion[],
+    qIndex: number,
+    sqPath: number[],
+    mapper: (criteria: RubricCriterion[]) => RubricCriterion[],
+): RubricQuestion[] {
+    if (sqPath.length === 0) {
+        return questions.map((q, i) => (i !== qIndex ? q : { ...q, criteria: mapper(q.criteria) }));
+    }
+    return updateSubQuestionAtPath(questions, qIndex, sqPath, sq => ({ ...sq, criteria: mapper(sq.criteria) }));
+}
+
+export function changeSubQuestionPointsAtPath(
+    questions: RubricQuestion[], qIndex: number, sqPath: number[], newPoints: number,
+): RubricQuestion[] {
+    return updateSubQuestionAtPath(questions, qIndex, sqPath, sq => ({ ...sq, points: roundToQuarter(newPoints) }));
+}
+
+export function setSubQuestionTextAtPath(
+    questions: RubricQuestion[], qIndex: number, sqPath: number[], text: string,
+): RubricQuestion[] {
+    return updateSubQuestionAtPath(questions, qIndex, sqPath, sq => ({ ...sq, text }));
+}
+
+export function setSubQuestionTitleAtPath(
+    questions: RubricQuestion[], qIndex: number, sqPath: number[], title: string | null,
+): RubricQuestion[] {
+    return updateSubQuestionAtPath(questions, qIndex, sqPath, sq => ({ ...sq, title }));
+}
+
+export function updateCriterionAtPath(
+    questions: RubricQuestion[], qIndex: number, sqPath: number[], cIndex: number, updates: Partial<RubricCriterion>,
+): RubricQuestion[] {
+    return mapCriteriaAtPath(questions, qIndex, sqPath, crits =>
+        crits.map((c, ci) => (ci !== cIndex ? c : { ...c, ...updates })));
+}
+
+export function addCriterionAtPath(
+    questions: RubricQuestion[], qIndex: number, sqPath: number[],
+): RubricQuestion[] {
+    return mapCriteriaAtPath(questions, qIndex, sqPath, crits => [...crits, makeEmptyCriterion(crits.length, 0)]);
+}
+
+export function removeCriterionAtPath(
+    questions: RubricQuestion[], qIndex: number, sqPath: number[], cIndex: number,
+): RubricQuestion[] {
+    // Q1-strict: no redistribution; reindex survivors so `.index` stays contiguous.
+    return mapCriteriaAtPath(questions, qIndex, sqPath, crits =>
+        crits.filter((_, ci) => ci !== cIndex).map((c, i) => ({ ...c, index: i })));
+}
+
+export function reorderCriteriaAtPath(
+    questions: RubricQuestion[], qIndex: number, sqPath: number[], fromIndex: number, toIndex: number,
+): RubricQuestion[] {
+    return mapCriteriaAtPath(questions, qIndex, sqPath, crits => {
+        const next = [...crits];
+        const [moved] = next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, moved);
+        return next;
+    });
+}

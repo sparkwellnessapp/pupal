@@ -169,6 +169,13 @@ export interface SubQuestion {
     /** Points as string for decimal precision (wire format) */
     points: string;
     criteria: CriterionOntology[];
+    /**
+     * B-11: nested sub-questions (recursive). Backend `SubQuestion.sub_questions`
+     * is self-referential; a node is a leaf (criteria) XOR a parent (sub_questions).
+     */
+    sub_questions?: SubQuestion[];
+    /** Worked solution for this sub-question (wire passthrough). */
+    example_solution?: string | null;
 }
 
 /**

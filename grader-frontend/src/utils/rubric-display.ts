@@ -22,19 +22,26 @@
  * All functions are pure, side-effect-free, and never mutate inputs.
  */
 
-import type { RubricQuestion } from '@/types/rubric';
+import type { RubricQuestion, RubricSubQuestion } from '@/types/rubric';
 
 // =============================================================================
 // Scope discriminator
 // =============================================================================
 
-/** A point in the rubric tree that can be referred to in a display label. */
+/**
+ * A point in the rubric tree that can be referred to in a display label.
+ *
+ * B-11: a sub-question is addressed by an `sqPath` (a chain of positional
+ * indices from the question down through nested sub-questions), not a single
+ * `sqIndex`. `[0]` is the first sub-question; `[0, 1]` is its second child.
+ * Depth-1 callers pass a one-element path.
+ */
 export type DisplayScope =
     | { kind: 'rubric' }
     | { kind: 'question'; qIndex: number }
-    | { kind: 'sub_question'; qIndex: number; sqIndex: number }
-    | { kind: 'criterion'; qIndex: number; sqIndex?: number; cIndex: number }
-    | { kind: 'sub_criterion'; qIndex: number; sqIndex?: number; cIndex: number; scIndex: number };
+    | { kind: 'sub_question'; qIndex: number; sqPath: number[] }
+    | { kind: 'criterion'; qIndex: number; sqPath?: number[]; cIndex: number }
+    | { kind: 'sub_criterion'; qIndex: number; sqPath?: number[]; cIndex: number; scIndex: number };
 
 // =============================================================================
 // Label rendering
@@ -66,14 +73,14 @@ export function getDisplayLabel(
             return `שאלה ${scope.qIndex + 1}`;
 
         case 'sub_question': {
-            const sqLabel = getSubQuestionLabel(questions, scope.qIndex, scope.sqIndex);
+            const sqLabel = getSubQuestionLabel(questions, scope.qIndex, scope.sqPath);
             return `שאלה ${scope.qIndex + 1}, ${sqLabel}`;
         }
 
         case 'criterion': {
             const qPart = `שאלה ${scope.qIndex + 1}`;
-            if (scope.sqIndex !== undefined) {
-                const sqLabel = getSubQuestionLabel(questions, scope.qIndex, scope.sqIndex);
+            if (scope.sqPath && scope.sqPath.length > 0) {
+                const sqLabel = getSubQuestionLabel(questions, scope.qIndex, scope.sqPath);
                 return `${qPart}, ${sqLabel}, קריטריון ${scope.cIndex + 1}`;
             }
             return `${qPart}, קריטריון ${scope.cIndex + 1}`;
@@ -84,7 +91,7 @@ export function getDisplayLabel(
                 {
                     kind: 'criterion',
                     qIndex: scope.qIndex,
-                    sqIndex: scope.sqIndex,
+                    sqPath: scope.sqPath,
                     cIndex: scope.cIndex,
                 },
                 questions
@@ -95,19 +102,33 @@ export function getDisplayLabel(
 }
 
 /**
- * Resolve a sub-question's display label — custom `title` if set and
- * non-whitespace, otherwise the positional default "סעיף N".
+ * Resolve a sub-question's display label from an `sqPath` — the innermost node's
+ * custom `title` if set and non-whitespace, otherwise the positional default
+ * "סעיף N" for depth-1 or "סעיף N.M" for nested (dot-joined 1-based positions).
+ *
+ * Positional (not id-based) by the file's convention: the teacher's mental model
+ * is "the second sub-question," and reordering shifts the label automatically.
+ * The id-path (e.g. "q1.א.2") lives on the scope anchor (target_id / data-scope-id),
+ * not the human label.
  *
  * Internal helper. Callers should use getDisplayLabel for composed paths.
  */
 function getSubQuestionLabel(
     questions: RubricQuestion[],
     qIndex: number,
-    sqIndex: number
+    sqPath: number[]
 ): string {
-    const sq = questions[qIndex]?.sub_questions?.[sqIndex];
-    const customTitle = sq?.title?.trim();
-    return customTitle || defaultSubQuestionTitle(sqIndex);
+    let level: RubricSubQuestion[] | undefined = questions[qIndex]?.sub_questions;
+    let node: RubricSubQuestion | undefined;
+    const positions: number[] = [];
+    for (const idx of sqPath) {
+        node = level?.[idx];
+        positions.push(idx + 1);
+        if (!node) break;
+        level = node.sub_questions;
+    }
+    const customTitle = node?.title?.trim();
+    return customTitle || `סעיף ${positions.join('.')}`;
 }
 
 // =============================================================================
