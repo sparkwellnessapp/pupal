@@ -143,7 +143,18 @@ export function defaultSubQuestionTitle(positionIndex: number): string {
  *   formatPoints(5.25)     → "5.25"
  *   formatPoints(5.249999) → "5.25"
  *   formatPoints(0)        → "0"
+ *
+ * Robust to a non-number slipping through despite the `number` type. The type
+ * is supposed to guarantee a number — hydration coerces every point value — but
+ * it guaranteed that for the rubric-level total too, and that one arrived as the
+ * Decimal string "100.0" and called .toFixed on a string, crashing the entire
+ * review screen. A display formatter must never be the thing that white-screens
+ * the page: coerce here, so a future type-lie degrades to a correct number
+ * instead of an unmounted app. The real fix is still at the boundary (never let
+ * a string in); this is the seatbelt.
  */
 export function formatPoints(n: number): string {
-    return Number(n.toFixed(2)).toString();
+    const num = typeof n === 'number' ? n : parseFloat(n as unknown as string);
+    if (!Number.isFinite(num)) return '0';
+    return Number(num.toFixed(2)).toString();
 }
