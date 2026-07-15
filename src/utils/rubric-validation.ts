@@ -26,11 +26,24 @@
  *   INV-R3   — Σ q.total_points == rubric.total_points (the document-declared
  *              total anchored at extraction time). Rubric-scope.
  *
+ *   INV-R-XOR — StructureExclusivity: a node (question or sub-question) has
+ *              EITHER direct criteria OR sub_questions, never both. The client
+ *              analog of the backend Pydantic StructureExclusivity validator;
+ *              the TS types stay permissive, the validator enforces.
+ *
+ * B-11: INV-R1b and INV-R2 RECURSE over nested sub-questions, mirroring the
+ * backend compiler's `_walk_sub_question` (contract_compiler.py) exactly —
+ * parent node: Σ children.points == node.points; leaf: Σ criteria.points ==
+ * node.points; target_id is the full dotted path (e.g. "q1.א.2"). The depth-1
+ * version was blind to a parent sub-question and to every nested leaf — it could
+ * not see the exact node the backend rejects.
+ *
  * @see CLAUDE.md §the 7 invariants
+ * @see contract_compiler.py::_walk_sub_question — the recursion this mirrors
  * @see rubric-display.ts — getDisplayLabel for human-facing label rendering
  */
 
-import type { RubricQuestion, RubricCriterion } from '@/types/rubric';
+import type { RubricQuestion, RubricSubQuestion, RubricCriterion } from '@/types/rubric';
 import { getDisplayLabel, formatPoints } from './rubric-display';
 
 // =============================================================================
@@ -43,7 +56,7 @@ export interface ValidationIssue {
     /** Unique key for React rendering */
     key: string;
     /** Which invariant is violated */
-    invariant: 'INV-R1' | 'INV-R1b' | 'INV-R2' | 'INV-R3';
+    invariant: 'INV-R1' | 'INV-R1b' | 'INV-R2' | 'INV-R3' | 'INV-R-XOR';
     /** Severity determines save-blocking behavior */
     severity: ValidationSeverity;
     /** Hebrew message for display */
@@ -121,10 +134,20 @@ export function validateQuestion(
 ): ValidationIssue[] {
     const issues: ValidationIssue[] = [];
 
+    // ── INV-R-XOR: a question has direct criteria XOR sub-questions ──────────
+    pushXorIssue(
+        issues,
+        question.criteria,
+        question.sub_questions,
+        getDisplayLabel({ kind: 'question', qIndex }, questions),
+        question.question_id,
+    );
+
     const hasSubQuestions = !!(question.sub_questions && question.sub_questions.length > 0);
 
     if (hasSubQuestions) {
-        // ── INV-R1 (sub-question shape): Σ sq.points vs q.total_points ────────
+        // ── INV-R1 (sub-question shape): Σ sq.points (declared) vs q.total_points ─
+        // Matches backend INV-1: sums the DECLARED child points, one level down.
         const sqSum = sumSubQuestionPoints(question);
         if (!isClose(sqSum, question.total_points)) {
             const qLabel = getDisplayLabel({ kind: 'question', qIndex }, questions);
@@ -142,28 +165,16 @@ export function validateQuestion(
             });
         }
 
-        // ── INV-R1b: Σ sq.criteria.points vs sq.points, per sub-question ──────
+        // ── INV-R1b + INV-R2, RECURSIVELY, mirroring _walk_sub_question ──────
         question.sub_questions!.forEach((sq, sqIndex) => {
-            if (sq.criteria.length === 0) return; // vacuously satisfied
-            const sqCriteriaSum = sq.criteria.reduce((sum, c) => sum + c.points, 0);
-            if (!isClose(sqCriteriaSum, sq.points)) {
-                const sqLabel = getDisplayLabel(
-                    { kind: 'sub_question', qIndex, sqIndex },
-                    questions
-                );
-                const declared = formatPoints(sq.points);
-                const actual = formatPoints(sqCriteriaSum);
-                issues.push({
-                    key: `inv-r1b-${question.question_id}-${sq.sub_question_id}`,
-                    invariant: 'INV-R1b',
-                    severity: 'error',
-                    message:
-                        `סכום הנקודות של ${sqLabel} (${declared} נקודות) ` +
-                        `שונה מסכום הנקודות של הקריטריונים שלו (${actual} נקודות). ` +
-                        `מומלץ לתקן את סכום הנקודות של הקריטריונים כך שיהיו שווים ל-${declared} נקודות.`,
-                    target_id: sq.sub_question_id, // raw ID — see RubricEditor filter
-                });
-            }
+            walkSubQuestion(
+                sq,
+                [sqIndex],
+                `${question.question_id}.${sq.sub_question_id}`,
+                qIndex,
+                questions,
+                issues,
+            );
         });
     } else {
         // ── INV-R1 (direct-criteria shape): Σ q.criteria.points vs q.total_points ─
@@ -183,35 +194,130 @@ export function validateQuestion(
                 target_id: question.question_id,
             });
         }
-    }
 
-    // ── INV-R2 (per criterion): direct criteria ────────────────────────────
-    question.criteria.forEach((criterion, cIndex) => {
-        issues.push(
-            ...validateCriterion(criterion, qIndex, undefined, cIndex, questions)
-        );
-    });
-
-    // ── INV-R2 (per criterion): sub-question criteria ──────────────────────
-    (question.sub_questions || []).forEach((sq, sqIndex) => {
-        sq.criteria.forEach((criterion, cIndex) => {
+        // ── INV-R2 (per criterion): direct criteria ─────────────────────────
+        question.criteria.forEach((criterion, cIndex) => {
             issues.push(
-                ...validateCriterion(criterion, qIndex, sqIndex, cIndex, questions)
+                ...validateCriterion(criterion, qIndex, undefined, cIndex, questions)
             );
         });
-    });
+    }
 
     return issues;
 }
 
 /**
+ * Recurse one sub-question, mirroring `contract_compiler.py::_walk_sub_question`:
+ *   - parent (has sub_questions): Σ children.points == sq.points, then recurse;
+ *   - leaf (has criteria): Σ criteria.points == sq.points, then INV-R2 per criterion.
+ * `path` is the full dotted id-path (e.g. "q1.א.2") used as `target_id` so the
+ * editor anchors the error to the exact node — the same anchor the backend uses.
+ * `sqPath` is the positional path used only for the human label.
+ *
+ * Unlike the depth-1 predecessor, a parent is NOT treated as a vacuously-satisfied
+ * empty-criteria leaf — that blindness is precisely what hid the bagrut error at
+ * q1.א.2. A leaf whose criteria sum ≠ its points fires even when criteria is empty,
+ * matching the backend (a leaf with points but no criteria is malformed).
+ */
+function walkSubQuestion(
+    sq: RubricSubQuestion,
+    sqPath: number[],
+    path: string,
+    qIndex: number,
+    questions: RubricQuestion[],
+    issues: ValidationIssue[],
+): void {
+    const sqLabel = getDisplayLabel({ kind: 'sub_question', qIndex, sqPath }, questions);
+
+    // ── INV-R-XOR at this sub-question ──────────────────────────────────────
+    pushXorIssue(issues, sq.criteria, sq.sub_questions, sqLabel, path);
+
+    const hasChildren = !!(sq.sub_questions && sq.sub_questions.length > 0);
+
+    if (hasChildren) {
+        // Parent: Σ children.points == sq.points.
+        const childSum = sq.sub_questions!.reduce((sum, c) => sum + c.points, 0);
+        if (!isClose(childSum, sq.points)) {
+            const declared = formatPoints(sq.points);
+            const actual = formatPoints(childSum);
+            issues.push({
+                key: `inv-r1b-${path}`,
+                invariant: 'INV-R1b',
+                severity: 'error',
+                message:
+                    `סכום הנקודות של ${sqLabel} (${declared} נקודות) ` +
+                    `שונה מסכום הנקודות של תתי-הסעיפים שלו (${actual} נקודות). ` +
+                    `מומלץ לתקן את סכום הנקודות של תתי-הסעיפים כך שיהיו שווים ל-${declared} נקודות.`,
+                target_id: path,
+            });
+        }
+        sq.sub_questions!.forEach((child, i) => {
+            walkSubQuestion(
+                child,
+                [...sqPath, i],
+                `${path}.${child.sub_question_id}`,
+                qIndex,
+                questions,
+                issues,
+            );
+        });
+    } else {
+        // Leaf: Σ criteria.points == sq.points.
+        const critSum = sq.criteria.reduce((sum, c) => sum + c.points, 0);
+        if (!isClose(critSum, sq.points)) {
+            const declared = formatPoints(sq.points);
+            const actual = formatPoints(critSum);
+            issues.push({
+                key: `inv-r1b-${path}`,
+                invariant: 'INV-R1b',
+                severity: 'error',
+                message:
+                    `סכום הנקודות של ${sqLabel} (${declared} נקודות) ` +
+                    `שונה מסכום הנקודות של הקריטריונים שלו (${actual} נקודות). ` +
+                    `מומלץ לתקן את סכום הנקודות של הקריטריונים כך שיהיו שווים ל-${declared} נקודות.`,
+                target_id: path,
+            });
+        }
+        sq.criteria.forEach((criterion, cIndex) => {
+            issues.push(...validateCriterion(criterion, qIndex, sqPath, cIndex, questions));
+        });
+    }
+}
+
+/**
+ * INV-R-XOR: push an error if a node has BOTH direct criteria and sub-questions.
+ * Mirrors backend StructureExclusivity (enforced by validator; the type stays
+ * permissive). `targetId` is the node's anchor (question_id or full path).
+ */
+function pushXorIssue(
+    issues: ValidationIssue[],
+    criteria: RubricCriterion[] | undefined,
+    subQuestions: RubricSubQuestion[] | undefined,
+    label: string,
+    targetId: string,
+): void {
+    if ((criteria?.length ?? 0) > 0 && (subQuestions?.length ?? 0) > 0) {
+        issues.push({
+            key: `inv-r-xor-${targetId}`,
+            invariant: 'INV-R-XOR',
+            severity: 'error',
+            message:
+                `ל-${label} יש גם קריטריונים ישירים וגם תתי-סעיפים. ` +
+                `כל רכיב חייב להיות מחולק לתתי-סעיפים או לקריטריונים — לא לשניהם.`,
+            target_id: targetId,
+        });
+    }
+}
+
+/**
  * Validate INV-R2 for a single criterion: Σ sub_criterion.points == criterion.points.
- * Vacuously satisfied when criterion has no sub_criteria.
+ * Vacuously satisfied when criterion has no sub_criteria. `sqPath` (positional) is
+ * used only for the human label; the anchor is the criterion_id.
  */
 export function validateCriterion(
     criterion: RubricCriterion,
     qIndex: number,
-    sqIndex: number | undefined,
+    sqPath: number[] | undefined,
     cIndex: number,
     questions: RubricQuestion[]
 ): ValidationIssue[] {
@@ -223,7 +329,7 @@ export function validateCriterion(
     if (isClose(subSum, criterion.points)) return [];
 
     const cLabel = getDisplayLabel(
-        { kind: 'criterion', qIndex, sqIndex, cIndex },
+        { kind: 'criterion', qIndex, sqPath, cIndex },
         questions
     );
     const declared = formatPoints(criterion.points);

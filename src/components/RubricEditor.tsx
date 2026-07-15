@@ -19,9 +19,16 @@ import {
   changeQuestionPoints,
   addSubQuestion,
   removeSubQuestion,
-  changeSubQuestionPoints,
   setExampleSolution,
   setQuestionType,
+  // B-11: path-addressed ops for editing nested sub-questions at any depth.
+  setSubQuestionTitleAtPath,
+  changeSubQuestionPointsAtPath,
+  setSubQuestionTextAtPath,
+  updateCriterionAtPath,
+  addCriterionAtPath,
+  removeCriterionAtPath,
+  reorderCriteriaAtPath,
 } from '@/utils/rubric-editor-ops';
 import { RubricMetadataEditor } from '@/components/RubricMetadataEditor';
 import { ExampleSolutionEditor } from '@/components/ExampleSolutionEditor';
@@ -121,23 +128,6 @@ export function RubricEditor({
   const updateQuestion = (index: number, updates: Partial<RubricQuestion>) => {
     const newQuestions = [...questions];
     newQuestions[index] = { ...newQuestions[index], ...updates };
-    // No cascade — non-criterion updates never move points.
-    onQuestionsChange(newQuestions);
-  };
-
-  const updateSubQuestion = (
-    qIndex: number,
-    sqIndex: number,
-    updates: Partial<RubricSubQuestion>
-  ) => {
-    const newQuestions = [...questions];
-    if (!newQuestions[qIndex].sub_questions) {
-      newQuestions[qIndex].sub_questions = [];
-    }
-    newQuestions[qIndex].sub_questions[sqIndex] = {
-      ...newQuestions[qIndex].sub_questions[sqIndex],
-      ...updates,
-    };
     // No cascade — non-criterion updates never move points.
     onQuestionsChange(newQuestions);
   };
@@ -472,12 +462,46 @@ export function RubricEditor({
     onQuestionsChange(addSubQuestion(questions, qIndex));
   };
 
-  const handleRemoveSubQuestion = (qIndex: number, sqIndex: number) => {
-    onQuestionsChange(removeSubQuestion(questions, qIndex, sqIndex));
+  // ─── B-11: path-addressed handlers for nested sub-questions ────────────────
+  // Each takes an `sqPath` (positional chain from the question). Editing a
+  // criterion still routes through recalculateParentsFromCriteria — the ONE
+  // silent cascade — which is now recursive, so a deep edit propagates up
+  // through every nested parent.
+  const handleSubQTitleAtPath = (qIndex: number, sqPath: number[], title: string | null) => {
+    onQuestionsChange(setSubQuestionTitleAtPath(questions, qIndex, sqPath, title));
   };
-
-  const handleSubQuestionPointsChange = (qIndex: number, sqIndex: number, newPts: number) => {
-    onQuestionsChange(changeSubQuestionPoints(questions, qIndex, sqIndex, newPts));
+  const handleSubQPointsAtPath = (qIndex: number, sqPath: number[], newPts: number) => {
+    onQuestionsChange(changeSubQuestionPointsAtPath(questions, qIndex, sqPath, newPts));
+  };
+  const handleSubQTextAtPath = (qIndex: number, sqPath: number[], text: string) => {
+    onQuestionsChange(setSubQuestionTextAtPath(questions, qIndex, sqPath, text));
+  };
+  const handleUpdateCriterionAtPath = (
+    qIndex: number, sqPath: number[], cIndex: number, updates: Partial<RubricCriterion>,
+  ) => {
+    onQuestionsChange(
+      recalculateParentsFromCriteria(updateCriterionAtPath(questions, qIndex, sqPath, cIndex, updates)),
+    );
+  };
+  const handleAddCriterionAtPath = (qIndex: number, sqPath: number[]) => {
+    onQuestionsChange(addCriterionAtPath(questions, qIndex, sqPath));
+  };
+  const handleRemoveCriterionAtPath = (qIndex: number, sqPath: number[], cIndex: number) => {
+    onQuestionsChange(removeCriterionAtPath(questions, qIndex, sqPath, cIndex));
+  };
+  const handleReorderCriteriaAtPath = (qIndex: number, sqPath: number[], from: number, to: number) => {
+    onQuestionsChange(reorderCriteriaAtPath(questions, qIndex, sqPath, from, to));
+  };
+  // Structural remove and proposals stay depth-1 (MVP defers nested-node CRUD;
+  // proposals are ephemeral and only ever produced at the top-level scope).
+  const handleRemoveSubQAtPath = (qIndex: number, sqPath: number[]) => {
+    if (sqPath.length === 1) onQuestionsChange(removeSubQuestion(questions, qIndex, sqPath[0]));
+  };
+  const handleAcceptProposalsAtPath = (qIndex: number, sqPath: number[]) => {
+    if (sqPath.length === 1) acceptProposals(qIndex, sqPath[0]);
+  };
+  const handleRejectProposalsAtPath = (qIndex: number, sqPath: number[]) => {
+    if (sqPath.length === 1) rejectProposals(qIndex, sqPath[0]);
   };
 
   const handleExampleSolutionChange = (qIndex: number, val: string | null) => {
@@ -808,108 +832,37 @@ export function RubricEditor({
                 {/* Sub-questions or direct criteria */}
                 {(question.sub_questions?.length ?? 0) > 0 ? (
                   <div className="space-y-4">
+                    {/* B-11: recursive render — a sub-question with nested
+                        sub_questions renders child nodes; a leaf renders its
+                        criteria. data-scope-id is the FULL dotted path so a
+                        backend/validator annotation targeting q1.א.2 anchors here. */}
                     {question.sub_questions.map((subQ, sqIndex) => (
-                      <div
-                        key={sqIndex}
-                        data-scope-id={subQ.sub_question_id}
-                        className="mr-4 border-r-2 border-primary-200 pr-4 space-y-3"
-                      >
-                        {/* Sub-question header row */}
-                        <div className="flex items-center gap-2" dir="rtl">
-                          <input
-                            type="text"
-                            defaultValue={subQ.title || ''}
-                            key={`${subQ.sub_question_id}-${subQ.title ?? ''}`}
-                            placeholder={defaultSubQuestionTitle(sqIndex)}
-                            onBlur={(e) => {
-                              const trimmed = e.target.value.trim();
-                              updateSubQuestion(qIndex, sqIndex, { title: trimmed || null });
-                            }}
-                            className="font-semibold text-primary-700 bg-transparent border-b border-transparent hover:border-primary-200 focus:border-primary-500 focus:outline-none px-1 min-w-[80px]"
-                            dir="rtl"
-                            aria-label="כותרת הסעיף"
-                          />
-                          {/* Sub-question points input */}
-                          <input
-                            type="number"
-                            defaultValue={subQ.points}
-                            key={subQ.points}
-                            onBlur={e => {
-                              const val = parseFloat(e.target.value);
-                              if (!isNaN(val) && val >= 0) handleSubQuestionPointsChange(qIndex, sqIndex, val);
-                              else e.target.value = String(subQ.points);
-                            }}
-                            min={0}
-                            step={0.25}
-                            className="w-14 text-center text-xs border border-surface-200 rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-primary-200 font-semibold"
-                            title="נקודות הסעיף"
-                          />
-                          <span className="text-xs text-gray-400">נק׳</span>
-                          <div className="flex-1" />
-                          {/* Remove sub-question */}
-                          <button
-                            onClick={() => handleRemoveSubQuestion(qIndex, sqIndex)}
-                            title="הסר סעיף"
-                            className="text-gray-300 hover:text-red-400 transition-colors p-0.5 rounded"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-
-                        {/* Sub-question-level annotations.
-                            Two clauses: legacy backend "q1.sq_xyz" format and
-                            raw sub_question_id from live validators (INV-R1b). */}
-                        {annotations
-                          .filter(a =>
-                            a.target_id === `q${parseQuestionNumber(question.question_id)}.${subQ.sub_question_id}` ||
-                            a.target_id === subQ.sub_question_id
-                          )
-                          .map(a => <AnnotationBanner key={a.id} annotation={a} />)
-                        }
-
-                        {/* Sub-question text */}
-                        <MarkdownTextRenderer
-                          value={subQ.text || ''}
-                          onChange={(val) => updateSubQuestion(qIndex, sqIndex, { text: val })}
-                          placeholder="טקסט הסעיף..."
-                          minHeight="40px"
-                          maxHeight="180px"
-                        />
-
-                        {/* PDF Pages for Sub-question Criteria */}
-                        {sourceType === 'pdf' && (
-                          <PdfPagesDisplay
-                            pages={pages}
-                            pageIndexes={getSubQuestionCriteriaPageIndexes(parseQuestionNumber(question.question_id), subQ.sub_question_id)}
-                            label="טבלת קריטריונים במקור"
-                          />
-                        )}
-
-                        {/* Sub-question trace tables */}
-                        {subQ.trace_tables && subQ.trace_tables.length > 0 && (
-                          <TraceTablesDisplay traceTables={subQ.trace_tables} />
-                        )}
-
-                        {/* Sub-question criteria */}
-                        <CriteriaList
-                          criteria={subQ.criteria}
-                          onUpdateCriterion={(cIndex, updates) =>
-                            updateCriterion(qIndex, cIndex, updates, sqIndex)
-                          }
-                          onAddCriterion={() => addCriterion(qIndex, sqIndex)}
-                          onRemoveCriterion={(cIndex) => removeCriterion(qIndex, cIndex, sqIndex)}
-                          onReorderCriteria={(fromIndex, toIndex) => reorderCriteria(qIndex, fromIndex, toIndex, sqIndex)}
-                          extractionStatus={subQ.extraction_status}
-                          extractionError={subQ.extraction_error}
-                          proposals={subQ.proposals}
-                          onAcceptProposals={() => acceptProposals(qIndex, sqIndex)}
-                          onRejectProposals={() => rejectProposals(qIndex, sqIndex)}
-                          enhancingCriterionIds={enhancingCriterionIds}
-                        />
-                      </div>
+                      <SubQuestionNode
+                        key={subQ.sub_question_id}
+                        subQ={subQ}
+                        qIndex={qIndex}
+                        questionId={question.question_id}
+                        sqPath={[sqIndex]}
+                        idPath={`${question.question_id}.${subQ.sub_question_id}`}
+                        annotations={annotations}
+                        sourceType={sourceType}
+                        pages={pages}
+                        enhancingCriterionIds={enhancingCriterionIds}
+                        onTitleChange={handleSubQTitleAtPath}
+                        onPointsChange={handleSubQPointsAtPath}
+                        onTextChange={handleSubQTextAtPath}
+                        onRemove={handleRemoveSubQAtPath}
+                        onUpdateCriterion={handleUpdateCriterionAtPath}
+                        onAddCriterion={handleAddCriterionAtPath}
+                        onRemoveCriterion={handleRemoveCriterionAtPath}
+                        onReorderCriteria={handleReorderCriteriaAtPath}
+                        onAcceptProposals={handleAcceptProposalsAtPath}
+                        onRejectProposals={handleRejectProposalsAtPath}
+                        getSubQuestionCriteriaPageIndexes={getSubQuestionCriteriaPageIndexes}
+                      />
                     ))}
 
-                    {/* Add sub-question button */}
+                    {/* Add sub-question button (top-level only; nested-node CRUD is B-11 MVP-deferred) */}
                     <button
                       onClick={() => handleAddSubQuestion(qIndex)}
                       className="flex items-center gap-1.5 text-xs text-primary-500 hover:text-primary-700 transition-colors mt-1"
@@ -1591,6 +1544,167 @@ function AnnotationBanner({ annotation }: AnnotationBannerProps) {
     >
       {icons[annotation.severity] ?? icons.info}
       <span>{annotation.message}</span>
+    </div>
+  );
+}
+
+// =============================================================================
+// Sub-Question Node (B-11) — recursive render at any nesting depth
+// =============================================================================
+
+interface SubQuestionNodeProps {
+  subQ: RubricSubQuestion;
+  qIndex: number;
+  questionId: string;
+  /** Positional index chain from the question down (e.g. [0] or [0, 1]). */
+  sqPath: number[];
+  /** Full dotted id-path (e.g. "q1.א.2") — the annotation/scroll anchor. */
+  idPath: string;
+  annotations: Annotation[];
+  sourceType?: 'pdf' | 'docx';
+  pages?: PagePreview[];
+  enhancingCriterionIds?: Set<string>;
+  onTitleChange: (qIndex: number, sqPath: number[], title: string | null) => void;
+  onPointsChange: (qIndex: number, sqPath: number[], newPts: number) => void;
+  onTextChange: (qIndex: number, sqPath: number[], text: string) => void;
+  /** Present only where structural remove is offered (top-level, MVP). */
+  onRemove?: (qIndex: number, sqPath: number[]) => void;
+  onUpdateCriterion: (qIndex: number, sqPath: number[], cIndex: number, updates: Partial<RubricCriterion>) => void;
+  onAddCriterion: (qIndex: number, sqPath: number[]) => void;
+  onRemoveCriterion: (qIndex: number, sqPath: number[], cIndex: number) => void;
+  onReorderCriteria: (qIndex: number, sqPath: number[], fromIndex: number, toIndex: number) => void;
+  onAcceptProposals?: (qIndex: number, sqPath: number[]) => void;
+  onRejectProposals?: (qIndex: number, sqPath: number[]) => void;
+  getSubQuestionCriteriaPageIndexes?: (questionNumber: number, subQuestionId: string) => number[];
+}
+
+/**
+ * One sub-question, rendered recursively. A PARENT (has sub_questions) renders
+ * child SubQuestionNodes; a LEAF renders its CriteriaList. Reuses CriteriaList,
+ * MarkdownTextRenderer, TraceTablesDisplay and AnnotationBanner unchanged. MVP:
+ * edit points/text/title/criteria in place at any depth; nested-node add/remove
+ * is deferred, so a child gets no remove button and no add-sub-question control.
+ */
+function SubQuestionNode(props: SubQuestionNodeProps) {
+  const {
+    subQ, qIndex, questionId, sqPath, idPath, annotations,
+    sourceType, pages, enhancingCriterionIds,
+  } = props;
+  const hasChildren = (subQ.sub_questions?.length ?? 0) > 0;
+  const positionalIndex = sqPath[sqPath.length - 1];
+
+  return (
+    <div
+      data-scope-id={idPath}
+      className="mr-4 border-r-2 border-primary-200 pr-4 space-y-3"
+    >
+      {/* Header: title, points, remove */}
+      <div className="flex items-center gap-2" dir="rtl">
+        <input
+          type="text"
+          defaultValue={subQ.title || ''}
+          key={`${subQ.sub_question_id}-${subQ.title ?? ''}`}
+          placeholder={defaultSubQuestionTitle(positionalIndex)}
+          onBlur={(e) => {
+            const trimmed = e.target.value.trim();
+            props.onTitleChange(qIndex, sqPath, trimmed || null);
+          }}
+          className="font-semibold text-primary-700 bg-transparent border-b border-transparent hover:border-primary-200 focus:border-primary-500 focus:outline-none px-1 min-w-[80px]"
+          dir="rtl"
+          aria-label="כותרת הסעיף"
+        />
+        <input
+          type="number"
+          defaultValue={subQ.points}
+          key={subQ.points}
+          onBlur={e => {
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val) && val >= 0) props.onPointsChange(qIndex, sqPath, val);
+            else e.target.value = String(subQ.points);
+          }}
+          min={0}
+          step={0.25}
+          className="w-14 text-center text-xs border border-surface-200 rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-primary-200 font-semibold"
+          title="נקודות הסעיף"
+        />
+        <span className="text-xs text-gray-400">נק׳</span>
+        <div className="flex-1" />
+        {props.onRemove && (
+          <button
+            onClick={() => props.onRemove!(qIndex, sqPath)}
+            title="הסר סעיף"
+            className="text-gray-300 hover:text-red-400 transition-colors p-0.5 rounded"
+          >
+            <Trash2 size={13} />
+          </button>
+        )}
+      </div>
+
+      {/* Node-level annotations. Full dotted path (INV-R1b / backend q1.א.2),
+          plus legacy clauses for depth-1 back-compat. */}
+      {annotations
+        .filter(a =>
+          a.target_id === idPath ||
+          a.target_id === `q${parseQuestionNumber(questionId)}.${subQ.sub_question_id}` ||
+          a.target_id === subQ.sub_question_id
+        )
+        .map(a => <AnnotationBanner key={a.id} annotation={a} />)
+      }
+
+      {/* Sub-question text */}
+      <MarkdownTextRenderer
+        value={subQ.text || ''}
+        onChange={(val) => props.onTextChange(qIndex, sqPath, val)}
+        placeholder="טקסט הסעיף..."
+        minHeight="40px"
+        maxHeight="180px"
+      />
+
+      {/* Sub-question trace tables */}
+      {subQ.trace_tables && subQ.trace_tables.length > 0 && (
+        <TraceTablesDisplay traceTables={subQ.trace_tables} />
+      )}
+
+      {hasChildren ? (
+        // PARENT — recurse into nested sub-questions (no criteria of its own).
+        <div className="space-y-4">
+          {subQ.sub_questions!.map((child, i) => (
+            <SubQuestionNode
+              {...props}
+              key={child.sub_question_id}
+              subQ={child}
+              sqPath={[...sqPath, i]}
+              idPath={`${idPath}.${child.sub_question_id}`}
+              onRemove={undefined}
+            />
+          ))}
+        </div>
+      ) : (
+        // LEAF — render its criteria.
+        <>
+          {sourceType === 'pdf' && sqPath.length === 1 && props.getSubQuestionCriteriaPageIndexes && (
+            <PdfPagesDisplay
+              pages={pages}
+              pageIndexes={props.getSubQuestionCriteriaPageIndexes(parseQuestionNumber(questionId), subQ.sub_question_id)}
+              label="טבלת קריטריונים במקור"
+            />
+          )}
+          <CriteriaList
+            criteria={subQ.criteria}
+            onUpdateCriterion={(cIndex, updates) => props.onUpdateCriterion(qIndex, sqPath, cIndex, updates)}
+            onAddCriterion={() => props.onAddCriterion(qIndex, sqPath)}
+            onRemoveCriterion={(cIndex) => props.onRemoveCriterion(qIndex, sqPath, cIndex)}
+            onReorderCriteria={(fromIndex, toIndex) => props.onReorderCriteria(qIndex, sqPath, fromIndex, toIndex)}
+            extractionStatus={subQ.extraction_status}
+            extractionError={subQ.extraction_error}
+            proposals={sqPath.length === 1 ? subQ.proposals : null}
+            onAcceptProposals={props.onAcceptProposals ? () => props.onAcceptProposals!(qIndex, sqPath) : undefined}
+            onRejectProposals={props.onRejectProposals ? () => props.onRejectProposals!(qIndex, sqPath) : undefined}
+            enhancingCriterionIds={enhancingCriterionIds}
+            annotations={annotations}
+          />
+        </>
+      )}
     </div>
   );
 }

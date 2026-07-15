@@ -10,6 +10,14 @@
  *
  * NO _display_* fields. NO string points. NO dual representations.
  *
+ * OPAQUE CARRY (B-11): every node carries an optional `_carry` bag holding the
+ * wire fields the editor does not model by name. Hydration fills it from the
+ * fields NOT in that node's MODELED_*_KEYS manifest; dehydration re-emits it.
+ * This makes an untouched open→save a structural identity even for pipeline
+ * metadata the editor never touches — stripping those was the B-11 corruption
+ * path. `_carry` is disjoint from the modeled fields by construction, so it
+ * never double-emits. See rubric-transform.ts.
+ *
  * @see ontology_types.py — backend source of truth
  * @see rubric-transform.ts — hydration / dehydration functions
  */
@@ -38,6 +46,8 @@ export interface RubricSubCriterion {
     description: string;
     /** Points for this sub-criterion (number — parsed from backend Decimal string) */
     points: number;
+    /** B-11: opaque wire fields not modeled here; preserved across round-trip. */
+    _carry?: Record<string, unknown>;
 }
 
 export interface RubricCriterion {
@@ -55,6 +65,8 @@ export interface RubricCriterion {
      * Null when the criterion is graded as an atomic unit.
      */
     sub_criteria?: RubricSubCriterion[] | null;
+    /** B-11: opaque wire fields not modeled here; preserved across round-trip. */
+    _carry?: Record<string, unknown>;
 }
 
 export interface RubricSubQuestion {
@@ -75,12 +87,24 @@ export interface RubricSubQuestion {
     /** Points for this sub-question (number — parsed from backend Decimal string) */
     points: number;
     criteria: RubricCriterion[];
+    /**
+     * B-11: nested sub-questions. A sub-question is EITHER a leaf (its own
+     * `criteria`) OR a parent (`sub_questions`, criteria empty) — StructureExclusivity,
+     * enforced by the client validator (INV-R-XOR), not by this permissive type.
+     * Recursive/self-referential to match the backend ontology (arbitrary depth);
+     * the backend's depth-2 "cap" is an LLM-decoder constraint, not an invariant.
+     */
+    sub_questions?: RubricSubQuestion[];
+    /** Worked solution for this sub-question (editable; carried across round-trip). */
+    example_solution?: string | null;
     // DOCX extraction metadata (passed through)
     trace_tables?: Array<{ headers: string[]; rows: Record<string, string>[]; row_count: number }>;
     extraction_status?: 'success' | 'partial' | 'failed';
     extraction_error?: string | null;
     /** AI-proposed criteria awaiting teacher accept/reject (ephemeral — not saved) */
     proposals?: ProposalSet | null;
+    /** B-11: opaque wire fields not modeled here; preserved across round-trip. */
+    _carry?: Record<string, unknown>;
 }
 
 export interface RubricQuestion {
@@ -105,6 +129,8 @@ export interface RubricQuestion {
     extraction_error?: string | null;
     /** AI-proposed criteria awaiting teacher accept/reject (ephemeral — not saved) */
     proposals?: ProposalSet | null;
+    /** B-11: opaque wire fields not modeled here; preserved across round-trip. */
+    _carry?: Record<string, unknown>;
 }
 
 // =============================================================================

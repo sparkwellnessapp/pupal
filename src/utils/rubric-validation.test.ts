@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { formatPoints } from './rubric-display';
-import { validateRubricTotalPoints, validateAllQuestions } from './rubric-validation';
+import { validateRubricTotalPoints, validateAllQuestions, validateQuestion } from './rubric-validation';
 import { hydrateAnyQuestions, safeParseFloat } from './rubric-transform';
-import type { RubricQuestion } from '@/types/rubric';
+import type { RubricQuestion, RubricSubQuestion, RubricCriterion } from '@/types/rubric';
 
 /**
  * Regression suite for the review-screen crash reported on the bagrut selection
@@ -82,6 +82,75 @@ describe('validateRubricTotalPoints', () => {
 // ---------------------------------------------------------------------------
 // The boundary itself — hydration must yield numbers for every point value
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// B-11 — recursive validator parity with the backend _walk_sub_question.
+// The client INV-R1b must fire at the SAME node the backend does, at any depth.
+// ---------------------------------------------------------------------------
+
+function crit(id: string, points: number): RubricCriterion {
+    return { criterion_id: id, index: 0, description: '', points };
+}
+function leaf(id: string, points: number, criteria: RubricCriterion[]): RubricSubQuestion {
+    return { sub_question_id: id, index: 0, points, criteria };
+}
+function parent(id: string, points: number, children: RubricSubQuestion[]): RubricSubQuestion {
+    return { sub_question_id: id, index: 0, points, criteria: [], sub_questions: children };
+}
+function nestedQuestion(sub: RubricSubQuestion[], total: number): RubricQuestion {
+    return { question_id: 'q1', total_points: total, criteria: [], sub_questions: sub };
+}
+
+describe('B-11 — recursive INV-R1b mirrors _walk_sub_question at any depth', () => {
+    it('LEAF mismatch surfaces at the full path q1.א.2 (the real bagrut error)', () => {
+        // q1 → א(15) → [1(12, crit 12), 2(3, crit 1.5+0.5=2)]. Leaf 2 sums to 2, declares 3.
+        const q = nestedQuestion([
+            parent('א', 15, [
+                leaf('1', 12, [crit('c1', 12)]),
+                leaf('2', 3, [crit('c2', 1.5), crit('c3', 0.5)]),
+            ]),
+        ], 15);
+        const issues = validateQuestion(q, 0, [q]);
+        const r1b = issues.filter(i => i.invariant === 'INV-R1b');
+        expect(r1b).toHaveLength(1);
+        expect(r1b[0].target_id).toBe('q1.א.2');
+        expect(r1b[0].severity).toBe('error');
+    });
+
+    it('PARENT mismatch surfaces at q1.א (Σ children ≠ parent points)', () => {
+        // א declares 15 but its children sum to 14 — a PARENT error the depth-1
+        // validator was blind to (it treated a parent as vacuously satisfied).
+        const q = nestedQuestion([
+            parent('א', 15, [
+                leaf('1', 12, [crit('c1', 12)]),
+                leaf('2', 2, [crit('c2', 2)]),
+            ]),
+        ], 15);
+        const issues = validateQuestion(q, 0, [q]);
+        const r1b = issues.filter(i => i.invariant === 'INV-R1b');
+        expect(r1b).toHaveLength(1);
+        expect(r1b[0].target_id).toBe('q1.א');
+    });
+
+    it('a fully consistent nested tree yields zero issues', () => {
+        const q = nestedQuestion([
+            parent('א', 15, [
+                leaf('1', 12, [crit('c1', 12)]),
+                leaf('2', 3, [crit('c2', 1.5), crit('c3', 1.5)]),
+            ]),
+        ], 15);
+        expect(validateQuestion(q, 0, [q])).toHaveLength(0);
+    });
+
+    it('INV-R-XOR fires when a node has both criteria and sub_questions', () => {
+        // A parent sub-question that ALSO carries a direct criterion — StructureExclusivity.
+        const bad = parent('א', 15, [leaf('1', 15, [crit('c1', 15)])]);
+        bad.criteria = [crit('cx', 15)]; // both populated
+        const q = nestedQuestion([bad], 15);
+        const issues = validateQuestion(q, 0, [q]);
+        expect(issues.some(i => i.invariant === 'INV-R-XOR' && i.target_id === 'q1.א')).toBe(true);
+    });
+});
 
 describe('hydration coerces every point value to a number', () => {
     it('safeParseFloat is what the rubric total now passes through', () => {

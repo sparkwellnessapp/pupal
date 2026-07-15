@@ -48,6 +48,74 @@ export function safeParseFloat(value: string | number | undefined | null): numbe
 }
 
 // ─────────────────────────────────────────────────────────
+// OPAQUE CARRY (B-11) — the codec is now a TOTAL, DISJOINT partition.
+//
+// Every wire key on a node is either MODELED (read/written by name below) or
+// CARRIED (moved verbatim through `_carry`). The two sets are disjoint by the
+// MODELED_*_KEYS manifests, so a modeled key can never appear in `_carry` and a
+// re-emit can never double-write. This is what makes an untouched open→save a
+// structural identity even for pipeline metadata (and future backend fields) the
+// editor never touches. Stripping those was the B-11 corruption path.
+//
+// The lone intentional exception is `proposals` — ephemeral UI state that lives
+// between extraction and teacher accept/reject. It is MODELED (so it is excluded
+// from `_carry`) but deliberately NOT re-emitted by dehydrate, so it never
+// persists. This is the one documented non-identity in the round-trip.
+// ─────────────────────────────────────────────────────────
+
+// A key is MODELED (emitted by name by dehydrate) iff the codec TRANSFORMS it
+// (points ↔ string, criteria/sub_questions/sub_criteria recursion) or the editor
+// EDITS it (text, title, example_solution, …). Non-editable extraction metadata
+// (trace_tables, context_tables, code_blocks, extraction_status/error, notes,
+// extraction_confidence, evaluation_guidance) is CARRIED — it round-trips through
+// `_carry` untouched, and since nothing edits it there is no drift. If a metadata
+// field ever becomes editable, promote it to a MODELED set + emit it by name.
+//
+// `proposals` is MODELED so it is excluded from `_carry`, but is intentionally NOT
+// re-emitted (ephemeral) — the one documented non-identity.
+const MODELED_QUESTION_KEYS: ReadonlySet<string> = new Set([
+    'question_id', 'question_type', 'question_text', 'total_points',
+    'allow_multiple_valid_forms', 'skill_targets', 'requirements',
+    'criteria', 'sub_questions', 'example_solution', 'proposals',
+]);
+
+const MODELED_SUBQUESTION_KEYS: ReadonlySet<string> = new Set([
+    'sub_question_id', 'index', 'title', 'text', 'points',
+    'criteria', 'sub_questions', 'example_solution', 'proposals',
+]);
+
+const MODELED_CRITERION_KEYS: ReadonlySet<string> = new Set([
+    'criterion_id', 'index', 'description', 'points',
+    'skill_targets', 'requirements', 'sub_criteria',
+]);
+
+const MODELED_SUBCRITERION_KEYS: ReadonlySet<string> = new Set([
+    'sub_criterion_id', 'index', 'description', 'points',
+]);
+
+/** Wire fields NOT modeled by name → the carry bag. `undefined` when nothing is left over. */
+function carryOf(
+    raw: Record<string, unknown>,
+    modeled: ReadonlySet<string>,
+): Record<string, unknown> | undefined {
+    const carry: Record<string, unknown> = {};
+    for (const key of Object.keys(raw)) {
+        if (!modeled.has(key)) carry[key] = raw[key];
+    }
+    return Object.keys(carry).length > 0 ? carry : undefined;
+}
+
+/**
+ * Re-emit the carry bag under the modeled fields. Carry spreads FIRST so a
+ * modeled field always wins (belt-and-suspenders — they are disjoint anyway).
+ * This is the single cast the opaque-carry mechanism requires; it is confined
+ * here rather than sprinkled through every dehydrate function.
+ */
+function withCarry<T extends object>(modeled: T, carry?: Record<string, unknown>): T {
+    return (carry ? { ...carry, ...modeled } : modeled) as T;
+}
+
+// ─────────────────────────────────────────────────────────
 // HYDRATION: Backend → Frontend (string → number)
 // Called ONCE when data arrives from backend.
 // ─────────────────────────────────────────────────────────
@@ -82,6 +150,7 @@ function hydrateQuestion(q: QuestionOntology): RubricQuestion {
         extraction_error: raw.extraction_error as string | null | undefined,
         // Proposals — ephemeral, hydrated from backend but not dehydrated on save
         proposals: hydrateProposalSet(raw.proposals),
+        _carry: carryOf(raw, MODELED_QUESTION_KEYS),
     };
 }
 
@@ -96,12 +165,18 @@ function hydrateSubQuestion(sq: SubQuestion): RubricSubQuestion {
         text: sq.text,
         points: safeParseFloat(sq.points),
         criteria: (sq.criteria || []).map(hydrateCriterion),
+        // B-11: recurse into nested sub-questions (the depth-2 subtree that was
+        // silently dropped). A node is a leaf (criteria) XOR a parent (sub_questions).
+        sub_questions: (sq.sub_questions || []).map(hydrateSubQuestion),
+        // B-11: sub-question worked solution — editable, was dropped on save.
+        example_solution: sq.example_solution,
         // DOCX extraction metadata (pass through)
         trace_tables: raw.trace_tables as RubricSubQuestion['trace_tables'],
         extraction_status: raw.extraction_status as RubricSubQuestion['extraction_status'],
         extraction_error: raw.extraction_error as string | null | undefined,
         // Proposals — ephemeral, hydrated from backend but not dehydrated on save
         proposals: hydrateProposalSet(raw.proposals),
+        _carry: carryOf(raw, MODELED_SUBQUESTION_KEYS),
     };
 }
 
@@ -117,6 +192,7 @@ function hydrateCriterion(c: CriterionOntology): RubricCriterion {
             index: sc.index ?? i,
             description: sc.description,
             points: safeParseFloat(sc.points),
+            _carry: carryOf(sc as unknown as Record<string, unknown>, MODELED_SUBCRITERION_KEYS),
         }))
         : null;
 
@@ -130,6 +206,9 @@ function hydrateCriterion(c: CriterionOntology): RubricCriterion {
         extraction_confidence: raw.extraction_confidence as RubricCriterion['extraction_confidence'],
         notes: raw.notes as string | null | undefined,
         sub_criteria,
+        // B-11: carries e.g. `evaluation_guidance` (backend-modeled, never typed here)
+        // and any future criterion field, so a round-trip preserves them.
+        _carry: carryOf(raw, MODELED_CRITERION_KEYS),
     };
 }
 
@@ -188,7 +267,7 @@ export function dehydrateQuestions(questions: RubricQuestion[]): QuestionOntolog
 }
 
 function dehydrateQuestion(q: RubricQuestion): QuestionOntology {
-    const result: QuestionOntology = {
+    const modeled: QuestionOntology = {
         question_id: q.question_id,
         question_type: q.question_type,
         question_text: q.question_text,
@@ -198,36 +277,44 @@ function dehydrateQuestion(q: RubricQuestion): QuestionOntology {
         requirements: q.requirements,
         criteria: q.criteria.map(dehydrateCriterion),
         sub_questions: (q.sub_questions || []).map(dehydrateSubQuestion),
+        // B-11: example_solution is editable — was dropped here (a live edit-loss bug).
+        example_solution: q.example_solution,
     };
-    return result;
+    return withCarry(modeled, q._carry);
 }
 
 function dehydrateSubQuestion(sq: RubricSubQuestion): SubQuestion {
-    return {
+    const modeled: SubQuestion = {
         sub_question_id: sq.sub_question_id,
         index: sq.index,
         title: sq.title ?? null,
         text: sq.text,
         points: String(sq.points),
         criteria: sq.criteria.map(dehydrateCriterion),
+        // B-11: recurse — nested sub-questions are now first-class, not dropped.
+        sub_questions: (sq.sub_questions || []).map(dehydrateSubQuestion),
+        example_solution: sq.example_solution,
     };
+    return withCarry(modeled, sq._carry);
 }
 
 function dehydrateCriterion(c: RubricCriterion): CriterionOntology {
-    return {
+    const modeled: CriterionOntology = {
         criterion_id: c.criterion_id,
         index: c.index,
         description: c.description,
         points: String(c.points),
         skill_targets: c.skill_targets,
         requirements: c.requirements,
-        sub_criteria: c.sub_criteria?.map(sc => ({
+        sub_criteria: c.sub_criteria?.map(sc => withCarry({
             sub_criterion_id: sc.sub_criterion_id,
             index: sc.index,
             description: sc.description,
             points: String(sc.points),
-        })) ?? null,
+        }, sc._carry)) ?? null,
     };
+    // _carry brings back evaluation_guidance / notes / extraction_confidence etc.
+    return withCarry(modeled, c._carry);
 }
 
 // ─────────────────────────────────────────────────────────
@@ -236,12 +323,19 @@ function dehydrateCriterion(c: RubricCriterion): CriterionOntology {
 // ─────────────────────────────────────────────────────────
 
 /**
- * One-level bottom-up cascade: recompute each criterion's direct structural
- * parent so it equals Σ of its criteria.
+ * Bottom-up cascade: recompute each structural parent so it equals Σ of its
+ * direct children, at ANY nesting depth (B-11 — was depth-1).
  *
- *   - Question has sub_questions: each sq.points = Σ sq.criteria.points.
- *     q.total_points is NEVER touched here — INV-R1 surfaces any mismatch.
+ *   - Leaf sub-question (has criteria):   sq.points = Σ sq.criteria.points.
+ *   - Parent sub-question (sub_questions): sq.points = Σ children.points,
+ *     computed AFTER recursing into the children (bottom-up).
+ *   - Question has sub_questions: cascade each; q.total_points is NEVER touched
+ *     — INV-R1 surfaces any mismatch.
  *   - Question has direct criteria only: q.total_points = Σ q.criteria.points.
+ *
+ * The depth-1 version treated every sub-question as a leaf, which would ZERO a
+ * parent (Σ of its empty direct-criteria) the moment nesting exists — so the
+ * recursion is required, not cosmetic.
  *
  * This is the ONLY silent correction in the editor. Every other consistency
  * check surfaces through rubric-validation.ts as an Annotation that blocks
@@ -259,17 +353,25 @@ function dehydrateCriterion(c: RubricCriterion): CriterionOntology {
  *
  * Returns a new array (immutable).
  */
+function cascadeSubQuestion(sq: RubricSubQuestion): RubricSubQuestion {
+    if (sq.sub_questions && sq.sub_questions.length > 0) {
+        const children = sq.sub_questions.map(cascadeSubQuestion);
+        return {
+            ...sq,
+            sub_questions: children,
+            points: children.reduce((sum, c) => sum + c.points, 0),
+        };
+    }
+    return { ...sq, points: sq.criteria.reduce((sum, c) => sum + c.points, 0) };
+}
+
 export function recalculateParentsFromCriteria(
     questions: RubricQuestion[]
 ): RubricQuestion[] {
     return questions.map((q) => {
         if (q.sub_questions && q.sub_questions.length > 0) {
-            // Cascade into each sub-question; q.total_points stays put.
-            const updatedSubQs = q.sub_questions.map((sq) => ({
-                ...sq,
-                points: sq.criteria.reduce((sum, c) => sum + c.points, 0),
-            }));
-            return { ...q, sub_questions: updatedSubQs };
+            // Cascade each sub-question (recursively); q.total_points stays put.
+            return { ...q, sub_questions: q.sub_questions.map(cascadeSubQuestion) };
         }
         // Direct-criteria question: cascade straight into q.total_points.
         const directSum = q.criteria.reduce((sum, c) => sum + c.points, 0);
