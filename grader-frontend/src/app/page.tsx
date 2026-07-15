@@ -56,7 +56,7 @@ import type { DocxPreflightQuestion } from '@/lib/api';
 import { RubricPurpose, RubricPurposeValues } from '@/components/RubricPurpose';
 import { RubricErrorDisplay } from '@/components/RubricSaveFlow';
 import type { RubricQuestion } from '@/types/rubric';
-import { hydrateAnyQuestions, dehydrateQuestions } from '@/utils/rubric-transform';
+import { hydrateAnyQuestions, dehydrateQuestions, safeParseFloat } from '@/utils/rubric-transform';
 import { validateAllQuestions, validateRubricTotalPoints } from '@/utils/rubric-validation';
 import {
   Upload,
@@ -484,7 +484,15 @@ export default function Home() {
     // the validator has nothing to compare against. response.total_points
     // is top-level on ExtractRubricResponse (defaults to 100 per backend INV-4
     // when the source document has no explicit total).
-    setRubricDeclaredTotal(response.total_points);
+    //
+    // safeParseFloat is LOAD-BEARING, not cosmetic: total_points is typed `number`
+    // but arrives as a Decimal-serialized STRING ("100.0") on the wire. Stored raw,
+    // it reached formatPoints(n.toFixed(2)) and crashed the whole review screen
+    // ("e.toFixed is not a function") the moment INV-R3 fired — which is exactly
+    // when a rubric has a real discrepancy to show the teacher. This is the ONE
+    // rubric point value that was bypassing the hydration boundary; every other
+    // point goes through safeParseFloat in hydrateAnyQuestions.
+    setRubricDeclaredTotal(safeParseFloat(response.total_points));
     setSelectionGroups(response.selection_groups ?? []);
     setExtractionMetadata(response.metadata || null);
     setExtractionAnnotations(response.annotations || []);
@@ -671,7 +679,16 @@ export default function Home() {
 
     // INV-R3 — rubric-level total. Gated on rubricDeclaredTotal being set
     // (it is, from extraction time onward — see _runDocxExtraction).
-    if (rubricDeclaredTotal !== undefined) {
+    //
+    // SKIPPED on selection exams. INV-R3 as written asserts Σ q.total_points ==
+    // declared total — true only WITHOUT selection. total_points is ACHIEVABLE
+    // (a "choose 4 of 6" bagrut declares 100 while its six questions OFFER 150),
+    // so this check fires a FALSE blocking error on every selection exam and would
+    // make it unsaveable from the browser. The correct achievable-aware check is
+    // the backend's INV-4 (PR-3), which is authoritative at compile; we do not
+    // re-derive best-k client-side here (same discipline as GradedTestReviewPanel /
+    // B-5 — never show a client aggregate that can disagree with what save freezes).
+    if (rubricDeclaredTotal !== undefined && selectionGroups.length === 0) {
       const r3 = validateRubricTotalPoints(extractedQuestions, rubricDeclaredTotal);
       if (r3) {
         liveAnnotations.push({
@@ -685,7 +702,7 @@ export default function Home() {
     }
 
     return [...extractionAnnotations, ...liveAnnotations];
-  }, [extractedQuestions, extractionAnnotations, rubricDeclaredTotal]);
+  }, [extractedQuestions, extractionAnnotations, rubricDeclaredTotal, selectionGroups]);
 
   const hasBlockingErrors = combinedAnnotations.some(a => a.severity === 'error');
 
