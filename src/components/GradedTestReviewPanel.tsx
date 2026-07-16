@@ -224,6 +224,18 @@ function ScopeCard({ scope, annotations, index, isLowConfidence, editable, overr
                     {scope.graded_by === 'failed' && (
                         <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">שגיאת AI</span>
                     )}
+                    {/* PR-4 (census F11): a "choose k of N" member that did not make the
+                        student's best-k. EXCLUDED, not zeroed — the unchosen question was
+                        never owed. Backend signals this purely via graded_by (no annotation),
+                        so this badge is the only place the teacher sees the state named. */}
+                    {scope.graded_by === 'excluded_by_selection' && (
+                        <span
+                            className="text-xs bg-indigo-50 text-indigo-600 border border-indigo-200 px-1.5 py-0.5 rounded"
+                            title="שאלת בחירה: נספרות רק התשובות הטובות ביותר. סעיף זה לא נכלל בציון — הוא לא נדרש."
+                        >
+                            לא נבחר למענה (שאלת בחירה)
+                        </span>
+                    )}
                 </div>
                 <div className="flex items-center gap-3">
                     <span className="text-sm font-semibold text-gray-800">

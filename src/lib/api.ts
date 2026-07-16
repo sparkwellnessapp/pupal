@@ -560,6 +560,30 @@ export interface ValidationErrorDetail {
   message_he: string;
 }
 
+/**
+ * Structured compilation-error detail — the shape the backend's
+ * `rubric_management.py::_compile_error_payload` emits for an INV violation.
+ * These fields (location / invariant / expected / actual / message_he) are
+ * ALREADY on the wire (verified, PR-4); the frontend simply never modeled them,
+ * so RubricErrorDisplay flat-listed `message` and the teacher never saw the
+ * named invariant or the arithmetic that PR-3 worked to produce. It rides an
+ * HTTPException `detail`, which FastAPI does NOT include in the OpenAPI schema —
+ * so this is the ONE response type we hand-write rather than take from codegen
+ * (PR-4 finding 5). Keep it in sync with `_compile_error_payload` by hand.
+ */
+export interface CompileErrorDetail {
+  /** Full dotted path of the offending node ("q1.א.2") — the scroll anchor. */
+  location: string | null;
+  /** The named invariant that broke, e.g. "INV-2". */
+  invariant: string | null;
+  /** Declared/expected value (stringified Decimal). */
+  expected: string | null;
+  /** Computed/actual value (stringified Decimal). */
+  actual: string | null;
+  message: string;
+  message_he: string | null;
+}
+
 /** Draft rubric in ontology format, as expected by the backend save endpoint */
 export interface OntologyRubricDraft {
   questions: QuestionOntology[];
@@ -613,7 +637,7 @@ export interface SaveOntologyRubricWarnings {
 export interface SaveOntologyRubricError {
   error_type: 'validation_failed' | 'compilation_failed';
   message_he: string;
-  errors: ValidationErrorDetail[] | RubricAnnotation[];
+  errors: Array<ValidationErrorDetail | RubricAnnotation | CompileErrorDetail>;
 }
 
 /** Union type for save responses */
@@ -633,7 +657,7 @@ export class RubricSaveError extends Error {
   constructor(
     public readonly errorType: 'validation_failed' | 'compilation_failed',
     public readonly messageHe: string,
-    public readonly errors: ValidationErrorDetail[] | RubricAnnotation[],
+    public readonly errors: Array<ValidationErrorDetail | RubricAnnotation | CompileErrorDetail>,
   ) {
     super(messageHe);
     this.name = 'RubricSaveError';

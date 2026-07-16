@@ -39,6 +39,8 @@ import {
   ExtractRubricResponse,
   RubricSaveError,
   type SelectionGroup,
+  type SaveOntologyRubricWarnings,
+  type OntologyRubricDraft,
 } from '@/lib/api';
 import { useExtractionJob, getExtractionStageLabel } from '@/hooks/useExtractionJob';
 import { toast } from 'sonner';
@@ -54,7 +56,7 @@ import type { TranscribeResponse } from '@/types/transcription';
 import type { GradedTestDraftResponse } from '@/types/graded_test';
 import type { DocxPreflightQuestion } from '@/lib/api';
 import { RubricPurpose, RubricPurposeValues } from '@/components/RubricPurpose';
-import { RubricErrorDisplay } from '@/components/RubricSaveFlow';
+import { RubricErrorDisplay, RubricWarningsModal } from '@/components/RubricSaveFlow';
 import type { RubricQuestion } from '@/types/rubric';
 import { hydrateAnyQuestions, dehydrateQuestions, safeParseFloat } from '@/utils/rubric-transform';
 import { validateAllQuestions, validateRubricTotalPoints } from '@/utils/rubric-validation';
@@ -318,6 +320,11 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   /** PR-3: structured compile rejection (node + invariant + expected/actual + Hebrew). */
   const [saveError, setSaveError] = useState<RubricSaveError | null>(null);
+  /** PR-4 (R-D): warnings the teacher must EXPLICITLY confirm before save proceeds.
+   *  Replaces the old blanket auto-ack — Vivi proposes, the teacher decides. The
+   *  draft is held so the confirmed retry sends the identical payload + acked ids. */
+  const [pendingWarnings, setPendingWarnings] = useState<SaveOntologyRubricWarnings | null>(null);
+  const [pendingSaveDraft, setPendingSaveDraft] = useState<OntologyRubricDraft | null>(null);
 
 // ---------------------------------------------------------------------------
   // Extraction error modal
@@ -677,19 +684,17 @@ export default function Home() {
       });
     });
 
-    // INV-R3 — rubric-level total. Gated on rubricDeclaredTotal being set
-    // (it is, from extraction time onward — see _runDocxExtraction).
-    //
-    // SKIPPED on selection exams. INV-R3 as written asserts Σ q.total_points ==
-    // declared total — true only WITHOUT selection. total_points is ACHIEVABLE
-    // (a "choose 4 of 6" bagrut declares 100 while its six questions OFFER 150),
-    // so this check fires a FALSE blocking error on every selection exam and would
-    // make it unsaveable from the browser. The correct achievable-aware check is
-    // the backend's INV-4 (PR-3), which is authoritative at compile; we do not
-    // re-derive best-k client-side here (same discipline as GradedTestReviewPanel /
-    // B-5 — never show a client aggregate that can disagree with what save freezes).
-    if (rubricDeclaredTotal !== undefined && selectionGroups.length === 0) {
-      const r3 = validateRubricTotalPoints(extractedQuestions, rubricDeclaredTotal);
+    // INV-R3 — rubric-level ACHIEVABLE total (PR-4, achievable-aware). Gated on
+    // rubricDeclaredTotal being set (it is, from extraction time onward). The
+    // pre-PR-4 abstain (skip when selection groups exist) is GONE:
+    // validateRubricTotalPoints now compares computeAchievablePoints(questions,
+    // selection_groups) — the client mirror of backend INV-4 — against the
+    // declared total, so it is correct on selection exams too (a "choose 4 of 6"
+    // bagrut declares 100 while offering 150; achievable is 100). We still do NOT
+    // re-derive grading best-k here — that is genuinely server-only; rubric
+    // achievable is pure arithmetic over declared totals (see rubric-achievable.ts).
+    if (rubricDeclaredTotal !== undefined) {
+      const r3 = validateRubricTotalPoints(extractedQuestions, rubricDeclaredTotal, selectionGroups);
       if (r3) {
         liveAnnotations.push({
           annotation_type: 'invariant_violation',
@@ -745,25 +750,18 @@ export default function Home() {
       });
 
       if (isWarningsResponse(response)) {
-        // Auto-acknowledge only pipeline rubric_mismatch warnings (structural point mismatches
-        // in the source document that the teacher has already seen in the editor).
-        // Never auto-acknowledge invariant_violation warnings — those must be resolved first.
-        const warningIds = response.warnings
-          .filter(w => w.annotation_type !== 'invariant_violation')
-          .map(w => w.id);
-        const retryResponse = await saveOntologyRubric({
-          name: rubricName,
-          draft,
-          acknowledged_warning_ids: warningIds,
-          extraction_job_id: extractionJobId ?? undefined,
-        });
-        if (!isWarningsResponse(retryResponse)) {
-          setSavedRubricId(retryResponse.rubric_id);
-        }
+        // R-D: DO NOT auto-acknowledge. The old code silently acked every
+        // non-invariant warning — confirming the teacher's OWN flagged mismatch on
+        // her behalf, and a latent swallow of any future warning class (census C8 /
+        // B-6). Instead surface the warnings and require an explicit confirm; the
+        // held draft is resent with acked ids only after the teacher clicks through
+        // (see handleConfirmWarnings + the RubricWarningsModal render below).
+        setPendingWarnings(response);
+        setPendingSaveDraft(draft);
       } else {
         setSavedRubricId(response.rubric_id);
+        setRubricStep('saved');
       }
-      setRubricStep('saved');
     } catch (err) {
       if (err instanceof ApiAuthError) {
         handleAuthFailure();          // stash the edits BEFORE anything redirects
@@ -782,6 +780,50 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  /** R-D: the teacher reviewed the warnings and confirmed — resend the HELD draft
+   *  with all warning ids acknowledged. This is the ONLY path that acks warnings
+   *  now; there is no silent auto-ack anywhere. */
+  const handleConfirmWarnings = async (warningIds: string[]) => {
+    if (!pendingSaveDraft) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const resp = await saveOntologyRubric({
+        name: rubricName,
+        draft: pendingSaveDraft,
+        acknowledged_warning_ids: warningIds,
+        extraction_job_id: extractionJobId ?? undefined,
+      });
+      if (isWarningsResponse(resp)) {
+        // Fresh warnings after an explicit ack should not happen — keep the modal
+        // open on them rather than silently proceeding.
+        setPendingWarnings(resp);
+      } else {
+        setSavedRubricId(resp.rubric_id);
+        setPendingWarnings(null);
+        setPendingSaveDraft(null);
+        setRubricStep('saved');
+      }
+    } catch (err) {
+      setPendingWarnings(null);
+      setPendingSaveDraft(null);
+      if (err instanceof ApiAuthError) {
+        handleAuthFailure();
+      } else if (err instanceof RubricSaveError) {
+        setSaveError(err);
+      } else {
+        setError(toMessage(err));
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelWarnings = () => {
+    setPendingWarnings(null);
+    setPendingSaveDraft(null);
   };
 
   // S11: load classes when the user reaches the upload step
@@ -1303,6 +1345,18 @@ export default function Home() {
                   <RubricErrorDisplay
                     error={saveError}
                     onDismiss={() => setSaveError(null)}
+                  />
+                )}
+                {/* R-D: explicit warning confirmation (replaces the silent auto-ack).
+                    Shown when save returns warnings; only an explicit confirm resends
+                    the held draft with acked ids. */}
+                {pendingWarnings && (
+                  <RubricWarningsModal
+                    warnings={pendingWarnings.warnings}
+                    messageHe={pendingWarnings.message_he}
+                    onAcknowledge={handleConfirmWarnings}
+                    onCancel={handleCancelWarnings}
+                    isSubmitting={isLoading}
                   />
                 )}
                 <div className="bg-white rounded-xl shadow-lg p-6">
