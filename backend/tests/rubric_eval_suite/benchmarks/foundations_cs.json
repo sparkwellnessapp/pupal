@@ -1,0 +1,511 @@
+{
+  "schema_version": "2.0",
+  "rubric_id": "foundations_cs",
+  "rubric_name": "foundations_cs",
+  "subject": "computer_science",
+  "programming_language": "csharp",
+  "total_points": "100",
+  "questions": [
+    {
+      "question_id": "q1",
+      "question_type": "short_answer",
+      "question_text": "public static void what (int n1,int n2) { while (n1>n2 && n1%n2 !=0) { n1--; } while (n2>n1 && n2%n1 !=0) { n2--; } int num1=Math.min(n1,n2);  int num2=Math.max(n1,n2); for (int i=num1;i<=num2;i+=num1) System.out.println(i); }\nלפניכם פעולה המקבלת 2 מספרים שלמים חיוביים:",
+      "total_points": "30",
+      "allow_multiple_valid_forms": false,
+      "skill_targets": [],
+      "requirements": [],
+      "criteria": [],
+      "sub_questions": [
+        {
+          "sub_question_id": "א",
+          "index": 0,
+          "title": null,
+          "text": "השלימו את טבלת המעקב עבור זימון הפעולה what(22,5). בטבלת המעקב עליכם לכלול עמודות עבור המשתנים: n1,n2,num1,num2,  עמודה עבור כל אחד מהתנאים של שלושת הלולאות ועמודה עבור הפלט.",
+          "points": "15",
+          "example_solution": "t 5 22\nt 21\n5 t 5 20 5 f f 20\n10 t 10\n15 t 15\n20 t 20\nf 25",
+          "criteria": [
+            {
+              "criterion_id": "q1.א.c0",
+              "index": 0,
+              "description": "סעיף א : 15 נק  (כל עדכון 2/3 נק)",
+              "points": "15",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ב",
+          "index": 1,
+          "title": null,
+          "text": "רשמו טענת כניסה וטענת יציאה לפעולה.",
+          "points": "10",
+          "example_solution": "טענת כניסה: הפעולה מקלת שני מספרים שלמים חיוביים\nטענת יציאה: הפעולה מציגה את כל המכפלות של  המספר הקטן מבין השניים ועד למספר הגדול או למכפלה הקרובה ביותר למספר הגדול מלמטה.",
+          "criteria": [
+            {
+              "criterion_id": "q1.ב.c0",
+              "index": 0,
+              "description": "סעיף ב: 10 נק' (כל טעה 5)",
+              "points": "10",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ג",
+          "index": 2,
+          "title": null,
+          "text": "לפניכם פעולה נוספת what1  שמטרתה זהה למטרת הפעולה מסעיף א:\npublic static void what 1  (int n1,int n2) {           int n3,temp;           if (n1>n2)           {      temp=n1;      n1=n2;      n2=temp;           }          n3=n1;          while (n1<=n2)          {     System.out.println(n1);          } }\nציינו אלו מההוראה/ההוראות הבאות מתאימה/מתאימות להחליף את ההוראה החסרה. יש יש להעתיק רק את ההוראה/הוראות המתאימות.\nn1=n1+n2;\nn1++;\nn2--;\nn2=n2-n1;\nn1=n1+n3;",
+          "points": "5",
+          "example_solution": "n1=n1+n3;",
+          "criteria": [
+            {
+              "criterion_id": "q1.ג.c0",
+              "index": 0,
+              "description": "סעיף ג: 5 נק'",
+              "points": "5",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        }
+      ],
+      "example_solution": null,
+      "trace_tables": null,
+      "context_tables": null,
+      "proposals": null
+    },
+    {
+      "question_id": "q2",
+      "question_type": "short_answer",
+      "question_text": "בקאנטרי קלאב \"הגינות\" החליט בעל הקאנטרי לפצות את  587 מנוייו עבור שעות של חוגים שהתבטלו במהלך השנה.\nעבור כל מנוי נקלטים הנתונים הבאים:\nname - האות הראשונה בשם המנוי (תו)\nבנוסף, עבור כל מנוי נקלטים הנתונים הבאים עבור כל אחד מהחודשים 1-12  :\nparticipated - מספר השעות שבהן המנוי השתתף בחוגים בחודש זה (מספר שלם חיובי).\ncanceled - מספר שעות החוגים שבוטלו למנוי בחודש זה  (מספר שלם חיובי).\nאם מספר השעות שבוטלו למנוי  בחודש מסוים יותר גדול  מ־10%  מהשעות שבהן המנוי השתתף  אז המנוי יקבל החזר בגובה כל השעות שבוטלו. בכל מקרה אחר ההחזר החודשי הוא 0.\nניתן להניח שמספר השעות שבוטלו בכל חודש נמוך ממספר השעות בהן המנוי השתתף .\nכתבו פעולה ראשית הקולטת עבור 587 מנויים את השם שלהם ובעבור כל אחד מהחודשים 1-12 בשנה את מספר השעות בהן המנוי השתתף ואת מספר השעות שבוטלו.\nהפעולה תחשב ותציג את המידע הבא עבור כל מנוי:\nסך כל ההחזר בשעות עבור כל מנוי לאותה שנה\nמספר החודשים בהם לא היו למנוי ביטולים\nבנוסף, יוצג לכמה מהמנויים לא היו ביטולים כלל במהלך השנה",
+      "total_points": "35",
+      "allow_multiple_valid_forms": false,
+      "skill_targets": [],
+      "requirements": [],
+      "criteria": [
+        {
+          "criterion_id": "q2.c0",
+          "index": 0,
+          "description": "כותרת",
+          "points": "1",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c1",
+          "index": 1,
+          "description": "מונה מנויים ללא ביטולים כלל+ אתחול",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c2",
+          "index": 2,
+          "description": "לולאה על כל המנויים",
+          "points": "3",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c3",
+          "index": 3,
+          "description": "מונה שעות החזר למנוי+אתחול ל 0 (הכנה לפני טיפול במנוי)",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c4",
+          "index": 4,
+          "description": "מונה מס' חודשים עם ביטולים + אתחול ל -0 (הכנה לפני טיפול במנוי)",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c5",
+          "index": 5,
+          "description": "קריאת האות הראשונה בשם",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c6",
+          "index": 6,
+          "description": "לולאה עבור מנוי מסויים לטיפול בחודשים 1-12",
+          "points": "4",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c7",
+          "index": 7,
+          "description": "קליטת שעות השתתפות",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c8",
+          "index": 8,
+          "description": "קליטת שעות ביטול",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c9",
+          "index": 9,
+          "description": "עדכון חודשים עם ביטול במידת הצורך",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c10",
+          "index": 10,
+          "description": "בדיקת זכאות לזיכוי לפי תנאי 10%",
+          "points": "3",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c11",
+          "index": 11,
+          "description": "עדכון סכום ההחזר למנוי במידת הצורך",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c12",
+          "index": 12,
+          "description": "הצגת פלט למנוי – מספר שעות החזר",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c13",
+          "index": 13,
+          "description": "הצגת פלט למנוי – מספר חודשים ללא ביטולים",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c14",
+          "index": 14,
+          "description": "עדכון מספר מנויים ללא ביטולים במידת הצורך",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q2.c15",
+          "index": 15,
+          "description": "הצגת מספר המנויים שלא היו להם ביטולים כלל",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        }
+      ],
+      "sub_questions": [],
+      "example_solution": "public static void main(String[] args) { int membersNoCancel=0;                 // מונה מנויים ללא ביטולים כלל for(int member=1;member<=587;member++){ // לולאה על כל המנויים char name=reader.next().charAt(0);  // אות ראשונה של שם המנוי int memberHoursRefund=0;             // סך שעות ההחזר למנוי int monthsWithCancel=0;              // מספר חודשים עם ביטולים for(int month=1;month<=12;month++){ // לולאה על חודשי השנה int participated=reader.nextInt(); // שעות השתתפות int canceled=reader.nextInt();     // שעות ביטול if(canceled>0) monthsWithCancel++; // עדכון חודשים עם ביטול // בדיקה אם הביטול גדול מ־10% מההשתתפות if(canceled*10>participated) memberHoursRefund+=canceled;  // צבירת שעות החזר } System.out.println(\"Member \" + name +  \": refund hours = \" + memberHoursRefund); System.out.println(\"Member \" + name + \": months with no cancellations = \" + (12 - monthsWithCancel)); // אם לא היו ביטולים כלל במהלך השנה if(monthsWithCancel==0) membersNoCancel++; } System.out.println(\"Members with no cancellations all year: \" + membersNoCancel); }",
+      "trace_tables": null,
+      "context_tables": null,
+      "proposals": null
+    },
+    {
+      "question_id": "q3",
+      "question_type": "short_answer",
+      "question_text": "זוג מיוחד הוא זוג של מספרים שלמים חיוביים שיש להם את אותה זוגיות כלומר ששניהם זוגיים או שניהם אי  זוגיים",
+      "total_points": "35",
+      "allow_multiple_valid_forms": false,
+      "skill_targets": [],
+      "requirements": [],
+      "criteria": [],
+      "sub_questions": [
+        {
+          "sub_question_id": "א",
+          "index": 0,
+          "title": null,
+          "text": "כתבו פעולה IsSameParity  המקבלת שני מספרים שלמים חיוביים ומחזירה true אם הם זוג מיוחד, אחרת מחזירה false.\nרשמו לפעולה טענת כניסה וטענת יציאה.",
+          "points": "10",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q3.א.c0",
+              "index": 0,
+              "description": "כותרת – 3 נק'",
+              "points": "3",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q3.א.c1",
+              "index": 1,
+              "description": "שימוש בפרמטרים + בדיקת תנאי – 5 נק'",
+              "points": "5",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q3.א.c2",
+              "index": 2,
+              "description": "החזרת ערך בכל תרחיש – 2 נק'",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ב",
+          "index": 1,
+          "title": null,
+          "text": "כתבו תכנית הקולטת זוגות של מספרים שלמים חיוביים. הקליטה מסתיימת כאשר נקלטים 100 זוגות מיוחדים.\nהפלט הוא הזוג המיוחד שסכום המספרים שלו הוא הקטן ביותר.",
+          "points": "25",
+          "example_solution": "public class Main { public static Scanner reader = new Scanner(System.in); public static void main(String[] args) { int countSpecial = 0;                          // מונה זוגות מיוחדים int bestNum1 = 0;                              // מספר ראשון בזוג המינימלי int bestNum2 = 0;                              // מספר שני בזוג המינימלי int bestSum = 0;                               // סכום מינימלי שנמצא int sum;                                              // סכום זוג עכשיוי while (countSpecial < 100) {                   // לולאה עד 100 זוגות מיוחדים int num1 = reader.nextInt();               // קליטת מספר ראשון int num2 = reader.nextInt();               // קליטת מספר שני if (isSpecial(num1, num2)) {               // בדיקה אם הזוג מיוחד countSpecial++;                        // הגדלת מונה sum = num1 + num2;                 // חישוב סכום הזוג if (countSpecial == 1 || sum < bestSum) { // זוג ראשון או שיפור bestSum = sum;                      // עדכון סכום מינימלי bestNum1 = num1;                // עדכון מספר ראשון bestNum2 = num2;                // עדכון מספר שני            } } System.out.println(bestNum1 + ', ' + bestNum2); // הדפסת הזוג המבוקש } }",
+          "criteria": [
+            {
+              "criterion_id": "q3.ב.c0",
+              "index": 0,
+              "description": "משתנים למונה זוגות מיוחדים, למס' ראשון בזוג המיוחד, מס' שני בזוג המיוחד, סכום הזוג המיוחד +אתחול של כולם ב 0.",
+              "points": "4",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q3.ב.c1",
+              "index": 1,
+              "description": "לולאת while  + תנאי עצירה",
+              "points": "3",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q3.ב.c2",
+              "index": 2,
+              "description": "קליטת זוג מספרים בתוך הלולאה",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q3.ב.c3",
+              "index": 3,
+              "description": "שימוש בפעולה מסעיף א",
+              "points": "4",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q3.ב.c4",
+              "index": 4,
+              "description": "ספירת הזוגות המיוחדים (עדכון מונה)",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q3.ב.c5",
+              "index": 5,
+              "description": "עדכון סכום מינימלי בסכום זוג מיוחד ראשון",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q3.ב.c6",
+              "index": 6,
+              "description": "עדכון סכום מינימלי  במידה ויש שיפור",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q3.ב.c7",
+              "index": 7,
+              "description": "עדכון זוג עם סכום מינימלי בזוג המיוחד הראשון",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q3.ב.c8",
+              "index": 8,
+              "description": "עדכון הזוג המינימלי במידה ויש שיפור",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q3.ב.c9",
+              "index": 9,
+              "description": "הצגת זוג מיוחד עם סכום מינימלי",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        }
+      ],
+      "example_solution": null,
+      "trace_tables": null,
+      "context_tables": null,
+      "proposals": null
+    }
+  ],
+  "selection_groups": [],
+  "pedagogical_mistakes": [],
+  "approach_classes": [],
+  "annotations": [],
+  "extraction_metadata": {},
+  "name": "foundations_cs",
+  "description": null,
+  "document_context": null,
+  "metadata": {}
+}

@@ -1,0 +1,14 @@
+{
+  "comment": "Playwright transpiles specs with its own loader; force CommonJS so the app's module:esnext tsconfig doesn't produce output that references `exports` in a CJS context.",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "es2021",
+    "lib": ["dom", "esnext"],
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["**/*.ts"]
+}

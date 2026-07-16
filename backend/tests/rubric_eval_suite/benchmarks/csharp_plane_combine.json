@@ -1,0 +1,411 @@
+{
+  "schema_version": "2.0",
+  "rubric_id": "csharp_plane_combine",
+  "rubric_name": "csharp_plane_combine",
+  "subject": "computer_science",
+  "programming_language": "csharp",
+  "total_points": "100",
+  "questions": [
+    {
+      "question_id": "q1",
+      "question_type": "short_answer",
+      "question_text": "כתבו פעולה חיצונית בשם ‎Combine‎ בשפת ‎C#‎, המקבלת שני מערכים מטיפוס שלם: ‎arr1‎ ו־‎arr2‎, ששניהם באותו אורך.\nהפעולה יוצרת מערך חדש כך שכל איבר במערך הראשון [arr1[i , יופיע במערך החדש מספר [arr2[i פעמים.\nעל המערך המוחזר להיות לפי הפירוט הבא:\nעבור כל אינדקס ‎i‎ – האיבר ‎arr1[i]‎ יופיע במערך החדש ‎arr2[i]‎ פעמים.\nאם ‎arr2[i]‎ הוא 0 – האיבר ‎arr1[i]‎ לא יופיע כלל במערך החדש.\nהניחו שכל הערכים במערך ‎arr2‎ אינם שליליים.\nדוגמה:\nבעבור המערכים הבאים:\n0 1 2 3 4\narr1 2 5 3 1 4\n0 1 2 3 4\narr2 3 0 2 1 4\nהפעולה תחזיר את המערך הבא:\n0 1 2 3 4\n2 2 2 3 3",
+      "total_points": "40",
+      "allow_multiple_valid_forms": false,
+      "skill_targets": [],
+      "requirements": [],
+      "criteria": [
+        {
+          "criterion_id": "q1.c0",
+          "index": 0,
+          "description": "שם הפעולה, טיפוסי הפרמטרים וערך מוחזר מסוג int[]: כותרת הפעולה וחתימה תקינה",
+          "points": "4",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q1.c1",
+          "index": 1,
+          "description": "חישוב סך כל הכפילויות arr2[i]: חישוב נכון של אורך המערך החדש",
+          "points": "8",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q1.c2",
+          "index": 2,
+          "description": "הקצאה נכונה של המערך בגודל הרצוי: יצירת מערך חדש לפי החישוב",
+          "points": "4",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q1.c3",
+          "index": 3,
+          "description": "הכנסת arr1[i] בדיוק arr2[i] פעמים ובהתאמה למיקומים הנכונים במערך החדש 2 for 6 ( 3 כ\"א) יצירת אנדקס חדש למערך המוחזר 4 קידום האינדקס החדש בצורה נכונה 4: לולאות ומילוי תקין של הערכים",
+          "points": "20",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q1.c4",
+          "index": 4,
+          "description": "החזרה תקינה של המערך: החזרת מערך תקינה",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q1.c5",
+          "index": 5,
+          "description": "קוד קריא ומאורגן: כתיבה תקינה, רווחים, שמות משתנים תקינים",
+          "points": "2",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        }
+      ],
+      "sub_questions": [],
+      "example_solution": "public static int[] Combine(int[] arr1, int[] arr2)\n\n{\n\n// חישוב האורך הכולל של המערך החדש\n\nint totalLength = 0;\n\nfor (int i = 0; i < arr2.Length; i++)\n\n{\n\ntotalLength += arr2[i];\n\n}\n\n// יצירת המערך החדש\n\nint[] result = new int[totalLength];\n\nint indexResult = 0;\n\n// מילוי המערך החדש בהתאם לכללי השאלה\n\nfor (int i = 0; i < arr1.Length; i++)\n\n{\n\nfor (int j = 1; j <= arr2[i]; j++)  //total iterations : arr2[i]\n\n{\n\nresult[indexResult] = arr1[i];\n\nindexResult++;\n\n}\n\n}\n\nreturn result;\n\n}",
+      "trace_tables": null,
+      "context_tables": null,
+      "proposals": null
+    },
+    {
+      "question_id": "q2",
+      "question_type": "short_answer",
+      "question_text": "לפניך ממשק המחלקה Plane המתאר מטוס נוסעים :\nתיאור הפעולה כותרת הפעולה\nפעולה בונה עבור מטוס הקובעת שמספרו הסידורי הוא planeId, מספר הנוסעים בו הוא numPass, ומספר המנועים שלו הוא numEng. Plane (int planeId, int numPass, int numEng)\nפעולה בונה עבור מטוס הקובעת שמספרו הסידורי הוא planeId, מספר הנוסעים בו הוא numPass, ומספר המנועים שלו הוא 2. Plane (int planeId, int numPass)\nפעולה המחזירה את מספר הנוסעים במטוס. public int GetPass()\nפעולה המחזירה את מספר המנועים של המטוס. pubic int GetEng()\nפעולה המשנה את מספר הנוסעים ל newPass. public void SetPass(int newPass)\nפעולה המשנה את מספר המנועים במטוס ל newEng. . public void SetEng(int newEng)\nפעולה המוסיפה additionalPass למספר הנוסעים במטוס public void AddPass(int additionalPass)\nפעולה המחזירה true אם המטוס זהה למטוס other במספר הנוסעים ומספר המנועים אחרת תחזיר הפעולה false. public bool SamePlane (Plane other)",
+      "total_points": "60",
+      "allow_multiple_valid_forms": false,
+      "skill_targets": [],
+      "requirements": [],
+      "criteria": [],
+      "sub_questions": [
+        {
+          "sub_question_id": "א",
+          "index": 0,
+          "title": null,
+          "text": "א. כתבו את כותרת המחלקה והתכונות.",
+          "points": "10",
+          "example_solution": "public class Plane\n\n{\n\n// ===== תכונות =====\n\nprivate int planeId;\n\nprivate int numPass;\n\nprivate int numEng;",
+          "criteria": [
+            {
+              "criterion_id": "q2.א.c0",
+              "index": 0,
+              "description": "הצגת כותרת class Plane",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q2.א.c1",
+              "index": 1,
+              "description": "הכרזת כל התכונות: planeId, numPass, numEng",
+              "points": "6",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q2.א.c2",
+              "index": 2,
+              "description": "בחירת טיפוסים נכונים ושמות משמעותיים",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ב",
+          "index": 1,
+          "title": null,
+          "text": "ב. ממשו במחלקה Plane את הפעולה הבונה (Plane (int planeId, int numPass, int numEng",
+          "points": "8",
+          "example_solution": "public Plane(int planeId, int numPass, int numEng)\n\n{\n\nthis.planeId = planeId;\n\nthis.numPass = numPass;\n\nthis.numEng = numEng;\n\n}",
+          "criteria": [
+            {
+              "criterion_id": "q2.ב.c0",
+              "index": 0,
+              "description": "חתימה תקינה",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q2.ב.c1",
+              "index": 1,
+              "description": "השמה נכונה לכל שלושת התכונות",
+              "points": "6",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ג",
+          "index": 2,
+          "title": null,
+          "text": "ג. ממשו במחלקה Plane את הפעולה (AddPass (int additionalPass , המוסיפה את הערך additionalPass  למספר הנוסעים במטוס.",
+          "points": "6",
+          "example_solution": "public void AddPass(int additionalPass)\n\n{\n\nnumPass += additionalPass;\n\n}",
+          "criteria": [
+            {
+              "criterion_id": "q2.ג.c0",
+              "index": 0,
+              "description": "חתימה תקינה",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q2.ג.c1",
+              "index": 1,
+              "description": "הוספה נכונה של additionalPass ל־numPass",
+              "points": "4",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ד",
+          "index": 3,
+          "title": null,
+          "text": "ד. ממשו במחלקה Plane את הפעולה (SamePlane (Plane other הבודקת אם שני מטוסים זהים במספר הנוסעים ומספר המנועים.",
+          "points": "10",
+          "example_solution": "public bool SamePlane(Plane other)\n\n{\n\nreturn this.numPass == other.numPass && this.numEng == other.numEng;\n\n}",
+          "criteria": [
+            {
+              "criterion_id": "q2.ד.c0",
+              "index": 0,
+              "description": "חתימה תקינה",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q2.ד.c1",
+              "index": 1,
+              "description": "השוואה של  numPass",
+              "points": "4",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q2.ד.c2",
+              "index": 2,
+              "description": "השוואה של  numEng",
+              "points": "4",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ה",
+          "index": 4,
+          "title": null,
+          "text": "ה. כתבו פעולה חיצונית בשם  AddToSmaller המקבלת שני מטוסים (p1, p2) ומספר של נוסעים (passengers).\nהפעולה תוסיף את מספר הנוסעים (passengers) למטוס שיש בו פחות נוסעים באמצעות הפעולה הפנימית המתאימה.\nאם מספר הנוסעים זהה – הפעולה לא תבצע דבר.\nיש להשתמש בפעולה הפנימית המתאימה לצורך כתיבת פעולה זו.",
+          "points": "12",
+          "example_solution": "public static void AddToSmaller(Plane p1, Plane p2, int passengers)\n\n{\n\nif (p1.GetPass() < p2.GetPass())\n\n{\n\np1.AddPass(passengers);\n\n}\n\nelse if (p2.GetPass() < p1.GetPass())\n\n{\n\np2.AddPass(passengers);\n\n}\n\n// אם מספר הנוסעים זהה – לא מתבצע דבר\n\n}",
+          "criteria": [
+            {
+              "criterion_id": "q2.ה.c0",
+              "index": 0,
+              "description": "חתימה תקינה",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q2.ה.c1",
+              "index": 1,
+              "description": "זיהוי המטוס עם פחות נוסעים",
+              "points": "4",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q2.ה.c2",
+              "index": 2,
+              "description": "שימוש בפעולה הפנימית  AddPass",
+              "points": "4",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q2.ה.c3",
+              "index": 3,
+              "description": "טיפול במקרה של מספר נוסעים זהה (לא מבצע דבר)",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ו",
+          "index": 5,
+          "title": null,
+          "text": "ו. כתבו קטע תוכנית בפעולה הראשית (Main) המבצע את הפעולות הבאות:\nיוצר שני מטוסים עם פרטים כרצונכם.\nבודק האם המטוסים זהים:\nאם המטוסים זהים, הוסיפו 50 נוסעים למטוס הראשון שנוצר.\nאם הם אינם זהים, הוסיפו 50 נוסעים למטוס שבו פחות נוסעים.\nיש להשתמש בפעולות הפנימיות והחיצוניות המתאימות.\nאי-שימוש בפעולות פנימיות וחיצוניות יגרור הורדת ניקוד.",
+          "points": "14",
+          "example_solution": "static void Main(string[] args)\n\n{\n\n// יצירת שני מטוסים\n\nPlane p1 = new Plane(101, 150, 3);\n\nPlane p2 = new Plane(102, 150, 3);\n\nPlane p3 = new Plane(103, 50, 2);\n\n// בדיקה האם המטוסים זהים\n\nif (p1.SamePlane(p2))\n\n{\n\n// אם המטוסים זהים – הוספת 50 נוסעים ל-p1\n\np1.AddPass(50);\n\n}\n\nelse\n\n{\n\n// אם אינם זהים – הוספת 50 נוסעים למטוס עם פחות נוסעים\n\nAddToSmaller(p1, p2, 50);\n\n}\n\n//Test for different planes\n\nif (p1.SamePlane(p3))\n\np1.AddPass(50);\n\nelse\n\nAddToSmaller(p1 , p3, 50);\n\n// הדפסת מצב סופי לבדיקה\n\nConsole.WriteLine(\"Plane 1: Passengers = \" + p1.GetPass() + \", Engines = \" + p1.GetEng());\n\nConsole.WriteLine(\"Plane 2: Passengers = \" + p2.GetPass() + \", Engines = \" + p2.GetEng());\n\nConsole.WriteLine(\"Plane 3: Passengers = \" + p3.GetPass() + \", Engines = \" + p3.GetEng());\n\n}",
+          "criteria": [
+            {
+              "criterion_id": "q2.ו.c0",
+              "index": 0,
+              "description": "יצירת שני מטוסים תקינה באמצעות הפעולות הבונות",
+              "points": "4",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q2.ו.c1",
+              "index": 1,
+              "description": "שימוש בפעולה  SamePlane",
+              "points": "4",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q2.ו.c2",
+              "index": 2,
+              "description": "שימוש נכון ב־AddPass  או  AddToSmaller",
+              "points": "4",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q2.ו.c3",
+              "index": 3,
+              "description": "וגיקה תקינה: אם זהים – להוסיף לראשון, אם לא – להוסיף לבעל פחות נוסעים",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        }
+      ],
+      "example_solution": null,
+      "trace_tables": null,
+      "context_tables": null,
+      "proposals": null
+    }
+  ],
+  "selection_groups": [],
+  "pedagogical_mistakes": [],
+  "approach_classes": [],
+  "annotations": [],
+  "extraction_metadata": {},
+  "name": "csharp_plane_combine",
+  "description": null,
+  "document_context": null,
+  "metadata": {}
+}

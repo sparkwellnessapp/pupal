@@ -1,0 +1,458 @@
+{
+  "schema_version": "2.0",
+  "rubric_id": "employee_course_select1",
+  "rubric_name": "employee_course_select1",
+  "subject": "computer_science",
+  "programming_language": "csharp",
+  "total_points": "50",
+  "questions": [
+    {
+      "question_id": "q1",
+      "question_type": "short_answer",
+      "question_text": "מערך של מספרים שלמים יקרא “תקין” אם מתקיימים בו כל התנאים הבאים:\nכמות האיברים הזוגיים במערך שווה למספר האיברים האי־זוגיים\nסכום האיברים במערך מתחלק ב־m  ללא שארית\nכתבו פעולה חיצונית בשם (IsValidArray(int[] arr, int m שתקבל מערך של מספרים שלמים ומספר שלם m. הפעולה תבדוק אם המערך \"תקין\". אם כן, הפעולה תחזיר true, אחרת הפעולה תחזיר false.\nודוגמאות:\nעבור המערכים הבאים ומספר m=5:\nint[] arr1 = { 2, 3, 4, 1 };\nint[] arr2 = { 2, 4, 6, 3 , 9};\nint[] arr3 = { 2, 3, 6, 5 };\nint m = 5;\nIsValidArray(arr1, m);       →  true\nIsValidArray(arr2, m);       →  false\nIsValidArray(arr3, m);       →  false",
+      "total_points": "15",
+      "allow_multiple_valid_forms": false,
+      "skill_targets": [],
+      "requirements": [],
+      "criteria": [
+        {
+          "criterion_id": "q1.c0",
+          "index": 0,
+          "description": "כותרת הפעולה, חתימה נכונה.\nאם שכחו static  להוריד 0.5.",
+          "points": "1.5",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q1.c1",
+          "index": 1,
+          "description": "מעבר תקין על המערך: שימוש בלולאה מתאימה (for / while) עם גבולות נכונים.\nחריגה מהמערך להוריד 2 (15%).\nלולאה אינסופית: להוריד הכל.",
+          "points": "3",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q1.c2",
+          "index": 2,
+          "description": "בדיקת מס האיברים הזוגיים שווה למס האי־זוגיים.\nספירת זוגיים 1.25.\nספירת אי זוגיים 1.25 .\nבדיקת השוואה : אם לא מתקיים התנאי להחזיר false 1.25.",
+          "points": "3.75",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q1.c3",
+          "index": 3,
+          "description": "בדיקת סכום איברי המערך מתחלק ב־m  ללא שארית.\nחישוב סכום האיברים 1.5 .\nבדיקה אם הסכום מתחלקת  ב-m  2.25 .",
+          "points": "3.75",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q1.c4",
+          "index": 4,
+          "description": "ערך חזרה תקין: החזרת true  רק אם כל הבדיקות עברו בהצלחה.\nהחזרת true/false  במקום לא נכון , להוריד1–2  נקודות.",
+          "points": "2.25",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        },
+        {
+          "criterion_id": "q1.c5",
+          "index": 5,
+          "description": "קוד קריא, ברור ושמות משתנים משמעותיים.",
+          "points": "0.75",
+          "evaluation_guidance": null,
+          "skill_targets": [],
+          "requirements": [],
+          "sub_criteria": null,
+          "extraction_confidence": null,
+          "notes": null
+        }
+      ],
+      "sub_questions": [],
+      "example_solution": null,
+      "trace_tables": null,
+      "context_tables": null,
+      "proposals": null
+    },
+    {
+      "question_id": "q2",
+      "question_type": "short_answer",
+      "question_text": "נתונה המחלקה Employee (עובד) בעלת התכונות הבאות:\nid – מספר עובד (שלם)\nsalary – שכר חודשי בסיסי (ממשי)\nisSenior – האם העובד הוא עובד ותיק (בוליאני)\nידוע כי עובד ותיק מקבל תוספת של 30% לשכר הבסיס.\nהניחו שלכל התכונות במחלקת Employee הוגדרו במחלקה פעולות קובעות ופעולות מאחזרות - Get ו- Set.\nנתונה המחלקה Department (מחלקה) בעלת התכונות:\narrEmployees – מערך חד־ממדי של עובדים (Employee)\ncurrent – מספר העובדים בפועל במחלקה, מטיפוס שלם, שערכו קטן או שווה לגודל המערך.\nהניחו שלכל תכונה במחלקת Department הוגדרו פעולות קובעות ומאחזרות - Get ו- Set .\nהוגדרה הפעולה הבונה:\npublic Department()\n{\nthis.arrEmployees = new Employee[20];\nthis.current = 0;\n}",
+      "total_points": "50",
+      "allow_multiple_valid_forms": false,
+      "skill_targets": [],
+      "requirements": [],
+      "criteria": [],
+      "sub_questions": [
+        {
+          "sub_question_id": "א",
+          "index": 0,
+          "title": null,
+          "text": "א. כתבו את כותרת המחלקה ואת התכונות שלה.",
+          "points": "2.5",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q2.א.c0",
+              "index": 0,
+              "description": "כותרת המחלקה Employee והתכונות.\nכותרת המחלקה 1.\n            הגדרה נכונה לכל תכונה 1.5 (0.5 לכל תכונה) .",
+              "points": "2.5",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ב",
+          "index": 1,
+          "title": null,
+          "text": "ב. כתבו פעולה בונה המקבלת ערכים לכל התכונות.",
+          "points": "5",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q2.ב.c0",
+              "index": 0,
+              "description": "פעולה בונה מלאה במחלקת  Employee.\n     חתימה תקינה  2.\n     עדכון תכונות 3 (1 כל תכונה).     \n     שימוש ב־Set או השמה ישירה – תקין",
+              "points": "5",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ג",
+          "index": 2,
+          "title": null,
+          "text": "ג. כתבו פעולה בונה נוספת המקבלת מספר עובד ושכר בלבד, ומניחה שהעובד אינו ותיק.",
+          "points": "5",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q2.ג.c0",
+              "index": 0,
+              "description": "פעולה בונה חלקית .\nחתימה תקינה 1.\nעדכון id +  salary 2 נקודות ( 0.5 נקודות כ\"א).\nקביעת  isSenior = false  3 נקודות.",
+              "points": "5",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ד",
+          "index": 3,
+          "title": null,
+          "text": "ד. כתבו פעולה פנימית בשם ()CalcMonthlySalary המחזירה את השכר החודשי בפועל של העובד (כולל תוספת אם קיימת).",
+          "points": "10",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q2.ד.c0",
+              "index": 0,
+              "description": "פעולה פנימית CalcMonthlySalary.\n           חתימה תקינה והחזרת double 2.\n            בדיקה isSenior  3.\n            חישוב תוספת 3.\n             החזרת ערך ללא תוספת 2.\n           אם לא כתבו static להוריד 1 נקודה.",
+              "points": "10",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ה",
+          "index": 4,
+          "title": null,
+          "text": "ה. כתבו את כותרת המחלקה ואת התכונות שלה.",
+          "points": "2.5",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q2.ה.c0",
+              "index": 0,
+              "description": "כותרת מחלקה Department והתכונות.",
+              "points": "2.5",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ו",
+          "index": 5,
+          "title": null,
+          "text": "ו.  כתבו פעולה פנימית בשם (AddEmployee(Employee e המוסיפה עובד למקום הראשון הפנוי במערך.\nהפעולה תחזיר true אם ההוספה הצליחה, ו־false אחרת.\nהניחו שאין רווחים עד המקום ה- current במערך. כל העובדים מתווספים בסוף המערך.",
+          "points": "12.5",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q2.ו.c0",
+              "index": 0,
+              "description": "פעולה פנימית AddEmployee במחלקת  Department .\nחתימה 2.\nבדיקה אם יש מקום במערך 3.\nהוספת employee למקום הראשון הפנוי 3.\nעדכון  current 3.\nהחזרת true / false בהתאם 1.5\nשימוש ב־current  כמצביע –> מצויין אך לא חובה",
+              "points": "12.5",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ז",
+          "index": 6,
+          "title": null,
+          "text": "ז. במחלקה Program כתבו פעולה חיצונית בשם:\nCalcDepartmentMonthlyCost (Department dep)\nהמחזירה את סך עלות השכר החודשית של המחלקה (כלומר, הפעולה מחזירה את סכום משכורות כל העובדים במחלקה).\nיש להשתמש בפעולות הפנימיות והחיצוניות המתאימות.\nאי-שימוש בפעולות פנימיות וחיצוניות יגרור הורדת ניקוד.",
+          "points": "12.5",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q2.ז.c0",
+              "index": 0,
+              "description": "פעולה חיצונית  CalcDepartmentMonthlyCost.\n      חתימה 2  (= 4%).\n      אם אין התאמה בין טיפוס המוחזר בחתימה לערך המוחזר להוריד 0.5 (1%).\n       אם שכחו static  להוריד 0.5 (1%).\n     מעבר על ה-Employees הקיימים בלבד 4   (8% =   )(שימוש ב-GetCurrent).\n     (אם לולאה על כל המערך במקום עד current בלי לבדוק שכל תא אינו null –>  להוריד כל ה- 8%).\n     שימוש בפעולה GetArrEmployees 2 (= 4%).\n                     גישה ישירה לתכונה current במקום GetCurrent להוריד 2 (4%).\n                     גישה ישירה לתכונה arrEmployees במקום GetArrEmployees להוריד 2 (4%).\n  שימוש בפעולה CalcMonthlySalary  שתי נקודות 2 = 4% .\n  סכימה נכונה של סה\"כ 2 (=4%).\n  קוד קריא ושמות משמעותיים 0.5 (=1%).                     \n                      אם חישבו נכון אך שכחו להחזיר את הסכום הסופי , להוריד 1 (2%).\n                    גישה ישירה לכל התכונות במקום פעולות --> להוריד 20% מניקוד השאלה (-10).\n                   אי־שימוש בפעולות (CalcMonthlySalary  , GetArrEmployees, GetCurrent)--> להוריד 20%  (10 נק').",
+              "points": "12.5",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        }
+      ],
+      "example_solution": null,
+      "trace_tables": null,
+      "context_tables": null,
+      "proposals": null
+    },
+    {
+      "question_id": "q3",
+      "question_type": "short_answer",
+      "question_text": "נתונה המחלקה Course בעלת התכונות הבאות:\ncourseName – שם הקורס (מחרוזת)\nnumStudents – מספר תלמידים בקורס (שלם)\nhours – מספר שעות הקורס (שלם)\nisMandatory – האם קורס חובה (בוליאני)\nהניחו שלכל תכונה במחלקת Course הוגדרו פעולות קובעות ומאחזרות - Get ו- Set .\nכתבו תוכנית ראשית Main.",
+      "total_points": "35",
+      "allow_multiple_valid_forms": false,
+      "skill_targets": [],
+      "requirements": [],
+      "criteria": [],
+      "sub_questions": [
+        {
+          "sub_question_id": "א",
+          "index": 0,
+          "title": null,
+          "text": "א. כתבו פעולה בונה המקבלת ערכים לכל התכונות.",
+          "points": "5.25",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q3.א.c0",
+              "index": 0,
+              "description": "פעולה בונה עם כל הפרמטרים.\n             חתימה 1.25.\n             עדכון כל תכונה 1 .",
+              "points": "5.25",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ב",
+          "index": 1,
+          "title": null,
+          "text": "ב. כתבו פעולה בונה נוספת: (public Course(string courseName, int hours, bool isMandatory\nשתעדכן את התכונות בהתאם לפרמטרים ואת מספר התלמידים לערך ברירת מחדל של 0.",
+          "points": "5.25",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q3.ב.c0",
+              "index": 0,
+              "description": "פעולה בונה עם 2 פרמטרים.\n            עדכון לא נכון של המספר תלמידים: להוריד הכל.\n            מותר זימון של הבונה הראשון.",
+              "points": "5.25",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ג",
+          "index": 2,
+          "title": null,
+          "text": "ג. הגדירו מערך חד־ממדי arrCourses מטיפוס Course בגודל 50.",
+          "points": "1.75",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q3.ג.c0",
+              "index": 0,
+              "description": "הגדרת מערך חד־ממדי של Course בגודל 50.\n        אם הגדירו מערך בגודל 30 להוריד 0.5 (=1.5%).",
+              "points": "1.75",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ד",
+          "index": 3,
+          "title": null,
+          "text": "ד. קלטו מהמשתמש נתונים עבור 30 קורסים והוסיפו אותם למערך (כולל הודעות קלט, הניחו קלט תקין).",
+          "points": "12.25",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q3.ד.c0",
+              "index": 0,
+              "description": "קליטה והוספה של 30 דירות למערך.\n               שימוש בלולאה לקליטת 30 דירות  3 (הגדרת הלולאה 1 , חזרות עד 30   2 נק' ).\n               קליטת נתונים עבור כל course 4 (1 לכל נתון).\n               יצירת אובייקט  Course 3 (שימוש נכון בבנאי).\n               הוספת אובייקט למערך 2.25 (אם לא שמו במקום הנכון להוריד 4).",
+              "points": "12.25",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ה",
+          "index": 4,
+          "title": null,
+          "text": "ה. חשבו והדפיסו את מספר הקורסים שהם:\nקורסי חובה\nעם יותר מ־25 תלמידים\nוגם שמספר השעות שלהם גדול מ־4\nיש להשתמש בפעולות הפנימיות והחיצוניות המתאימות.\nאי-שימוש בפעולות פנימיות וחיצוניות יגרור הורדת ניקוד.",
+          "points": "10.5",
+          "example_solution": null,
+          "criteria": [
+            {
+              "criterion_id": "q3.ה.c0",
+              "index": 0,
+              "description": "ספירת קורסים העונים לתנאי.\n               מעבר על המערך (30 האיברים הרלוונטיים)   2.\n               שימוש GetNumStudents/ GetHours / GetIsMandatory ארבע נק' 4.5  ( 1.5נק' כל פעולה).\n               תנאי נכון (חובה + יותר מ-25 תלמידים + שעות > 4)     1.\n               ספירת קורסים  נכונה 1.25.\n               \n               גישה ישירה לתכונות במקום  Get להוריד2 (4%)\n               בדיקה של כל 50 האיברים – תקין אם מתבצעת בזהירות (אם לא  NULL), אחרת להוריד 2.\nהדפסת מספר הדירות להשכרה בנות 5 חדרים.",
+              "points": "10.5",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        }
+      ],
+      "example_solution": null,
+      "trace_tables": null,
+      "context_tables": null,
+      "proposals": null
+    }
+  ],
+  "selection_groups": [
+    {
+      "group_id": "sg0",
+      "choose_k": 1,
+      "of_question_ids": [
+        "q1",
+        "q2",
+        "q3"
+      ],
+      "label": "ענו על שאלה אחת בלבד"
+    }
+  ],
+  "pedagogical_mistakes": [
+    {
+      "mistake_id": "employee_normalization",
+      "kind": "selection_normalization",
+      "severity": "warning",
+      "target_id": null,
+      "explanation": "הבחירה היא שאלה אחת מתוך שלוש, אך לשאלות ניקוד שונה (15/50/35). מענה על שאלה 1 בלבד חוסם את הציון ל-15 מתוך 100. יש להבהיר כיצד מנרמלים את הציון.",
+      "evidence": {
+        "choose_k": 1,
+        "question_points": {
+          "q1": 15,
+          "q2": 50,
+          "q3": 35
+        },
+        "max_achievable": 50
+      },
+      "suggested_fix": null,
+      "requires_teacher_input": true,
+      "confidence": 1.0
+    }
+  ],
+  "approach_classes": [],
+  "annotations": [],
+  "extraction_metadata": {},
+  "name": "employee_course_select1",
+  "description": null,
+  "document_context": null,
+  "metadata": {}
+}

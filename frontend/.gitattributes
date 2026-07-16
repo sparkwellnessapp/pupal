@@ -1,0 +1,5 @@
+# The generated OpenAPI types are compared byte-for-byte by the CI drift check
+# (.github/workflows/api-types-drift.yml). Force LF so a Windows checkout/commit
+# (core.autocrlf) can never desync the committed file from what CI regenerates on
+# Linux — otherwise every drift run would fail on line endings alone.
+src/lib/api-types.ts text eol=lf
