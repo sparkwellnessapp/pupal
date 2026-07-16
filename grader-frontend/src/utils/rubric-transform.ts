@@ -12,8 +12,24 @@
  *  - NO format sniffing (no `criterion_description || description` fallbacks).
  *  - safeParseFloat is the ONLY coercion utility.
  *
+ * TWO TYPE FAMILIES, BY DESIGN (PR-4 finding 3). This codec sits between them:
+ *   - the WIRE family (string points) — `QuestionOntology`/`SubQuestion`/… here,
+ *     and, since PR-4, the codegen'd `api-types.ts` (`components['schemas']['Question']`)
+ *     which is the source of truth for `api.ts`'s wire layer;
+ *   - the EDITOR family (number points, narrower unions like the `question_type`
+ *     literal set) — `RubricQuestion`/… in `types/rubric.ts`.
+ * They are NOT interchangeable: the generated wire `Question` is deliberately WIDER
+ * (`question_type?: string`, opaque `skill_targets`), so typing these signatures
+ * against it would only LOSEN the editor's types. The seam is therefore guarded not
+ * by the compiler — TS never errors on IGNORING a wire field, so a silent drop is a
+ * type-clean bug — but by the GOLDEN ROUND-TRIP SUITE (rubric-transform.test.ts):
+ * `dehydrate(hydrate(x)) ≡ x` over the five benchmarks is the load-bearing check
+ * that every wire field survives. That is the division of labor; keep it.
+ *
  * @see types/rubric.ts — display-ready types (numbers)
  * @see ontology-types.ts — wire types (strings)
+ * @see lib/api-types.ts — codegen'd wire types (PR-4); the drift check pins them
+ * @see rubric-transform.test.ts — the golden round-trip suite (the real guard)
  */
 
 import type {

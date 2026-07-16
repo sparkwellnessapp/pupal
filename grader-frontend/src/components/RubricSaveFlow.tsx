@@ -136,6 +136,16 @@ export function RubricErrorDisplay({ error, onDismiss }: RubricErrorDisplayProps
     const borderColor = isValidation ? 'border-red-200' : 'border-orange-200';
     const iconColor = isValidation ? 'text-red-500' : 'text-orange-500';
 
+    // Anchor-scroll (PR-4): the compile-error `location` is a full dotted path
+    // ("q1.א.2"), and RubricEditor tags every node — including nested ones — with
+    // `data-scope-id={path}`. So a click jumps the teacher straight to the offending
+    // node. Self-contained querySelector, matching RubricEditor.scrollToScope; a
+    // no-op (graceful) if the editor is not mounted on this surface.
+    const jumpToNode = (loc: string) => {
+        const el = document.querySelector(`[data-scope-id="${loc}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
     return (
         <div className={`rounded-xl ${bgColor} border ${borderColor} p-4 mb-4`}>
             <div className="flex items-start justify-between">
@@ -163,21 +173,52 @@ export function RubricErrorDisplay({ error, onDismiss }: RubricErrorDisplayProps
             {error.errors.length > 0 && (
                 <ul className="mt-3 space-y-2">
                     {error.errors.map((err, idx) => {
-                        // Handle both ValidationErrorDetail and RubricAnnotation types
-                        const message = 'message_he' in err ? err.message_he : err.message;
-                        const location = 'location' in err ? err.location : err.target_id;
+                        // PR-4: render the STRUCTURED compile-error payload the backend
+                        // already emits (invariant / expected / actual / message_he /
+                        // location), not just a flat message. The three carriers
+                        // (ValidationErrorDetail | RubricAnnotation | CompileErrorDetail)
+                        // are discriminated by field presence.
+                        const message =
+                            ('message_he' in err && err.message_he) ? err.message_he : err.message;
+                        const location =
+                            'location' in err ? err.location
+                            : ('target_id' in err ? err.target_id : null);
+                        const invariant = 'invariant' in err ? err.invariant : null;
+                        const expected = 'expected' in err ? err.expected : null;
+                        const actual = 'actual' in err ? err.actual : null;
 
                         return (
-                            <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
-                                <span className="text-gray-400">•</span>
-                                <span>
-                                    {message}
-                                    {location && (
-                                        <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded mr-1">
-                                            {location}
-                                        </code>
-                                    )}
-                                </span>
+                            <li key={idx} className="text-sm text-gray-700">
+                                <div className="flex items-start gap-2">
+                                    <span className="text-gray-400 mt-0.5">•</span>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            {invariant && (
+                                                <span className="text-[11px] font-mono font-semibold bg-red-100 text-red-700 px-1.5 py-0.5 rounded">
+                                                    {invariant}
+                                                </span>
+                                            )}
+                                            <span>{message}</span>
+                                        </div>
+                                        {(expected !== null || actual !== null) && (
+                                            <div className="text-xs text-gray-500 mt-0.5">
+                                                צפוי: <span className="font-medium text-gray-700">{expected}</span>
+                                                {' · '}בפועל: <span className="font-medium text-gray-700">{actual}</span>
+                                            </div>
+                                        )}
+                                        {location && (
+                                            <button
+                                                type="button"
+                                                onClick={() => jumpToNode(location)}
+                                                className="text-xs mt-1 inline-flex items-center gap-1 text-primary-600 hover:text-primary-800 hover:underline"
+                                                title="מעבר לרכיב במחוון"
+                                            >
+                                                <span>מעבר לרכיב</span>
+                                                <code className="bg-gray-100 px-1.5 py-0.5 rounded">{location}</code>
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                             </li>
                         );
                     })}

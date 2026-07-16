@@ -1,0 +1,56 @@
+# PR-4 (R-B): the frontend's api-types.ts is GENERATED from the backend OpenAPI
+# schema. This job regenerates it in CI and fails on any diff — so a backend
+# schema change that isn't reflected in the committed types cannot merge. It is
+# the "suite_hash" of the wire contract: the Decimal type-lie (a `number` type on
+# a field the wire sends as a string) can no longer drift back in field-by-field.
+name: api-types drift check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # app.openapi() runs on import alone (no DB), but importing the app pulls the
+      # full dependency set — so the backend requirements must be installed.
+      - name: Install backend deps
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+
+      # Dump the schema (dummy service env — a schema dump touches nothing live) and
+      # run the pinned openapi-typescript. Deterministic in → deterministic out.
+      - name: Regenerate api-types from the live backend schema
+        working-directory: frontend
+        env:
+          PYTHON: python
+          DATABASE_URL: postgresql+asyncpg://x:x@localhost/x
+          OPENAI_API_KEY: sk-dummy
+          GOOGLE_CLOUD_PROJECT: dummy
+        run: npm run gen:api
+
+      - name: Fail if the committed types drifted from the schema
+        run: |
+          if ! git diff --exit-code -- frontend/src/lib/api-types.ts; then
+            echo "::error::frontend/src/lib/api-types.ts is out of date. Run 'npm run gen:api' in frontend/ and commit the result."
+            exit 1
+          fi

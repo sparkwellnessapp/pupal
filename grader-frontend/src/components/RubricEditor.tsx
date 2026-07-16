@@ -534,7 +534,11 @@ export function RubricEditor({
     return subQ?.criteria_page_indexes || [];
   };
 
-  // Calculate statistics
+  // Calculate statistics.
+  // B-11: RECURSE the criteria-XOR-sub_questions tree at any depth. The depth-1
+  // version undercounted nested rubrics (bagrut: it saw 6 of 18 criteria and
+  // none of the depth-2 leaves) — the client twin of the backend
+  // calculate_rubric_stats nesting-blindness the census flagged (E10).
   const stats = useMemo(() => {
     let totalCriteria = 0;
     let totalSubCriteria = 0;
@@ -542,35 +546,22 @@ export function RubricEditor({
     let mediumConfidence = 0;
     let lowConfidence = 0;
 
-    questions.forEach(q => {
-      const qCriteria = q.criteria || [];
-      const qSubQuestions = q.sub_questions || [];
-
-      qCriteria.forEach(c => {
-        totalCriteria++;
-        totalSubCriteria += c.sub_criteria?.length || 0;
-        const conf = c.extraction_confidence || 'medium';
-        if (conf === 'high') highConfidence++;
-        else if (conf === 'medium') mediumConfidence++;
-        else lowConfidence++;
-      });
-      qSubQuestions.forEach(sq => {
-        const sqCriteria = sq.criteria || [];
-        sqCriteria.forEach(c => {
-          totalCriteria++;
-          totalSubCriteria += c.sub_criteria?.length || 0;
-          const conf = c.extraction_confidence || 'medium';
-          if (conf === 'high') highConfidence++;
-          else if (conf === 'medium') mediumConfidence++;
-          else lowConfidence++;
-        });
-      });
-    });
+    const countCriterion = (c: RubricCriterion) => {
+      totalCriteria++;
+      totalSubCriteria += c.sub_criteria?.length || 0;
+      const conf = c.extraction_confidence || 'medium';
+      if (conf === 'high') highConfidence++;
+      else if (conf === 'medium') mediumConfidence++;
+      else lowConfidence++;
+    };
+    const walk = (node: { criteria?: RubricCriterion[]; sub_questions?: RubricSubQuestion[] }) => {
+      (node.criteria || []).forEach(countCriterion);
+      (node.sub_questions || []).forEach(walk);
+    };
+    questions.forEach(walk);
 
     return { totalCriteria, totalSubCriteria, highConfidence, mediumConfidence, lowConfidence };
   }, [questions]);
-
-  const totalPoints = questions.reduce((sum, q) => sum + q.total_points, 0);
   const testTitleStr = typeof metadata?.test_title === 'string' ? metadata.test_title.trim() : '';
   const backendTestDateStr = typeof metadata?.test_date === 'string' ? metadata.test_date.trim() : '';
   const titleDateMatch = testTitleStr.match(/\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\b/);
@@ -642,7 +633,7 @@ export function RubricEditor({
               </div>
             )}
             <div className="text-primary-600">
-              {questions.length} שאלות · {totalPoints} נקודות · {stats.totalCriteria} קריטריונים
+              {questions.length} שאלות · {effectiveTotalPoints} נקודות · {stats.totalCriteria} קריטריונים
             </div>
           </div>
         </div>

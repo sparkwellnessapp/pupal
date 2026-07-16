@@ -1,0 +1,32 @@
+# PR-4 Phase 6: the render-half guard. Playwright drives the real wizard for the
+# two archetypes that white-screened in the browser (bagrut depth-2, employee
+# selection) with the whole API route-mocked — so CI needs only Node + Chromium,
+# no backend/DB. The golden fixtures are read from backend/tests (same checkout).
+name: e2e render-half guard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend deps
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the render-half specs
+        run: npm run test:e2e

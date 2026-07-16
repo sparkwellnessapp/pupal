@@ -23,8 +23,12 @@
  *   INV-R2   — Σ sub_criterion.points == criterion.points, per criterion
  *              that has sub_criteria. Vacuously satisfied when none.
  *
- *   INV-R3   — Σ q.total_points == rubric.total_points (the document-declared
- *              total anchored at extraction time). Rubric-scope.
+ *   INV-R3   — ACHIEVABLE-aware (PR-4): computeAchievablePoints(questions,
+ *              selection_groups) == rubric.total_points (the document-declared
+ *              achievable total anchored at extraction time). Rubric-scope. This
+ *              is the client analog of the backend INV-4; with no selection
+ *              groups it reduces EXACTLY to the legacy Σ q.total_points check.
+ *              (Was, pre-PR-4: the offered-sum check, ABSTAINED-on-selection.)
  *
  *   INV-R-XOR — StructureExclusivity: a node (question or sub-question) has
  *              EITHER direct criteria OR sub_questions, never both. The client
@@ -44,7 +48,9 @@
  */
 
 import type { RubricQuestion, RubricSubQuestion, RubricCriterion } from '@/types/rubric';
+import type { SelectionGroup } from '@/lib/api';
 import { getDisplayLabel, formatPoints } from './rubric-display';
+import { computeAchievablePoints } from './rubric-achievable';
 
 // =============================================================================
 // Types
@@ -411,23 +417,35 @@ export function getQuestionErrorCount(
 // =============================================================================
 
 /**
- * Validate INV-R3: Σ q.total_points == rubric.total_points.
+ * Validate INV-R3 (achievable-aware — the client analog of backend INV-4, PR-4):
+ * computeAchievablePoints(questions, selectionGroups) == rubric.total_points.
+ *
+ * Was, pre-PR-4: `Σ q.total_points == declared`, and page.tsx ABSTAINED from
+ * running it on selection exams (offered Σ ≠ achievable would fire a false
+ * error). Now it validates BOTH regimes because the achievable mirror IS the
+ * single client-side source — the same discipline B-5 asks for (never show/check
+ * an aggregate that can disagree with what save freezes). With no selection
+ * groups, computeAchievablePoints reduces exactly to the offered sum, so this is
+ * a strict superset of the old check — no behavior change for flat rubrics.
  *
  * `target_id` is the literal string 'rubric' (not null) — RubricEditor's
  * global banner filter accepts both 'rubric' (live INV-R3) and null
  * (legacy backend rubric-scope annotations).
  *
  * Returns the issue or null if the invariant holds.
+ *
+ * @see rubric-achievable.ts::computeAchievablePoints — the mirror of backend INV-4
  */
 export function validateRubricTotalPoints(
     questions: RubricQuestion[],
-    rubricTotalPoints: number
+    rubricTotalPoints: number,
+    selectionGroups: SelectionGroup[] = []
 ): ValidationIssue | null {
-    const questionSum = questions.reduce((s, q) => s + q.total_points, 0);
-    if (isClose(questionSum, rubricTotalPoints)) return null;
+    const achievable = computeAchievablePoints(questions, selectionGroups);
+    if (isClose(achievable, rubricTotalPoints)) return null;
 
     const declared = formatPoints(rubricTotalPoints);
-    const actual = formatPoints(questionSum);
+    const actual = formatPoints(achievable);
 
     return {
         key: 'inv-r3-rubric-total',
@@ -435,8 +453,8 @@ export function validateRubricTotalPoints(
         severity: 'error',
         message:
             `סכום הנקודות של המחוון (${declared} נקודות) ` +
-            `שונה מסכום הנקודות של השאלות (${actual} נקודות). ` +
-            `מומלץ לתקן את סכום הנקודות של השאלות כך שיהיו שווים ל-${declared} נקודות.`,
+            `שונה מהניקוד הניתן להשגה בשאלות (${actual} נקודות). ` +
+            `מומלץ לתקן את הנקודות כך שיהיו שווים ל-${declared} נקודות.`,
         target_id: 'rubric',
     };
 }
@@ -452,7 +470,8 @@ export function validateRubricTotalPoints(
  */
 export function hasRubricTotalError(
     questions: RubricQuestion[],
-    rubricTotalPoints: number
+    rubricTotalPoints: number,
+    selectionGroups: SelectionGroup[] = []
 ): boolean {
-    return validateRubricTotalPoints(questions, rubricTotalPoints) !== null;
+    return validateRubricTotalPoints(questions, rubricTotalPoints, selectionGroups) !== null;
 }
