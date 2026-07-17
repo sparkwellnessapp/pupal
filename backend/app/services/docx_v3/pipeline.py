@@ -144,10 +144,13 @@ class ExtractionError(Exception):
 # row that only surfaces 15 minutes later via heartbeat-staleness.
 # The budget is enforced at THREE points (a guard at only one of them is a
 # no-op — a logical call is up to attempts x timeout, not one timeout):
-#   1. validation-loop entry   — need T + 60s to start a logical call
+#   1. validation-loop entry   — need T + 20s to start a logical call (room for
+#                                ONE transport attempt + the few seconds of
+#                                per-iteration work; NOT a full extra minute —
+#                                (2) is what keeps a started call in budget)
 #   2. each transport attempt  — need T + 10s to start an attempt (this is what
 #                                makes (1) sound; without it a call admitted at
-#                                T+60 could still run 2xT and blow the budget)
+#                                the entry guard could still run 2xT and blow the budget)
 #   3. Tier-B entry            — need T + 10s, else SKIP (it is best-effort)
 # deadline_seconds=None => unbounded => byte-identical to pre-PR-2 behavior.
 # The eval runner passes None, so eval runs and the gate are untouched BY
@@ -155,8 +158,15 @@ class ExtractionError(Exception):
 
 _DEFAULT_LLM_TIMEOUT_S = 360.0        # T — per-attempt wall bound (F6 ruling)
 _DEFAULT_TRANSPORT_RETRIES = 1        # -> 2 attempts per logical call
-_DEADLINE_ENTRY_RESERVE_S = 60.0      # (1) validation-loop entry: need T + 60
 _DEADLINE_ATTEMPT_RESERVE_S = 10.0    # (2)/(3) per attempt: need T + 10
+# (1) validation-loop entry: a logical call needs room for its FIRST transport
+# attempt (T + attempt-reserve) plus the fast per-iteration work it does on top
+# (clean/validate/downgrade/emit ~ a few seconds). It does NOT need room for the
+# transport RETRY — check (2) guards that. The old 60s over-reserved the ~seconds
+# of post-call work by ~6x, so with a slow model (~213s/call) only 2 attempts ever
+# fit and a completable extraction HARD-FAILED with a full attempt's budget still
+# free (prod incident: a 3rd attempt refused — needed 420s, 414s left).
+_DEADLINE_ENTRY_RESERVE_S = _DEADLINE_ATTEMPT_RESERVE_S + 10.0   # T + 20
 _BACKOFF_BASE_S = 1.0
 _BACKOFF_MAX_S = 4.0
 
@@ -1451,7 +1461,7 @@ async def _extract_with_retry(
     llm_meta: Dict[str, Any] = {"input_tokens": 0, "output_tokens": 0, "finish_reason": None, "model": None}
 
     dl = deadline or _Deadline(None)
-    entry_need = _llm_timeout_s() + _DEADLINE_ENTRY_RESERVE_S   # (1) T + 60
+    entry_need = _llm_timeout_s() + _DEADLINE_ENTRY_RESERVE_S   # (1) T + 20
 
     for attempt in range(_MAX_RETRIES + 1):
         # PR-2 deadline layer (1): refuse to START a logical call we cannot afford.

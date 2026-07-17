@@ -173,9 +173,9 @@ async def test_content_failure_passes_through_untouched():
 
 @pytest.mark.asyncio
 async def test_f1_transport_layer_refuses_unaffordable_retry():
-    """Admit a logical call at exactly the entry guard (T + 60 = 420s remaining),
+    """Admit a logical call at exactly the entry guard (T + entry-reserve remaining),
     attempt 1 burns its full timeout and fails transient, then attempt 2 is REFUSED
-    because only 60s remain (< T + 10 = 370s needed).
+    because the remainder (< T + 10) cannot fit another full attempt.
 
     Under the spec's ORIGINAL single-guard design this call would have proceeded to
     a 2nd full attempt and overrun the budget by ~2xT — blowing straight through the
@@ -369,8 +369,26 @@ async def test_tier_b_skipped_when_budget_cannot_hold_it(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_validation_entry_guard_refuses_and_names_the_budget():
-    """A budget below the entry guard (T + 60) => refuse to start any logical call,
-    with the budget message — a durable `failed` row, not a Cloud Run kill."""
+    """A budget below the entry guard (T + entry-reserve) => refuse to start any
+    logical call, with the budget message — a durable `failed` row, not a kill."""
     with pytest.raises(ExtractionError) as ei:
         await _run(10.0)
     assert "time budget exhausted" in str(ei.value)
+
+
+def test_entry_guard_reserves_only_one_attempt_not_a_full_extra_timeout():
+    """Regression — prod incident (2026-07-17): the validation-loop ENTRY guard
+    over-reserved at T + 60. With a slow model (~213s/call) only 2 attempts fit the
+    ~840s budget, so a COMPLETABLE extraction HARD-FAILED: the loop refused its final
+    attempt (needing 420s) with 414s still free, instead of running it and returning
+    gracefully at _MAX_RETRIES.
+
+    The entry guard must reserve only what it takes to START a logical call — one
+    transport attempt (T + attempt-reserve) plus a few seconds of per-iteration work
+    (clean/validate/emit) — NEVER a second ~timeout. Check (2), the per-attempt guard,
+    is what keeps a started call in budget, so the entry guard has no reason to hold
+    the extra headroom. Both reserves are the slack ON TOP OF T."""
+    assert _DEADLINE_ENTRY_RESERVE_S <= _DEADLINE_ATTEMPT_RESERVE_S + 15, (
+        f"entry guard over-reserves ({_DEADLINE_ENTRY_RESERVE_S}s on top of T) — it will "
+        f"refuse attempts a single call could still fit (the 2026-07-17 hard-fail-with-budget-free bug)"
+    )
