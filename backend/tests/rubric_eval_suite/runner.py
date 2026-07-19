@@ -28,7 +28,7 @@ from app.schemas.ontology_types import ExtractRubricResponse
 
 from . import reporting
 from .gates import apply_gate
-from .schemas import SuiteResult
+from .schemas import StageTiming, SuiteResult
 from .scoring import score_rubric
 from dotenv import load_dotenv
 
@@ -153,12 +153,40 @@ def produce_predicted(docx_path: Path, config: dict) -> Tuple[Optional[ExtractRu
     _saved = {k: os.environ.get(k) for k in _env_map.values()}
     for k, v in _overrides.items():
         os.environ[k] = v
+
+    # ADDITIVE latency instrument (Phase 0): capture per-step wall-clocks via the
+    # pipeline's existing pure-data on_progress seam (injected, never imported; a
+    # callback failure is swallowed by the pipeline and cannot alter extraction).
+    # We ALSO wrap the whole call in a monotonic timer (wall_seconds) as an
+    # independent cross-check of the pipeline's own time.time()-based
+    # total_time_seconds — a material divergence is itself a measurement finding.
+    import time as _time
+    stage_events: list = []
+    _last_elapsed = [0.0]
+
+    def _on_progress(ev):
+        el = getattr(ev, "elapsed_s", None)
+        dt = None
+        if el is not None:
+            dt = round(el - _last_elapsed[0], 3)
+            _last_elapsed[0] = el
+        stage_events.append({
+            "stage": getattr(ev, "stage", None),
+            "attempt": getattr(ev, "attempt", None),
+            "elapsed_s": el, "dt_s": dt,
+            "input_tokens": getattr(ev, "input_tokens", None),
+            "output_tokens": getattr(ev, "output_tokens", None),
+        })
+
     try:
         ec = ExtractionConfig(
             subject=config.get("subject", "computer_science"),
             detect_pedagogical_mistakes=config.get("detect_pedagogical_mistakes", True),
         )
-        result = _run_coro_blocking(pipeline.extract_rubric_from_docx(file_bytes, ec))
+        _wall0 = _time.monotonic()
+        result = _run_coro_blocking(
+            pipeline.extract_rubric_from_docx(file_bytes, ec, on_progress=_on_progress))
+        wall_seconds = _time.monotonic() - _wall0
     finally:
         for k, v in _saved.items():
             if v is None:
@@ -180,6 +208,10 @@ def produce_predicted(docx_path: Path, config: dict) -> Tuple[Optional[ExtractRu
         "llm_seconds": m.llm_time_seconds,
         "render_seconds": m.render_time_seconds,
         "total_seconds": m.total_time_seconds,
+        # ADDITIVE latency instrument (Phase 0): runner-side monotonic wall + the
+        # per-step event trace from the on_progress seam.
+        "wall_seconds": wall_seconds,
+        "stage_events": stage_events,
         "retry_count": m.retry_count,
         "num_questions": m.num_questions,
         "num_criteria": m.num_criteria,
@@ -211,10 +243,23 @@ def produce_predicted(docx_path: Path, config: dict) -> Tuple[Optional[ExtractRu
     return predicted, rendered, meta
 
 
-def run(config_name: str, mode: str, repeats: int, suite_dir: Path = SUITE_DIR) -> SuiteResult:
+def run(config_name: str, mode: str, repeats: int, suite_dir: Path = SUITE_DIR,
+        only: Optional[str] = None) -> SuiteResult:
     config = _load_config(config_name)
     cost_ceiling = float(config.get("cost_ceiling", 0.40))
     rubrics = _discover(suite_dir)
+    # `--only` is a SCREENING-ONLY fixture filter (mission §4 Phase-4 2-fixture
+    # subset). Default None ⇒ ALL fixtures (unchanged behaviour). It never mutates
+    # the fixture set on disk; it only narrows which pairs this run scores. The
+    # selected names are stamped into provenance.fixtures so a subset run
+    # self-documents as non-full and can never be mistaken for a 5/5 result.
+    if only:
+        want = {s.strip() for s in only.split(",") if s.strip()}
+        rubrics = [r for r in rubrics if r[0] in want]
+        missing = want - {r[0] for r in rubrics}
+        if missing:
+            raise SystemExit(f"--only names no such fixture(s): {sorted(missing)}")
+        print(f"[only] SCREENING SUBSET — {sorted(r[0] for r in rubrics)} (NON-PROMOTABLE)")
     if not rubrics:
         raise SystemExit("no (fixture, benchmark) pairs found")
 
@@ -259,6 +304,24 @@ def run(config_name: str, mode: str, repeats: int, suite_dir: Path = SUITE_DIR) 
                 (pred_dir / f"{name}_render.md").write_text(rendered, encoding="utf-8")
             rs = score_rubric(predicted, gt, rendered, meta=meta)
             apply_gate(rs, cost_ceiling)
+            # ADDITIVE latency instrument (Phase 0): the scorer is IMMUTABLE and
+            # never sets these; the runner attaches t_doc + decomposition AFTER
+            # scoring so results.json carries latency with zero change to scoring
+            # or gate semantics. Absent on an exception record (meta lacks the keys
+            # ⇒ .get returns None), which is the honest "no timing for a crash".
+            rs.total_seconds = meta.get("total_seconds")
+            rs.render_seconds = meta.get("render_seconds")
+            rs.wall_seconds = meta.get("wall_seconds")
+            rs.input_tokens = meta.get("input_tokens")
+            rs.output_tokens = meta.get("output_tokens")
+            rs.stage_timings = [
+                StageTiming(
+                    stage=e.get("stage"), attempt=e.get("attempt"),
+                    elapsed_s=e.get("elapsed_s"), dt_s=e.get("dt_s"),
+                    input_tokens=e.get("input_tokens"), output_tokens=e.get("output_tokens"),
+                )
+                for e in (meta.get("stage_events") or [])
+            ]
             per_rubric.append(rs)
             model_v = model_v or rs.model_version
             prompt_v = prompt_v or rs.prompt_version
@@ -302,8 +365,11 @@ def main():
     ap.add_argument("--config", default="default")
     ap.add_argument("--mode", default="extract", choices=["extract"])
     ap.add_argument("--repeats", type=int, default=1)
+    ap.add_argument("--only", default=None,
+                    help="SCREENING ONLY: comma-separated fixture names to run a "
+                         "subset (NON-PROMOTABLE). Omit for all fixtures.")
     args = ap.parse_args()
-    run(args.config, args.mode, args.repeats)
+    run(args.config, args.mode, args.repeats, only=args.only)
 
 
 if __name__ == "__main__":

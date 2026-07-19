@@ -52,6 +52,26 @@ class AnnotationCheck:
     target_id: Optional[str]
 
 
+@dataclass
+class StageTiming:
+    """One pipeline progress event (from the docx_v3 `on_progress` seam), captured
+    by the runner. `elapsed_s` = cumulative pipeline wall-clock at emission;
+    `dt_s` = duration of the step that just ended (delta from the previous event).
+
+    PURELY ADDITIVE latency instrument (Phase 0). Never read by the scorer or the
+    gate — it exists only so `results.json` carries the per-step latency
+    decomposition the mission's latency model needs. A `score_only` re-score leaves
+    it empty (no pipeline timing), which is exactly what keeps score_only outputs
+    byte-identical to a pre-instrument run on the gated fields.
+    """
+    stage: str
+    attempt: Optional[int] = None
+    elapsed_s: Optional[float] = None
+    dt_s: Optional[float] = None
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+
+
 @dataclass(slots=True)
 class RubricScore:
     # slots=True: this record has ~40 declared fields and is the results.json row.
@@ -124,6 +144,19 @@ class RubricScore:
     model_version: Optional[str] = None
     prompt_version: Optional[str] = None
     repeat_index: int = 0
+
+    # ---- latency instrument (Phase 0 — ADDITIVE, UNGATED, WATCHED) -------------
+    # t_doc = total_seconds (pipeline entry → returned ExtractRubricResponse).
+    # Populated by the RUNNER after scoring — the scorer (immutable) never sets
+    # these. All Optional/None-defaulted so a score_only re-score (no pipeline)
+    # produces the same gated-field values as a pre-instrument run.
+    total_seconds: Optional[float] = None     # t_doc (pipeline internal, time.time)
+    render_seconds: Optional[float] = None    # t_render_local
+    wall_seconds: Optional[float] = None       # runner-side monotonic wrap (incl.
+                                               # thread dispatch) — instrument cross-check
+    input_tokens: Optional[int] = None         # cumulative across chain steps + retries
+    output_tokens: Optional[int] = None        # cumulative decode (incl. reasoning tokens)
+    stage_timings: List[StageTiming] = field(default_factory=list)
 
     # infra warnings/errors (B4) — pipeline warnings, render-annotation-loss audit,
     # Tier-B transport failures. A gate-flipping infrastructure failure must

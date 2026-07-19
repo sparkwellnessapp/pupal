@@ -66,6 +66,46 @@ def aggregate(per_rubric: List[RubricScore]) -> dict:
         agg["cost_usd"] = {"max": round(max(costs), 4), "mean": round(statistics.mean(costs), 4)}
     agg["render_loss_total"] = sum(r.render_loss_count for r in valid)
     agg["extraction_loss_total"] = sum(r.extraction_loss_count for r in valid)
+
+    # ---- latency instrument (Phase 0 — ADDITIVE, UNGATED, WATCHED) -------------
+    # Worst-case discipline (mean forbidden as a headline): per fixture we report
+    # the MEDIAN and MAX t_doc over its valid trials; the headline is the max over
+    # fixtures of the per-fixture median (the slowest document a teacher waits on),
+    # and the tail is the max over fixtures of the per-fixture max.
+    timed = [r for r in valid if r.total_seconds is not None]
+    if timed:
+        names = sorted({r.rubric_name for r in timed})
+        per_fixture: dict = {}
+        for name in names:
+            recs = [r for r in timed if r.rubric_name == name]
+            tot = [r.total_seconds for r in recs]
+            rnd = [r.render_seconds for r in recs if r.render_seconds is not None]
+            llm = [r.llm_seconds for r in recs if r.llm_seconds is not None]
+            intok = [r.input_tokens for r in recs if r.input_tokens is not None]
+            outtok = [r.output_tokens for r in recs if r.output_tokens is not None]
+            retr = [r.retry_count for r in recs if r.retry_count is not None]
+            local = [r.total_seconds - (r.render_seconds or 0.0) - (r.llm_seconds or 0.0)
+                     for r in recs]
+            per_fixture[name] = {
+                "n": len(recs),
+                "t_doc_median": round(statistics.median(tot), 2),
+                "t_doc_max": round(max(tot), 2),
+                "render_median": round(statistics.median(rnd), 3) if rnd else None,
+                "llm_median": round(statistics.median(llm), 2) if llm else None,
+                "local_overhead_median": round(statistics.median(local), 3),
+                "in_tok_median": int(statistics.median(intok)) if intok else None,
+                "out_tok_median": int(statistics.median(outtok)) if outtok else None,
+                "retries_total": sum(retr) if retr else 0,
+            }
+        headline_fixture = max(per_fixture.items(), key=lambda kv: kv[1]["t_doc_median"])
+        tail_fixture = max(per_fixture.items(), key=lambda kv: kv[1]["t_doc_max"])
+        agg["latency"] = {
+            "per_fixture": per_fixture,
+            "headline_median_worst": headline_fixture[1]["t_doc_median"],
+            "headline_fixture": headline_fixture[0],
+            "tail_max_worst": tail_fixture[1]["t_doc_max"],
+            "tail_fixture": tail_fixture[0],
+        }
     return agg
 
 
@@ -130,6 +170,22 @@ def write_summary(suite: SuiteResult, out_dir: Path) -> Path:
     lines.append(f"- extraction_loss total: {a.get('extraction_loss_total', 0)}  "
                  f"(content in render, LLM dropped it → fix prompt/model)\n")
 
+    if a.get("latency"):
+        lat = a["latency"]
+        lines.append("## Latency (ADDITIVE instrument — UNGATED, worst-case discipline)\n")
+        lines.append(f"- **headline** `max-over-fixtures of t_doc_median` = "
+                     f"**{lat['headline_median_worst']}s** ({lat['headline_fixture']})")
+        lines.append(f"- **tail** `max-over-fixtures of t_doc_max` = "
+                     f"**{lat['tail_max_worst']}s** ({lat['tail_fixture']})\n")
+        lines.append("| fixture | n | t_doc median | t_doc max | render | llm | local | in_tok | out_tok | retries |")
+        lines.append("|---|---|---|---|---|---|---|---|---|---|")
+        for name in sorted(lat["per_fixture"]):
+            d = lat["per_fixture"][name]
+            lines.append(f"| {name} | {d['n']} | {d['t_doc_median']} | {d['t_doc_max']} | "
+                         f"{d['render_median']} | {d['llm_median']} | {d['local_overhead_median']} | "
+                         f"{d['in_tok_median']} | {d['out_tok_median']} | {d['retries_total']} |")
+        lines.append("")
+
     if a.get("cost_usd"):
         lines.append(f"## Cost\n- max ${a['cost_usd']['max']}  mean ${a['cost_usd']['mean']}\n")
 
@@ -175,6 +231,22 @@ def write_rubric_report(rs: RubricScore, out_dir: Path) -> Path:
     if rs.cost_usd is not None:
         L.append(f"- cost ${rs.cost_usd}  llm_s {rs.llm_seconds}  retries {rs.retry_count}")
     L.append("")
+
+    # ADDITIVE latency instrument (Phase 0): per-step decomposition for attribution.
+    if rs.total_seconds is not None:
+        L.append("## Latency (UNGATED instrument)")
+        local = rs.total_seconds - (rs.render_seconds or 0.0) - (rs.llm_seconds or 0.0)
+        L.append(f"- t_doc(total)={rs.total_seconds:.2f}s  wall={rs.wall_seconds}  "
+                 f"render={rs.render_seconds}  llm={rs.llm_seconds}  "
+                 f"local_overhead={local:.3f}s")
+        L.append(f"- tokens in/out: {rs.input_tokens}/{rs.output_tokens}  "
+                 f"finish_reason={rs.finish_reason}  retries={rs.retry_count}")
+        if rs.stage_timings:
+            L.append("- per-step (stage[attempt] dt_s @ elapsed_s):")
+            for st in rs.stage_timings:
+                att = f"[{st.attempt}]" if st.attempt is not None else ""
+                L.append(f"  - {st.stage}{att}  dt={st.dt_s}s  @{st.elapsed_s}s")
+        L.append("")
 
     # nodes WITH GT text (text_ratio is non-None exactly there)
     text_scopes = [s for s in rs.scopes if s.text_ratio is not None]
