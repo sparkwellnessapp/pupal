@@ -6,6 +6,7 @@ import { FileUpload } from '@/components/FileUpload';
 import { MultiFileUpload } from '@/components/MultiFileUpload';
 import { PageGrid } from '@/components/PageThumbnail';
 import { RubricEditor } from '@/components/RubricEditor';
+import { RubricDocument } from '@/components/RubricDocument';
 import { AnswerMappingPanel } from '@/components/AnswerMappingPanel';
 import { GradingResults } from '@/components/GradingResults';
 import { RubricSelector } from '@/components/RubricSelector';
@@ -45,7 +46,7 @@ import {
 import { useExtractionJob, getExtractionStageLabel } from '@/hooks/useExtractionJob';
 import { toast } from 'sonner';
 import { ApiAuthError } from '@/lib/api';
-import { authErrorMessage, toMessage } from '@/lib/errorSurface';
+import { authErrorMessage, toMessage, surfaceError } from '@/lib/errorSurface';
 import {
   clearUnsavedWork,
   peekUnsavedWork,
@@ -54,12 +55,20 @@ import {
 } from '@/lib/session';
 import type { TranscribeResponse } from '@/types/transcription';
 import type { GradedTestDraftResponse } from '@/types/graded_test';
-import type { DocxPreflightQuestion } from '@/lib/api';
-import { RubricPurpose, RubricPurposeValues } from '@/components/RubricPurpose';
+import { patchExtractionJobMetadata, getRubric } from '@/lib/api';
 import { RubricErrorDisplay, RubricWarningsModal } from '@/components/RubricSaveFlow';
 import type { RubricQuestion } from '@/types/rubric';
 import { hydrateAnyQuestions, dehydrateQuestions, safeParseFloat } from '@/utils/rubric-transform';
 import { validateAllQuestions, validateRubricTotalPoints } from '@/utils/rubric-validation';
+import { computeAchievablePoints } from '@/utils/rubric-achievable';
+import { getExtractionStageOrder } from '@/hooks/useExtractionJob';
+import {
+  countFindings, countCriteria, resolveRubricName, selectionSummaryLine,
+  findingsWaitingLabel, classifyExtractionError,
+} from '@/utils/session-spine';
+import { playCompletionChime, flipTabTitleToReady, restoreTabTitle } from '@/utils/completion-signal';
+import { pushSnapshot, popSnapshot, type RubricSnapshot } from '@/utils/rubric-history';
+import { USE_DOCUMENT_MIRROR } from '@/lib/flags';
 import {
   Upload,
   Settings,
@@ -81,7 +90,7 @@ import {
 } from 'lucide-react';
 
 type MainMode = 'select' | 'rubric' | 'grading';
-type RubricStep = 'upload' | 'purpose' | 'extracting' | 'review' | 'saved';
+type RubricStep = 'upload' | 'extracting' | 'arrival' | 'review' | 'saved';
 type GradingStep = 'select_rubric' | 'upload_batch' | 'map_answers' | 'pdf_processing' | 'review_transcription' | 'grading_queued' | 'grading' | 'results' | 'draft_review' | 'grading_failed';
 type TranscriptionMode = 'handwritten' | 'printed' | null;
 
@@ -266,12 +275,54 @@ export default function Home() {
   const [extractionAnnotations, setExtractionAnnotations] = useState<Annotation[]>([]);
   // Save-blocking: ref passed to RubricEditor so the blocked save button can scroll to the error banner
   const errorBannerRef = useRef<HTMLDivElement>(null);
-  const [programmingLanguage, setProgrammingLanguage] = useState<string>('Java');
-  // Preflight / purpose-input state (DOCX only)
-  const [preflightQuestions, setPreflightQuestions] = useState<DocxPreflightQuestion[]>([]);
-  const [preflightDetectedTitle, setPreflightDetectedTitle] = useState<string | null>(null);
-  /** Held across the preflight → purpose → extraction steps so we don't ask the user to re-pick */
-  const [pendingDocxFile, setPendingDocxFile] = useState<File | null>(null);
+  // Captured programming language — '' means "זיהוי אוטומטי" (infer). Set only by
+  // the capture card now (the upload-step select is gone); feeds the editor display.
+  const [programmingLanguage, setProgrammingLanguage] = useState<string>('');
+  // PR-5 S1-2 — the capture card (movement 1 of the wait). Metadata-only.
+  const [captureDone, setCaptureDone] = useState(false);        // confirmed/skipped → movement 2
+  const [inferredName, setInferredName] = useState<string | null>(null); // result.rubric_name
+  const [filenameStem, setFilenameStem] = useState<string>(''); // filename-derived suggestion
+  // PR-5 S1-3 — stages the SERVER has actually reported, accumulated across polls
+  // (the server only ever emits the CURRENT one; we never fabricate future rungs).
+  const observedStagesRef = useRef<Set<string>>(new Set());
+  const [observedStages, setObservedStages] = useState<string[]>([]);
+  // PR-5 S1-8 — review edits since arrival; cleared on save. Drives the nav guard.
+  const dirtyRef = useRef(false);
+
+  // PR-5 S2 E-1 — page-level undo stack over the FULL editable tuple
+  // {questions, declaredTotal, name}. Snapshots are pushed BY REFERENCE (structural
+  // sharing → 50 is trivial); every edit already goes through the pure ops. Live
+  // refs mirror the current tuple so pushHistory always snapshots the PRE-edit
+  // state regardless of closure staleness. No redo at MVP (deliberate; backlogged).
+  const historyRef = useRef<RubricSnapshot[]>([]);
+  const [canUndoRubric, setCanUndoRubric] = useState(false);
+  const questionsRef = useRef(extractedQuestions);
+  const declaredRef = useRef(rubricDeclaredTotal);
+  const nameRef = useRef(rubricName);
+  questionsRef.current = extractedQuestions;
+  declaredRef.current = rubricDeclaredTotal;
+  nameRef.current = rubricName;
+
+  const pushRubricHistory = useCallback(() => {
+    historyRef.current = pushSnapshot(historyRef.current, {
+      questions: questionsRef.current, declaredTotal: declaredRef.current, name: nameRef.current,
+    });
+    setCanUndoRubric(true);
+  }, []);
+  const clearRubricHistory = useCallback(() => {
+    historyRef.current = [];
+    setCanUndoRubric(false);
+  }, []);
+  const undoRubricEdit = useCallback(() => {
+    const { snapshot, stack } = popSnapshot(historyRef.current);
+    if (!snapshot) return;
+    historyRef.current = stack;
+    setExtractedQuestions(snapshot.questions);
+    setRubricDeclaredTotal(snapshot.declaredTotal);
+    setRubricName(snapshot.name);
+    setCanUndoRubric(stack.length > 0);
+    dirtyRef.current = true;
+  }, []);
 
   // Grading Flow State
   const [gradingStep, setGradingStep] = useState<GradingStep>('select_rubric');
@@ -456,7 +507,8 @@ export default function Home() {
     setHandwrittenConfigs([]);
   };
 
-  // Rubric Handlers
+  // Rubric Handlers — S1-1/S1-2: drop the DOCX and go. No purpose interstitial,
+  // no name field, no language dropdown; the job submits on drop, file-only.
   const handleRubricFileChange = async (file: File | null) => {
     setRubricFile(file);
     setError(null);
@@ -470,12 +522,7 @@ export default function Home() {
       return;
     }
 
-    setIsLoading(true);
-    setPendingDocxFile(file);
-    setPreflightQuestions([]);
-    setPreflightDetectedTitle(null);
-    setRubricStep('purpose');
-    setIsLoading(false);
+    await _runDocxExtraction(file);
   };
 
   // ---------------------------------------------------------------------------
@@ -503,8 +550,13 @@ export default function Home() {
     setSelectionGroups(response.selection_groups ?? []);
     setExtractionMetadata(response.metadata || null);
     setExtractionAnnotations(response.annotations || []);
-    if (response.name) setRubricName(response.name);
-    setRubricStep('review');
+    // Name precedence (S1-2.4): the extraction-inferred name is the MIDDLE tier —
+    // it must NOT overwrite a name the teacher captured during the wait. Store it;
+    // resolveRubricName picks the winner at arrival/save time.
+    setInferredName(response.name ?? null);
+    dirtyRef.current = false;          // a fresh result is not "unsaved edits" yet
+    clearRubricHistory();              // a new rubric starts with an empty undo stack
+    setRubricStep('arrival');          // S1-5: the summary card lands before the document
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -533,6 +585,11 @@ export default function Home() {
   const extractionJob = useExtractionJob(extractionJobId, {
     onComplete: async () => {
       if (!extractionJobId) return;
+      // S1-3.4: signal a teacher who left the tab — before the (slower) result fetch.
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        flipTabTitleToReady();
+        playCompletionChime();
+      }
       try {
         const jobResult = await getExtractionJobResult(extractionJobId);
         applyExtractionResult(jobResult.result);
@@ -577,23 +634,24 @@ export default function Home() {
     setRestorable(null);
   }, []);
 
-  const _runDocxExtraction = async (
-    file: File,
-    purposes: RubricPurposeValues,
-  ) => {
+  const _runDocxExtraction = async (file: File) => {
+    // Fresh wait — reset the capture card, stage ladder, and dirty flag.
+    setFilenameStem(file.name.replace(/\.docx$/i, ''));
+    setRubricName('');            // placeholder shows the suggestion; blank ⇒ inference wins
+    setInferredName(null);
+    setProgrammingLanguage('');   // "זיהוי אוטומטי" until she says otherwise
+    setCaptureDone(false);
+    observedStagesRef.current = new Set();
+    setObservedStages([]);
+    dirtyRef.current = false;
+    clearRubricHistory();
     setRubricStep('extracting');
     setIsLoading(true);
     setError(null);
     try {
-      const submitted = await submitExtractionJob(file, {
-        name: rubricName || file.name.replace(/\.docx$/i, ''),
-        subject: 'computer_science',
-        locale: 'he-IL',
-        questionPurposes: Object.keys(purposes.questionPurposes).length > 0
-          ? purposes.questionPurposes
-          : undefined,
-        testTopic: purposes.testTopic || undefined,
-      });
+      // S1-2: ZERO-PARAM submit — file only. Name/language are captured during the
+      // wait (metadata-only) or inferred; extraction never depends on them.
+      const submitted = await submitExtractionJob(file);
       // Double-click / re-upload of the same doc converges on the same job
       // (reused=true) — the hook picks it up either way.
       setExtractionJobId(submitted.job_id);
@@ -621,14 +679,6 @@ export default function Home() {
     }
   };
 
-  /** Abandon the extracting view (the job keeps running server-side; the
-   * resume effect below re-attaches to it on the next visit). */
-  const handleExtractionBack = () => {
-    extractionJob.stop();
-    setExtractionJobId(null);
-    setRubricStep('upload');
-  };
-
   // Resume: an in-flight extraction survives leaving the page — on mount,
   // re-attach to the most recent active job and re-enter the extracting step.
   useEffect(() => {
@@ -650,14 +700,123 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handlePurposeConfirm = async (values: RubricPurposeValues) => {
-    if (!pendingDocxFile) return;
-    await _runDocxExtraction(pendingDocxFile, values);
+  // S1-3.2: accumulate the stages the SERVER has actually reported. The server
+  // only ever emits the CURRENT stage; we append each distinct one so the wait
+  // checklist shows honest completed rungs and never fabricates future ones.
+  useEffect(() => {
+    const stage = extractionJob.status?.progress_stage;
+    if (stage && !observedStagesRef.current.has(stage)) {
+      observedStagesRef.current.add(stage);
+      setObservedStages(Array.from(observedStagesRef.current));
+    }
+  }, [extractionJob.status?.progress_stage]);
+
+  // S1-3.4: restore the tab title when she returns to the tab.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') restoreTabTitle(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
+  // S1-8(a): browser-native prompt on real page unload while review edits are unsaved.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (dirtyRef.current) { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // S1-7: enter grading with a rubric already selected (carry-through + deep-link).
+  // ---------------------------------------------------------------------------
+  const enterGradingWithRubric = useCallback((item: RubricListItem) => {
+    setSelectedRubric(item);
+    setMainMode('grading');
+    setGradingStep('upload_batch');
+  }, []);
+
+  // S1-7.2: wire the previously-dead deep-link. `?rubric=<id>` (my-rubrics'
+  // "בדקי מבחנים עם מחוון זה" button) → load the rubric → land on upload-tests
+  // pre-selected. Read window.location.search in a mount effect, NOT
+  // useSearchParams (which forces a Suspense boundary / breaks the static build).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const rubricId = new URLSearchParams(window.location.search).get('rubric');
+    if (!rubricId) return;
+    (async () => {
+      try {
+        const detail = await getRubric(rubricId);
+        enterGradingWithRubric({
+          ...detail,
+          total_points: detail.total_points ?? detail.stats?.total_points,
+          total_questions: detail.total_questions ?? detail.stats?.total_questions,
+        });
+      } catch {
+        toast.error('לא הצלחנו לפתוח את המחוון לבדיקה');
+        // stay on home
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // S1-8(b): in-app guard for the "navigations" that are actually state flips.
+  const confirmDiscardIfDirty = useCallback((): boolean => {
+    if (!dirtyRef.current) return true;
+    return window.confirm('יש שינויים שלא נשמרו — לצאת בכל זאת?');
+  }, []);
+
+  // Wrap the review-editor callbacks so any edit marks the work dirty (S1-8) and
+  // pushes a pre-edit snapshot onto the undo stack (S2 E-1).
+  const handleQuestionsEdited = useCallback((qs: RubricQuestion[]) => {
+    pushRubricHistory();
+    dirtyRef.current = true;
+    setExtractedQuestions(qs);
+  }, [pushRubricHistory]);
+  const handleTotalPointsChange = useCallback((t: number) => {
+    pushRubricHistory();
+    dirtyRef.current = true;
+    setRubricDeclaredTotal(t);
+  }, [pushRubricHistory]);
+  const handleRubricMetadataChange = useCallback((patch: { rubric_name?: string; subject?: string; programming_language?: string }) => {
+    pushRubricHistory();
+    dirtyRef.current = true;
+    if (patch.rubric_name !== undefined) setRubricName(patch.rubric_name);
+  }, [pushRubricHistory]);
+
+  // S2 D-3 — delete is undo-over-confirm: the mirror executes immediately and
+  // dispatches this event; we surface a 6s toast whose «ביטול» pops the undo stack.
+  useEffect(() => {
+    const onUndoToast = (e: Event) => {
+      const detail = (e as CustomEvent<{ message?: string }>).detail;
+      toast(detail?.message ?? 'נמחק', {
+        action: { label: 'ביטול', onClick: () => undoRubricEdit() },
+        duration: 6000,
+      });
+    };
+    window.addEventListener('vivi:undo-toast', onUndoToast as EventListener);
+    return () => window.removeEventListener('vivi:undo-toast', onUndoToast as EventListener);
+  }, [undoRubricEdit]);
+
+  // S1-2.3: the capture card — confirm PATCHes the captured metadata in ONE
+  // combined request (atomic jsonb merge server-side); skip just collapses. Both
+  // move to movement 2 (calm waiting). Fire-and-forget: a metadata failure toasts
+  // but never blocks the wait, and the name still resolves at save time.
+  const handleCaptureConfirm = async () => {
+    setCaptureDone(true);
+    if (!extractionJobId) return;
+    try {
+      await patchExtractionJobMetadata(extractionJobId, {
+        name: rubricName.trim() || filenameStem || null,
+        programming_language: programmingLanguage || null,
+      });
+    } catch (err) {
+      surfaceError(err);
+    }
   };
 
-  const handlePurposeSkip = async () => {
-    if (!pendingDocxFile) return;
-    await _runDocxExtraction(pendingDocxFile, { testTopic: '', questionPurposes: {} });
+  const handleCaptureSkip = () => {
+    setCaptureDone(true);
   };
 
   // Combined annotations: backend extraction annotations + live validation
@@ -712,10 +871,9 @@ export default function Home() {
   const hasBlockingErrors = combinedAnnotations.some(a => a.severity === 'error');
 
   const handleSaveRubric = async () => {
-    if (!rubricName.trim()) {
-      setError('יש להזין שם למחוון לפני השמירה.');
-      return;
-    }
+    // S1-2.4: the name is ALWAYS resolvable (captured > inferred > filename), so
+    // save is never blocked on it — the Dream doc makes naming optional.
+    const resolvedName = resolveRubricName(rubricName, inferredName, filenameStem);
 
     setIsLoading(true);
     setError(null);
@@ -744,7 +902,7 @@ export default function Home() {
       };
 
       const response = await saveOntologyRubric({
-        name: rubricName,
+        name: resolvedName,
         draft,
         extraction_job_id: extractionJobId ?? undefined,
       });
@@ -760,6 +918,8 @@ export default function Home() {
         setPendingSaveDraft(draft);
       } else {
         setSavedRubricId(response.rubric_id);
+        dirtyRef.current = false;     // saved — review work is now clean (S1-8)
+        clearRubricHistory();         // E-1: history is session-scoped, clears on save
         setRubricStep('saved');
       }
     } catch (err) {
@@ -791,7 +951,7 @@ export default function Home() {
     setError(null);
     try {
       const resp = await saveOntologyRubric({
-        name: rubricName,
+        name: resolveRubricName(rubricName, inferredName, filenameStem),
         draft: pendingSaveDraft,
         acknowledged_warning_ids: warningIds,
         extraction_job_id: extractionJobId ?? undefined,
@@ -804,6 +964,8 @@ export default function Home() {
         setSavedRubricId(resp.rubric_id);
         setPendingWarnings(null);
         setPendingSaveDraft(null);
+        dirtyRef.current = false;     // saved — clean (S1-8)
+        clearRubricHistory();         // E-1: history clears on save
         setRubricStep('saved');
       }
     } catch (err) {
@@ -1120,6 +1282,9 @@ export default function Home() {
   const isCurrentMappingValid = currentTest?.answerMappings.every(m => m.page_indexes.length > 0) ?? false;
 
   const goToHome = () => {
+    // S1-8(b): if there is unsaved review work, confirm before discarding it.
+    if (!confirmDiscardIfDirty()) return;
+    dirtyRef.current = false;
     streaming.reset();
     setMainMode('select');
     setRubricStep('upload');
@@ -1139,10 +1304,10 @@ export default function Home() {
     // Reset DOCX state
     setExtractionMetadata(null);
     setExtractionAnnotations([]);
-    // Reset preflight/purpose state
-    setPendingDocxFile(null);
-    setPreflightQuestions([]);
-    setPreflightDetectedTitle(null);
+    // Reset capture-card state
+    setCaptureDone(false);
+    setInferredName(null);
+    setFilenameStem('');
   };
 
   // Can proceed from upload page
@@ -1227,111 +1392,201 @@ export default function Home() {
                     <p className="text-gray-500 mt-1">העלי קובץ DOCX של המחוון</p>
                   </div>
 
-                  {/* Programming language selector */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">שפת תכנות</label>
-                    <select
-                      value={programmingLanguage}
-                      onChange={(e) => setProgrammingLanguage(e.target.value)}
-                      className="w-full p-2 border border-surface-300 rounded-lg text-sm"
-                    >
-                      <option value="Java">Java</option>
-                      <option value="Python">Python</option>
-                      <option value="C++">C++</option>
-                      <option value="C#">C#</option>
-                      <option value="JavaScript">JavaScript</option>
-                      <option value="Pseudocode">פסאודו-קוד</option>
-                    </select>
-                  </div>
-
-                  <FileUpload file={rubricFile} onFileChange={handleRubricFileChange} accept=".pdf,.docx" label="גרור קובץ DOCX לכאן" showFormatGuide />
-                  {isLoading && <div className="mt-4 flex items-center justify-center gap-2 text-primary-600"><Loader2 className="animate-spin" size={20} /><span>מעבד את הקובץ...</span></div>}
+                  {/* S1-1/S1-2: one action — drop the DOCX. No language dropdown,
+                      no name field, no purpose step. Everything else is inferable
+                      or captured during the wait. */}
+                  <FileUpload file={rubricFile} onFileChange={handleRubricFileChange} accept=".pdf,.docx" label="גררי קובץ DOCX לכאן" showFormatGuide />
+                  {isLoading && <div className="mt-4 flex items-center justify-center gap-2 text-primary-600"><Loader2 className="animate-spin" size={20} /><span>מעלה את הקובץ...</span></div>}
                   {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center gap-2"><AlertCircle size={18} />{error}</div>}
                 </div>
-              </div>
-            )}
-
-            {rubricStep === 'purpose' && (
-              <div className="max-w-2xl mx-auto animate-fade-in">
-                <div className="flex items-center gap-4 mb-6">
-                  <BackButton onClick={() => {
-                    setPendingDocxFile(null);
-                    setRubricStep('upload');
-                    setRubricFile(null);
-                  }} />
-                  <h2 className="text-xl font-bold text-gray-900">הגדרת מטרות (אופציונלי)</h2>
-                </div>
-                <RubricPurpose
-                  questions={preflightQuestions}
-                  detectedTitle={preflightDetectedTitle}
-                  onConfirm={handlePurposeConfirm}
-                  onSkip={handlePurposeSkip}
-                  isLoading={isLoading}
-                />
-                {error && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center gap-2">
-                    <AlertCircle size={18} />{error}
-                  </div>
-                )}
               </div>
             )}
 
             {rubricStep === 'extracting' && (
               <div className="max-w-xl mx-auto animate-fade-in">
                 {extractionJob.status?.status === 'failed' || extractionJob.status?.stale ? (
-                  /* Terminal failure / stale (server died mid-job) — durable, retryable */
-                  <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-                    <AlertCircle className="mx-auto text-red-500 mb-4" size={64} />
-                    <h2 className="text-xl font-semibold text-gray-800">החילוץ נכשל</h2>
-                    <p className="text-gray-500 mt-2">
-                      {extractionJob.status?.stale
-                        ? 'החיבור לשרת אבד באמצע העיבוד. הקובץ שמור אצלנו — אפשר לנסות שוב בלי להעלות מחדש.'
-                        : 'אירעה שגיאה בעיבוד המסמך. הקובץ שמור אצלנו — אפשר לנסות שוב בלי להעלות מחדש.'}
-                    </p>
-                    {extractionJob.status?.error_message && (
-                      <p className="text-xs text-gray-400 mt-2 break-all" dir="ltr">
-                        {extractionJob.status.error_message}
-                      </p>
+                  /* S1-4: failure — blame-correct, two one-click actions, raw hidden. */
+                  (() => {
+                    const stale = !!extractionJob.status?.stale;
+                    const raw = extractionJob.status?.error_message ?? null;
+                    const copy = stale
+                      ? { headline: 'החיבור אבד באמצע העיבוד', body: 'החיבור לשרת נקטע — לא בקובץ שלך. הקובץ שמור, אין צורך להעלות שוב.' }
+                      : classifyExtractionError(raw);
+                    const mailto = `mailto:support@vivi-assistant.com?subject=${encodeURIComponent('תקלה בחילוץ מחוון')}&body=${encodeURIComponent(`מזהה עבודה: ${extractionJobId ?? '—'}\nזמן: ${new Date().toLocaleString('he-IL')}\n\nמה קרה: `)}`;
+                    return (
+                      <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                        <AlertCircle className="mx-auto text-red-500 mb-4" size={64} />
+                        <h2 className="text-xl font-semibold text-gray-800">{copy.headline}</h2>
+                        <p className="text-gray-500 mt-2">{copy.body}</p>
+                        <div className="flex items-center justify-center gap-3 mt-6">
+                          <button
+                            onClick={handleExtractionRetry}
+                            disabled={extractionRetrying}
+                            className="flex items-center gap-2 px-5 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
+                          >
+                            {extractionRetrying ? <Loader2 className="animate-spin" size={18} /> : null}
+                            לנסות מחדש
+                          </button>
+                          <a
+                            href={mailto}
+                            className="px-5 py-2 text-gray-600 border border-surface-300 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            דיווח תקלה
+                          </a>
+                        </div>
+                        {raw && (
+                          <details className="mt-5">
+                            <summary className="text-xs text-gray-400 cursor-pointer">פרטים טכניים</summary>
+                            <p className="text-xs text-gray-400 mt-2 break-all" dir="ltr">{raw}</p>
+                          </details>
+                        )}
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="bg-white rounded-xl shadow-lg p-8">
+                    {/* Movement 1 — productive capture (name + language). Metadata-only. */}
+                    {!captureDone && (
+                      <div className="mb-6 pb-6 border-b border-surface-200">
+                        <h2 className="text-lg font-semibold text-gray-800 text-center">ויוי כבר קוראת את המחוון…</h2>
+                        <p className="text-sm text-gray-500 text-center mt-1">בזמן שהיא עובדת, אפשר לתת שם ולבחור שפה — או לדלג.</p>
+                        <div className="mt-4 space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">שם המחוון</label>
+                            <input
+                              type="text"
+                              value={rubricName}
+                              onChange={e => setRubricName(e.target.value)}
+                              placeholder={filenameStem || 'לדוגמה: בגרות תשפ״ו'}
+                              className="w-full p-2 border border-surface-300 rounded-lg text-sm"
+                              dir="rtl"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">שפת תכנות</label>
+                            <select
+                              value={programmingLanguage}
+                              onChange={e => setProgrammingLanguage(e.target.value)}
+                              className="w-full p-2 border border-surface-300 rounded-lg text-sm"
+                            >
+                              <option value="">זיהוי אוטומטי</option>
+                              <option value="Java">Java</option>
+                              <option value="Python">Python</option>
+                              <option value="C++">C++</option>
+                              <option value="C#">C#</option>
+                              <option value="JavaScript">JavaScript</option>
+                              <option value="Pseudocode">פסאודו-קוד</option>
+                            </select>
+                          </div>
+                          <div className="flex items-center justify-end gap-3 pt-1">
+                            <button onClick={handleCaptureSkip} className="text-sm text-gray-500 hover:text-gray-700">דלגי</button>
+                            <button onClick={handleCaptureConfirm} className="px-4 py-1.5 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600">שמרי והמשיכי</button>
+                          </div>
+                        </div>
+                      </div>
                     )}
-                    <div className="flex items-center justify-center gap-3 mt-6">
-                      <button
-                        onClick={handleExtractionBack}
-                        className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                      >
-                        חזרה
-                      </button>
-                      <button
-                        onClick={handleExtractionRetry}
-                        disabled={extractionRetrying}
-                        className="flex items-center gap-2 px-5 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
-                      >
-                        {extractionRetrying ? <Loader2 className="animate-spin" size={18} /> : null}
-                        נסי שוב
-                      </button>
+
+                    {/* Movement 2 — calm honest waiting */}
+                    <div className="text-center">
+                      <Loader2 className={`mx-auto text-primary-500 mb-4 animate-spin`} size={captureDone ? 64 : 40} />
+                      <h2 className="text-lg font-semibold text-gray-800">
+                        {getExtractionStageLabel(extractionJob.status?.progress_stage ?? null)}
+                      </h2>
+                      <p className="text-gray-500 mt-2 text-sm">
+                        עלול לקחת 4–5 דקות. אפשר לעזוב את העמוד — החילוץ ימשיך ברקע ונודיע לך כשהוא מוכן.
+                      </p>
+
+                      {/* Honest stage checklist — only stages the server actually reported */}
+                      {observedStages.length > 0 && (
+                        <ul className="mt-4 inline-flex flex-col gap-1.5 text-right">
+                          {getExtractionStageOrder()
+                            .filter(s => observedStages.includes(s.stage))
+                            .map(s => {
+                              const isCurrent = s.stage === extractionJob.status?.progress_stage;
+                              return (
+                                <li key={s.stage} className={`flex items-center gap-2 text-sm ${isCurrent ? 'text-primary-700 font-medium' : 'text-gray-400'}`}>
+                                  {isCurrent
+                                    ? <Loader2 className="animate-spin" size={14} />
+                                    : <CheckCircle size={14} className="text-primary-500" />}
+                                  <span>{s.label}</span>
+                                </li>
+                              );
+                            })}
+                        </ul>
+                      )}
+
+                      {extractionJob.status?.elapsed_seconds != null && (
+                        <p className="text-sm text-gray-400 mt-3">
+                          {(() => {
+                            const s = extractionJob.status.elapsed_seconds;
+                            return Math.floor(s / 60) > 0
+                              ? `${Math.floor(s / 60)} דק' ${Math.round(s % 60)} שנ'`
+                              : `${Math.round(s)} שניות`;
+                          })()}
+                        </p>
+                      )}
+
+                      {/* Threshold reassurances — read off elapsed_seconds, no new timer */}
+                      {extractionJob.status?.elapsed_seconds != null && extractionJob.status.elapsed_seconds >= 360 ? (
+                        <p className="text-sm text-primary-600 mt-2">כמעט שם — המחוון שלך עשיר במיוחד.</p>
+                      ) : extractionJob.status?.elapsed_seconds != null && extractionJob.status.elapsed_seconds >= 180 ? (
+                        <p className="text-sm text-primary-600 mt-2">עדיין עובדת — מחוונים מפורטים לוקחים יותר.</p>
+                      ) : null}
+
+                      {error && <p className="text-sm text-amber-600 mt-3">{error}</p>}
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-                    <Loader2 className="mx-auto text-primary-500 mb-4 animate-spin" size={64} />
-                    <h2 className="text-xl font-semibold text-gray-800">
-                      {getExtractionStageLabel(extractionJob.status?.progress_stage ?? null)}
-                    </h2>
-                    <p className="text-gray-500 mt-2">
-                      Vivi קוראת את המחוון ומחלצת שאלות, קריטריונים וניקוד — בדרך כלל 2–4 דקות.
-                      אפשר לעזוב את העמוד; החילוץ ימשיך ברקע.
-                    </p>
-                    {extractionJob.status?.elapsed_seconds != null && (
-                      <p className="text-sm text-gray-400 mt-3">
-                        {Math.floor(extractionJob.status.elapsed_seconds / 60) > 0
-                          ? `${Math.floor(extractionJob.status.elapsed_seconds / 60)} דק' ${Math.round(extractionJob.status.elapsed_seconds % 60)} שנ'`
-                          : `${Math.round(extractionJob.status.elapsed_seconds)} שניות`}
-                      </p>
-                    )}
-                    {error && (
-                      <p className="text-sm text-amber-600 mt-3">{error}</p>
-                    )}
-                  </div>
                 )}
+              </div>
+            )}
+
+            {rubricStep === 'arrival' && (
+              <div className="max-w-xl mx-auto animate-fade-in">
+                <div className="bg-white rounded-xl shadow-lg p-8">
+                  <div className="flex items-center gap-2 text-primary-700">
+                    <CheckCircle size={22} />
+                    <h2 className="text-xl font-semibold">סיימתי לקרוא את המחוון</h2>
+                  </div>
+                  {(() => {
+                    const selLine = selectionSummaryLine(selectionGroups, extractedQuestions.length);
+                    const achievable = computeAchievablePoints(extractedQuestions, selectionGroups);
+                    const criteria = countCriteria(extractedQuestions);
+                    const findings = countFindings(combinedAnnotations);
+                    return (
+                      <>
+                        {selLine && (
+                          <div className="mt-4 inline-block bg-primary-50 border border-primary-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-primary-800">
+                            {selLine}
+                          </div>
+                        )}
+                        <dl className="mt-4 grid grid-cols-3 gap-3 text-center">
+                          <div className="bg-surface-50 rounded-lg p-3">
+                            <dt className="text-xs text-gray-500">שאלות</dt>
+                            <dd className="text-lg font-semibold text-gray-800">{extractedQuestions.length}</dd>
+                          </div>
+                          <div className="bg-surface-50 rounded-lg p-3">
+                            <dt className="text-xs text-gray-500">נקודות</dt>
+                            <dd className="text-lg font-semibold text-gray-800">{achievable}</dd>
+                          </div>
+                          <div className="bg-surface-50 rounded-lg p-3">
+                            <dt className="text-xs text-gray-500">קריטריונים</dt>
+                            <dd className="text-lg font-semibold text-gray-800">{criteria}</dd>
+                          </div>
+                        </dl>
+                        <div className={`mt-4 rounded-lg px-4 py-3 text-sm font-medium ${findings > 0 ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-green-50 border border-green-200 text-green-800'}`}>
+                          {findingsWaitingLabel(findings)}
+                        </div>
+                        <button
+                          onClick={() => setRubricStep('review')}
+                          className="mt-6 w-full flex items-center justify-center gap-2 bg-primary-500 text-white px-6 py-2.5 rounded-lg hover:bg-primary-600 transition-colors font-medium"
+                        >
+                          עברי על המחוון
+                          <ArrowLeft size={18} />
+                        </button>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
             )}
 
@@ -1344,6 +1599,7 @@ export default function Home() {
                 {saveError && (
                   <RubricErrorDisplay
                     error={saveError}
+                    questions={extractedQuestions}
                     onDismiss={() => setSaveError(null)}
                   />
                 )}
@@ -1354,32 +1610,59 @@ export default function Home() {
                   <RubricWarningsModal
                     warnings={pendingWarnings.warnings}
                     messageHe={pendingWarnings.message_he}
+                    questions={extractedQuestions}
                     onAcknowledge={handleConfirmWarnings}
                     onCancel={handleCancelWarnings}
                     isSubmitting={isLoading}
                   />
                 )}
+                {/* S1-6.1: honest save overlay — ONE static line, no fake staging
+                    (the client cannot observe compile stages). */}
+                {isLoading && (
+                  <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center">
+                    <div className="bg-white rounded-xl shadow-xl px-8 py-6 flex items-center gap-3">
+                      <Loader2 className="animate-spin text-primary-500" size={22} />
+                      <span className="text-gray-700">ויוי בודקת עקביות ומרכיבה את חוזה הניקוד…</span>
+                    </div>
+                  </div>
+                )}
                 <div className="bg-white rounded-xl shadow-lg p-6">
-                  <RubricEditor
-                    questions={extractedQuestions}
-                    onQuestionsChange={setExtractedQuestions}
-                    pages={rubricPages}
-                    sourceType="docx"
-                    metadata={extractionMetadata || undefined}
-                    annotations={combinedAnnotations}
-                    errorBannerRef={errorBannerRef}
-                    programmingLanguage={programmingLanguage}
-                    rubricName={rubricName}
-                    rubricTotalPoints={rubricDeclaredTotal}
-                    onTotalPointsChange={setRubricDeclaredTotal}
-                    onMetadataChange={(patch) => {
-                      if (patch.rubric_name !== undefined) setRubricName(patch.rubric_name);
-                    }}
-                    hasNameError={!!error && !rubricName.trim()}
-                  />
+                  {/* D-1: the DOCUMENT MIRROR is the review surface (docx flow).
+                      RubricEditor stays as the rollback target behind the flag. */}
+                  {USE_DOCUMENT_MIRROR ? (
+                    <RubricDocument
+                      questions={extractedQuestions}
+                      onQuestionsChange={handleQuestionsEdited}
+                      annotations={combinedAnnotations}
+                      errorBannerRef={errorBannerRef}
+                      rubricName={rubricName}
+                      rubricTotalPoints={rubricDeclaredTotal}
+                      onTotalPointsChange={handleTotalPointsChange}
+                      onMetadataChange={handleRubricMetadataChange}
+                      selectionGroups={selectionGroups}
+                      canUndo={canUndoRubric}
+                      onUndo={undoRubricEdit}
+                    />
+                  ) : (
+                    <RubricEditor
+                      questions={extractedQuestions}
+                      onQuestionsChange={handleQuestionsEdited}
+                      pages={rubricPages}
+                      sourceType="docx"
+                      metadata={extractionMetadata || undefined}
+                      annotations={combinedAnnotations}
+                      errorBannerRef={errorBannerRef}
+                      programmingLanguage={programmingLanguage}
+                      rubricName={rubricName}
+                      rubricTotalPoints={rubricDeclaredTotal}
+                      onTotalPointsChange={handleTotalPointsChange}
+                      onMetadataChange={handleRubricMetadataChange}
+                      hasNameError={!!error && !rubricName.trim()}
+                    />
+                  )}
                   {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
                   <div className="mt-6 pt-4 border-t border-surface-200 flex items-center justify-between">
-                    <BackButton onClick={() => setRubricStep('upload')} />
+                    <BackButton onClick={() => { if (confirmDiscardIfDirty()) { dirtyRef.current = false; clearRubricHistory(); setRubricStep('upload'); } }} />
                     <button
                       onClick={hasBlockingErrors
                         ? () => errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -1402,17 +1685,42 @@ export default function Home() {
 
             {rubricStep === 'saved' && (
               <div className="max-w-xl mx-auto animate-fade-in">
-                <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-                  <CheckCircle className="mx-auto text-primary-500 mb-4" size={64} />
-                  <h2 className="text-2xl font-semibold text-primary-700">המחוון נשמר בהצלחה!</h2>
-                  <p className="text-gray-500 mt-2">מזהה: <code className="bg-surface-100 px-2 py-1 rounded">{savedRubricId}</code></p>
-                  <div className="mt-8 flex flex-col gap-3">
-                    <button onClick={() => { setMainMode('grading'); setGradingStep('select_rubric'); }} className="flex items-center gap-2 mx-auto bg-primary-500 text-white px-6 py-2 rounded-lg hover:bg-primary-600">
-                      <GraduationCap size={18} />המשך לבדיקת מבחנים
-                    </button>
-                    <button onClick={goToHome} className="text-gray-500 hover:text-gray-700 text-sm">חזור לדף הבית</button>
-                  </div>
-                </div>
+                {(() => {
+                  // S1-6.2 / S1-7.1: her rubric's NAME (the UUID is dead), the facts,
+                  // the partnership beat, and a CTA that CARRIES the rubric to grading.
+                  const savedName = resolveRubricName(rubricName, inferredName, filenameStem);
+                  const achievable = rubricDeclaredTotal ?? computeAchievablePoints(extractedQuestions, selectionGroups);
+                  const criteria = countCriteria(extractedQuestions);
+                  const carryOnToGrading = () => {
+                    if (!savedRubricId) { goToHome(); return; }
+                    enterGradingWithRubric({
+                      id: savedRubricId,
+                      name: savedName,
+                      created_at: new Date().toISOString(),
+                      is_compiled: true,
+                      total_points: achievable,
+                      total_questions: extractedQuestions.length,
+                    });
+                  };
+                  return (
+                    <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                      <CheckCircle className="mx-auto text-primary-500 mb-4" size={64} />
+                      <h2 className="text-2xl font-semibold text-primary-700">{savedName}</h2>
+                      <p className="text-gray-500 mt-2 text-sm">
+                        {extractedQuestions.length} שאלות · {achievable} נקודות · {criteria} קריטריונים
+                      </p>
+                      <p className="text-gray-700 mt-5 leading-relaxed">
+                        המחוון מוכן — עברת על הכל ואישרת. מכאן ויוי בודקת לפיו.
+                      </p>
+                      <div className="mt-8 flex flex-col gap-3">
+                        <button onClick={carryOnToGrading} className="flex items-center justify-center gap-2 mx-auto bg-primary-500 text-white px-6 py-2.5 rounded-lg hover:bg-primary-600 transition-colors font-medium">
+                          <GraduationCap size={18} />המשיכי לבדיקת מבחנים
+                        </button>
+                        <button onClick={goToHome} className="text-gray-500 hover:text-gray-700 text-sm">לדף הבית</button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </>

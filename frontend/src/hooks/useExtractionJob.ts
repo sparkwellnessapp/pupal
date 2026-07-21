@@ -147,17 +147,32 @@ export function useExtractionJob(
 }
 
 /** Hebrew labels for pipeline progress stages (ProgressEvent.stage values). */
+const STAGE_LABELS: Record<string, string> = {
+    render: 'קוראת את המסמך',
+    llm_call: 'מנתחת את המחוון',
+    validate: 'בודקת עקביות',
+    retry: 'מדייקת את החילוץ',
+    build: 'בונה את מבנה המחוון',
+    pedagogical: 'סורקת שגיאות במחוון',
+    complete: 'החילוץ הושלם',
+};
+
+/**
+ * Canonical stage order — for the PR-5 wait-screen checklist to sort the stages
+ * the SERVER has actually reported (never to fabricate future ones). A stage the
+ * server never reports simply never appears; ordering only affects how observed
+ * stages stack. `retry` is intentionally excluded from the ladder — it is an
+ * out-of-band "still working" beat, shown live but not as a ladder rung.
+ */
+const STAGE_ORDER = ['render', 'llm_call', 'validate', 'build', 'pedagogical', 'complete'] as const;
+
 export function getExtractionStageLabel(stage: string | null): string {
-    const labels: Record<string, string> = {
-        render: 'קוראת את המסמך',
-        llm_call: 'מנתחת את המחוון',
-        validate: 'בודקת עקביות',
-        retry: 'מדייקת את החילוץ',
-        build: 'בונה את מבנה המחוון',
-        pedagogical: 'סורקת שגיאות במחוון',
-        complete: 'החילוץ הושלם',
-    };
-    return (stage && labels[stage]) || 'מעבדת את המסמך';
+    return (stage && STAGE_LABELS[stage]) || 'מעבדת את המסמך';
+}
+
+/** The canonical stage ladder (ordered), each with its Hebrew label. */
+export function getExtractionStageOrder(): { stage: string; label: string }[] {
+    return STAGE_ORDER.map(stage => ({ stage, label: STAGE_LABELS[stage] }));
 }
 
 export default useExtractionJob;

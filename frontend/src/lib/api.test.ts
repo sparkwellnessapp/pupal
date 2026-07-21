@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ApiAuthError, ApiError, apiFetch, apiFetchRaw } from './api';
+import { ApiAuthError, ApiError, apiFetch, apiFetchRaw, patchExtractionJobMetadata } from './api';
 
 // getAuthHeaders reads localStorage; stub both without pulling in jsdom.
 class MemoryStorage {
@@ -111,5 +111,26 @@ describe('apiFetchRaw — the carve-out for sites that own their status', () => 
         await apiFetchRaw('/x');
         const init = spy.mock.calls[0][1] as RequestInit;
         expect((init.headers as Record<string, string>).Authorization).toBe('Bearer tok-123');
+    });
+});
+
+describe('patchExtractionJobMetadata — the capture-card PATCH (PR-5 S1-2)', () => {
+    it('PATCHes the job with a JSON metadata body (one combined request)', async () => {
+        const spy = vi.fn(async (_url: string, _init?: RequestInit) =>
+            jsonResponse(200, { job_id: 'job-1', status: 'extracting' }));
+        vi.stubGlobal('fetch', spy);
+
+        await patchExtractionJobMetadata('job-1', { name: 'בגרות תשפ"ו', programming_language: 'Java' });
+
+        const [url, init] = spy.mock.calls[0] as [string, RequestInit];
+        expect(url).toContain('/api/v0/rubrics/extraction-jobs/job-1');
+        expect(init.method).toBe('PATCH');
+        expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+        expect(JSON.parse(init.body as string)).toEqual({ name: 'בגרות תשפ"ו', programming_language: 'Java' });
+    });
+
+    it('a metadata error surfaces as a thrown ApiError (caller toasts, never blocks the wait)', async () => {
+        vi.stubGlobal('fetch', async () => jsonResponse(500, { detail: 'boom' }));
+        await expect(patchExtractionJobMetadata('job-1', { name: 'x' })).rejects.toBeInstanceOf(ApiError);
     });
 });

@@ -21,7 +21,8 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
-from sqlalchemy import select, update
+from sqlalchemy import cast, select, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,6 +35,8 @@ from ...schemas.rubric_extraction_jobs import (
     JobProvenance,
     JobResultResponse,
     JobStatusResponse,
+    PatchJobMetadataRequest,
+    PatchJobMetadataResponse,
     RetryJobResponse,
     SubmitJobResponse,
 )
@@ -234,6 +237,75 @@ async def get_extraction_job(
 ) -> JobStatusResponse:
     job = await get_owned_or_404(db, RubricExtractionJob, job_id, current_user.id)
     return _status_response(job)
+
+
+# Metadata patch is legal for every non-terminal-failure status. A 'failed'
+# job has nothing to name (PR-5 S1-2.2); 'completed' is patchable because the
+# teacher names/labels the result on the review screen after extraction.
+_PATCHABLE_STATUSES = ("queued", "extracting", "completed")
+
+
+@router.patch("/{job_id}", response_model=PatchJobMetadataResponse)
+async def patch_extraction_job_metadata(
+    job_id: UUID,
+    payload: PatchJobMetadataRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PatchJobMetadataResponse:
+    """Merge caller-supplied metadata (name / programming_language) into the
+    job's request_params. METADATA-ONLY — the runner never reads these keys;
+    this only persists them for later save/resume.
+
+    The merge is a DB-level shallow concat (`request_params || :patch`), NOT a
+    read-modify-write in Python: the runner writes progress_stage/heartbeat/
+    result to the SAME row concurrently, so a full-row ORM save here would
+    clobber its progress. Only the keys the caller actually sent are merged
+    (exclude_unset), so an omitted field is untouched while an explicit null
+    overwrites with JSON null."""
+    job = await get_owned_or_404(db, RubricExtractionJob, job_id, current_user.id)
+    if job.status == "failed":
+        raise HTTPException(status_code=409, detail="לא ניתן לעדכן פרטים של הרצה שנכשלה")
+
+    # Distinguish 'omitted' from 'explicit null': merge ONLY sent keys.
+    patch = payload.model_dump(exclude_unset=True)
+    if not patch:
+        # Nothing to merge — idempotent no-op; echo the current state.
+        return PatchJobMetadataResponse(
+            job_id=job.id, status=job.status, request_params=job.request_params or {}
+        )
+
+    now = datetime.now(timezone.utc)
+    # Atomic, column-targeted JSONB merge with the status guard folded into the
+    # WHERE (closes the read→write race where the runner fails the job between
+    # the ownership load above and this UPDATE). RETURNING gives the post-merge
+    # values in one round-trip; the ORM-loaded `job` is now stale and unused.
+    result = await db.execute(
+        update(RubricExtractionJob)
+        .where(
+            RubricExtractionJob.id == job_id,
+            RubricExtractionJob.user_id == current_user.id,
+            RubricExtractionJob.status.in_(_PATCHABLE_STATUSES),
+        )
+        .values(
+            request_params=RubricExtractionJob.request_params.op("||")(
+                cast(patch, JSONB)
+            ),
+            updated_at=now,
+        )
+        .returning(RubricExtractionJob.status, RubricExtractionJob.request_params)
+    )
+    row = result.first()
+    if row is None:
+        # Raced: status flipped out of the patchable set (→ failed) after the
+        # ownership load. Ownership was already proven, so this is not a 404.
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="לא ניתן לעדכן פרטים של הרצה שנכשלה")
+    await db.commit()
+    logger.info("extraction_job_metadata_patched",
+                extra={"job_id": str(job_id), "patched_keys": sorted(patch.keys())})
+    return PatchJobMetadataResponse(
+        job_id=job_id, status=row.status, request_params=row.request_params
+    )
 
 
 @router.get("/{job_id}/result", response_model=JobResultResponse)

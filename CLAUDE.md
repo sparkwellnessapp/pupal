@@ -315,10 +315,12 @@ Next.js 14 App Router + TypeScript + Tailwind, RTL Hebrew, Vercel.
 |---|---|
 | `src/app/page.tsx` | Main workflow: rubric-select → upload → transcribe → review → grade → draft-review |
 | `src/app/my-rubrics/`, `my-graded-tests/`, `my-classroom/` | Library, graded history, roster (students/classes tabs) |
-| `src/components/RubricEditor.tsx` | Rubric editing; owns the save-blocking state machine (§11) |
+| `src/components/RubricDocument.tsx` | **The document mirror (PR-5 S2) — the rubric-review surface for the docx flow.** Reads as her DOCX annotated by Vivi (see §11 mirror note) |
+| `src/components/RubricEditor.tsx` | **Rollback** rubric editor; owns the save-blocking state machine (§11). Behind `USE_DOCUMENT_MIRROR=false`; the mirror replaces it live |
+| `src/components/document/` | Mirror primitives: `EditableText`, `EditablePoints`, `CodeBlock`, `DisclosureRow`, `DataTables` (document-styled trace/context/mini-tables) |
 | `src/components/TranscriptionReviewPanel.tsx` | Side-by-side transcription vs. source PDF (the layout reused for graded-test review) |
 | `src/components/GradedTestReviewPanel.tsx` | Graded draft review/edit/approve; revision affordances (regrade/manual-edit/retry) |
-| `src/components/AnnotationBanner.tsx` | Single severity-differentiated annotation renderer |
+| `src/components/AnnotationBanner.tsx` | Single severity-differentiated **rubric** annotation renderer (a real standalone file since PR-5 S2 — RubricEditor + the mirror both import it) |
 | `src/components/StudentPicker.tsx` | Select-or-create student; reused in single + batch flows |
 | `src/lib/api.ts` | API client; `getAuthHeaders()` on every authenticated call |
 | `src/types/` | TS mirrors of backend schemas |
@@ -359,6 +361,16 @@ The frontend mirrors the backend's arbitrary-depth ontology (`q1.א.2`), not a d
 - **Editor** (`RubricEditor.tsx::SubQuestionNode`): recursive render, path-addressed ops (`*AtPath` in `rubric-editor-ops.ts`), full-path `data-scope-id` so a `q1.א.2` annotation anchors.
 
 **The acceptance bar is a test:** `utils/rubric-transform.test.ts` round-trips all five golden benchmarks (read in place from `backend/tests/rubric_eval_suite/benchmarks/`) under a Decimal-aware comparator. If you touch the codec, that suite is the golden self-pass — keep it green. **Deferred (B-11b):** the my-rubrics / rubric-generator save payload still drops `selection_groups` / re-sums the total / drops `programming_language` (document-envelope leak, witnessed by a `todo` test).
+
+### The document mirror is the review surface (PR-5 Sprint 2)
+
+`RubricDocument.tsx` replaces `RubricEditor` as the rubric-review UI for the docx flow — the review must read as *her DOCX annotated by Vivi*, not form furniture. It is a **NEW SIBLING VIEW**: same prop seam as `RubricEditor` **plus** `selectionGroups`, consuming `questions`/`annotations`/`errorBannerRef` and emitting through `onQuestionsChange`/`onTotalPointsChange`/`onMetadataChange`. It **never touches `rubric-transform.ts`** or its golden suite.
+
+- **Kill-switch:** `src/lib/flags.ts::USE_DOCUMENT_MIRROR` (a plain boolean — there is **no** PDF-rubric flow, so no `sourceType` guard). `false` reverts to `RubricEditor`, which stays in-tree as the rollback target. Flip nothing else. **Flip-and-deploy (the 22:00 rollback):** edit the one line `export const USE_DOCUMENT_MIRROR = false;` in `frontend/src/lib/flags.ts`, then ship the frontend the normal way (§12.5 — mirror `frontend/`→`grader-frontend/`, commit, `git subtree push --prefix grader-frontend origin frontend-deployment` to trigger the Vercel prod build). No backend change, no env var, no data migration — the old editor is already deployed code behind the flag, so the rollback is a one-line diff + one deploy.
+- **CORRECTNESS INVARIANT — "ops imported, never forked":** every mirror edit routes through the pure `*AtPath` ops (`rubric-editor-ops.ts`) + `recalculateParentsFromCriteria`. This is not style — the page-level **undo stack** (`utils/rubric-history.ts`, E-1) pushes snapshots of the tuple `{questions, declaredTotal, name}` **by reference** and relies on structural sharing (50 snapshots is trivial). One in-place mutation would retroactively corrupt earlier snapshots. (RubricEditor's own `updateCriterion` still has that landmine — see BACKLOG B-15; do NOT wire undo/memo onto the old editor without fixing it.)
+- **Living sums (E-3):** the teacher edits LEAVES (criterion points/descriptions, sub-criteria); sub-question points and direct-criteria question totals are **read-only cascaded sums**. A parent question's declared total stays editable (INV-R1 surfaces mismatch).
+- **The one interpretation site:** `utils/detect-table-runs.ts` re-recognizes flattened DOCX tables at RENDER only (pure, precision-biased — when unsure, don't tableize). `findingSectionsByQuestion` (E-2 rail dots) and `countFindings` share one severity+dedup module (`utils/finding-severity.ts`).
+- **Deferred (BACKLOG B-16):** prose/title/solution editing, nested-node CRUD, and shared-lifting the trace/context tables (the mirror got fresh document-styled `document/DataTables.tsx`; only `AnnotationBanner` was truly lifted). All are extension points, none block the DoD.
 
 ---
 

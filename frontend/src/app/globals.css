@@ -97,3 +97,38 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ── PR-5 Sprint 2 (the document mirror) motion ── */
+
+/* E-3 living sums: a committed / cascaded points chip glows softly, then settles.
+   Background-only (no layout shift). She watches the arithmetic stay true. */
+@keyframes pointsCascadeGlow {
+  0%   { background-color: rgba(16, 185, 129, 0.20); }
+  100% { background-color: transparent; }
+}
+.points-cascade-glow {
+  animation: pointsCascadeGlow 0.6s ease-out;
+  border-radius: 0.25rem;
+}
+
+/* E-4 continuity of arrival (lightweight approximation): the header settles in from
+   the top; sections stagger in beneath. Same thing, now open. */
+@keyframes docHeaderEnter {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.doc-enter-header { animation: docHeaderEnter 0.28s ease-out both; }
+@keyframes docSectionEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.doc-enter-section { animation: docSectionEnter 0.3s ease-out both; }
+
+/* Reduced means instant, never broken — ALL S2 (and existing) motion collapses. */
+@media (prefers-reduced-motion: reduce) {
+  .points-cascade-glow,
+  .doc-enter-header,
+  .doc-enter-section,
+  .animate-fade-in,
+  .animate-pulse-soft { animation: none !important; }
+}

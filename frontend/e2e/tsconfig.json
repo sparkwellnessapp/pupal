@@ -1,8 +1,8 @@
 {
-  "comment": "Playwright transpiles specs with its own loader; force CommonJS so the app's module:esnext tsconfig doesn't produce output that references `exports` in a CJS context.",
+  "comment": "Standalone config for the Playwright specs (Playwright transpiles them with its own loader; this drives type-checking / the IDE). module/moduleResolution 'nodenext' is the modern, non-deprecated Node setting (the old 'node'/'node10' stops functioning in TS 7). Because package.json has no \"type\":\"module\", these .ts files resolve as CommonJS — exactly what the specs depend on: fixtures.ts uses __dirname and extension-less relative imports for Playwright's CJS loader.",
   "compilerOptions": {
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "target": "es2021",
     "lib": ["dom", "esnext"],
     "esModuleInterop": true,

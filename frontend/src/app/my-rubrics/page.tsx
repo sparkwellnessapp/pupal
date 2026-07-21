@@ -442,6 +442,7 @@ export default function MyRubricsPage() {
                         <div className="mt-6">
                             <RubricErrorDisplay
                                 error={saveError}
+                                questions={editedQuestions}
                                 onDismiss={() => setSaveError(null)}
                             />
                         </div>
@@ -453,6 +454,7 @@ export default function MyRubricsPage() {
                     <RubricWarningsModal
                         warnings={saveWarnings.warnings}
                         messageHe={saveWarnings.message_he}
+                        questions={editedQuestions}
                         onAcknowledge={handleAcknowledgeWarnings}
                         onCancel={handleCancelWarnings}
                         isSubmitting={isSaving}

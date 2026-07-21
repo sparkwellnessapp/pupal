@@ -60,3 +60,23 @@ class JobResultResponse(BaseModel):
 class RetryJobResponse(BaseModel):
     job_id: UUID
     status: str                      # 'queued'
+
+
+class PatchJobMetadataRequest(BaseModel):
+    """Metadata patch for a rubric-extraction job (PR-5 S1-2.2).
+
+    METADATA-ONLY: the runner never reads these keys — this endpoint only
+    persists them into request_params for later save/resume. Both fields are
+    OPTIONAL and 'omitted' is distinct from 'explicit null': only the keys the
+    caller actually sent are merged (build the patch via model_dump(
+    exclude_unset=True)), so an omitted field leaves the stored value untouched
+    while an explicit null overwrites it with JSON null.
+    """
+    name: Optional[str] = None
+    programming_language: Optional[str] = None
+
+
+class PatchJobMetadataResponse(BaseModel):
+    job_id: UUID
+    status: str                      # queued | extracting | completed
+    request_params: Dict[str, Any]   # post-merge, echoed so the caller can confirm

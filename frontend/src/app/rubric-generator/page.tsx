@@ -981,6 +981,7 @@ export default function RubricGeneratorPage() {
                 <RubricWarningsModal
                     warnings={saveWarnings.warnings}
                     messageHe={saveWarnings.message_he}
+                    questions={editedQuestions}
                     onAcknowledge={handleAcknowledgeWarnings}
                     onCancel={handleCancelWarnings}
                     isSubmitting={isSaving}
@@ -992,6 +993,7 @@ export default function RubricGeneratorPage() {
                 <div className="fixed bottom-4 left-4 right-4 max-w-lg mx-auto z-40">
                     <RubricErrorDisplay
                         error={saveError}
+                        questions={editedQuestions}
                         onDismiss={() => setSaveError(null)}
                     />
                 </div>

@@ -420,3 +420,45 @@ spec (R2/B-9) called for an INFO annotation ("לא נבחר למענה (שאלת
 implemented. Low urgency (the badge covers the display need), but if richer per-scope
 messaging is wanted, emit the INFO annotation in `grading_runner` and add its
 `annotation_type` to the frontend `GradingAnnotation` union.
+
+---
+
+## B-15. `RubricEditor.updateCriterion` mutates a shared question object in place
+
+**Found by:** PR-5 Sprint 2 (verified while pressure-testing the undo stack). **Owner:** whoever
+next touches `RubricEditor` (it dies with the old editor once the docx flow retires it).
+
+`RubricEditor.updateCriterion` ([RubricEditor.tsx](vivi-codebase/frontend/src/components/RubricEditor.tsx)) does
+`const newQuestions = [...questions]` (a SHALLOW copy) then `newQuestions[qIndex].criteria[cIndex] = {...}`
+— which mutates the `criteria` array of the **shared** question object (`newQuestions[qIndex] === questions[qIndex]`).
+`addCriterion` has the same shape. It is benign **today only because nothing holds a reference to the prior
+`questions`** — but it becomes real corruption the moment anything does: an undo/history stack, `React.memo`,
+or any concurrent feature. This is exactly why PR-5's mirror (`RubricDocument`) routes **all** edits through the
+pure `*AtPath` ops (immutable, structural-sharing) and made "ops imported, never forked" a **correctness
+invariant**, not a style rule — its page-level undo pushes snapshots by reference. Fix: rewrite `updateCriterion`/
+`addCriterion` immutably (or delete them when `RubricEditor` retires). Do NOT wire an undo/memo onto the old
+editor without fixing this first.
+
+---
+
+## B-16. Document-mirror deferrals (PR-5 Sprint 2, conscious scope fences)
+
+**Found by:** PR-5 Sprint 2. **Owner:** follow-up mirror sprints (S3+).
+
+The mirror (`RubricDocument`) shipped the criteria-points-centric core. Deliberately deferred, each a
+clean extension point, not a gap:
+1. **Prose editing is read-only.** Question/sub-question text renders via `RichBody` (with table detection)
+   but isn't editable this sprint (the Dream DoD is criteria-points-centric; editing rich text with embedded
+   tables needs a display-vs-raw-edit split). The "הוסיפי טקסט" affordance (⋯ menu) and sub-question **title**
+   editing are also deferred.
+2. **Solutions are read-only (D-2).** `ExampleSolutionEditor` can mount into `SolutionBlock` later.
+3. **Node add/remove** (question / sub-question) and leaf↔parent conversion are deferred — the ops exist
+   (`addSubQuestion`/`removeSubQuestion` depth-1; nested-node CRUD absent) but the document metaphor makes
+   them heavy. Criterion add/remove IS shipped.
+4. **Trace/context tables were NOT shared-lifted.** The spec said "lift TraceTablesDisplay/QuestionContextTablesDisplay
+   from RubricEditor"; instead the mirror got **fresh document-aesthetic** renderers (`document/DataTables.tsx`)
+   and RubricEditor kept its inline card-styled copies (byte-stable for the rollback). Only `AnnotationBanner`
+   was truly lifted+shared. If unifying is wanted, extract a shared component with a `variant` prop.
+5. **Undo is undo-only** (no redo at MVP — ruled).
+
+None of these block the Dream DoD; all are extension points.

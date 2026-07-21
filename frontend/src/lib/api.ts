@@ -944,6 +944,23 @@ export async function getExtractionJobResult(jobId: string): Promise<ExtractionJ
   return response.json();
 }
 
+/**
+ * PR-5 S1-2: patch metadata (name / programming_language) onto a running job.
+ * METADATA-ONLY by contract — the runner never reads these; they persist in
+ * request_params for save/resume. Backend merges atomically (jsonb ||), so
+ * omitted keys are untouched. Fire from the capture card (one combined PATCH).
+ */
+export async function patchExtractionJobMetadata(
+  jobId: string,
+  patch: { name?: string | null; programming_language?: string | null },
+): Promise<{ job_id: string; status: string }> {
+  const response = await apiFetchChecked(
+    `${EXTRACTION_JOBS_BASE}/${jobId}`,
+    jsonInit('PATCH', patch),
+  );
+  return response.json();
+}
+
 /** Re-queue a failed or stale job. The source DOCX is stored server-side — no re-upload. */
 export async function retryExtractionJob(jobId: string): Promise<{ job_id: string; status: string }> {
   const response = await apiFetchChecked(`${EXTRACTION_JOBS_BASE}/${jobId}/retry`, {
