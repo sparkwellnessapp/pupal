@@ -84,7 +84,15 @@ def aggregate(per_rubric: List[RubricScore]) -> dict:
             intok = [r.input_tokens for r in recs if r.input_tokens is not None]
             outtok = [r.output_tokens for r in recs if r.output_tokens is not None]
             retr = [r.retry_count for r in recs if r.retry_count is not None]
-            local = [r.total_seconds - (r.render_seconds or 0.0) - (r.llm_seconds or 0.0)
+            # llm_seconds covers ONLY Step 1 (_extract_with_retry). The Step 2c Tier-B
+            # adjudicator is a SEPARATE LLM call inside total_seconds but outside
+            # llm_seconds — recover it from the pedagogical stage timings so it is NOT
+            # mis-booked as local CPU overhead (adversarial-review finding, 2026-07-21).
+            def _tier_b(r):
+                return sum(st.dt_s for st in (r.stage_timings or [])
+                           if st.stage == "pedagogical" and st.dt_s) or 0.0
+            tierb = [_tier_b(r) for r in recs]
+            local = [r.total_seconds - (r.render_seconds or 0.0) - (r.llm_seconds or 0.0) - _tier_b(r)
                      for r in recs]
             per_fixture[name] = {
                 "n": len(recs),
@@ -92,6 +100,7 @@ def aggregate(per_rubric: List[RubricScore]) -> dict:
                 "t_doc_max": round(max(tot), 2),
                 "render_median": round(statistics.median(rnd), 3) if rnd else None,
                 "llm_median": round(statistics.median(llm), 2) if llm else None,
+                "tier_b_median": round(statistics.median(tierb), 3),
                 "local_overhead_median": round(statistics.median(local), 3),
                 "in_tok_median": int(statistics.median(intok)) if intok else None,
                 "out_tok_median": int(statistics.median(outtok)) if outtok else None,
@@ -177,12 +186,13 @@ def write_summary(suite: SuiteResult, out_dir: Path) -> Path:
                      f"**{lat['headline_median_worst']}s** ({lat['headline_fixture']})")
         lines.append(f"- **tail** `max-over-fixtures of t_doc_max` = "
                      f"**{lat['tail_max_worst']}s** ({lat['tail_fixture']})\n")
-        lines.append("| fixture | n | t_doc median | t_doc max | render | llm | local | in_tok | out_tok | retries |")
-        lines.append("|---|---|---|---|---|---|---|---|---|---|")
+        lines.append("| fixture | n | t_doc median | t_doc max | render | step1_llm | tier_b | local | in_tok | out_tok | retries |")
+        lines.append("|---|---|---|---|---|---|---|---|---|---|---|")
         for name in sorted(lat["per_fixture"]):
             d = lat["per_fixture"][name]
             lines.append(f"| {name} | {d['n']} | {d['t_doc_median']} | {d['t_doc_max']} | "
-                         f"{d['render_median']} | {d['llm_median']} | {d['local_overhead_median']} | "
+                         f"{d['render_median']} | {d['llm_median']} | {d.get('tier_b_median')} | "
+                         f"{d['local_overhead_median']} | "
                          f"{d['in_tok_median']} | {d['out_tok_median']} | {d['retries_total']} |")
         lines.append("")
 
@@ -235,10 +245,12 @@ def write_rubric_report(rs: RubricScore, out_dir: Path) -> Path:
     # ADDITIVE latency instrument (Phase 0): per-step decomposition for attribution.
     if rs.total_seconds is not None:
         L.append("## Latency (UNGATED instrument)")
-        local = rs.total_seconds - (rs.render_seconds or 0.0) - (rs.llm_seconds or 0.0)
+        tier_b = sum(st.dt_s for st in (rs.stage_timings or [])
+                     if st.stage == "pedagogical" and st.dt_s) or 0.0
+        local = rs.total_seconds - (rs.render_seconds or 0.0) - (rs.llm_seconds or 0.0) - tier_b
         L.append(f"- t_doc(total)={rs.total_seconds:.2f}s  wall={rs.wall_seconds}  "
-                 f"render={rs.render_seconds}  llm={rs.llm_seconds}  "
-                 f"local_overhead={local:.3f}s")
+                 f"render={rs.render_seconds}  step1_llm={rs.llm_seconds}  "
+                 f"tier_b={round(tier_b, 3)}s  local_overhead={local:.3f}s")
         L.append(f"- tokens in/out: {rs.input_tokens}/{rs.output_tokens}  "
                  f"finish_reason={rs.finish_reason}  retries={rs.retry_count}")
         if rs.stage_timings:
