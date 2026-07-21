@@ -218,3 +218,55 @@ entry guard = T+60 = 420s · transport-attempt floor = T+10 = 370s · worst logi
 call = 2×360 + backoff ≈ 725s ⇒ still fits ONE call inside the budget, and a second
 is refused rather than started. Overshoot past the 900s Cloud Run kill is therefore
 unreachable via the guarded path.
+
+---
+
+# MISSION latency — pre-registered candidates (registered 2026-07-21, BEFORE any candidate run)
+
+Scope note: per the run owner's decision this mission STOPS after baseline + attribution +
+pre-registration. These are pre-registrations for FUTURE authorized runs, NOT results. No
+candidate was run. Baseline: gpt-5.5/effort=medium/prompt 3.3.1-tracehdr/pipeline 3.3.0,
+2 blocks k=3 (20260721-134812 + -142212), 30/30 valid, 5/5 gate. Headline = bagrut
+t_doc_median 413.9s. Noise floor (clean fixtures) 1-11% between-block ⇒ MDE ≈ 2×.
+
+**P-L1 (retry elimination — the primary Tier-1 candidate; HIGHEST value × lowest risk).**
+Variable (exactly one): `pipeline.py::_validate_extraction` — the `EMPTY_SQ_TEXT` check gains
+`and not sq.sub_questions` so it fires ONLY on LEAF sub-questions. A branch/splitter SQ (has
+sub_questions, legitimately null text per SECTION-8 — e.g. bagrut q1.א) no longer raises the
+retryable EMPTY_SQ_TEXT issue. Bump PIPELINE_VERSION 3.3.0→3.4.0. Prompt/GT/scorer UNTOUCHED.
+Term attacked: t_retry_overhead. Measured mechanism: bagrut's null-text branch SQ falsely
+triggers a retryable EMPTY_SQ_TEXT ⇒ 1 full extra ~200-230s LLM call; on retry the model
+INVENTS splitter text to satisfy the false feedback (a latent accuracy smell, currently
+gate-harmless). Fired on 5/7 baseline bagrut draws.
+PREDICTED effect: bagrut t_doc_median 413.9s → ~200s (the observed retry-absent regime 186-220s);
+headline reduction ≈ 48-55% (clears the 30% target and the 50% stretch). bagrut between-block
+variance 104.7% → clean-fixture-like ~10%. bagrut retry_count → 0 on faithful draws. Other 4
+fixtures unaffected (they carry no branch SQ / no retry). Cost/doc DROPS (fewer tokens) — not a
+cost-for-latency trade.
+PREDICTED gated metrics: ZERO movement. The retry today makes the model invent branch-SQ text yet
+bagrut still passes 5/5; returning the retry-free first extraction (correct null-text shape) must
+also pass. subquestion_text_fidelity at that node is None (GT null ⇒ not-comparable), so it can
+only improve or stay — an UNGATED, WATCHED diagnostic.
+KILL: (a) ANY gated-metric regression on ANY fixture at k≥5 (5/5 must hold) ⇒ REVERT; (b) bagrut
+retry_count not →0 (EMPTY_SQ_TEXT still fires OR a different retryable class now dominates) ⇒ fix
+insufficient; (c) validity/transport-failure rate worse; (d) any ungated diagnostic moves
+materially ⇒ surface, do not bank.
+CONFIRMATION PLAN (for Noam to authorize): screen k=2 on {bagrut, csharp} (~$2.7), then k=8 all-5
+(~$9-10, cheaper than baseline because the retry is gone). ~$12 total.
+
+**P-L6/L7 (reasoning_effort — Tier 2, PROPOSE-ONLY, requires Noam).** Decode is ~99% of t_doc and
+t_doc ≈ output_tokens/~57 tok/s, so effort (reasoning-token volume) is the biggest RAW knob and
+cuts ALL fixtures, not just bagrut. But it is the lever most likely to break bagrut's faithful-
+error gate (annotation_match + pedagogical_match never-reconcile tripwires) — the hardest reasoning
+in the set. Config-only to screen (gpt-5.5 supports none/low/medium/high/xhigh). L7 (per-step effort
+mixing) needs per-step knob plumbing in the LLM constructor policy. Do NOT promote without Noam;
+test low before none; bagrut is the make-or-break fixture. Registered as the second front, unrun.
+
+**P-L8 (model swap — Tier 2, PROPOSE-ONLY).** A generation with faster decode or fewer output
+tokens is a direct latency win. Config-only to screen (cross-family configs exist). Promotion is a
+Noam decision (cost table, prod pin, provider risk). Unrun.
+
+**Ruled out by the latency model (do not spend screens):** L5 render (0.1-0.35s, <0.3%); L2 client
+reuse (~100-300ms/call vs 60-410s); L4 prompt-cache (attacks prefill, a minority of decode-dominated
+t_doc; cached_tokens not yet measured — a small additive pipeline provenance read would quantify it,
+low ceiling). Tier-B second call (hobby only, ~9.5s) is minor and fires only on a structural trigger.

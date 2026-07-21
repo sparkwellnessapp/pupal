@@ -658,3 +658,87 @@ live E2E, deployed revision 00026-rx8, both archetypes GREEN:
     message_he="סעיף q1.א.2: סכום רכיבי הניקוד (2) שונה מהניקוד המוצהר (3)"
   That payload is the answer to the PR-4 anchor question: the flat-list renderer already
   shows node + numbers + real Hebrew, so PR-4's anchor work is POLISH, not rescue.
+
+## CHANGE 2026-07-19 — Phase 0 latency instrument (MISSION_rubric_extraction_latency; ADDITIVE)
+what: additive latency measurement, confined to schemas.py/reporting.py/runner.py
+  (the mission's one sanctioned suite edit). (1) schemas: StageTiming dataclass +
+  RubricScore latency fields total_seconds/render_seconds/wall_seconds/input_tokens/
+  output_tokens/stage_timings (all Optional, None-default). (2) runner: per-step
+  wall-clocks via the EXISTING on_progress pure-data seam (injected, NOT a pipeline
+  edit; failures swallowed) + a monotonic wall wrap (wall_seconds) as an independent
+  cross-check of the pipeline's time.time() total; fields populated AFTER scoring
+  (scorer immutable); NEW --only screening filter (default=all fixtures). (3)
+  reporting: per-fixture median/max t_doc, headline=max-over-fixtures of median,
+  tail=max-over-fixtures of max, per-step decomposition in summary + per-rubric report.
+why: the suite measured cost, not time. The mission optimises latency; you cannot
+  optimise what the instrument does not measure. Nothing about scoring/gating/prompt/
+  model/pipeline behaviour changes — pipeline.py is byte-identical (on_progress is its
+  own public seam; PIPELINE_VERSION unchanged at 3.3.0).
+by: MISSION (Noam) Phase 0; executed by agent on branch perf/rubric-extraction-latency
+  (commit efc92fc).
+affects: suite_hash 50994d2a97e3accf -> 77db3bb9aea7658b. Pre-instrumentation runs are
+  NO LONGER hash-comparable, but SCORES remain comparable (proven: score_only re-score
+  of all 5 cached 20260711-131057 predictions is byte-identical on every scoring field;
+  39/39 offline guards pass). reasoning_tokens/cached_tokens are NOT yet exposed (would
+  need a pipeline _call_meta_from_raw touch) — deferred; noted for Phase 2. NO GT
+  artifact touched. This entry is instrument-only; no LLM run, no gated-metric claim.
+
+## RUN 20260720-131556_gpt-5.5 — INVALID-RUN (transport cascade)
+ref: none (first instrumented baseline attempt, Phase 1 Block A)
+purpose: baseline Block A (k=3, all 5) — noise band + latency model
+variable changed vs ref: none (prod pin gpt-5.5/medium/3.3.1-tracehdr/pipeline 3.3.0)
+config: gpt-5.5  k: 3  suite_hash: 77db3bb9aea7658b
+validity: 1/15 valid — 14 INVALID (APIConnectionError after 2 transport attempts;
+  network-level, NOT quota, NOT gate failures). Cascade: bagrut k0 OK, then every
+  trial after failed → a sustained connectivity window, not isolated blips.
+  Post-run csharp k=1 probe (20260721-134442) PASSED → window was transient, cleared.
+latency (n=1 valid, attribution only): bagrut k0 t_doc=451.2s, llm=450.9s (99.9%),
+  render=0.35s, out_tok=25691, retries=1, $0.956. Confirms bagrut = headline fixture,
+  decode-dominated, retries (EMPTY_SQ_TEXT branch-SQ mechanism); the retry ≈ one full
+  extra ~225s call ≈ half of t_doc — the L1 lever's headline target.
+decisions: retain bagrut k0 as valid attribution; relaunch baseline (reserve covers
+  one transport re-run, mission §4). No baseline/noise-band computable from n=1.
+cost: ~$0.96 this run (failed calls ~$0). Running total ~$1.30 of $35.
+corrections: none
+
+## RUN 20260721-134812_gpt-5.5 — baseline Block A2 (VALID)
+ref: none (first valid instrumented baseline block, Phase 1)
+purpose: baseline block 1/2 — latency model + 5/5 reproduction
+variable changed vs ref: none (prod pin gpt-5.5/medium/3.3.1-tracehdr/pipeline 3.3.0)
+config: gpt-5.5  k: 3  suite_hash: 77db3bb9aea7658b
+validity: 15/15 valid; gate: 15/15 PASS (5/5 fixtures × 3) — baseline reproduces 5/5.
+latency (t_doc median | max, s): bagrut 220.4 | 432.0 · foundations 107.8 | 114.8 ·
+  hobby 110.3 | 112.3 · csharp 77.6 | 84.2 · employee 76.0 | 82.8. HEADLINE (max-over-
+  fixtures of median) = bagrut 220.4s. Decode-dominated: t_doc≈render(~0.1-0.35s)+llm;
+  local overhead ~1ms. t_doc ≈ output_tokens / ~57 tok/s.
+key: bagrut retry (EMPTY_SQ_TEXT on the null-text BRANCH sub-question, a legitimate
+  SECTION-8 splitter) fired 1/3 here (k0), 2/4 across both blocks; when it fires,
+  out_tok ~doubles (11.6k→25.7k) and t_doc ~doubles (185→432). This is the L1 lever's
+  quantified target — the single largest movable term on the headline fixture.
+cost: $4.21 this run ($0.281/doc-trial mean). Running total ~$5.51 of $35.
+corrections: none
+
+## RUN 20260721-142212_gpt-5.5 — baseline Block B (VALID)
+ref: 20260721-134812 (Block A2) — SAME tree (no variable changed); 2nd block for noise band
+purpose: baseline block 2/2 — between-block run-to-run noise band
+config: gpt-5.5  k: 3  suite_hash: 77db3bb9aea7658b
+validity: 15/15 valid; gate: 15/15 PASS (5/5 × 3).
+latency (t_doc median, s): bagrut 413.9 · foundations 119.2 · hobby 104.4 · csharp 76.2 · employee 76.8.
+noise band (between-block median spread A2 vs B): csharp 1.8% · employee 1.1% · hobby 5.6% ·
+  foundations 10.6% · bagrut 104.7%. Clean-fixture noise floor ~1-11% (decode nondeterminism);
+  MDE (2×) ~2-22%. bagrut's 105% is RETRY-DRIVEN: retry fired 3/3 here vs 1/3 in A2 (5/7 across
+  both blocks). The retry is the dominant latency AND variance source on the headline fixture.
+key: bagrut retry present ⇒ ~393-451s (out ~24-26k); absent ⇒ ~186-220s (out ~12k). ~2× switch.
+cost: ~$5.05 this run. Running total $10.56 of $35 (32 valid billed trials). BASELINE COMPLETE —
+  no further paid runs (scope: baseline + attribution + pre-register, then stop).
+corrections: none
+
+## CHANGE 2026-07-21 — FINDING: unrelated commit 64fa19a on the perf branch (NOT authored by this mission)
+what: `git log main..HEAD` shows TWO commits: efc92fc (mine, the 3-file latency instrument) and,
+  ON TOP of it, 64fa19a "PR-5: document mirror (Sprint 2) + async capture flow (Sprint 1)" — 46
+  app/frontend files. It was committed by another actor during this mission's background baseline
+  runs (the repo had large uncommitted PR-5 working-tree changes when the perf branch was cut).
+impact: touches NO immutable-set file (targeted `git diff --name-only main...HEAD -- <immutable>`
+  is EMPTY; all 5 benchmarks byte-identical to the pre-mission sha snapshot) ⇒ gate integrity intact.
+  It only pollutes the branch's file list. NOT reset/rebased away: I did not author it and it may be
+  wanted work (operating rule: don't delete what you didn't create — surface it). Handed to Noam.
