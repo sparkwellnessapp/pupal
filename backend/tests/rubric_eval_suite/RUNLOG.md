@@ -742,3 +742,16 @@ impact: touches NO immutable-set file (targeted `git diff --name-only main...HEA
   is EMPTY; all 5 benchmarks byte-identical to the pre-mission sha snapshot) ⇒ gate integrity intact.
   It only pollutes the branch's file list. NOT reset/rebased away: I did not author it and it may be
   wanted work (operating rule: don't delete what you didn't create — surface it). Handed to Noam.
+
+## CHANGE 2026-07-23 — PIPELINE 3.3.0 → 3.4.0: P-L1 branch-SQ EMPTY_SQ_TEXT exemption
+what: pipeline.py _validate_extraction — the EMPTY_SQ_TEXT check gains `not sq.sub_questions`
+  so it fires ONLY on LEAF sub-questions. A branch/splitter SQ (carries sub_questions,
+  legitimately null text per SECTION-8) no longer raises the retryable issue. PIPELINE_VERSION
+  3.3.0→3.4.0. Prompt/GT/scorer/config UNTOUCHED. Immutable test_retry_policy still green
+  (its EMPTY_SQ_TEXT cases use LEAF SQs — unaffected). All 39 guards pass.
+why: P-L1 (pre-registered PREDICTIONS.md). bagrut's false EMPTY_SQ_TEXT retry fires ~71% of
+  baseline draws, ~doubles the doc (186→414s), and drives its 105% variance.
+protocol (gate owner ruling, 2026-07-23): k=1 per lever (screening, NON-PROMOTABLE — cannot
+  distinguish safe from lucky), then ONE k=3 all-5 validation on the winning config only, to
+  save spend. Amends the mission's k=5/k=8 bar; logged as the owner's ruling. Stop on 403.
+by: owner (Noam) authorized; implemented by agent. Run entry follows.

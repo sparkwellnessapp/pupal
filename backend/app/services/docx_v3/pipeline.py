@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 #               failure instead of a Cloud Run SIGKILL. Behavior-affecting =>
 #               invalidates transport/latency comparisons vs pre-3.3.0 runs.
 #               deadline_seconds=None (eval default) => unbounded, gate untouched.
-PIPELINE_VERSION = "3.3.0"
+PIPELINE_VERSION = "3.4.0"  # P-L1: branch sub-questions exempt from EMPTY_SQ_TEXT retry
 _MAX_RETRIES = 2
 _SUM_TOLERANCE = 0.5   # validation tolerance (pre-save, human-readable)
 _COMPILE_TOLERANCE = 0.01  # compilation tolerance (INV-1/INV-2 exact)
@@ -1188,9 +1188,17 @@ def _validate_extraction(extraction: RubricExtraction) -> List[ValidationIssue]:
             ))
             continue
 
-        # Sub-questions with missing text
+        # Sub-questions with missing text — LEAF sub-questions only (P-L1).
+        # A BRANCH (splitter) sub-question — one that carries its own sub_questions —
+        # legitimately has null task text under the SECTION-8 convention: its prose
+        # lives in its nested parts (e.g. bagrut q1.א splits into (1)/(2)). Firing
+        # the retryable EMPTY_SQ_TEXT on such a node is a FALSE trigger: it demands
+        # text the convention says must not exist, so the retry cannot succeed and
+        # burns a full extra LLM call (~200s/draw on bagrut, ~71% of draws), while
+        # tempting the model to invent splitter prose. Only LEAF sub-questions carry
+        # task text, so only they are checked here.
         for sq in q.sub_questions:
-            if not sq.text or sq.text.strip() == "":
+            if not sq.sub_questions and (not sq.text or sq.text.strip() == ""):
                 issues.append(ValidationIssue(
                     code="EMPTY_SQ_TEXT",
                     message=f"{qid}.{sq.sub_question_id}: Sub-question exists but has no task text. "
