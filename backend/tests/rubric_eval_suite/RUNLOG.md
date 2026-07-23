@@ -804,3 +804,20 @@ status: P-L1 CONFIRMED at SCREENING (k=1 all-5 5/5; 2 bagrut L1 draws 206.3/191.
   P-L6-low remains FALSIFIED. Winner = L1-only (medium).
 cost: total session spend $13.33 of $35 (quota now exhausted).
 corrections: none
+
+## RUN 20260723-162200_gpt-5.5 — P-L1 k=3 all-5 VALIDATION — CONFIRMED (owner k=3 DoD met)
+ref: baseline 20260721-134812/-142212 (headline 413.9s). Winner: config gpt-5.5 (medium), L1
+  pipeline 3.4.0. ONE variable vs baseline: pipeline 3.3.0->3.4.0 (P-L1). suite_hash 0890967969239e3f.
+purpose: formal k=3 all-5 validation (owner's amended confirmation bar; re-run after billing restored).
+validity: 15/15 valid; gate: 15/15 PASS (5/5 x 3), 0 INVALID.
+result: P-L1 CONFIRMED. bagrut retries=0 on ALL 3 draws (t_doc 195.4/194.7/175.3s), median 194.7s
+  vs baseline 413.9s = -53.0% HEADLINE (clears 30% target + 50% stretch; delta 219s >> 2x the 1-11%
+  clean-fixture noise band). bagrut's baseline 105% retry-driven variance is GONE (three tight draws
+  175-195s). Other fixtures within noise, no regression (csharp 64.3, employee 64.0, foundations 106.0,
+  hobby 99.3). Cost/doc DROPPED (bagrut ~$0.45 vs baseline ~$0.96 retry-present) — latency win that
+  also saves money, not a trade.
+verdict: PROMOTABLE per owner k=3 bar. Honest power: 3 clean draws/fixture is weaker than the
+  mission's k=8 (bounds per-trial failure loosely, ~<10% rule-of-three over 15 trials) — an explicit
+  owner budget tradeoff; NOT "proven identical".
+cost: $3.80 this run. Total session $17.12 of $35.
+corrections: none

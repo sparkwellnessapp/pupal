@@ -3,11 +3,14 @@
 **Mission:** `MISSION_rubric_extraction_latency.md` — reduce wall-clock time to rubric
 extraction at zero benchmark regression, or prove the lever space with the same rigour.
 **Branch:** `perf/rubric-extraction-latency` · **Executor:** agent · **Owner:** Noam
-**Scope executed (owner's decision):** Phase 0 (instrument) → Phase 1 (baseline + noise
-band) → Phase 2 (attribution) → Phase 3 (pre-registration), then **STOP before any
-candidate run**. No candidate was executed; one strong Tier-1 candidate (P-L1) is
-pre-registered and ready for a future authorized confirmation.
-**Total API spend:** **$10.56** of $35 (33 valid billed trials). No GT artifact touched.
+**Scope executed:** Phase 0 (instrument) → Phase 1 (baseline + noise band) → Phase 2
+(attribution) → Phase 3 (pre-registration) → **candidate runs (owner-authorized)**: P-L1
+CONFIRMED, effort=low FALSIFIED. §0–§4 below are the baseline/model/attribution; the candidate
+results are in §ADDENDUM (the current status).
+**RESULT: P-L1 (branch-SQ EMPTY_SQ_TEXT exemption, pipeline 3.4.0) cuts the headline −53.0%
+(bagrut 413.9s → 194.7s) at 15/15 gate PASS, 0 INVALID (k=3 all-5). effort=low FALSIFIED (breaks
+bagrut's faithful-error gate).**
+**Total API spend:** **$17.12** of $35. No GT artifact touched; immutable set byte-identical.
 
 ---
 
@@ -249,9 +252,14 @@ winner. Start P-L1, then effort=low. Stop on billing quota.
   t_doc **206.3s vs baseline 413.9s = −50.2%**, out_tok 13.1k (was ~25.7k retry-present).
 - 2nd bagrut draw (validation k0, 20260723-160327): 191.2s, retries=0, PASS. Two L1 draws median
   **198.8s = −52.0%** headline; delta 215s ≫ 2× any noise band. Clears 30% target + 50% stretch.
-- **Formal k=3×5 validation INCOMPLETE:** insufficient_quota (429 billing) after the 1st trial →
-  1/15 valid. **Not the DoD confirmation bar; a re-run is required when quota is restored**
-  (re-run: config gpt-5.5, --repeats 3, pipeline 3.4.0). No accuracy or pipeline fault — pure billing.
+- **Formal k=3×5 validation CONFIRMED (20260723-162200):** **15/15 valid, 15/15 gate PASS (5/5 × 3),
+  0 INVALID.** bagrut retry=0 on all 3 draws (195.4/194.7/175.3s), median **194.7s vs baseline 413.9s
+  = −53.0%** — clears the 30% target and 50% stretch; delta 219s ≫ 2× the 1–11% noise band; bagrut's
+  105% retry-variance is gone (three tight draws). No regression on any fixture; cost/doc dropped
+  (~$0.45 vs ~$0.96). **DoD met at the owner's amended k=3 bar** — weaker than the mission's k=8 (3
+  clean draws/fixture bound the per-trial failure rate loosely, ~<10% over 15 trials), an explicit
+  owner budget tradeoff, NOT "proven identical". (An earlier k=3 attempt died to insufficient_quota
+  after 1 trial; billing restored, re-run clean.)
 
 **P-L6-low (reasoning_effort=low, on L1 pipeline) — FALSIFIED.**
 - k=1 all-5 (20260723-155345): **4/5** — bagrut gate BREAKS on 6 metrics incl. annotation_match
@@ -261,6 +269,7 @@ winner. Start P-L1, then effort=low. Stop on billing quota.
   exists for. Reverted; NOT stacked.** config gpt-5.5-low.json kept (gitignored, local) + marked FALSIFIED.
 
 **Net:** the recommended change is **P-L1 alone at effort=medium** — a Tier-1, zero-model-visible
-fix that removes a false retry, cutting the headline ~52% with 5/5 at screening. It is committed on
-the branch (pipeline 3.4.0). The only thing outstanding is the k=3×5 formal validation, blocked by
-billing quota, not by any result.
+fix that removes a false retry, cutting the headline **−53.0%** (413.9s → 194.7s) at **15/15 gate
+PASS, 0 INVALID** (k=3 all-5). Committed on the branch (pipeline 3.4.0). **DoD met at the owner's
+amended k=3 bar**; a future k=8 pass would further harden the equivalence claim (the honest ceiling
+of a 15-trial confirmation is ~<10% per-trial failure by rule-of-three, not equivalence).
