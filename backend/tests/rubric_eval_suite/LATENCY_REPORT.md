@@ -236,3 +236,31 @@ pre-mission sha snapshot.
    probe, since after L1 they become the teacher's dominant wait.
 6. **Harden transport for long eval runs** (the 14/15 cascade): a wider retry/backoff *in the
    eval runner only* (never the gate path) so a network window doesn't cost a whole baseline.
+
+---
+
+## ADDENDUM 2026-07-23 — candidate runs (owner authorized k=1 screens + k=3 validation)
+
+Owner protocol: k=1 per lever (screening, NON-PROMOTABLE), then one k=3 all-5 validation on the
+winner. Start P-L1, then effort=low. Stop on billing quota.
+
+**P-L1 (branch-SQ EMPTY_SQ_TEXT exemption; pipeline 3.4.0, commit c77c090) — CONFIRMED (screening).**
+- k=1 all-5 (20260723-154310): **5/5 PASS.** bagrut **retries=0** (structurally eliminated),
+  t_doc **206.3s vs baseline 413.9s = −50.2%**, out_tok 13.1k (was ~25.7k retry-present).
+- 2nd bagrut draw (validation k0, 20260723-160327): 191.2s, retries=0, PASS. Two L1 draws median
+  **198.8s = −52.0%** headline; delta 215s ≫ 2× any noise band. Clears 30% target + 50% stretch.
+- **Formal k=3×5 validation INCOMPLETE:** insufficient_quota (429 billing) after the 1st trial →
+  1/15 valid. **Not the DoD confirmation bar; a re-run is required when quota is restored**
+  (re-run: config gpt-5.5, --repeats 3, pipeline 3.4.0). No accuracy or pipeline fault — pure billing.
+
+**P-L6-low (reasoning_effort=low, on L1 pipeline) — FALSIFIED.**
+- k=1 all-5 (20260723-155345): **4/5** — bagrut gate BREAKS on 6 metrics incl. annotation_match
+  AND pedagogical_match (the model **reconciled** the faithful teacher error — the never-reconcile
+  tripwires fired), plus structure 0.929 / criterion 0.967 / example_solution 0.188. Clean fixtures
+  held 5/5 and were faster (out ~2.8–4k). **effort=low trades away the one property the product
+  exists for. Reverted; NOT stacked.** config gpt-5.5-low.json kept (gitignored, local) + marked FALSIFIED.
+
+**Net:** the recommended change is **P-L1 alone at effort=medium** — a Tier-1, zero-model-visible
+fix that removes a false retry, cutting the headline ~52% with 5/5 at screening. It is committed on
+the branch (pipeline 3.4.0). The only thing outstanding is the k=3×5 formal validation, blocked by
+billing quota, not by any result.

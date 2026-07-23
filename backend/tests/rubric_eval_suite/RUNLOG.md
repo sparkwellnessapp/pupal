@@ -755,3 +755,52 @@ protocol (gate owner ruling, 2026-07-23): k=1 per lever (screening, NON-PROMOTAB
   distinguish safe from lucky), then ONE k=3 all-5 validation on the winning config only, to
   save spend. Amends the mission's k=5/k=8 bar; logged as the owner's ruling. Stop on 403.
 by: owner (Noam) authorized; implemented by agent. Run entry follows.
+
+## RUN 20260723-154310_gpt-5.5 — P-L1 screen (k=1 all-5, NON-PROMOTABLE)
+ref: baseline 20260721-134812/-142212. ONE variable: pipeline 3.3.0→3.4.0 (P-L1). config gpt-5.5 (medium).
+purpose: screen P-L1 (branch-SQ EMPTY_SQ_TEXT exemption). k=1 per owner protocol.
+validity: 5/5 valid; gate: 5/5 PASS. pipeline_version 3.4.0 stamped.
+result: P-L1 CONFIRMED (k=1 signal). bagrut retries=0 (was ~71% of draws → the false retry is
+  structurally gone), t_doc 206.3s vs baseline median 413.9s = -50.2% HEADLINE reduction; out_tok
+  13135 vs retry-present ~25.7k (halved). Other fixtures within noise (csharp 63.5, employee 65.3,
+  foundations 108.5, hobby 114.6). NO gated regression on any fixture.
+predictions: P-L1 CONFIRMED at k=1 (headline -50%, retry→0, 0 gated move). Clears 30% target + 50%
+  stretch. k=1 cannot distinguish safe from lucky — the k=3 validation is the confirmation.
+cost: $1.30 this run. Running total ~$11.86 of $35.
+next: screen P-L6-low (effort=low on the L1 pipeline) — the risky Tier-2 lever; watch bagrut gate.
+corrections: none
+
+## RUN 20260723-155345_gpt-5.5-low — P-L6-low screen (k=1 all-5, NON-PROMOTABLE) — FALSIFIED
+ref: P-L1 screen 20260723-154310. ONE variable: reasoning_effort medium→low (config gpt-5.5→
+  gpt-5.5-low). SAME L1 pipeline 3.4.0.
+purpose: screen effort=low (biggest raw decode knob, Tier-2 accuracy-risky).
+validity: 5/5 valid; gate: 4/5 — bagrut FAILS.
+result: P-L6-low FALSIFIED — KILL criterion fired (pre-registered). bagrut gate=False on SIX
+  metrics: annotation_match=False + pedagogical_match=False (the never-reconcile tripwires — the
+  model RECONCILED the 1.5+0.5-under-3 teacher error, silencing both the rubric_mismatch
+  annotation and the Tier-A point_sum_mismatch), subquestion_structure_match=0.929,
+  criterion_recall/precision=0.967, point_exactness=0.987, example_solution_fidelity=0.188.
+  bagrut out_tok 10259 (was 13135@medium), t_doc 152s — faster but BROKEN. Clean fixtures held
+  5/5 and were much faster (csharp 46.8, employee 52.7, foundations 52.9, hobby 78.8; out ~2.8-4k).
+decision: REVERT — do NOT stack effort=low. WINNER = L1-only at effort=medium. config gpt-5.5-low
+  marked FALSIFIED in its note (kept as experiment record). One clear multi-metric gate break
+  FALSIFIES at k=1 (killing needs 1 failure; confirming safety needs k≥5).
+predictions: P-L6-low predicted-risk CONFIRMED — effort=low reconciles the faithful error exactly
+  as registered. The decode knob trades away the one property the product exists for.
+cost: ~$0.79 this run. Running total ~$12.65 of $35.
+next: k=3 all-5 VALIDATION on the winner (gpt-5.5 medium, L1 pipeline 3.4.0).
+corrections: none
+
+## RUN 20260723-160327_gpt-5.5 — P-L1 k=3 validation — INCOMPLETE (billing quota, insufficient_quota 429)
+ref: baseline 20260721-134812/-142212. Winner config gpt-5.5 (medium) on L1 pipeline 3.4.0.
+purpose: k=3 all-5 validation of the winner (owner's amended confirmation bar).
+validity: 1/15 valid — 14 INVALID (OpenAI insufficient_quota 429, billing quota exhausted;
+  permanent/not-retryable, caught by the PR-2 fast-fail predicate). Only bagrut k0 completed.
+result: bagrut k0 t_doc=191.2s, retries=0, gate PASS (out 12510) — a 2nd confirming L1 bagrut
+  draw (with the k=1 screen's 206.3s). STOPPED per owner instruction (stop on billing quota).
+status: P-L1 CONFIRMED at SCREENING (k=1 all-5 5/5; 2 bagrut L1 draws 206.3/191.2s retry=0,
+  median 198.8s = -52.0% vs baseline 413.9s; delta 215s >> 2× noise). FORMAL k=3×5 validation
+  BLOCKED by billing — RE-RUN needed when quota restored (config gpt-5.5, pipeline 3.4.0).
+  P-L6-low remains FALSIFIED. Winner = L1-only (medium).
+cost: total session spend $13.33 of $35 (quota now exhausted).
+corrections: none

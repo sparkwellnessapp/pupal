@@ -270,3 +270,27 @@ Noam decision (cost table, prod pin, provider risk). Unrun.
 reuse (~100-300ms/call vs 60-410s); L4 prompt-cache (attacks prefill, a minority of decode-dominated
 t_doc; cached_tokens not yet measured — a small additive pipeline provenance read would quantify it,
 low ceiling). Tier-B second call (hobby only, ~9.5s) is minor and fires only on a structural trigger.
+
+---
+
+# P-L6-low — reasoning_effort medium→low (registered 2026-07-23, BEFORE the run; owner-authorized Tier-2)
+
+Variable (exactly one): config gpt-5.5 → gpt-5.5-low, i.e. reasoning_effort medium→low. Run on
+pipeline 3.4.0 (P-L1 in), so the pairwise comparison L1(medium)→L1(low) isolates effort. Prompt/
+GT/scorer UNTOUCHED. Screening k=1 all-5 (NON-PROMOTABLE per owner protocol), then k=3 all-5
+validation only if it becomes the winning config.
+Term attacked: t_decode (~99% of t_doc; t_doc ≈ output_tokens/~55 tok/s). effort=low cuts reasoning-
+token volume on EVERY fixture, so a broad decode reduction on top of L1.
+PREDICTED effect: further headline reduction beyond L1 (magnitude unknown — depends on medium-vs-low
+reasoning spend; plausibly 15-40% additional decode). Output tokens drop on all fixtures; cost/doc
+drops too.
+PREDICTED gated metrics: THIS IS THE RISK. effort=low may make the model (a) RECONCILE bagrut's
+1.5+0.5-under-3 teacher error (silencing the rubric_mismatch annotation AND the Tier-A
+point_sum_mismatch → annotation_match + pedagogical_match BOTH fail — the never-reconcile
+tripwires), (b) miss hobby's Tier-B structural_mislabel judgment, (c) drop nested structure or
+verbatim example_solution fidelity (csharp 7 code solutions). Any of these breaks 5/5.
+KILL: ANY gated-metric regression on ANY fixture at k=1 ⇒ effort=low is UNSAFE ⇒ revert to L1-only
+(medium) as the winner; do NOT stack it. bagrut annotation_match/pedagogical_match and csharp/hobby
+example_solution/subcriterion are the watch metrics. A k=1 PASS is a screening signal only (cannot
+distinguish safe from lucky at temp-0 nondeterminism); the k=3 validation is the confirmation, and
+even k=3 is weaker than the mission's k=8 — an explicit owner budget tradeoff, stated honestly.
