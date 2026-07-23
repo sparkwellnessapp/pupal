@@ -31,7 +31,7 @@ export function CodeBlock({ code, lines, caption, className = '' }: CodeBlockPro
             {caption ? <div className="text-xs text-surface-500 mb-1" dir="ltr">{caption}</div> : null}
             <pre
                 dir="ltr"
-                className="font-mono text-[13px] leading-relaxed bg-surface-50 border border-surface-200 rounded-md px-3 py-2 overflow-x-auto whitespace-pre text-surface-800"
+                className="font-mono text-doc-meta leading-relaxed bg-surface-50 border border-surface-200 rounded-md px-3 py-2 overflow-x-auto whitespace-pre text-surface-800"
             >
                 {text}
             </pre>

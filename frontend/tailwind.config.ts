@@ -8,6 +8,25 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // Design Recovery §1a — hardened layout tokens (no raw values in components).
+      maxWidth: {
+        document: '52rem',   // the mirror's content column
+      },
+      width: {
+        rail: '10rem',       // 160px outline rail
+      },
+      screens: {
+        rail: '1100px',      // the rail appears at/above this width (else it collapses)
+      },
+      // §1a type scale (Rubik). One token per role — used only on the mirror surface.
+      fontSize: {
+        'doc-title': ['28px', { lineHeight: '1.25', fontWeight: '600' }],
+        'doc-q':     ['20px', { lineHeight: '1.3', fontWeight: '600' }],
+        'doc-sq':    ['17px', { lineHeight: '1.35', fontWeight: '600' }],
+        'doc-body':  ['16px', { lineHeight: '1.7' }],
+        'doc-table': ['15px', { lineHeight: '1.5' }],
+        'doc-meta':  ['13px', { lineHeight: '1.4' }],
+      },
       colors: {
         // Turquoise-focused palette for Pupil
         primary: {

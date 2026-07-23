@@ -1626,10 +1626,12 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  {/* D-1: the DOCUMENT MIRROR is the review surface (docx flow).
-                      RubricEditor stays as the rollback target behind the flag. */}
-                  {USE_DOCUMENT_MIRROR ? (
+                {/* D-1: the DOCUMENT MIRROR is the review surface (docx flow). It owns
+                    its own content card + rail layout, so NO outer card here; the footer
+                    is rail-aligned to the content column. RubricEditor (rollback) keeps
+                    its card. */}
+                {USE_DOCUMENT_MIRROR ? (
+                  <>
                     <RubricDocument
                       questions={extractedQuestions}
                       onQuestionsChange={handleQuestionsEdited}
@@ -1643,7 +1645,36 @@ export default function Home() {
                       canUndo={canUndoRubric}
                       onUndo={undoRubricEdit}
                     />
-                  ) : (
+                    {error && (
+                      <div className="flex gap-8 justify-center mt-4" dir="rtl">
+                        <div className="hidden rail:block w-rail flex-shrink-0" aria-hidden />
+                        <div className="flex-1 min-w-0 max-w-document p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-doc-table">{error}</div>
+                      </div>
+                    )}
+                    <div className="flex gap-8 justify-center mt-6" dir="rtl">
+                      <div className="hidden rail:block w-rail flex-shrink-0" aria-hidden />
+                      <div className="flex-1 min-w-0 max-w-document flex items-center justify-between pt-4 border-t border-surface-200">
+                        <BackButton onClick={() => { if (confirmDiscardIfDirty()) { dirtyRef.current = false; clearRubricHistory(); setRubricStep('upload'); } }} />
+                        <button
+                          onClick={hasBlockingErrors
+                            ? () => errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                            : handleSaveRubric}
+                          disabled={isLoading}
+                          aria-disabled={hasBlockingErrors}
+                          className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors ${
+                            hasBlockingErrors
+                              ? 'opacity-50 cursor-not-allowed bg-gray-300 text-gray-500'
+                              : 'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50'
+                          }`}
+                        >
+                          {isLoading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                          {isLoading ? 'שומר...' : 'שמור מחוון'}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="bg-white rounded-xl shadow-lg p-6">
                     <RubricEditor
                       questions={extractedQuestions}
                       onQuestionsChange={handleQuestionsEdited}
@@ -1659,27 +1690,27 @@ export default function Home() {
                       onMetadataChange={handleRubricMetadataChange}
                       hasNameError={!!error && !rubricName.trim()}
                     />
-                  )}
-                  {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
-                  <div className="mt-6 pt-4 border-t border-surface-200 flex items-center justify-between">
-                    <BackButton onClick={() => { if (confirmDiscardIfDirty()) { dirtyRef.current = false; clearRubricHistory(); setRubricStep('upload'); } }} />
-                    <button
-                      onClick={hasBlockingErrors
-                        ? () => errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                        : handleSaveRubric}
-                      disabled={isLoading}
-                      aria-disabled={hasBlockingErrors}
-                      className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors ${
-                        hasBlockingErrors
-                          ? 'opacity-50 cursor-not-allowed bg-gray-300 text-gray-500'
-                          : 'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50'
-                      }`}
-                    >
-                      {isLoading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                      {isLoading ? 'שומר...' : 'שמור מחוון'}
-                    </button>
+                    {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
+                    <div className="mt-6 pt-4 border-t border-surface-200 flex items-center justify-between">
+                      <BackButton onClick={() => { if (confirmDiscardIfDirty()) { dirtyRef.current = false; clearRubricHistory(); setRubricStep('upload'); } }} />
+                      <button
+                        onClick={hasBlockingErrors
+                          ? () => errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                          : handleSaveRubric}
+                        disabled={isLoading}
+                        aria-disabled={hasBlockingErrors}
+                        className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors ${
+                          hasBlockingErrors
+                            ? 'opacity-50 cursor-not-allowed bg-gray-300 text-gray-500'
+                            : 'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50'
+                        }`}
+                      >
+                        {isLoading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                        {isLoading ? 'שומר...' : 'שמור מחוון'}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 

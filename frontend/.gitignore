@@ -36,3 +36,6 @@ next-env.d.ts
 /test-results
 /playwright-report
 /playwright/.cache
+
+# Design Recovery Suite — snapshot artifacts (gallery); audits ARE committed
+design/shots/

@@ -22,7 +22,8 @@ import { EditableText } from '@/components/document/EditableText';
 import { EditablePoints } from '@/components/document/EditablePoints';
 import { DisclosureRow } from '@/components/document/DisclosureRow';
 import { CodeBlock } from '@/components/document/CodeBlock';
-import { RichBody, TraceTablesDisplay, ContextTablesDisplay } from '@/components/document/DataTables';
+import { TraceTablesDisplay, ContextTablesDisplay } from '@/components/document/DataTables';
+import { DocumentText } from '@/components/document/DocumentText';
 
 /**
  * RubricDocument (PR-5 Sprint 2) — THE MIRROR. A sibling view to RubricEditor that
@@ -119,7 +120,7 @@ function SubCriteriaRows({
         <>
             {subs.map((sc, scIndex) => (
                 <tr key={sc.sub_criterion_id} data-scope-id={sc.sub_criterion_id} className="scroll-mt-20 bg-surface-50/40">
-                    <td className="py-1.5 pr-8 pl-3 text-surface-600 text-[13px]">
+                    <td className="py-1.5 pr-8 pl-3 text-surface-600 text-doc-meta">
                         <span className="text-surface-300 ml-1">↳</span>
                         <EditableText
                             value={sc.description}
@@ -160,9 +161,9 @@ function CriteriaTable({
     if (criteria.length === 0) return null;
 
     return (
-        <table ref={tableRef} className="w-full border-collapse my-2 text-sm" dir="rtl">
+        <table ref={tableRef} className="w-full border-collapse my-3 text-doc-table" dir="rtl">
             <thead>
-                <tr className="text-surface-400 text-xs">
+                <tr className="text-surface-400 text-doc-meta">
                     <th className="text-right font-normal pb-1 pr-3">קריטריון</th>
                     <th className="text-center font-normal pb-1 px-2 w-16">נק'</th>
                     <th className="w-8" aria-hidden />
@@ -270,12 +271,12 @@ function SubQuestionSection({
     return (
         <section data-scope-id={idPath} className="scroll-mt-20 mr-3 border-r border-surface-100 pr-3 mt-3">
             <div className="flex items-baseline justify-between gap-3">
-                <h4 className="font-medium text-surface-700">{heading}</h4>
+                <h4 className="text-doc-sq text-surface-800">{heading}</h4>
                 {/* Sub-question points are a cascaded sum — read-only (E-3 living sums). */}
                 <PointsChip value={sq.points} ariaLabel={`ניקוד ${heading}`} editable={false} changed={changedIds.has(sq.sub_question_id)} />
             </div>
 
-            {sq.text?.trim() ? <RichBody text={sq.text} dir="rtl" className="mt-1 text-[15px]" /> : null}
+            {sq.text?.trim() ? <DocumentText text={sq.text} className="mt-1" /> : null}
             <TraceTablesDisplay tables={sq.trace_tables} />
             <InlineAnnotations annotations={anns} />
 
@@ -305,11 +306,11 @@ function QuestionSection({
     return (
         <section
             data-scope-id={q.question_id}
-            className="scroll-mt-20 pt-5 first:pt-0 doc-enter-section"
+            className="scroll-mt-20 doc-enter-section"
             style={{ animationDelay: `${Math.min(qIndex, 8) * 40}ms` }}
         >
-            <div className="flex items-baseline justify-between gap-3 border-b border-surface-100 pb-1.5">
-                <h3 className="text-lg font-semibold text-surface-900 flex items-center gap-2">
+            <div className="flex items-baseline justify-between gap-3 border-b border-surface-100 pb-2">
+                <h3 className="text-doc-q text-surface-900 flex items-center gap-2">
                     {heading}
                     {isSelectionMember && <span className="text-xs font-normal text-primary-600 bg-primary-50 rounded-full px-2 py-0.5">שאלת בחירה</span>}
                 </h3>
@@ -324,7 +325,7 @@ function QuestionSection({
                 />
             </div>
 
-            {q.question_text?.trim() ? <RichBody text={q.question_text} dir="rtl" className="mt-2" /> : null}
+            {q.question_text?.trim() ? <DocumentText text={q.question_text} className="mt-2" /> : null}
             {q.code_blocks?.map((code, i) => <CodeBlock key={i} code={code} />)}
             <ContextTablesDisplay tables={q.context_tables} />
             <TraceTablesDisplay tables={q.trace_tables} />
@@ -355,7 +356,7 @@ function DocumentHeader({
     return (
         <header className="mb-4 doc-enter-header">
             <div className="flex items-start justify-between gap-4">
-                <h1 className="text-2xl font-bold text-surface-900">
+                <h1 className="text-doc-title text-surface-900">
                     <EditableText value={name} onCommit={onNameCommit} ariaLabel="שם המחוון — לחצי לעריכה" dir="rtl" placeholder="שם המחוון" />
                 </h1>
                 <div className="flex items-center gap-3 flex-shrink-0">
@@ -392,9 +393,9 @@ function OutlineRail({
         <nav
             aria-label="מפת המחוון"
             style={railStyle ? { position: 'fixed', top: 80, left: railStyle.left, width: railStyle.width } : undefined}
-            className={`hidden min-[1100px]:block w-44 text-sm max-h-[calc(100vh-100px)] overflow-y-auto ${railStyle ? '' : 'sticky top-20 self-start flex-shrink-0'}`}
+            className={`hidden rail:block w-rail text-doc-meta max-h-[calc(100vh-100px)] overflow-y-auto ${railStyle ? '' : 'sticky top-20 self-start flex-shrink-0'}`}
         >
-            <ul className="space-y-1 border-r border-surface-100 pr-3">
+            <ul className="space-y-2 border-r border-surface-100 pr-4">
                 {questions.map((q, i) => {
                     const active = q.question_id === activeId;
                     return (
@@ -562,49 +563,52 @@ export function RubricDocument({
 
     return (
         <DocContext.Provider value={ctx}>
-            <div ref={rootRef} dir="rtl" className="flex gap-6 items-start">
-                {/* In-flow spacer reserves the rail's gutter; the rail is position:fixed
-                    over it (sticky is broken by the overflow-hidden ancestor). */}
-                <div ref={railSpacerRef} className="hidden min-[1100px]:block w-44 flex-shrink-0" aria-hidden />
+            {/* §1a: rail is a SIBLING of the content column, OUTSIDE the white card.
+                In-flow spacer reserves its gutter; the rail is position:fixed over it
+                (sticky is broken by SidebarLayout's overflow-hidden ancestor). */}
+            <div ref={rootRef} dir="rtl" className="flex gap-8 items-start justify-center">
+                <div ref={railSpacerRef} className="hidden rail:block w-rail flex-shrink-0" aria-hidden />
                 <OutlineRail questions={questions} activeId={activeId} findingSections={findingSections} onJump={scrollToScope} railStyle={railBox} />
 
-                <div className="flex-1 min-w-0">
-                    {/* Relocated top summary banner — same errorBannerRef contract (§6). */}
-                    {errorAnnotations.length > 0 && (
-                        <div ref={errorBannerRef} className="scroll-mt-20 mb-4 rounded-lg border border-red-200 bg-red-50/60 p-3 space-y-1.5">
-                            <p className="text-sm font-medium text-red-800">יש לתקן לפני שמירה:</p>
-                            <ul className="space-y-1 text-sm">
-                                {errorAnnotations.map((a) => (
-                                    <li key={a.id} className="text-red-700">
-                                        {a.target_id ? (
-                                            <button type="button" className="underline hover:text-red-900" onClick={() => scrollToScope(a.target_id)}>
-                                                {scopeLabel(a.target_id, questions)}
-                                            </button>
-                                        ) : <span>המחוון</span>}
-                                        {' — '}{a.message}
-                                    </li>
-                                ))}
-                            </ul>
+                <div className="flex-1 min-w-0 max-w-document">
+                    <div className="bg-white rounded-2xl shadow-sm ring-1 ring-surface-100 px-8 py-7">
+                        {/* Relocated top summary banner — same errorBannerRef contract (§6). */}
+                        {errorAnnotations.length > 0 && (
+                            <div ref={errorBannerRef} className="scroll-mt-20 mb-6 rounded-lg border border-red-200 bg-red-50/60 p-4 space-y-2">
+                                <p className="text-doc-table font-semibold text-red-800">יש לתקן לפני שמירה:</p>
+                                <ul className="space-y-1.5 text-doc-table">
+                                    {errorAnnotations.map((a) => (
+                                        <li key={a.id} className="text-red-700">
+                                            {a.target_id ? (
+                                                <button type="button" className="underline decoration-red-300 underline-offset-2 hover:text-red-900" onClick={() => scrollToScope(a.target_id)}>
+                                                    {scopeLabel(a.target_id, questions)}
+                                                </button>
+                                            ) : <span>המחוון</span>}
+                                            {' — '}{a.message}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {globalAnnotations.length > 0 && <div className="mb-6 space-y-2">{globalAnnotations.map((a) => <AnnotationBanner key={a.id} annotation={a} />)}</div>}
+
+                        <DocumentHeader
+                            name={rubricName}
+                            achievable={achievable}
+                            declared={rubricTotalPoints}
+                            onNameCommit={(v) => onMetadataChange?.({ rubric_name: v })}
+                            onDeclaredCommit={(n) => onTotalPointsChange?.(n)}
+                            selectionLine={selectionLine}
+                            openFindingCount={openFindingCount}
+                            canUndo={canUndo}
+                            onUndo={onUndo}
+                        />
+
+                        <div className="space-y-12">
+                            {questions.map((q, i) => (
+                                <QuestionSection key={q.question_id} q={q} qIndex={i} isSelectionMember={selectionMemberIds.has(q.question_id)} />
+                            ))}
                         </div>
-                    )}
-                    {globalAnnotations.length > 0 && <div className="mb-4 space-y-1.5">{globalAnnotations.map((a) => <AnnotationBanner key={a.id} annotation={a} />)}</div>}
-
-                    <DocumentHeader
-                        name={rubricName}
-                        achievable={achievable}
-                        declared={rubricTotalPoints}
-                        onNameCommit={(v) => onMetadataChange?.({ rubric_name: v })}
-                        onDeclaredCommit={(n) => onTotalPointsChange?.(n)}
-                        selectionLine={selectionLine}
-                        openFindingCount={openFindingCount}
-                        canUndo={canUndo}
-                        onUndo={onUndo}
-                    />
-
-                    <div className="space-y-2">
-                        {questions.map((q, i) => (
-                            <QuestionSection key={q.question_id} q={q} qIndex={i} isSelectionMember={selectionMemberIds.has(q.question_id)} />
-                        ))}
                     </div>
                 </div>
             </div>

@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
+    "snap": "node scripts/snap.mjs",
+    "check:tokens": "node scripts/check-tokens.mjs",
     "gen:api": "node scripts/gen-api-types.mjs",
     "check:api-drift": "node scripts/gen-api-types.mjs && git diff --exit-code -- src/lib/api-types.ts",
     "test:e2e": "playwright test"
