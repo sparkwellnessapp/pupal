@@ -108,7 +108,7 @@ def _config_env_overrides(config: dict) -> dict:
             if config.get(key) not in (None, "")}
 
 
-def produce_predicted(docx_path: Path, config: dict) -> Tuple[Optional[ExtractRubricResponse], str, dict]:
+def produce_predicted(docx_path: Path, config: dict, tracer=None) -> Tuple[Optional[ExtractRubricResponse], str, dict]:
     """
     Run the REAL pipeline. Returns (predicted | None, rendered_markdown, meta).
 
@@ -185,7 +185,7 @@ def produce_predicted(docx_path: Path, config: dict) -> Tuple[Optional[ExtractRu
         )
         _wall0 = _time.monotonic()
         result = _run_coro_blocking(
-            pipeline.extract_rubric_from_docx(file_bytes, ec, on_progress=_on_progress))
+            pipeline.extract_rubric_from_docx(file_bytes, ec, on_progress=_on_progress, tracer=tracer))
         wall_seconds = _time.monotonic() - _wall0
     finally:
         for k, v in _saved.items():
@@ -244,7 +244,7 @@ def produce_predicted(docx_path: Path, config: dict) -> Tuple[Optional[ExtractRu
 
 
 def run(config_name: str, mode: str, repeats: int, suite_dir: Path = SUITE_DIR,
-        only: Optional[str] = None) -> SuiteResult:
+        only: Optional[str] = None, trace: str = "off") -> SuiteResult:
     config = _load_config(config_name)
     cost_ceiling = float(config.get("cost_ceiling", 0.40))
     rubrics = _discover(suite_dir)
@@ -276,13 +276,27 @@ def run(config_name: str, mode: str, repeats: int, suite_dir: Path = SUITE_DIR,
     for name, docx, gt_path in rubrics:
         gt = _load_gt(gt_path)
         for k in range(repeats):
+            # Per-trial tracelog (off by default). Injected into the pipeline; the
+            # LLM calls also auto-trace to LangSmith when LANGCHAIN_TRACING_V2 is set,
+            # and the tracer mirrors the operation/validation spans there too.
+            tracer = None
+            if trace != "off":
+                import os as _os
+                from app.services.docx_v3.trace import Tracer as _Tracer
+                tracer = _Tracer(
+                    trace_id=f"{name}_r{k}",
+                    meta={"fixture": name, "repeat": k, "config": config_name,
+                          "prompt_version": getattr(__import__("app.services.docx_v3.pipeline",
+                              fromlist=["EXTRACTION_PROMPT_VERSION"]), "EXTRACTION_PROMPT_VERSION", None)},
+                    langsmith=bool(_os.environ.get("LANGCHAIN_TRACING_V2")),
+                )
             if mode == "extract":
                 # Per-trial isolation (worst-doc discipline): one doc's transport
                 # error or pipeline crash becomes an INVALID record — visible in the
                 # report, failing the gate — never a lost suite run. Losing the run
                 # would destroy the very worst-doc signal the crash represents.
                 try:
-                    predicted, rendered, meta = produce_predicted(docx, config)
+                    predicted, rendered, meta = produce_predicted(docx, config, tracer=tracer)
                 except Exception as e:
                     predicted, rendered = None, ""
                     meta = {"invalid_reason": f"pipeline exception: {type(e).__name__}: {e}"}
@@ -322,6 +336,14 @@ def run(config_name: str, mode: str, repeats: int, suite_dir: Path = SUITE_DIR,
                 )
                 for e in (meta.get("stage_events") or [])
             ]
+            # Persist the tracelog. retain='on_failure' keeps full prompts/responses
+            # only when the trial failed the gate (skeleton + digests otherwise);
+            # --trace all keeps every blob. trace_id links this row to its span tree.
+            if tracer is not None:
+                rs.trace_id = tracer.trace_id
+                tracer.finish(out_dir / "traces",
+                              status="ok" if rs.gate_pass else "error",
+                              retain="all" if trace == "all" else "on_failure")
             per_rubric.append(rs)
             model_v = model_v or rs.model_version
             prompt_v = prompt_v or rs.prompt_version
@@ -368,8 +390,12 @@ def main():
     ap.add_argument("--only", default=None,
                     help="SCREENING ONLY: comma-separated fixture names to run a "
                          "subset (NON-PROMOTABLE). Omit for all fixtures.")
+    ap.add_argument("--trace", default="off", choices=["off", "failures", "all"],
+                    help="Tracelog (trace.py): 'off' (default, zero overhead); "
+                         "'failures' retains full prompts/responses only for gate "
+                         "failures; 'all' retains every trace. Written to <run>/traces/.")
     args = ap.parse_args()
-    run(args.config, args.mode, args.repeats, only=args.only)
+    run(args.config, args.mode, args.repeats, only=args.only, trace=args.trace)
 
 
 if __name__ == "__main__":

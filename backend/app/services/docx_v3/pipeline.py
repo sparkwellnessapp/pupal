@@ -56,6 +56,8 @@ logger = logging.getLogger(__name__)
 #               failure instead of a Cloud Run SIGKILL. Behavior-affecting =>
 #               invalidates transport/latency comparisons vs pre-3.3.0 runs.
 #               deadline_seconds=None (eval default) => unbounded, gate untouched.
+from .trace import resolve as _resolve_tracer, NULL_TRACER  # injected tracelog (no-op by default)
+
 PIPELINE_VERSION = "3.4.0"  # P-L1: branch sub-questions exempt from EMPTY_SQ_TEXT retry
 _MAX_RETRIES = 2
 _SUM_TOLERANCE = 0.5   # validation tolerance (pre-save, human-readable)
@@ -99,6 +101,8 @@ class ExtractionMetrics:
     # the consumer (eval config) owns the price table.
     input_tokens: int = 0
     output_tokens: int = 0
+    reasoning_tokens: int = 0   # subset of output (decode) that was hidden reasoning
+    cached_tokens: int = 0      # subset of input served from the prompt cache
     finish_reason: Optional[str] = None
     llm_model: Optional[str] = None
 
@@ -955,18 +959,42 @@ def _call_meta_from_raw(raw: Any, model: str) -> Dict[str, Any]:
         usage = {"input_tokens": usage_raw.get("prompt_tokens", 0),
                  "output_tokens": usage_raw.get("completion_tokens", 0)}
     rm = getattr(raw, "response_metadata", None) or {}
+    # reasoning + prompt-cache detail (LangChain normalizes these into *_token_details
+    # for the OpenAI reasoning family; absent → 0). reasoning tokens are decode time;
+    # cached input is prefill we didn't pay to recompute — both are latency signal.
+    in_details = usage.get("input_token_details") or {}
+    out_details = usage.get("output_token_details") or {}
     return {
         "input_tokens": int(usage.get("input_tokens", 0) or 0),
         "output_tokens": int(usage.get("output_tokens", 0) or 0),
+        "reasoning_tokens": int(out_details.get("reasoning", 0) or 0),
+        "cached_tokens": int(in_details.get("cache_read", 0) or 0),
         "finish_reason": rm.get("finish_reason") or rm.get("stop_reason"),
         "model": model,
     }
+
+
+def _extraction_digest(ext: Any) -> Dict[str, Any]:
+    """Compact, always-retained structural digest of an extraction — the debug gold
+    for point/selection errors (e.g. a question that should be 25 coming back 40 and
+    inflating achievable points). Defensive getattr; never raises."""
+    qs = []
+    for q in (getattr(ext, "questions", None) or []):
+        qs.append({"q": getattr(q, "question_number", None),
+                   "pts": str(getattr(q, "total_points", None))})
+    groups = []
+    for g in (getattr(ext, "selection_groups", None) or []):
+        groups.append({"choose_k": getattr(g, "choose_k", None),
+                       "of": list(getattr(g, "of_question_ids", None) or [])})
+    return {"total_points": str(getattr(ext, "total_points", None)),
+            "questions": qs, "selection_groups": groups}
 
 
 async def _call_llm(
     rendered_text: str,
     error_feedback: Optional[str] = None,
     deadline: Optional["_Deadline"] = None,
+    tracer: Any = NULL_TRACER,
 ) -> Tuple[RubricExtraction, Dict[str, Any]]:
     """Single LLM call. If error_feedback is provided, it's appended as correction context.
 
@@ -1004,30 +1032,60 @@ async def _call_llm(
     ]
 
     logger.info(f"Step 1: LLM call ({provider}/{model}){' [RETRY]' if error_feedback else ''}")
-    result = await _transport_retry_async(
-        lambda: structured.ainvoke(messages),
-        attempts=_transport_attempts(), timeout_s=timeout_s, deadline=dl,
-        label="extraction LLM call",
-    )
+    # TRACE: one generation span per LLM interaction. Prompt/raw are content-addressed
+    # blobs (full tier, retained on failure); the output digest is skeleton tier
+    # (always kept). tracer is NULL_TRACER by default ⇒ byte-identical when off.
+    with tracer.generation("llm_call", is_retry=bool(error_feedback),
+                           provider=provider, model=model) as gen:
+        gen.set(prompt_version=EXTRACTION_PROMPT_VERSION, timeout_s=timeout_s,
+                user_chars=len(user_content))
+        gen.blob("system_prompt", EXTRACTION_SYSTEM_PROMPT)
+        gen.blob("user_message", user_content)
+        if error_feedback:
+            gen.blob("retry_feedback_in", error_feedback)
 
-    raw = result.get("raw")
-    call_meta: Dict[str, Any] = {
-        "input_tokens": 0, "output_tokens": 0, "finish_reason": None, "model": model,
-    }
-    try:  # provenance is best-effort; its failure must never fail the extraction
-        call_meta = _call_meta_from_raw(raw, model)
-    except Exception as e:  # pragma: no cover — defensive
-        logger.warning(f"Step 1: provenance extraction failed (non-fatal): {e}")
-
-    if result.get("parsing_error") is not None or result.get("parsed") is None:
-        # Same observable behavior as ainvoke without include_raw (which raises on
-        # parse failure). finish_reason is in the message so truncation is diagnosable.
-        raise ExtractionError(
-            f"structured output parse failed "
-            f"(finish_reason={call_meta['finish_reason']}): {result.get('parsing_error')}"
+        result = await _transport_retry_async(
+            lambda: structured.ainvoke(messages),
+            attempts=_transport_attempts(), timeout_s=timeout_s, deadline=dl,
+            label="extraction LLM call",
         )
 
-    return result["parsed"], call_meta
+        raw = result.get("raw")
+        call_meta: Dict[str, Any] = {
+            "input_tokens": 0, "output_tokens": 0, "finish_reason": None, "model": model,
+        }
+        try:  # provenance is best-effort; its failure must never fail the extraction
+            call_meta = _call_meta_from_raw(raw, model)
+        except Exception as e:  # pragma: no cover — defensive
+            logger.warning(f"Step 1: provenance extraction failed (non-fatal): {e}")
+
+        gen.set(input_tokens=call_meta.get("input_tokens"),
+                output_tokens=call_meta.get("output_tokens"),
+                reasoning_tokens=call_meta.get("reasoning_tokens"),
+                cached_tokens=call_meta.get("cached_tokens"),
+                finish_reason=call_meta.get("finish_reason"))
+        try:  # raw output + any reasoning summary the provider surfaced (best-effort)
+            gen.blob("raw_response", getattr(raw, "content", None) or "")
+            ak = getattr(raw, "additional_kwargs", None)
+            if ak:
+                gen.blob("additional_kwargs", ak)
+        except Exception:
+            pass
+
+        if result.get("parsing_error") is not None or result.get("parsed") is None:
+            # Same observable behavior as ainvoke without include_raw (which raises on
+            # parse failure). finish_reason is in the message so truncation is diagnosable.
+            raise ExtractionError(
+                f"structured output parse failed "
+                f"(finish_reason={call_meta['finish_reason']}): {result.get('parsing_error')}"
+            )
+
+        parsed = result["parsed"]
+        try:  # skeleton-tier digest — survives a passing run; catches point/selection errors
+            gen.set(output_digest=_extraction_digest(parsed))
+        except Exception:
+            pass
+        return parsed, call_meta
 
 
 # =============================================================================
@@ -1163,9 +1221,42 @@ class PointMismatchIssue(ValidationIssue):
         return (self.scope, round(self.computed, 2), round(self.declared, 2))
 
 
+def _selection_satisfiability_issues(
+    selection_groups: List["SelectionGroupExtraction"], extracted_numbers: set,
+) -> List[ValidationIssue]:
+    """A 'choose k of N' selection group is UNSATISFIABLE when fewer than `choose_k`
+    of its member questions were extracted — the "choose 4 of 1" bug, where the
+    selection LLM correctly read "answer 4" but question segmentation missed or
+    MERGED the questions.
+
+    Emitted as a RETRYABLE issue (not a POINT_MISMATCH, so it triggers a retry): the
+    _extract_with_retry loop feeds the message back to the model as a CORRECTION,
+    prompting it to re-extract every question the selection instruction refers to.
+    Non-deterministic re-segmentation usually recovers the missing questions.
+    """
+    out: List[ValidationIssue] = []
+    for g in selection_groups:
+        present = sum(1 for n in g.question_numbers if n in extracted_numbers)
+        if g.choose_k > present:
+            out.append(ValidationIssue(
+                code="SELECTION_UNSATISFIABLE",
+                message=(
+                    f"SELECTION RUBRIC ERROR: the instruction "
+                    f"\"{g.label or f'answer {g.choose_k} of {len(g.question_numbers)}'}\" "
+                    f"requires answering {g.choose_k} of {len(g.question_numbers)} questions "
+                    f"(question numbers {g.question_numbers}), but you extracted only "
+                    f"{present} of them (extracted question numbers: {sorted(extracted_numbers)}). "
+                    f"You MISSED or MERGED questions. Re-extract EVERY question the selection "
+                    f"instruction refers to as its OWN separate top-level question."
+                ),
+                retryable=True,
+            ))
+    return out
+
+
 def _validate_extraction(extraction: RubricExtraction) -> List[ValidationIssue]:
     """Validate extraction for structural and point-sum issues.
-    
+
     Returns list of issues. Each issue is either:
       - retryable: will trigger an LLM retry with error feedback
       - flag-only: will become a warning for the teacher
@@ -1349,6 +1440,12 @@ def _validate_extraction(extraction: RubricExtraction) -> List[ValidationIssue]:
             declared=100.0,
         ))
 
+    # Selection satisfiability — a 'choose k of N' group with fewer than k extracted
+    # questions is the "choose 4 of 1" bug; retryable so the model re-extracts the
+    # missed/merged questions.
+    extracted_numbers = {q.question_number for q in extraction.questions}
+    issues.extend(_selection_satisfiability_issues(extraction.selection_groups, extracted_numbers))
+
     return issues
 
 
@@ -1447,6 +1544,7 @@ async def _extract_with_retry(
     rendered_text: str,
     emit: Optional[Callable[..., Awaitable[None]]] = None,
     deadline: Optional["_Deadline"] = None,
+    tracer: Any = NULL_TRACER,
 ) -> Tuple[RubricExtraction, List[ValidationIssue], int, Dict[str, Any]]:
     """Extract → Clean → Validate → Retry if needed.
 
@@ -1466,7 +1564,9 @@ async def _extract_with_retry(
     retry_count = 0
     error_feedback = None
     all_seen_fps: set = set()  # fingerprints seen across ALL previous attempts (accumulates)
-    llm_meta: Dict[str, Any] = {"input_tokens": 0, "output_tokens": 0, "finish_reason": None, "model": None}
+    llm_meta: Dict[str, Any] = {"input_tokens": 0, "output_tokens": 0,
+                                "reasoning_tokens": 0, "cached_tokens": 0,
+                                "finish_reason": None, "model": None}
 
     dl = deadline or _Deadline(None)
     entry_need = _llm_timeout_s() + _DEADLINE_ENTRY_RESERVE_S   # (1) T + 20
@@ -1485,9 +1585,11 @@ async def _extract_with_retry(
         if emit is not None:
             await emit("llm_call", attempt=attempt + 1,
                        detail="retry with correction feedback" if error_feedback else None)
-        extraction, call_meta = await _call_llm(rendered_text, error_feedback, deadline=dl)
+        extraction, call_meta = await _call_llm(rendered_text, error_feedback, deadline=dl, tracer=tracer)
         llm_meta["input_tokens"] += call_meta["input_tokens"]
         llm_meta["output_tokens"] += call_meta["output_tokens"]
+        llm_meta["reasoning_tokens"] += call_meta.get("reasoning_tokens", 0) or 0
+        llm_meta["cached_tokens"] += call_meta.get("cached_tokens", 0) or 0
         llm_meta["finish_reason"] = call_meta["finish_reason"]
         llm_meta["model"] = call_meta["model"]
 
@@ -1499,7 +1601,11 @@ async def _extract_with_retry(
             await emit("validate", attempt=attempt + 1,
                        input_tokens=llm_meta["input_tokens"],
                        output_tokens=llm_meta["output_tokens"])
-        issues = _validate_extraction(extraction)
+        with tracer.operation("validate", attempt=attempt + 1) as _v:
+            issues = _validate_extraction(extraction)
+            _v.set(n_issues=len(issues),
+                   issues=[{"code": i.code, "message": i.message, "retryable": i.retryable}
+                           for i in issues])
 
         # After any retry: downgrade mismatches whose fingerprint was seen in ANY
         # previous attempt. Using an accumulated set (not just the last round)
@@ -1551,6 +1657,9 @@ async def _extract_with_retry(
             retry_count += 1
             all_seen_fps.update(_get_mismatch_fingerprints(issues))  # accumulate, never replace
             error_feedback = _build_retry_feedback(issues)
+            with tracer.operation("retry_decision", attempt=attempt + 1) as _rd:
+                _rd.set(trigger_codes=[i.code for i in trigger])
+                _rd.blob("feedback_out", error_feedback)
             if emit is not None:
                 await emit("retry", attempt=attempt + 1,
                            detail=f"{len(retryable)} retryable issue(s)")
@@ -1772,11 +1881,17 @@ async def extract_rubric_from_docx(
     test_topic: Optional[str] = None,
     on_progress: Optional[OnProgress] = None,
     deadline_seconds: Optional[float] = None,
+    tracer: Optional[Any] = None,
 ) -> ExtractionResult:
     """Extract rubric from DOCX — v3 pipeline with validation + retry.
 
     on_progress: optional pure-data stage callback (see ProgressEvent). None
     (default) is byte-identical to pre-seam behavior; failures are swallowed.
+
+    tracer: optional injected tracelog (see trace.py). None (default) resolves to a
+    no-op NULL_TRACER — byte-identical to no tracing. Captures the full span tree
+    (render / llm_call generations / validate issues / retry feedback) for debugging
+    the model's thought process; the caller owns persistence via tracer.finish().
 
     deadline_seconds (PR-2): total wall budget for THIS extraction. None (default)
     => unbounded => byte-identical to pre-PR-2 behavior. The eval runner passes
@@ -1791,6 +1906,7 @@ async def extract_rubric_from_docx(
     start = time.time()
     metrics = ExtractionMetrics()
     deadline = _Deadline(deadline_seconds)
+    tr = _resolve_tracer(tracer)  # NULL_TRACER when off ⇒ byte-identical
 
     async def _emit(stage: str, **kw: Any) -> None:
         await _emit_progress(on_progress, ProgressEvent(
@@ -1798,21 +1914,28 @@ async def extract_rubric_from_docx(
 
     try:
         # Step 0: Parse + Render
-        t0 = time.time()
-        rendered = render_docx_to_markdown(file_bytes)
-        metrics.render_time_seconds = time.time() - t0
-        metrics.rendered_chars = len(rendered)
+        with tr.operation("render") as _rsp:
+            t0 = time.time()
+            rendered = render_docx_to_markdown(file_bytes)
+            metrics.render_time_seconds = time.time() - t0
+            metrics.rendered_chars = len(rendered)
+            _rsp.set(chars=len(rendered)).blob("rendered_markdown", rendered)
         logger.info(f"v3 Step 0: {len(rendered)} chars in {metrics.render_time_seconds:.2f}s")
         await _emit("render", detail=f"{len(rendered)} chars")
 
         # Step 1: Extract + Clean + Validate + Retry
         t1 = time.time()
-        extraction, issues, retry_count, llm_meta = await _extract_with_retry(
-            rendered, emit=_emit if on_progress is not None else None, deadline=deadline)
+        with tr.operation("extract_loop") as _elsp:
+            extraction, issues, retry_count, llm_meta = await _extract_with_retry(
+                rendered, emit=_emit if on_progress is not None else None,
+                deadline=deadline, tracer=tr)
+            _elsp.set(retries=retry_count, n_remaining_issues=len(issues))
         metrics.llm_time_seconds = time.time() - t1
         metrics.retry_count = retry_count
         metrics.input_tokens = llm_meta["input_tokens"]
         metrics.output_tokens = llm_meta["output_tokens"]
+        metrics.reasoning_tokens = llm_meta.get("reasoning_tokens", 0)
+        metrics.cached_tokens = llm_meta.get("cached_tokens", 0)
         metrics.finish_reason = llm_meta["finish_reason"]
         metrics.llm_model = llm_meta["model"]
         extraction.subject = config.subject
@@ -1857,10 +1980,14 @@ async def extract_rubric_from_docx(
                     logger.warning(f"v3 Step 2c: {skip_msg}")
                     step2c_warnings.append(skip_msg)
 
-            response.pedagogical_mistakes = await asyncio.to_thread(
-                detect_pedagogical_mistakes, response, rendered,
-                llm=adjudicator, warnings_sink=step2c_warnings,
-            )
+            with tr.operation("pedagogical", tier_b_enabled=adjudicator is not None) as _psp:
+                response.pedagogical_mistakes = await asyncio.to_thread(
+                    detect_pedagogical_mistakes, response, rendered,
+                    llm=adjudicator, warnings_sink=step2c_warnings,
+                )
+                _psp.set(mistakes=[{"kind": getattr(m.kind, "value", str(m.kind)),
+                                    "target": getattr(m, "target_id", None)}
+                                   for m in (response.pedagogical_mistakes or [])])
             await _emit("pedagogical", detail="done")
             warnings.extend(step2c_warnings)
             if response.pedagogical_mistakes:

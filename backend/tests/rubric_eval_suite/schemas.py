@@ -145,6 +145,10 @@ class RubricScore:
     prompt_version: Optional[str] = None
     repeat_index: int = 0
 
+    # tracelog correlation (trace.py). None unless the run was launched with --trace;
+    # a thin link from a (failing) results.json row to its persisted span tree.
+    trace_id: Optional[str] = None
+
     # ---- latency instrument (Phase 0 — ADDITIVE, UNGATED, WATCHED) -------------
     # t_doc = total_seconds (pipeline entry → returned ExtractRubricResponse).
     # Populated by the RUNNER after scoring — the scorer (immutable) never sets
