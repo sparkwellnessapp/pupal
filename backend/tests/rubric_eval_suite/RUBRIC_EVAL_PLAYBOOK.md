@@ -159,6 +159,27 @@ legitimately inconsistent — gating on it would punish faithful extraction of a
 source (the rubric analog of the rejected transcription Policy 1). The gate criterion
 for that case is `annotation_match`, not consistency.
 
+**Faithful capture — the generalized principle + GT corollary (hobby q2 ruling,
+2026-07-25).** A faithful extraction reproduces EXACTLY what the teacher wrote —
+values, labels, placement, structure, **errors included** — and NEVER invents a value
+to make the rubric consistent, nor silently moves/relabels/edits content to fix an
+error. It only SURFACES the error and proposes a fix the teacher confirms (CLAUDE.md
+§2, "FC"). This generalizes beyond points/misallocation to **any** error class.
+Corollary for GT authoring: **one teacher error may cast several shadows across
+several surfaces, and the GT must encode ALL of them** — TRANSCRIBED from a live probe
+of the faithful draft (per GT_AUDIT), never hand-authored. **Worked example (hobby
+q2):** the teacher labeled `PrintLowRatingChannel` (16 pts) as `ב` though the question
+makes it `ג`, and declared ב = 29. The faithful GT therefore declares **ב = 29** (what
+the teacher wrote — **NOT 45**, the lumped sum the teacher never wrote), keeps the
+mislabeled criterion under ב, and documents the ONE error as THREE shadows on TWO
+surfaces: `pedagogical_mistakes` = {`structural_mislabel@q2` (Tier-B),
+`point_sum_mismatch@q2` (44≠60), `point_sum_mismatch@ב` (45≠29)} · `annotations` =
+{`rubric_mismatch@q2`, `rubric_mismatch@q2.ב`}. The teacher's single fix (reassign the
+criterion to ג) resolves all shadows at once. **Reverting ב to 45 would HIDE the
+arithmetic shadows and invent a total the teacher never wrote — the exact silent-repair
+anti-pattern this principle forbids**, and a model that does it would fail the gate on
+the MISSING annotations/pedagogical mistakes (the never-reconcile tripwires, §4 above).
+
 ---
 
 ## 5. The conjunctive gate

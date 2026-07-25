@@ -821,3 +821,20 @@ verdict: PROMOTABLE per owner k=3 bar. Honest power: 3 clean draws/fixture is we
   owner budget tradeoff; NOT "proven identical".
 cost: $3.80 this run. Total session $17.12 of $35.
 corrections: none
+
+## CHANGE 2026-07-25 — GT hobby_tvshow q2.ב faithful completion (one error, TWO surfaces)
+what: q2.ב total_points 45 -> 29 (faithful: teacher declared LowestRateChannel "סה"כ 29" — 45 is only
+  the lumped sum, never written). PrintLowRatingChannel (16 pts) STAYS under ב (mislabeled), per
+  faithful extraction. GT now documents the ONE teacher error (mislabel) on BOTH surfaces:
+  - pedagogical_mistakes: structural_mislabel@q2 [Tier-B, existing] + point_sum_mismatch@q2 (44 vs 60)
+    + point_sum_mismatch@ב (45 vs 29) [Tier-A, TRANSCRIBED from a probe of the faithful draft].
+  - annotations: rubric_mismatch@q2 + rubric_mismatch@q2.ב [TRANSCRIBED from the faithful draft].
+why: FAITHFUL-CAPTURE ruling (2026-07-25, Noam): preserve exactly what the teacher wrote + surface
+  every resulting inconsistency; never invent a consistent total, never move the criterion. Reverting
+  to 45 would HIDE the arithmetic shadows and invent a total the teacher never wrote (silent-repair
+  anti-pattern). The single teacher fix (reassign criterion to ג) resolves all shadows at once.
+by: Noam (ruling); transcribed by agent via live Tier-A + faithful-draft probe.
+affects: test_fp123 GREEN (39/39 guards). The GT file ALSO carries a concurrent [TABLE] question_text
+  change by ANOTHER agent (unrelated, preserved) — hobby_tvshow.json left UNCOMMITTED in the working
+  tree so as not to entangle that agent's in-progress work; commit it once the [TABLE] work settles.
+  Principle recorded (generalized) in CLAUDE.md §2 + RUBRIC_EVAL_PLAYBOOK.md §4.
