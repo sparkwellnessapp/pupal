@@ -22,7 +22,7 @@ from decimal import Decimal
 
 from app.schemas.ontology_types import (
     Criterion, ExtractRubricResponse, PedagogicalMistakeKind, Question,
-    SelectionGroup, SubQuestion,
+    PedagogicalMistake, SelectionGroup, SubQuestion,
 )
 from app.services.docx_v3.pedagogical_mistakes import detect_pedagogical_mistakes
 
@@ -210,3 +210,45 @@ def test_info_and_error_annotations_do_not_enter_the_ack_set():
         message="m", target_id="q1",
     )]})
     ContractCompiler().compile(draft, policy=NumericPolicy())   # INFO ⇒ no gate
+
+
+# ---------------------------------------------------------------------------
+# PR-6 §4 — provenance round-trips BOTH directions (A3).
+# Before this, Pydantic's default extra='ignore' meant these fields were accepted
+# and silently discarded: her decision would look saved and be gone on reopen.
+# ---------------------------------------------------------------------------
+
+def test_provenance_fields_round_trip_through_the_model():
+    draft = _clean_draft().model_copy(update={"pedagogical_mistakes": [PedagogicalMistake(
+        mistake_id="pts:q1", kind=PedagogicalMistakeKind.POINT_SUM_MISMATCH,
+        target_id="q1", explanation="e",
+        dismissed=True, dismissed_at="2026-07-30T10:00:00Z",
+        fix_applied=False, fix_applied_at=None,
+    )]})
+    revived = ExtractRubricResponse.model_validate_json(draft.model_dump_json())
+    m = revived.pedagogical_mistakes[0]
+    assert m.dismissed is True
+    assert m.dismissed_at == "2026-07-30T10:00:00Z"
+    assert m.fix_applied is False
+
+
+def test_absent_provenance_means_UNDECIDED_not_dismissed():
+    """A draft saved before PR-6 has no decisions recorded. None must never be read
+    as a decision — that would silently answer a question on her behalf."""
+    m = PedagogicalMistake(mistake_id="x", kind=PedagogicalMistakeKind.POINT_SUM_MISMATCH,
+                           target_id="q1", explanation="e")
+    assert m.dismissed is None and m.fix_applied is None
+    assert m.dismissed is not False, "None and False are different states"
+
+
+def test_provenance_survives_the_save_shaped_dict_round_trip():
+    """The save path does model_validate(dict) → model_dump(mode='json') → JSONB."""
+    src = _clean_draft().model_copy(update={"pedagogical_mistakes": [PedagogicalMistake(
+        mistake_id="pts:q1.א.2", kind=PedagogicalMistakeKind.POINT_SUM_MISMATCH,
+        target_id="q1.א.2", explanation="e",
+        fix_applied=True, fix_applied_at="2026-07-30T11:00:00Z",
+    )]})
+    as_dict = src.model_dump(mode="json")
+    stored = ExtractRubricResponse.model_validate(as_dict).model_dump(mode="json")
+    assert stored["pedagogical_mistakes"][0]["fix_applied"] is True
+    assert stored["pedagogical_mistakes"][0]["fix_applied_at"] == "2026-07-30T11:00:00Z"

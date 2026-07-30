@@ -773,6 +773,24 @@ class PedagogicalMistake(BaseModel):
         default=False, description="True when no auto-fix exists (e.g. normalization intent is unknowable).")
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
+    # ── PR-6 §4: DECISIONS ARE DATA ──────────────────────────────────────────
+    # The audit trail of the rubric gate: proposed → her decision → outcome. Vivi
+    # proposed; the teacher decided; the system remembers. Without these the system
+    # forgets, and forgetting means re-asking a question she already answered —
+    # which is the one thing a review surface must never do.
+    #
+    # All optional and default-None because a draft saved before PR-6 has no
+    # decisions recorded: absent means "not yet decided", NEVER "dismissed". They
+    # are Draft-only (the compiler strips pedagogical_mistakes; PR-3 deliberately
+    # keeps them out of the Contract) and they are the seed for future acceptance
+    # analytics — enabled by design, not built here.
+    dismissed: Optional[bool] = Field(
+        default=None, description="She chose «השאירי כך» — the finding stands, and is not re-asked.")
+    dismissed_at: Optional[str] = Field(default=None, description="ISO-8601 timestamp of that decision.")
+    fix_applied: Optional[bool] = Field(
+        default=None, description="She accepted the proposed fix. An UNDONE fix is not an applied fix — this is cleared on undo.")
+    fix_applied_at: Optional[str] = Field(default=None, description="ISO-8601 timestamp of that decision.")
+
 
 # =============================================================================
 # ARTIFACT MODELS
