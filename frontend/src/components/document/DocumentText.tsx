@@ -83,7 +83,13 @@ function DocTable({ segment }: { segment: TableSegment }) {
     const hasHeader = rows.length >= 2;
     const header = hasHeader ? rows[0] : null;
     const dataRows = hasHeader ? rows.slice(1) : rows;
-    const dir = inferGridDir(rows);
+    // CONSERVE THE SOURCE. Cells arrive in LOGICAL order, so direction decides
+    // which end is column 1 — and the document already told us (`bidiVisual` →
+    // the marker's dir token). Only fall back to guessing from content for legacy
+    // markers that carry no token: guessing mirrored 16 tables across the
+    // fixtures, in BOTH directions (an RTL row of digits, and an LTR table that
+    // merely contained Hebrew).
+    const dir = segment.dir ?? inferGridDir(rows);
     const align = dir === 'rtl' ? 'text-right' : 'text-left';
     return (
         <div className="my-3 overflow-x-auto" dir={dir}>

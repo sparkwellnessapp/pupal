@@ -591,7 +591,12 @@ class RubricExtraction(BaseModel):
 # --- question_text. Fixes the trace scaffold being absent from question_text (the teacher
 # --- never saw the empty trace table). GT already encodes the target (scaffold in q1.א.1
 # --- text, filled in its solution); prompt-only.
-EXTRACTION_PROMPT_VERSION = "3.6.0-scaffoldsplit"
+# --- 3.7.0-tabledir: the [TABLE] marker now carries the table's OWN direction
+# --- ("[TABLE N: RxC rtl|ltr]", from OOXML <w:tblPr><w:bidiVisual/>). Cells are
+# --- listed in the table's LOGICAL order, so direction is what decides which end
+# --- is column 1; the UI used to GUESS it from cell content and mirrored 16 tables
+# --- across the fixtures in both directions. The token must be copied verbatim.
+EXTRACTION_PROMPT_VERSION = "3.7.0-tabledir"
 
 EXTRACTION_SYSTEM_PROMPT = """You are an expert Israeli education rubric extractor. You read Hebrew exam rubric documents (מחוון) carefully and extract their structure into JSON.
 
@@ -637,7 +642,7 @@ EXCLUDE FROM ALL TEXT — furniture belongs to no scope, even though it sits ins
   • [IMAGE: ...] markers — unreadable embedded images (SECTION 4).
 Leaving furniture inside a text field corrupts that scope's text.
 
-TABLE ENCODING — when a context table (data array, class interface, trace scaffold) belongs in a text field, PRESERVE IT AS MARKDOWN, VERBATIM. Copy the `[TABLE N: RxC]` marker line and every table line beneath it — the header row, the `|---|` separator, and each `| cell | cell |` data row — EXACTLY as they appear in the rendered document, on their own lines; keep any indented `[NESTED TABLE: RxC]` block inside it. Do NOT flatten the table to space-joined cell text; do NOT drop the marker, the pipes, or the separator; do NOT renumber or reformat. The review surface parses this markdown back into a real table, so the structure MUST survive intact. EXCEPTION — a 1×1 table (RxC = 1x1, a single cell) is NOT a grid; it is a container the renderer wrapped around code or a prose block. DROP its `[TABLE …: 1x1]` marker, the `|---|` separator, and the surrounding pipes, and keep ONLY the cell's content (the code/text itself). Preserve `[TABLE]` markers ONLY for tables with real structure — 2 or more columns, or 2 or more rows. (A data array is rendered as the marker line `[TABLE 4: 1x8]` followed by the row `| 2 | 9 | 40 | 3 | 15 | 4 | 5 | 8 |` — that whole block goes into the text field unchanged. This applies to CONTEXT tables only; a FILLED solution table is handled differently — see SECTION 4.)
+TABLE ENCODING — when a context table (data array, class interface, trace scaffold) belongs in a text field, PRESERVE IT AS MARKDOWN, VERBATIM. The marker carries the table's own reading DIRECTION — `[TABLE N: RxC ltr]` or `[TABLE N: RxC rtl]` — which comes from the source document and tells the review surface which end is column 1; copy that token exactly as given and NEVER change, drop, or "correct" it (the cells are listed in the table's own logical order, so dropping the token mirrors her table). Copy the `[TABLE N: RxC ...]` marker line and every table line beneath it — the header row, the `|---|` separator, and each `| cell | cell |` data row — EXACTLY as they appear in the rendered document, on their own lines; keep any indented `[NESTED TABLE: RxC]` block inside it. Do NOT flatten the table to space-joined cell text; do NOT drop the marker, the pipes, or the separator; do NOT renumber or reformat. The review surface parses this markdown back into a real table, so the structure MUST survive intact. EXCEPTION — a 1×1 table (RxC = 1x1, a single cell) is NOT a grid; it is a container the renderer wrapped around code or a prose block. DROP its `[TABLE …: 1x1]` marker, the `|---|` separator, and the surrounding pipes, and keep ONLY the cell's content (the code/text itself). Preserve `[TABLE]` markers ONLY for tables with real structure — 2 or more columns, or 2 or more rows. (A data array is rendered as the marker line `[TABLE 4: 1x8 rtl]` followed by the row `| 2 | 9 | 40 | 3 | 15 | 4 | 5 | 8 |` — that whole block goes into the text field unchanged. This applies to CONTEXT tables only; a FILLED solution table is handled differently — see SECTION 4.)
 
 EXAMPLE — correct splitting:
 
@@ -645,7 +650,7 @@ Document fragment:
   "שאלה 1 - 40 נקודות
   הוגדרה מחלקה בשם Hobby בעלת התכונות הבאות:
   hobbyName - שם התחביב...
-  [TABLE 1: 2x2]
+  [TABLE 1: 2x2 rtl]
   | תיאור הפעולה | כותרת הפעולה |
   |---|---|
   | פעולה בונה תחביב... | public Hobby(...) |
@@ -658,7 +663,7 @@ CORRECT output:
   question_text:
     "הוגדרה מחלקה בשם Hobby בעלת התכונות הבאות:
      hobbyName - שם התחביב...
-     [TABLE 1: 2x2]
+     [TABLE 1: 2x2 rtl]
      | תיאור הפעולה | כותרת הפעולה |
      |---|---|
      | פעולה בונה תחביב... | public Hobby(...) |
@@ -762,9 +767,9 @@ SECTION 4: EXAMPLE SOLUTIONS
        → question_text: the SAME table as the EMPTY SCAFFOLD the student sees — keep the marker, header and column structure, but REPLACE every answer (contrast-ink) cell with an EMPTY cell.
    – NO — the contrast ink is mere emphasis on a value in a GIVEN data/example table, not an answer the student was to supply → route the WHOLE table (ink stripped) into question_text as context ([TABLE] markdown, SECTION 1); do NOT blank, do NOT duplicate.
    – The table sits UNDER a solution label (פתרון: / תשובה: / ערך מוחזר:) as the teacher's OWN worked answer (not a blank the student fills) → example_solution ONLY, whole table, ink stripped; no scaffold.
-   Example (DUAL role) — [TABLE 3: 6x5], default-ink header `| ערך מוחזר | <cond> | arr[i] | i | x |`, red-filled rows `|  | F | 8 | 0 | 6 |` … `| T | T | 3 | 4 |  |`, the question having told the student to complete a trace table:
-       question_text  ← `[TABLE 3: 6x5]` + header + `|---|` + five EMPTY rows `|  |  |  |  |  |`
-       example_solution ← `[TABLE 3: 6x5]` + header + `|---|` + the filled rows (ink stripped)
+   Example (DUAL role) — [TABLE 3: 6x5 rtl], default-ink header `| ערך מוחזר | <cond> | arr[i] | i | x |`, red-filled rows `|  | F | 8 | 0 | 6 |` … `| T | T | 3 | 4 |  |`, the question having told the student to complete a trace table:
+       question_text  ← `[TABLE 3: 6x5 rtl]` + header + `|---|` + five EMPTY rows `|  |  |  |  |  |`
+       example_solution ← `[TABLE 3: 6x5 rtl]` + header + `|---|` + the filled rows (ink stripped)
 
 ═══════════════════════════════════════════
 SECTION 5: POINT INVARIANTS (only when criteria exist)

@@ -110,7 +110,8 @@ describe('detectTableRuns — real bagrut fixture (precision on live data)', () 
         // single marker/pipe rows (precision bias holds), and must round-trip them.
         const segs = detectTableRuns(q2!);
         expect(tables(segs)).toHaveLength(0);
-        expect(proseText(segs)).toContain('[TABLE 6: 1x6]');
+        // the marker carries the table's own direction (prompt 3.7.0-tabledir)
+        expect(proseText(segs)).toMatch(/\[TABLE 6: 1x6( (?:rtl|ltr))?\]/);
         expect(proseText(segs)).toContain('| 7 | -3 | 4 | -7 | -4 | 3 |');
     });
 

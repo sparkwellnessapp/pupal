@@ -428,6 +428,32 @@ def _clean(text: str) -> str:
 # TABLE RENDERING
 # =============================================================================
 
+def _table_direction(table_el) -> str:
+    """The table's OWN reading direction, read from OOXML `<w:tblPr><w:bidiVisual/>`.
+
+    THIS IS A FACT THE DOCUMENT STATES — never something to infer from cell content.
+    `bidiVisual` means the table is laid out right-to-left, so its FIRST logical cell
+    is the RIGHTMOST one on screen. python-docx hands us cells in logical order, so
+    without this flag the column order is ambiguous and any consumer must guess.
+
+    Guessing is what broke: a Hebrew-free RTL table (bagrut's `| 20 | 19 | … | 0 |`
+    counts row) was guessed LTR and rendered MIRRORED against the teacher's Word
+    file, while an LTR table that merely CONTAINS Hebrew was guessed RTL and
+    mirrored the other way. 16 tables across the five fixtures were wrong, in both
+    directions. Content cannot recover a property of the table itself — so we carry
+    it, and the renderer/UI conserves the original.
+    """
+    ns_w = _NS["w"]
+    tblPr = table_el.find(f"{{{ns_w}}}tblPr")
+    if tblPr is None:
+        return "ltr"
+    el = tblPr.find(f"{{{ns_w}}}bidiVisual")
+    if el is None:
+        return "ltr"
+    # `<w:bidiVisual/>` present ⇒ on; an explicit falsey val turns it off.
+    return "ltr" if el.get(f"{{{ns_w}}}val") in ("0", "false", "off") else "rtl"
+
+
 def _render_table(
     table: DocxTableObj,
     index: Optional[int],
@@ -473,11 +499,12 @@ def _render_table(
 
     lines: List[str] = []
 
-    # Label
+    # Label — carries the table's OWN direction so no consumer has to guess it.
+    direction = _table_direction(table._element)
     if index is not None:
-        lines.append(f"{indent}[TABLE {index}: {num_rows}x{num_cols}]")
+        lines.append(f"{indent}[TABLE {index}: {num_rows}x{num_cols} {direction}]")
     else:
-        lines.append(f"{indent}[NESTED TABLE: {num_rows}x{num_cols}]")
+        lines.append(f"{indent}[NESTED TABLE: {num_rows}x{num_cols} {direction}]")
 
     # Process header row
     header_cells, header_nested = _process_row(rows[0], stats, table_baseline, table_hl_baseline)

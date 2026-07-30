@@ -251,3 +251,51 @@ describe('SolutionBody — direction (ask 3)', () => {
         expect(ltr).toContain('dir="ltr"');
     });
 });
+
+/**
+ * Table DIRECTION is a property of the source document, not of the cell contents.
+ * parser_render reads OOXML `<w:tblPr><w:bidiVisual/>` and writes it into the
+ * marker; the renderer CONSERVES it. Guessing from content mirrored 16 tables
+ * across the five fixtures — in both directions.
+ */
+describe('DocTable — conserves the source table direction', () => {
+    /** The direction of the TABLE itself (its own wrapper), not of any ancestor. */
+    const tableDir = (html: string) =>
+        /class="my-3 overflow-x-auto"\s+dir="(rtl|ltr)"/.exec(html)?.[1];
+
+    const counts = (d: string) => [
+        `[TABLE 13: 2x21 ${d}]`,
+        '| 20 | 19 | 18 |',
+        '|---|---|---|',
+        '| 0 | 0 | 1 |',
+    ].join('\n');
+
+    it('an RTL table of digits renders RTL (first logical cell = RIGHTMOST, as Word lays it out)', () => {
+        // The bug: all-numeric content made the old guesser say "ltr", so bagrut's
+        // counts row rendered 20→0 left-to-right while Word shows 0→20.
+        expect(tableDir(renderToStaticMarkup(<DocumentText text={counts('rtl')} />))).toBe('rtl');
+    });
+
+    it('the same table declared ltr renders LTR — the token decides, not the digits', () => {
+        expect(tableDir(renderToStaticMarkup(<DocumentText text={counts('ltr')} />))).toBe('ltr');
+    });
+
+    it('an LTR table that merely CONTAINS Hebrew is not dragged RTL', () => {
+        // bagrut T9/T10: `| 7 | -3 | … | המערך בתחילת הפעולה: |` is an LTR table.
+        const text = ['[TABLE 9: 2x4 ltr]', '| 7 | -3 | 4 | המערך בתחילת הפעולה: |', '|---|---|---|---|', '| 1 | 2 | 3 | ד |'].join('\n');
+        expect(tableDir(renderToStaticMarkup(<DocumentText text={text} />))).toBe('ltr');
+    });
+
+    it('a marker with NO token still parses, falling back to the content guess (legacy)', () => {
+        const text = ['[TABLE 3: 2x2]', '| ערך מוחזר | x |', '|---|---|', '| T | 4 |'].join('\n');
+        const html = renderToStaticMarkup(<DocumentText text={text} />);
+        expect(html).toContain('<table');      // renders, does not break
+        expect(tableDir(html)).toBe('rtl');    // Hebrew ⇒ guessed rtl
+    });
+
+    it('the direction token never leaks into the rendered text', () => {
+        const html = renderToStaticMarkup(<DocumentText text={counts('rtl')} />);
+        expect(html).not.toContain('rtl]');
+        expect(html).not.toContain('[TABLE');
+    });
+});
