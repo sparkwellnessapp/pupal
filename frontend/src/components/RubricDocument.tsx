@@ -25,7 +25,7 @@ import { EditablePoints } from '@/components/document/EditablePoints';
 import { DisclosureRow } from '@/components/document/DisclosureRow';
 import { CodeBlock } from '@/components/document/CodeBlock';
 import { TraceTablesDisplay, ContextTablesDisplay } from '@/components/document/DataTables';
-import { DocumentText } from '@/components/document/DocumentText';
+import { DocumentText, SolutionBody } from '@/components/document/DocumentText';
 
 /**
  * RubricDocument (PR-5 Sprint 2) — THE MIRROR. A sibling view to RubricEditor that
@@ -241,14 +241,13 @@ function CriteriaTable({
 
 function SolutionBlock({ solution }: { solution?: string | null }) {
     if (!solution || !solution.trim()) return null;
-    // A solution carrying a [TABLE] marker (a filled trace/solution table) renders
-    // through the marker-aware document renderer so it becomes a real <table>. A
-    // pure-code solution stays a CodeBlock — DocumentText would fragment code on
-    // Hebrew inline-comment lines (groupTextBlocks treats Hebrew as prose).
-    const hasTable = solution.includes('[TABLE');
+    // ONE path for every answer key — SolutionBody owns the uniform grey surface
+    // and routes tables / code / prose inside it. The old split (DocumentText for
+    // table-bearing solutions, CodeBlock otherwise) is exactly why some solutions
+    // had a grey box and some didn't.
     return (
         <DisclosureRow label="פתרון לדוגמה" toggleLabel="פתרון לדוגמה" className="my-2">
-            {hasTable ? <DocumentText text={solution} /> : <CodeBlock code={solution} />}
+            <SolutionBody text={solution} />
         </DisclosureRow>
     );
 }

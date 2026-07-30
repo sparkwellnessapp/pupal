@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripColorMarkers, imageMarkerName, isCodeLine, groupTextBlocks, bidiRuns } from './document-text';
+import { stripColorMarkers, imageMarkerName, isCodeLine, groupTextBlocks, bidiRuns, looksLikeCode } from './document-text';
 
 describe('stripColorMarkers', () => {
     it('removes the markers, keeps inner text verbatim', () => {
@@ -86,5 +86,73 @@ describe('bidiRuns', () => {
         const runs = bidiRuns('שלום עולם');
         expect(runs).toHaveLength(1);
         expect(runs[0].latin).toBe(false);
+    });
+});
+
+describe('looksLikeCode — block-level, tolerant of Hebrew comments', () => {
+    // The ruling: a code answer key stays ONE LTR block even though its comments
+    // are Hebrew. Only genuinely prose answers become RTL text.
+    it('C# with Hebrew // comments is CODE (must not fragment)', () => {
+        const sol = [
+            'public static bool IsMirror(int[] arr)',
+            '{',
+            '// בדיקה ראשונית: אורך זוגי',
+            'if (arr.Length % 2 != 0)',
+            'return false;',
+            '}',
+        ].join('\n');
+        expect(looksLikeCode(sol)).toBe(true);
+    });
+
+    it('a whole program collapsed onto ONE long line is still CODE', () => {
+        // foundations q2: the 1x1 container cell arrives as a single ~1000-char line.
+        expect(looksLikeCode('public static void main(String[] args) { int n=0; // מונה ... }')).toBe(true);
+    });
+
+    it('a Hebrew prose answer is NOT code', () => {
+        expect(looksLikeCode('תשובה: הפעולה מקבלת מערך מספרים וערך x, ומטרתה לבדוק האם קיים מחלק.')).toBe(false);
+    });
+
+    it('a mixed Hebrew/English prose answer is NOT code', () => {
+        expect(looksLikeCode('טענת כניסה: הפעולה מקבלת מערך arr\nטענת יציאה: מוחזר true אם המערך מראה')).toBe(false);
+    });
+
+    it('a returned-value line with arithmetic is NOT code (it is her sentence)', () => {
+        expect(looksLikeCode('ערך מוחזר: 76\n0 + 8 + 4 + 15 + 40 + 9 = 76')).toBe(false);
+    });
+
+    it('a lone statement is code (a one-line answer key)', () => {
+        expect(looksLikeCode('n1=n1+n3;')).toBe(true);
+    });
+
+    it('empty text is not code', () => {
+        expect(looksLikeCode('')).toBe(false);
+        expect(looksLikeCode('   \n  ')).toBe(false);
+    });
+});
+
+describe('bidiRuns — neutral-only runs keep source order (faithful capture)', () => {
+    // A pure-arithmetic line has NO strong character, so inside an RTL paragraph
+    // the bidi algorithm reorders it and her sum renders backwards. Isolating it
+    // as one LTR run preserves exactly what she wrote.
+    it('isolates a whole arithmetic expression as ONE ltr run', () => {
+        const runs = bidiRuns('0 + 8 + 4 + 15 + 40 + 9 = 76');
+        expect(runs).toHaveLength(1);
+        expect(runs[0].latin).toBe(true);
+        expect(runs[0].text).toBe('0 + 8 + 4 + 15 + 40 + 9 = 76');
+    });
+    it('still stops at Hebrew — no trailing space swallowed', () => {
+        const latin = bidiRuns('הפעולה Check מחזירה true').filter((r) => r.latin).map((r) => r.text);
+        expect(latin).toContain('Check');
+        expect(latin).toContain('true');
+    });
+    it('keeps a Hebrew label with its number ("ערך מוחזר: 76")', () => {
+        const runs = bidiRuns('ערך מוחזר: 76');
+        expect(runs.map((r) => r.text).join('')).toBe('ערך מוחזר: 76');
+        expect(runs.filter((r) => r.latin).map((r) => r.text)).toEqual(['76']);
+    });
+    it('reassembles verbatim for a mixed code/Hebrew line', () => {
+        const t = 'x = arr[i] + 1; שלום';
+        expect(bidiRuns(t).map((r) => r.text).join('')).toBe(t);
     });
 });

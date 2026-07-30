@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { DocumentText } from './DocumentText';
+import { DocumentText, SolutionBody } from './DocumentText';
 
 /**
  * Design Recovery Phase 2 — the acceptance is "ZERO raw markers, code as code,
@@ -157,5 +157,97 @@ describe('DocumentText — unmarked numeric grid still tableizes (detectTableRun
     });
     it('empty text renders nothing', () => {
         expect(renderToStaticMarkup(<DocumentText text={'   '} />)).toBe('');
+    });
+});
+
+/**
+ * SolutionBody — the answer key. Three rulings, one renderer:
+ *   1. text/code WRAPS (grows downward); only a table may scroll — a grid can't reflow.
+ *   2. EVERY solution sits in the same grey box, tied to the "פתרון לדוגמה" toggle.
+ *   3. Hebrew/mixed free text renders RTL; code stays one LTR block; tables keep
+ *      their own content-inferred direction (the RTL must not leak into them).
+ */
+const HEBREW_PROSE = 'תשובה: הפעולה מקבלת מערך מספרים וערך x, ומטרתה לבדוק האם קיים מחלק.';
+const CODE_WITH_HEBREW = [
+    'public static bool IsMirror(int[] arr)',
+    '{',
+    '// בדיקה ראשונית: אורך זוגי',
+    'return true;',
+    '}',
+].join('\n');
+const HEBREW_TABLE = [
+    '[TABLE 3: 3x5]',
+    '| ערך מוחזר | cond | arr[i] | i | x |',
+    '|---|---|---|---|---|',
+    '| T | T | 3 | 4 |  |',
+].join('\n');
+
+describe('SolutionBody — uniform grey surface (ask 2)', () => {
+    it.each([
+        ['prose', HEBREW_PROSE],
+        ['code', CODE_WITH_HEBREW],
+        ['table', HEBREW_TABLE],
+    ])('a %s solution renders inside the SAME grey box', (_kind, text) => {
+        const html = renderToStaticMarkup(<SolutionBody text={text} />);
+        expect(html).toContain('bg-surface-50');
+        expect(html).toContain('border-surface-200');
+    });
+
+    it('renders nothing for an empty solution (absence stays absent)', () => {
+        expect(renderToStaticMarkup(<SolutionBody text="   " />)).toBe('');
+    });
+});
+
+describe('SolutionBody — no horizontal scrolling for text/code (ask 1)', () => {
+    it('code WRAPS instead of scrolling, and carries no scroll container', () => {
+        const html = renderToStaticMarkup(<SolutionBody text={CODE_WITH_HEBREW} />);
+        expect(html).toContain('whitespace-pre-wrap');
+        expect(html).toContain('break-words');
+        expect(html).not.toContain('overflow-x-auto');
+    });
+
+    it('a whole program on ONE 1000-char line still wraps (no scrollbar)', () => {
+        const long = `public static void main(String[] args) { ${'int x=0; '.repeat(120)}}`;
+        const html = renderToStaticMarkup(<SolutionBody text={long} />);
+        expect(html).toContain('whitespace-pre-wrap');
+        expect(html).not.toContain('overflow-x-auto');
+    });
+
+    it('a TABLE may still scroll — a grid cannot reflow (the agreed exception)', () => {
+        const html = renderToStaticMarkup(<SolutionBody text={HEBREW_TABLE} />);
+        expect(html).toContain('overflow-x-auto');
+        expect(html).toContain('<table');
+    });
+});
+
+describe('SolutionBody — direction (ask 3)', () => {
+    it('Hebrew free text renders RTL-aware prose, not an LTR code block', () => {
+        const html = renderToStaticMarkup(<SolutionBody text={HEBREW_PROSE} />);
+        expect(html).toContain('unicode-bidi:plaintext'); // the Prose treatment
+        expect(html).not.toContain('<pre');               // NOT monospace code
+        expect(html).toContain('תשובה');
+    });
+
+    it('mixed Hebrew+English free text is prose too, with the Latin isolated', () => {
+        const html = renderToStaticMarkup(<SolutionBody text={'טענת כניסה: הפעולה מקבלת מערך arr ומחזירה true'} />);
+        expect(html).not.toContain('<pre');
+        expect(html).toContain('<bdi');   // Latin runs isolated so RTL can't reorder them
+    });
+
+    it('code stays ONE LTR block even though its comments are Hebrew', () => {
+        const html = renderToStaticMarkup(<SolutionBody text={CODE_WITH_HEBREW} />);
+        expect((html.match(/<pre/g) ?? []).length).toBe(1);  // ONE block, not fragments
+        expect(html).toContain('dir="ltr"');
+        expect(html).toContain('בדיקה ראשונית');             // the Hebrew comment rode along
+    });
+
+    it('a table keeps its OWN direction — the container RTL does not leak in', () => {
+        const html = renderToStaticMarkup(<SolutionBody text={HEBREW_TABLE} />);
+        // the Hebrew-bearing grid stays rtl (her Word column order), set explicitly
+        expect(html).toContain('dir="rtl"');
+        // and a Latin-only grid is NOT dragged rtl by the surrounding container
+        const latinTable = '[TABLE 5: 2x4]\n| sum | i | arr[i] | check |\n|---|---|---|---|\n| 0 | 1 | 8 | T |';
+        const ltr = renderToStaticMarkup(<SolutionBody text={latinTable} />);
+        expect(ltr).toContain('dir="ltr"');
     });
 });

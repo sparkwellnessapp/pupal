@@ -56,6 +56,28 @@ export function isCodeLine(line: string): boolean {
     return symbols >= 3;                             // symbol-dense Latin line
 }
 
+/**
+ * BLOCK-level code detection for a whole text run.
+ *
+ * Unlike `isCodeLine`, this deliberately TOLERATES Hebrew: a C# answer key
+ * routinely carries Hebrew `//` comments, and it must render as ONE LTR code
+ * block rather than fragmenting into alternating code/prose islands. So the
+ * decision is made over the run as a whole — count the lines carrying a code
+ * signal (brace-only, statement terminator, comment marker, leading keyword) and
+ * ask whether they dominate.
+ *
+ * Two lines of signal, or 40% of the run, is enough: a real solution has many;
+ * Hebrew prose ("תשובה: הפעולה מקבלת מערך…") has none.
+ */
+const CODE_SIGNAL_RE = /^[{}()[\]]+$|;\s*$|^\/\/|^\/\*|^\*/;
+
+export function looksLikeCode(text: string): boolean {
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return false;
+    const signals = lines.filter((l) => CODE_SIGNAL_RE.test(l) || CODE_KEYWORD_RE.test(l)).length;
+    return signals >= 2 || signals / lines.length >= 0.4;
+}
+
 export type TextBlock =
     | { kind: 'code'; text: string }
     | { kind: 'image'; name: string }
@@ -111,9 +133,22 @@ export function groupTextBlocks(text: string): TextBlock[] {
  * Returns runs in order; `latin: true` marks the ones to isolate.
  */
 export function bidiRuns(text: string): Array<{ text: string; latin: boolean }> {
-    // A Latin run starts at a Latin letter and extends through following code-ish
-    // chars (digits, brackets, operators, dots) so identifiers/calls stay intact.
-    const re = /[A-Za-z][A-Za-z0-9_.,:;!?'"()[\]{}<>+\-*/%=&|]*/g;
+    // An LTR run starts at a Latin letter OR A DIGIT and extends through following
+    // code-ish chars (digits, brackets, operators, dots) so identifiers, calls AND
+    // arithmetic stay intact.
+    //
+    // Digits matter as much as letters here: a line like "0 + 8 + 4 + 15 = 76" has
+    // NO strong character at all, so inside an RTL paragraph the bidi algorithm
+    // lays its neutrals out right-to-left and the teacher's arithmetic renders
+    // BACKWARDS ("76 = 15 + 4 + 8 + 0"). Isolating it as one LTR run preserves the
+    // order she wrote while the paragraph keeps its RTL alignment.
+    //
+    // The trailing `(?:\s+[…]+)*` lets a run span the spaces INSIDE an expression
+    // ("0 + 8") but never past a Hebrew word — the group needs a code-ish char
+    // after the space, which Hebrew is not. So "הפעולה Check מחזירה" still yields
+    // the bare run "Check", with no trailing space.
+    const CODEISH = "[A-Za-z0-9_.,:;!?'\"()\\[\\]{}<>+\\-*/%=&|]";
+    const re = new RegExp(`[A-Za-z0-9]${CODEISH}*(?:\\s+${CODEISH}+)*`, 'g');
     const runs: Array<{ text: string; latin: boolean }> = [];
     let last = 0;
     let m: RegExpExecArray | null;

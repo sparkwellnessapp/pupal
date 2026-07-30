@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from 'react';
 import { ImageOff } from 'lucide-react';
 import { parseMarkdownText, inferGridDir, type TableSegment } from '@/utils/markdown-parser';
 import { detectTableRuns } from '@/utils/detect-table-runs';
-import { stripColorMarkers, groupTextBlocks, bidiRuns } from '@/utils/document-text';
+import { stripColorMarkers, groupTextBlocks, bidiRuns, looksLikeCode } from '@/utils/document-text';
 import { CodeBlock } from './CodeBlock';
 
 /**
@@ -142,6 +142,47 @@ function TextSegment({ text }: { text: string }) {
                 );
             })}
         </>
+    );
+}
+
+/**
+ * SolutionBody — the ONE renderer for every `example_solution`, so the answer key
+ * looks the same wherever it appears (it used to split: table-bearing solutions
+ * rendered as bare document text, code ones as a card, so some had a grey surface
+ * and some didn't).
+ *
+ * One grey box, tied to the "פתרון לדוגמה" disclosure above it by proximity and a
+ * start-edge rule. Inside, each segment is routed by what it IS:
+ *
+ *   - TABLE  → the document table, keeping its OWN content-inferred direction (a
+ *              Hebrew trace table stays RTL, matching the column order in her
+ *              Word file). The surrounding RTL must not leak into it, and a wide
+ *              grid may scroll inside its own box — a table cannot reflow.
+ *   - CODE   → one LTR block that WRAPS. Block-level detection (`looksLikeCode`)
+ *              keeps Hebrew `//` comments inside the code instead of splitting
+ *              the program into alternating islands.
+ *   - PROSE  → RTL-aware paragraphs (`Prose`: dir=auto + unicode-bidi:plaintext +
+ *              per-run <bdi>), so a Hebrew or mixed Hebrew/English answer reads
+ *              right-to-left with its Latin identifiers intact.
+ *
+ * Nothing here scrolls horizontally except a table: text grows downward instead.
+ */
+export function SolutionBody({ text, className = '' }: { text: string; className?: string }) {
+    if (!text || !text.trim()) return null;
+    const segments = parseMarkdownText(stripColorMarkers(text));
+    return (
+        <div
+            dir="rtl"
+            className={`rounded-lg bg-surface-50 border border-surface-200 border-r-2 border-r-surface-300 px-4 py-3 space-y-2 ${className}`}
+        >
+            {segments.map((seg, i) =>
+                seg.type === 'table'
+                    ? <DocTable key={i} segment={seg} />
+                    : looksLikeCode(seg.content)
+                        ? <CodeBlock key={i} code={seg.content} wrap bare />
+                        : <Prose key={i} text={seg.content} />,
+            )}
+        </div>
     );
 }
 
