@@ -15,11 +15,20 @@
 
 const COLOR_OPEN_RE = /\[\[color:[0-9A-Fa-f]{6}\]\]/g;
 const COLOR_CLOSE_RE = /\[\[\/color\]\]/g;
+const HL_OPEN_RE = /\[\[hl:[^\]]*\]\]/g;
+const HL_CLOSE_RE = /\[\[\/hl\]\]/g;
 const IMAGE_LINE_RE = /^\s*\[IMAGE:\s*(.*?)\]\s*$/;
 
-/** Strip `[[color:RRGGBB]]…[[/color]]` markers, keeping the inner text verbatim. */
+/**
+ * Strip teacher-ink markers — `[[color:RRGGBB]]…[[/color]]` AND `[[hl:name]]…[[/hl]]`
+ * — keeping the inner text verbatim. Both are parser_render annotations for
+ * teacher-touched ink (contrasting-color pen, highlighter); the tokens must never
+ * reach a rendered cell, but the value they wrap is real content and is kept.
+ */
 export function stripColorMarkers(text: string): string {
-    return text.replace(COLOR_OPEN_RE, '').replace(COLOR_CLOSE_RE, '');
+    return text
+        .replace(COLOR_OPEN_RE, '').replace(COLOR_CLOSE_RE, '')
+        .replace(HL_OPEN_RE, '').replace(HL_CLOSE_RE, '');
 }
 
 /** If a line is exactly an `[IMAGE: name]` marker, return the name; else null. */

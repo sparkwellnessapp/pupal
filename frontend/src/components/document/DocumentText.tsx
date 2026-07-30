@@ -77,16 +77,20 @@ function MiniTable({ rows, hasHeader }: { rows: string[][]; hasHeader: boolean }
 function DocTable({ segment }: { segment: TableSegment }) {
     const { rows, nestedTables } = segment;
     if (rows.length === 0) return null;
-    const header = rows[0];
-    const dataRows = rows.slice(1);
+    // A single-row table is a data array (e.g. [TABLE N: 1xC] — an arr/trace row):
+    // its one row is DATA, not a header. A header needs at least one data row
+    // beneath it to be one. Render 1-row tables as a body row, no <thead>.
+    const hasHeader = rows.length >= 2;
+    const header = hasHeader ? rows[0] : null;
+    const dataRows = hasHeader ? rows.slice(1) : rows;
     const dir = inferGridDir(rows);
     const align = dir === 'rtl' ? 'text-right' : 'text-left';
     return (
         <div className="my-3 overflow-x-auto" dir={dir}>
             <table className="border-collapse text-doc-table w-full">
-                <thead><tr>{header.map((c, i) => (
+                {header && <thead><tr>{header.map((c, i) => (
                     <th key={i} className={`border border-surface-200 px-3 py-1.5 text-surface-500 font-medium ${align}`}><BidiText text={c} /></th>
-                ))}</tr></thead>
+                ))}</tr></thead>}
                 <tbody>
                     {dataRows.map((row, ri) => (
                         <tr key={ri}>{row.map((c, ci) => (
@@ -146,11 +150,15 @@ export function DocumentText({ text, className = '' }: { text: string; className
     const segments = parseMarkdownText(stripColorMarkers(text));
     return (
         <div className={`space-y-2 ${className}`} dir="rtl">
-            {segments.map((seg, i) =>
-                seg.type === 'table'
-                    ? <DocTable key={i} segment={seg} />
-                    : <TextSegment key={i} text={seg.content} />,
-            )}
+            {segments.map((seg, i) => {
+                if (seg.type !== 'table') return <TextSegment key={i} text={seg.content} />;
+                // A 1×1 table is a single-cell container (code/prose the renderer wrapped),
+                // not a grid — render its cell as a text segment, never a bordered table.
+                if (seg.rows.length === 1 && (seg.rows[0]?.length ?? 0) <= 1) {
+                    return <TextSegment key={i} text={seg.rows[0]?.[0] ?? ''} />;
+                }
+                return <DocTable key={i} segment={seg} />;
+            })}
         </div>
     );
 }

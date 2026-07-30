@@ -9,7 +9,7 @@
     {
       "question_id": "q1",
       "question_type": "short_answer",
-      "question_text": "בביה\"ס החליטו לרכז את התחביבים של התלמידים. לשם כך, הגדירו מחלקה בשם תחביב (Hobby) בעלת התכונות הבאות:\nhobbyName - שם התחביב (מטיפוס מחרוזת).\nisSportive  - האם תחביב דורש פעילות ספורטיבית (מטיפוס בוליאני)\nminutes  - זמן פעילות התחביב בדקות (מספר שלם בין 1 ל- 60(\nהניחו כי קיימות פעולות Get / Set לכל תכונות המחלקה.\nבנוסף הוגדרו הפעולות הבאות עבור המחלקה Hobby:\nתיאור הפעולה כותרת הפעולה\nפעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם. הניחו כי הפרמטרים תקינים. public Hobby (string hobbyName, bool isSportive, int minutes)\nעל מנת לרכז את בחירות התחביבים של התלמידים בביה\"ס הוגדרה מחלקה בשם SchoolHobbies המכילה מערך מסוג  Hobby ואת מספר התחביבים הקיימים בפועל, מטיפוס שלם, שערכו קטן או שווה לגודל המערך.\nלהלן כותרת המחלקה , התכונות ופעולה בונה:\npublic class SchoolHobbies\n{\nprivate Hobby [] hobbies;\t\t// כל התחביבים של תלמידי בית הספר\nprivate int countHobbies ;\t\t// מספר התחביבים בפועל (קטן או שווה לגודל המערך\n// בנאי\npublic SchoolHobbies (int size)\n{\nhobbies = new Hobby [size];\ncountHobbies = 0;\n}\n}\nהניחו כי קיימות פעולות Get לכל תכונות המחלקה.",
+      "question_text": "בביה\"ס החליטו לרכז את התחביבים של התלמידים. לשם כך, הגדירו מחלקה בשם תחביב (Hobby) בעלת התכונות הבאות:\nhobbyName - שם התחביב (מטיפוס מחרוזת).\nisSportive  - האם תחביב דורש פעילות ספורטיבית (מטיפוס בוליאני)\nminutes  - זמן פעילות התחביב בדקות (מספר שלם בין 1 ל- 60(\nהניחו כי קיימות פעולות Get / Set לכל תכונות המחלקה.\nבנוסף הוגדרו הפעולות הבאות עבור המחלקה Hobby:\n[TABLE 1: 2x2]\n| תיאור הפעולה | כותרת הפעולה |\n|---|---|\n| פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם. הניחו כי הפרמטרים תקינים. | public Hobby (string hobbyName, bool isSportive, int minutes) |\nעל מנת לרכז את בחירות התחביבים של התלמידים בביה\"ס הוגדרה מחלקה בשם SchoolHobbies המכילה מערך מסוג  Hobby ואת מספר התחביבים הקיימים בפועל, מטיפוס שלם, שערכו קטן או שווה לגודל המערך.\nלהלן כותרת המחלקה , התכונות ופעולה בונה:\npublic class SchoolHobbies\n{\nprivate Hobby [] hobbies;\t\t// כל התחביבים של תלמידי בית הספר\nprivate int countHobbies ;\t\t// מספר התחביבים בפועל (קטן או שווה לגודל המערך\n// בנאי\npublic SchoolHobbies (int size)\n{\nhobbies = new Hobby [size];\ncountHobbies = 0;\n}\n}\nהניחו כי קיימות פעולות Get לכל תכונות המחלקה.",
       "total_points": "40",
       "allow_multiple_valid_forms": false,
       "skill_targets": [],
@@ -277,7 +277,7 @@
     {
       "question_id": "q2",
       "question_type": "short_answer",
-      "question_text": "הוגדרה המחלקה TvShow המייצגת תוכנית טלוויזיה ולמחלקה הוגדרו התכונות הבאות:\nname - שם התכנית (מטיפוס מחרוזת)\nrate - דירוג התכנית (מטיפוס שלם בין 0-10)\nchl - מספר ערוץ בו נצפית התכנית (מטיפוס שלם, בין 1- 100).\nisOn – האם משודר כעת (מטיפוס בוליאני).\nהניחו כי קיימות פעולות Set / Get עבור תכונות המחלקה.\nבנוסף הוגדרו הפעולות הבאות:\nתיאור הפעולה כותרת הפעולה\nפעולה הבונה תוכנית טלוויזיה ששמה name והיא משודרת בערוץ הטלויזיה channel. הפעולה הבונה קובעת את התכונה rate להיות אפס (0) ואת התכונה isOn להיות אמת (true). public TvShow (string name, int channel)\nפעולה המנהלת את קליטת דירוג הצופים. הפעולה מקבלת את מספר הצופים המדרגים את תוכנית הטלוויזיה הנוכחית. עבור כל צופה הפעולה קולטת ומוסיפה את הדירוג שלו לדירוג הקיים לתכנית הטלוויזיה. הפעולה מעדכנת את התכונה rate להיות סכום הדירוגים שנקלטו אי פעם מכל הצופים המדרגים את התוכנית. public void UpdateRate (int numViewers)\nלצורך ניהול כל מערכת הרייטינג הוגדרה מחלקה בשם TvRate המנהלת את הדירוגים של כל תוכניות הטלוויזיה.\nלמחלקה זו תכונה אחת בלבד - מערך בשם arrShows מסוג TvShow :\npublic class TvRate\n{\nprivate TvShow [] arrShows;\t\t// כל תוכניות הטלויזיה\n}\nהניחו כי כותרת המחלקה, הגדרת התכונה קיימות וכן קיימות פעולות Set / Get עבור תכונות המחלקה.\nכמו כן, הניחו כי המערך arrShows מלא עד המקום הראשון הפנוי - כלומר, אין רווחים.",
+      "question_text": "הוגדרה המחלקה TvShow המייצגת תוכנית טלוויזיה ולמחלקה הוגדרו התכונות הבאות:\nname - שם התכנית (מטיפוס מחרוזת)\nrate - דירוג התכנית (מטיפוס שלם בין 0-10)\nchl - מספר ערוץ בו נצפית התכנית (מטיפוס שלם, בין 1- 100).\nisOn – האם משודר כעת (מטיפוס בוליאני).\nהניחו כי קיימות פעולות Set / Get עבור תכונות המחלקה.\nבנוסף הוגדרו הפעולות הבאות:\n[TABLE 3: 3x2]\n| תיאור הפעולה | כותרת הפעולה |\n|---|---|\n| פעולה הבונה תוכנית טלוויזיה ששמה name והיא משודרת בערוץ הטלויזיה channel. הפעולה הבונה קובעת את התכונה rate להיות אפס (0) ואת התכונה isOn להיות אמת (true). | public TvShow (string name, int channel) |\n| פעולה המנהלת את קליטת דירוג הצופים. הפעולה מקבלת את מספר הצופים המדרגים את תוכנית הטלוויזיה הנוכחית. עבור כל צופה הפעולה קולטת ומוסיפה את הדירוג שלו לדירוג הקיים לתכנית הטלוויזיה. הפעולה מעדכנת את התכונה rate להיות סכום הדירוגים שנקלטו אי פעם מכל הצופים המדרגים את התוכנית. | public void UpdateRate (int numViewers) |\nלצורך ניהול כל מערכת הרייטינג הוגדרה מחלקה בשם TvRate המנהלת את הדירוגים של כל תוכניות הטלוויזיה.\nלמחלקה זו תכונה אחת בלבד - מערך בשם arrShows מסוג TvShow :\npublic class TvRate\n{\nprivate TvShow [] arrShows;\t\t// כל תוכניות הטלויזיה\n}\nהניחו כי כותרת המחלקה, הגדרת התכונה קיימות וכן קיימות פעולות Set / Get עבור תכונות המחלקה.\nכמו כן, הניחו כי המערך arrShows מלא עד המקום הראשון הפנוי - כלומר, אין רווחים.",
       "total_points": "60",
       "allow_multiple_valid_forms": false,
       "skill_targets": [],
@@ -325,7 +325,7 @@
           "index": 1,
           "title": null,
           "text": "ב. כתבו פעולה חיצונית בשם LowestRateChannel  המקבלת אובייקט מטיפוס TvRate ומחזירה את מספר הערוץ בעל הדירוג הנמוך ביותר מבין הערוצים כאשר דירוג של ערוץ (chl) הוא סכום הדירוגים (rate) של כל התוכניות המשודרות בערוץ זה.\nניתן להניח כי קיים ערוץ אחד בלבד בעל דירוג נמוך ביותר.\nלצורך פתרון סעיף זה יש להשתמש במערך צוברים . אי שימוש במערך צוברים יגרור הורדת ניקוד.\nג. כתבו פעולה חיצונית PrintLowRatingChannel  המקבלת אובייקט מטיפוס TvRate שמדפיסה את השם של כל התוכניות שמשודרות כעת בערוץ בעל הדירוג הנמוך ביותר.\nיש להשתמש בפעולות הפנימיות והחיצוניות המתאימות.\nאי שימוש בפעולות פנימיות וחיצוניות יגרור הורדת ניקוד.",
-          "points": "45",
+          "points": "29",
           "example_solution": null,
           "criteria": [
             {
@@ -535,10 +535,61 @@
       },
       "requires_teacher_input": false,
       "confidence": 0.9
+    },
+    {
+      "mistake_id": "pts:q2",
+      "kind": "point_sum_mismatch",
+      "severity": "warning",
+      "target_id": "q2",
+      "explanation": "רכיבי שאלה q2 מסתכמים ל-44.0 אך הניקוד המוצהר הוא 60.0.",
+      "evidence": {
+        "children_sum": "44.0",
+        "declared_total": "60.0"
+      },
+      "suggested_fix": null,
+      "requires_teacher_input": true,
+      "confidence": 1.0
+    },
+    {
+      "mistake_id": "pts:q2.ב",
+      "kind": "point_sum_mismatch",
+      "severity": "warning",
+      "target_id": "ב",
+      "explanation": "רכיבי סעיף ב מסתכמים ל-45.0 אך נקודות הסעיף הן 29.0.",
+      "evidence": {
+        "children_sum": "45.0",
+        "declared": "29.0"
+      },
+      "suggested_fix": null,
+      "requires_teacher_input": true,
+      "confidence": 1.0
     }
   ],
   "approach_classes": [],
-  "annotations": [],
+  "annotations": [
+    {
+      "annotation_type": "rubric_mismatch",
+      "severity": "warning",
+      "message": "אזהרה: סכום הנקודות של תת-השאלות בQ2 הוא 44 נקודות, אך כותרת השאלה מצהירה על 60 נקודות — ייתכן שמדובר בשגיאה בשאלון המקורי. יש לבדוק ידנית.",
+      "target_id": "q2",
+      "id": "rubric_mismatch:q2",
+      "invariant": null,
+      "expected": null,
+      "actual": null,
+      "message_he": null
+    },
+    {
+      "annotation_type": "rubric_mismatch",
+      "severity": "warning",
+      "message": "אזהרה: סכום הקריטריונים של תת-שאלה Q2.ב הוא 45 נקודות, אך תת-השאלה מצהירה על 29 נקודות — ייתכן שמדובר בשגיאה בשאלון המקורי. יש לבדוק ידנית.",
+      "target_id": "q2.ב",
+      "id": "rubric_mismatch:q2.ב",
+      "invariant": null,
+      "expected": null,
+      "actual": null,
+      "message_he": null
+    }
+  ],
   "extraction_metadata": {},
   "name": "hobby_tvshow",
   "description": null,

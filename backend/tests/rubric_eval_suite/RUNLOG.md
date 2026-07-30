@@ -838,3 +838,62 @@ affects: test_fp123 GREEN (39/39 guards). The GT file ALSO carries a concurrent 
   change by ANOTHER agent (unrelated, preserved) — hobby_tvshow.json left UNCOMMITTED in the working
   tree so as not to entangle that agent's in-progress work; commit it once the [TABLE] work settles.
   Principle recorded (generalized) in CLAUDE.md §2 + RUBRIC_EVAL_PLAYBOOK.md §4.
+
+
+## CHANGE 2026-07-25 — prompt 3.4.0-tablemarkers -> 3.5.0-solutiontables (solution tables render as tables)
+what: SECTION 4 FILLED trace/solution-table rule REVERSED from flatten-to-cell-text to
+  PRESERVE-AS-[TABLE]-MARKDOWN (marker + header + separator + value rows, empty cells kept,
+  [[color]]/[[hl]] ink stripped) — symmetric with the SECTION 1 context-table rule. The
+  HEADER ROW EXCLUSION sub-rule (2026-07-10) is REVERSED to HEADER ROW INCLUSION: the
+  solution table keeps its header, so it renders as a self-labeled table. Added a 1x1-table
+  EXCEPTION (SECTION 1 + 4): a single-cell table is a code/prose CONTAINER, not a grid —
+  unwrap it (drop marker + pipes, keep the cell content) so model-solution code the teacher
+  wrapped in a 1x1 table is not marked/rendered as a table.
+why: example_solution trace tables rendered as plain monospace in RubricDocument
+  (SolutionBlock used CodeBlock). Now SolutionBlock routes [TABLE]-bearing solutions through
+  DocumentText (marker-aware); code solutions stay CodeBlock; stripColorMarkers also [[hl]].
+gt: 3 example_solution tables marked to full form from the render, colors/hl stripped,
+  trailing all-empty rows trimmed — bagrut q1.A.1 [TABLE 3: 6x5], bagrut q1.B.1 [TABLE 5: 11x4]
+  (red prose kept around it), foundations q1.A [TABLE 1: 11x9]. 1x1 code solutions unchanged.
+safety: example_solution_fidelity is gated but scored by nz.ratio >= 0.85; GT + prompt moved
+  together. VERIFIED by k=1 live trials (gpt-5.5): bagrut gate PASS fidelity 1.000; foundations
+  gate PASS fidelity 1.000 (q1.A [TABLE] marked, q2/q3.B code UNWRAPPED no marker).
+by: Noam (D1 include-header + D2 conditional-render + D3 hl-strip rulings); agent implemented.
+affects: test_fp123 GREEN (39/39); frontend vitest GREEN (199); tsc clean.
+
+
+## CHANGE 2026-07-25 (follow-up) — 1x1-table unwrap moved to parser_render (strongest safeguard)
+what: The 1x1-table EXCEPTION (single-cell container -> cell content, no [TABLE] marker) is now
+  enforced DETERMINISTICALLY in parser_render._render_table, not just via the prompt. A 1x1 table
+  emits ONLY its cell content (no marker/separator/pipes; real | kept un-escaped; same contrast
+  baselines so teacher ink is unchanged). The LLM never SEES a [TABLE 1x1] marker, so it cannot
+  preserve one; the GT slicer and review UI never receive one either. The prompt 1x1 exception +
+  DocumentText 1x1 guard are KEPT as defense-in-depth.
+scope: corpus survey — ONLY foundations has 1x1 tables (q2, q3.B, both model-solution code);
+  bagrut/csharp/employee/hobby have ZERO. table_index is consumed in the main loop, so unwrapping
+  does NOT renumber downstream markers (GT [TABLE 1: 11x9] etc. unchanged). Also IMPROVES the gate:
+  GT foundations q2/q3.B hold the unmarked code, so a marker-less extraction matches more cleanly.
+verify: 0 [TABLE ...: 1x1] remain in any of the 5 renders; no code leak into question_text
+  (generator preview); test_fp123 39/39; frontend vitest 199; tsc clean; k=1 foundations gate PASS
+  fidelity 1.000 (q1.A [TABLE 1: 11x9] still marked; q2/q3.B code UNWRAPPED, no marker).
+by: Noam (proposed the parser-level safeguard); agent implemented.
+
+
+## CHANGE 2026-07-26 — prompt 3.5.0-solutiontables -> 3.6.0-scaffoldsplit (trace-scaffold dual emission)
+what: SECTION 4 — a teacher-FILLED table now gets a ROLE decision by JUDGEMENT (contrast ink is a
+  HINT, not a rule; classify by role, SECTION 3). Three outcomes: (a) colored cells ARE an answer-fill
+  of a table the student was to complete -> DUAL emit: filled table -> example_solution AND the blank
+  SCAFFOLD (answer cells emptied) -> question_text; (b) colored cells are mere emphasis on a given data
+  table -> whole table -> question_text context; (c) table under a solution label (teacher own working)
+  -> example_solution only. Fixes the trace scaffold being ABSENT from question_text (Failure #2 — the
+  teacher never saw the empty trace table).
+why: the 3.5.0 rule mentioned the scaffold only as a descriptive parenthetical, never imperative, so the
+  LLM routed the one filled table to example_solution and dropped the scaffold.
+gt: NO change — GT already encodes the target (q1.A.1 text has [TABLE 3: 6x5] header + 5 empty rows; its
+  example_solution has the filled block). Prompt-only.
+verify: test_fp123 39/39; k=1 bagrut gate PASS, example_solution_fidelity 1.000, question_text_fidelity_min
+  1.0. q1.A.1 text NOW carries the empty [TABLE 3: 6x5] scaffold; example_solution the filled one.
+  WATCH: q1.B.1 sub_text ratio 0.2292 — the shared What code+array landed on the PARENT q1.B (GT puts it on
+  child q1.B.1); array [TABLE 4] preserved + renders — a context-placement variance (Failure #1 class),
+  ungated, single-run, not cleanly attributable to the change vs LLM noise.
+by: Noam (prompt-only, judgement-based ruling); agent implemented.

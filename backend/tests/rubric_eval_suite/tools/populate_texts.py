@@ -19,9 +19,15 @@ NORMATIVE CONVENTIONS (§2 of the PR-1 spec; copied verbatim into GT_AUDIT.md):
      solution/scoring line (פתרון/תשובה/ניקוד in red); end of document.
   4. Red ink is excluded from text spans. Fully-red lines are dropped;
      red spans inside black lines have the marked TEXT removed.
-  5. Tables inside a question span are question content, encoded as cell
-     text: per row, non-empty cell texts joined by single spaces; rows
-     joined by newlines; pipe syntax stripped.
+  5. Tables inside a question span are question content, PRESERVED as
+     markdown VERBATIM: the [TABLE N: RxC] marker line, the |---| separator,
+     and every | cell | row are copied exactly as the renderer emitted them
+     (reversed 2026-07-25 for prompt 3.4.0-tablemarkers — the old convention
+     flattened them to space-joined cell text and destroyed the structure the
+     review surface needs to re-render a real table). Only CONTEXT tables reach
+     a span; a rubric-table marker is a boundary (is_boundary). A FILLED
+     solution table is a different case — it lands in example_solution (which
+     this tool does not populate) and stays flattened per prompt SECTION 4.
   6. [IMAGE] markers are kept verbatim as rendered.
   7. No prose for a node -> text stays null (never empty string).
   8. Color markup tokens are stripped; no Unicode pre-normalization.
@@ -95,8 +101,6 @@ _COLOR_TOKEN = re.compile(r"\[\[color:[0-9A-Fa-f]{6}\]\]|\[\[/color\]\]")
 _STRIKE = re.compile(r"~~.*?~~")
 _Q_HEADER = re.compile(r"^שאלה\s+(\d+)\b")
 _TABLE_LABEL = re.compile(r"^\s*\[(?:TABLE \d+|NESTED TABLE)")
-_ROW_SEP = re.compile(r"^\s*\|[\s\-|]*\|?\s*$")
-_UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
 _HEB_MARKER = re.compile(r"^\s*[א-ת]\s*[.)]\s")   # R3: universal span delimiter
 
 
@@ -176,12 +180,6 @@ def find_marker(lines: List[Line], label: str, start: Pos, end_line: int) -> Opt
     return None
 
 
-def encode_table_row(black_line: str) -> Optional[str]:
-    cells = [c.replace("\\|", "|").strip() for c in _UNESCAPED_PIPE.split(black_line)]
-    cells = [c for c in cells if c]
-    return " ".join(cells) if cells else None
-
-
 def assemble(lines: List[Line], start: Pos, end: Pos, issues: List[str]) -> Optional[str]:
     """§2.4/5/6/8: red + struck ink out, tables cell-encoded, images verbatim,
     blank lines dropped. `end` is EXCLUSIVE: (line, 0) stops before that line;
@@ -201,15 +199,12 @@ def assemble(lines: List[Line], start: Pos, end: Pos, issues: List[str]) -> Opti
         stripped = text.strip()
         if not stripped:
             continue
-        if _TABLE_LABEL.match(text):
-            continue                       # table label line: structure, not content
-        if stripped.startswith("|"):
-            if _ROW_SEP.match(text):
-                continue
-            row = encode_table_row(stripped)
-            if row:
-                out.append(row)
-            continue
+        # PRESERVE context-table markdown VERBATIM — the [TABLE N: RxC] marker, the
+        # |---| separator, and every | cell | row — so the review surface re-renders
+        # it as a real table. (Reversed 2026-07-25 with prompt 3.4.0-tablemarkers:
+        # the old convention flattened tables to space-joined cell text, destroying
+        # array / interface / trace structure. A RUBRIC-table marker never reaches
+        # here — it is a span boundary, see is_boundary; only CONTEXT tables do.)
         out.append(stripped)
     joined = "\n".join(out).strip()
     if "[[color:" in joined or "[[/color]]" in joined or "~~" in joined:

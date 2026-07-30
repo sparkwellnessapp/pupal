@@ -123,16 +123,20 @@ describe('resolveRubricName — precedence captured > inferred > filename', () =
     });
 });
 
-describe('selectionSummaryLine', () => {
+describe('selectionSummaryLine — N is the selection POOL, not the question count', () => {
     const grp = (k: number, ids: string[]): SelectionGroup =>
         ({ group_id: 'g', label: '', choose_k: k, of_question_ids: ids } as SelectionGroup);
-    it('renders "מבחן בחירה: מענה על k מתוך N שאלות"', () => {
-        expect(selectionSummaryLine([grp(4, ['q1', 'q2', 'q3', 'q4', 'q5', 'q6'])], 6))
+    it('renders "k מתוך {pool}" from the group members', () => {
+        expect(selectionSummaryLine([grp(4, ['q1', 'q2', 'q3', 'q4', 'q5', 'q6'])]))
             .toBe('מבחן בחירה: מענה על 4 מתוך 6 שאלות');
     });
+    it('N is the pool size — a mandatory question OUTSIDE the group does not inflate it', () => {
+        // choose 1 of {q1,q2}; a mandatory q3 elsewhere must NOT make it "1 מתוך 3".
+        expect(selectionSummaryLine([grp(1, ['q1', 'q2'])])).toBe('מבחן בחירה: מענה על 1 מתוך 2 שאלות');
+    });
     it('null when not a selection exam', () => {
-        expect(selectionSummaryLine([], 6)).toBeNull();
-        expect(selectionSummaryLine(null, 6)).toBeNull();
+        expect(selectionSummaryLine([])).toBeNull();
+        expect(selectionSummaryLine(null)).toBeNull();
     });
 });
 

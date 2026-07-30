@@ -41,7 +41,11 @@ function parseCells(inner: string): string[] {
 }
 
 function isSeparator(line: string): boolean {
-  return SEPARATOR_RE.test(line) && !line.replace(/\s|\||-/g, '').length;
+  // A real header separator (|---|---|) contains DASHES. An all-blank pipe row
+  // (|  |  |  |) is a data/scaffold row (e.g. an empty trace-table row the student
+  // fills in) — it must NOT be swallowed as a separator, or the scaffold collapses
+  // to header-only. Require a dash to disambiguate.
+  return SEPARATOR_RE.test(line) && line.includes('-');
 }
 
 export function parseMarkdownText(text: string): ParsedSegment[] {

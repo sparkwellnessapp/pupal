@@ -127,13 +127,18 @@ export function resolveRubricName(
 
 export function selectionSummaryLine(
     groups: SelectionGroup[] | null | undefined,
-    totalQuestions: number,
 ): string | null {
     if (!groups || groups.length === 0) return null;
     // MVP rubrics carry a single choose-k group; sum k across groups if more exist.
     const chooseK = groups.reduce((sum, g) => sum + (g.choose_k ?? 0), 0);
     if (chooseK <= 0) return null;
-    return `מבחן בחירה: מענה על ${chooseK} מתוך ${totalQuestions} שאלות`;
+    // N is the SELECTION POOL size (the group's own members) — NOT the rubric's total
+    // question count. Using the total broke a "choose 4 of 6" that came back as one
+    // extracted question into "4 מתוך 1"; a mandatory question outside the group must
+    // not inflate N either. An unsatisfiable choose_k > pool can no longer reach here
+    // — the backend now fails that extraction retryably.
+    const poolN = groups.reduce((sum, g) => sum + (g.of_question_ids?.length ?? 0), 0);
+    return `מבחן בחירה: מענה על ${chooseK} מתוך ${poolN} שאלות`;
 }
 
 // ---------------------------------------------------------------------------

@@ -452,6 +452,25 @@ def _render_table(
     table_baseline = _table_dominant(table._element)
     table_hl_baseline = _table_dominant_highlight(table._element)
 
+    # 1x1 EXCEPTION — a single-cell table is a CONTAINER (the teacher wrapped a block of
+    # code or prose in a one-cell table), not a data grid. Emit ONLY the cell content —
+    # no [TABLE]/[NESTED TABLE] marker, no separator, no pipes — so nothing downstream
+    # (LLM, GT slicer, review UI) can mistake wrapped code for a table. This is the
+    # deterministic safeguard: the marker never exists, so it can never be preserved.
+    # (Contrast marks come from _analyze_cell with the SAME baselines as _process_row, so
+    # teacher ink is unchanged; pipes are kept UN-escaped since the cell is no longer a
+    # markdown table cell. table_index was already consumed by the caller, so downstream
+    # table numbers are NOT renumbered — a 1x1 just leaves a gap.)
+    if num_rows == 1 and num_cols == 1:
+        cell_text, cell_nested = _analyze_cell(rows[0].cells[0], table_baseline, table_hl_baseline)
+        out: List[str] = []
+        cell_text = " ".join(cell_text.split())  # collapse whitespace like a cell; keep real '|'
+        if cell_text:
+            out.append(f"{indent}{cell_text}")
+        for nt_el in cell_nested:
+            out.extend(_render_nested_table_element(table, nt_el, stats, indent))
+        return out
+
     lines: List[str] = []
 
     # Label

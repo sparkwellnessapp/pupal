@@ -563,7 +563,35 @@ class RubricExtraction(BaseModel):
 # --- self-notes) + struck-prose omission; S4 filled-table->solution; renumbered
 # --- to remove the duplicate SECTION 5. Context-placement rule UNCHANGED
 # --- (Option B: between-marker context -> question_text).
-EXTRACTION_PROMPT_VERSION = "3.3.1-tracehdr"
+# --- 3.4.0-tablemarkers: REVERSED the SECTION 1 table-encoding decision — a
+# --- CONTEXT table (data array, interface, trace scaffold) in question_text/
+# --- sub_question.text is now PRESERVED as [TABLE N: RxC] markdown (marker +
+# --- separator + pipe rows, verbatim) instead of flattened to cell text, so the
+# --- review surface re-renders it as a real table. SECTION 4 (FILLED solution
+# --- tables -> example_solution) is UNCHANGED: still flattened to cell text —
+# --- the deliberate context/solution asymmetry. GT regenerated to match
+# --- (populate_texts.assemble preserves table markdown); text fidelity is
+# --- ungated so this moves a diagnostic, not the gate.
+# --- 3.5.0-solutiontables: extended the table-markdown preservation to SECTION 4
+# --- (FILLED trace/solution tables) — example_solution now PRESERVES the full
+# --- [TABLE N: RxC] block VERBATIM (marker + header + separator + value rows, empty
+# --- cells kept, [[color]]/[[hl]] ink stripped) instead of flattening to cell text,
+# --- so the review surface re-renders the solution as a real table. REVERSED the
+# --- HEADER ROW EXCLUSION sub-rule to HEADER ROW INCLUSION (the solution table keeps
+# --- its header, self-labeled). GT example_solution tables regenerated to match.
+# --- example_solution_fidelity is gated but scored by a >=0.85 ratio, so GT+prompt
+# --- moving together keeps it at ~1.0. Also added the 1x1-table EXCEPTION (SECTION 1
+# --- + 4): a single-cell table is a code/prose container, unwrapped (marker + pipes
+# --- dropped, cell content kept) — so model-solution code the teacher wrapped in a
+# --- 1x1 table is NOT marked/rendered as a table.
+# --- 3.6.0-scaffoldsplit: SECTION 4 — a teacher-filled table now gets a ROLE decision
+# --- by JUDGEMENT (contrast ink is a HINT, not a rule). When the colored cells ARE an
+# --- example-solution fill of a table the student was to complete, emit it TWICE — the
+# --- filled table -> example_solution AND the blank SCAFFOLD (answer cells emptied) ->
+# --- question_text. Fixes the trace scaffold being absent from question_text (the teacher
+# --- never saw the empty trace table). GT already encodes the target (scaffold in q1.א.1
+# --- text, filled in its solution); prompt-only.
+EXTRACTION_PROMPT_VERSION = "3.6.0-scaffoldsplit"
 
 EXTRACTION_SYSTEM_PROMPT = """You are an expert Israeli education rubric extractor. You read Hebrew exam rubric documents (מחוון) carefully and extract their structure into JSON.
 
@@ -609,7 +637,7 @@ EXCLUDE FROM ALL TEXT — furniture belongs to no scope, even though it sits ins
   • [IMAGE: ...] markers — unreadable embedded images (SECTION 4).
 Leaving furniture inside a text field corrupts that scope's text.
 
-TABLE ENCODING — when a context table (data array, class interface, trace scaffold) belongs in a text field, encode it as its CELL TEXT, not as markdown: per row, join the NON-EMPTY cells with single spaces; join rows with newlines; drop the [TABLE N: RxM] marker and all pipe (|) / --- delimiters; drop fully-empty rows. (An interface table with header "תיאור הפעולה | כותרת הפעולה" becomes the line "תיאור הפעולה כותרת הפעולה", then one line per method row.)
+TABLE ENCODING — when a context table (data array, class interface, trace scaffold) belongs in a text field, PRESERVE IT AS MARKDOWN, VERBATIM. Copy the `[TABLE N: RxC]` marker line and every table line beneath it — the header row, the `|---|` separator, and each `| cell | cell |` data row — EXACTLY as they appear in the rendered document, on their own lines; keep any indented `[NESTED TABLE: RxC]` block inside it. Do NOT flatten the table to space-joined cell text; do NOT drop the marker, the pipes, or the separator; do NOT renumber or reformat. The review surface parses this markdown back into a real table, so the structure MUST survive intact. EXCEPTION — a 1×1 table (RxC = 1x1, a single cell) is NOT a grid; it is a container the renderer wrapped around code or a prose block. DROP its `[TABLE …: 1x1]` marker, the `|---|` separator, and the surrounding pipes, and keep ONLY the cell's content (the code/text itself). Preserve `[TABLE]` markers ONLY for tables with real structure — 2 or more columns, or 2 or more rows. (A data array is rendered as the marker line `[TABLE 4: 1x8]` followed by the row `| 2 | 9 | 40 | 3 | 15 | 4 | 5 | 8 |` — that whole block goes into the text field unchanged. This applies to CONTEXT tables only; a FILLED solution table is handled differently — see SECTION 4.)
 
 EXAMPLE — correct splitting:
 
@@ -617,7 +645,10 @@ Document fragment:
   "שאלה 1 - 40 נקודות
   הוגדרה מחלקה בשם Hobby בעלת התכונות הבאות:
   hobbyName - שם התחביב...
-  [TABLE 1: 2x2] | תיאור הפעולה | כותרת הפעולה |  /  | פעולה בונה תחביב... | public Hobby(...) |
+  [TABLE 1: 2x2]
+  | תיאור הפעולה | כותרת הפעולה |
+  |---|---|
+  | פעולה בונה תחביב... | public Hobby(...) |
   א. כתבו כותרת ותכונות המחלקה Hobby ואת הפעולה הבונה.
   (המשך השאלה - בעמוד הבא)
   public class SchoolHobbies { ... }
@@ -627,21 +658,23 @@ CORRECT output:
   question_text:
     "הוגדרה מחלקה בשם Hobby בעלת התכונות הבאות:
      hobbyName - שם התחביב...
-     תיאור הפעולה כותרת הפעולה
-     פעולה בונה תחביב... public Hobby(...)
+     [TABLE 1: 2x2]
+     | תיאור הפעולה | כותרת הפעולה |
+     |---|---|
+     | פעולה בונה תחביב... | public Hobby(...) |
      public class SchoolHobbies { ... }"
   total_points: 40
   sub_questions:
     א.text: "א. כתבו כותרת ותכונות המחלקה Hobby ואת הפעולה הבונה."
     ב.text: "ב. כתבו פעולה פנימית בשם PopulateHobbies..."
 
-Three things to notice: the [TABLE] became CELL TEXT (marker and pipes gone); the continuation marker was DROPPED; and the SchoolHobbies class sits between א and ב but is SHARED CONTEXT (used by ב and later), so it went into question_text — NOT into א.text.
+Three things to notice: the [TABLE] block was PRESERVED as markdown (marker, separator, and pipes ALL kept, on their own lines — the review surface re-renders it as a table); the continuation marker was DROPPED; and the SchoolHobbies class sits between א and ב but is SHARED CONTEXT (used by ב and later), so it went into question_text — NOT into א.text.
 
 WRONG (do NOT do any of these):
   • א.text or ב.text containing the SchoolHobbies class → context bled into a sub-question.
   • א.text: null with its task text absorbed into question_text → task dumped into shared context.
   • The continuation marker "(המשך...)" kept in any text field → furniture retained.
-  • question_text containing "| תיאור הפעולה | ... |" with pipes/marker → table left as raw markdown.
+  • question_text with the [TABLE] FLATTENED to space-joined cell text ("תיאור הפעולה כותרת הפעולה\nפעולה בונה תחביב... public Hobby(...)") — the marker and pipes dropped → table structure destroyed; the review surface can no longer render it as a table.
 
 ═══════════════════════════════════════════
 SECTION 2: SUB-QUESTION DETECTION & STRUCTURE
@@ -667,7 +700,7 @@ SECTION 3: RUBRIC TABLE EXTRACTION
 • SKIP total/summary rows (סה"כ) — these are sums, NOT criteria.
 • SKIP section-header rows with empty points cells — rows like "סעיף ב': פעולה חיצונית LowestRateChannel סה"כ לכל הפעולה 30" with no points value are headers, NOT criteria.
 • When rubric tables have TWO text columns (e.g., "תיאור" + "רכיב הערכה"), concatenate into one description: "column1: column2".
-• Tables that are NOT rubric tables (data arrays, class interfaces, trace tables) are CONTEXT — encode them into question_text as CELL TEXT (SECTION 1); do NOT extract criteria from them.
+• Tables that are NOT rubric tables (data arrays, class interfaces, trace tables) are CONTEXT — PRESERVE them in question_text as [TABLE N: RxC] markdown, VERBATIM (SECTION 1); do NOT extract criteria from them.
 • NESTED TABLES: When a rubric row is immediately followed by an indented [NESTED TABLE: NxM] block, that row is a PARENT CRITERION with a point breakdown. Handle it as follows:
   1. Extract the parent row as a CriterionExtraction (description = parent row text, points = parent row point value).
   2. Extract EACH row of the nested table as a SubCriterionExtraction and put them in the parent's sub_criteria list.
@@ -722,8 +755,16 @@ SECTION 4: EXAMPLE SOLUTIONS
 • VERBATIM MEANS THE WHOLE ANSWER-KEY INK, UNCLEANED: include ALL alternative solutions the teacher wrote (e.g. "OPTION 1" AND "OPTION 2 (WHILE)" blocks — never pick one), commented-out / dead code blocks (/* ... */ or // lines the teacher left in), boundary/separator lines (e.g. "//Q2 - ב - START", "//------"), and the teacher's own typos or naming inconsistencies exactly as written (a solution named ArrangeMirrorBR stays ArrangeMirrorBR even if the question says ArrangeMirror). The answer key is teacher ink — you copy it, you never edit, select, deduplicate, or normalize it.
 • If the solution appears as [IMAGE: ...] markers (screenshots, not extractable text), set example_solution to null.
 • [IMAGE: ...] markers indicate embedded images that cannot be read as text — never place them in any text field; drop them.
-• A FILLED trace/solution table — one the teacher has completed with values (regardless of ink color) — is a SOLUTION → example_solution (encode as cell text, SECTION 1), NOT question text. The empty scaffold's column HEADERS are question context; the filled-in VALUES are the solution.
-  – HEADER ROW EXCLUSION: when copying the filled table into example_solution, copy the VALUE rows ONLY. Do NOT repeat the header row (the column names, e.g. "ערך מוחזר | <condition> | arr[i] | i | x") — it is the question's scaffold and already lives in the question text. Example: a trace table whose header is "ערך מוחזר ... arr[i] i x" and whose filled rows are "F 8 0 6 / F 5 1 / ..." → example_solution starts at "F 8 0 6", never at the header line.
+• A TABLE THE TEACHER FILLED WITH VALUES — first, wherever it lands, PRESERVE IT AS MARKDOWN, VERBATIM: copy the `[TABLE N: RxC]` marker, the header row, the `|---|` separator, and every value row exactly as rendered — keep empty cells so the columns stay aligned; strip ONLY the teacher-ink annotation tokens ([[color:...]] and [[hl:...]]) from the cell contents, never the values themselves; never flatten to space-joined text; the HEADER ROW is INCLUDED so the table renders self-labeled. This is SYMMETRIC with SECTION 1, and both obey the SECTION 1 1×1 EXCEPTION (a block wrapped in a 1×1 table is code/prose, NOT a grid — unwrap it, dropping the marker/pipes).
+  Now decide WHERE it goes — classify by ROLE, not color (SECTION 3). Contrast ink ([[color:...]] / [[hl:...]]) on the filled cells HINTS the values are the teacher's answer, but it is ONLY a hint; use your JUDGEMENT to decide whether the contrast-ink cells are an EXAMPLE SOLUTION the teacher wrote into the table:
+   – YES — the colored cells ARE the answer, and blanking them leaves the empty table the student was given to fill → the table has a DUAL role; emit it TWICE:
+       → example_solution: the WHOLE filled table (ink stripped) — the answer key.
+       → question_text: the SAME table as the EMPTY SCAFFOLD the student sees — keep the marker, header and column structure, but REPLACE every answer (contrast-ink) cell with an EMPTY cell.
+   – NO — the contrast ink is mere emphasis on a value in a GIVEN data/example table, not an answer the student was to supply → route the WHOLE table (ink stripped) into question_text as context ([TABLE] markdown, SECTION 1); do NOT blank, do NOT duplicate.
+   – The table sits UNDER a solution label (פתרון: / תשובה: / ערך מוחזר:) as the teacher's OWN worked answer (not a blank the student fills) → example_solution ONLY, whole table, ink stripped; no scaffold.
+   Example (DUAL role) — [TABLE 3: 6x5], default-ink header `| ערך מוחזר | <cond> | arr[i] | i | x |`, red-filled rows `|  | F | 8 | 0 | 6 |` … `| T | T | 3 | 4 |  |`, the question having told the student to complete a trace table:
+       question_text  ← `[TABLE 3: 6x5]` + header + `|---|` + five EMPTY rows `|  |  |  |  |  |`
+       example_solution ← `[TABLE 3: 6x5]` + header + `|---|` + the filled rows (ink stripped)
 
 ═══════════════════════════════════════════
 SECTION 5: POINT INVARIANTS (only when criteria exist)

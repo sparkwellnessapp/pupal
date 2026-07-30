@@ -11,6 +11,10 @@ describe('stripColorMarkers', () => {
     it('is a no-op with no markers', () => {
         expect(stripColorMarkers('plain')).toBe('plain');
     });
+    it('also strips highlight [[hl:…]] markers, keeping inner text', () => {
+        expect(stripColorMarkers('67+9 = [[hl:yellow]]76[[/hl]]')).toBe('67+9 = 76');
+        expect(stripColorMarkers('[[hl:green]]a[[/hl]] and [[color:FF0000]]b[[/color]]')).toBe('a and b');
+    });
 });
 
 describe('imageMarkerName', () => {

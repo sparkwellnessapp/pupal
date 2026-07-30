@@ -57,14 +57,60 @@ def _heartbeat_ttl() -> timedelta:
 
 
 def _is_stale(job: RubricExtractionJob, now: datetime) -> bool:
-    """Computed, never stored: an 'extracting' row whose heartbeat lapsed —
-    the instance died mid-job. Retry accepts these rows."""
+    """An 'extracting' row whose heartbeat lapsed — the worker died mid-job. This is
+    PROVABLY dead, not slow: the extraction wall deadline (840s ≈ 14 min) is below
+    the heartbeat TTL (15 min), so a job that has not heartbeat in >TTL cannot still
+    be running. `_reap_if_stale` makes this state TERMINAL."""
     if job.status != "extracting" or job.updated_at is None:
         return False
     updated = job.updated_at
     if updated.tzinfo is None:
         updated = updated.replace(tzinfo=timezone.utc)
     return (now - updated) > _heartbeat_ttl()
+
+
+async def _reap_if_stale(db: AsyncSession, job: RubricExtractionJob) -> RubricExtractionJob:
+    """Make staleness TERMINAL on read. An orphaned 'extracting' row (worker died —
+    server restart, Cloud Run scale-in, --reload in dev) otherwise lingers as
+    'active' FOREVER, so the resume-on-entry surface re-attaches to it every time
+    and the teacher can never start fresh. Reaping it to 'failed' here (idempotent
+    CAS on status='extracting') removes it from the active surface, returns an
+    honest terminal status, and keeps it retryable (retry accepts failed leaves).
+    Safe because a >TTL gap exceeds the wall deadline — the job is not still running."""
+    now = datetime.now(timezone.utc)
+    if not _is_stale(job, now):
+        return job
+    await db.execute(
+        update(RubricExtractionJob)
+        .where(RubricExtractionJob.id == job.id,
+               RubricExtractionJob.status == "extracting")
+        .values(status="failed",
+                error_message="orphaned: extraction worker died mid-job (heartbeat lapsed)",
+                finished_at=now, updated_at=now)
+    )
+    await db.commit()
+    await db.refresh(job)
+    return job
+
+
+async def _reap_stale_active_for_source(db: AsyncSession, user_id, sha256: str) -> None:
+    """Set-based reap before a submit: fail any stale 'extracting' job for THIS source
+    so a re-upload supersedes a dead extraction instead of colliding with the
+    one-active-per-source unique constraint and being bounced back to it. A LIVE
+    (non-stale) job for the source is left alone → submit stays idempotent."""
+    now = datetime.now(timezone.utc)
+    cutoff = now - _heartbeat_ttl()
+    await db.execute(
+        update(RubricExtractionJob)
+        .where(RubricExtractionJob.user_id == user_id,
+               RubricExtractionJob.source_sha256 == sha256,
+               RubricExtractionJob.status == "extracting",
+               RubricExtractionJob.updated_at < cutoff)
+        .values(status="failed",
+                error_message="orphaned: superseded by a re-upload (heartbeat lapsed)",
+                finished_at=now, updated_at=now)
+    )
+    await db.commit()
 
 
 def _status_response(job: RubricExtractionJob) -> JobStatusResponse:
@@ -179,6 +225,11 @@ async def submit_extraction_job(
             "question_purposes": question_purposes,
         },
     )
+    # Supersede an orphaned (stale) extraction of THIS source first, so a re-upload
+    # isn't bounced back to a dead job by the one-active-per-source unique constraint.
+    # A live (non-stale) job for the source is untouched → submit stays idempotent.
+    await _reap_stale_active_for_source(db, user_id, sha256)
+
     db.add(job)
     try:
         await db.commit()
@@ -226,7 +277,15 @@ async def list_extraction_jobs(
         stmt = stmt.where(RubricExtractionJob.status.in_(ACTIVE_JOB_STATUSES))
     stmt = stmt.order_by(RubricExtractionJob.created_at.desc()).limit(limit)
     result = await db.execute(stmt)
-    return [_status_response(j) for j in result.scalars().all()]
+    out: List[JobStatusResponse] = []
+    for j in result.scalars().all():
+        j = await _reap_if_stale(db, j)
+        # A reaped orphan is no longer active/resumable — keep it OUT of the resume
+        # surface so the upload page never re-attaches to a dead job.
+        if active and j.status not in ACTIVE_JOB_STATUSES:
+            continue
+        out.append(_status_response(j))
+    return out
 
 
 @router.get("/{job_id}", response_model=JobStatusResponse)
@@ -236,6 +295,7 @@ async def get_extraction_job(
     current_user: User = Depends(get_current_user),
 ) -> JobStatusResponse:
     job = await get_owned_or_404(db, RubricExtractionJob, job_id, current_user.id)
+    job = await _reap_if_stale(db, job)  # orphaned 'extracting' → durable 'failed'
     return _status_response(job)
 
 

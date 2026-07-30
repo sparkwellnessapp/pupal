@@ -101,13 +101,17 @@ describe('detectTableRuns — real bagrut fixture (precision on live data)', () 
     const bagrut = JSON.parse(readFileSync(path.join(BENCHMARKS, 'bagrut_899371.json'), 'utf-8'));
     const texts = collectTexts(bagrut);
 
-    it('the mirror-array example text keeps its example rows as PROSE, not a table', () => {
+    it('the mirror-array example rows now carry [TABLE] markers, and the heuristic does NOT re-tableize them', () => {
         const q2 = texts.find((t) => t.includes('מערך מראה הוא מערך'));
         expect(q2, 'q2 mirror-array text present in fixture').toBeTruthy();
+        // Since prompt 3.4.0-tablemarkers, the fixture arrays are preserved as
+        // [TABLE N: RxC] markdown — parseMarkdownText owns those. The heuristic
+        // fallback (detectTableRuns) must NOT additionally tableize the isolated
+        // single marker/pipe rows (precision bias holds), and must round-trip them.
         const segs = detectTableRuns(q2!);
-        // Single example arrays interleaved with explanatory prose → never tableized.
         expect(tables(segs)).toHaveLength(0);
-        expect(proseText(segs)).toContain('7 -3 4 -7 -4 3');
+        expect(proseText(segs)).toContain('[TABLE 6: 1x6]');
+        expect(proseText(segs)).toContain('| 7 | -3 | 4 | -7 | -4 | 3 |');
     });
 
     it('embedded #C code is never mistaken for a table', () => {

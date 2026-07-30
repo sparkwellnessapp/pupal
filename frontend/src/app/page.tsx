@@ -686,8 +686,12 @@ export default function Home() {
     (async () => {
       try {
         const active = await listExtractionJobs({ active: true, limit: 1 });
-        if (!cancelled && active.length > 0) {
-          const job = active[0];
+        // Resume only a GENUINELY live job. An orphaned/stale job (worker died) is
+        // reaped to 'failed' server-side and drops out of this list — but guard here
+        // too: re-attaching to a dead job is what trapped the teacher on a perpetual
+        // "connection lost" screen, unable to start fresh.
+        const job = active[0];
+        if (!cancelled && job && !job.stale && job.status !== 'failed') {
           setExtractionJobId(job.job_id);
           setMainMode('rubric');
           setRubricStep('extracting');
@@ -1493,7 +1497,7 @@ export default function Home() {
                         {getExtractionStageLabel(extractionJob.status?.progress_stage ?? null)}
                       </h2>
                       <p className="text-gray-500 mt-2 text-sm">
-                        עלול לקחת 4–5 דקות. אפשר לעזוב את העמוד — החילוץ ימשיך ברקע ונודיע לך כשהוא מוכן.
+                        עלול לקחת עד 5 דקות. אפשר לעזוב את העמוד — החילוץ ימשיך ברקע ונודיע לך כשהוא מוכן.
                       </p>
 
                       {/* Honest stage checklist — only stages the server actually reported */}
@@ -1548,7 +1552,7 @@ export default function Home() {
                     <h2 className="text-xl font-semibold">סיימתי לקרוא את המחוון</h2>
                   </div>
                   {(() => {
-                    const selLine = selectionSummaryLine(selectionGroups, extractedQuestions.length);
+                    const selLine = selectionSummaryLine(selectionGroups);
                     const achievable = computeAchievablePoints(extractedQuestions, selectionGroups);
                     const criteria = countCriteria(extractedQuestions);
                     const findings = countFindings(combinedAnnotations);
