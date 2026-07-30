@@ -97,6 +97,20 @@ test.describe('rubric mirror — the render half (PR-5 S2)', () => {
     });
 });
 
+
+/**
+ * /design-lab is SERVER-rendered, so its markup exists long before React attaches.
+ * Clicking in that window silently does nothing — the source of a real flake.
+ * The rail auto-expands the ACTIVE question, which is impossible server-side
+ * (activeId is null in SSR), so that row appearing is a precise "React is live"
+ * signal. Every lab-driven test goes through here.
+ */
+async function gotoLab(page: Page, state = 'at-rest'): Promise<void> {
+    await page.goto(`/design-lab?fixture=bagrut_899371&state=${state}`);
+    await expect(page.locator('nav[aria-label="מפת המחוון"] [data-rail-link="q1.א"]'))
+        .toBeVisible({ timeout: 20_000 });
+}
+
 /**
  * Design Recovery Round 2 — D9 (rail landing) and the D5/D8 edit surfaces, driven
  * against /design-lab so the assertions are LAYOUT assertions, not markup ones.
@@ -107,11 +121,11 @@ test.describe('Round 2 — rail landing + edit surfaces (design-lab)', () => {
     for (const vp of [{ w: 1440, h: 900 }, { w: 1280, h: 800 }]) {
         test(`D9: a rail click lands the question TITLE in the top region @${vp.w}`, async ({ page }) => {
             await page.setViewportSize({ width: vp.w, height: vp.h });
-            await page.goto('/design-lab?fixture=bagrut_899371&state=at-rest');
+            await gotoLab(page);
 
             const rail = page.getByRole('navigation', { name: 'מפת המחוון' });
-            await expect(rail).toBeVisible();
-            await rail.getByRole('button', { name: /שאלה 4/ }).click();
+            // target the JUMP control specifically — a parent row also has a chevron
+            await rail.locator('[data-rail-link="q4"]').click();
             await page.waitForTimeout(1200); // smooth scroll settle
 
             // The TITLE itself must be visible near the top — not the sub-question
@@ -126,7 +140,7 @@ test.describe('Round 2 — rail landing + edit surfaces (design-lab)', () => {
     }
 
     test('D5: a SUB-QUESTION points chip opens an input (points editable at every node)', async ({ page }) => {
-        await page.goto('/design-lab?fixture=bagrut_899371&state=at-rest');
+        await gotoLab(page);
         const chip = page.getByRole('button', { name: /^ניקוד סעיף/ }).first();
         await expect(chip).toBeVisible();
         await chip.click();
@@ -134,7 +148,7 @@ test.describe('Round 2 — rail landing + edit surfaces (design-lab)', () => {
     });
 
     test('D8: clicking prose opens a RAW textarea (display-rich / edit-raw)', async ({ page }) => {
-        await page.goto('/design-lab?fixture=bagrut_899371&state=at-rest');
+        await gotoLab(page);
         // At rest the markers are rendered away…
         await expect(page.getByText('[TABLE', { exact: false })).toHaveCount(0);
         const prose = page.getByRole('button', { name: /^טקסט שאלה/ }).first();
@@ -143,5 +157,89 @@ test.describe('Round 2 — rail landing + edit surfaces (design-lab)', () => {
         const box = page.locator('textarea').first();
         await expect(box).toBeVisible();
         expect(await box.inputValue()).toContain('[TABLE');
+    });
+});
+
+/**
+ * The outline rail as a MAP: nested to full depth, points on every row, branches
+ * collapsible, and every row a jump target. Expansion is an auto rule (the question
+ * you are reading opens) that an explicit chevron click overrides for good.
+ */
+test.describe('Outline rail — nesting, points, collapse, navigation', () => {
+    const NAV = 'nav[aria-label="מפת המחוון"]';
+
+    test('the ACTIVE question auto-expands; the others start collapsed', async ({ page }) => {
+        await gotoLab(page);
+        const rail = page.locator(NAV);
+        await expect(rail).toBeVisible();
+
+        // q1 is what she is looking at, so its branch opens itself…
+        await expect(rail.locator('button[aria-label="כווצי שאלה 1"]')).toBeVisible();
+        const sub = rail.locator('[data-rail-link="q1.א"]');
+        await expect(sub).toBeVisible();
+        await expect(sub).toContainText('סעיף א');
+        await expect(sub).toContainText('15');              // its OWN points
+
+        // …and every other branch stays shut, so the map stays short.
+        await expect(rail.locator('[data-rail-link="q3.א"]')).toHaveCount(0);
+        await expect(rail.locator('button[aria-label="הרחיבי שאלה 3"]')).toBeVisible();
+    });
+
+    test('a chevron expands a collapsed branch, with each row carrying its points', async ({ page }) => {
+        await gotoLab(page);
+        const rail = page.locator(NAV);
+        await rail.locator('button[aria-label="הרחיבי שאלה 3"]').click();
+
+        const sub = rail.locator('[data-rail-link="q3.א"]');
+        await expect(sub).toBeVisible();
+        await expect(sub).toContainText('סעיף א');
+        await expect(sub).toContainText('10');
+        await expect(rail.locator('[data-rail-link="q3.ב"]')).toContainText('15');
+    });
+
+    test('nesting goes ALL the way down (תת-סעיף), and each level collapses', async ({ page }) => {
+        await gotoLab(page);
+        const rail = page.locator(NAV);
+        await rail.locator('button[aria-label="הרחיבי סעיף א"]').click();   // q1 is already open
+
+        const inner = rail.locator('[data-rail-link="q1.א.1"]');
+        await expect(inner).toBeVisible();
+        await expect(inner).toContainText('תת-סעיף 1');
+        await expect(inner).toContainText('12');
+
+        // collapsing removes the whole subtree, but keeps the parent row
+        await rail.locator('button[aria-label="כווצי סעיף א"]').click();
+        await expect(rail.locator('[data-rail-link="q1.א.1"]')).toHaveCount(0);
+        await expect(rail.locator('[data-rail-link="q1.א"]')).toBeVisible();
+    });
+
+    test('clicking a SUB-QUESTION row navigates to it, exactly like a question', async ({ page }) => {
+        await gotoLab(page);
+        const rail = page.locator(NAV);
+        await rail.locator('button[aria-label="הרחיבי שאלה 3"]').click();
+        await rail.locator('[data-rail-link="q3.ב"]').click();
+        await page.waitForTimeout(1200);
+
+        const heading = page.locator('[data-scope-id="q3.ב"] h4').first();
+        await expect(heading).toBeInViewport();
+        const box = await heading.boundingBox();
+        expect(box!.y).toBeGreaterThanOrEqual(0);
+        expect(box!.y).toBeLessThan(260);
+    });
+
+    test('an explicit collapse WINS over the auto rule (her choice is not undone)', async ({ page }) => {
+        await gotoLab(page);
+        const rail = page.locator(NAV);
+        // q1 auto-opened; close it by hand
+        await expect(rail.locator('[data-rail-link="q1.א"]')).toBeVisible();
+        await rail.locator('button[aria-label="כווצי שאלה 1"]').click();
+        await expect(rail.locator('[data-rail-link="q1.א"]')).toHaveCount(0);
+
+        // scroll q1 back into view — the auto rule would reopen it; it must not
+        await page.locator('[data-scope-id="q2"]').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(500);
+        await page.locator('[data-scope-id="q1"]').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(700);
+        await expect(rail.locator('[data-rail-link="q1.א"]')).toHaveCount(0);
     });
 });

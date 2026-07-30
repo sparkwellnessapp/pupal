@@ -19,6 +19,9 @@ import { splitRoutingPrefix } from '@/utils/routing-prefix';
 import { selectionSummaryLine, findingSectionsByQuestion } from '@/utils/session-spine';
 import { isOpenFinding, visibleAnnotations } from '@/utils/finding-severity';
 import { changedPointNodeIds } from '@/utils/points-cascade';
+import { buildRailOutline, type RailNode } from '@/utils/rail-outline';
+import { formatPoints } from '@/utils/rubric-display';
+import { ChevronDown, ChevronLeft } from 'lucide-react';
 import { AnnotationBanner } from '@/components/AnnotationBanner';
 import { EditableText } from '@/components/document/EditableText';
 import { EditablePoints } from '@/components/document/EditablePoints';
@@ -446,12 +449,86 @@ function DocumentHeader({
     );
 }
 
+/** Indent per depth. Static literals — Tailwind cannot see a computed class name. */
+const RAIL_INDENT = ['', 'pr-3', 'pr-6', 'pr-9', 'pr-12'] as const;
+
+/**
+ * One rail row, recursive. TWO targets with ONE job each: the chevron opens/closes
+ * the branch, the label jumps to the scope. Collapsing was added without taking
+ * navigation away from parents — a row that both navigated and toggled would slam
+ * the branch shut every time she re-visited the question.
+ */
+function RailRow({
+    node, activeId, findingSections, isOpen, onToggle, onJump,
+}: {
+    node: RailNode; activeId: string | null; findingSections: Set<string>;
+    isOpen: (n: RailNode) => boolean; onToggle: (n: RailNode) => void; onJump: (id: string) => void;
+}) {
+    const open = isOpen(node);
+    const hasChildren = node.children.length > 0;
+    const active = node.id === activeId;
+
+    return (
+        <li>
+            <div className={`flex items-center gap-1 ${RAIL_INDENT[Math.min(node.depth, RAIL_INDENT.length - 1)]}`}>
+                {hasChildren ? (
+                    <button
+                        type="button"
+                        onClick={() => onToggle(node)}
+                        aria-expanded={open}
+                        aria-label={`${open ? 'כווצי' : 'הרחיבי'} ${node.label}`}
+                        className="flex-shrink-0 text-surface-400 hover:text-surface-700 transition-colors"
+                    >
+                        {open ? <ChevronDown size={14} /> : <ChevronLeft size={14} />}
+                    </button>
+                ) : (
+                    <span className="w-3.5 flex-shrink-0" aria-hidden />
+                )}
+                <button
+                    type="button"
+                    data-rail-link={node.id}
+                    onClick={() => onJump(node.id)}
+                    className={`flex items-center gap-1.5 min-w-0 flex-1 text-right transition-colors ${active ? 'text-primary-700 font-medium' : 'text-surface-500 hover:text-surface-800'}`}
+                >
+                    {findingSections.has(node.id) && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" aria-label="ממצא פתוח" />}
+                    <span className="truncate flex-1">{node.label}</span>
+                    <span className="tabular-nums text-surface-400 flex-shrink-0">{formatPoints(node.points)}</span>
+                </button>
+            </div>
+            {hasChildren && open && (
+                <ul className="space-y-1 mt-1">
+                    {node.children.map((child) => (
+                        <RailRow
+                            key={child.id} node={child} activeId={activeId} findingSections={findingSections}
+                            isOpen={isOpen} onToggle={onToggle} onJump={onJump}
+                        />
+                    ))}
+                </ul>
+            )}
+        </li>
+    );
+}
+
 function OutlineRail({
     questions, activeId, findingSections, onJump, railStyle,
 }: {
     questions: RubricQuestion[]; activeId: string | null; findingSections: Set<string>;
     onJump: (id: string) => void; railStyle: { left: number; width: number } | null;
 }) {
+    const outline = useMemo(() => buildRailOutline(questions), [questions]);
+
+    // Expansion = an AUTO rule the teacher can override. Auto: the question she is
+    // reading opens, the rest stay shut, so the map stays short and tracks her
+    // position. A chevron click records an explicit preference for that branch, and
+    // explicit ALWAYS wins — scrolling never re-closes something she opened.
+    const [manual, setManual] = useState<Record<string, boolean>>({});
+    const autoOpen = useCallback((n: RailNode) => n.depth === 0 && n.id === activeId, [activeId]);
+    const isOpen = useCallback((n: RailNode) => manual[n.id] ?? autoOpen(n), [manual, autoOpen]);
+    const onToggle = useCallback((n: RailNode) => {
+        const current = manual[n.id] ?? autoOpen(n);
+        setManual((m) => ({ ...m, [n.id]: !current }));
+    }, [manual, autoOpen]);
+
     // position: FIXED, not sticky — SidebarLayout's `overflow-hidden` ancestor breaks
     // sticky (verified in headless Chromium: the rail scrolls away). The spacer in the
     // flex row reserves this gutter; we pin the rail over it (left/width measured).
@@ -461,22 +538,13 @@ function OutlineRail({
             style={railStyle ? { position: 'fixed', top: 80, left: railStyle.left, width: railStyle.width } : undefined}
             className={`hidden rail:block w-rail text-doc-meta max-h-[calc(100vh-100px)] overflow-y-auto ${railStyle ? '' : 'sticky top-20 self-start flex-shrink-0'}`}
         >
-            <ul className="space-y-2 border-r border-surface-100 pr-4">
-                {questions.map((q, i) => {
-                    const active = q.question_id === activeId;
-                    return (
-                        <li key={q.question_id}>
-                            <button
-                                type="button"
-                                onClick={() => onJump(q.question_id)}
-                                className={`flex items-center gap-1.5 w-full text-right transition-colors ${active ? 'text-primary-700 font-medium' : 'text-surface-500 hover:text-surface-800'}`}
-                            >
-                                {findingSections.has(q.question_id) && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" aria-label="ממצא פתוח" />}
-                                <span className="truncate">{questionLabel(q, i)}</span>
-                            </button>
-                        </li>
-                    );
-                })}
+            <ul className="space-y-1 border-r border-surface-100 pr-4">
+                {outline.map((node) => (
+                    <RailRow
+                        key={node.id} node={node} activeId={activeId} findingSections={findingSections}
+                        isOpen={isOpen} onToggle={onToggle} onJump={onJump}
+                    />
+                ))}
             </ul>
         </nav>
     );

@@ -88,7 +88,7 @@ describe('RubricDocument SSR — findings relocation (§6) + designed silence (E
 
     it('zero findings → the warm reassurance line', () => {
         const html = render(questions, { annotations: [] });
-        expect(html).toContain('ויוי לא מצאה אי-התאמות במחוון');
+        expect(html).toContain('הכל תקין - ויוי לא מצאה אי-התאמות במחוון');
     });
 
     it('a criterion-anchored finding renders inline at its row', () => {
@@ -193,5 +193,39 @@ describe('RubricDocument SSR — a11y smoke + voice (E-5)', () => {
 
     it('the voice-table micro-copy is the shipped string, not a placeholder (ghost add-row)', () => {
         expect(render(qs)).toContain('+ הוסיפי קריטריון');
+    });
+});
+
+describe('OutlineRail — nested, points-bearing, collapsible map', () => {
+    const qs = loadGolden('bagrut_899371');
+    const html = render(qs);
+    const rail = html.slice(html.indexOf('<nav'), html.indexOf('</nav>'));
+
+    it('every question row carries its points', () => {
+        expect(rail).toContain('שאלה 1');
+        expect(rail).toContain('tabular-nums');
+        // bagrut declares 25 per question — the number rides in the rail row
+        expect(rail).toMatch(/שאלה 1<\/span><span[^>]*tabular-nums[^>]*>25</);
+    });
+
+    it('a parent row exposes a chevron with its own accessible name; a leaf does not', () => {
+        // q1..q5 nest; the chevron is a SEPARATE control from the jump target
+        expect(rail).toContain('aria-label="הרחיבי שאלה 1"');
+        expect(rail).toContain('aria-expanded="false"');
+    });
+
+    it('the jump target is addressable per scope (navigation, not toggling)', () => {
+        expect(rail).toContain('data-rail-link="q1"');
+        expect(rail).toContain('data-rail-link="q6"');
+    });
+
+    it('collapsed by default when nothing is active — sub-rows are absent, not hidden', () => {
+        // SSR has no IntersectionObserver, so activeId is null ⇒ nothing auto-expands.
+        expect(rail).not.toContain('data-rail-link="q1.א"');
+        expect(rail).not.toContain('תת-סעיף');
+    });
+
+    it('the rail stays a <nav> with its accessible name (E-2 contract intact)', () => {
+        expect(html).toContain('aria-label="מפת המחוון"');
     });
 });

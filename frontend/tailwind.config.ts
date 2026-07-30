@@ -13,7 +13,7 @@ const config: Config = {
         document: '52rem',   // the mirror's content column
       },
       width: {
-        rail: '10rem',       // 160px outline rail
+        rail: '13rem',       // 208px outline rail (3 indent levels + label + points)
       },
       screens: {
         rail: '1100px',      // the rail appears at/above this width (else it collapses)
