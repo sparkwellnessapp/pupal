@@ -1,0 +1,369 @@
+/**
+ * PR-6 §2 — THE FINDING MODEL. One card per event, composed from whichever of the
+ * three representations exist for it (third consumer of the shared severity family,
+ * alongside countFindings and findingSectionsByQuestion).
+ *
+ * The three sources say different things, and conflating them is what made the
+ * mirror lie:
+ *   - LIVE VALIDATION is the only thing allowed to assert the PRESENT. It is
+ *     recomputed from editor state on every keystroke, so it is the blocker and the
+ *     resolution signal both.
+ *   - The EXTRACTION annotation describes the ORIGINAL DOCUMENT. Its numbers were
+ *     frozen at extraction time, so it renders only as a past-tense residual and
+ *     never as a current-state claim.
+ *   - The PEDAGOGICAL advisory carries the explanation and the machine-proposed fix.
+ *
+ * PAIRING: same scope + same EVENT KIND is ONE finding (the q1.א.2 trinity — live
+ * blocker + document residual + explanation-with-fix). Distinct event kinds on one
+ * node stay distinct findings, so counts are by CARD, never by node.
+ *
+ * @see finding-severity.ts — isOpenFinding / dedupeOpenFindings (the shared family)
+ */
+
+import type { Annotation } from '@/lib/api';
+import type { RubricQuestion } from '@/types/rubric';
+import type { ValidationIssue } from '@/utils/rubric-validation';
+import { safeParseFloat } from '@/utils/rubric-transform';
+import { formatPoints } from '@/utils/rubric-display';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Wire shape (the subset we consume; the generated type is wider)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PedagogicalMistakeLike {
+    mistake_id: string;
+    kind: string;
+    severity?: string;
+    target_id?: string | null;
+    explanation: string;
+    evidence?: Record<string, unknown> | null;
+    suggested_fix?: { operation: string; description: string; params?: Record<string, unknown> | null } | null;
+    requires_teacher_input?: boolean;
+    confidence?: number;
+    /** §4 provenance — her decisions are data, and they round-trip. */
+    dismissed?: boolean | null;
+    dismissed_at?: string | null;
+    fix_applied?: boolean | null;
+    fix_applied_at?: string | null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §5 — confidence is QUALITATIVE ONLY. No numbers, no meters, one table.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ConfidenceRegister = 'high' | 'medium' | 'low';
+
+/**
+ * The ONE mapping from the numeric field to a register. Thresholds live here and
+ * nowhere else so the voice cannot drift between surfaces.
+ *
+ * Note on today's data: Tier A hard-codes 1.0, so only `high` occurs on
+ * deterministic detections; `medium`/`low` appear for Tier-B adjudicated kinds
+ * (the adjudicator defaults to 0.8).
+ */
+export function confidenceRegister(confidence: number | undefined | null): ConfidenceRegister {
+    const c = typeof confidence === 'number' ? confidence : 1;
+    if (c >= 0.85) return 'high';
+    if (c >= 0.6) return 'medium';
+    return 'low';
+}
+
+/** Hedge a claim to its register: high states it, medium "כנראה", low "ייתכן ש". */
+export function hedge(text: string, register: ConfidenceRegister): string {
+    if (register === 'high') return text;
+    if (register === 'medium') return `כנראה ש${text}`;
+    return `ייתכן ש${text}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The Finding
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The event a finding is ABOUT. Pairing happens on (scope, kind). */
+export type FindingKind =
+    | 'point_sum'
+    | 'selection_normalization'
+    | 'structural_mislabel'
+    | 'orphan_criterion'
+    | 'structure'
+    | 'other';
+
+export type FindingStatus = 'open' | 'resolved' | 'dismissed';
+export type FindingVariant = 'blocking_fix' | 'advisory_fix' | 'advisory_info';
+
+/** A machine-applicable correction: set a declared value to the sum already stated. */
+export interface FindingFix {
+    target: 'question' | 'sub_question' | 'rubric';
+    newValue: number;
+    currentValue: number;
+    /** Primary button label, e.g. «עדכני את הניקוד המוצהר ל-2». */
+    label: string;
+}
+
+export interface Finding {
+    /** Stable identity: scope + kind. Survives recomposition across edits. */
+    key: string;
+    scopeId: string | null;          // null ⇒ document-level (advisory strip)
+    kind: FindingKind;
+    status: FindingStatus;
+    variant: FindingVariant;
+    /** Worst severity across the composed sources (drives accent + rail dot). */
+    severity: 'error' | 'warning' | 'info';
+    /** True iff live recomputation reports it RIGHT NOW. The only present-tense claim. */
+    hasLiveBlocker: boolean;
+    /** Present-tense body — ONLY ever from live recomputation. */
+    liveMessage: string | null;
+    /** Past-tense residual — the original document, never asserting the present. */
+    documentResidual: string | null;
+    /** The advisory's explanation, already hedged to its confidence register. */
+    explanation: string | null;
+    confidence: ConfidenceRegister;
+    fix: FindingFix | null;
+    /** Provenance key (§4) — which mistake records her decision. */
+    mistakeId: string | null;
+    /** Annotation ids this finding covers — the A4 ack mapping joins on these. */
+    annotationIds: string[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Kind mapping — every source entry reduced to ONE vocabulary
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The point-sum FAMILY: INV-R1/R1b/R2/R3 all describe the same event class. */
+function kindOfInvariant(invariant: string): FindingKind {
+    return invariant === 'INV-R-XOR' ? 'structure' : 'point_sum';
+}
+
+function kindOfMistake(kind: string): FindingKind {
+    switch (kind) {
+        case 'point_sum_mismatch': return 'point_sum';
+        case 'selection_normalization': return 'selection_normalization';
+        case 'structural_mislabel': return 'structural_mislabel';
+        case 'orphan_criterion': return 'orphan_criterion';
+        default: return 'other';
+    }
+}
+
+/**
+ * An extraction annotation's event class. `rubric_mismatch` IS the document's
+ * record of a point-sum problem, which is what makes it the residual half of the
+ * trinity; anything else keeps its own identity rather than being force-paired.
+ */
+function kindOfAnnotation(a: Annotation): FindingKind {
+    if (a.annotation_type === 'rubric_mismatch' || a.annotation_type === 'invariant_violation') return 'point_sum';
+    return 'other';
+}
+
+/** null and 'rubric' are the same (document) scope — see finding-severity. */
+function scopeKey(target: string | null | undefined): string {
+    return target && target !== 'rubric' ? target : ' document';
+}
+
+const composeKey = (scope: string, kind: FindingKind) => `${scope}::${kind}`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fix derivation (A2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function num(v: unknown): number | null {
+    if (v === null || v === undefined) return null;
+    const n = safeParseFloat(v as string | number);
+    return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * The one-click proposal. Prefers the detector's payload (pipeline ≥ 3.5.0, ONE
+ * owner of fix semantics) and falls back to deriving from `evidence`.
+ *
+ * The fallback is NOT belt-and-braces: every draft saved before 3.5.0 carries
+ * `suggested_fix: null` forever, and those rubrics must still offer the fix when
+ * she reopens them. `evidence` has always held the numbers.
+ */
+export function deriveFix(m: PedagogicalMistakeLike): FindingFix | null {
+    const sf = m.suggested_fix;
+    if (sf && sf.operation === 'adjust_points' && sf.params) {
+        const p = sf.params as Record<string, unknown>;
+        const newValue = num(p.new_value);
+        const currentValue = num(p.current_value);
+        const target = p.target as FindingFix['target'] | undefined;
+        if (newValue !== null && currentValue !== null && target) {
+            return { target, newValue, currentValue, label: fixLabel(target, newValue) };
+        }
+    }
+
+    // Compatibility fallback — pre-3.5.0 drafts.
+    if (kindOfMistake(m.kind) !== 'point_sum') return null;
+    const ev = (m.evidence ?? {}) as Record<string, unknown>;
+    const newValue = num(ev.children_sum) ?? num(ev.achievable);
+    const currentValue = num(ev.declared) ?? num(ev.declared_total);
+    if (newValue === null || currentValue === null) return null;
+    const target: FindingFix['target'] =
+        m.target_id === null || m.target_id === undefined ? 'rubric'
+            : m.target_id.includes('.') ? 'sub_question' : 'question';
+    return { target, newValue, currentValue, label: fixLabel(target, newValue) };
+}
+
+function fixLabel(target: FindingFix['target'], newValue: number): string {
+    return target === 'rubric'
+        ? `עדכני את סך נקודות המחוון ל-${formatPoints(newValue)}`
+        : `עדכני את הניקוד המוצהר ל-${formatPoints(newValue)}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// composeFindings
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface Bucket {
+    scopeId: string | null;
+    kind: FindingKind;
+    live: ValidationIssue[];
+    annotations: Annotation[];
+    mistake: PedagogicalMistakeLike | null;
+}
+
+/**
+ * Compose the three representations into one card model.
+ *
+ * `questions` is accepted for label resolution by callers that render; composition
+ * itself is label-free so it stays pure and cheap to test.
+ */
+export function composeFindings(
+    extractionAnnotations: Annotation[],
+    liveIssues: ValidationIssue[],
+    pedagogicalMistakes: PedagogicalMistakeLike[],
+    _questions?: RubricQuestion[],
+): Finding[] {
+    const buckets = new Map<string, Bucket>();
+
+    const bucket = (target: string | null | undefined, kind: FindingKind): Bucket => {
+        const scope = scopeKey(target);
+        const key = composeKey(scope, kind);
+        let b = buckets.get(key);
+        if (!b) {
+            b = { scopeId: target && target !== 'rubric' ? target : null, kind, live: [], annotations: [], mistake: null };
+            buckets.set(key, b);
+        }
+        return b;
+    };
+
+    for (const iss of liveIssues) bucket(iss.target_id, kindOfInvariant(iss.invariant)).live.push(iss);
+    for (const a of extractionAnnotations) bucket(a.target_id, kindOfAnnotation(a)).annotations.push(a);
+    for (const m of pedagogicalMistakes) {
+        const b = bucket(m.target_id, kindOfMistake(m.kind));
+        // One advisory per (scope, kind) by construction; keep the first if the
+        // detector ever emits two — never silently merge two explanations.
+        if (!b.mistake) b.mistake = m;
+    }
+
+    const out: Finding[] = [];
+    buckets.forEach((b, key) => out.push(finish(key, b)));
+    return out;
+}
+
+function finish(key: string, b: Bucket): Finding {
+    const m = b.mistake;
+    const hasLiveBlocker = b.live.length > 0;
+
+    // ── STATUS. Resolution is driven by the live validator recomputing, never by
+    // static bookkeeping: if the recomputation is silent, the arithmetic is right
+    // NOW, whatever the frozen extraction text still says.
+    let status: FindingStatus;
+    if (m?.dismissed) {
+        status = 'dismissed';
+    } else if (hasLiveBlocker) {
+        status = 'open';
+    } else if (b.kind === 'point_sum' || b.kind === 'structure') {
+        // This family HAS a live counterpart, so its silence is meaningful.
+        status = 'resolved';
+    } else {
+        // Advisory kinds have no live counterpart — only her decision closes them.
+        status = m?.fix_applied ? 'resolved' : 'open';
+    }
+
+    const severity: Finding['severity'] =
+        b.live.some((i) => i.severity === 'error') ? 'error'
+            : (b.annotations.some((a) => a.severity === 'error') ? 'error'
+                : (b.live.length || b.annotations.length || m ? 'warning' : 'info'));
+
+    const fix = m ? deriveFix(m) : null;
+    const variant: FindingVariant =
+        status === 'open' && hasLiveBlocker && fix ? 'blocking_fix'
+            : fix ? 'advisory_fix'
+                : 'advisory_info';
+
+    const register = confidenceRegister(m?.confidence);
+
+    return {
+        key,
+        scopeId: b.scopeId,
+        kind: b.kind,
+        status,
+        variant,
+        severity,
+        hasLiveBlocker,
+        // ONLY live text may speak in the present tense.
+        liveMessage: b.live.length ? b.live[0].message : null,
+        // The frozen extraction text survives ONLY as the original-document residual.
+        documentResidual: b.annotations.length ? b.annotations[0].message : null,
+        explanation: m ? hedge(m.explanation, register) : null,
+        confidence: register,
+        fix,
+        mistakeId: m?.mistake_id ?? null,
+        annotationIds: b.annotations.map((a) => a.id).filter(Boolean),
+    };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §5 counts — the classes are separated, never summed into one number
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface FindingCounts { blockers: number; advisories: number }
+
+/** Open blockers vs open advisories. Resolved and dismissed count as neither. */
+export function countFindingsByClass(findings: Finding[]): FindingCounts {
+    let blockers = 0;
+    let advisories = 0;
+    for (const f of findings) {
+        if (f.status !== 'open') continue;
+        if (f.severity === 'error' || f.hasLiveBlocker) blockers++;
+        else advisories++;
+    }
+    return { blockers, advisories };
+}
+
+/**
+ * "ממצא אחד לתיקון · 2 המלצות" — zero cases elide naturally, and the two classes
+ * never collapse into one number (a blocker and a suggestion are not the same news).
+ */
+export function findingsSummaryLine(counts: FindingCounts): string | null {
+    const parts: string[] = [];
+    if (counts.blockers === 1) parts.push('ממצא אחד לתיקון');
+    else if (counts.blockers > 1) parts.push(`${counts.blockers} ממצאים לתיקון`);
+    if (counts.advisories === 1) parts.push('המלצה אחת');
+    else if (counts.advisories > 1) parts.push(`${counts.advisories} המלצות`);
+    return parts.length ? parts.join(' · ') : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §7 — Tier-B partial-scan honesty
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type AdvisoryScan = 'complete' | 'partial' | 'unknown';
+
+/**
+ * Read the advisory-scan stamp from the draft's provenance (pipeline ≥ 3.5.0), with
+ * the job-result warnings as the in-session source.
+ *
+ * A draft with NO stamp is `unknown`, never `complete`: absence of advisories must
+ * never read as a clean bill of health when we cannot know whether the scan ran.
+ */
+export function advisoryScanStatus(
+    extractionMetadata?: Record<string, unknown> | null,
+    jobWarnings?: string[] | null,
+): AdvisoryScan {
+    const stamped = extractionMetadata?.advisory_scan;
+    if (stamped === 'complete' || stamped === 'partial') return stamped;
+    if (jobWarnings?.some((w) => w.includes('Tier B skipped')
+        || w.includes('Step 2c pedagogical-mistake detection failed'))) return 'partial';
+    return extractionMetadata || jobWarnings ? 'unknown' : 'unknown';
+}

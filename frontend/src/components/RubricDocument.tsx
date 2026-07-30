@@ -439,7 +439,7 @@ function DocumentHeader({
                 </div>
 
                 {openFindingCount === 0 && (
-                    <p className="col-span-2 text-doc-meta text-emerald-700">ויוי לא מצאה אי-התאמות במחוון ✓</p>
+                    <p className="col-span-2 text-doc-meta text-emerald-700">הכל תקין - ויוי לא מצאה אי-התאמות במחוון ✓</p>
                 )}
             </div>
         </header>
