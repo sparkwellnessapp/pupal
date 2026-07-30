@@ -1,0 +1,72 @@
+# PR-6 rider — the OFFLINE backend battery in CI.
+#
+# Why this exists: a red tripwire sat silent on HEAD. `test_contract_parity`'s
+# "all goldens compile clean in one round trip" went red the moment a ratified GT
+# ruling deliberately made hobby_tvshow non-clean, and nothing caught it — because
+# the backend suite runs only when a human remembers to run it. A test nobody runs
+# is not a tripwire, it is a comment.
+#
+# Scope is deliberately the OFFLINE half: the pure compilers, validators, the
+# rubric eval suite (which is a no-LLM, no-DB scorer over committed benchmarks),
+# and the Step 2c contract battery. These need no database, no OPENAI_API_KEY and
+# no network, so they are fast and deterministic in CI. Anything that needs a live
+# DB or a model call stays out — an occasionally-red job trains the same
+# click-through reflex the INV-6 warning did.
+name: backend battery (offline)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  battery:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend deps
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      # The eval suite reads the golden benchmarks straight off disk and scores
+      # them; test_fp123 additionally re-derives the pedagogical canon via the
+      # Tier-A probe, so a detector change that forgets its GT lockstep fails HERE
+      # rather than silently moving the ruler.
+      - name: Rubric eval suite (goldens + expressibility + pedagogical canon)
+        working-directory: backend
+        env:
+          PYTHONUTF8: "1"
+          PYTHONPATH: .
+        run: python -m pytest tests/rubric_eval_suite -q
+
+      # The pure compilers/validators + the Step 2c emission contract.
+      - name: Compilers, validators, Step 2c contract
+        working-directory: backend
+        env:
+          PYTHONUTF8: "1"
+          PYTHONPATH: .
+        run: |
+          python -m pytest -q \
+            tests/services/test_contract_parity.py \
+            tests/services/test_pedagogical_fix_payload.py \
+            tests/services/test_selection_satisfiable.py \
+            tests/services/test_extraction_job_seam.py \
+            tests/services/test_transport_budget.py
+
+      # The most common "it merged but the server won't boot" failure.
+      - name: Import sanity
+        working-directory: backend
+        env:
+          PYTHONUTF8: "1"
+          PYTHONPATH: .
+        run: python -c "import app.main; print('SCHEMA/import OK')"
