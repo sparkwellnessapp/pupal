@@ -111,3 +111,29 @@ export function scopeLabel(
     // Unresolvable — degrade to the rubric scope, NEVER the raw id.
     return RUBRIC_LABEL;
 }
+
+/**
+ * A scope id embedded INSIDE a backend message string: `Q1`, `Q2.א`, `Q1.א.2`.
+ * The backend interpolates the raw scope into Hebrew prose — `f"...ב{issue.scope}
+ * הוא..."` (pipeline.py) — which renders as "בQ1" on an RTL screen. The naming law
+ * (§2: "technical ids never reach her eyes") applies to message BODIES too, not
+ * just to jump-labels.
+ */
+const EMBEDDED_SCOPE_RE = /Q\d+(?:\.[^\s,.:;()"']+)*/g;
+
+/**
+ * D7 sub-fix — substitute embedded technical ids in a message with their Hebrew
+ * labels, at render. Backend-authored strings are the only source of these (the
+ * client validator builds its messages FROM labels already, which is the standing
+ * rule: client-generated messages are never assembled from raw ids).
+ *
+ * "אזהרה: סכום הנקודות של תת-השאלות בQ1 הוא 21…"
+ *   → "אזהרה: סכום הנקודות של תת-השאלות בשאלה 1 הוא 21…"
+ *
+ * Resolution goes through `scopeLabel`, so an id with no node in the current tree
+ * degrades to "המחוון" rather than leaking — same contract as every other surface.
+ */
+export function humanizeScopeIds(message: string, questions: RubricQuestion[]): string {
+    if (!message) return message;
+    return message.replace(EMBEDDED_SCOPE_RE, (token) => scopeLabel(token.toLowerCase(), questions));
+}

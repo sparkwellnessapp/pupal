@@ -10,12 +10,14 @@ import { recalculateParentsFromCriteria } from '@/utils/rubric-transform';
 import {
     updateCriterionAtPath, addCriterionAtPath, removeCriterionAtPath,
     changeQuestionPoints as changeQuestionPointsOp,
+    changeSubQuestionPointsAtPath, setSubQuestionTextAtPath,
+    setQuestionText as setQuestionTextOp,
 } from '@/utils/rubric-editor-ops';
 import { computeAchievablePoints } from '@/utils/rubric-achievable';
-import { scopeLabel, questionLabel, subQuestionLabel } from '@/utils/scope-label';
+import { scopeLabel, questionLabel, subQuestionLabel, humanizeScopeIds } from '@/utils/scope-label';
 import { splitRoutingPrefix } from '@/utils/routing-prefix';
 import { selectionSummaryLine, findingSectionsByQuestion } from '@/utils/session-spine';
-import { isOpenFinding } from '@/utils/finding-severity';
+import { isOpenFinding, visibleAnnotations } from '@/utils/finding-severity';
 import { changedPointNodeIds } from '@/utils/points-cascade';
 import { AnnotationBanner } from '@/components/AnnotationBanner';
 import { EditableText } from '@/components/document/EditableText';
@@ -56,6 +58,11 @@ interface DocOps {
     removeCriterion(qIndex: number, sqPath: number[], cIndex: number, label: string): void;
     setSubCriteria(qIndex: number, sqPath: number[], cIndex: number, subs: RubricSubCriterion[] | null): void;
     changeQuestionPoints(qIndex: number, n: number): void;
+    /** D5 — a sub-question's DECLARED points, at any depth. No redistribution. */
+    changeSubQuestionPoints(qIndex: number, sqPath: number[], n: number): void;
+    /** D8 — prose, edited RAW. */
+    changeQuestionText(qIndex: number, text: string): void;
+    changeSubQuestionText(qIndex: number, sqPath: number[], text: string): void;
 }
 
 interface DocContextValue extends DocOps {
@@ -234,9 +241,14 @@ function CriteriaTable({
 
 function SolutionBlock({ solution }: { solution?: string | null }) {
     if (!solution || !solution.trim()) return null;
+    // A solution carrying a [TABLE] marker (a filled trace/solution table) renders
+    // through the marker-aware document renderer so it becomes a real <table>. A
+    // pure-code solution stays a CodeBlock — DocumentText would fragment code on
+    // Hebrew inline-comment lines (groupTextBlocks treats Hebrew as prose).
+    const hasTable = solution.includes('[TABLE');
     return (
         <DisclosureRow label="פתרון לדוגמה" toggleLabel="פתרון לדוגמה" className="my-2">
-            <CodeBlock code={solution} />
+            {hasTable ? <DocumentText text={solution} /> : <CodeBlock code={solution} />}
         </DisclosureRow>
     );
 }
@@ -263,7 +275,7 @@ function PointsChip({ value, ariaLabel, editable, onCommit, changed }: {
 function SubQuestionSection({
     qIndex, sq, sqPath, idPath, depth,
 }: { qIndex: number; sq: RubricSubQuestion; sqPath: number[]; idPath: string; depth: number }) {
-    const { annotations, changedIds } = useDoc();
+    const { annotations, changedIds, changeSubQuestionPoints, changeSubQuestionText } = useDoc();
     const heading = sq.title?.trim() || subQuestionLabel(sq, sqPath[sqPath.length - 1], depth);
     const hasChildren = (sq.sub_questions?.length ?? 0) > 0;
     const anns = annotationsFor(annotations, idPath, sq.sub_question_id);
@@ -272,11 +284,31 @@ function SubQuestionSection({
         <section data-scope-id={idPath} className="scroll-mt-20 mr-3 border-r border-surface-100 pr-3 mt-3">
             <div className="flex items-baseline justify-between gap-3">
                 <h4 className="text-doc-sq text-surface-800">{heading}</h4>
-                {/* Sub-question points are a cascaded sum — read-only (E-3 living sums). */}
-                <PointsChip value={sq.points} ariaLabel={`ניקוד ${heading}`} editable={false} changed={changedIds.has(sq.sub_question_id)} />
+                {/* D5: every point-bearing node is editable. This sets the DECLARED
+                    value; the E-3 cascade still re-derives it from criteria on the
+                    next criterion edit in this subtree (upward recomputation stays
+                    where it already was). */}
+                <PointsChip
+                    value={sq.points}
+                    ariaLabel={`ניקוד ${heading} — לחצי לעריכה`}
+                    editable
+                    onCommit={(n) => changeSubQuestionPoints(qIndex, sqPath, n)}
+                    changed={changedIds.has(sq.sub_question_id)}
+                />
             </div>
 
-            {sq.text?.trim() ? <DocumentText text={sq.text} className="mt-1" /> : null}
+            {/* D8: display-rich / edit-raw. */}
+            {sq.text?.trim() ? (
+                <EditableText
+                    value={sq.text}
+                    onCommit={(text) => changeSubQuestionText(qIndex, sqPath, text)}
+                    ariaLabel={`טקסט ${heading} — לחצי לעריכה`}
+                    dir="rtl"
+                    block
+                    className="mt-1"
+                    renderDisplay={(v) => <DocumentText text={v} />}
+                />
+            ) : null}
             <TraceTablesDisplay tables={sq.trace_tables} />
             <InlineAnnotations annotations={anns} />
 
@@ -298,7 +330,7 @@ function SubQuestionSection({
 function QuestionSection({
     q, qIndex, isSelectionMember,
 }: { q: RubricQuestion; qIndex: number; isSelectionMember: boolean }) {
-    const { annotations, changedIds, changeQuestionPoints } = useDoc();
+    const { annotations, changedIds, changeQuestionPoints, changeQuestionText } = useDoc();
     const heading = questionLabel(q, qIndex);
     const hasSubs = q.sub_questions.length > 0;
     const anns = annotationsFor(annotations, q.question_id);
@@ -314,18 +346,31 @@ function QuestionSection({
                     {heading}
                     {isSelectionMember && <span className="text-xs font-normal text-primary-600 bg-primary-50 rounded-full px-2 py-0.5">שאלת בחירה</span>}
                 </h3>
-                {/* A parent question's total is teacher-authoritative (INV-R1). A direct-
-                    criteria question's total is a cascaded sum → read-only. */}
+                {/* D5: editable at every point-bearing node. A question's total is
+                    teacher-authoritative (INV-R1 surfaces any gap). For a
+                    direct-criteria question the E-3 cascade still re-derives it on
+                    the next criterion edit — upward recomputation is unchanged. */}
                 <PointsChip
                     value={q.total_points}
-                    ariaLabel={`ניקוד ${heading}${hasSubs ? ' — לחצי לעריכה' : ''}`}
-                    editable={hasSubs}
+                    ariaLabel={`ניקוד ${heading} — לחצי לעריכה`}
+                    editable
                     onCommit={(n) => changeQuestionPoints(qIndex, n)}
                     changed={changedIds.has(q.question_id)}
                 />
             </div>
 
-            {q.question_text?.trim() ? <DocumentText text={q.question_text} className="mt-2" /> : null}
+            {/* D8: display-rich / edit-raw. */}
+            {q.question_text?.trim() ? (
+                <EditableText
+                    value={q.question_text}
+                    onCommit={(text) => changeQuestionText(qIndex, text)}
+                    ariaLabel={`טקסט ${heading} — לחצי לעריכה`}
+                    dir="rtl"
+                    block
+                    className="mt-2"
+                    renderDisplay={(v) => <DocumentText text={v} />}
+                />
+            ) : null}
             {q.code_blocks?.map((code, i) => <CodeBlock key={i} code={code} />)}
             <ContextTablesDisplay tables={q.context_tables} />
             <TraceTablesDisplay tables={q.trace_tables} />
@@ -346,36 +391,58 @@ function QuestionSection({
 // DocumentHeader (§5) + OutlineRail (E-2)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * D3 — THE HEADER BAND. One composed unit that sits ABOVE the document body and
+ * reads as its own surface, not as fragments stacked on the page (audit F1). A
+ * two-column grid: identity on the right-hand start (name + selection line), the
+ * ONE number and the undo affordance on the far side, the reassurance line
+ * spanning the band when there is nothing to fix.
+ *
+ * D4 — מוצהר LEAVES THE HEADER. The band shows the ACHIEVABLE total, alone,
+ * live-updating as points change. The declared total stays in page state (INV-R3
+ * and dehydrate depend on it, and the undo tuple is unchanged) but has NO surface
+ * here — an orphaned edit affordance for a number whose only meaning is "the other
+ * half of a mismatch" is exactly the scattered-fragment problem. When declared and
+ * achievable disagree, INV-R3 fires and the finding carries the pair with the
+ * context a teacher needs; resolving it happens by editing points.
+ */
 function DocumentHeader({
-    name, achievable, declared, onNameCommit, onDeclaredCommit, selectionLine, openFindingCount, canUndo, onUndo,
+    name, achievable, onNameCommit, selectionLine, openFindingCount, canUndo, onUndo,
 }: {
-    name: string; achievable: number; declared: number | undefined;
-    onNameCommit: (v: string) => void; onDeclaredCommit: (n: number) => void;
+    name: string; achievable: number;
+    onNameCommit: (v: string) => void;
     selectionLine: string | null; openFindingCount: number; canUndo: boolean; onUndo?: () => void;
 }) {
     return (
-        <header className="mb-4 doc-enter-header">
-            <div className="flex items-start justify-between gap-4">
-                <h1 className="text-doc-title text-surface-900">
-                    <EditableText value={name} onCommit={onNameCommit} ariaLabel="שם המחוון — לחצי לעריכה" dir="rtl" placeholder="שם המחוון" />
-                </h1>
-                <div className="flex items-center gap-3 flex-shrink-0">
+        <header className="mb-5 doc-enter-header">
+            <div className="rounded-2xl bg-white ring-1 ring-surface-200 shadow-sm px-7 py-5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2">
+                <div className="min-w-0">
+                    <h1 className="text-doc-title text-surface-900">
+                        <EditableText value={name} onCommit={onNameCommit} ariaLabel="שם המחוון — לחצי לעריכה" dir="rtl" placeholder="שם המחוון" />
+                    </h1>
+                    {selectionLine && <p className="text-doc-meta text-surface-500 mt-1.5">{selectionLine}</p>}
+                </div>
+
+                <div className="flex items-center gap-4 flex-shrink-0">
                     {canUndo && (
-                        <button type="button" onClick={onUndo} className="text-sm text-surface-500 hover:text-surface-800 transition-colors">ביטול</button>
+                        <button
+                            type="button"
+                            onClick={onUndo}
+                            className="text-doc-meta text-surface-500 hover:text-surface-900 hover:bg-surface-50 rounded-lg px-2.5 py-1.5 transition-colors"
+                        >ביטול</button>
                     )}
-                    <div className="text-left">
-                        <div data-testid="rubric-achievable-total" className="text-2xl font-bold text-surface-900 tabular-nums">{achievable}<span className="text-sm font-normal text-surface-500 mr-1">נק'</span></div>
-                        <div className="text-xs text-surface-400 flex items-center gap-1 justify-end">
-                            <span>מוצהר</span>
-                            <EditablePoints value={declared ?? achievable} onCommit={onDeclaredCommit} ariaLabel="ניקוד מוצהר — לחצי לעריכה" />
+                    <div className="rounded-xl bg-primary-50 px-4 py-2 text-center">
+                        <div data-testid="rubric-achievable-total" className="text-doc-title text-primary-800 tabular-nums leading-none">
+                            {achievable}<span className="text-doc-meta font-normal text-primary-700 mr-1">נק&apos;</span>
                         </div>
+                        <div className="text-doc-meta text-primary-700 mt-1">סה&quot;כ</div>
                     </div>
                 </div>
+
+                {openFindingCount === 0 && (
+                    <p className="col-span-2 text-doc-meta text-emerald-700">ויוי לא מצאה אי-התאמות במחוון ✓</p>
+                )}
             </div>
-            {selectionLine && <p className="text-sm text-surface-600 mt-1">{selectionLine}</p>}
-            {openFindingCount === 0 && (
-                <p className="text-sm text-emerald-700 mt-1">ויוי לא מצאה אי-התאמות במחוון ✓</p>
-            )}
         </header>
     );
 }
@@ -441,8 +508,9 @@ export function RubricDocument({
     annotations = [],
     errorBannerRef,
     rubricName = '',
-    rubricTotalPoints,
-    onTotalPointsChange,
+    // D4: `rubricTotalPoints` / `onTotalPointsChange` stay on the prop seam (parity
+    // with RubricEditor; page state and the undo tuple are unchanged) but the band
+    // renders NO declared-total surface — see DocumentHeader.
     onMetadataChange,
     selectionGroups = [],
     canUndo = false,
@@ -460,9 +528,16 @@ export function RubricDocument({
         return () => clearTimeout(t);
     }, [questions]);
 
+    // D9 — RAIL LANDING. `block: 'center'` centered the whole SECTION, so for any
+    // section taller than the viewport the heading landed far above the top edge
+    // (off-screen) and the teacher arrived mid-body. `block: 'start'` lands the
+    // section's own top edge and — unlike 'center' — honours `scroll-margin-top`,
+    // which every section carries as `scroll-mt-20` (5rem) to clear the ~80px
+    // sticky app header. Anchor + margin together put the TITLE just below the
+    // header at both viewports.
     const scrollToScope = useCallback((targetId: string | null) => {
         if (!targetId) return;
-        document.querySelector(`[data-scope-id="${targetId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.querySelector(`[data-scope-id="${targetId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, []);
 
     // ── Edit ops — ALL through the pure *AtPath ops (correctness invariant). ──
@@ -486,24 +561,50 @@ export function RubricDocument({
         setSubCriteria: (qIndex, sqPath, cIndex, subs) =>
             onQuestionsChange(updateCriterionAtPath(questions, qIndex, sqPath, cIndex, { sub_criteria: subs })),
         changeQuestionPoints: (qIndex, n) => onQuestionsChange(changeQuestionPointsOp(questions, qIndex, n)),
+        // D5: a parent edit sets that node's DECLARED value and NOTHING else — no
+        // downward redistribution, no rescaling of children. If it opens a sum gap,
+        // the live validator fires and the finding renders: surfacing a discrepancy
+        // is the product, inventing a number to hide it is not (§2 FC).
+        changeSubQuestionPoints: (qIndex, sqPath, n) =>
+            onQuestionsChange(changeSubQuestionPointsAtPath(questions, qIndex, sqPath, n)),
+        // D8: commit the RAW string verbatim — no trim, no normalization, so
+        // dehydrate emits byte-identically what she typed.
+        changeQuestionText: (qIndex, text) => onQuestionsChange(setQuestionTextOp(questions, qIndex, text)),
+        changeSubQuestionText: (qIndex, sqPath, text) =>
+            onQuestionsChange(setSubQuestionTextAtPath(questions, qIndex, sqPath, text)),
     }), [questions, onQuestionsChange]);
 
+    // ── D7: the ONE annotation transform, at the root, so every consumer (inline
+    // banners, the blocking summary, rail dots, the reassurance count) reads the
+    // same truth. Two rules, both from the shared modules:
+    //   1. visibleAnnotations — a static extraction message is suppressed when a
+    //      LIVE validator entry covers the same node (the stale-assertion class:
+    //      the frozen message keeps asserting extraction-time numbers).
+    //   2. humanizeScopeIds — a backend message interpolates the raw scope id
+    //      ("בQ1"); the naming law applies to message bodies, not just labels.
+    const shownAnnotations = useMemo(
+        () => visibleAnnotations(annotations).map((a) => (
+            a.message ? { ...a, message: humanizeScopeIds(a.message, questions) } : a
+        )),
+        [annotations, questions],
+    );
+
     const ctx: DocContextValue = useMemo(() => ({
-        ...ops, questions, annotations, changedIds, scrollToScope,
-    }), [ops, questions, annotations, changedIds, scrollToScope]);
+        ...ops, questions, annotations: shownAnnotations, changedIds, scrollToScope,
+    }), [ops, questions, shownAnnotations, changedIds, scrollToScope]);
 
     // ── Derived ──
     const achievable = useMemo(() => computeAchievablePoints(questions, selectionGroups), [questions, selectionGroups]);
-    const selectionLine = useMemo(() => selectionSummaryLine(selectionGroups, questions.length), [selectionGroups, questions.length]);
-    const findingSections = useMemo(() => findingSectionsByQuestion(annotations, questions), [annotations, questions]);
+    const selectionLine = useMemo(() => selectionSummaryLine(selectionGroups), [selectionGroups]);
+    const findingSections = useMemo(() => findingSectionsByQuestion(shownAnnotations, questions), [shownAnnotations, questions]);
     const selectionMemberIds = useMemo(() => {
         const s = new Set<string>();
         selectionGroups.forEach((g) => g.of_question_ids.forEach((id) => s.add(id)));
         return s;
     }, [selectionGroups]);
-    const errorAnnotations = useMemo(() => annotations.filter((a) => a.severity === 'error'), [annotations]);
-    const globalAnnotations = useMemo(() => annotations.filter((a) => a.target_id === null || a.target_id === 'rubric'), [annotations]);
-    const openFindingCount = useMemo(() => annotations.filter(isOpenFinding).length, [annotations]);
+    const errorAnnotations = useMemo(() => shownAnnotations.filter((a) => a.severity === 'error'), [shownAnnotations]);
+    const globalAnnotations = useMemo(() => shownAnnotations.filter((a) => a.target_id === null || a.target_id === 'rubric'), [shownAnnotations]);
+    const openFindingCount = useMemo(() => shownAnnotations.filter(isOpenFinding).length, [shownAnnotations]);
 
     // ── E-2 rail active-tracking (window scroller; offset the 64px sticky header) ──
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -571,6 +672,17 @@ export function RubricDocument({
                 <OutlineRail questions={questions} activeId={activeId} findingSections={findingSections} onJump={scrollToScope} railStyle={railBox} />
 
                 <div className="flex-1 min-w-0 max-w-document">
+                    {/* D3: the band is its OWN surface, above the document body. */}
+                    <DocumentHeader
+                        name={rubricName}
+                        achievable={achievable}
+                        onNameCommit={(v) => onMetadataChange?.({ rubric_name: v })}
+                        selectionLine={selectionLine}
+                        openFindingCount={openFindingCount}
+                        canUndo={canUndo}
+                        onUndo={onUndo}
+                    />
+
                     <div className="bg-white rounded-2xl shadow-sm ring-1 ring-surface-100 px-8 py-7">
                         {/* Relocated top summary banner — same errorBannerRef contract (§6). */}
                         {errorAnnotations.length > 0 && (
@@ -591,18 +703,6 @@ export function RubricDocument({
                             </div>
                         )}
                         {globalAnnotations.length > 0 && <div className="mb-6 space-y-2">{globalAnnotations.map((a) => <AnnotationBanner key={a.id} annotation={a} />)}</div>}
-
-                        <DocumentHeader
-                            name={rubricName}
-                            achievable={achievable}
-                            declared={rubricTotalPoints}
-                            onNameCommit={(v) => onMetadataChange?.({ rubric_name: v })}
-                            onDeclaredCommit={(n) => onTotalPointsChange?.(n)}
-                            selectionLine={selectionLine}
-                            openFindingCount={openFindingCount}
-                            canUndo={canUndo}
-                            onUndo={onUndo}
-                        />
 
                         <div className="space-y-12">
                             {questions.map((q, i) => (

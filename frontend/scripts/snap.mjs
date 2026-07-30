@@ -53,6 +53,47 @@ try {
                 n++;
             }
         }
+        // ── Round 2: the INTERACTIVE + composed states (closes audit F4). Driven
+        // by clicking, then capturing the VIEWPORT (an open editor in a full-page
+        // shot of an 8000px document is unreadable). bagrut is the driver: depth-2,
+        // marker-bearing prose, selection, and a long body for the rail landing.
+        const drive = async (name, fn, { element = null } = {}) => {
+            await page.goto(`${BASE}/design-lab?fixture=bagrut_899371&state=at-rest`, { waitUntil: 'networkidle' });
+            await page.waitForTimeout(450);
+            await fn();
+            const file = path.join(OUT, `bagrut_899371_${name}_${vp.w}.png`);
+            if (element) await page.locator(element).first().screenshot({ path: file });
+            else await page.screenshot({ path: file, fullPage: false });
+            console.log('  shot', file);
+            n++;
+        };
+
+        // D3 — the header band, as its own named shot.
+        await drive('header', async () => {}, { element: 'header' });
+
+        // D5 — editing a PARENT's points (the unlanded Sprint-2 item).
+        await drive('editing-point', async () => {
+            const chip = page.getByRole('button', { name: /^ניקוד סעיף/ }).first();
+            await chip.scrollIntoViewIfNeeded();
+            await chip.click();
+            await page.waitForTimeout(200);
+        });
+
+        // D8 — editing PROSE: rich at rest, RAW in the box (markers visible).
+        await drive('editing-prose', async () => {
+            const prose = page.getByRole('button', { name: /^טקסט שאלה/ }).first();
+            await prose.scrollIntoViewIfNeeded();
+            await prose.click();
+            await page.waitForTimeout(250);
+        });
+
+        // D9 — where a rail click actually LANDS (the title, below the header offset).
+        await drive('rail-landing', async () => {
+            await page.getByRole('navigation', { name: 'מפת המחוון' })
+                .getByRole('button', { name: /שאלה 4/ }).click();
+            await page.waitForTimeout(1200);
+        });
+
         await ctx.close();
     }
 } finally {

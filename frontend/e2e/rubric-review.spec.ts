@@ -96,3 +96,52 @@ test.describe('rubric mirror — the render half (PR-5 S2)', () => {
         await expect(page.locator('input[type="number"]').first()).toBeVisible();
     });
 });
+
+/**
+ * Design Recovery Round 2 — D9 (rail landing) and the D5/D8 edit surfaces, driven
+ * against /design-lab so the assertions are LAYOUT assertions, not markup ones.
+ * vitest runs node-env (no layout), so "did it land in the top region" can only be
+ * answered by a real browser — this is that answer.
+ */
+test.describe('Round 2 — rail landing + edit surfaces (design-lab)', () => {
+    for (const vp of [{ w: 1440, h: 900 }, { w: 1280, h: 800 }]) {
+        test(`D9: a rail click lands the question TITLE in the top region @${vp.w}`, async ({ page }) => {
+            await page.setViewportSize({ width: vp.w, height: vp.h });
+            await page.goto('/design-lab?fixture=bagrut_899371&state=at-rest');
+
+            const rail = page.getByRole('navigation', { name: 'מפת המחוון' });
+            await expect(rail).toBeVisible();
+            await rail.getByRole('button', { name: /שאלה 4/ }).click();
+            await page.waitForTimeout(1200); // smooth scroll settle
+
+            // The TITLE itself must be visible near the top — not the sub-question
+            // body, and not scrolled under the ~80px sticky app header.
+            const heading = page.locator('[data-scope-id="q4"] h3').first();
+            await expect(heading).toBeInViewport();
+            const box = await heading.boundingBox();
+            expect(box).not.toBeNull();
+            expect(box!.y).toBeGreaterThanOrEqual(0);
+            expect(box!.y).toBeLessThan(220);
+        });
+    }
+
+    test('D5: a SUB-QUESTION points chip opens an input (points editable at every node)', async ({ page }) => {
+        await page.goto('/design-lab?fixture=bagrut_899371&state=at-rest');
+        const chip = page.getByRole('button', { name: /^ניקוד סעיף/ }).first();
+        await expect(chip).toBeVisible();
+        await chip.click();
+        await expect(page.locator('input[type="number"]').first()).toBeVisible();
+    });
+
+    test('D8: clicking prose opens a RAW textarea (display-rich / edit-raw)', async ({ page }) => {
+        await page.goto('/design-lab?fixture=bagrut_899371&state=at-rest');
+        // At rest the markers are rendered away…
+        await expect(page.getByText('[TABLE', { exact: false })).toHaveCount(0);
+        const prose = page.getByRole('button', { name: /^טקסט שאלה/ }).first();
+        await prose.click();
+        // …and on edit intent she gets the SOURCE back, markers and all.
+        const box = page.locator('textarea').first();
+        await expect(box).toBeVisible();
+        expect(await box.inputValue()).toContain('[TABLE');
+    });
+});

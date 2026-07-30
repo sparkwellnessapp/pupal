@@ -32,6 +32,14 @@ interface EditableTextProps {
     /** Optional custom RESTING render of the value (e.g. D-4 prefix de-emphasis).
      *  Editing still edits the raw string — this only styles the at-rest display. */
     renderDisplay?: (value: string) => ReactNode;
+    /**
+     * D8 — DISPLAY-RICH / EDIT-RAW. Render the resting value in a block wrapper
+     * (`<div>`) instead of the inline `<span>`, so `renderDisplay` may return block
+     * content — a rendered document body with real tables and code blocks. The edit
+     * surface is unchanged: a plain textarea holding the RAW stored string, markers
+     * and all, because she is editing the source. Honesty beats magic.
+     */
+    block?: boolean;
 }
 
 export function EditableText({
@@ -43,6 +51,7 @@ export function EditableText({
     className = '',
     readOnly = false,
     renderDisplay,
+    block = false,
 }: EditableTextProps) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(value);
@@ -113,17 +122,25 @@ export function EditableText({
         );
     }
 
+    // D8: block mode drops `whitespace-pre-wrap` and the underline hint — a rendered
+    // document body owns its own layout, and underlining a table is noise. The
+    // affordance is the hover tint + focus ring.
+    const Tag = block ? 'div' : 'span';
+    const restingClass = block
+        ? `${readOnly ? '' : 'cursor-text rounded-md hover:bg-surface-50/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-200 -mx-1 px-1'} ${className}`
+        : `whitespace-pre-wrap ${readOnly ? '' : 'cursor-text rounded hover:bg-surface-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-200 decoration-dotted underline-offset-4 hover:underline'} ${isEmpty ? 'text-surface-400 italic' : ''} ${className}`;
+
     return (
-        <span
+        <Tag
             role={readOnly ? undefined : 'button'}
             tabIndex={readOnly ? undefined : 0}
             aria-label={readOnly ? undefined : ariaLabel}
             dir={dir}
             onClick={startEdit}
             onKeyDown={readOnly ? undefined : (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(); } }}
-            className={`whitespace-pre-wrap ${readOnly ? '' : 'cursor-text rounded hover:bg-surface-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-200 decoration-dotted underline-offset-4 hover:underline'} ${isEmpty ? 'text-surface-400 italic' : ''} ${className}`}
+            className={restingClass}
         >
             {isEmpty ? placeholder : (renderDisplay ? renderDisplay(value) : value)}
-        </span>
+        </Tag>
     );
 }

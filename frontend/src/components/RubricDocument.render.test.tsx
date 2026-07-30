@@ -113,6 +113,53 @@ describe('RubricDocument SSR — findings relocation (§6) + designed silence (E
     });
 });
 
+describe('Round 2 — D3 header band / D5 points / D8 prose / D9 anchors', () => {
+    const qs = loadGolden('bagrut_899371');
+
+    it('D3: the band is ONE unit ABOVE the document body (not inside the card)', () => {
+        const html = render(qs, { selectionGroups: [{ of_question_ids: ['q1', 'q2'], choose_k: 1 }] });
+        const header = html.indexOf('<header');
+        const body = html.indexOf('bg-white rounded-2xl shadow-sm ring-1 ring-surface-100');
+        expect(header).toBeGreaterThan(-1);
+        expect(body).toBeGreaterThan(header);          // band precedes the document surface
+        expect(html).toContain('שם המחוון — לחצי לעריכה'); // name lives in the band
+        expect(html).toContain('data-testid="rubric-achievable-total"');
+    });
+
+    it('D4: exactly ONE total renders, and it is the achievable one', () => {
+        const html = render(qs);
+        expect((html.match(/data-testid="rubric-achievable-total"/g) ?? []).length).toBe(1);
+        expect(html).not.toContain('מוצהר');
+    });
+
+    it('D5: every point-bearing node exposes an edit affordance', () => {
+        const html = render(qs);
+        expect(html).toContain('aria-label="ניקוד שאלה 1 — לחצי לעריכה"');      // question
+        expect(html).toContain('aria-label="ניקוד סעיף א — לחצי לעריכה"');       // sub-question
+        expect(html).toContain('aria-label="ניקוד תת-סעיף 1 — לחצי לעריכה"');    // inner
+    });
+
+    it('D8: prose is editable and renders RICH at rest (marker-free, real table)', () => {
+        const html = render(qs);
+        expect(html).toContain('טקסט שאלה 2 — לחצי לעריכה');   // question prose editable
+        expect(html).toMatch(/aria-label="טקסט (סעיף|תת-סעיף)[^"]*— לחצי לעריכה"/); // sub-question prose
+        // display-rich: bagrut q2 carries [TABLE …] markers in its text; at rest the
+        // teacher sees a table, never the marker (edit-raw restores the source).
+        expect(html).not.toContain('[TABLE');
+        expect(html).not.toContain('|---');
+    });
+
+    it('D9: every question section carries the scroll anchor + header offset', () => {
+        const html = render(qs);
+        // block:'start' honours scroll-margin-top; the class is what clears the
+        // ~80px sticky app header so the TITLE lands visible (pixels are snap's job).
+        for (const q of qs) {
+            expect(html).toContain(`data-scope-id="${q.question_id}"`);
+        }
+        expect(html).toMatch(/class="scroll-mt-20[^"]*"[^>]*/);
+    });
+});
+
 describe('RubricDocument SSR — a11y smoke + voice (E-5)', () => {
     const qs = loadGolden('employee_course_select1'); // direct-criteria questions → real tables
 
@@ -133,7 +180,15 @@ describe('RubricDocument SSR — a11y smoke + voice (E-5)', () => {
         const html = render(qs);
         expect(html).toMatch(/aria-label="ניקוד קריטריון \d+ — לחצי לעריכה"/);
         expect(html).toContain('שם המחוון — לחצי לעריכה');
-        expect(html).toContain('ניקוד מוצהר — לחצי לעריכה');
+    });
+
+    // D4 — מוצהר leaves the header. The declared total keeps living in page state
+    // (INV-R3 + dehydrate depend on it); it simply has no surface in the band, and
+    // no orphaned edit affordance.
+    it('the header exposes NO declared-total affordance (D4)', () => {
+        const html = render(qs);
+        expect(html).not.toContain('ניקוד מוצהר — לחצי לעריכה');
+        expect(html).not.toContain('מוצהר');
     });
 
     it('the voice-table micro-copy is the shipped string, not a placeholder (ghost add-row)', () => {

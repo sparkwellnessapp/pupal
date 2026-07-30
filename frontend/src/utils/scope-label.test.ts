@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scopeLabel, isGeneratedId } from './scope-label';
+import { scopeLabel, isGeneratedId, humanizeScopeIds } from './scope-label';
 import type { RubricQuestion, RubricSubQuestion, RubricCriterion } from '@/types/rubric';
 
 function crit(id: string): RubricCriterion {
@@ -73,5 +73,38 @@ describe('scopeLabel — the naming law resolver', () => {
         expect(isGeneratedId('q1')).toBe(false);
         expect(isGeneratedId('א')).toBe(false);
         expect(isGeneratedId('c1')).toBe(false);
+    });
+});
+
+describe('humanizeScopeIds — D7: no raw id inside a message body', () => {
+    // The backend interpolates the RAW scope into Hebrew prose (pipeline.py:
+    // f"…של תת-השאלות ב{issue.scope} הוא…"), which renders "בQ1" on an RTL screen.
+    it('substitutes the "בQ1" leak with the Hebrew label', () => {
+        const msg = 'אזהרה: סכום הנקודות של תת-השאלות בQ1 הוא 21 נקודות, אך כותרת השאלה מצהירה על 40 נקודות.';
+        const out = humanizeScopeIds(msg, QUESTIONS);
+        expect(out).toContain('בשאלה 1');
+        expect(out).not.toContain('Q1');
+    });
+
+    it('resolves a dotted path to its full label chain', () => {
+        expect(humanizeScopeIds('בדקי את Q1.א.2 בבקשה', QUESTIONS)).toBe('בדקי את שאלה 1 · סעיף א · תת-סעיף 2 בבקשה');
+    });
+
+    it('substitutes every occurrence, not just the first', () => {
+        const out = humanizeScopeIds('Q1 ואז Q6', QUESTIONS);
+        expect(out).toBe('שאלה 1 ואז שאלה 6');
+    });
+
+    it('an id with no node degrades to "המחוון" — never leaks the raw token', () => {
+        expect(humanizeScopeIds('ב-Q99 יש בעיה', QUESTIONS)).not.toContain('Q99');
+    });
+
+    it('leaves a message with no embedded id untouched (client messages already use labels)', () => {
+        const clean = 'סכום הנקודות של שאלה 1 (25 נקודות) שונה מסכום תתי-השאלות (21 נקודות).';
+        expect(humanizeScopeIds(clean, QUESTIONS)).toBe(clean);
+    });
+
+    it('does not maul ordinary prose containing a capital Q', () => {
+        expect(humanizeScopeIds('הפעולה Query מחזירה true', QUESTIONS)).toBe('הפעולה Query מחזירה true');
     });
 });
