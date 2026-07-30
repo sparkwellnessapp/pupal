@@ -156,3 +156,84 @@ describe('bidiRuns — neutral-only runs keep source order (faithful capture)', 
         expect(bidiRuns(t).map((r) => r.text).join('')).toBe(t);
     });
 });
+
+describe('isCodeLine — Hebrew in a COMMENT or STRING does not make a line prose', () => {
+    // The bug: "Hebrew anywhere ⇒ prose" tore a class body in half at every line
+    // carrying a Hebrew inline comment, and the orphaned `}` then fell out too.
+    it('a declaration with a Hebrew inline comment is CODE', () => {
+        expect(isCodeLine('private TvShow [] arrShows;\t\t// כל תוכניות הטלויזיה')).toBe(true);
+        expect(isCodeLine('private int countHobbies ;\t\t// מספר התחביבים בפועל (קטן או שווה לגודל המערך')).toBe(true);
+    });
+    it('a comment-only line is CODE, whatever language its words are in', () => {
+        expect(isCodeLine('// בנאי')).toBe(true);
+        expect(isCodeLine('/* הערה */')).toBe(true);
+        expect(isCodeLine('// a plain english note')).toBe(true);
+    });
+    it('a statement whose STRING is Hebrew is CODE (the literal is data, not prose)', () => {
+        expect(isCodeLine('Console.WriteLine("שלום עולם");')).toBe(true);
+    });
+    it('a `//` inside a string cannot truncate the line', () => {
+        expect(isCodeLine('var url = "http://example.com";')).toBe(true);
+    });
+
+    // ── the other half of the contract: real Hebrew prose is STILL prose ──
+    it('plain Hebrew prose stays prose', () => {
+        expect(isCodeLine('הפעולה מקבלת מערך ומחזירה את סכום האיברים')).toBe(false);
+        expect(isCodeLine('שלום עולם')).toBe(false);
+        expect(isCodeLine('הפעולה Check מחזירה ערך')).toBe(false);
+    });
+    it('Hebrew prose that merely mentions code is prose', () => {
+        expect(isCodeLine('הניחו כי קיימות פעולות Get / Set עבור תכונות המחלקה.')).toBe(false);
+        expect(isCodeLine('ראו new Plane() בהמשך')).toBe(false);
+    });
+    it('Hebrew prose containing a quoted word is prose', () => {
+        expect(isCodeLine('סדנאות "דומות" הן סדנאות בעלות אותו שם')).toBe(false);
+    });
+    it('Hebrew prose mentioning #C is prose (# is not comment syntax here)', () => {
+        expect(isCodeLine('לפניכם הפעולה Check בשפת #C:')).toBe(false);
+    });
+});
+
+describe('groupTextBlocks — a class body with Hebrew comments stays ONE code block', () => {
+    it('the TvRate case: 4 lines, one block, nothing demoted to prose', () => {
+        const text = [
+            'public class TvRate',
+            '{',
+            'private TvShow [] arrShows;\t\t// כל תוכניות הטלויזיה',
+            '         }',
+        ].join('\n');
+        const blocks = groupTextBlocks(text);
+        expect(blocks.map((b) => b.kind)).toEqual(['code']);
+        expect((blocks[0] as { text: string }).text.split('\n')).toHaveLength(4);
+    });
+
+    it('the SchoolHobbies case survives blank-line separation from the renderer', () => {
+        const text = [
+            'public class SchoolHobbies', '', '{', '',
+            'private Hobby [] hobbies;\t\t// כל התחביבים של תלמידי בית הספר', '',
+            'private int countHobbies ;\t\t// מספר התחביבים בפועל', '',
+            '// בנאי', '',
+            'public SchoolHobbies (int size)', '', '{', '',
+            'hobbies = new Hobby [size];', '', 'countHobbies = 0;', '', '}', '', '}',
+        ].join('\n');
+        const kinds = groupTextBlocks(text).map((b) => b.kind);
+        expect(kinds).toEqual(['code']);          // ONE block, not five fragments
+    });
+
+    it('prose around a code block still separates correctly (no over-capture)', () => {
+        const text = [
+            'להלן כותרת המחלקה , התכונות ופעולה בונה:',
+            'public class SchoolHobbies',
+            '{',
+            'private Hobby [] hobbies;\t// כל התחביבים',
+            '}',
+            'הניחו כי קיימות פעולות Get לכל תכונות המחלקה.',
+        ].join('\n');
+        expect(groupTextBlocks(text).map((b) => b.kind)).toEqual(['prose', 'code', 'prose']);
+    });
+
+    it('a LONE Hebrew comment in prose is demoted back to prose (the safety net)', () => {
+        const blocks = groupTextBlocks('הסבר ראשון\n// הערה חשובה\nהסבר שני');
+        expect(blocks.every((b) => b.kind === 'prose')).toBe(true);
+    });
+});

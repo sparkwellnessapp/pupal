@@ -40,19 +40,59 @@ export function imageMarkerName(line: string): string | null {
 const HEBREW_RE = /[֐-׿]/;
 const CODE_KEYWORD_RE = /^(public|private|protected|internal|static|void|int|bool|boolean|string|double|float|char|long|var|for|foreach|while|do|if|else|switch|case|return|class|struct|interface|new|using|namespace|import|def|function|const|let)\b/;
 
+/** A line whose content STARTS as a comment — it belongs to the code around it. */
+const COMMENT_LINE_RE = /^(?:\/\/|\/\*|\*\/|\*\s)/;
+
 /**
- * Is this line code (not Hebrew prose)? Strong signals: a brace-only line, a
- * trailing `;`, a leading language keyword, or a symbol-dense line with NO Hebrew.
- * Blank lines are NOT code (handled as run continuation by the grouper).
+ * The EXECUTABLE skeleton of a line: comments and string literals removed.
+ *
+ * This is the load-bearing idea behind `isCodeLine`. Hebrew inside a `//` comment
+ * or inside a "…" literal is ANNOTATION or DATA — it says nothing about whether
+ * the line is code. Teachers write Hebrew comments in their answer keys constantly
+ * (`private TvShow [] arrShows;   // כל תוכניות הטלויזיה`), and judging such a line
+ * by "does it contain Hebrew anywhere" tore their class bodies in half.
+ *
+ * String literals collapse to an EMPTY pair rather than vanishing, so the line
+ * keeps its syntactic shape: `Console.WriteLine("שלום");` → `Console.WriteLine("");`
+ * still ends in `;` and still looks like a statement.
+ *
+ * Order matters: block comments, then strings, then the `//` tail — so a `//` living
+ * inside a string ("http://…") is consumed as a string and cannot truncate the line.
+ *
+ * Only `//` and `/* *\/` are treated as comment syntax (C#/Java/C++, the subjects we
+ * ship). `#` is deliberately NOT, because Hebrew prose says "בשפת #C" constantly.
+ */
+function codeSkeleton(line: string): string {
+    return line
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+        .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+        .replace(/\/\/.*$/, '')
+        .trim();
+}
+
+/**
+ * Is this line code (not Hebrew prose)? Strong signals on its SKELETON: a
+ * brace-only line, a trailing `;`, a leading language keyword, or symbol density —
+ * and no Hebrew in the executable part. Blank lines are NOT code (the grouper
+ * treats them as run continuation).
+ *
+ * A comment-only line counts as code so a Hebrew `// בנאי` cannot split a class
+ * body. That is safe against false positives because `groupTextBlocks` demotes any
+ * code run shorter than two non-blank lines back to prose — so a lone Hebrew
+ * remark floating in real prose still renders as prose.
  */
 export function isCodeLine(line: string): boolean {
     const t = line.trim();
     if (!t) return false;
-    if (HEBREW_RE.test(t)) return false;             // Hebrew ⇒ prose, always
-    if (/^[{}()[\]]+$/.test(t)) return true;         // structural brace/paren line
-    if (/;\s*$/.test(t)) return true;                // statement terminator
-    if (CODE_KEYWORD_RE.test(t)) return true;        // language keyword
-    const symbols = (t.match(/[(){}\[\];=<>+\-*/%&|]/g) ?? []).length;
+    if (COMMENT_LINE_RE.test(t)) return true;        // a comment belongs to its code
+    const c = codeSkeleton(t);
+    if (!c) return false;
+    if (HEBREW_RE.test(c)) return false;             // Hebrew in the CODE ⇒ prose
+    if (/^[{}()[\]]+$/.test(c)) return true;         // structural brace/paren line
+    if (/;\s*$/.test(c)) return true;                // statement terminator
+    if (CODE_KEYWORD_RE.test(c)) return true;        // language keyword
+    const symbols = (c.match(/[(){}\[\];=<>+\-*/%&|]/g) ?? []).length;
     return symbols >= 3;                             // symbol-dense Latin line
 }
 
@@ -69,12 +109,18 @@ export function isCodeLine(line: string): boolean {
  * Two lines of signal, or 40% of the run, is enough: a real solution has many;
  * Hebrew prose ("תשובה: הפעולה מקבלת מערך…") has none.
  */
-const CODE_SIGNAL_RE = /^[{}()[\]]+$|;\s*$|^\/\/|^\/\*|^\*/;
+const CODE_SIGNAL_RE = /^[{}()[\]]+$|;\s*$/;
 
 export function looksLikeCode(text: string): boolean {
     const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
     if (lines.length === 0) return false;
-    const signals = lines.filter((l) => CODE_SIGNAL_RE.test(l) || CODE_KEYWORD_RE.test(l)).length;
+    // Same skeleton rule as isCodeLine, so the two agree about what "code" means:
+    // a Hebrew comment tail must not hide the `;` that makes a line a statement.
+    const signals = lines.filter((l) => {
+        if (COMMENT_LINE_RE.test(l)) return true;
+        const c = codeSkeleton(l);
+        return !!c && (CODE_SIGNAL_RE.test(c) || CODE_KEYWORD_RE.test(c));
+    }).length;
     return signals >= 2 || signals / lines.length >= 0.4;
 }
 
