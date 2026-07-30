@@ -60,6 +60,8 @@ import { RubricErrorDisplay, RubricWarningsModal } from '@/components/RubricSave
 import type { RubricQuestion } from '@/types/rubric';
 import { hydrateAnyQuestions, dehydrateQuestions, safeParseFloat } from '@/utils/rubric-transform';
 import { validateAllQuestions, validateRubricTotalPoints } from '@/utils/rubric-validation';
+import { composeFindings, acknowledgedIdsFor } from '@/utils/findings';
+import type { PedagogicalMistakeWire } from '@/lib/api';
 import { computeAchievablePoints } from '@/utils/rubric-achievable';
 import { getExtractionStageOrder } from '@/hooks/useExtractionJob';
 import {
@@ -273,6 +275,11 @@ export default function Home() {
   // DOCX pipeline state
   const [extractionMetadata, setExtractionMetadata] = useState<ExtractionMetadata | null>(null);
   const [extractionAnnotations, setExtractionAnnotations] = useState<Annotation[]>([]);
+  // PR-6 (A1) — Step 2c's advisories. These reached the browser and were thrown
+  // away: nothing read them and the save payload never carried them, so a saved
+  // rubric's draft_json had no advisories at all. They live in state because §4
+  // makes her decisions (dismiss / apply) part of the record they carry.
+  const [pedagogicalMistakes, setPedagogicalMistakes] = useState<PedagogicalMistakeWire[]>([]);
   // Save-blocking: ref passed to RubricEditor so the blocked save button can scroll to the error banner
   const errorBannerRef = useRef<HTMLDivElement>(null);
   // Captured programming language — '' means "זיהוי אוטומטי" (infer). Set only by
@@ -550,6 +557,7 @@ export default function Home() {
     setSelectionGroups(response.selection_groups ?? []);
     setExtractionMetadata(response.metadata || null);
     setExtractionAnnotations(response.annotations || []);
+    setPedagogicalMistakes(response.pedagogical_mistakes || []);
     // Name precedence (S1-2.4): the extraction-inferred name is the MIDDLE tier —
     // it must NOT overwrite a name the teacher captured during the wait. Store it;
     // resolveRubricName picks the winner at arrival/save time.
@@ -573,9 +581,10 @@ export default function Home() {
       declaredTotal: rubricDeclaredTotal ?? null,
       selectionGroups,
       extractionJobId,
+      pedagogicalMistakes,
     });
   }, [rubricStep, extractedQuestions, rubricName, extractionAnnotations,
-      rubricDeclaredTotal, extractionJobId]);
+      rubricDeclaredTotal, extractionJobId, selectionGroups, pedagogicalMistakes]);
 
   const handleAuthFailure = useCallback(() => {
     stashReviewWork();
@@ -622,6 +631,7 @@ export default function Home() {
     setSelectionGroups((restorable.selectionGroups as SelectionGroup[]) ?? []);
     if (restorable.extractionJobId) setExtractionJobId(restorable.extractionJobId);
     setExtractionAnnotations((restorable.annotations as Annotation[]) || []);
+    setPedagogicalMistakes((restorable.pedagogicalMistakes as PedagogicalMistakeWire[]) || []);
     clearUnsavedWork();
     setRestorable(null);
     setMainMode('rubric');
@@ -872,6 +882,23 @@ export default function Home() {
     return [...extractionAnnotations, ...liveAnnotations];
   }, [extractedQuestions, extractionAnnotations, rubricDeclaredTotal, selectionGroups]);
 
+  // PR-6 §2 — the composed findings, and §6's acknowledgment set derived from them.
+  //
+  // The status of every finding is recomputed here from LIVE validation plus the
+  // decision records on the advisories, which is what makes the reopen case work
+  // without storing anything extra: an ack is a compile-call parameter, not state,
+  // so on a later save it is rebuilt from the persisted fix_applied / dismissed
+  // records exactly as it was in the original session.
+  const liveIssuesForFindings = useMemo(
+    () => Array.from(validateAllQuestions(extractedQuestions).values()).flat(),
+    [extractedQuestions],
+  );
+  const findings = useMemo(
+    () => composeFindings(extractionAnnotations, liveIssuesForFindings, pedagogicalMistakes, extractedQuestions),
+    [extractionAnnotations, liveIssuesForFindings, pedagogicalMistakes, extractedQuestions],
+  );
+  const acknowledgedWarningIds = useMemo(() => acknowledgedIdsFor(findings), [findings]);
+
   const hasBlockingErrors = combinedAnnotations.some(a => a.severity === 'error');
 
   const handleSaveRubric = async () => {
@@ -903,11 +930,24 @@ export default function Home() {
         num_criteria: extractedQuestions.reduce((sum, q) =>
           sum + q.criteria.length + (q.sub_questions || []).reduce((s, sq) => s + sq.criteria.length, 0), 0
         ),
+        // PR-6 (A1) — these three were dropped at this boundary. Without them a
+        // saved rubric loses its findings entirely: no residual text to explain
+        // what the original document said, no advisories, and no way to tell a
+        // partial advisory scan from a clean one.
+        annotations: extractionAnnotations,
+        pedagogical_mistakes: pedagogicalMistakes,
+        metadata: extractionMetadata ?? undefined,
       };
 
       const response = await saveOntologyRubric({
         name: resolvedName,
         draft,
+        // PR-6 (A4) — sending `annotations` WAKES the compiler's acknowledgment
+        // gate for the first time in this flow. Her decisions travel with the
+        // save so a finding she already resolved or dismissed is never re-asked;
+        // OPEN findings are deliberately not acked, which is what leaves the
+        // survivor gate meaningful.
+        acknowledged_warning_ids: acknowledgedWarningIds,
         extraction_job_id: extractionJobId ?? undefined,
       });
 
@@ -957,7 +997,11 @@ export default function Home() {
       const resp = await saveOntologyRubric({
         name: resolveRubricName(rubricName, inferredName, filenameStem),
         draft: pendingSaveDraft,
-        acknowledged_warning_ids: warningIds,
+        // UNION, not replace: `warningIds` is what she just confirmed in the modal,
+        // and `acknowledgedWarningIds` is what she had already decided earlier in the
+        // session. Sending only the modal's ids would drop the earlier decisions and
+        // the gate would fire again on findings she has already answered.
+        acknowledged_warning_ids: Array.from(new Set([...acknowledgedWarningIds, ...warningIds])),
         extraction_job_id: extractionJobId ?? undefined,
       });
       if (isWarningsResponse(resp)) {

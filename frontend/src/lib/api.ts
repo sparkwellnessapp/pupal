@@ -240,6 +240,30 @@ export interface SelectionGroup {
   label?: string | null;
 }
 
+/**
+ * Step 2c's output — a detected error IN THE TEACHER'S RUBRIC, with the machine's
+ * proposed correction and (PR-6 §4) the record of what she decided about it.
+ *
+ * The provenance fields are optional on the wire because drafts saved before PR-6
+ * do not carry them; absent means "no decision recorded", never "dismissed".
+ */
+export interface PedagogicalMistakeWire {
+  mistake_id: string;
+  kind: string;
+  severity?: string;
+  target_id?: string | null;
+  explanation: string;
+  evidence?: Record<string, unknown> | null;
+  suggested_fix?: { operation: string; description: string; params?: Record<string, unknown> | null } | null;
+  requires_teacher_input?: boolean;
+  confidence?: number;
+  /** §4 — her decisions are data, and they round-trip. */
+  dismissed?: boolean | null;
+  dismissed_at?: string | null;
+  fix_applied?: boolean | null;
+  fix_applied_at?: string | null;
+}
+
 export interface ExtractRubricResponse {
   questions: ExtractedQuestion[];
   total_points: number;                 // ACHIEVABLE (selection-aware), not the offered sum
@@ -254,6 +278,8 @@ export interface ExtractRubricResponse {
   metadata?: ExtractionMetadata;
   /** Extraction-time annotations (e.g. rubric_mismatch warnings). */
   annotations?: Annotation[];
+  /** Step 2c advisories — the explanation + fix half of a finding (PR-6). */
+  pedagogical_mistakes?: PedagogicalMistakeWire[];
 }
 
 export interface RubricListItem {
@@ -598,6 +624,20 @@ export interface OntologyRubricDraft {
   description?: string;
   programming_language?: string;
   metadata?: ExtractionMetadata;
+  /**
+   * PR-6 (A1) — these three were being DROPPED at the save boundary: the draft
+   * literal never carried them, so `draft_json` stored an empty annotations list,
+   * no advisories at all, and no extraction provenance. Round-tripping them is
+   * what lets a reopened rubric still show its findings, its residual text and its
+   * advisory-scan status.
+   *
+   * ⚠️ Sending `annotations` WAKES the compiler's acknowledgment gate, which has
+   * never fired in this flow (it acks only WARNING annotations present in the
+   * submitted draft). Every save must therefore carry `acknowledged_warning_ids`
+   * derived from her decisions — see acknowledgedIdsFor in utils/findings.
+   */
+  annotations?: Annotation[];
+  pedagogical_mistakes?: PedagogicalMistakeWire[];
 }
 
 /** Request to save ontology rubric with atomic compilation */

@@ -314,6 +314,36 @@ function finish(key: string, b: Bucket): Finding {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// §6 — her decisions → the compiler's acknowledgment set
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The acknowledgment ids a save must carry.
+ *
+ * THE UX CONTRACT IS UNCHANGED — a resolved finding saves silently and is never
+ * re-asked. Only the MECHANISM differs from what one might assume: the compiler's
+ * ack set is not recomputed, it is literally the WARNING-severity annotations
+ * present in the submitted draft (`contract_compiler.compile` step 5). An
+ * extraction annotation is STATIC — it survives her fix — so a resolved finding
+ * still has a live annotation demanding acknowledgment. Transmitting her decision
+ * as an ack is therefore faithful reporting of a choice she actually made, not an
+ * auto-ack (R-D): `open` findings are never acked here.
+ *
+ * ONE OWNER OF THE JOIN: every id is read from the paired annotation's own `id`
+ * field, carried through composition. We never rebuild `${type}:${target}` — a
+ * string-formatted join key reconstructed in a second place is how join keys
+ * drift apart.
+ */
+export function acknowledgedIdsFor(findings: Finding[]): string[] {
+    const ids = new Set<string>();
+    for (const f of findings) {
+        if (f.status !== 'resolved' && f.status !== 'dismissed') continue;
+        for (const id of f.annotationIds) ids.add(id);
+    }
+    return Array.from(ids);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // §5 counts — the classes are separated, never summed into one number
 // ─────────────────────────────────────────────────────────────────────────────
 

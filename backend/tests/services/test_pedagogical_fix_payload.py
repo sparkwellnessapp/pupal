@@ -127,3 +127,86 @@ def test_a_clean_draft_produces_no_mistakes():
                  criteria=[_crit("c1", "10")], sub_questions=[])
     draft = ExtractRubricResponse(rubric_name="t", total_points=Decimal("10"), questions=[q])
     assert _detect(draft) == []
+
+
+# ---------------------------------------------------------------------------
+# PR-6 §6 — THE ACKNOWLEDGMENT WAKE-UP.
+#
+# The frontend never sent `annotations`, so `compile()`'s acknowledgment gate has
+# never fired in the product flow. PR-6 starts sending them (the draft must carry
+# its findings to survive a reopen), which WAKES that gate for the first time.
+#
+# For UI users this server gate is DEFENSIVE: open blockers are stopped client-side
+# by the survivor gate, and every decided finding travels with the save as an ack.
+# It fires for direct-API callers. Defensive paths that never run in the normal
+# flow are exactly the ones that rot untested — hence this explicit battery.
+# ---------------------------------------------------------------------------
+
+from app.schemas.ontology_types import (
+    Annotation, AnnotationSeverity, NumericPolicy, WarningsRequireAcknowledgment,
+)
+from app.services.contract_compiler import ContractCompiler
+
+
+def _clean_draft() -> ExtractRubricResponse:
+    q = Question(question_id="q1", question_type="coding_task", total_points=Decimal("10"),
+                 criteria=[_crit("c1", "10")], sub_questions=[])
+    return ExtractRubricResponse(rubric_name="t", total_points=Decimal("10"), questions=[q])
+
+
+def _warned_draft() -> ExtractRubricResponse:
+    """A clean-summing draft that still carries the extraction's WARNING annotation —
+    exactly the shape a resolved finding produces: her arithmetic is right NOW, and
+    the static annotation about the original document is still attached."""
+    return _clean_draft().model_copy(update={"annotations": [Annotation(
+        annotation_type="rubric_mismatch",
+        severity=AnnotationSeverity.WARNING,
+        message="אזהרה: סכום הנקודות של תת-השאלות בQ1 …",
+        target_id="q1",
+    )]})
+
+
+def test_wakeup_no_annotations_compiles_clean_the_pre_pr6_behaviour():
+    ContractCompiler().compile(_clean_draft(), policy=NumericPolicy())   # must not raise
+
+
+def test_wakeup_annotation_without_ack_is_REFUSED():
+    try:
+        ContractCompiler().compile(_warned_draft(), policy=NumericPolicy())
+    except WarningsRequireAcknowledgment as e:
+        assert [w.id for w in e.warnings] == ["rubric_mismatch:q1"]
+    else:
+        raise AssertionError("the gate must refuse an unacknowledged warning annotation")
+
+
+def test_wakeup_annotation_WITH_ack_compiles_clean():
+    contract = ContractCompiler().compile(
+        _warned_draft(), policy=NumericPolicy(),
+        acknowledged_warnings=["rubric_mismatch:q1"],
+    )
+    assert contract is not None
+
+
+def test_the_ack_id_is_the_annotations_own_id_not_a_reconstruction():
+    """The client reads ids off the annotation; it never rebuilds f'{type}:{target}'.
+    A server-minted id must therefore round-trip unchanged through the gate."""
+    draft = _clean_draft().model_copy(update={"annotations": [Annotation(
+        annotation_type="rubric_mismatch", severity=AnnotationSeverity.WARNING,
+        message="m", target_id="q1", id="server-minted-uuid-1234",
+    )]})
+    try:
+        ContractCompiler().compile(draft, policy=NumericPolicy())
+    except WarningsRequireAcknowledgment as e:
+        assert [w.id for w in e.warnings] == ["server-minted-uuid-1234"]
+    ContractCompiler().compile(draft, policy=NumericPolicy(),
+                               acknowledged_warnings=["server-minted-uuid-1234"])
+
+
+def test_info_and_error_annotations_do_not_enter_the_ack_set():
+    """Only WARNING requires acknowledgment: INFO proceeds silently, ERROR blocks
+    outright (a different path). Neither should be ack-able."""
+    draft = _clean_draft().model_copy(update={"annotations": [Annotation(
+        annotation_type="review_flag", severity=AnnotationSeverity.INFO,
+        message="m", target_id="q1",
+    )]})
+    ContractCompiler().compile(draft, policy=NumericPolicy())   # INFO ⇒ no gate

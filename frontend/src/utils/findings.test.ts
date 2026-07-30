@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Annotation } from '@/lib/api';
 import type { ValidationIssue } from '@/utils/rubric-validation';
 import {
-    composeFindings, confidenceRegister, hedge, deriveFix,
+    composeFindings, confidenceRegister, hedge, deriveFix, acknowledgedIdsFor,
     countFindingsByClass, findingsSummaryLine, advisoryScanStatus,
     type PedagogicalMistakeLike,
 } from './findings';
@@ -199,5 +199,75 @@ describe('§7 — advisory-scan honesty', () => {
     it('an UNSTAMPED draft is unknown — never silently "complete"', () => {
         expect(advisoryScanStatus({ pipeline_version: '3.4.0' }, [])).toBe('unknown');
         expect(advisoryScanStatus(null, null)).toBe('unknown');
+    });
+});
+
+describe('§6 — her decisions become the acknowledgment set', () => {
+    const paired = (over: Partial<PedagogicalMistakeLike> = {}) => composeFindings(
+        [ann({ id: 'rubric_mismatch:q1.א.2', target_id: 'q1.א.2' })],
+        over.dismissed ? [live({})] : [],          // dismissed ⇒ blocker still live
+        [mistake(over)],
+    );
+
+    it('a RESOLVED finding acks its annotation — saved silently, never re-asked', () => {
+        // The UX contract is "fixed ⇒ silent save". The MECHANISM is an ack, because
+        // the extraction annotation is static and survives her fix.
+        expect(acknowledgedIdsFor(paired())).toEqual(['rubric_mismatch:q1.א.2']);
+    });
+
+    it('a DISMISSED finding acks too — she answered, so she is not re-asked', () => {
+        expect(acknowledgedIdsFor(paired({ dismissed: true }))).toEqual(['rubric_mismatch:q1.א.2']);
+    });
+
+    it('an OPEN finding is NEVER acked (that is what keeps the gate meaningful)', () => {
+        const open = composeFindings(
+            [ann({ id: 'rubric_mismatch:q1.א.2', target_id: 'q1.א.2' })],
+            [live({})],
+            [mistake({})],
+        );
+        expect(acknowledgedIdsFor(open)).toEqual([]);
+    });
+
+    it('ack ids are READ from the annotation, never rebuilt from type+target', () => {
+        // A backend that changes its id scheme must not need a second edit here.
+        const odd = composeFindings(
+            [ann({ id: 'server-minted-uuid-1234', target_id: 'q1.א.2' })],
+            [],
+            [mistake({})],
+        );
+        expect(acknowledgedIdsFor(odd)).toEqual(['server-minted-uuid-1234']);
+    });
+
+    it('REOPEN → unrelated edit → save: acks re-derive from the PERSISTED records', () => {
+        // An ack is a compile-call parameter, not stored state. On reopen we have the
+        // persisted annotations (kept for the residual) and the persisted decision
+        // records — and nothing else. The set must rebuild identically.
+        const persistedAnnotations = [ann({ id: 'rubric_mismatch:q1.א.2', target_id: 'q1.א.2' })];
+        const persistedMistakes = [mistake({ fix_applied: true, fix_applied_at: '2026-07-30T10:00:00Z' })];
+
+        // …an unrelated edit elsewhere leaves this node's live validation quiet.
+        const reopened = composeFindings(persistedAnnotations, [], persistedMistakes);
+        expect(reopened[0].status).toBe('resolved');
+        expect(acknowledgedIdsFor(reopened)).toEqual(['rubric_mismatch:q1.א.2']);   // no re-ask
+    });
+
+    it('a dismissal persists across the round trip and still suppresses the re-ask', () => {
+        const persisted = [mistake({ dismissed: true, dismissed_at: '2026-07-30T10:00:00Z' })];
+        const reopened = composeFindings(
+            [ann({ id: 'rubric_mismatch:q1.א.2', target_id: 'q1.א.2' })],
+            [live({})],                       // the mismatch is STILL there — she chose that
+            persisted,
+        );
+        expect(reopened[0].status).toBe('dismissed');
+        expect(acknowledgedIdsFor(reopened)).toEqual(['rubric_mismatch:q1.א.2']);
+    });
+
+    it('deduplicates when several findings share an annotation id', () => {
+        const f = composeFindings(
+            [ann({ id: 'dup', target_id: 'q2' })],
+            [],
+            [mistake({ mistake_id: 'pts:q2', target_id: 'q2' })],
+        );
+        expect(acknowledgedIdsFor([...f, ...f])).toEqual(['dup']);
     });
 });
