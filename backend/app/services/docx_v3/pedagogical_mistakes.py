@@ -74,6 +74,52 @@ def _node_children_sum(node) -> Decimal:
     return sum((c.points for c in node.criteria), Decimal("0"))
 
 
+def _walk_sub_questions(q: Question):
+    """Yield (FULL PATH, sub-question) depth-first — `q1.א`, `q1.א.1`, `q1.ב`, …
+
+    The full path IS the scope-anchor vocabulary every other surface already
+    speaks: the client validator's `target_id`, the compiler's INV-2 target, the
+    mirror's `data-scope-id`. Emitting a BARE `sub_question_id` here (the old
+    behaviour) made a pedagogical finding unpairable with its own live blocker —
+    and ambiguous besides, since every question has a 'א'. `Question.all_sub_questions`
+    cannot be used for this: it flattens the tree and drops the parent chain.
+    """
+    def walk(nodes, prefix: str):
+        for sq in nodes or []:
+            path = f"{prefix}.{sq.sub_question_id}"
+            yield path, sq
+            yield from walk(getattr(sq, "sub_questions", None), path)
+    yield from walk(getattr(q, "sub_questions", None), q.question_id)
+
+
+def _fmt_points(d: Decimal) -> str:
+    """Teacher-facing number: no exponent, no trailing zeros ('44.0' → '44')."""
+    s = format(d, "f")
+    return s.rstrip("0").rstrip(".") if "." in s else s
+
+
+def _adjust_points_fix(new_value: Decimal, current: Decimal, target: str, field_name: str) -> SuggestedFix:
+    """The one-click correction for a point-sum mismatch: set the DECLARED value to
+    the sum the node's own children already state.
+
+    It INVENTS NOTHING — `new_value` is the teacher's own arithmetic read back to
+    her (§2 FC). `requires_teacher_input` stays True on the mistake it rides on:
+    that flag means "never apply without the teacher", and a one-click PROPOSAL she
+    must click is that flag implemented, not overridden.
+    """
+    return SuggestedFix(
+        operation="adjust_points",
+        description=(f"עדכני את סך נקודות המחוון ל-{_fmt_points(new_value)}" if target == "rubric"
+                     else f"עדכני את הניקוד המוצהר ל-{_fmt_points(new_value)}"),
+        params={
+            "target": target,
+            "field": field_name,
+            "new_value": str(new_value),
+            "current_value": str(current),
+        },
+    )
+
+
 def _check_point_sums(draft: ExtractRubricResponse) -> List[PedagogicalMistake]:
     out: List[PedagogicalMistake] = []
     for q in draft.questions:
@@ -86,18 +132,20 @@ def _check_point_sums(draft: ExtractRubricResponse) -> List[PedagogicalMistake]:
                 explanation=(f"רכיבי שאלה {q.question_id} מסתכמים ל-{s} אך הניקוד המוצהר הוא "
                              f"{q.total_points}."),
                 evidence={"children_sum": str(s), "declared_total": str(q.total_points)},
-                suggested_fix=None, requires_teacher_input=True, confidence=1.0))
-        for sq in q.all_sub_questions:
+                suggested_fix=_adjust_points_fix(s, q.total_points, "question", "total_points"),
+                requires_teacher_input=True, confidence=1.0))
+        for path, sq in _walk_sub_questions(q):
             ss = _node_children_sum(sq)
             if abs(ss - sq.points) > _EPS:
                 out.append(PedagogicalMistake(
-                    mistake_id=f"pts:{q.question_id}.{sq.sub_question_id}",
+                    mistake_id=f"pts:{path}",
                     kind=PedagogicalMistakeKind.POINT_SUM_MISMATCH,
-                    severity=AnnotationSeverity.WARNING, target_id=sq.sub_question_id,
+                    severity=AnnotationSeverity.WARNING, target_id=path,
                     explanation=(f"רכיבי סעיף {sq.sub_question_id} מסתכמים ל-{ss} אך נקודות הסעיף הן "
                                  f"{sq.points}."),
                     evidence={"children_sum": str(ss), "declared": str(sq.points)},
-                    suggested_fix=None, requires_teacher_input=True, confidence=1.0))
+                    suggested_fix=_adjust_points_fix(ss, sq.points, "sub_question", "points"),
+                    requires_teacher_input=True, confidence=1.0))
     # whole-rubric (selection-aware): achievable vs declared total
     ach = compute_achievable_points(draft.questions, draft.selection_groups)
     if abs(ach - draft.total_points) > _EPS:
@@ -108,7 +156,8 @@ def _check_point_sums(draft: ExtractRubricResponse) -> List[PedagogicalMistake]:
             explanation=(f"הניקוד הניתן להשגה ({ach}) אינו תואם את סך נקודות המחוון "
                          f"({draft.total_points})."),
             evidence={"achievable": str(ach), "declared_total": str(draft.total_points)},
-            suggested_fix=None, requires_teacher_input=True, confidence=1.0))
+            suggested_fix=_adjust_points_fix(ach, draft.total_points, "rubric", "total_points"),
+            requires_teacher_input=True, confidence=1.0))
     return out
 
 
@@ -130,6 +179,14 @@ def _check_selection_normalization(draft: ExtractRubricResponse) -> List[Pedagog
                                       w="/".join(str(weights[q]) for q in g.of_question_ids)),
                 evidence={"choose_k": g.choose_k, "weights": {q: str(weights[q]) for q in g.of_question_ids},
                           "max_achievable": str(mx * g.choose_k)},
+                # DELIBERATELY no suggested_fix — unlike a point-sum mismatch, there is
+                # no correction to propose here. The normalization INTENT is unknowable
+                # (does she want the weights equalised? the low-weight question dropped?
+                # a scaling rule?), and the model's own contract says so:
+                # requires_teacher_input exists for "no auto-fix exists (e.g.
+                # normalization intent is unknowable)". Emitting an 'adjust_points' fix
+                # would fabricate a number the teacher never wrote — the one thing
+                # Faithful Capture forbids. This stays card variant 3 (info-only).
                 suggested_fix=None, requires_teacher_input=True, confidence=1.0))
     return out
 

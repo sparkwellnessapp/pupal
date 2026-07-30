@@ -429,19 +429,19 @@
   ],
   "pedagogical_mistakes": [
     {
-      "mistake_id": "employee_normalization",
+      "mistake_id": "selnorm:sg0",
       "kind": "selection_normalization",
       "severity": "warning",
       "target_id": null,
-      "explanation": "הבחירה היא שאלה אחת מתוך שלוש, אך לשאלות ניקוד שונה (15/50/35). מענה על שאלה 1 בלבד חוסם את הציון ל-15 מתוך 100. יש להבהיר כיצד מנרמלים את הציון.",
+      "explanation": "הבחירה היא 1 מתוך 3 שאלות, אך לשאלות ניקוד שונה (15.0/50.0/35.0). מענה על שאלה בעלת ניקוד נמוך חוסם את הציון. יש להבהיר כיצד מנרמלים.",
       "evidence": {
         "choose_k": 1,
-        "question_points": {
-          "q1": 15,
-          "q2": 50,
-          "q3": 35
+        "weights": {
+          "q1": "15.0",
+          "q2": "50.0",
+          "q3": "35.0"
         },
-        "max_achievable": 50
+        "max_achievable": "50.0"
       },
       "suggested_fix": null,
       "requires_teacher_input": true,

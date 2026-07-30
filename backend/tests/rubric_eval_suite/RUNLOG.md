@@ -897,3 +897,39 @@ verify: test_fp123 39/39; k=1 bagrut gate PASS, example_solution_fidelity 1.000,
   child q1.B.1); array [TABLE 4] preserved + renders — a context-placement variance (Failure #1 class),
   ungated, single-run, not cleanly attributable to the change vs LLM noise.
 by: Noam (prompt-only, judgement-based ruling); agent implemented.
+
+## CHANGE 2026-07-30 — pipeline 3.4.0 -> 3.5.0 (PR-6 backend: Step 2c becomes consumable)
+what: three coupled changes to what Step 2c EMITS, landed as ONE pipeline change because
+  they share a version, a battery and a GT canon.
+  (a) A2 — point-sum mistakes now carry a real SuggestedFix (operation='adjust_points',
+      params={target, field, new_value, current_value} taken from the SAME evidence).
+      new_value is the node's own children-sum: nothing invented. requires_teacher_input
+      STAYS True — the ruling on record: it means "never apply without the teacher", and a
+      one-click PROPOSAL she must click is that flag implemented, not overridden.
+  (b) A2b — sub-question mistakes anchor on the FULL PATH (q1.A.2) via a new
+      _walk_sub_questions walker; Question.all_sub_questions flattens and drops the parent
+      chain, which is why the bare id shipped. The bare id was unpairable with its own live
+      blocker and ambiguous across questions (every question has an aleph).
+  (c) A5 — advisory-scan status stamped into extraction_metadata
+      (advisory_scan: complete|partial, advisory_scan_reason: tier_b_skipped_time_budget |
+      tier_b_disabled | detector_failed). Provenance belongs with provenance, and unlike a
+      job-row warning it SURVIVES into the saved draft, so partial-scan honesty cannot
+      silently vanish on reopen. No stamp at all (older drafts) = unknowable, never
+      "complete".
+DEVIATION from the directive, on record: selection_normalization KEEPS suggested_fix=None.
+  The directive said "all four Tier-A sites"; the fourth has no correction to propose —
+  normalization intent is unknowable (equalise? drop? scale?) and the model's own contract
+  reserves requires_teacher_input for exactly that. Emitting adjust_points there would
+  fabricate a number the teacher never wrote (FC). It stays card variant 3 (info-only).
+gt: pedagogical canon RE-TRANSCRIBED via the probe method (TierA(faithful draft) union
+  expected-Tier-B), never by hand — bagrut pts:q1.2/target '2' -> pts:q1.A.2/target 'q1.A.2';
+  hobby pts:q2.B target 'B' -> 'q2.B'; employee hand-written id -> the detector's real
+  selnorm:sg0. Tier-B hobby_q2_mislabel preserved verbatim (conf 0.9). pedagogical_match is
+  scored on (kind, target_id), so the canon had to move atomically with the emission.
+verify: rubric_eval_suite 39/39 (5/5 fixtures hold); new offline contract battery
+  tests/services/test_pedagogical_fix_payload.py 8/8; extraction_job_seam + transport_budget
+  27/27. PRE-EXISTING RED, unrelated and confirmed by stashing to HEAD:
+  test_contract_parity::test_golden_drafts_compile_clean_in_one_round_trip[hobby_tvshow] —
+  hobby GT deliberately carries the faithful teacher error (q2 44 vs 60), so it cannot
+  compile clean; that test predates the GT change and is stale, not caused here.
+by: Noam (rulings A2/A2b/A5 + pipeline discipline); agent implemented.

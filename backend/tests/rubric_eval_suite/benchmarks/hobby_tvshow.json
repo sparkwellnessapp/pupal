@@ -513,6 +513,52 @@
   "selection_groups": [],
   "pedagogical_mistakes": [
     {
+      "mistake_id": "pts:q2",
+      "kind": "point_sum_mismatch",
+      "severity": "warning",
+      "target_id": "q2",
+      "explanation": "רכיבי שאלה q2 מסתכמים ל-44.0 אך הניקוד המוצהר הוא 60.0.",
+      "evidence": {
+        "children_sum": "44.0",
+        "declared_total": "60.0"
+      },
+      "suggested_fix": {
+        "operation": "adjust_points",
+        "description": "עדכני את הניקוד המוצהר ל-44",
+        "params": {
+          "target": "question",
+          "field": "total_points",
+          "new_value": "44.0",
+          "current_value": "60.0"
+        }
+      },
+      "requires_teacher_input": true,
+      "confidence": 1.0
+    },
+    {
+      "mistake_id": "pts:q2.ב",
+      "kind": "point_sum_mismatch",
+      "severity": "warning",
+      "target_id": "q2.ב",
+      "explanation": "רכיבי סעיף ב מסתכמים ל-45.0 אך נקודות הסעיף הן 29.0.",
+      "evidence": {
+        "children_sum": "45.0",
+        "declared": "29.0"
+      },
+      "suggested_fix": {
+        "operation": "adjust_points",
+        "description": "עדכני את הניקוד המוצהר ל-45",
+        "params": {
+          "target": "sub_question",
+          "field": "points",
+          "new_value": "45.0",
+          "current_value": "29.0"
+        }
+      },
+      "requires_teacher_input": true,
+      "confidence": 1.0
+    },
+    {
       "mistake_id": "hobby_q2_mislabel",
       "kind": "structural_mislabel",
       "severity": "warning",
@@ -535,34 +581,6 @@
       },
       "requires_teacher_input": false,
       "confidence": 0.9
-    },
-    {
-      "mistake_id": "pts:q2",
-      "kind": "point_sum_mismatch",
-      "severity": "warning",
-      "target_id": "q2",
-      "explanation": "רכיבי שאלה q2 מסתכמים ל-44.0 אך הניקוד המוצהר הוא 60.0.",
-      "evidence": {
-        "children_sum": "44.0",
-        "declared_total": "60.0"
-      },
-      "suggested_fix": null,
-      "requires_teacher_input": true,
-      "confidence": 1.0
-    },
-    {
-      "mistake_id": "pts:q2.ב",
-      "kind": "point_sum_mismatch",
-      "severity": "warning",
-      "target_id": "ב",
-      "explanation": "רכיבי סעיף ב מסתכמים ל-45.0 אך נקודות הסעיף הן 29.0.",
-      "evidence": {
-        "children_sum": "45.0",
-        "declared": "29.0"
-      },
-      "suggested_fix": null,
-      "requires_teacher_input": true,
-      "confidence": 1.0
     }
   ],
   "approach_classes": [],

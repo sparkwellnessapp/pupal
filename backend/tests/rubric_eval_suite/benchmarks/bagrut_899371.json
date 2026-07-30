@@ -1020,16 +1020,25 @@
   ],
   "pedagogical_mistakes": [
     {
-      "mistake_id": "pts:q1.2",
+      "mistake_id": "pts:q1.א.2",
       "kind": "point_sum_mismatch",
       "severity": "warning",
-      "target_id": "2",
+      "target_id": "q1.א.2",
       "explanation": "רכיבי סעיף 2 מסתכמים ל-2.0 אך נקודות הסעיף הן 3.0.",
       "evidence": {
         "children_sum": "2.0",
         "declared": "3.0"
       },
-      "suggested_fix": null,
+      "suggested_fix": {
+        "operation": "adjust_points",
+        "description": "עדכני את הניקוד המוצהר ל-2",
+        "params": {
+          "target": "sub_question",
+          "field": "points",
+          "new_value": "2.0",
+          "current_value": "3.0"
+        }
+      },
       "requires_teacher_input": true,
       "confidence": 1.0
     }

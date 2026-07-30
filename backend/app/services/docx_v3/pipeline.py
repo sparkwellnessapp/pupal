@@ -58,7 +58,20 @@ logger = logging.getLogger(__name__)
 #               deadline_seconds=None (eval default) => unbounded, gate untouched.
 from .trace import resolve as _resolve_tracer, NULL_TRACER  # injected tracelog (no-op by default)
 
-PIPELINE_VERSION = "3.4.0"  # P-L1: branch sub-questions exempt from EMPTY_SQ_TEXT retry
+# PR-6 (3.5.0): Step 2c emission became consumable by the findings UI —
+#   * pedagogical point-sum mistakes now carry a real SuggestedFix
+#     (operation='adjust_points', params from the same evidence), so the one-click
+#     proposal has ONE owner of fix semantics: the detector. `requires_teacher_input`
+#     stays True — it means "never apply without her", which a proposal she must
+#     click IS, rather than overrides.
+#   * sub-question mistakes anchor on the FULL PATH (`q1.א.2`), the same scope
+#     vocabulary the validator/compiler/mirror speak. The bare id was unpairable
+#     with its own live blocker and ambiguous across questions.
+#   * advisory-scan status is stamped into extraction_metadata, so partial-scan
+#     honesty survives into the saved draft instead of dying with the job row.
+# Selection-normalization deliberately keeps suggested_fix=None: its intent is
+# unknowable, and inventing a number there is precisely what FC forbids.
+PIPELINE_VERSION = "3.5.0"
 _MAX_RETRIES = 2
 _SUM_TOLERANCE = 0.5   # validation tolerance (pre-save, human-readable)
 _COMPILE_TOLERANCE = 0.01  # compilation tolerance (INV-1/INV-2 exact)
@@ -1998,6 +2011,14 @@ async def extract_rubric_from_docx(
         # (LLM adjudication of a structural trigger) runs only when enabled, and only when
         # a trigger fires. Read-only over the faithful Draft; runs in a thread so the sync
         # LLM .invoke does not stall the event loop.
+        #
+        # A5 — ADVISORY-SCAN PROVENANCE. Whether this scan completed is a property of
+        # THIS extraction, so it is stamped into extraction_metadata alongside the other
+        # provenance, and therefore survives into the saved draft. A job-level warning
+        # cannot: it is not part of the draft and vanishes on reopen, which would let an
+        # empty advisory list read as a clean bill of health after a partial scan — the
+        # exact silence the honesty rule exists to prevent.
+        advisory_scan_reason: Optional[str] = None
         try:
             await _emit("pedagogical", detail="start")
             # B4: swallowed Tier-B failures surface as pipeline warnings — they set
@@ -2025,6 +2046,9 @@ async def extract_rubric_from_docx(
                     )
                     logger.warning(f"v3 Step 2c: {skip_msg}")
                     step2c_warnings.append(skip_msg)
+                    advisory_scan_reason = "tier_b_skipped_time_budget"
+            else:
+                advisory_scan_reason = "tier_b_disabled"
 
             with tr.operation("pedagogical", tier_b_enabled=adjudicator is not None) as _psp:
                 response.pedagogical_mistakes = await asyncio.to_thread(
@@ -2043,6 +2067,14 @@ async def extract_rubric_from_docx(
         except Exception as e:
             logger.warning(f"v3 Step 2c pedagogical-mistake detection failed (non-fatal): {e}")
             warnings.append(f"Step 2c pedagogical-mistake detection failed (non-fatal): {e}")
+            advisory_scan_reason = "detector_failed"
+
+        # Stamp the outcome. 'complete' is claimed ONLY when the full scan ran; every
+        # other path names WHY it did not, and a draft with no stamp at all (saved
+        # before this version) is treated as unknowable — never as complete.
+        response.extraction_metadata["advisory_scan"] = "partial" if advisory_scan_reason else "complete"
+        if advisory_scan_reason:
+            response.extraction_metadata["advisory_scan_reason"] = advisory_scan_reason
 
         metrics.total_time_seconds = time.time() - start
         metrics.num_questions = len(response.questions)
