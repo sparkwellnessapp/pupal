@@ -29,6 +29,8 @@ import { DisclosureRow } from '@/components/document/DisclosureRow';
 import { CodeBlock } from '@/components/document/CodeBlock';
 import { TraceTablesDisplay, ContextTablesDisplay } from '@/components/document/DataTables';
 import { DocumentText, SolutionBody } from '@/components/document/DocumentText';
+import { FindingCard } from '@/components/document/FindingCard';
+import { countFindingsByClass, findingsSummaryLine, type Finding } from '@/utils/findings';
 
 /**
  * RubricDocument (PR-5 Sprint 2) — THE MIRROR. A sibling view to RubricEditor that
@@ -73,7 +75,22 @@ interface DocContextValue extends DocOps {
     annotations: Annotation[];
     changedIds: Set<string>;
     scrollToScope(targetId: string | null): void;
+    /** PR-6 — the composed findings, and the four decisions she can make on one. */
+    findings: Finding[];
+    findingActions: FindingActions;
 }
+
+/** PR-6 §3/§4 — every decision the card can hand back to the page. */
+export interface FindingActions {
+    applyFix(finding: Finding): void;
+    undoFix(finding: Finding): void;
+    dismiss(finding: Finding): void;
+    reopen(finding: Finding): void;
+}
+
+const NO_FINDING_ACTIONS: FindingActions = {
+    applyFix: () => {}, undoFix: () => {}, dismiss: () => {}, reopen: () => {},
+};
 
 const DocContext = createContext<DocContextValue | null>(null);
 function useDoc(): DocContextValue {
@@ -106,6 +123,35 @@ function InlineAnnotations({ annotations }: { annotations: Annotation[] }) {
     return (
         <div className="space-y-1.5 my-2">
             {annotations.map((a) => <AnnotationBanner key={a.id} annotation={a} />)}
+        </div>
+    );
+}
+
+/**
+ * PR-6 — the findings anchored at ONE scope. This supersedes the raw annotation
+ * banner at every node that has a composed finding: the card carries the same
+ * event with its explanation, its proposal and its lifecycle, instead of three
+ * separate voices saying overlapping things about one problem.
+ */
+function ScopeFindings({ scopeId }: { scopeId: string | undefined }) {
+    const { findings, findingActions, questions, scrollToScope } = useDoc();
+    if (!scopeId) return null;
+    const here = findings.filter((f) => f.scopeId === scopeId);
+    if (here.length === 0) return null;
+    return (
+        <div className="space-y-2 my-2">
+            {here.map((f) => (
+                <FindingCard
+                    key={f.key}
+                    finding={f}
+                    scopeText={scopeLabel(f.scopeId, questions)}
+                    onApplyFix={findingActions.applyFix}
+                    onUndoFix={findingActions.undoFix}
+                    onDismiss={findingActions.dismiss}
+                    onReopen={findingActions.reopen}
+                    onJump={(x) => scrollToScope(x.scopeId)}
+                />
+            ))}
         </div>
     );
 }
@@ -221,6 +267,7 @@ function CriteriaTable({
                             {anns.length > 0 && (
                                 <tr><td colSpan={3} className="pb-2"><InlineAnnotations annotations={anns} /></td></tr>
                             )}
+                            <tr><td colSpan={3}><ScopeFindings scopeId={c.criterion_id} /></td></tr>
                         </Fragment>
                     );
                 })}
@@ -313,6 +360,7 @@ function SubQuestionSection({
             ) : null}
             <TraceTablesDisplay tables={sq.trace_tables} />
             <InlineAnnotations annotations={anns} />
+            <ScopeFindings scopeId={idPath} />
 
             {hasChildren
                 ? <div className="space-y-1">{sq.sub_questions!.map((child, i) => (
@@ -377,6 +425,7 @@ function QuestionSection({
             <ContextTablesDisplay tables={q.context_tables} />
             <TraceTablesDisplay tables={q.trace_tables} />
             <InlineAnnotations annotations={anns} />
+            <ScopeFindings scopeId={q.question_id} />
 
             {hasSubs
                 ? q.sub_questions.map((sq, i) => (
@@ -409,9 +458,9 @@ function QuestionSection({
  * context a teacher needs; resolving it happens by editing points.
  */
 function DocumentHeader({
-    name, achievable, onNameCommit, selectionLine, openFindingCount, canUndo, onUndo,
+    name, achievable, onNameCommit, selectionLine, openFindingCount, findingsLine, canUndo, onUndo,
 }: {
-    name: string; achievable: number;
+    name: string; achievable: number; findingsLine: string | null;
     onNameCommit: (v: string) => void;
     selectionLine: string | null; openFindingCount: number; canUndo: boolean; onUndo?: () => void;
 }) {
@@ -441,9 +490,13 @@ function DocumentHeader({
                     </div>
                 </div>
 
-                {openFindingCount === 0 && (
-                    <p className="col-span-2 text-doc-meta text-emerald-700">הכל תקין - ויוי לא מצאה אי-התאמות במחוון ✓</p>
-                )}
+                {/* §5 — blockers and advisories are counted SEPARATELY; a blocker and
+                    a suggestion are not the same news and must not share a number. */}
+                {findingsLine
+                    ? <p className="col-span-2 text-doc-meta text-surface-600">{findingsLine}</p>
+                    : openFindingCount === 0 && (
+                        <p className="col-span-2 text-doc-meta text-emerald-700">הכל תקין - ויוי לא מצאה אי-התאמות במחוון ✓</p>
+                    )}
             </div>
         </header>
     );
@@ -491,7 +544,12 @@ function RailRow({
                     className={`flex items-center gap-1.5 min-w-0 flex-1 text-right transition-colors ${active ? 'text-primary-700 font-medium' : 'text-surface-500 hover:text-surface-800'}`}
                 >
                     {findingSections.has(node.id) && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" aria-label="ממצא פתוח" />}
-                    <span className="truncate flex-1">{node.label}</span>
+                    {/* The label sizes to its TEXT (no flex-1). Letting it grow pushed
+                        the number to the far edge of the gutter, so a short label like
+                        "שאלה 1" left a wide void between a row and its own points. The
+                        number now travels with the label it belongs to; the trailing
+                        space simply falls at the end of the row. */}
+                    <span className="truncate min-w-0">{node.label}</span>
                     <span className="tabular-nums text-surface-400 flex-shrink-0">{formatPoints(node.points)}</span>
                 </button>
             </div>
@@ -567,6 +625,16 @@ interface RubricDocumentProps {
     /** E-1 (page-level undo) — the mirror renders «ביטול» and installs Ctrl+Z. */
     canUndo?: boolean;
     onUndo?: () => void;
+    /**
+     * PR-6 — the composed findings, and the decisions she can make on them.
+     * Composed by the PAGE (which also derives the save-time acknowledgment set
+     * from them), so there is exactly one composition per render and the card and
+     * the save gate can never disagree about a finding's status.
+     */
+    findings?: Finding[];
+    findingActions?: FindingActions;
+    /** §7 — whether the advisory scan completed; drives the honesty notice. */
+    advisoryScan?: 'complete' | 'partial' | 'unknown';
 }
 
 export function RubricDocument({
@@ -582,6 +650,9 @@ export function RubricDocument({
     selectionGroups = [],
     canUndo = false,
     onUndo,
+    findings = [],
+    findingActions = NO_FINDING_ACTIONS,
+    advisoryScan = 'unknown',
 }: RubricDocumentProps) {
     // E-3: which point chips just moved (glow). Diff against the previous questions.
     const prevRef = useRef<RubricQuestion[]>(questions);
@@ -656,9 +727,24 @@ export function RubricDocument({
         [annotations, questions],
     );
 
+    // PR-6 — an annotation that a finding already carries must NOT also render as a
+    // raw banner: one event, one voice. Everything a card does not cover still
+    // renders through the old path, so nothing is silently dropped.
+    const coveredAnnotationIds = useMemo(() => {
+        const s = new Set<string>();
+        for (const f of findings) for (const id of f.annotationIds) s.add(id);
+        return s;
+    }, [findings]);
+
+    const uncoveredAnnotations = useMemo(
+        () => shownAnnotations.filter((a) => !coveredAnnotationIds.has(a.id)),
+        [shownAnnotations, coveredAnnotationIds],
+    );
+
     const ctx: DocContextValue = useMemo(() => ({
-        ...ops, questions, annotations: shownAnnotations, changedIds, scrollToScope,
-    }), [ops, questions, shownAnnotations, changedIds, scrollToScope]);
+        ...ops, questions, annotations: uncoveredAnnotations, changedIds, scrollToScope,
+        findings, findingActions,
+    }), [ops, questions, uncoveredAnnotations, changedIds, scrollToScope, findings, findingActions]);
 
     // ── Derived ──
     const achievable = useMemo(() => computeAchievablePoints(questions, selectionGroups), [questions, selectionGroups]);
@@ -672,6 +758,12 @@ export function RubricDocument({
     const errorAnnotations = useMemo(() => shownAnnotations.filter((a) => a.severity === 'error'), [shownAnnotations]);
     const globalAnnotations = useMemo(() => shownAnnotations.filter((a) => a.target_id === null || a.target_id === 'rubric'), [shownAnnotations]);
     const openFindingCount = useMemo(() => shownAnnotations.filter(isOpenFinding).length, [shownAnnotations]);
+
+    // §2 — target-less findings render in the advisory strip, not on a node.
+    const documentFindings = useMemo(() => findings.filter((f) => f.scopeId === null), [findings]);
+    // §5 — the two classes are counted separately and never summed into one number.
+    const findingCounts = useMemo(() => countFindingsByClass(findings), [findings]);
+    const findingsLine = useMemo(() => findingsSummaryLine(findingCounts), [findingCounts]);
 
     // ── E-2 rail active-tracking (window scroller; offset the 64px sticky header) ──
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -746,6 +838,7 @@ export function RubricDocument({
                         onNameCommit={(v) => onMetadataChange?.({ rubric_name: v })}
                         selectionLine={selectionLine}
                         openFindingCount={openFindingCount}
+                        findingsLine={findingsLine}
                         canUndo={canUndo}
                         onUndo={onUndo}
                     />
@@ -770,6 +863,35 @@ export function RubricDocument({
                             </div>
                         )}
                         {globalAnnotations.length > 0 && <div className="mb-6 space-y-2">{globalAnnotations.map((a) => <AnnotationBanner key={a.id} annotation={a} />)}</div>}
+
+                        {/* §7 — PARTIAL-SCAN HONESTY. An empty advisory list must never
+                            read as a clean bill of health when we do not know the scan
+                            finished. Quiet, reassuring, and never alarming: the rubric
+                            IS usable; we simply will not claim more than we checked. */}
+                        {advisoryScan === 'partial' && (
+                            <p className="mb-6 rounded-lg border border-surface-200 bg-surface-50 px-3 py-2 text-doc-meta text-surface-600">
+                                חלק מבדיקות ההמלצות לא הושלמו (תקלה זמנית) — המחוון תקין לשימוש.
+                            </p>
+                        )}
+
+                        {/* §2 — document-level findings (selection normalization, and any
+                            other target-less kind) live in the strip, not on a node. */}
+                        {documentFindings.length > 0 && (
+                            <div className="mb-6 space-y-2">
+                                {documentFindings.map((f) => (
+                                    <FindingCard
+                                        key={f.key}
+                                        finding={f}
+                                        scopeText="המחוון"
+                                        onApplyFix={findingActions.applyFix}
+                                        onUndoFix={findingActions.undoFix}
+                                        onDismiss={findingActions.dismiss}
+                                        onReopen={findingActions.reopen}
+                                        onJump={() => scrollToScope(null)}
+                                    />
+                                ))}
+                            </div>
+                        )}
 
                         <div className="space-y-12">
                             {questions.map((q, i) => (

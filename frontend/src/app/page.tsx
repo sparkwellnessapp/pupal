@@ -60,7 +60,10 @@ import { RubricErrorDisplay, RubricWarningsModal } from '@/components/RubricSave
 import type { RubricQuestion } from '@/types/rubric';
 import { hydrateAnyQuestions, dehydrateQuestions, safeParseFloat } from '@/utils/rubric-transform';
 import { validateAllQuestions, validateRubricTotalPoints } from '@/utils/rubric-validation';
-import { composeFindings, acknowledgedIdsFor } from '@/utils/findings';
+import { composeFindings, acknowledgedIdsFor, advisoryScanStatus, type Finding } from '@/utils/findings';
+import {
+  applyFindingFix, recordFixApplied, clearFixApplied, recordDismissed, clearDismissed,
+} from '@/utils/findings-ops';
 import type { PedagogicalMistakeWire } from '@/lib/api';
 import { computeAchievablePoints } from '@/utils/rubric-achievable';
 import { getExtractionStageOrder } from '@/hooks/useExtractionJob';
@@ -898,6 +901,35 @@ export default function Home() {
     [extractionAnnotations, liveIssuesForFindings, pedagogicalMistakes, extractedQuestions],
   );
   const acknowledgedWarningIds = useMemo(() => acknowledgedIdsFor(findings), [findings]);
+  const advisoryScan = useMemo(
+    // The STAMP is the durable source (it rides in the draft and survives reopen);
+    // the job-warning path exists for drafts produced before pipeline 3.5.0.
+    () => advisoryScanStatus(extractionMetadata as unknown as Record<string, unknown> | null, null),
+    [extractionMetadata],
+  );
+
+  // PR-6 §3/§4 — the four decisions. Each routes through the PURE ops, so the
+  // page-level undo stack keeps working by structural sharing and «בטלי» is the
+  // same E-1 mechanism the rest of the surface uses — one undo, not two.
+  const findingActions = useMemo(() => ({
+    applyFix: (f: Finding) => {
+      if (f.fix?.target === 'rubric') {
+        // The declared total lives outside `questions`; INV-R3 closes the finding.
+        setRubricDeclaredTotal(f.fix.newValue);
+      } else {
+        setExtractedQuestions((qs) => applyFindingFix(qs, f));
+      }
+      setPedagogicalMistakes((ms) => recordFixApplied(ms, f.mistakeId));
+    },
+    // An undone fix is not an applied fix: pop the shared undo stack AND erase the
+    // record, so the audit trail never remembers a decision she reversed.
+    undoFix: (f: Finding) => {
+      undoRubricEdit();
+      setPedagogicalMistakes((ms) => clearFixApplied(ms, f.mistakeId));
+    },
+    dismiss: (f: Finding) => setPedagogicalMistakes((ms) => recordDismissed(ms, f.mistakeId)),
+    reopen: (f: Finding) => setPedagogicalMistakes((ms) => clearDismissed(ms, f.mistakeId)),
+  }), [undoRubricEdit]);
 
   const hasBlockingErrors = combinedAnnotations.some(a => a.severity === 'error');
 
@@ -1692,6 +1724,9 @@ export default function Home() {
                       selectionGroups={selectionGroups}
                       canUndo={canUndoRubric}
                       onUndo={undoRubricEdit}
+                      findings={findings}
+                      findingActions={findingActions}
+                      advisoryScan={advisoryScan}
                     />
                     {error && (
                       <div className="flex gap-8 justify-center mt-4" dir="rtl">
