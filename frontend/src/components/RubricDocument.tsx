@@ -542,7 +542,7 @@ function RailRow({
                     type="button"
                     data-rail-link={node.id}
                     onClick={() => onJump(node.id)}
-                    className={`flex items-center gap-1.5 min-w-0 flex-1 text-right transition-colors ${active ? 'text-primary-700 font-medium' : 'text-surface-500 hover:text-surface-800'}`}
+                    className={`flex items-center gap-2.5 min-w-0 flex-1 text-right transition-colors ${active ? 'text-primary-700 font-medium' : 'text-surface-500 hover:text-surface-800'}`}
                 >
                     {/* §5 — a blocker and a suggestion must not carry the same visual
                         weight: solid amber for something she must resolve, a quiet
@@ -558,7 +558,9 @@ function RailRow({
                         number now travels with the label it belongs to; the trailing
                         space simply falls at the end of the row. */}
                     <span className="truncate min-w-0">{node.label}</span>
-                    <span className="tabular-nums text-surface-400 flex-shrink-0">{formatPoints(node.points)}</span>
+                    <span className="text-surface-400 flex-shrink-0">
+                        <span className="tabular-nums">{formatPoints(node.points)}</span> נקודות
+                    </span>
                 </button>
             </div>
             {hasChildren && open && (

@@ -201,11 +201,11 @@ describe('OutlineRail — nested, points-bearing, collapsible map', () => {
     const html = render(qs);
     const rail = html.slice(html.indexOf('<nav'), html.indexOf('</nav>'));
 
-    it('every question row carries its points', () => {
+    it('every question row carries its points, named and on the numeric grid', () => {
         expect(rail).toContain('שאלה 1');
-        expect(rail).toContain('tabular-nums');
-        // bagrut declares 25 per question — the number rides in the rail row
-        expect(rail).toMatch(/שאלה 1<\/span><span[^>]*tabular-nums[^>]*>25</);
+        // bagrut declares 25 per question. The DIGITS carry tabular-nums so the
+        // numbers stay on one grid; the unit word must NOT be forced onto it.
+        expect(rail).toMatch(/<span[^>]*tabular-nums[^>]*>25<\/span> נקודות/);
     });
 
     it('a parent row exposes a chevron with its own accessible name; a leaf does not', () => {
