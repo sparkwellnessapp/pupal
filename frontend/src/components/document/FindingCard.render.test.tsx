@@ -58,10 +58,15 @@ describe('variant 1 — blocking + fix (the demo moment)', () => {
         expect(html).toContain('בקובץ המקורי מצוין 3');
     });
 
-    it('carries the advisory explanation and both alternative paths', () => {
+    it('carries the advisory explanation and the manual route', () => {
         expect(html).toContain('רכיבי סעיף 2 מסתכמים');
-        expect(html).toContain('עדכני את הקריטריונים בעצמך');   // the manual route
-        expect(html).toContain('השאירי כך');                    // overrule Vivi
+        expect(html).toContain('עדכני את הקריטריונים בעצמך');
+    });
+
+    it('does NOT offer to leave a blocker as-is — the compiler would reject it anyway', () => {
+        // §2 lists dismiss on advisories only. Offering «השאירי כך» on a live
+        // invariant violation would promise something the system cannot honour.
+        expect(html).not.toContain('השאירי כך');
     });
 
     it('never leaks a raw scope id into anything she can READ', () => {

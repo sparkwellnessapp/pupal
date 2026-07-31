@@ -60,7 +60,7 @@ import { RubricErrorDisplay, RubricWarningsModal } from '@/components/RubricSave
 import type { RubricQuestion } from '@/types/rubric';
 import { hydrateAnyQuestions, dehydrateQuestions, safeParseFloat } from '@/utils/rubric-transform';
 import { validateAllQuestions, validateRubricTotalPoints } from '@/utils/rubric-validation';
-import { composeFindings, acknowledgedIdsFor, advisoryScanStatus, type Finding } from '@/utils/findings';
+import { composeFindings, acknowledgedIdsFor, advisoryScanStatus, countFindingsByClass, type Finding } from '@/utils/findings';
 import {
   applyFindingFix, recordFixApplied, clearFixApplied, recordDismissed, clearDismissed,
 } from '@/utils/findings-ops';
@@ -933,6 +933,29 @@ export default function Home() {
 
   const hasBlockingErrors = combinedAnnotations.some(a => a.severity === 'error');
 
+  // PR-6 §6 — THE SURVIVOR GATE, completed.
+  //
+  // Blockers stop the save (unchanged in spirit — the compiler would reject them
+  // anyway). Open ADVISORIES get ONE soft line in the same moment and never block:
+  // an unreviewed suggestion is not an error, and treating it like one is how a
+  // gate stops meaning anything. Resolved and dismissed are silent by construction
+  // — they are not "open", so they never reach this question.
+  const openAdvisoryCount = useMemo(() => countFindingsByClass(findings).advisories, [findings]);
+  const [advisoryPromptShown, setAdvisoryPromptShown] = useState(false);
+
+  const attemptSaveRubric = useCallback(() => {
+    if (hasBlockingErrors) {
+      errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (openAdvisoryCount > 0 && !advisoryPromptShown) {
+      setAdvisoryPromptShown(true);   // ask ONCE, softly, right here
+      return;
+    }
+    handleSaveRubric();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasBlockingErrors, openAdvisoryCount, advisoryPromptShown]);
+
   const handleSaveRubric = async () => {
     // S1-2.4: the name is ALWAYS resolvable (captured > inferred > filename), so
     // save is never blocked on it — the Dream doc makes naming optional.
@@ -1738,10 +1761,16 @@ export default function Home() {
                       <div className="hidden rail:block w-rail flex-shrink-0" aria-hidden />
                       <div className="flex-1 min-w-0 max-w-document flex items-center justify-between pt-4 border-t border-surface-200">
                         <BackButton onClick={() => { if (confirmDiscardIfDirty()) { dirtyRef.current = false; clearRubricHistory(); setRubricStep('upload'); } }} />
+                        {/* §6 — the soft line. Asked ONCE, in the same moment as the
+                            save, and answering it saves. Never a modal, never a wall. */}
+                        {advisoryPromptShown && !hasBlockingErrors && (
+                          <p className="text-doc-meta text-surface-600 ml-auto mr-4">
+                            {openAdvisoryCount === 1 ? 'המלצה אחת לא נסקרה' : `${openAdvisoryCount} המלצות לא נסקרו`}
+                            {' — לשמור בכל זאת?'}
+                          </p>
+                        )}
                         <button
-                          onClick={hasBlockingErrors
-                            ? () => errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                            : handleSaveRubric}
+                          onClick={attemptSaveRubric}
                           disabled={isLoading}
                           aria-disabled={hasBlockingErrors}
                           className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors ${

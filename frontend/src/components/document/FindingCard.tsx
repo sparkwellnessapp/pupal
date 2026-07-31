@@ -137,11 +137,18 @@ export function FindingCard({
                     onClick={() => onJump(finding)}
                     className="rounded-md px-3 py-1.5 text-doc-meta text-surface-700 hover:bg-surface-100 transition-colors"
                 >{fix ? 'עדכני את הקריטריונים בעצמך' : `עברי ל${scopeText}`}</button>
-                <button
-                    type="button"
-                    onClick={() => onDismiss(finding)}
-                    className="rounded-md px-3 py-1.5 text-doc-meta text-surface-500 hover:text-surface-800 hover:bg-surface-100 transition-colors"
-                >השאירי כך</button>
+                {/* «השאירי כך» is offered on ADVISORIES only. A blocking finding is a
+                    live invariant violation, and the Contract compiler recomputes and
+                    rejects it regardless of what the UI agrees to — offering to leave
+                    it would promise something the system cannot honour. Her way past a
+                    blocker is to fix it: one click, or by hand. */}
+                {!blocking && (
+                    <button
+                        type="button"
+                        onClick={() => onDismiss(finding)}
+                        className="rounded-md px-3 py-1.5 text-doc-meta text-surface-500 hover:text-surface-800 hover:bg-surface-100 transition-colors"
+                    >השאירי כך</button>
+                )}
             </div>
         </div>
     );

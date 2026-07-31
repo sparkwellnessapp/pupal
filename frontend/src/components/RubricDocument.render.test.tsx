@@ -229,3 +229,57 @@ describe('OutlineRail — nested, points-bearing, collapsible map', () => {
         expect(html).toContain('aria-label="מפת המחוון"');
     });
 });
+
+describe('PR-6 — findings render in the mirror', () => {
+    const questions: RubricQuestion[] = [
+        { question_id: 'q1', total_points: 3, criteria: [], sub_questions: [
+            { sub_question_id: 'א', index: 0, points: 3, criteria: [
+                { criterion_id: 'c1', index: 0, description: 'בדיקת נכונות', points: 2 }] },
+        ] },
+    ];
+    const blocker = {
+        key: 'q1.א::point_sum', scopeId: 'q1.א', kind: 'point_sum' as const,
+        status: 'open' as const, variant: 'blocking_fix' as const, severity: 'error' as const,
+        hasLiveBlocker: true,
+        liveMessage: 'סכום הנקודות של שאלה 1 · סעיף א (3 נקודות) שונה מסכום הקריטריונים (2 נקודות).',
+        documentResidual: 'אזהרה: … מצהירה על 3 …',
+        explanation: 'רכיבי הסעיף מסתכמים ל-2.', confidence: 'high' as const,
+        fix: { target: 'sub_question' as const, newValue: 2, currentValue: 3, label: 'עדכני את הניקוד המוצהר ל-2' },
+        mistakeId: 'pts:q1.א', annotationIds: ['rubric_mismatch:q1.א'],
+    };
+
+    it('renders the card at its scope, with the proposal', () => {
+        const html = render(questions, { findings: [blocker] });
+        expect(html).toContain('עדכני את הניקוד המוצהר ל-2');
+        expect(html).toContain('data-finding-key="q1.א::point_sum"');
+    });
+
+    it('the rail dots a BLOCKER differently from an ADVISORY (§5 weight)', () => {
+        const blockerHtml = render(questions, { findings: [blocker] });
+        expect(blockerHtml).toContain('aria-label="ממצא פתוח"');
+
+        const advisory = { ...blocker, severity: 'warning' as const, hasLiveBlocker: false, variant: 'advisory_fix' as const };
+        const advisoryHtml = render(questions, { findings: [advisory] });
+        expect(advisoryHtml).toContain('aria-label="המלצה פתוחה"');
+        expect(advisoryHtml).not.toContain('aria-label="ממצא פתוח"');
+    });
+
+    it('a SETTLED finding dots nothing — the rail maps what is left to look at', () => {
+        const html = render(questions, { findings: [{ ...blocker, status: 'dismissed' as const }] });
+        expect(html).not.toContain('aria-label="ממצא פתוח"');
+        expect(html).not.toContain('aria-label="המלצה פתוחה"');
+    });
+
+    it('§5: the header counts blockers and advisories separately', () => {
+        const advisory = { ...blocker, key: 'q1::sel', scopeId: 'q1', severity: 'warning' as const, hasLiveBlocker: false, variant: 'advisory_fix' as const };
+        const html = render(questions, { findings: [blocker, advisory] });
+        expect(html).toContain('ממצא אחד לתיקון · המלצה אחת');
+    });
+
+    it('§7: a PARTIAL advisory scan says so; a complete one stays quiet', () => {
+        expect(render(questions, { advisoryScan: 'partial' })).toContain('חלק מבדיקות ההמלצות לא הושלמו');
+        expect(render(questions, { advisoryScan: 'complete' })).not.toContain('לא הושלמו');
+        // unknown (a pre-3.5.0 draft) makes NO claim either way
+        expect(render(questions, { advisoryScan: 'unknown' })).not.toContain('לא הושלמו');
+    });
+});

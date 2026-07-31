@@ -566,6 +566,7 @@ function RailRow({
                     {node.children.map((child) => (
                         <RailRow
                             key={child.id} node={child} activeId={activeId} findingSections={findingSections}
+                            blockerSections={blockerSections} advisorySections={advisorySections}
                             isOpen={isOpen} onToggle={onToggle} onJump={onJump}
                         />
                     ))}
@@ -576,9 +577,10 @@ function RailRow({
 }
 
 function OutlineRail({
-    questions, activeId, findingSections, onJump, railStyle,
+    questions, activeId, findingSections, blockerSections, advisorySections, onJump, railStyle,
 }: {
     questions: RubricQuestion[]; activeId: string | null; findingSections: Set<string>;
+    blockerSections: Set<string>; advisorySections: Set<string>;
     onJump: (id: string) => void; railStyle: { left: number; width: number } | null;
 }) {
     const outline = useMemo(() => buildRailOutline(questions), [questions]);
@@ -608,6 +610,7 @@ function OutlineRail({
                 {outline.map((node) => (
                     <RailRow
                         key={node.id} node={node} activeId={activeId} findingSections={findingSections}
+                        blockerSections={blockerSections} advisorySections={advisorySections}
                         isOpen={isOpen} onToggle={onToggle} onJump={onJump}
                     />
                 ))}
@@ -769,6 +772,25 @@ export function RubricDocument({
 
     // §2 — target-less findings render in the advisory strip, not on a node.
     const documentFindings = useMemo(() => findings.filter((f) => f.scopeId === null), [findings]);
+
+    // §5 — rail dots by CLASS. A section is dotted for the heaviest OPEN thing in
+    // it; settled findings dot nothing, because the rail is a map of what is left
+    // to look at, not a history of what was there.
+    const { blockerSections, advisorySections } = useMemo(() => {
+        const blockers = new Set<string>();
+        const advisories = new Set<string>();
+        for (const f of findings) {
+            if (f.status !== 'open' || !f.scopeId) continue;
+            // Dot the QUESTION that owns the node — the rail's top level is questions.
+            const questionId = f.scopeId.split('.')[0];
+            if (f.severity === 'error' || f.hasLiveBlocker) blockers.add(questionId);
+            else advisories.add(questionId);
+            // …and the node itself, for expanded rail rows.
+            if (f.severity === 'error' || f.hasLiveBlocker) blockers.add(f.scopeId);
+            else advisories.add(f.scopeId);
+        }
+        return { blockerSections: blockers, advisorySections: advisories };
+    }, [findings]);
     // §5 — the two classes are counted separately and never summed into one number.
     const findingCounts = useMemo(() => countFindingsByClass(findings), [findings]);
     const findingsLine = useMemo(() => findingsSummaryLine(findingCounts), [findingCounts]);
@@ -836,7 +858,9 @@ export function RubricDocument({
                 (sticky is broken by SidebarLayout's overflow-hidden ancestor). */}
             <div ref={rootRef} dir="rtl" className="flex gap-8 items-start justify-center">
                 <div ref={railSpacerRef} className="hidden rail:block w-rail flex-shrink-0" aria-hidden />
-                <OutlineRail questions={questions} activeId={activeId} findingSections={findingSections} onJump={scrollToScope} railStyle={railBox} />
+                <OutlineRail questions={questions} activeId={activeId} findingSections={findingSections}
+                    blockerSections={blockerSections} advisorySections={advisorySections}
+                    onJump={scrollToScope} railStyle={railBox} />
 
                 <div className="flex-1 min-w-0 max-w-document">
                     {/* D3: the band is its OWN surface, above the document body. */}
