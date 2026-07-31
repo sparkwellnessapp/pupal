@@ -41,6 +41,9 @@ from ...schemas.rubric_extraction_jobs import (
     SubmitJobResponse,
 )
 from ...services.cloud_tasks_service import enqueue_extraction_task, verify_task_request
+from ...services.extraction_job_liveness import (
+    REASON_ABANDONED, expired_condition, expiry_reason, is_expired, reap_expired,
+)
 from .auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -56,61 +59,35 @@ def _heartbeat_ttl() -> timedelta:
     return timedelta(minutes=settings.extraction_heartbeat_ttl_minutes)
 
 
-def _is_stale(job: RubricExtractionJob, now: datetime) -> bool:
-    """An 'extracting' row whose heartbeat lapsed — the worker died mid-job. This is
-    PROVABLY dead, not slow: the extraction wall deadline (840s ≈ 14 min) is below
-    the heartbeat TTL (15 min), so a job that has not heartbeat in >TTL cannot still
-    be running. `_reap_if_stale` makes this state TERMINAL."""
-    if job.status != "extracting" or job.updated_at is None:
-        return False
-    updated = job.updated_at
-    if updated.tzinfo is None:
-        updated = updated.replace(tzinfo=timezone.utc)
-    return (now - updated) > _heartbeat_ttl()
-
-
 async def _reap_if_stale(db: AsyncSession, job: RubricExtractionJob) -> RubricExtractionJob:
-    """Make staleness TERMINAL on read. An orphaned 'extracting' row (worker died —
-    server restart, Cloud Run scale-in, --reload in dev) otherwise lingers as
-    'active' FOREVER, so the resume-on-entry surface re-attaches to it every time
-    and the teacher can never start fresh. Reaping it to 'failed' here (idempotent
-    CAS on status='extracting') removes it from the active surface, returns an
-    honest terminal status, and keeps it retryable (retry accepts failed leaves).
-    Safe because a >TTL gap exceeds the wall deadline — the job is not still running."""
-    now = datetime.now(timezone.utc)
-    if not _is_stale(job, now):
+    """Make expiry TERMINAL on read, for the row just loaded.
+
+    LIV-1 lives in `extraction_job_liveness` — this is one of its DOORS, not a
+    second copy of the rule. It used to hardcode `status == 'extracting'`, which
+    is exactly why a job that died BEFORE starting (stuck 'queued', never
+    heartbeat) stayed active forever and re-attached the resume screen on every
+    page entry. The predicate now covers every active status by its own deadline.
+
+    Reaping to 'failed' removes it from the active surface, returns an honest
+    terminal status, and keeps it retryable (/retry accepts failed leaves).
+    """
+    if not is_expired(job):
         return job
-    await db.execute(
-        update(RubricExtractionJob)
-        .where(RubricExtractionJob.id == job.id,
-               RubricExtractionJob.status == "extracting")
-        .values(status="failed",
-                error_message="orphaned: extraction worker died mid-job (heartbeat lapsed)",
-                finished_at=now, updated_at=now)
-    )
+    reason = expiry_reason(job)
+    await reap_expired(db, job_id=job.id)
     await db.commit()
     await db.refresh(job)
+    logger.info("extraction_job_reaped_on_read",
+                extra={"job_id": str(job.id), "reason": reason})
     return job
 
 
 async def _reap_stale_active_for_source(db: AsyncSession, user_id, sha256: str) -> None:
-    """Set-based reap before a submit: fail any stale 'extracting' job for THIS source
-    so a re-upload supersedes a dead extraction instead of colliding with the
-    one-active-per-source unique constraint and being bounced back to it. A LIVE
-    (non-stale) job for the source is left alone → submit stays idempotent."""
-    now = datetime.now(timezone.utc)
-    cutoff = now - _heartbeat_ttl()
-    await db.execute(
-        update(RubricExtractionJob)
-        .where(RubricExtractionJob.user_id == user_id,
-               RubricExtractionJob.source_sha256 == sha256,
-               RubricExtractionJob.status == "extracting",
-               RubricExtractionJob.updated_at < cutoff)
-        .values(status="failed",
-                error_message="orphaned: superseded by a re-upload (heartbeat lapsed)",
-                finished_at=now, updated_at=now)
-    )
-    await db.commit()
+    """Set-based reap before a submit, so a re-upload SUPERSEDES a dead job instead
+    of colliding with the one-active-per-source unique index and being handed the
+    corpse back as `reused=True`. A live (non-expired) job is left alone → submit
+    stays idempotent. Same shared rule, so 'queued' orphans are superseded too."""
+    await reap_expired(db, user_id=user_id, source_sha256=sha256)
 
 
 def _status_response(job: RubricExtractionJob) -> JobStatusResponse:
@@ -128,7 +105,9 @@ def _status_response(job: RubricExtractionJob) -> JobStatusResponse:
         status=job.status,
         progress_stage=job.progress_stage,
         progress_detail=job.progress_detail,
-        stale=_is_stale(job, now),
+        # LIV-1: the wire's `stale` flag is the SAME rule the reapers use, so the
+        # client can never be told a job is alive that the server considers dead.
+        stale=is_expired(job, now),
         error_message=job.error_message,
         has_result=job.result_json is not None,
         source_filename=job.source_filename,
@@ -403,26 +382,23 @@ async def retry_extraction_job(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> RetryJobResponse:
-    """Re-queue a failed job, or a stale 'extracting' one (heartbeat lapsed —
-    the instance died mid-job). Source doc is in GCS: no re-upload."""
+    """Re-queue a failed job, or any EXPIRED active one (LIV-1: a lost dispatch
+    still sitting 'queued', or an 'extracting' worker whose heartbeat lapsed).
+    Source doc is in GCS: no re-upload."""
     await get_owned_or_404(db, RubricExtractionJob, job_id, current_user.id)
 
     now = datetime.now(timezone.utc)
-    stale_cutoff = now - _heartbeat_ttl()
-    # Atomic CAS — the WHERE encodes exactly the two legal retry sources; the
-    # full reset satisfies the 'queued' arm of the status-consistency CHECK.
+    # Atomic CAS — the WHERE encodes exactly the legal retry sources; the full
+    # reset satisfies the 'queued' arm of the status-consistency CHECK. The
+    # expired arm comes from the SHARED rule, so retry can never disagree with
+    # what the reapers consider dead (that disagreement is what stranded a
+    # 'queued' orphan: unreapable AND unretryable).
     result = await db.execute(
         update(RubricExtractionJob)
         .where(
             RubricExtractionJob.id == job_id,
             RubricExtractionJob.user_id == current_user.id,
-            (
-                (RubricExtractionJob.status == "failed")
-                | (
-                    (RubricExtractionJob.status == "extracting")
-                    & (RubricExtractionJob.updated_at < stale_cutoff)
-                )
-            ),
+            ((RubricExtractionJob.status == "failed") | expired_condition(now)),
         )
         .values(status="queued", error_message=None, started_at=None,
                 finished_at=None, progress_stage=None, progress_detail=None,
@@ -436,6 +412,43 @@ async def retry_extraction_job(
     await _enqueue_or_fail(db, job_id)
     logger.info("extraction_job_retried", extra={"job_id": str(job_id)})
     return RetryJobResponse(job_id=job_id, status="queued")
+
+
+@router.post("/{job_id}/abandon", response_model=RetryJobResponse)
+async def abandon_extraction_job(
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> RetryJobResponse:
+    """Let the TEACHER end an active job she no longer wants to wait for.
+
+    Deadlines (LIV-1) guarantee an orphan eventually expires, but "eventually" is
+    still a window in which she is attached to a job she cannot escape — which is
+    exactly the trap this whole area exists to prevent. Vivi proposes, the teacher
+    decides: she can always walk away and start fresh, without waiting out a TTL.
+
+    Atomic CAS on the ACTIVE statuses only: a job that completed a moment ago is
+    left alone (409) rather than having its result thrown away.
+    """
+    await get_owned_or_404(db, RubricExtractionJob, job_id, current_user.id)
+
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        update(RubricExtractionJob)
+        .where(
+            RubricExtractionJob.id == job_id,
+            RubricExtractionJob.user_id == current_user.id,
+            RubricExtractionJob.status.in_(ACTIVE_JOB_STATUSES),
+        )
+        .values(status="failed", error_message=REASON_ABANDONED,
+                finished_at=now, updated_at=now)
+    )
+    if result.rowcount == 0:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="המשימה כבר הסתיימה")
+    await db.commit()
+    logger.info("extraction_job_abandoned", extra={"job_id": str(job_id)})
+    return RetryJobResponse(job_id=job_id, status="failed")
 
 
 # =============================================================================
