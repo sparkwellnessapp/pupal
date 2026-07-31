@@ -912,12 +912,16 @@ export default function Home() {
   // page-level undo stack keeps working by structural sharing and «בטלי» is the
   // same E-1 mechanism the rest of the surface uses — one undo, not two.
   const findingActions = useMemo(() => ({
+    // Applying a fix is an ORDINARY EDIT and must go through the ordinary handler:
+    // that is what pushes the E-1 snapshot. Writing state directly would apply the
+    // fix with nothing to undo — «בטלי» would have no stack entry to pop, and the
+    // one-mechanism promise would quietly be a two-mechanism lie.
     applyFix: (f: Finding) => {
       if (f.fix?.target === 'rubric') {
         // The declared total lives outside `questions`; INV-R3 closes the finding.
-        setRubricDeclaredTotal(f.fix.newValue);
+        handleTotalPointsChange(f.fix.newValue);
       } else {
-        setExtractedQuestions((qs) => applyFindingFix(qs, f));
+        handleQuestionsEdited(applyFindingFix(extractedQuestions, f));
       }
       setPedagogicalMistakes((ms) => recordFixApplied(ms, f.mistakeId));
     },
@@ -929,7 +933,7 @@ export default function Home() {
     },
     dismiss: (f: Finding) => setPedagogicalMistakes((ms) => recordDismissed(ms, f.mistakeId)),
     reopen: (f: Finding) => setPedagogicalMistakes((ms) => clearDismissed(ms, f.mistakeId)),
-  }), [undoRubricEdit]);
+  }), [undoRubricEdit, handleQuestionsEdited, handleTotalPointsChange, extractedQuestions]);
 
   const hasBlockingErrors = combinedAnnotations.some(a => a.severity === 'error');
 

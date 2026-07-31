@@ -243,3 +243,55 @@ test.describe('Outline rail — nesting, points, collapse, navigation', () => {
         await expect(rail.locator('[data-rail-link="q1.א"]')).toHaveCount(0);
     });
 });
+
+/**
+ * PR-6 §9/§10 — THE DEMO JOURNEY, driven end to end on the real bagrut golden.
+ *
+ * This is the definition of done: she meets the finding as ONE card speaking the
+ * voice law, applies Vivi's proposal in one click, watches the sums settle, and
+ * sees the honest residual — the rubric is fixed, the file she uploaded still says
+ * what it said.
+ */
+test.describe('PR-6 — the findings journey', () => {
+    test('demo: the card proposes, one click applies, the validator closes it, the residual stays honest', async ({ page }) => {
+        await driveToReview(page, { fixture: 'bagrut_899371' });
+
+        // The finding is ONE card at its own scope, carrying Vivi's proposal.
+        const proposal = page.getByRole('button', { name: 'עדכני את הניקוד המוצהר ל-2' });
+        await expect(proposal).toBeVisible();
+
+        // It speaks about the original document in the PAST, never as "now".
+        const card = page.locator('[data-finding-key]').filter({ has: proposal });
+        await expect(card).toContainText('בקובץ המקורי מצוין 3');
+
+        // One click — and the LIVE validator is what closes the card.
+        await proposal.click();
+        await expect(page.getByText('תוקן במחוון')).toBeVisible();
+        await expect(page.getByText('בקובץ המקורי עדיין מצוין 3')).toBeVisible();
+        await expect(proposal).toHaveCount(0);        // the proposal is spent
+
+        // And the arithmetic actually moved: the node now declares 2.
+        await expect(page.locator('[data-scope-id="q1.א.2"]')
+            .getByRole('button', { name: /ניקוד תת-סעיף 2/ })).toHaveText('2');
+    });
+
+    test('undo: «בטלי» reopens the finding — an undone fix is not an applied fix', async ({ page }) => {
+        await driveToReview(page, { fixture: 'bagrut_899371' });
+        await page.getByRole('button', { name: 'עדכני את הניקוד המוצהר ל-2' }).click();
+        await expect(page.getByText('תוקן במחוון')).toBeVisible();
+
+        await page.getByRole('button', { name: 'בטלי' }).first().click();
+
+        // The card is open again, offering the same proposal.
+        await expect(page.getByRole('button', { name: 'עדכני את הניקוד המוצהר ל-2' })).toBeVisible();
+        await expect(page.getByText('תוקן במחוון')).toHaveCount(0);
+    });
+
+    test('the raw scope id never reaches her eyes on the card', async ({ page }) => {
+        await driveToReview(page, { fixture: 'bagrut_899371' });
+        const card = page.locator('[data-finding-key]').first();
+        await expect(card).toBeVisible();
+        expect(await card.innerText()).not.toContain('q1.א.2');
+        expect(await card.innerText()).not.toContain('pts:');
+    });
+});
