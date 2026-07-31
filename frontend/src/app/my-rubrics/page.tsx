@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
     BookOpen,
@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { RubricEditor } from '@/components/RubricEditor';
+import { RubricDocument } from '@/components/RubricDocument';
+import { USE_DOCUMENT_MIRROR } from '@/lib/flags';
 import { RubricWarningsModal, RubricErrorDisplay } from '@/components/RubricSaveFlow';
 import {
     listRubrics,
@@ -34,7 +36,13 @@ import {
 } from '@/lib/api';
 import type { RubricQuestion } from '@/types/rubric';
 import { hydrateAnyQuestions, dehydrateQuestions } from '@/utils/rubric-transform';
-import { hasErrors } from '@/utils/rubric-validation';
+import { hasErrors, validateAllQuestions } from '@/utils/rubric-validation';
+import { safeParseFloat } from '@/utils/rubric-transform';
+import { composeFindings, advisoryScanStatus, type Finding } from '@/utils/findings';
+import {
+  applyFindingFix, recordFixApplied, clearFixApplied, recordDismissed, clearDismissed,
+} from '@/utils/findings-ops';
+import type { Annotation, SelectionGroup, PedagogicalMistakeWire } from '@/lib/api';
 
 // Rubric Card Component
 function RubricCard({
@@ -154,6 +162,76 @@ export default function MyRubricsPage() {
     const [selectedRubric, setSelectedRubric] = useState<RubricDetailItem | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editedQuestions, setEditedQuestions] = useState<RubricQuestion[]>([]);
+    /**
+     * A6 / B-11b — THE DRAFT ENVELOPE, kept so it can be re-sent.
+     *
+     * This edit surface owns exactly one thing: the question tree. Everything else
+     * in `draft_json` — selection_groups, annotations, pedagogical_mistakes,
+     * extraction_metadata, programming_language — belongs to the extraction and
+     * must survive an edit here untouched. The save REPLACES draft_json wholesale
+     * (`rubric.draft_json = draft_dict`), so anything omitted is not "left alone",
+     * it is ERASED. Before PR-6 that silently dropped the selection groups; after
+     * PR-6 it would have wiped every finding and every decision she recorded.
+     */
+    const [loadedDraft, setLoadedDraft] = useState<Record<string, unknown> | null>(null);
+
+    // ── A6 — the REOPEN view of the findings ────────────────────────────────
+    // Everything below is read out of the persisted draft, which is exactly the
+    // point: a decision she recorded weeks ago has to be visible now, or the
+    // persistence is a promise nothing keeps. Composition is the same module the
+    // extraction flow uses — one definition of a finding, two entry points.
+    const reopenedAnnotations = useMemo(
+        () => ((loadedDraft?.annotations as Annotation[] | undefined) ?? []),
+        [loadedDraft],
+    );
+    const reopenedSelectionGroups = useMemo(
+        () => ((loadedDraft?.selection_groups as SelectionGroup[] | undefined) ?? []),
+        [loadedDraft],
+    );
+    const reopenedMistakes = useMemo(
+        () => ((loadedDraft?.pedagogical_mistakes as PedagogicalMistakeWire[] | undefined) ?? []),
+        [loadedDraft],
+    );
+    const reopenedAdvisoryScan = useMemo(
+        () => advisoryScanStatus(
+            (loadedDraft?.extraction_metadata as Record<string, unknown> | undefined)
+            ?? (loadedDraft?.metadata as Record<string, unknown> | undefined) ?? null,
+            null,
+        ),
+        [loadedDraft],
+    );
+    const reopenedFindings = useMemo(
+        () => composeFindings(
+            reopenedAnnotations,
+            Array.from(validateAllQuestions(editedQuestions).values()).flat(),
+            reopenedMistakes,
+            editedQuestions,
+        ),
+        [reopenedAnnotations, reopenedMistakes, editedQuestions],
+    );
+
+    /** A decision made on reopen writes straight back into the envelope that gets re-sent. */
+    const patchMistakes = useCallback(
+        (fn: (ms: PedagogicalMistakeWire[]) => PedagogicalMistakeWire[]) =>
+            setLoadedDraft((d) => ({ ...(d ?? {}), pedagogical_mistakes: fn(((d?.pedagogical_mistakes as PedagogicalMistakeWire[] | undefined) ?? [])) })),
+        [],
+    );
+    const reopenedFindingActions = useMemo(() => ({
+        applyFix: (f: Finding) => {
+            if (f.fix?.target !== 'rubric') setEditedQuestions((qs) => applyFindingFix(qs, f));
+            patchMistakes((ms) => recordFixApplied(ms, f.mistakeId));
+        },
+        // No E-1 undo stack on this surface, so «בטלי» restores the value directly
+        // from the fix's own record of what the document said.
+        undoFix: (f: Finding) => {
+            if (f.fix && f.fix.target !== 'rubric') {
+                setEditedQuestions((qs) => applyFindingFix(qs, { ...f, fix: { ...f.fix!, newValue: f.fix!.currentValue } }));
+            }
+            patchMistakes((ms) => clearFixApplied(ms, f.mistakeId));
+        },
+        dismiss: (f: Finding) => patchMistakes((ms) => recordDismissed(ms, f.mistakeId)),
+        reopen: (f: Finding) => patchMistakes((ms) => clearDismissed(ms, f.mistakeId)),
+    }), [patchMistakes]);
     const [editedName, setEditedName] = useState('');
     const [editedDescription, setEditedDescription] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -203,6 +281,7 @@ export default function MyRubricsPage() {
             setIsEditing(false);
             // Hydrate: convert backend string points → frontend numbers
             setEditedQuestions(hydrateAnyQuestions((fullRubric.draft_json?.questions as unknown[] | undefined) ?? []));
+            setLoadedDraft((fullRubric.draft_json as Record<string, unknown> | undefined) ?? null);
             setEditedName(fullRubric.name || '');
             setEditedDescription(fullRubric.description || '');
         } catch (err) {
@@ -221,6 +300,7 @@ export default function MyRubricsPage() {
             setIsEditing(true);
             // Hydrate: convert backend string points → frontend numbers
             setEditedQuestions(hydrateAnyQuestions((fullRubric.draft_json?.questions as unknown[] | undefined) ?? []));
+            setLoadedDraft((fullRubric.draft_json as Record<string, unknown> | undefined) ?? null);
             setEditedName(fullRubric.name || '');
             setEditedDescription(fullRubric.description || '');
         } catch (err) {
@@ -248,8 +328,16 @@ export default function MyRubricsPage() {
             // Dehydrate: convert frontend numbers → backend string points
             const dehydrated = dehydrateQuestions(editedQuestions);
 
-            // Calculate totals from the frontend state (already numbers)
-            const totalPoints = editedQuestions.reduce((sum, q) => sum + q.total_points, 0);
+            // A6 / B-11b — the DECLARED total is the teacher's, and it is not ours to
+            // re-derive. `Σ q.total_points` is the OFFERED sum, which on a "choose k of
+            // N" rubric is a different number entirely: re-summing it here silently
+            // rewrote her 100-point exam as a 150-point one and corrupted INV-4. Keep
+            // what the draft declares; if her edits make it disagree, INV-R3 says so
+            // and she resolves it by editing points (D4).
+            const declaredTotal = typeof loadedDraft?.total_points === 'number'
+                ? loadedDraft.total_points as number
+                : safeParseFloat((loadedDraft?.total_points as string | undefined) ?? '0')
+                    || editedQuestions.reduce((sum, q) => sum + q.total_points, 0);
             const numSubQuestions = editedQuestions.reduce((sum, q) => sum + (q.sub_questions?.length || 0), 0);
             const numCriteria = editedQuestions.reduce((sum, q) => {
                 let count = q.criteria?.length || 0;
@@ -262,8 +350,13 @@ export default function MyRubricsPage() {
             // Use atomic update+compile with ontology API
             const response = await updateOntologyRubric(selectedRubric.id, {
                 draft: {
+                    // Carry the whole envelope forward FIRST, then overwrite the parts
+                    // this surface actually edits. Spreading the loaded draft is what
+                    // makes the preservation total: a field added to the draft later
+                    // survives here without anyone remembering to add it.
+                    ...(loadedDraft ?? {}),
                     questions: dehydrated,
-                    total_points: totalPoints,
+                    total_points: declaredTotal,
                     num_questions: editedQuestions.length,
                     num_sub_questions: numSubQuestions,
                     num_criteria: numCriteria,
@@ -286,8 +379,13 @@ export default function MyRubricsPage() {
                 description: editedDescription,
                 total_points: newTotalPoints,
                 total_questions: editedQuestions.length,
-                draft_json: { questions: dehydrated },
+                // Mirror the SAME envelope locally. Rebuilding this as
+                // `{ questions }` re-created the very loss the payload just avoided:
+                // the next edit in this session would load a stripped draft and send
+                // it back stripped.
+                draft_json: { ...(loadedDraft ?? {}), questions: dehydrated },
             };
+            setLoadedDraft((prev) => ({ ...(prev ?? {}), questions: dehydrated }));
             setRubrics(prev => prev.map(r => r.id === selectedRubric.id ? updatedRubric : r));
             setSelectedRubric(updatedRubric);
             setIsEditing(false);
@@ -421,18 +519,28 @@ export default function MyRubricsPage() {
                         </div>
                     </div>
 
-                    {/* Rubric Editor */}
+                    {/* A6 — ONE review surface, everywhere. Two different editors for
+                        the same rubric across two sessions is disorientation we choose
+                        not to ship; and it is what let a saved rubric's findings exist
+                        in the data with nowhere to be seen. Behind the same kill-switch
+                        as the extraction flow, so the rollback stays one line. */}
                     <div className="bg-white rounded-xl border border-surface-200 p-6">
                         <h2 className="text-lg font-semibold text-gray-900 mb-4">שאלות וקריטריונים</h2>
-                        {isEditing ? (
-                            <RubricEditor
+                        {USE_DOCUMENT_MIRROR ? (
+                            <RubricDocument
                                 questions={editedQuestions}
-                                onQuestionsChange={setEditedQuestions}
+                                onQuestionsChange={isEditing ? setEditedQuestions : () => { }}
+                                annotations={reopenedAnnotations}
+                                rubricName={editedName}
+                                selectionGroups={reopenedSelectionGroups}
+                                findings={reopenedFindings}
+                                findingActions={reopenedFindingActions}
+                                advisoryScan={reopenedAdvisoryScan}
                             />
                         ) : (
                             <RubricEditor
                                 questions={editedQuestions}
-                                onQuestionsChange={() => { }} // Read-only
+                                onQuestionsChange={isEditing ? setEditedQuestions : () => { }}
                             />
                         )}
                     </div>
