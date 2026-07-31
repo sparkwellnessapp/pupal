@@ -512,9 +512,10 @@ const RAIL_INDENT = ['', 'pr-3', 'pr-6', 'pr-9', 'pr-12'] as const;
  * the branch shut every time she re-visited the question.
  */
 function RailRow({
-    node, activeId, findingSections, isOpen, onToggle, onJump,
+    node, activeId, findingSections, blockerSections, advisorySections, isOpen, onToggle, onJump,
 }: {
     node: RailNode; activeId: string | null; findingSections: Set<string>;
+    blockerSections: Set<string>; advisorySections: Set<string>;
     isOpen: (n: RailNode) => boolean; onToggle: (n: RailNode) => void; onJump: (id: string) => void;
 }) {
     const open = isOpen(node);
@@ -543,7 +544,14 @@ function RailRow({
                     onClick={() => onJump(node.id)}
                     className={`flex items-center gap-1.5 min-w-0 flex-1 text-right transition-colors ${active ? 'text-primary-700 font-medium' : 'text-surface-500 hover:text-surface-800'}`}
                 >
-                    {findingSections.has(node.id) && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" aria-label="ממצא פתוח" />}
+                    {/* §5 — a blocker and a suggestion must not carry the same visual
+                        weight: solid amber for something she must resolve, a quiet
+                        hollow ring for something she may consider. */}
+                    {blockerSections.has(node.id)
+                        ? <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" aria-label="ממצא פתוח" />
+                        : advisorySections.has(node.id)
+                            ? <span className="w-1.5 h-1.5 rounded-full border border-primary-400 flex-shrink-0" aria-label="המלצה פתוחה" />
+                            : findingSections.has(node.id) && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" aria-label="ממצא פתוח" />}
                     {/* The label sizes to its TEXT (no flex-1). Letting it grow pushed
                         the number to the far edge of the gutter, so a short label like
                         "שאלה 1" left a wide void between a row and its own points. The
