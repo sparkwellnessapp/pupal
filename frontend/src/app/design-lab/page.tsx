@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { hydrateAnyQuestions } from '@/utils/rubric-transform';
 import { validateAllQuestions } from '@/utils/rubric-validation';
-import type { Annotation, SelectionGroup } from '@/lib/api';
+import type { Annotation, SelectionGroup, PedagogicalMistakeWire } from '@/lib/api';
 import type { RubricQuestion } from '@/types/rubric';
 import { LabFrame } from './LabFrame';
 
@@ -63,6 +63,10 @@ function loadFixture(name: string) {
         questions: hydrateAnyQuestions(raw.questions),
         selectionGroups: (raw.selection_groups ?? []) as SelectionGroup[],
         name: (raw.name as string | undefined) ?? name,
+        // PR-6b card states compose the fixture's OWN GT canon — hobby carries the
+        // steps-wire root fix + explained_by shadows, so the shots are authentic.
+        pedagogicalMistakes: (raw.pedagogical_mistakes ?? []) as PedagogicalMistakeWire[],
+        gtAnnotations: (raw.annotations ?? []) as Annotation[],
     };
 }
 
@@ -76,8 +80,12 @@ export default function DesignLab({ searchParams }: { searchParams: { fixture?: 
             : 'bagrut_899371';
     const state = searchParams.state ?? 'at-rest';
 
-    const { questions, selectionGroups, name } = fixture === 'markers_demo'
-        ? { questions: markersDemoQuestions(), selectionGroups: [] as SelectionGroup[], name: 'markers_demo (synthetic)' }
+    const { questions, selectionGroups, name, pedagogicalMistakes, gtAnnotations } = fixture === 'markers_demo'
+        ? {
+            questions: markersDemoQuestions(), selectionGroups: [] as SelectionGroup[],
+            name: 'markers_demo (synthetic)',
+            pedagogicalMistakes: [] as PedagogicalMistakeWire[], gtAnnotations: [] as Annotation[],
+        }
         : loadFixture(fixture);
 
     // "findings" state surfaces the REAL client-validator output (authentic anchors).
@@ -100,11 +108,12 @@ export default function DesignLab({ searchParams }: { searchParams: { fixture?: 
     return (
         <LabFrame
             questions={questions}
-            annotations={annotations}
+            annotations={state.startsWith('cards') ? gtAnnotations : annotations}
             selectionGroups={selectionGroups}
             rubricName={name}
             fixture={fixture}
             state={state}
+            pedagogicalMistakes={pedagogicalMistakes}
         />
     );
 }

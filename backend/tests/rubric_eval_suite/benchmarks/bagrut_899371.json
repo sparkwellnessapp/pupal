@@ -59,25 +59,25 @@
               "criteria": [
                 {
                   "criterion_id": "q1.א.2.c0",
-                  "description": "הבנת הבדיקה של \"מחלק ללא שארית\"~  1.5 נק'",
-                  "points": 1.5,
                   "index": 0,
-                  "sub_criteria": [],
+                  "description": "הבנת הבדיקה של \"מחלק ללא שארית\"~  1.5 נק'",
+                  "points": "1.5",
                   "evaluation_guidance": null,
                   "skill_targets": [],
                   "requirements": [],
+                  "sub_criteria": [],
                   "extraction_confidence": null,
                   "notes": null
                 },
                 {
                   "criterion_id": "q1.א.2.c1",
-                  "description": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו  0.5 נק'",
-                  "points": 0.5,
                   "index": 1,
-                  "sub_criteria": [],
+                  "description": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו  0.5 נק'",
+                  "points": "0.5",
                   "evaluation_guidance": null,
                   "skill_targets": [],
                   "requirements": [],
+                  "sub_criteria": [],
                   "extraction_confidence": null,
                   "notes": null
                 }
@@ -131,25 +131,25 @@
               "criteria": [
                 {
                   "criterion_id": "q1.ב.2.c0",
-                  "description": "זיהוי שמדובר בפעולת סכימה של איברי המערך – 2 נק'",
-                  "points": 2,
                   "index": 0,
-                  "sub_criteria": [],
+                  "description": "זיהוי שמדובר בפעולת סכימה של איברי המערך – 2 נק'",
+                  "points": "2",
                   "evaluation_guidance": null,
                   "skill_targets": [],
                   "requirements": [],
+                  "sub_criteria": [],
                   "extraction_confidence": null,
                   "notes": null
                 },
                 {
                   "criterion_id": "q1.ב.2.c1",
-                  "description": "הגדרה נכונה של תנאי הסכימה (איברים שיש להם מחלק אחר במערך) 2  נק'",
-                  "points": 2,
                   "index": 1,
-                  "sub_criteria": [],
+                  "description": "הגדרה נכונה של תנאי הסכימה (איברים שיש להם מחלק אחר במערך) 2  נק'",
+                  "points": "2",
                   "evaluation_guidance": null,
                   "skill_targets": [],
                   "requirements": [],
+                  "sub_criteria": [],
                   "extraction_confidence": null,
                   "notes": null
                 }
@@ -1024,23 +1024,34 @@
       "kind": "point_sum_mismatch",
       "severity": "warning",
       "target_id": "q1.א.2",
-      "explanation": "רכיבי סעיף 2 מסתכמים ל-2.0 אך נקודות הסעיף הן 3.0.",
+      "explanation": "רכיבי סעיף 2 מסתכמים ל-2.0 אך נקודות הסעיף הן 3.",
       "evidence": {
         "children_sum": "2.0",
-        "declared": "3.0"
+        "declared": "3"
       },
       "suggested_fix": {
         "operation": "adjust_points",
         "description": "עדכני את הניקוד המוצהר ל-2",
-        "params": {
-          "target": "sub_question",
-          "field": "points",
-          "new_value": "2.0",
-          "current_value": "3.0"
-        }
+        "params": {},
+        "steps": [
+          {
+            "op": "set_points",
+            "scope": "q1.א.2",
+            "criterion_index": null,
+            "to_scope": null,
+            "text": null,
+            "value": "2.0",
+            "current_value": "3"
+          }
+        ]
       },
       "requires_teacher_input": true,
-      "confidence": 1.0
+      "confidence": 1.0,
+      "explained_by": null,
+      "dismissed": null,
+      "dismissed_at": null,
+      "fix_applied": null,
+      "fix_applied_at": null
     }
   ],
   "approach_classes": [],
@@ -1050,7 +1061,11 @@
       "severity": "warning",
       "message": "סכום רכיבי הניקוד בסעיף א.2 הוא 2 נק' אך המורה הצהיר \"ניקוד: 3 נקודות\"",
       "target_id": "q1.א.2",
-      "id": "gt-q1-a2-sum"
+      "id": "gt-q1-a2-sum",
+      "invariant": null,
+      "expected": null,
+      "actual": null,
+      "message_he": null
     }
   ],
   "extraction_metadata": {},

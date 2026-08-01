@@ -19,7 +19,9 @@ const OUT = path.join('design', 'shots', `iter-${ITER}`);
 mkdirSync(OUT, { recursive: true });
 
 const FIXTURES = ['markers_demo', 'bagrut_899371', 'csharp_plane_combine', 'employee_course_select1', 'foundations_cs', 'hobby_tvshow'];
-const STATES = ['at-rest', 'findings', 'solutions-expanded'];
+// 'cards-open' (PR-6b) composes each fixture's OWN GT pedagogical canon into
+// finding cards — hobby shows the steps-wire root proposal + explained_by shadows.
+const STATES = ['at-rest', 'findings', 'solutions-expanded', 'cards-open'];
 const VIEWPORTS = [{ w: 1440, h: 900 }, { w: 1280, h: 800 }];
 
 async function waitForServer(page) {
@@ -89,10 +91,24 @@ try {
 
         // D9 — where a rail click actually LANDS (the title, below the header offset).
         await drive('rail-landing', async () => {
+            // ^-anchored: PR-6's collapse toggles are named «הרחיבי/כווצי שאלה 4»
+            // and collide with an unanchored regex (strict-mode double match).
             await page.getByRole('navigation', { name: 'מפת המחוון' })
-                .getByRole('button', { name: /שאלה 4/ }).click();
+                .getByRole('button', { name: /^שאלה 4/ }).click();
             await page.waitForTimeout(1200);
         });
+
+        // ── PR-6b: the finding LIFECYCLE on hobby (the fixture whose GT carries the
+        // steps-wire root fix + explained_by shadows). cards-open is covered by the
+        // STATES matrix; these two capture what one click / one dismissal leaves.
+        for (const st of ['cards-resolved', 'cards-dismissed']) {
+            await page.goto(`${BASE}/design-lab?fixture=hobby_tvshow&state=${st}`, { waitUntil: 'networkidle' });
+            await page.waitForTimeout(450);
+            const file = path.join(OUT, `hobby_tvshow_${st}_${vp.w}.png`);
+            await page.screenshot({ path: file, fullPage: true });
+            console.log('  shot', file);
+            n++;
+        }
 
         await ctx.close();
     }
