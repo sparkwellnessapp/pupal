@@ -254,9 +254,17 @@ export interface PedagogicalMistakeWire {
   target_id?: string | null;
   explanation: string;
   evidence?: Record<string, unknown> | null;
-  suggested_fix?: { operation: string; description: string; params?: Record<string, unknown> | null } | null;
+  suggested_fix?: {
+    operation: string;
+    description: string;
+    params?: Record<string, unknown> | null;
+    /** The general edit wire (pipeline ≥ 3.6.0): ordered primitive steps. */
+    steps?: Array<Record<string, unknown>> | null;
+  } | null;
   requires_teacher_input?: boolean;
   confidence?: number;
+  /** D3 — mistake_id of the root cause whose single fix resolves this one too. */
+  explained_by?: string | null;
   /** §4 — her decisions are data, and they round-trip. */
   dismissed?: boolean | null;
   dismissed_at?: string | null;

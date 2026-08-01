@@ -25,6 +25,9 @@ import type { RubricQuestion } from '@/types/rubric';
 import type { ValidationIssue } from '@/utils/rubric-validation';
 import { safeParseFloat } from '@/utils/rubric-transform';
 import { formatPoints } from '@/utils/rubric-display';
+import { FIX_STEP_OPS, canApplySteps, type FixStep } from '@/utils/edit-steps';
+
+export type { FixStep } from '@/utils/edit-steps';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Wire shape (the subset we consume; the generated type is wider)
@@ -37,9 +40,17 @@ export interface PedagogicalMistakeLike {
     target_id?: string | null;
     explanation: string;
     evidence?: Record<string, unknown> | null;
-    suggested_fix?: { operation: string; description: string; params?: Record<string, unknown> | null } | null;
+    suggested_fix?: {
+        operation: string;
+        description: string;
+        params?: Record<string, unknown> | null;
+        /** The general edit wire (pipeline ≥ 3.6.0). */
+        steps?: Array<Record<string, unknown>> | null;
+    } | null;
     requires_teacher_input?: boolean;
     confidence?: number;
+    /** D3 — the root mistake whose single fix resolves this shadow too. */
+    explained_by?: string | null;
     /** §4 provenance — her decisions are data, and they round-trip. */
     dismissed?: boolean | null;
     dismissed_at?: string | null;
@@ -91,13 +102,21 @@ export type FindingKind =
 export type FindingStatus = 'open' | 'resolved' | 'dismissed';
 export type FindingVariant = 'blocking_fix' | 'advisory_fix' | 'advisory_info';
 
-/** A machine-applicable correction: set a declared value to the sum already stated. */
+/**
+ * A machine-applicable correction on the GENERAL EDIT WIRE: an ordered list of
+ * primitive steps the interpreter applies atomically (edit-steps.ts). The label
+ * is the button; the steps are the machine payload and never leak into copy.
+ */
 export interface FindingFix {
-    target: 'question' | 'sub_question' | 'rubric';
-    newValue: number;
-    currentValue: number;
-    /** Primary button label, e.g. «עדכני את הניקוד המוצהר ל-2». */
+    /** Primary button label, e.g. «העבירי את רכיב PrintLowRatingChannel לסעיף ג'». */
     label: string;
+    steps: FixStep[];
+    /**
+     * The displaced value, for the «בקובץ המקורי מצוין X» residual — present only
+     * when the fix is a single declared-value adjustment (a structural plan has
+     * no single number the original document "still says").
+     */
+    displayCurrentValue: number | null;
 }
 
 export interface Finding {
@@ -119,6 +138,12 @@ export interface Finding {
     explanation: string | null;
     confidence: ConfidenceRegister;
     fix: FindingFix | null;
+    /**
+     * D3 root-cause subordination: set when this finding is a SHADOW of another
+     * mistake whose single fix resolves it too. A shadow never offers a local
+     * fix — the card points at the root instead.
+     */
+    explainedBy: { mistakeId: string; scopeId: string | null } | null;
     /** Provenance key (§4) — which mistake records her decision. */
     mistakeId: string | null;
     /** Annotation ids this finding covers — the A4 ack mapping joins on these. */
@@ -171,23 +196,59 @@ function num(v: unknown): number | null {
     return Number.isFinite(n) ? n : null;
 }
 
+/** A single declared-value adjustment shows the displaced number as a residual. */
+function displacedValueOf(steps: FixStep[]): number | null {
+    if (steps.length !== 1) return null;
+    const s = steps[0];
+    if (s.op !== 'set_points' || s.criterion_index !== null && s.criterion_index !== undefined) return null;
+    return num(s.current_value ?? null);
+}
+
+function stepsFix(steps: FixStep[], label: string): FindingFix | null {
+    if (!steps.length || !label) return null;
+    return { label, steps, displayCurrentValue: displacedValueOf(steps) };
+}
+
+/** One legacy declared-value adjustment as a modern single-step plan. */
+function singleSetPoints(scope: string, newValue: number, currentValue: number | null): FixStep[] {
+    return [{
+        op: 'set_points', scope, value: String(newValue),
+        current_value: currentValue === null ? null : String(currentValue),
+    }];
+}
+
 /**
- * The one-click proposal. Prefers the detector's payload (pipeline ≥ 3.5.0, ONE
- * owner of fix semantics) and falls back to deriving from `evidence`.
+ * The one-click proposal, on the GENERAL EDIT WIRE. Three arms, newest first:
  *
- * The fallback is NOT belt-and-braces: every draft saved before 3.5.0 carries
- * `suggested_fix: null` forever, and those rubrics must still offer the fix when
- * she reopens them. `evidence` has always held the numbers.
+ *   1. `steps` (pipeline ≥ 3.6.0) — the detector's own plan, taken verbatim
+ *      after an op sanity check. ONE owner of fix semantics.
+ *   2. Legacy `adjust_points` params (3.5.0 drafts) — translated into the
+ *      equivalent single set_points step at this boundary, so everything
+ *      downstream speaks ONE representation.
+ *   3. `evidence` (pre-3.5.0 drafts, suggested_fix: null forever) — the numbers
+ *      were always there; synthesized the same way.
  */
 export function deriveFix(m: PedagogicalMistakeLike): FindingFix | null {
     const sf = m.suggested_fix;
+
+    if (sf?.steps?.length) {
+        const steps = sf.steps as unknown as FixStep[];
+        if (steps.every((s) => (FIX_STEP_OPS as readonly string[]).includes(s.op) && typeof s.scope === 'string')) {
+            return stepsFix(steps, sf.description);
+        }
+        return null;   // an op we don't know is a plan we must not offer
+    }
+
     if (sf && sf.operation === 'adjust_points' && sf.params) {
         const p = sf.params as Record<string, unknown>;
         const newValue = num(p.new_value);
         const currentValue = num(p.current_value);
-        const target = p.target as FindingFix['target'] | undefined;
-        if (newValue !== null && currentValue !== null && target) {
-            return { target, newValue, currentValue, label: fixLabel(target, newValue) };
+        const target = p.target as 'question' | 'sub_question' | 'rubric' | undefined;
+        if (newValue !== null && target) {
+            const scope = target === 'rubric' ? 'rubric' : (m.target_id ?? '');
+            if (!scope) return null;
+            return stepsFix(singleSetPoints(scope, newValue, currentValue),
+                sf.description || fixLabel(scope, newValue));
         }
     }
 
@@ -197,14 +258,12 @@ export function deriveFix(m: PedagogicalMistakeLike): FindingFix | null {
     const newValue = num(ev.children_sum) ?? num(ev.achievable);
     const currentValue = num(ev.declared) ?? num(ev.declared_total);
     if (newValue === null || currentValue === null) return null;
-    const target: FindingFix['target'] =
-        m.target_id === null || m.target_id === undefined ? 'rubric'
-            : m.target_id.includes('.') ? 'sub_question' : 'question';
-    return { target, newValue, currentValue, label: fixLabel(target, newValue) };
+    const scope = m.target_id ?? 'rubric';
+    return stepsFix(singleSetPoints(scope, newValue, currentValue), fixLabel(scope, newValue));
 }
 
-function fixLabel(target: FindingFix['target'], newValue: number): string {
-    return target === 'rubric'
+function fixLabel(scope: string, newValue: number): string {
+    return scope === 'rubric'
         ? `עדכני את סך נקודות המחוון ל-${formatPoints(newValue)}`
         : `עדכני את הניקוד המוצהר ל-${formatPoints(newValue)}`;
 }
@@ -255,12 +314,20 @@ export function composeFindings(
         if (!b.mistake) b.mistake = m;
     }
 
+    // D3 — resolve each shadow's root so its card can point there.
+    const rootScopeById = new Map<string, string | null>();
+    for (const m of pedagogicalMistakes) rootScopeById.set(m.mistake_id, m.target_id ?? null);
+
     const out: Finding[] = [];
-    buckets.forEach((b, key) => out.push(finish(key, b)));
+    buckets.forEach((b, key) => out.push(finish(key, b, rootScopeById, _questions)));
     return out;
 }
 
-function finish(key: string, b: Bucket): Finding {
+function finish(
+    key: string, b: Bucket,
+    rootScopeById: Map<string, string | null>,
+    questions?: RubricQuestion[],
+): Finding {
     const m = b.mistake;
     const hasLiveBlocker = b.live.length > 0;
 
@@ -285,7 +352,17 @@ function finish(key: string, b: Bucket): Finding {
             : (b.annotations.some((a) => a.severity === 'error') ? 'error'
                 : (b.live.length || b.annotations.length || m ? 'warning' : 'info'));
 
-    const fix = m ? deriveFix(m) : null;
+    // D3 — a SHADOW never derives a local fix, not even from the evidence
+    // fallback: its root's single fix is the one answer, and a competing local
+    // correction ("scale ב's criteria") would be actively wrong.
+    const explainedBy = m?.explained_by
+        ? { mistakeId: m.explained_by, scopeId: rootScopeById.get(m.explained_by) ?? null }
+        : null;
+    let fix = m && !explainedBy ? deriveFix(m) : null;
+    // Preflight: a plan that no longer applies to the CURRENT tree (she edited
+    // structurally since extraction) is withdrawn, never mis-applied.
+    if (fix && questions && !canApplySteps(questions, fix.steps)) fix = null;
+
     const variant: FindingVariant =
         status === 'open' && hasLiveBlocker && fix ? 'blocking_fix'
             : fix ? 'advisory_fix'
@@ -308,6 +385,7 @@ function finish(key: string, b: Bucket): Finding {
         explanation: m ? hedge(m.explanation, register) : null,
         confidence: register,
         fix,
+        explainedBy,
         mistakeId: m?.mistake_id ?? null,
         annotationIds: b.annotations.map((a) => a.id).filter(Boolean),
     };

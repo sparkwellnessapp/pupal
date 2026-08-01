@@ -121,8 +121,11 @@ def test_expressibility_round_trip_all_fixtures():
         "hobby_tvshow": 1.0,
     }
     from app.services.docx_v3.pedagogical_mistakes import (
-        detect_pedagogical_mistakes, _ALLOWED_TIER_B_KINDS,
+        detect_pedagogical_mistakes, _ROOT_KINDS,
     )
+    # The Tier-B leash moved into the transport schema itself (Literal kinds);
+    # _ROOT_KINDS is its merge-side remnant: the kinds Tier B may APPEND.
+    tier_b_kinds = set(_ROOT_KINDS.values())
     for j in sorted(BENCH.glob("*.json")):
         gt = ExtractRubricResponse.model_validate_json(j.read_text(encoding="utf-8"))
         resp = run_tail(gt_to_extraction(gt), j.stem)
@@ -135,7 +138,7 @@ def test_expressibility_round_trip_all_fixtures():
         # Tier-B-expected entries (hobby's structural_mislabel) from GT — those are
         # LLM judgments, tested live and in the mocked Tier-B tests, not here.
         tier_b_expected = [m for m in (gt.pedagogical_mistakes or [])
-                           if m.kind in _ALLOWED_TIER_B_KINDS]
+                           if m.kind in tier_b_kinds]
         tier_a_real = detect_pedagogical_mistakes(resp, rendered_markdown="", llm=None)
         resp = resp.model_copy(update={"pedagogical_mistakes": tier_a_real + tier_b_expected})
         rs = score_only(resp, gt, "x", meta={"rubric_name": j.stem})

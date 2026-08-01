@@ -8,10 +8,13 @@ Two properties the UI depends on and could not previously rely on:
      bare `sub_question_id` cannot be paired with its own live blocker, and is
      ambiguous besides (every question has a 'א').
 
-  2. FIX. A point-sum mismatch carries a real `SuggestedFix` whose new value is
-     the node's OWN children-sum — nothing invented. `requires_teacher_input`
-     stays True: it means "never apply without her", which a one-click proposal
-     she must click implements rather than overrides.
+  2. FIX. A point-sum mismatch carries a real `SuggestedFix` expressed on the
+     GENERAL EDIT WIRE — an ordered list of EditSteps the client applies
+     atomically. Tier A's own (fallback) fix sets the DECLARED value to the
+     node's OWN children-sum — nothing invented; Tier B may replace it with a
+     smarter plan. `requires_teacher_input` stays True: it means "never apply
+     without her", which a one-click proposal she must click implements rather
+     than overrides.
 
 Selection-normalization deliberately has NO fix: its intent is unknowable, and
 proposing a number there would fabricate teacher content.
@@ -66,10 +69,15 @@ def test_point_sum_fix_proposes_the_nodes_own_children_sum():
     assert m.suggested_fix is not None, "the one-click proposal must exist in the payload"
     fix = m.suggested_fix
     assert fix.operation == "adjust_points"
-    assert fix.params["new_value"] == "2.0"          # 1.5 + 0.5 — HER arithmetic
-    assert fix.params["current_value"] == "3"
-    assert fix.params["target"] == "sub_question"
-    assert fix.params["field"] == "points"
+    # The general edit wire: ONE set_points step, addressed by the same dotted
+    # scope path the mistake anchors on — the client applies steps, never params.
+    assert len(fix.steps) == 1
+    step = fix.steps[0]
+    assert step.op == "set_points"
+    assert step.scope == "q1.א.2"
+    assert step.value == "2.0"                       # 1.5 + 0.5 — HER arithmetic
+    assert step.current_value == "3"
+    assert fix.params == {}, "params is the LEGACY shape; new emissions use steps only"
     # teacher-facing number carries no trailing zeros
     assert fix.description == "עדכני את הניקוד המוצהר ל-2"
 
@@ -86,10 +94,9 @@ def test_question_level_fix_targets_total_points():
                  criteria=[_crit("c1", "10"), _crit("c2", "11")], sub_questions=[])
     draft = ExtractRubricResponse(rubric_name="t", total_points=Decimal("21"), questions=[q])
     m = next(m for m in _detect(draft) if m.target_id == "q1")
-    assert m.suggested_fix.params == {
-        "target": "question", "field": "total_points",
-        "new_value": "21", "current_value": "40",
-    }
+    step = m.suggested_fix.steps[0]
+    assert (step.op, step.scope, step.value, step.current_value) == \
+        ("set_points", "q1", "21", "40")
 
 
 def test_rubric_level_fix_uses_the_achievable_total():
@@ -98,8 +105,9 @@ def test_rubric_level_fix_uses_the_achievable_total():
     draft = ExtractRubricResponse(rubric_name="t", total_points=Decimal("100"), questions=[q])
     m = next(m for m in _detect(draft) if m.target_id is None
              and m.kind == PedagogicalMistakeKind.POINT_SUM_MISMATCH)
-    assert m.suggested_fix.params["target"] == "rubric"
-    assert m.suggested_fix.params["new_value"] == "21"
+    step = m.suggested_fix.steps[0]
+    assert step.scope == "rubric"
+    assert step.value == "21"
     assert m.suggested_fix.description == "עדכני את סך נקודות המחוון ל-21"
 
 

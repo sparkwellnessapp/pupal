@@ -20,7 +20,7 @@ function buildUpdatePayload(
     loadedDraft: Record<string, unknown> | null,
     dehydratedQuestions: unknown[],
     declaredTotal: number,
-) {
+): Record<string, unknown> & { questions: unknown[]; total_points: number; num_questions: number } {
     return {
         ...(loadedDraft ?? {}),
         questions: dehydratedQuestions,

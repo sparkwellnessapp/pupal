@@ -12,67 +12,31 @@
  * that is what closes the card. Resolution is never static bookkeeping.
  */
 
-import type { RubricQuestion, RubricSubQuestion } from '@/types/rubric';
-import {
-    changeQuestionPoints, changeSubQuestionPointsAtPath,
-} from '@/utils/rubric-editor-ops';
+import type { RubricQuestion } from '@/types/rubric';
+import { applyEditSteps, type AppliedSteps } from '@/utils/edit-steps';
 import type { Finding, PedagogicalMistakeLike } from '@/utils/findings';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scope resolution — a finding speaks in scope ids, the ops speak in indices
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface ScopePath { qIndex: number; sqPath: number[] }
-
-/**
- * Resolve a dotted scope id (`q1`, `q1.א`, `q1.א.2`) to the (qIndex, sqPath) the
- * pure ops address. Returns null when the id names no node in the CURRENT tree —
- * which happens legitimately after a structural edit, and must degrade to "no
- * fix offered" rather than to a wrong write.
- */
-export function resolveScopePath(questions: RubricQuestion[], scopeId: string | null): ScopePath | null {
-    if (!scopeId) return null;
-    const parts = scopeId.split('.');
-    const qIndex = questions.findIndex((q) => q.question_id === parts[0]);
-    if (qIndex < 0) return null;
-
-    const sqPath: number[] = [];
-    let level: RubricSubQuestion[] = questions[qIndex].sub_questions ?? [];
-    for (let d = 1; d < parts.length; d++) {
-        const idx = level.findIndex((sq) => sq.sub_question_id === parts[d]);
-        if (idx < 0) return null;              // the path does not resolve — offer nothing
-        sqPath.push(idx);
-        level = level[idx].sub_questions ?? [];
-    }
-    return { qIndex, sqPath };
-}
+// Scope resolution moved to edit-steps.ts (the interpreter needs it and the
+// module graph must stay a DAG); the public API is unchanged.
+export { resolveScopePath, type ScopePath } from '@/utils/edit-steps';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // §3 — apply the proposal
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Apply a finding's fix to the question tree, through the EXISTING pure ops
- * (imported, never forked — the mirror's correctness invariant).
+ * Apply a finding's fix through the ONE edit-steps interpreter (which itself
+ * routes every mutation through the existing pure ops — imported, never forked,
+ * the mirror's correctness invariant).
  *
- * Sets the node's DECLARED value to the sum its own children already state. No
- * redistribution, no rescaling of children: the number comes from her rubric, and
- * the E-3 cascade then makes the arithmetic visible.
- *
- * Returns the input unchanged when there is nothing to apply — a rubric-level fix
- * targets the declared total, which lives outside `questions` and is applied by the
- * caller through onTotalPointsChange.
+ * Returns null when the plan does not apply to the CURRENT tree (she edited
+ * structurally since composition) — the caller must then change nothing.
+ * `declaredTotal`, when present, is the rubric-level value the caller applies
+ * through its own handler (it lives outside `questions`).
  */
-export function applyFindingFix(questions: RubricQuestion[], finding: Finding): RubricQuestion[] {
-    const fix = finding.fix;
-    if (!fix || fix.target === 'rubric') return questions;
-
-    const path = resolveScopePath(questions, finding.scopeId);
-    if (!path) return questions;
-
-    return fix.target === 'question'
-        ? changeQuestionPoints(questions, path.qIndex, fix.newValue)
-        : changeSubQuestionPointsAtPath(questions, path.qIndex, path.sqPath, fix.newValue);
+export function applyFindingFix(questions: RubricQuestion[], finding: Finding): AppliedSteps | null {
+    if (!finding.fix) return null;
+    return applyEditSteps(questions, finding.fix.steps);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

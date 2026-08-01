@@ -917,11 +917,16 @@ export default function Home() {
     // fix with nothing to undo — «בטלי» would have no stack entry to pop, and the
     // one-mechanism promise would quietly be a two-mechanism lie.
     applyFix: (f: Finding) => {
-      if (f.fix?.target === 'rubric') {
+      // ONE interpreter applies the whole plan atomically; null means the tree
+      // has drifted since composition and nothing may be touched (composition's
+      // preflight normally withholds the button before it comes to this).
+      const applied = applyFindingFix(extractedQuestions, f);
+      if (!applied) return;
+      if (applied.declaredTotal !== undefined) {
         // The declared total lives outside `questions`; INV-R3 closes the finding.
-        handleTotalPointsChange(f.fix.newValue);
+        handleTotalPointsChange(applied.declaredTotal);
       } else {
-        handleQuestionsEdited(applyFindingFix(extractedQuestions, f));
+        handleQuestionsEdited(applied.questions);
       }
       setPedagogicalMistakes((ms) => recordFixApplied(ms, f.mistakeId));
     },

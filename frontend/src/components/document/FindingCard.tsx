@@ -60,10 +60,10 @@ export function FindingCard({
         return (
             <Settled icon={<Check size={15} className="flex-shrink-0 mt-0.5 text-emerald-600" />}>
                 <span className="text-emerald-700">תוקן במחוון</span>
-                {fix && (
+                {fix?.displayCurrentValue != null && (
                     <>
                         <span className="text-surface-400"> · </span>
-                        <span>בקובץ המקורי עדיין מצוין {formatPoints(fix.currentValue)}</span>
+                        <span>בקובץ המקורי עדיין מצוין {formatPoints(fix.displayCurrentValue)}</span>
                     </>
                 )}
                 <button
@@ -91,7 +91,10 @@ export function FindingCard({
     }
 
     // ── OPEN ─────────────────────────────────────────────────────────────────
-    const blocking = variant === 'blocking_fix';
+    // A live invariant violation is blocking even when no one-click fix exists
+    // (a D3 SHADOW deliberately has none): the compiler will reject it, so the
+    // card must not soften into a lightbulb suggestion.
+    const blocking = variant === 'blocking_fix' || finding.hasLiveBlocker || finding.severity === 'error';
     return (
         <div
             data-finding-key={finding.key}
@@ -111,9 +114,23 @@ export function FindingCard({
                         <p className="text-doc-meta text-surface-600">{finding.explanation}</p>
                     )}
                     {/* PAST TENSE ONLY — the document, never a claim about the editor. */}
-                    {fix && (
+                    {fix?.displayCurrentValue != null && (
                         <p className="text-doc-meta text-surface-500">
-                            בקובץ המקורי מצוין {formatPoints(fix.currentValue)}
+                            בקובץ המקורי מצוין {formatPoints(fix.displayCurrentValue)}
+                        </p>
+                    )}
+                    {/* D3 — a shadow points at its root instead of offering a local fix. */}
+                    {finding.explainedBy && (
+                        <p className="text-doc-meta text-surface-600">
+                            נובע כנראה מטעות אחרת שזוהתה —
+                            {' '}
+                            <button
+                                type="button"
+                                onClick={() => onJump({ ...finding, scopeId: finding.explainedBy!.scopeId })}
+                                className="underline decoration-surface-300 underline-offset-2 hover:text-surface-900"
+                            >עברי לממצא המקורי</button>
+                            {' '}
+                            — התיקון המוצע שם פותר גם את זה.
                         </p>
                     )}
                 </div>

@@ -61,7 +61,13 @@ describe('composeFindings — the q1.א.2 TRINITY is ONE card', () => {
 
     it('carries the fix and the provenance + ack keys', () => {
         const f = findings[0];
-        expect(f.fix).toEqual({ target: 'sub_question', newValue: 2, currentValue: 3, label: 'עדכני את הניקוד המוצהר ל-2' });
+        // Legacy adjust_points params translate into ONE set_points step at the
+        // boundary — everything downstream speaks the general edit wire.
+        expect(f.fix).toEqual({
+            label: 'עדכני את הניקוד המוצהר ל-2',
+            steps: [{ op: 'set_points', scope: 'q1.א.2', value: '2', current_value: '3' }],
+            displayCurrentValue: 3,
+        });
         expect(f.mistakeId).toBe('pts:q1.א.2');
         expect(f.annotationIds).toEqual(['rubric_mismatch:q1.א.2']);
     });
@@ -125,14 +131,49 @@ describe('lifecycle — resolution is driven by LIVE recomputation, not bookkeep
     });
 });
 
-describe('deriveFix — payload first, evidence as the pre-3.5.0 fallback', () => {
-    it('uses the detector payload when present', () => {
-        expect(deriveFix(mistake({}))).toMatchObject({ target: 'sub_question', newValue: 2, currentValue: 3 });
+describe('deriveFix — steps first, legacy params, then pre-3.5.0 evidence', () => {
+    it('takes a steps payload verbatim (pipeline ≥ 3.6.0 — ONE owner of fix semantics)', () => {
+        const modern = mistake({
+            mistake_id: 'adj:q2:structural_mislabel', kind: 'structural_mislabel', target_id: 'q2',
+            suggested_fix: {
+                operation: 'reassign_subquestion',
+                description: "העבירי את רכיב PrintLowRatingChannel לסעיף ג'",
+                steps: [
+                    { op: 'move_text', scope: 'q2.ב', to_scope: 'q2.ג', text: 'ג. כתבו' },
+                    { op: 'move_criterion', scope: 'q2.ב', criterion_index: 6, to_scope: 'q2.ג' },
+                    { op: 'set_points', scope: 'q2.ג', value: '16' },
+                ],
+            },
+        });
+        const fix = deriveFix(modern)!;
+        expect(fix.label).toBe("העבירי את רכיב PrintLowRatingChannel לסעיף ג'");
+        expect(fix.steps.map((s) => s.op)).toEqual(['move_text', 'move_criterion', 'set_points']);
+        expect(fix.displayCurrentValue).toBeNull();   // a structural plan has no single number
+    });
+
+    it('REFUSES a plan containing an op it does not know', () => {
+        const future = mistake({
+            suggested_fix: {
+                operation: 'x', description: 'd',
+                steps: [{ op: 'delete_question', scope: 'q1' }],
+            },
+        });
+        expect(deriveFix(future)).toBeNull();
+    });
+
+    it('translates legacy adjust_points params into one set_points step', () => {
+        expect(deriveFix(mistake({}))).toMatchObject({
+            steps: [{ op: 'set_points', scope: 'q1.א.2', value: '2', current_value: '3' }],
+            displayCurrentValue: 3,
+        });
     });
 
     it('falls back to evidence for drafts saved before the payload existed', () => {
         const legacy = mistake({ suggested_fix: null });
-        expect(deriveFix(legacy)).toMatchObject({ target: 'sub_question', newValue: 2, currentValue: 3 });
+        expect(deriveFix(legacy)).toMatchObject({
+            steps: [{ op: 'set_points', scope: 'q1.א.2', value: '2', current_value: '3' }],
+            displayCurrentValue: 3,
+        });
     });
 
     it('rubric-level legacy uses achievable vs declared_total', () => {
@@ -140,11 +181,42 @@ describe('deriveFix — payload first, evidence as the pre-3.5.0 fallback', () =
             mistake_id: 'pts:rubric', target_id: null, suggested_fix: null,
             evidence: { achievable: '90', declared_total: '100' },
         });
-        expect(deriveFix(legacy)).toMatchObject({ target: 'rubric', newValue: 90, currentValue: 100 });
+        expect(deriveFix(legacy)).toMatchObject({
+            steps: [{ op: 'set_points', scope: 'rubric', value: '90', current_value: '100' }],
+            displayCurrentValue: 100,
+        });
     });
 
     it('proposes NOTHING when there is nothing to propose', () => {
         expect(deriveFix(mistake({ kind: 'selection_normalization', suggested_fix: null, evidence: { choose_k: 1 } }))).toBeNull();
+    });
+});
+
+describe('D3 — a shadow points at its root and never offers a local fix', () => {
+    const root = mistake({
+        mistake_id: 'adj:q2:structural_mislabel', kind: 'structural_mislabel', target_id: 'q2',
+        suggested_fix: {
+            operation: 'reassign_subquestion', description: 'העבירי',
+            steps: [{ op: 'move_criterion', scope: 'q2.ב', criterion_index: 6, to_scope: 'q2.ג' }],
+        },
+    });
+    const shadow = mistake({
+        mistake_id: 'pts:q2.ב', target_id: 'q2.ב',
+        suggested_fix: null, explained_by: 'adj:q2:structural_mislabel',
+    });
+
+    it('the shadow composes fixless with explainedBy resolved to the root scope', () => {
+        const f = composeFindings([], [live({ target_id: 'q2.ב' })], [root, shadow]);
+        const s = f.find((x) => x.scopeId === 'q2.ב')!;
+        expect(s.fix).toBeNull();
+        expect(s.explainedBy).toEqual({ mistakeId: 'adj:q2:structural_mislabel', scopeId: 'q2' });
+    });
+
+    it('even the evidence fallback cannot resurrect a local fix on a shadow', () => {
+        const f = composeFindings([], [], [mistake({
+            target_id: 'q2.ב', suggested_fix: null, explained_by: 'adj:q2:structural_mislabel',
+        })]);
+        expect(f[0].fix).toBeNull();   // evidence held the numbers, and was still refused
     });
 });
 

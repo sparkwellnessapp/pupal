@@ -14,7 +14,6 @@ from app.schemas.ontology_types import (
 )
 from app.services.docx_v3 import pedagogical_mistakes as pm
 from app.services.docx_v3 import parser_render as pr
-from app.services.docx_v3.pedagogical_mistakes import AdjudicationResult
 from tests.rubric_eval_suite import reporting
 from tests.rubric_eval_suite.schemas import AnnotationCheck, RubricScore
 
@@ -69,36 +68,96 @@ def test_trigger_fires_only_on_real_mislabel():
     print("  [ok] declared-vs-extracted trigger: 1 true fire, 0 false fires across 4 consistent exams")
 
 
-def test_tier_b_adjudication_and_leash():
+def _hobby_root_finding(**over):
+    """The canonical batched Tier-B answer for hobby q2 — the D5 full fix."""
+    base = dict(
+        kind="structural_mislabel", target_id="q2",
+        explanation="במחוון, רכיבי PrintLowRatingChannel נלכדו תחת סעיף ב' אך תואמים את סעיף ג'.",
+        fix=pm.FixProposal(
+            description="העבירי את רכיבי PrintLowRatingChannel לסעיף ג'",
+            steps=[pm.EditStepOut(op="move_text", scope="q2.ב", to_scope="q2.ג", text="ג. כתבו"),
+                   pm.EditStepOut(op="move_criterion", scope="q2.ב", criterion_index=6, to_scope="q2.ג"),
+                   pm.EditStepOut(op="set_points", scope="q2.ג", value="16")]),
+        resolves=["q2", "q2.ב"], confidence=0.95)
+    base.update(over)
+    return pm.AdjudicatedFinding(**base)
+
+
+def test_tier_b_batched_adjudication_root_cause_and_subordination():
+    """D6+D3: ONE call for q2 carrying ALL its anomalies; the root-cause fix is a
+    steps plan; both point-sum shadows are subordinated (explained_by, no local fix)."""
     hobby, prose = _draft("hobby_tvshow"), _prose("hobby_tvshow")
+    calls = []
 
     def good_llm(*, system, user, schema):
-        assert schema is AdjudicationResult and "PrintLowRatingChannel" in user
-        return AdjudicationResult(
-            is_mistake=True, kind=PedagogicalMistakeKind.STRUCTURAL_MISLABEL, target_id="q2",
-            explanation="רכיב PrintLowRatingChannel שייך לסעיף ג.",
-            suggested_operation="reassign_subquestion",
-            suggested_params={"from": "ב", "to": "ג"},
-            suggested_description="העברה לסעיף ג.", confidence=0.92)
+        calls.append(user)
+        assert schema is pm.QuestionAdjudication
+        # The batched prompt carries the numbered spec, the precomputed deltas,
+        # and EVERY q2 anomaly in one place — that is what makes root-cause
+        # reasoning possible.
+        assert "[6]" in user and "PrintLowRatingChannel" in user
+        assert "target=q2.ב" in user and "target=q2" in user and "אנומליה מבנית" in user
+        return pm.QuestionAdjudication(findings=[_hobby_root_finding()])
 
     out = pm.detect_pedagogical_mistakes(hobby, prose, llm=good_llm)
-    adj = [m for m in out if m.mistake_id.startswith("adj:")]
-    assert len(adj) == 1 and adj[0].kind == PedagogicalMistakeKind.STRUCTURAL_MISLABEL
-    assert adj[0].suggested_fix.params["to"] == "ג"
-    print("  [ok] Tier B turns the trigger into a structural_mislabel + reassign fix")
+    assert len(calls) == 1, "one anomalous question ⇒ exactly one Tier-B call"
 
-    # leash: a kind outside the allowed Tier-B set is dropped
-    def stray_llm(*, system, user, schema):
-        return AdjudicationResult(is_mistake=True, kind=PedagogicalMistakeKind.POINT_SUM_MISMATCH,
-                                  target_id="q2", explanation="x", confidence=0.9)
-    assert [m for m in pm.detect_pedagogical_mistakes(hobby, prose, llm=stray_llm)
-            if m.mistake_id.startswith("adj:")] == []
-    # not-a-mistake -> nothing
-    def nomis_llm(*, system, user, schema):
-        return AdjudicationResult(is_mistake=False, confidence=0.8)
-    assert [m for m in pm.detect_pedagogical_mistakes(hobby, prose, llm=nomis_llm)
-            if m.mistake_id.startswith("adj:")] == []
-    print("  [ok] taxonomy leash + conservative is_mistake=false both honored")
+    root = next(m for m in out if m.mistake_id == "adj:q2:structural_mislabel")
+    assert root.kind == PedagogicalMistakeKind.STRUCTURAL_MISLABEL
+    assert root.suggested_fix.operation == "reassign_subquestion"
+    ops = [s.op for s in root.suggested_fix.steps]
+    assert ops == ["move_text", "move_criterion", "set_points"]
+    assert root.suggested_fix.steps[1].criterion_index == 6
+
+    for target in ("q2", "q2.ב"):
+        shadow = next(m for m in out if m.mistake_id == f"pts:{target}")
+        assert shadow.explained_by == "adj:q2:structural_mislabel", shadow
+        assert shadow.suggested_fix is None, "a shadow must not offer a competing local fix"
+    print("  [ok] batched Tier B: root-cause steps fix + both shadows subordinated")
+
+
+def test_tier_b_point_fix_attach_and_leash():
+    hobby, prose = _draft("hobby_tvshow"), _prose("hobby_tvshow")
+
+    # D6: Tier B may replace a point mismatch's fallback with a smarter child edit…
+    def child_edit_llm(*, system, user, schema):
+        return pm.QuestionAdjudication(findings=[pm.AdjudicatedFinding(
+            kind="point_sum_mismatch", target_id="q2.ב",
+            explanation="נקודות הרכיבים בסעיף ב' אינן מסתכמות לניקוד המוצהר.",
+            fix=pm.FixProposal(description="עדכני את הקריטריון האחרון ל-0",
+                               steps=[pm.EditStepOut(op="set_points", scope="q2.ב",
+                                                     criterion_index=6, value="0", current_value="16")]),
+            confidence=0.8)])
+    out = pm.detect_pedagogical_mistakes(hobby, prose, llm=child_edit_llm)
+    m = next(x for x in out if x.mistake_id == "pts:q2.ב")
+    assert m.suggested_fix.steps[0].criterion_index == 6 and m.suggested_fix.steps[0].value == "0"
+    assert m.confidence == 1.0, "detection confidence stays factual; only the fix was adjudicated"
+    assert m.explained_by is None
+
+    # …but may NOT invent an anomaly (unknown target ⇒ ignored)…
+    def invent_llm(*, system, user, schema):
+        return pm.QuestionAdjudication(findings=[pm.AdjudicatedFinding(
+            kind="point_sum_mismatch", target_id="q2.ז", explanation="x",
+            fix=pm.FixProposal(description="d", steps=[pm.EditStepOut(op="set_points", scope="q2.ז", value="1")]),
+            confidence=0.9)])
+    out2 = pm.detect_pedagogical_mistakes(hobby, prose, llm=invent_llm)
+    assert {m.mistake_id for m in out2} == {m.mistake_id for m in
+                                           pm.detect_pedagogical_mistakes(hobby, prose, llm=None)}
+
+    # …an unknown `resolves` target is ignored, never guessed…
+    def stray_resolves_llm(*, system, user, schema):
+        return pm.QuestionAdjudication(findings=[_hobby_root_finding(resolves=["q9", "q2.ב"])])
+    out3 = pm.detect_pedagogical_mistakes(hobby, prose, llm=stray_resolves_llm)
+    assert next(m for m in out3 if m.mistake_id == "pts:q2.ב").explained_by is not None
+    assert next(m for m in out3 if m.mistake_id == "pts:q2").explained_by is None
+
+    # …and an empty adjudication keeps the deterministic fallback fixes intact.
+    def silent_llm(*, system, user, schema):
+        return pm.QuestionAdjudication(findings=[])
+    out4 = pm.detect_pedagogical_mistakes(hobby, prose, llm=silent_llm)
+    fallback = next(m for m in out4 if m.mistake_id == "pts:q2")
+    assert fallback.suggested_fix is not None and fallback.suggested_fix.steps[0].op == "set_points"
+    print("  [ok] point-fix attach honored; invention, stray resolves and silence all degrade safely")
 
 
 def test_degrades_without_llm():
@@ -141,14 +200,14 @@ def test_renderer_strikethrough_and_color():
 
 
 def test_tier_b_schema_strict_valid():
-    """B2/B3 regression: the REAL transport schema for AdjudicationResult must be
+    """B2/B3 regression: the REAL transport schema for QuestionAdjudication must be
     OpenAI-strict-valid. The fake-LLM seam bypasses schema serialization entirely —
     which is how a deterministic 400 (free-form Dict params lacking
-    additionalProperties:false at properties.suggested_params.anyOf[0]) hid for the
-    detector's entire life; Tier B had never succeeded end-to-end. This walks the
-    OpenAI SDK's own strict converter — the wire path with_structured_output uses
-    for json_schema mode. (Private SDK module: if an SDK upgrade moves it, this
-    import breaks LOUDLY — re-point it, do not delete the guard.)"""
+    additionalProperties:false) hid for the old detector's entire life; Tier B had
+    never succeeded end-to-end. This walks the OpenAI SDK's own strict converter —
+    the wire path with_structured_output uses for json_schema mode. (Private SDK
+    module: if an SDK upgrade moves it, this import breaks LOUDLY — re-point it,
+    do not delete the guard.)"""
     from openai.lib._pydantic import to_strict_json_schema
 
     def violations(node, path="$"):
@@ -164,17 +223,20 @@ def test_tier_b_schema_strict_valid():
                 out += violations(v, f"{path}[{i}]")
         return out
 
-    schema = to_strict_json_schema(pm.AdjudicationResult)
+    schema = to_strict_json_schema(pm.QuestionAdjudication)
     bad = violations(schema)
     assert not bad, f"strict-invalid object nodes (would 400 at transport): {bad}"
 
-    # consumer contract: alias 'from' accepted on input; params dict shape preserved
-    p = pm.SuggestedParams.model_validate({"from": "ב", "to": "ג"})
-    assert p.as_params_dict() == {"from": "ב", "to": "ג"}
-    r = pm.AdjudicationResult(is_mistake=True, confidence=0.9,
-                              suggested_params={"from": "ב", "to": "ג"})
-    assert r.suggested_params.as_params_dict() == {"from": "ב", "to": "ג"}
-    print("  [ok] AdjudicationResult schema strict-valid; 'from' alias round-trips")
+    # Consumer contract: a transport EditStepOut converts losslessly to the wire
+    # EditStep, and the ontology op-leash accepts exactly the transport Literal set.
+    from app.schemas.ontology_types import EDIT_OPS, EditStep
+    step = pm.EditStepOut(op="move_criterion", scope="q2.ב", criterion_index=6, to_scope="q2.ג")
+    wire = EditStep(**step.model_dump())
+    assert (wire.op, wire.scope, wire.criterion_index, wire.to_scope) == ("move_criterion", "q2.ב", 6, "q2.ג")
+    import typing
+    literal_ops = set(typing.get_args(pm.EditStepOut.model_fields["op"].annotation))
+    assert literal_ops == set(EDIT_OPS), "transport Literal and ontology EDIT_OPS must not drift"
+    print("  [ok] QuestionAdjudication schema strict-valid; EditStep transport↔wire agree")
 
 
 def test_tier_b_failure_surfaces_warning():
@@ -271,7 +333,8 @@ if __name__ == "__main__":
     test_tier_a_point_sum_mismatch()
     test_tier_a_selection_normalization()
     test_trigger_fires_only_on_real_mislabel()
-    test_tier_b_adjudication_and_leash()
+    test_tier_b_batched_adjudication_root_cause_and_subordination()
+    test_tier_b_point_fix_attach_and_leash()
     test_degrades_without_llm()
     test_tier_b_failure_keeps_tier_a()
     test_renderer_strikethrough_and_color()

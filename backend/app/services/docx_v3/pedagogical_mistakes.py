@@ -17,10 +17,14 @@ Two tiers, split by DECIDABILITY (deterministic decides *when* to look; the LLM 
                                   was approximating. This does NOT decide a mislabel; it hands
                                   a bounded question to Tier B.
 
-  TIER B — ONE structured LLM call per trigger, read-only, scoped to the closed
-    PedagogicalMistakeKind taxonomy. Given the scope spec + rendered text + the anomaly,
-    it adjudicates ("is this a genuine mislabel, and what's the probable fix?") and returns a
-    PedagogicalMistake or nothing. No agent, no tool loop, no mutation of the Draft.
+  TIER B — ONE structured LLM call PER ANOMALOUS QUESTION (D6), read-only, scoped
+    to the closed PedagogicalMistakeKind taxonomy. It receives every anomaly the
+    question exhibits at once — structural trigger + point-sum mismatches — names
+    the root cause, proposes the fix as an ordered list of EditSteps (the general
+    edit wire), and marks which anomalies that one fix resolves (explained_by, D3).
+    Detection of point-sum facts stays Tier A's; Tier B only chooses fixes. No
+    agent, no tool loop, no mutation of the Draft. When Tier B cannot run, every
+    point mismatch keeps its deterministic adjust-declared fallback fix.
 
 The Draft stays FAITHFUL; mistakes live only here; fixes apply only at Contract time on
 teacher approval. This pass is read-only and structurally cannot violate that.
@@ -32,12 +36,12 @@ import re
 from collections import Counter
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Callable, Dict, List, Optional, Protocol
+from typing import Callable, Dict, List, Literal, Optional, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...schemas.ontology_types import (
-    AnnotationSeverity, ExtractRubricResponse, PedagogicalMistake,
+    AnnotationSeverity, EditStep, ExtractRubricResponse, PedagogicalMistake,
     PedagogicalMistakeKind, Question, SelectionGroup, SubQuestion, SuggestedFix,
     compute_achievable_points,
 )
@@ -98,25 +102,26 @@ def _fmt_points(d: Decimal) -> str:
     return s.rstrip("0").rstrip(".") if "." in s else s
 
 
-def _adjust_points_fix(new_value: Decimal, current: Decimal, target: str, field_name: str) -> SuggestedFix:
-    """The one-click correction for a point-sum mismatch: set the DECLARED value to
-    the sum the node's own children already state.
+def _adjust_points_fix(new_value: Decimal, current: Decimal, scope: str) -> SuggestedFix:
+    """The DETERMINISTIC fallback correction for a point-sum mismatch: set the
+    DECLARED value to the sum the node's own children already state.
 
     It INVENTS NOTHING — `new_value` is the teacher's own arithmetic read back to
-    her (§2 FC). `requires_teacher_input` stays True on the mistake it rides on:
-    that flag means "never apply without the teacher", and a one-click PROPOSAL she
-    must click is that flag implemented, not overridden.
+    her (§2 FC), which is exactly why it is the only fix Tier A may emit on its
+    own: when Tier B is unavailable (budget/disabled), a proposal that fabricates
+    no number is the only safe degrade. When Tier B runs, it may REPLACE this fix
+    with a smarter one (reassign / child edits) per the decision ladder.
+
+    `requires_teacher_input` stays True on the mistake it rides on: that flag
+    means "never apply without the teacher", and a one-click PROPOSAL she must
+    click is that flag implemented, not overridden.
     """
     return SuggestedFix(
         operation="adjust_points",
-        description=(f"עדכני את סך נקודות המחוון ל-{_fmt_points(new_value)}" if target == "rubric"
+        description=(f"עדכני את סך נקודות המחוון ל-{_fmt_points(new_value)}" if scope == "rubric"
                      else f"עדכני את הניקוד המוצהר ל-{_fmt_points(new_value)}"),
-        params={
-            "target": target,
-            "field": field_name,
-            "new_value": str(new_value),
-            "current_value": str(current),
-        },
+        steps=[EditStep(op="set_points", scope=scope,
+                        value=str(new_value), current_value=str(current))],
     )
 
 
@@ -132,7 +137,7 @@ def _check_point_sums(draft: ExtractRubricResponse) -> List[PedagogicalMistake]:
                 explanation=(f"רכיבי שאלה {q.question_id} מסתכמים ל-{s} אך הניקוד המוצהר הוא "
                              f"{q.total_points}."),
                 evidence={"children_sum": str(s), "declared_total": str(q.total_points)},
-                suggested_fix=_adjust_points_fix(s, q.total_points, "question", "total_points"),
+                suggested_fix=_adjust_points_fix(s, q.total_points, q.question_id),
                 requires_teacher_input=True, confidence=1.0))
         for path, sq in _walk_sub_questions(q):
             ss = _node_children_sum(sq)
@@ -144,7 +149,7 @@ def _check_point_sums(draft: ExtractRubricResponse) -> List[PedagogicalMistake]:
                     explanation=(f"רכיבי סעיף {sq.sub_question_id} מסתכמים ל-{ss} אך נקודות הסעיף הן "
                                  f"{sq.points}."),
                     evidence={"children_sum": str(ss), "declared": str(sq.points)},
-                    suggested_fix=_adjust_points_fix(ss, sq.points, "sub_question", "points"),
+                    suggested_fix=_adjust_points_fix(ss, sq.points, path),
                     requires_teacher_input=True, confidence=1.0))
     # whole-rubric (selection-aware): achievable vs declared total
     ach = compute_achievable_points(draft.questions, draft.selection_groups)
@@ -156,7 +161,7 @@ def _check_point_sums(draft: ExtractRubricResponse) -> List[PedagogicalMistake]:
             explanation=(f"הניקוד הניתן להשגה ({ach}) אינו תואם את סך נקודות המחוון "
                          f"({draft.total_points})."),
             evidence={"achievable": str(ach), "declared_total": str(draft.total_points)},
-            suggested_fix=_adjust_points_fix(ach, draft.total_points, "rubric", "total_points"),
+            suggested_fix=_adjust_points_fix(ach, draft.total_points, "rubric"),
             requires_teacher_input=True, confidence=1.0))
     return out
 
@@ -258,43 +263,55 @@ def detect_deterministic(draft: ExtractRubricResponse, rendered_markdown: str) -
 
 
 # =============================================================================
-# TIER B — LLM adjudication of a structural trigger (closed taxonomy, read-only)
+# TIER B — LLM adjudication, ONE batched call per anomalous question (D6).
+#
+# Tier A stays the only DETECTOR of point-sum facts (arithmetic is not a matter
+# of opinion). Tier B decides the FIX: given every anomaly a question exhibits —
+# structural trigger + point-sum mismatches together — it names the root cause,
+# proposes one fix as an ordered list of EditSteps (the general edit wire), and
+# marks which anomalies that single fix resolves (D3 subordination). Batching
+# per question is what makes root-cause reasoning possible at all: the hobby q2
+# mislabel explains BOTH of that question's point mismatches, and an adjudicator
+# shown one anomaly at a time could never see that.
 # =============================================================================
 
-class SuggestedParams(BaseModel):
-    """Closed, typed arg shape for Tier-B suggested operations (B2).
-
-    The previous `Optional[Dict[str, object]]` could never satisfy OpenAI strict
-    structured output — a free-form object has no way to declare
-    `additionalProperties: false`, so EVERY Tier B call 400'd at transport
-    (deterministically; Tier B had never succeeded end-to-end). The taxonomy's only
-    fix-bearing operation is reassign_subquestion, whose args are from/to labels.
-    `from` is a Python keyword -> field `from_label` with alias "from"
-    (populate_by_name lets callers use either). extra="forbid" makes pydantic emit
-    additionalProperties:false itself — the schema is strict-valid by construction.
-    New operations must extend THIS model (a new arg is a schema change, reviewable),
-    never regress to a free dict.
-    """
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
-    from_label: Optional[str] = Field(None, alias="from",
-                                      description="Source sub-question label, e.g. 'ב'.")
-    to: Optional[str] = Field(None, description="Target sub-question label, e.g. 'ג'.")
-
-    def as_params_dict(self) -> Dict[str, object]:
-        """The downstream SuggestedFix.params dict shape ({'from':…,'to':…})."""
-        return self.model_dump(by_alias=True, exclude_none=True)
+class EditStepOut(BaseModel):
+    """Strict transport twin of ontology EditStep (B2: extra='forbid' everywhere,
+    Literal op — the schema itself is the leash; the model cannot emit an op we
+    did not teach it)."""
+    model_config = ConfigDict(extra="forbid")
+    op: Literal["set_points", "move_criterion", "move_text"]
+    scope: str = Field(..., description="Dotted scope path ('q2', 'q2.ב') or 'rubric'.")
+    criterion_index: Optional[int] = Field(None, description="0-based [i] from the numbered spec.")
+    to_scope: Optional[str] = Field(None, description="Destination scope; created if absent.")
+    text: Optional[str] = Field(None, description="Verbatim substring to move (move_text).")
+    value: Optional[str] = Field(None, description="New points, decimal string (set_points).")
+    current_value: Optional[str] = Field(None, description="The current value (set_points).")
 
 
-class AdjudicationResult(BaseModel):
-    """Structured output contract for the Tier-B adjudicator LLM call."""
-    is_mistake: bool = Field(..., description="Is this a GENUINE teacher-induced error (not an innocent anomaly)?")
-    kind: Optional[PedagogicalMistakeKind] = Field(None, description="Only a kind from the provided taxonomy.")
-    target_id: Optional[str] = Field(None, description="Scope anchor (e.g. the question id).")
-    explanation: Optional[str] = Field(None, description="Hebrew, teacher-facing: what is wrong.")
-    suggested_operation: Optional[str] = Field(None, description="e.g. 'reassign_subquestion'; null if no fix.")
-    suggested_params: Optional[SuggestedParams] = Field(None, description="Operation args, e.g. {'from':'ב','to':'ג'}.")
-    suggested_description: Optional[str] = Field(None, description="Hebrew summary of the proposed fix.")
+class FixProposal(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    description: str = Field(..., description="Hebrew imperative one-liner — the button label.")
+    steps: List[EditStepOut] = Field(..., description="Ordered edits, applied atomically.")
+
+
+class AdjudicatedFinding(BaseModel):
+    """One decision: either a NEW root-cause finding (structural_mislabel /
+    orphan_criterion) or the chosen fix for a listed point-sum anomaly."""
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["structural_mislabel", "orphan_criterion", "point_sum_mismatch"]
+    target_id: str = Field(..., description="The anomaly's target exactly as listed; for a new structural finding, the question id.")
+    explanation: str = Field(..., description="Standalone Hebrew display copy for the teacher (per the output rules).")
+    fix: Optional[FixProposal] = Field(None, description="The proposed correction; null when none is safe to propose.")
+    resolves: List[str] = Field(default_factory=list,
+                                description="Targets of OTHER listed anomalies this finding's single fix settles.")
     confidence: float = Field(..., ge=0.0, le=1.0)
+
+
+class QuestionAdjudication(BaseModel):
+    """Structured output contract for the per-question Tier-B call."""
+    model_config = ConfigDict(extra="forbid")
+    findings: List[AdjudicatedFinding] = Field(default_factory=list)
 
 
 class StructuredLLM(Protocol):
@@ -303,78 +320,225 @@ class StructuredLLM(Protocol):
     def __call__(self, *, system: str, user: str, schema: type) -> BaseModel: ...
 
 
-_TIER_B_SYSTEM = (
-    "אתה מבקר/ת חילוץ מובנה של מחוון בחינה לאיתור טעויות שמקורן במורה. "
-    "מקבל/ת: אנומליה מבנית שזוהתה דטרמיניסטית, מפרט תתי-הסעיפים של השאלה, וטקסט המחוון המעובד. "
-    "עליך להכריע האם מדובר בטעות פדגוגית אמיתית, ואם כן — מהו התיקון הסביר ביותר.\n"
-    "כללים: (1) דווח/י אך ורק על kind מתוך הטקסונומיה הסגורה שסופקה. "
-    "(2) היה/י שמרן/ית: אם לאנומליה יש הסבר תמים (למשל הסעיף באמת קיים תחת שם אחר, או הקריטריון "
-    "מפנה לפעולה מסעיף אחר באופן לגיטימי) — החזר/י is_mistake=false. "
-    "(3) להכרעת שיוך: השווה/י את תוכן הקריטריון (שמות פעולות, תיאור) למפרט תתי-הסעיפים, ובסס/י את "
-    "ההצעה על התאמת תוכן, לא על הניסוח בלבד. (4) confidence משקף/ת את חד-משמעיות ההתאמה."
-)
+_TIER_B_SYSTEM = """את מבקרת האיכות של חילוץ מחווני בחינה ב-Vivi, ויועצת התיקונים שלה.
 
-# Only these kinds may be returned by the adjudicator (the leash).
-_ALLOWED_TIER_B_KINDS = (
-    PedagogicalMistakeKind.STRUCTURAL_MISLABEL,
-    PedagogicalMistakeKind.ORPHAN_CRITERION,
-)
+הקשר: המחוון חולץ בנאמנות מלאה למסמך המקור — כולל טעויות של המורה. את מקבלת,
+עבור שאלה אחת: מפרט ממוספר (עם סכומים והפרשים מחושבים), את טקסטי הסעיפים,
+ואת רשימת האנומליות שזוהו דטרמיניסטית. תפקידך להכריע מהי טעות-השורש ולהציע את
+התיקון הסביר ביותר. ההצעה מוגשת תמיד למורה לאישור; היא לעולם אינה מוחלת
+אוטומטית.
+
+עקרונות יסוד:
+1. שמרנות: אנומליה מבנית שיש לה הסבר תמים (הסעיף קיים תחת שם אחר; הקריטריון
+   מפנה כדין לפעולה מסעיף אחר) — אינה ממצא; אל תחזירי עבורה דבר. אי-התאמת
+   נקודות היא עובדה חשבונית — היא תמיד ממצא, והשאלה היחידה היא מהו התיקון.
+2. שקיפות: כל ערך מוצע נגזר באופן גלוי מהמסמך — ערך שהמורה כתבה, או חשבון
+   פשוט עליו — ומנומק בהסבר.
+3. תיקון-שורש אחד: טעות אחת מטילה כמה צללים — אי-התאמות סכום בכמה רמות, סעיף
+   חסר. זהי את טעות-השורש, הציעי עבורה תיקון אחד שמיישב את כולם, וסמני
+   ב-resolves את שאר האנומליות שהוא מיישב — אל תחזירי להן finding נפרד ואל
+   תציעי להן תיקון-סכום מקומי.
+
+סדר ההכרעה לאי-התאמת נקודות (עברי לפי הסדר; עצרי בכלל הראשון שמתקיים):
+א. שיוך שגוי: השתמשי בהפרש (delta) המחושב שסופק. אם קיים קריטריון (או קבוצה)
+   שנקודותיו שוות בדיוק ל-delta ותוכנו (שמות פעולות, מושגים, ניסוח) תואם סעיף
+   אחר — זהו תיקון-השורש: העבירי אותו לסעיפו הנכון. ודאי שההעברה מיישבת גם את
+   סכום השאלה כולה. אם סעיף היעד לא חולץ כלל — ההעברה תיצור אותו, והעבירי אליו
+   ב-move_text גם את קטע הטקסט השייך לו מתוך הסעיף שבו נלכד בטעות.
+ב. טעות-סופר בערך בודד: אם שינוי של ערך אחד ברכיב אחד, לערך עגול וסביר, מיישב
+   את החשבון — הציעי את השינוי הזה בלבד.
+ג. ברירת המחדל — המוצהר הוא הסמכות: התאימי את נקודות הרכיבים אל הסך המוצהר.
+   אל תפזרי את ההפרש על כל הרכיבים; שני רכיב אחד או שניים בלבד, בחרי את אלה
+   שההתאמה בהם סבירה ביותר פדגוגית, ושמרי על ערכים עגולים — שלמים או חצאים
+   בלבד.
+ד. עקיפה מנומקת: אם הראיות מצביעות בבירור על טעות בכותרת דווקא (רכיבים עגולים
+   ועקביים שמסתכמים יפה; ערך מוצהר חריג) — הציעי לעדכן את הערך המוצהר, ונמקי.
+
+פעולות התיקון (steps — רשימה סדורה, מוחלת כיחידה אחת):
+* set_points — קביעת ניקוד: scope (נתיב הסעיף/השאלה, "rubric" לסך המחוון, או
+  קריטריון בעזרת criterion_index), value (מחרוזת עשרונית), current_value.
+* move_criterion — העברת קריטריון: scope + criterion_index של המקור, to_scope
+  היעד.
+* move_text — העברת קטע טקסט: scope המקור, to_scope היעד, text — ציטוט מדויק,
+  מילה במילה, מתוך טקסט הסעיף שסופק במפרט. לעולם אל תנסחי מחדש ואל תצטטי
+  מהמסמך המעובד — רק מטקסט הסעיף.
+יעד (to_scope) שאינו קיים ייווצר אוטומטית — כך יוצרים סעיף חסר. סעיף שנוצר כך
+מקבל אוטומטית ניקוד השווה לסכום הקריטריונים שהועברו אליו; הוסיפי set_points
+עבורו רק אם הניקוד הנכון שונה מסכום זה.
+criterion_index מפנה לאינדקסים [i] שבמפרט הממוספר.
+
+confidence: ‎0.9 ומעלה — התאמה חד-משמעית (delta מדויק + התאמת תוכן);
+‎0.7–0.9 — התאמה טובה עם אי-ודאות קלה; מתחת ל-0.7 — עדיין הציעי את התיקון
+הטוב ביותר, ונסחי את ההסבר בזהירות בהתאם.
+
+כללי פלט (מחייבים):
+- explanation: טקסט תצוגה עצמאי המופנה למורה, בלשון נקבה. לעולם לא תשובה
+  לשאלה — אל תפתחי ב"כן"/"לא" ואל תתארי את תהליך הבדיקה. מבנה: מה לא מסתדר
+  במסמך → מהי טעות-השורש → מה יעשה התיקון.
+- description (של fix): כותרת כפתור — משפט ציווי אחד, קצר וקונקרטי, למשל:
+  "העבירי את רכיבי PrintLowRatingChannel לסעיף ג'".
+- kind: אך ורק structural_mislabel / orphan_criterion / point_sum_mismatch.
+- target_id: בדיוק ה-target של האנומליה מהרשימה (לממצא-שורש מבני: מזהה
+  השאלה)."""
 
 
-def _scope_spec(draft: ExtractRubricResponse, question_id: str) -> str:
+@dataclass
+class QuestionAnomalies:
+    """Everything anomalous about ONE question — the unit of a Tier-B call."""
+    question_id: str
+    trigger: Optional[MislabelTrigger] = None
+    point_mistakes: List[PedagogicalMistake] = field(default_factory=list)
+
+
+def _bundle_anomalies(draft: ExtractRubricResponse, tier_a: TierAResult) -> List[QuestionAnomalies]:
+    """Group Tier-A anomalies by root question, in draft order. The rubric-level
+    mismatch (target None) stays deterministic (D4), and selection_normalization
+    is deliberately never adjudicated (D8: intent unknowable)."""
+    by_q: Dict[str, QuestionAnomalies] = {}
+    for m in tier_a.mistakes:
+        if m.kind is not PedagogicalMistakeKind.POINT_SUM_MISMATCH or not m.target_id:
+            continue
+        qid = m.target_id.split(".")[0]
+        by_q.setdefault(qid, QuestionAnomalies(question_id=qid)).point_mistakes.append(m)
+    for t in tier_a.triggers:
+        by_q.setdefault(t.question_id, QuestionAnomalies(question_id=t.question_id)).trigger = t
+    order = {q.question_id: i for i, q in enumerate(draft.questions)}
+    return sorted(by_q.values(), key=lambda b: order.get(b.question_id, len(order)))
+
+
+def _question_spec(draft: ExtractRubricResponse, question_id: str) -> str:
+    """The numbered spec Tier B reasons over: per node — declared vs children-sum
+    vs delta (precomputed; the model corroborates arithmetic, never performs it),
+    the node's verbatim text (the ONLY legal source for move_text quotes), and its
+    criteria enumerated with the [i] indices the EditStep wire joins on."""
     q = next((q for q in draft.questions if q.question_id == question_id), None)
     if q is None:
         return ""
-    lines = [f"שאלה {q.question_id} (סה\"כ {q.total_points}):"]
-    for sq in q.sub_questions:
-        lines.append(f"  סעיף {sq.sub_question_id} ({sq.points}):")
-        for c in sq.all_criteria:
-            lines.append(f"    - [{c.points}] {c.description}")
-    for c in q.criteria:
-        lines.append(f"  - [{c.points}] {c.description}")
+    lines: List[str] = []
+
+    def node_line(label: str, declared: Decimal, children_sum: Decimal) -> str:
+        delta = abs(declared - children_sum)
+        return (f"{label} — ניקוד מוצהר: {_fmt_points(declared)}; "
+                f"סכום רכיביו: {_fmt_points(children_sum)}; הפרש: {_fmt_points(delta)}")
+
+    def emit_criteria(node) -> None:
+        for i, c in enumerate(node.criteria):
+            lines.append(f"  [{i}] ({_fmt_points(c.points)} נק') {c.description}")
+
+    lines.append(node_line(f"שאלה {q.question_id}", q.total_points, _node_children_sum(q)))
+    if q.question_text:
+        lines.append(f"טקסט השאלה:\n<<<\n{q.question_text}\n>>>")
+    if q.criteria:
+        lines.append("קריטריונים ישירים:")
+        emit_criteria(q)
+    for path, sq in _walk_sub_questions(q):
+        lines.append("")
+        lines.append(node_line(f"סעיף {path}", sq.points, _node_children_sum(sq)))
+        if sq.text:
+            lines.append(f"טקסט הסעיף (ציטוטי move_text — מכאן בלבד, מילה במילה):\n<<<\n{sq.text}\n>>>")
+        if sq.criteria:
+            emit_criteria(sq)
     return "\n".join(lines)
 
 
-def _build_user_prompt(trigger: MislabelTrigger, draft: ExtractRubricResponse,
-                       rendered_markdown: str) -> str:
-    taxonomy = ", ".join(k.value for k in _ALLOWED_TIER_B_KINDS)
+def _anomaly_block(bundle: QuestionAnomalies) -> str:
+    lines = ["האנומליות להכרעה:"]
+    for m in bundle.point_mistakes:
+        s = m.evidence.get("children_sum")
+        d = m.evidence.get("declared") or m.evidence.get("declared_total")
+        lines.append(f"- target={m.target_id} — אי-התאמת נקודות: סכום הרכיבים {s} ≠ מוצהר {d}")
+    if bundle.trigger:
+        t = bundle.trigger
+        lines.append(f"- target={t.question_id} — אנומליה מבנית: ניסוח השאלה מצהיר סעיפים "
+                     f"{t.declared}, אך חולצו {t.extracted} (חסרים: {t.missing}; עודפים: {t.extra})")
+    return "\n".join(lines)
+
+
+def _build_question_prompt(bundle: QuestionAnomalies, draft: ExtractRubricResponse,
+                           rendered_markdown: str) -> str:
     return (
-        f"טקסונומיה מותרת (kind): {taxonomy}\n\n"
-        f"אנומליה מבנית (שאלה {trigger.question_id}): "
-        f"ניסוח השאלה מצהיר על סעיפים {trigger.declared}, אך חולצו {trigger.extracted}. "
-        f"חסרים: {trigger.missing}; עודפים: {trigger.extra}.\n\n"
-        f"מפרט תתי-הסעיפים שחולצו:\n{_scope_spec(draft, trigger.question_id)}\n\n"
-        f"טקסט המחוון המעובד (לאימות תוכן):\n{rendered_markdown}\n\n"
-        "האם זו טעות פדגוגית אמיתית? אם כן — באיזה סעיף אמור הקריטריון להופיע, ומהו התיקון?"
+        f"{_question_spec(draft, bundle.question_id)}\n\n"
+        f"{_anomaly_block(bundle)}\n\n"
+        f"טקסט המסמך המלא (הקשר לאימות תוכן בלבד; ציטוטי move_text נלקחים אך ורק "
+        f"מטקסטי הסעיפים שבמפרט למעלה):\n{rendered_markdown}\n\n"
+        "משימה: הכריעי לפי סדר ההכרעה שבהנחיות והחזירי findings לפי כללי הפלט. "
+        "לכל אנומליה שהתיקון שלה נגזר מטעות-שורש אחרת — אל תחזירי finding נפרד; "
+        "כללי את ה-target שלה ב-resolves של ממצא-השורש."
     )
 
 
-def adjudicate(trigger: MislabelTrigger, draft: ExtractRubricResponse,
-               rendered_markdown: str, *, llm: StructuredLLM) -> Optional[PedagogicalMistake]:
+def adjudicate_question(bundle: QuestionAnomalies, draft: ExtractRubricResponse,
+                        rendered_markdown: str, *, llm: StructuredLLM) -> QuestionAdjudication:
     res = llm(system=_TIER_B_SYSTEM,
-              user=_build_user_prompt(trigger, draft, rendered_markdown),
-              schema=AdjudicationResult)
-    assert isinstance(res, AdjudicationResult)
-    if not res.is_mistake or res.kind is None:
+              user=_build_question_prompt(bundle, draft, rendered_markdown),
+              schema=QuestionAdjudication)
+    assert isinstance(res, QuestionAdjudication)
+    return res
+
+
+_ROOT_KINDS = {
+    "structural_mislabel": PedagogicalMistakeKind.STRUCTURAL_MISLABEL,
+    "orphan_criterion": PedagogicalMistakeKind.ORPHAN_CRITERION,
+}
+
+
+def _fix_from_proposal(p: Optional[FixProposal]) -> Optional[SuggestedFix]:
+    if p is None or not p.steps:
         return None
-    if res.kind not in _ALLOWED_TIER_B_KINDS:   # enforce the leash even if the model strays
-        return None
-    fix = None
-    if res.suggested_operation:
-        fix = SuggestedFix(operation=res.suggested_operation,
-                           description=res.suggested_description or "",
-                           params=(res.suggested_params.as_params_dict()
-                                   if res.suggested_params else {}))
-    return PedagogicalMistake(
-        mistake_id=f"adj:{trigger.question_id}:{res.kind.value}",
-        kind=res.kind, severity=AnnotationSeverity.WARNING,
-        target_id=res.target_id or trigger.question_id,
-        explanation=res.explanation or "",
-        evidence={"declared": trigger.declared, "extracted": trigger.extracted,
-                  "missing": trigger.missing, "extra": trigger.extra},
-        suggested_fix=fix,
-        requires_teacher_input=(fix is None),
-        confidence=res.confidence)
+    steps = [EditStep(**s.model_dump()) for s in p.steps]
+    # The operation label is analytics metadata; the client applies `steps` and
+    # never dispatches on it. A move-bearing plan is a reassignment; pure
+    # set_points is a point adjustment.
+    operation = ("reassign_subquestion" if any(s.op != "set_points" for s in steps)
+                 else "adjust_points")
+    return SuggestedFix(operation=operation, description=p.description, steps=steps)
+
+
+def _merge_adjudication(mistakes: List[PedagogicalMistake], bundle: QuestionAnomalies,
+                        adj: QuestionAdjudication) -> None:
+    """Fold Tier-B decisions into the Tier-A result set, deterministically.
+
+    The leash, restated for the batched contract: Tier B may APPEND only root-cause
+    kinds; for point_sum it may only ATTACH a fix to a mismatch Tier A already
+    proved (an unknown target is ignored, never invented). Subordinated shadows
+    keep their facts but lose their local fix — the root's single fix is the one
+    answer, and offering a competing local correction would be actively wrong
+    (hobby: "scale ב's criteria" next to "move the mislabeled criterion")."""
+    by_target = {m.target_id: m for m in bundle.point_mistakes}
+    for f in adj.findings:
+        if f.kind in _ROOT_KINDS:
+            fix = _fix_from_proposal(f.fix)
+            root = PedagogicalMistake(
+                mistake_id=f"adj:{bundle.question_id}:{f.kind}",
+                kind=_ROOT_KINDS[f.kind],
+                severity=AnnotationSeverity.WARNING,
+                target_id=f.target_id or bundle.question_id,
+                explanation=f.explanation,
+                evidence=({"declared": bundle.trigger.declared, "extracted": bundle.trigger.extracted,
+                           "missing": bundle.trigger.missing, "extra": bundle.trigger.extra}
+                          if bundle.trigger else {}),
+                suggested_fix=fix,
+                requires_teacher_input=(fix is None),
+                confidence=f.confidence)
+            mistakes.append(root)
+            for t in f.resolves:
+                shadow = by_target.get(t)
+                if shadow is None:
+                    continue
+                shadow.explained_by = root.mistake_id
+                shadow.suggested_fix = None
+        elif f.kind == "point_sum_mismatch":
+            m = by_target.get(f.target_id)
+            if m is None:
+                continue
+            fix = _fix_from_proposal(f.fix)
+            if fix is not None:
+                # The smarter fix replaces the deterministic fallback; detection
+                # confidence stays 1.0 — the mismatch is arithmetic fact, only
+                # the fix was adjudicated.
+                m.suggested_fix = fix
+                if f.explanation:
+                    m.explanation = f.explanation
 
 
 # =============================================================================
@@ -384,13 +548,15 @@ def adjudicate(trigger: MislabelTrigger, draft: ExtractRubricResponse,
 def detect_pedagogical_mistakes(draft: ExtractRubricResponse, rendered_markdown: str,
                                 *, llm: Optional[StructuredLLM] = None,
                                 warnings_sink: Optional[List[str]] = None) -> List[PedagogicalMistake]:
-    """Run Tier A always; Tier B only on triggers and only if an LLM is provided.
+    """Run Tier A always; Tier B once per anomalous question when an LLM is provided.
 
     Returns the list to assign to draft.pedagogical_mistakes. Pure w.r.t. the Draft
-    (never mutates it). With llm=None, returns Tier-A mistakes only (degrades safely).
+    (never mutates it). With llm=None, returns Tier-A mistakes only — every
+    point-sum mismatch still carries its deterministic adjust-declared fallback
+    fix, so the product degrades to the pre-D6 behaviour, never to no-fix.
 
     warnings_sink: optional list that receives a message per swallowed Tier-B failure
-    (B4). Per-trigger isolation is correct resilience but was an OBSERVABILITY hole:
+    (B4). Per-question isolation is correct resilience but was an OBSERVABILITY hole:
     the deterministic Tier-B schema-transport 400 lived only in stdout logs for the
     detector's entire life — a swallowed failure must surface in the caller's
     warnings so it reaches ExtractionResult.warnings / the eval artifacts.
@@ -398,22 +564,22 @@ def detect_pedagogical_mistakes(draft: ExtractRubricResponse, rendered_markdown:
     a = detect_deterministic(draft, rendered_markdown)
     mistakes = list(a.mistakes)
     if llm is not None:
-        for trig in a.triggers:
-            # Per-trigger isolation (the detector analog of the grader's per-scope
+        for bundle in _bundle_anomalies(draft, a):
+            # Per-question isolation (the detector analog of the grader's per-scope
             # degrade): a Tier-B failure — transport error, adjudicator construction
-            # failure, schema violation — skips THIS trigger and keeps everything
-            # already found. Tier-A results are deterministic facts; an LLM outage
-            # must never throw them away.
+            # failure, schema violation — skips THIS question's adjudication and
+            # keeps everything already found. Tier-A results are deterministic
+            # facts; an LLM outage must never throw them away.
             try:
-                m = adjudicate(trig, draft, rendered_markdown, llm=llm)
+                adj = adjudicate_question(bundle, draft, rendered_markdown, llm=llm)
             except Exception as e:
-                msg = (f"Tier B adjudication failed for trigger on {trig.question_id} "
-                       f"(missing={trig.missing}, extra={trig.extra}): {e} — "
-                       f"keeping Tier A results, skipping this trigger")
+                msg = (f"Tier B adjudication failed for {bundle.question_id} "
+                       f"({len(bundle.point_mistakes)} point anomaly(ies)"
+                       f"{', structural trigger' if bundle.trigger else ''}): {e} — "
+                       f"keeping Tier A results for this question")
                 logger.warning(msg)
                 if warnings_sink is not None:
                     warnings_sink.append(msg)
                 continue
-            if m is not None:
-                mistakes.append(m)
+            _merge_adjudication(mistakes, bundle, adj)
     return mistakes

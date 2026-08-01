@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
     BookOpen,
@@ -39,6 +39,7 @@ import { hydrateAnyQuestions, dehydrateQuestions } from '@/utils/rubric-transfor
 import { hasErrors, validateAllQuestions } from '@/utils/rubric-validation';
 import { safeParseFloat } from '@/utils/rubric-transform';
 import { composeFindings, advisoryScanStatus, type Finding } from '@/utils/findings';
+import { applyEditSteps } from '@/utils/edit-steps';
 import {
   applyFindingFix, recordFixApplied, clearFixApplied, recordDismissed, clearDismissed,
 } from '@/utils/findings-ops';
@@ -216,22 +217,52 @@ export default function MyRubricsPage() {
             setLoadedDraft((d) => ({ ...(d ?? {}), pedagogical_mistakes: fn(((d?.pedagogical_mistakes as PedagogicalMistakeWire[] | undefined) ?? [])) })),
         [],
     );
+    /**
+     * No E-1 undo stack on this surface, so «בטלי» restores a SNAPSHOT captured
+     * at apply time (cheap by structural sharing — the fixes route through the
+     * pure ops). A fix applied in a PREVIOUS session has no snapshot here; for
+     * a single point adjustment the displaced value is still on the step
+     * (current_value), so it can be reversed honestly — a structural plan
+     * cannot, and pretending otherwise would corrupt her tree, so the record
+     * is left standing and she is told to edit by hand.
+     */
+    const fixSnapshots = useRef(new Map<string, RubricQuestion[]>());
     const reopenedFindingActions = useMemo(() => ({
         applyFix: (f: Finding) => {
-            if (f.fix?.target !== 'rubric') setEditedQuestions((qs) => applyFindingFix(qs, f));
+            const applied = applyFindingFix(editedQuestions, f);
+            if (!applied) return;
+            if (applied.declaredTotal !== undefined) {
+                // This surface's declared total lives in the envelope it re-sends.
+                setLoadedDraft((d) => ({ ...(d ?? {}), total_points: String(applied.declaredTotal) }));
+            } else {
+                if (f.mistakeId) fixSnapshots.current.set(f.mistakeId, editedQuestions);
+                setEditedQuestions(applied.questions);
+            }
             patchMistakes((ms) => recordFixApplied(ms, f.mistakeId));
         },
-        // No E-1 undo stack on this surface, so «בטלי» restores the value directly
-        // from the fix's own record of what the document said.
         undoFix: (f: Finding) => {
-            if (f.fix && f.fix.target !== 'rubric') {
-                setEditedQuestions((qs) => applyFindingFix(qs, { ...f, fix: { ...f.fix!, newValue: f.fix!.currentValue } }));
+            const snap = f.mistakeId ? fixSnapshots.current.get(f.mistakeId) : undefined;
+            if (snap) {
+                setEditedQuestions(snap);
+                fixSnapshots.current.delete(f.mistakeId!);
+            } else if (f.fix && f.fix.steps.length === 1 && f.fix.steps[0].op === 'set_points'
+                && f.fix.steps[0].current_value != null) {
+                const s = f.fix.steps[0];
+                const inverse = applyEditSteps(editedQuestions,
+                    [{ ...s, value: s.current_value, current_value: s.value }]);
+                if (inverse && inverse.declaredTotal === undefined) setEditedQuestions(inverse.questions);
+                else if (inverse?.declaredTotal !== undefined) {
+                    setLoadedDraft((d) => ({ ...(d ?? {}), total_points: String(inverse.declaredTotal) }));
+                }
+            } else if (f.fix) {
+                window.alert('לא ניתן לבטל אוטומטית תיקון מבני משיחה קודמת — ערכי את הסעיפים ידנית.');
+                return;   // the record stays true: the fix IS still applied
             }
             patchMistakes((ms) => clearFixApplied(ms, f.mistakeId));
         },
         dismiss: (f: Finding) => patchMistakes((ms) => recordDismissed(ms, f.mistakeId)),
         reopen: (f: Finding) => patchMistakes((ms) => clearDismissed(ms, f.mistakeId)),
-    }), [patchMistakes]);
+    }), [patchMistakes, editedQuestions]);
     const [editedName, setEditedName] = useState('');
     const [editedDescription, setEditedDescription] = useState('');
     const [isSaving, setIsSaving] = useState(false);

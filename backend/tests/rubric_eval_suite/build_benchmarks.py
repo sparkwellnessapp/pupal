@@ -161,6 +161,15 @@ def build_hobby_tvshow():
     # Teacher-induced rubric error: PrintLowRatingChannel is tagged 'סעיף ב' but its content is the
     # ג operation. The Draft stays FAITHFUL (it sits under ב); the detector records the mislabel + a
     # suggested reassignment for the teacher to approve in RubricEditor.
+    #
+    # ⚠️ BOOTSTRAP ONLY — benchmarks/hobby_tvshow.json is the MAINTAINED canon and has
+    # evolved past what this builder can produce: GT texts were populated separately
+    # (PR-1 text instrument), and 2026-07-31 the pedagogical canon moved to the
+    # steps-wire (adj:q2:structural_mislabel with a move_text/move_criterion plan whose
+    # carve quote needs ב's TEXT, which this builder does not have) + explained_by
+    # subordination on pts:q2 / pts:q2.ב. Re-running this file OVERWRITES that canon.
+    # See RUNLOG "the general fix wire (EditSteps)". The block below is the ORIGINAL
+    # bootstrap shape, kept for provenance.
     r.pedagogical_mistakes.append(PedagogicalMistake(
         mistake_id="hobby_q2_mislabel", kind=PedagogicalMistakeKind.STRUCTURAL_MISLABEL,
         severity=AnnotationSeverity.WARNING, target_id="q2",

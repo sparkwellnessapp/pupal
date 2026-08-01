@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Optional, Self, Set
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_serializer, model_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator, model_validator
 
 
 # =============================================================================
@@ -745,11 +745,69 @@ class PedagogicalMistakeKind(str, Enum):
     ORPHAN_CRITERION = "orphan_criterion"                # a criterion that matches no sub-question's content
 
 
+# The closed edit-op vocabulary. ONE place; growing it is a deliberate,
+# reviewable change (a new op = a new enum value + a new applier arm), never an
+# ad-hoc string. Everything a fix can do is a composition of these.
+EDIT_OPS = ("set_points", "move_criterion", "move_text")
+
+
+class EditStep(BaseModel):
+    """One primitive edit to the draft tree — the unit of a SuggestedFix.
+
+    THE GENERAL FIX WIRE: a fix is an ordered list of EditSteps, applied
+    ATOMICALLY by the client on teacher approval (all steps preflight-validated;
+    any failure ⇒ no button, never a partial write). Steps address nodes in the
+    dotted scope-path vocabulary every other surface already speaks
+    (`q2`, `q2.ב`, `q1.א.2`, or `"rubric"` for the declared total):
+
+      * set_points     — set the points of `scope` (or of its criteria
+                         [criterion_index], when given) to `value`. On a question
+                         this means total_points; on "rubric", the declared total.
+      * move_criterion — move criteria[criterion_index] of `scope` to `to_scope`.
+      * move_text      — move the VERBATIM substring `text` out of `scope`'s text
+                         into `to_scope`'s. The applier verifies the substring and
+                         performs the subtraction itself — the proposer only QUOTES
+                         what moves, so it structurally cannot rewrite prose it
+                         was not moving (the grader's quote-validation pattern).
+
+    A `to_scope` naming a sub-question that does not exist CREATES it
+    (auto-vivify) — that one rule replaces a whole create_* op family.
+    """
+    op: str = Field(..., description="One of EDIT_OPS.")
+    scope: str = Field(..., description="Dotted scope path ('q2', 'q2.ב') or 'rubric'.")
+    criterion_index: Optional[int] = Field(
+        default=None, ge=0, description="0-based index into scope's own criteria list.")
+    to_scope: Optional[str] = Field(
+        default=None, description="Destination scope for move ops; auto-vivified when absent from the tree.")
+    text: Optional[str] = Field(
+        default=None, description="Verbatim substring to relocate (move_text only).")
+    value: Optional[str] = Field(
+        default=None, description="New points value, decimal string (set_points only).")
+    current_value: Optional[str] = Field(
+        default=None, description="What the draft says today — audit/display, never applied.")
+
+    @field_validator("op")
+    @classmethod
+    def _op_in_closed_set(cls, v: str) -> str:
+        if v not in EDIT_OPS:
+            raise ValueError(f"unknown edit op {v!r} — extend EDIT_OPS deliberately, never ad-hoc")
+        return v
+
+
 class SuggestedFix(BaseModel):
-    """A concrete, machine-applicable correction the teacher can accept/reject in RubricEditor."""
+    """A concrete, machine-applicable correction the teacher can accept/reject in RubricEditor.
+
+    `steps` is the machine payload (the general edit wire, applied atomically);
+    `description` is the human sentence on the button. `operation`/`params` are the
+    LEGACY shape — drafts saved before pipeline 3.6.0 carry fixes expressed only as
+    params, and the client keeps a translation arm for them; new emissions populate
+    `steps` and leave `params` empty."""
     operation: str = Field(..., description="'reassign_subquestion' | 'adjust_points' | 'clarify_normalization' | ...")
     description: str = Field(..., description="Human-readable (Hebrew) summary of the proposed fix.")
-    params: Dict[str, Any] = Field(default_factory=dict, description="Operation-specific args, e.g. {'from':'ב','to':'ג'}.")
+    params: Dict[str, Any] = Field(default_factory=dict, description="LEGACY operation-specific args (pre-3.6.0 drafts).")
+    steps: List[EditStep] = Field(
+        default_factory=list,
+        description="The ordered primitive edits this fix performs (pipeline ≥ 3.6.0).")
 
 
 class PedagogicalMistake(BaseModel):
@@ -772,6 +830,14 @@ class PedagogicalMistake(BaseModel):
     requires_teacher_input: bool = Field(
         default=False, description="True when no auto-fix exists (e.g. normalization intent is unknowable).")
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    # D3 root-cause subordination: one teacher error casts several shadows (§2 FC).
+    # When THIS mistake is a shadow of another (e.g. a point-sum mismatch fully
+    # explained by a mislabeled criterion), explained_by names the root mistake_id
+    # and this mistake carries NO fix of its own — the UI points at the root's fix
+    # instead of offering a local correction that would be actively wrong.
+    explained_by: Optional[str] = Field(
+        default=None,
+        description="mistake_id of the root-cause mistake whose single fix resolves this one too.")
 
     # ── PR-6 §4: DECISIONS ARE DATA ──────────────────────────────────────────
     # The audit trail of the rubric gate: proposed → her decision → outcome. Vivi

@@ -108,6 +108,49 @@ describe('variant 3 — advisory, info-only (no mechanical fix exists)', () => {
     });
 });
 
+describe('the steps wire — a structural proposal renders as ONE button', () => {
+    const rootFix = {
+        operation: 'reassign_subquestion',
+        description: "העבירי את רכיב PrintLowRatingChannel לסעיף ג'",
+        steps: [
+            { op: 'move_criterion', scope: 'q2.ב', criterion_index: 6, to_scope: 'q2.ג' },
+            { op: 'move_text', scope: 'q2.ב', to_scope: 'q2.ג', text: 'ג. כתבו' },
+        ],
+    };
+
+    it('shows the imperative description; the machine steps never leak into copy', () => {
+        const f = composeFindings([], [], [advisory({
+            mistake_id: 'adj:q2:structural_mislabel', kind: 'structural_mislabel', target_id: 'q2',
+            suggested_fix: rootFix,
+        })])[0];
+        const html = render(f);
+        // (the trailing geresh renders HTML-escaped — assert up to it)
+        expect(html).toContain('העבירי את רכיב PrintLowRatingChannel לסעיף ג');
+        const visible = html.replace(/<[^>]*>/g, '');
+        expect(visible).not.toContain('move_criterion');
+        expect(visible).not.toContain('q2.ב');
+        // no single displaced number exists for a structural plan — no false residual
+        expect(html).not.toContain('בקובץ המקורי מצוין');
+    });
+
+    it('D3 — a fixless SHADOW with a live blocker points at its root and cannot be dismissed', () => {
+        const f = composeFindings([], [live({ target_id: 'q2.ב' })], [advisory({
+            mistake_id: 'pts:q2.ב', target_id: 'q2.ב', suggested_fix: null,
+            explained_by: 'adj:q2:structural_mislabel',
+        }), advisory({
+            mistake_id: 'adj:q2:structural_mislabel', kind: 'structural_mislabel', target_id: 'q2',
+            suggested_fix: rootFix,
+        })]).find((x) => x.scopeId === 'q2.ב')!;
+        const html = render(f);
+        expect(f.fix).toBeNull();
+        expect(html).toContain('עברי לממצא המקורי');
+        expect(html).toContain('התיקון המוצע שם פותר גם את זה');
+        // it is a LIVE violation: amber accent, and no «השאירי כך» escape hatch
+        expect(html).toContain('border-amber-300');
+        expect(html).not.toContain('השאירי כך');
+    });
+});
+
 describe('lifecycle — nothing vanishes, nothing re-asks', () => {
     it('RESOLVED collapses to a ✓ WITH the honest residual', () => {
         const f = composeFindings([residual], [], [advisory()])[0];

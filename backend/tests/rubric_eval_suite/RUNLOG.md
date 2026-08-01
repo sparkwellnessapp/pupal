@@ -933,3 +933,47 @@ verify: rubric_eval_suite 39/39 (5/5 fixtures hold); new offline contract batter
   hobby GT deliberately carries the faithful teacher error (q2 44 vs 60), so it cannot
   compile clean; that test predates the GT change and is stale, not caused here.
 by: Noam (rulings A2/A2b/A5 + pipeline discipline); agent implemented.
+
+## 2026-07-31 — CHANGE: the general fix wire (EditSteps) + per-question Tier-B batching (D1–D8)
+what: PIPELINE_VERSION 3.5.0 -> 3.6.0. Noam's rulings D1–D8 implemented end to end:
+  (a) THE WIRE — SuggestedFix gains `steps: List[EditStep]` (ontology EDIT_OPS =
+      set_points | move_criterion | move_text over the dotted scope-path vocabulary;
+      op leash is a field_validator, one place). A fix is an ordered plan applied
+      ATOMICALLY by the client (frontend utils/edit-steps.ts, ONE interpreter; every
+      mutation routes through the pure *AtPath ops). `params` demoted to the legacy
+      shape (pre-3.6.0 drafts; client translation arm keeps them working). A move
+      to_scope that doesn't exist is AUTO-VIVIFIED (how "create missing סעיף ג" is
+      expressed without a create op); a vivified node with no explicit set_points gets
+      points := Σ of the criteria moved into it (deterministic bookkeeping — observed
+      live: the model emits the moves and forgets the set_points).
+  (b) TIER-B BATCHING (D6) — one structured call PER ANOMALOUS QUESTION carrying ALL
+      its anomalies (structural trigger + point mismatches + precomputed sums/deltas +
+      indexed criteria + verbatim sub-question texts). Output QuestionAdjudication
+      {findings:[{kind, target_id, explanation, fix{description, steps}, resolves,
+      confidence}]}; strict-valid by construction (walked in test_tier_b_schema_strict_valid).
+      Tier A stays the only DETECTOR of point-sum facts; Tier B only chooses fixes.
+      Degrade: llm=None / budget / failure keeps the deterministic adjust-declared
+      fallback fix on every mismatch (pre-D6 behaviour, never no-fix).
+  (c) SUBORDINATION (D3) — PedagogicalMistake gains `explained_by`; a shadow whose
+      root-cause fix resolves it carries the link and NO local fix (the client refuses
+      to resurrect one even from the evidence fallback). The UI card points at the root.
+  (d) PROMPT — rewritten _TIER_B_SYSTEM: decision ladder (reassign-by-delta > single
+      typo > round 1–2 children to declared [D1 default, halves permitted D2] >
+      justified declared-override), root-cause principle, verbatim-quote rule for
+      move_text, and OUTPUT-VOICE contract (standalone feminine display copy, never an
+      answer to a question — kills the live "כן. ..." phrasing; the old user prompt
+      literally ended with a yes/no question). User prompt is task-framed with
+      precomputed arithmetic — the model corroborates, never computes.
+gt: hobby pedagogical canon updated in lockstep — root renamed to the detector's real
+  adj:q2:structural_mislabel with the full D5 steps plan (move_text carve is the exact
+  substring of ב's text incl. the double space); pts:q2 + pts:q2.ב subordinated
+  (explained_by set, suggested_fix null). pedagogical_match scores (kind, target_id) —
+  unaffected. GT rewritten via model round-trip (model_dump_json indent=2), which also
+  normalized the mixed str/num points to canonical strings.
+verify: rubric_eval_suite 39/39 + fix-payload battery green; frontend 390/390 + tsc +
+  next build clean (new edit-steps battery proves the hobby full fix settles ALL of
+  q2's arithmetic in one click, atomicity, vivify, verbatim-carve refusal). LIVE k=1
+  Tier-B trial via pipeline._make_adjudicator on the hobby draft: first-shot success —
+  root cause found (conf 0.9), BOTH shadows resolved via `resolves`, verbatim carve,
+  clean standalone explanation, moves-only plan (the bookkeeping backstop covers it).
+by: Noam (D1–D8 + the steps-wire approval); agent implemented.

@@ -44,6 +44,15 @@ const residual: Annotation[] = [{
 const composeFor = (qs: RubricQuestion[], mistakes: PedagogicalMistakeLike[]) =>
     composeFindings(residual, Array.from(validateAllQuestions(qs).values()).flat(), mistakes, qs);
 
+/** Apply the q1.א.2 finding's fix and return the new tree (must succeed). */
+const applied = (qs: RubricQuestion[], mistakes: PedagogicalMistakeLike[]): RubricQuestion[] => {
+    const f = composeFor(qs, mistakes).find((x) => x.scopeId === 'q1.א.2')!;
+    const out = applyFindingFix(qs, f);
+    expect(out).not.toBeNull();
+    expect(out!.declaredTotal).toBeUndefined();
+    return out!.questions;
+};
+
 describe('resolveScopePath — scope ids → the indices the pure ops address', () => {
     it('resolves a question, a sub-question and a nested sub-question', () => {
         const qs = bagrut();
@@ -68,16 +77,12 @@ describe('§3 — THE DEMO JOURNEY on the real bagrut fixture', () => {
     });
 
     it('APPLY sets the declared value to her own children-sum, through the pure ops', () => {
-        const qs = bagrut();
-        const f = composeFor(qs, [advisory()]).find((x) => x.scopeId === 'q1.א.2')!;
-        const next = applyFindingFix(qs, f);
+        const next = applied(bagrut(), [advisory()]);
         expect(next[0].sub_questions[0].sub_questions![1].points).toBe(2);   // 1.5 + 0.5
     });
 
     it('the VALIDATOR closes the card — resolution is never static bookkeeping', () => {
-        const qs = bagrut();
-        const f0 = composeFor(qs, [advisory()]).find((x) => x.scopeId === 'q1.א.2')!;
-        const next = applyFindingFix(qs, f0);
+        const next = applied(bagrut(), [advisory()]);
         // Note: provenance is NOT what resolves it — recompose with the SAME advisory.
         const f1 = composeFor(next, [advisory()]).find((x) => x.scopeId === 'q1.א.2')!;
         expect(f1.status).toBe('resolved');
@@ -85,13 +90,14 @@ describe('§3 — THE DEMO JOURNEY on the real bagrut fixture', () => {
     });
 
     it('the honest residual survives resolution ("בקובץ המקורי עדיין מצוין 3")', () => {
-        const next = applyFindingFix(bagrut(), composeFor(bagrut(), [advisory()])[0]);
+        const next = applied(bagrut(), [advisory()]);
         const f = composeFor(next, [advisory()]).find((x) => x.scopeId === 'q1.א.2')!;
         expect(f.documentResidual).toContain('3');
+        expect(f.fix?.displayCurrentValue).toBe(3);   // the resolved card's residual number
     });
 
     it('a resolved finding acks — it saves silently, never re-asked', () => {
-        const next = applyFindingFix(bagrut(), composeFor(bagrut(), [advisory()])[0]);
+        const next = applied(bagrut(), [advisory()]);
         const mistakes = recordFixApplied([advisory()], 'pts:q1.א.2', clock);
         expect(acknowledgedIdsFor(composeFor(next, mistakes))).toContain('rubric_mismatch:q1.א.2');
     });
@@ -99,13 +105,26 @@ describe('§3 — THE DEMO JOURNEY on the real bagrut fixture', () => {
     it('APPLY never mutates its input (the undo stack shares structure)', () => {
         const qs = bagrut();
         const snapshot = JSON.stringify(qs);
-        applyFindingFix(qs, composeFor(qs, [advisory()])[0]);
+        applied(qs, [advisory()]);
         expect(JSON.stringify(qs)).toBe(snapshot);
+    });
+
+    it('a fix whose plan no longer resolves is WITHHELD, never mis-applied', () => {
+        const qs = bagrut();
+        // she deleted the whole sub-question the fix addresses
+        const edited = qs.map((q, i) => (i !== 0 ? q : {
+            ...q,
+            sub_questions: q.sub_questions.map((sq, j) => (j !== 0 ? sq : {
+                ...sq, sub_questions: sq.sub_questions!.filter((_, k) => k !== 1),
+            })),
+        }));
+        const f = composeFor(edited, [advisory()]).find((x) => x.scopeId === 'q1.א.2');
+        expect(f?.fix ?? null).toBeNull();               // composition preflight withdrew it
     });
 
     it('UNDO reopens the card AND erases the record — an undone fix is not applied', () => {
         const qs = bagrut();
-        const applied = applyFindingFix(qs, composeFor(qs, [advisory()])[0]);
+        const after = applied(qs, [advisory()]);
         let mistakes = recordFixApplied([advisory()], 'pts:q1.א.2', clock);
         expect(mistakes[0].fix_applied).toBe(true);
 
@@ -113,7 +132,7 @@ describe('§3 — THE DEMO JOURNEY on the real bagrut fixture', () => {
         mistakes = clearFixApplied(mistakes, 'pts:q1.א.2');
         const reopened = composeFor(qs, mistakes).find((x) => x.scopeId === 'q1.א.2')!;
 
-        expect(applied[0].sub_questions[0].sub_questions![1].points).toBe(2);   // it HAD applied
+        expect(after[0].sub_questions[0].sub_questions![1].points).toBe(2);   // it HAD applied
         expect(reopened.status).toBe('open');            // the card is open again
         expect(mistakes[0].fix_applied).toBeNull();      // and the trail does not lie
         expect(mistakes[0].fix_applied_at).toBeNull();

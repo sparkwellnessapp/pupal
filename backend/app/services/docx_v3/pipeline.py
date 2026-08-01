@@ -39,7 +39,7 @@ from ...schemas.ontology_types import (
     QuestionType,
     SelectionGroup,
 )
-from .pedagogical_mistakes import detect_pedagogical_mistakes, AdjudicationResult
+from .pedagogical_mistakes import detect_pedagogical_mistakes, QuestionAdjudication
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ from .trace import resolve as _resolve_tracer, NULL_TRACER  # injected tracelog 
 #     honesty survives into the saved draft instead of dying with the job row.
 # Selection-normalization deliberately keeps suggested_fix=None: its intent is
 # unknowable, and inventing a number there is precisely what FC forbids.
-PIPELINE_VERSION = "3.5.0"
+PIPELINE_VERSION = "3.6.0"
 _MAX_RETRIES = 2
 _SUM_TOLERANCE = 0.5   # validation tolerance (pre-save, human-readable)
 _COMPILE_TOLERANCE = 0.01  # compilation tolerance (INV-1/INV-2 exact)
@@ -962,7 +962,7 @@ def _make_adjudicator(deadline: Optional["_Deadline"] = None):
     """Build the Tier-B StructuredLLM adapter for pedagogical-mistake adjudication,
     reusing the extraction LLM config.
 
-    Returns a callable (*, system, user, schema) -> AdjudicationResult wrapping
+    Returns a callable (*, system, user, schema) -> QuestionAdjudication wrapping
     LangChain's with_structured_output. Two deliberate properties:
       * LAZY construction — the LLM client is built on first invocation, not here.
         Triggers are rare, so the common (no-trigger) path pays nothing; and a
@@ -990,7 +990,7 @@ def _make_adjudicator(deadline: Optional["_Deadline"] = None):
             provider, model = _get_llm_config()
             state["structured"] = _get_llm(
                 provider, model, timeout_s=timeout_s
-            ).with_structured_output(AdjudicationResult)
+            ).with_structured_output(QuestionAdjudication)
             state["messages"] = (SystemMessage, HumanMessage)
         SystemMessage, HumanMessage = state["messages"]
         return _transport_retry_sync(
@@ -2026,14 +2026,19 @@ async def extract_rubric_from_docx(
             # and reach the eval artifacts instead of dying in stdout.
             step2c_warnings: List[str] = []
 
-            # PR-2 deadline layer (3): Tier B is a SEPARATE LLM call that runs AFTER
-            # the validation loop. Without this guard a loop that legitimately spent
-            # its budget could still launch a Tier-B call and blow straight past the
-            # Cloud Run kill. Tier B is BEST-EFFORT (its failures already degrade to
-            # warnings), so when the budget cannot hold one attempt we SKIP it — the
-            # extraction still succeeds with Tier A results, exactly as it does when
-            # Tier B fails. The string is deliberately distinct from a Tier-B
-            # transport failure so artifacts can never conflate the two.
+            # PR-2 deadline layer (3): Tier B is SEPARATE LLM work that runs AFTER
+            # the validation loop — since D6, one call PER ANOMALOUS QUESTION.
+            # Without this guard a loop that legitimately spent its budget could
+            # still launch Tier-B calls and blow straight past the Cloud Run kill.
+            # The entry check requires room for ONE attempt; each subsequent
+            # per-question call re-checks the deadline inside the shared transport
+            # layer and degrades per-question (the detector's isolation), so a
+            # budget exhausted mid-scan keeps every fix already chosen. Tier B is
+            # BEST-EFFORT (its failures already degrade to warnings), so when the
+            # budget cannot hold one attempt we SKIP it — the extraction still
+            # succeeds with Tier A results, exactly as it does when Tier B fails.
+            # The string is deliberately distinct from a Tier-B transport failure
+            # so artifacts can never conflate the two.
             adjudicator = None
             tier_b_need = _llm_timeout_s() + _DEADLINE_ATTEMPT_RESERVE_S
             if config.detect_pedagogical_mistakes:
