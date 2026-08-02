@@ -68,7 +68,7 @@ import type { PedagogicalMistakeWire } from '@/lib/api';
 import { computeAchievablePoints } from '@/utils/rubric-achievable';
 import { getExtractionStageOrder } from '@/hooks/useExtractionJob';
 import {
-  countFindings, countCriteria, resolveRubricName, selectionSummaryLine,
+  countCriteria, resolveRubricName, selectionSummaryLine,
   findingsWaitingLabel, classifyExtractionError,
 } from '@/utils/session-spine';
 import { playCompletionChime, flipTabTitleToReady, restoreTabTitle } from '@/utils/completion-signal';
@@ -1663,7 +1663,13 @@ export default function Home() {
                     const selLine = selectionSummaryLine(selectionGroups);
                     const achievable = computeAchievablePoints(extractedQuestions, selectionGroups);
                     const criteria = countCriteria(extractedQuestions);
-                    const findings = countFindings(combinedAnnotations);
+                    // The SAME composition the review screen counts from (PR-6: one
+                    // composition, surfaces never disagree). Counting annotations
+                    // here missed every advisory that has no annotation twin — a
+                    // pedagogical finding with a proposed fix (hobby's reassign)
+                    // waited on the review screen but was absent from this number.
+                    const { blockers, advisories } = countFindingsByClass(findings);
+                    const waiting = blockers + advisories;
                     return (
                       <>
                         {selLine && (
@@ -1685,8 +1691,8 @@ export default function Home() {
                             <dd className="text-lg font-semibold text-gray-800">{criteria}</dd>
                           </div>
                         </dl>
-                        <div className={`mt-4 rounded-lg px-4 py-3 text-sm font-medium ${findings > 0 ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-green-50 border border-green-200 text-green-800'}`}>
-                          {findingsWaitingLabel(findings)}
+                        <div className={`mt-4 rounded-lg px-4 py-3 text-sm font-medium ${waiting > 0 ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-green-50 border border-green-200 text-green-800'}`}>
+                          {findingsWaitingLabel(waiting)}
                         </div>
                         <button
                           onClick={() => setRubricStep('review')}

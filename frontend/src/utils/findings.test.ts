@@ -192,6 +192,44 @@ describe('deriveFix — steps first, legacy params, then pre-3.5.0 evidence', ()
     });
 });
 
+describe('the ARRIVAL count — «ממצאים מחכים לאישורך» is blockers + open advisories', () => {
+    // The arrival card counts from the SAME composition as the review screen.
+    // The regression this pins: an advisory that exists ONLY as a pedagogical
+    // mistake — no annotation twin, no live invariant (hobby's structural_mislabel
+    // with its reassign proposal) — was invisible to the old annotation-based
+    // count: arrival said 2 while review said «2 ממצאים לתיקון · המלצה אחת».
+    it('counts the fix-bearing advisory that has no annotation twin', () => {
+        const findings = composeFindings(
+            [ann({ id: 'rubric_mismatch:q2', target_id: 'q2', message: 'אזהרה: …' })],
+            [live({ key: 'a', target_id: 'q2' }), live({ key: 'b', target_id: 'q2.ב' })],
+            [
+                mistake({ mistake_id: 'pts:q2', target_id: 'q2', suggested_fix: null, explained_by: 'adj:q2:structural_mislabel' }),
+                mistake({ mistake_id: 'pts:q2.ב', target_id: 'q2.ב', suggested_fix: null, explained_by: 'adj:q2:structural_mislabel' }),
+                mistake({
+                    mistake_id: 'adj:q2:structural_mislabel', kind: 'structural_mislabel', target_id: 'q2',
+                    suggested_fix: {
+                        operation: 'reassign_subquestion', description: 'העבירי',
+                        steps: [{ op: 'move_criterion', scope: 'q2.ב', criterion_index: 6, to_scope: 'q2.ג' }],
+                    },
+                }),
+            ],
+        );
+        const { blockers, advisories } = countFindingsByClass(findings);
+        expect(blockers).toBe(2);
+        expect(advisories).toBe(1);          // the advisory the arrival card used to miss
+        expect(blockers + advisories).toBe(3);
+    });
+
+    it('resolved and dismissed findings stay out of the waiting count', () => {
+        const findings = composeFindings([], [], [
+            mistake({ mistake_id: 'a', kind: 'structural_mislabel', target_id: 'q1', fix_applied: true }),
+            mistake({ mistake_id: 'b', kind: 'structural_mislabel', target_id: 'q2', dismissed: true }),
+        ]);
+        const { blockers, advisories } = countFindingsByClass(findings);
+        expect(blockers + advisories).toBe(0);
+    });
+});
+
 describe('D3 — a shadow points at its root and never offers a local fix', () => {
     const root = mistake({
         mistake_id: 'adj:q2:structural_mislabel', kind: 'structural_mislabel', target_id: 'q2',
