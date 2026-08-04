@@ -108,9 +108,14 @@ class GradedTest(Base):
     rubric_contract_version = Column(String(50), nullable=False)
     student_name            = Column(String(255), nullable=False)
     filename                = Column(String(500), nullable=True)
-    draft_json              = Column(JSONB, nullable=True)
+    # none_as_null=True is LOAD-BEARING: /grade and the batch accepts pass
+    # draft_json=None / contract_json=None explicitly, and a bare JSONB binds
+    # Python None as jsonb 'null' (NOT SQL NULL) — which fails the
+    # graded_tests_status_consistency CHECK ("draft_json IS NULL" is false for
+    # jsonb 'null'). Same pattern as Transcription.contract_json.
+    draft_json              = Column(JSONB(none_as_null=True), nullable=True)
     draft_created_at        = Column(DateTime(timezone=True), nullable=True)
-    contract_json           = Column(JSONB, nullable=True)
+    contract_json           = Column(JSONB(none_as_null=True), nullable=True)
     approved_at             = Column(DateTime(timezone=True), nullable=True)
     regraded_from_id        = Column(UUID(as_uuid=True), ForeignKey("graded_tests.id", ondelete="SET NULL"), nullable=True)
     regraded_to_id          = Column(UUID(as_uuid=True), ForeignKey("graded_tests.id", ondelete="SET NULL"), nullable=True)

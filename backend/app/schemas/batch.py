@@ -11,7 +11,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from .transcription import TranscriptionDraft
+from .transcription import TranscriptionDraft, TranscriptionReview
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +33,9 @@ class BatchTranscriptionItem(BaseModel):
     transcription_id: UUID
     filename: Optional[str] = None
     transcription_status: str               # 'transcribed' | 'approved'
+    created_at: str                         # row insert time (Δ15: progress-based residue horizon)
     draft: TranscriptionDraft               # full draft for review/display
+    review: Optional[TranscriptionReview] = None  # teacher overlay (review_json), if saved
     student_name_suggestion: Optional[str] = None
     matched_student_id: Optional[str] = None    # pre-computed normalized-exact match
     matched_student_name: Optional[str] = None

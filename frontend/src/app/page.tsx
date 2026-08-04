@@ -36,6 +36,7 @@ import {
   submitExtractionJob,
   getExtractionJobResult,
   retryExtractionJob,
+  abandonExtractionJob,
   listExtractionJobs,
   ExtractRubricResponse,
   RubricSaveError,
@@ -1646,6 +1647,29 @@ export default function Home() {
                       ) : null}
 
                       {error && <p className="text-sm text-amber-600 mt-3">{error}</p>}
+
+                      {/* LIV-1 — her way out. Server-side deadlines expire an orphaned
+                          job on their own, but until then she would be attached to a
+                          run she cannot leave; this ends it now and returns her to
+                          upload. Vivi proposes, the teacher decides. */}
+                      {extractionJobId && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await abandonExtractionJob(extractionJobId);
+                            } catch {
+                              /* already finished/expired — leaving is still correct */
+                            }
+                            extractionJob.stop();
+                            setExtractionJobId(null);
+                            setRubricStep('upload');
+                          }}
+                          className="mt-4 text-sm text-gray-500 hover:text-gray-800 underline underline-offset-4 transition-colors"
+                        >
+                          ביטול והתחלה מחדש
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

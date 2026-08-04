@@ -85,7 +85,7 @@ async def get_db_context():
 # When you add a migration, add its version here. That is the whole protocol.
 EXPECTED_MIGRATIONS = (
     "001", "002", "003", "004", "005", "006", "007",
-    "008", "009", "010", "011", "012", "013",
+    "008", "009", "010", "011", "012", "013", "014",
 )
 
 # create_all() is a DEVELOPMENT BOOTSTRAP ONLY. Anywhere else it is a footgun:

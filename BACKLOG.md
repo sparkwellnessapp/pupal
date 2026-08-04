@@ -447,10 +447,12 @@ editor without fixing this first.
 
 The mirror (`RubricDocument`) shipped the criteria-points-centric core. Deliberately deferred, each a
 clean extension point, not a gap:
-1. **Prose editing is read-only.** Question/sub-question text renders via `RichBody` (with table detection)
-   but isn't editable this sprint (the Dream DoD is criteria-points-centric; editing rich text with embedded
-   tables needs a display-vs-raw-edit split). The "הוסיפי טקסט" affordance (⋯ menu) and sub-question **title**
-   editing are also deferred.
+1. **Prose editing is read-only — but this is NOT a backlog item, it is a NAMED Sprint-3 inheritance
+   ("display-vs-raw edit split", ruled by Noam).** Question/sub-question text renders via `RichBody` (with
+   table detection) but isn't editable this sprint. CONFIRMED SAFE to defer: **no validator gates text** —
+   `rubric-validation.ts` checks only point-sum invariants (INV-R1/R1b/R2/R3/R-XOR), and `hasBlockingErrors`
+   is `severity==='error'`, which only those emit. So nothing in the flow dead-ends on a text error. The
+   "הוסיפי טקסט" (⋯ menu) affordance and sub-question **title** editing ride the same S3 item.
 2. **Solutions are read-only (D-2).** `ExampleSolutionEditor` can mount into `SolutionBlock` later.
 3. **Node add/remove** (question / sub-question) and leaf↔parent conversion are deferred — the ops exist
    (`addSubQuestion`/`removeSubQuestion` depth-1; nested-node CRUD absent) but the document metaphor makes
@@ -462,3 +464,23 @@ clean extension point, not a gap:
 5. **Undo is undo-only** (no redo at MVP — ruled).
 
 None of these block the Dream DoD; all are extension points.
+
+## B-17. Persist the reader_disagreement anchor line index server-side (→ any two-phase-default switch)
+
+**Evidence:** `backend/app/services/transcription/flagging.py:L93-L94` — `char_start`/`char_end`
+are offsets into the **baseline page text**, not the answer text. The anchorer already finds the
+answer line (`anchor_flags`: normalized `context_line` fuzzy-matched at `ANCHOR_THRESHOLD=0.75`,
+`flagging.py:L300-L327`) and then **discards the matched line index**; the engine copies only the
+page-frame offsets into annotation metadata (`two_phase_engine.py:L183-L192`). The frontend's
+`deriveReviewFlags` (batch-review PR, Δ6) therefore locates the line by trimmed-exact match of
+`line_quote` and degrades to an answer-level badge on miss — honest, but inexact for the minority
+of fuzzy-only matches, and it means fuzzy logic exists nowhere while precision is lost somewhere.
+
+**The fix (small, deterministic, not eval-gated):** persist the matched answer-line index (and the
+answer-frame line text) into the `reader_disagreement` annotation metadata at anchor time. Client
+line-highlighting becomes exact with zero client-side matching — the Simple fix (one concept, one
+place: the anchor is computed once, server-side, and shipped).
+
+**Trigger:** before (or with) any switch of `settings.transcription_engine` default to
+`two_phase` — the feature only fires under that engine, so the polish is a prerequisite for the
+switch, not for the batch-review PR (ruled Δ19, batch transcription review revision).

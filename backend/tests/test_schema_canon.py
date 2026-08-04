@@ -210,13 +210,19 @@ async def test_missing_ledger_is_only_a_warning_in_development(monkeypatch, fake
 
 @pytest.mark.asyncio
 async def test_db_ahead_of_code_warns_but_does_not_error(monkeypatch, fake_db, caplog):
-    """Rolled-back deploy: DB has migrations this code doesn't know about. Not fatal."""
+    """Rolled-back deploy: DB has migrations this code doesn't know about. Not fatal.
+
+    The "unknown" version is computed from the expected head, not hardcoded —
+    a literal next-version goes stale the moment that migration becomes real
+    (a hardcoded "014" broke here when migration 014 shipped).
+    """
     _set_env(monkeypatch, "production")
-    fake_db(applied=list(EXPECTED_MIGRATIONS) + ["014"])
+    ahead = f"{int(EXPECTED_MIGRATIONS[-1]) + 1:03d}"
+    fake_db(applied=list(EXPECTED_MIGRATIONS) + [ahead])
     with caplog.at_level(logging.INFO, logger="app.database"):
         assert await verify_schema_head() is False
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
-    assert "014" in caplog.text
+    assert ahead in caplog.text
 
 
 @pytest.mark.asyncio

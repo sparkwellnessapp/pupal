@@ -1,0 +1,42 @@
+# =============================================================================
+# Root .gitignore — repo-wide belt-and-braces.
+# backend/, frontend/, grader-frontend/ each have their own .gitignore with
+# project-specific rules; the patterns here apply everywhere as a safety net.
+# =============================================================================
+
+# --- Secrets: never commit, no exceptions -----------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Google Cloud service-account keys
+gen-lang-client-*.json
+service-account*.json
+*credentials*.json
+!package-lock.json
+
+# --- Claude Code: machine-local settings (permissions) ----------------------
+.claude/settings.local.json
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# --- Node -------------------------------------------------------------------
+node_modules/
+.next/
+*.tsbuildinfo
+
+# --- OS / editor junk -------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.swp
+*.swo
+*~

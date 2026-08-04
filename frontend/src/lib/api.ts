@@ -1010,6 +1010,19 @@ export async function patchExtractionJobMetadata(
 }
 
 /** Re-queue a failed or stale job. The source DOCX is stored server-side — no re-upload. */
+/**
+ * LIV-1 — let the teacher END an active extraction she no longer wants to wait
+ * for. Deadlines guarantee an orphan eventually expires, but "eventually" is a
+ * window in which she is attached to a job she cannot escape; this is her exit.
+ * 409 means it already finished — the caller should just re-read the job.
+ */
+export async function abandonExtractionJob(jobId: string): Promise<{ job_id: string; status: string }> {
+  const response = await apiFetchChecked(`${EXTRACTION_JOBS_BASE}/${jobId}/abandon`, {
+    method: 'POST',
+  });
+  return response.json();
+}
+
 export async function retryExtractionJob(jobId: string): Promise<{ job_id: string; status: string }> {
   const response = await apiFetchChecked(`${EXTRACTION_JOBS_BASE}/${jobId}/retry`, {
     method: 'POST',

@@ -26,6 +26,8 @@ from ...schemas.transcription import (
     TranscriptionContract,
     TranscriptionContractAnswer,
     TranscriptionDraft,
+    TranscriptionReview,
+    TranscriptionReviewAnswer,
 )
 from ...services.document_parser import image_to_base64
 from ...services.gcs_service import get_gcs_service
@@ -69,6 +71,12 @@ class GradeRequest(BaseModel):
 class GradeQueuedResponse(BaseModel):
     graded_test_id: str
     status: str = "pending"
+
+
+class ReviewSaveRequest(BaseModel):
+    """Full-snapshot review save. `answers` reuses the /grade answer shape."""
+    answers: list[GradeAnswerInput]
+    student_id: UUID | None = None
 
 
 class TranscriptionPageResponse(BaseModel):
@@ -164,6 +172,10 @@ async def grade(
     transcription.status = "approved"
     transcription.approved_at = now
     transcription.updated_at = now
+    # The review overlay's job ends at approval. Nulling it here is part of the
+    # 'transcribed'→'approved' TRANSITION write, not a mutation of an approved
+    # row — LCY-1 untouched. After this commit the PATCH /review path 409s.
+    transcription.review_json = None
 
     graded_test = GradedTest(
         user_id=current_user.id,
@@ -192,6 +204,72 @@ async def grade(
         f"Transcription {transcription.id} approved → graded_test {graded_test.id} pending"
     )
     return GradeQueuedResponse(graded_test_id=str(graded_test.id))
+
+
+@router.patch("/{transcription_id}/review", response_model=TranscriptionReview)
+async def save_review(
+    transcription_id: UUID,
+    body: ReviewSaveRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TranscriptionReview:
+    """
+    Persist the teacher's review working copy (transcriptions.review_json).
+
+    Rules (batch-review plan, Δ2/Δ3/Δ16):
+      * Allowed only while status='transcribed' — 409 otherwise (LCY-1: an
+        approved transcription is read-only; the overlay is nulled at approval).
+      * FULL SNAPSHOT: the body's (question_number, sub_question_id) key
+        multiset must exactly equal the draft's — 422 on mismatch, never
+        silently normalized/filled/pruned.
+      * A non-null student_id is ownership-validated NOW (cross-tenant → 404,
+        §9), not left to detonate at accept.
+      * Concurrency: last-write-wins. Two tabs saving concurrently is accepted;
+        the later write replaces the earlier whole-snapshot.
+      * Approval stays body-authoritative — accept endpoints never read this
+        overlay; it exists so edits survive navigation/refresh.
+    """
+    # 1. Ownership + lifecycle guards
+    transcription = await get_owned_or_404(
+        db, Transcription, transcription_id, current_user.id
+    )
+    if transcription.status != "transcribed":
+        raise HTTPException(
+            status_code=409, detail="התמלול כבר אושר — לא ניתן לשמור שינויים"
+        )
+
+    # 2. Full-snapshot guard: key multiset must equal the draft's exactly.
+    draft = TranscriptionDraft.model_validate(transcription.draft_json)
+    draft_keys = sorted((a.question_number, a.sub_question_id or "") for a in draft.answers)
+    body_keys = sorted((a.question_number, a.sub_question_id or "") for a in body.answers)
+    if draft_keys != body_keys:
+        raise HTTPException(
+            status_code=422,
+            detail="התשובות שנשלחו אינן תואמות את מבנה התמלול — נדרשת שמירה של כל התשובות",
+        )
+
+    # 3. Student ownership at write time (Δ16) — same check /grade performs.
+    if body.student_id is not None:
+        await get_owned_or_404(db, Student, body.student_id, current_user.id)
+
+    # 4. Full-snapshot write, server-stamped.
+    now = datetime.now(timezone.utc)
+    review = TranscriptionReview(
+        answers=[
+            TranscriptionReviewAnswer(
+                question_number=a.question_number,
+                sub_question_id=a.sub_question_id,
+                answer_text=a.answer_text,
+            )
+            for a in body.answers
+        ],
+        student_id=str(body.student_id) if body.student_id is not None else None,
+        updated_at=now.isoformat(),
+    )
+    transcription.review_json = review.model_dump(mode="json")
+    transcription.updated_at = now
+    await db.commit()
+    return review
 
 
 @router.get("/{transcription_id}/pages/{page_number}", response_model=TranscriptionPageResponse)

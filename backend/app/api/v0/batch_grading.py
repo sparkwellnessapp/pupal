@@ -41,6 +41,7 @@ from ...schemas.transcription import (
     TranscriptionContract,
     TranscriptionContractAnswer,
     TranscriptionDraft,
+    TranscriptionReview,
 )
 from ...services.batch_triage import FlagVerdict, compute_flag_verdict, match_student
 from ...services.grading_runner import run_grading
@@ -257,8 +258,13 @@ async def get_batch(
     """
     batch = await get_owned_or_404(db, GradingBatch, batch_id, current_user.id)
 
+    # Deterministic order (Δ10): without ORDER BY, Postgres row order is
+    # unspecified and can change between polls — the review route's prev/next
+    # cursor depends on this being stable. (created_at, id) = upload order.
     transcriptions = (await db.execute(
-        select(Transcription).where(Transcription.batch_id == batch_id)
+        select(Transcription)
+        .where(Transcription.batch_id == batch_id)
+        .order_by(Transcription.created_at, Transcription.id)
     )).scalars().all()
 
     graded_tests = (await db.execute(
@@ -291,7 +297,12 @@ async def get_batch(
             transcription_id=t.id,
             filename=t.filename,
             transcription_status=t.status,
+            created_at=t.created_at.isoformat(),
             draft=draft,
+            review=(
+                TranscriptionReview.model_validate(t.review_json)
+                if t.review_json is not None else None
+            ),
             student_name_suggestion=draft.student_name_suggestion,
             matched_student_id=student_match.student_id,
             matched_student_name=student_match.student_name,
@@ -346,6 +357,7 @@ async def accept_clean(
     rubric = await db.get(Rubric, batch.rubric_id)
 
     queued = 0
+    skipped: list[dict] = []
     for item in body.items:
         transcription = await get_owned_or_404(
             db, Transcription, item.transcription_id, current_user.id
@@ -354,6 +366,15 @@ async def accept_clean(
             raise HTTPException(400, f"Transcription {item.transcription_id} does not belong to batch {batch_id}")
         if transcription.status != "transcribed":
             continue    # already accepted; idempotent skip
+        # Teacher-touched ⇒ not "clean" (Δ1): a saved review overlay must never
+        # be silently discarded by a bulk accept that reads the draft as-is.
+        # Server-side guard — holds regardless of what the client selected.
+        if transcription.review_json is not None:
+            skipped.append({
+                "transcription_id": str(transcription.id),
+                "skipped_reason": "has_review_edits",
+            })
+            continue
 
         # Build contract from draft answers (clean accept = no edits)
         draft = TranscriptionDraft.model_validate(transcription.draft_json)
@@ -378,6 +399,10 @@ async def accept_clean(
         transcription.status = "approved"
         transcription.approved_at = now
         transcription.updated_at = now
+        # Always None here (the Δ1 guard above skipped overlay rows), but the
+        # null-out is uniform across all three approval paths: part of the
+        # transition write, not a mutation of an approved row (LCY-1).
+        transcription.review_json = None
 
         # Insert pending graded_test with batch_id
         graded_test = GradedTest(
@@ -398,8 +423,13 @@ async def accept_clean(
         queued += 1
 
     await db.commit()
-    logger.info("batch_accept_clean", extra={"batch_id": str(batch_id), "queued": queued})
-    return {"accepted": queued}
+    logger.info(
+        "batch_accept_clean",
+        extra={"batch_id": str(batch_id), "queued": queued, "skipped": len(skipped)},
+    )
+    # `skipped` is additive: the pre-Phase-4 client parses this response with a
+    # plain res.json() and ignores unknown fields (verified — plan Δ18).
+    return {"accepted": queued, "skipped": skipped}
 
 
 # ---------------------------------------------------------------------------
@@ -448,6 +478,9 @@ async def accept_one(
     transcription.status = "approved"
     transcription.approved_at = now
     transcription.updated_at = now
+    # Part of the 'transcribed'→'approved' transition write, not a mutation of
+    # an approved row (LCY-1): the overlay's job ends at approval.
+    transcription.review_json = None
 
     graded_test = GradedTest(
         user_id=current_user.id,

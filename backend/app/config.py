@@ -90,6 +90,12 @@ class Settings(BaseSettings):
     # Heartbeat TTL: an 'extracting' job whose updated_at is older than this is
     # reported stale (instance died mid-job) and becomes retryable.
     extraction_heartbeat_ttl_minutes: int = 15
+    # LIV-1: how long a job may sit 'queued' before we declare the dispatch lost.
+    # 'queued' has NO heartbeat — nothing about the row changes while it waits —
+    # so without this deadline a lost dispatch is unfalsifiable and traps the
+    # teacher forever. Cloud Tasks pickup is normally sub-second; 5 minutes
+    # tolerates a cold start or a briefly backed-up queue.
+    extraction_dispatch_ttl_minutes: int = 5
     # Cloud Tasks queue + OIDC identity for the task → /internal call.
     cloud_tasks_location: str = "europe-west1"
     cloud_tasks_queue: str = "rubric-extraction"
@@ -101,6 +107,16 @@ class Settings(BaseSettings):
     internal_task_token: Optional[str] = None
     # Max accepted rubric DOCX upload size.
     extraction_max_upload_mb: int = 15
+
+    # Extraction LLM pin for the docx_v3 pipeline. Read from env/.env (Pydantic maps
+    # EXTRACTION_LLM_MODEL etc. case-insensitively); default = the eval-validated
+    # production pin (D-2) — gpt-5.5, NOT the pipeline's gpt-4o code default. These are
+    # bridged into os.environ after Settings() below, because the pipeline reads
+    # os.environ directly (so the eval runner can override them per-run).
+    extraction_llm_provider: str = "openai"
+    extraction_llm_model: str = "gpt-5.5"
+    extraction_llm_reasoning_effort: Optional[str] = "medium"
+    extraction_llm_max_tokens: int = 38000
 
     # PR-2: the extraction task's total wall budget, in seconds.
     # 840 = Cloud Run request timeout (900) − 60s reserve. The runner measures its
@@ -153,6 +169,25 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# --- Extraction LLM pin → os.environ bridge --------------------------------------
+# The docx_v3 extraction pipeline reads model / provider / reasoning_effort /
+# max_tokens from os.environ DIRECTLY (so the eval runner can override them per-run,
+# see tests/rubric_eval_suite/runner.py). Pydantic populates `settings` from .env/env
+# but NEVER writes back to os.environ — so without this bridge the live backend falls
+# through to the pipeline's gpt-4o code default (the model the eval gate was never
+# earned at; gpt-4o misreads trace-table numbers as points). Export the pin here;
+# `setdefault` preserves any explicit override already in os.environ (the eval runner
+# or a shell export), so it never fights a deliberate per-run choice.
+import os as _os
+for _env_key, _val in {
+    "EXTRACTION_LLM_PROVIDER": settings.extraction_llm_provider,
+    "EXTRACTION_LLM_MODEL": settings.extraction_llm_model,
+    "EXTRACTION_LLM_REASONING_EFFORT": settings.extraction_llm_reasoning_effort,
+    "EXTRACTION_LLM_MAX_TOKENS": settings.extraction_llm_max_tokens,
+}.items():
+    if _val is not None:
+        _os.environ.setdefault(_env_key, str(_val))
 
 
 # =============================================================================

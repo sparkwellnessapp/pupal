@@ -24,6 +24,10 @@ class Transcription(Base):
     filename        = Column(String(500), nullable=True)
     draft_json      = Column(JSONB, nullable=False)
     contract_json   = Column(JSONB(none_as_null=True), nullable=True)
+    # Teacher review overlay (migration 014): full-snapshot working copy,
+    # writable only while status='transcribed'; nulled in the approval
+    # transition UPDATE (LCY-1: approved rows are never written).
+    review_json     = Column(JSONB(none_as_null=True), nullable=True)
     approved_at     = Column(DateTime(timezone=True), nullable=True)
     # Valid values: 'transcribed', 'approved' — enforced by DB CHECK transcriptions_approval_consistency
     status          = Column(String(20), nullable=False, default="transcribed")

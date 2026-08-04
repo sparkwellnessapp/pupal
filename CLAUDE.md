@@ -46,6 +46,7 @@ Non-negotiable:
 - **Never make teachers "manage AI."** No prompting gymnastics, no retry-until-it-works, no cognitive overhead disguised as flexibility.
 - **Trust is non-negotiable.** If a feature risks student outcomes or privacy, it does not exist. If we cannot provide auditable evidence for a decision, the system degrades to **review-first, not guess**.
 - **Accuracy floor:** a solid competent teacher. **Ceiling:** a world-class educator in that subject. Below the floor is worse than useless.
+- **Faithful capture, never silent repair (FC).** Vivi reproduces **exactly what the teacher wrote** — every value, label, placement, and structure, **errors included** — and **surfaces** every resulting inconsistency as diagnostics (annotations + pedagogical mistakes) with a proposed fix the teacher confirms or rejects. It **never invents a value the teacher did not write** to make a rubric "add up", and **never silently relocates, relabels, or edits** content to reconcile an error. This is the whole product: *capture the error, identify the probable fix, let the teacher decide* — never guess it away. **One teacher error can cast several shadows across several surfaces** — e.g. a criterion mislabeled onto the wrong sub-question produces a `structural_mislabel` judgment **and** point-sum mismatches, on **both** the draft-review `annotation` surface (`rubric_mismatch`) **and** the teacher-education `pedagogical_mistakes` surface — and the faithful representation (and its ground truth) documents **all** of them; the single teacher fix then resolves them together. Generalizes to **any** error class, not just points or misallocation. (Corollary for the eval GT: `RUBRIC_EVAL_PLAYBOOK.md §4`, worked example hobby q2.)
 
 **Mandatory review gates** (validation *is* the product):
 - **Rubric gate:** the extracted rubric is reviewed/edited by the teacher **before compilation to Contract**.
@@ -310,6 +311,11 @@ Next.js 14 App Router + TypeScript + Tailwind, RTL Hebrew, Vercel.
 >   --project gen-lang-client-0438328890 --region europe-west1
 > ```
 > Existing env/config on the service is preserved (pass `--set-env-vars` only to change it). The census caught `frontend/`↔`grader-frontend/` byte-identical; letting them drift makes every deploy a coin-flip — the mirror-then-subtree-push discipline is the fix, NOT a `git rm` (the subtree is load-bearing). **CI caveat:** the PR-4 workflows in `.github/` assume a monorepo root (`backend/` + `frontend/`); `main` does not track those, so they run only if that structure is committed to `main` (a deliberate restructuring, not done here).
+>
+> **Remotes (2026-08-04):** this clone has TWO remotes.
+> - **`origin`** → `github.com/sparkwellnessapp/pupal` (public) — the historical repo; all the deploy flows above (Vercel subtree push, `git push origin main`) run against it.
+> - **`vivi-origin`** → `github.com/sparkwellnessapp/vivi-codebase` (public) — secondary remote holding the **full monorepo** (backend + frontend + grader-frontend + docs). Sync with `git push vivi-origin <branch>`. Nothing deploys from `vivi-origin` — Vercel and Cloud Run are wired to `origin` only.
+> - ⚠️ Both remotes are **public**: never commit `.env`, `gen-lang-client-*.json` service-account keys, or seed credentials (the root `.gitignore` is the belt-and-braces net; seed-user migrations were redacted 2026-08-04).
 
 | Area | Notes |
 |---|---|

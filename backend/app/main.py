@@ -61,6 +61,15 @@ async def lifespan(app: FastAPI):
     
     import asyncio
     asyncio.create_task(init_db())
+
+    # LIV-1 — expire extraction jobs orphaned by the PREVIOUS process. Inline
+    # dispatch (asyncio.create_task) dies with its process and Cloud Run
+    # scale-in kills workers mid-job, so a restart is exactly when orphans are
+    # created. Sweeping here means the bad state cannot SURVIVE a restart; it
+    # reuses the same deadlines, so it can never kill a job a sibling instance
+    # is still heartbeating.
+    from .services.extraction_job_liveness import sweep_on_startup
+    asyncio.create_task(sweep_on_startup())
     logger.info("Database initialization started in background")
     
     # Start temp storage cleanup worker (capture task for cancellation)

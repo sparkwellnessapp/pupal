@@ -59,6 +59,42 @@ class TranscriptionDraft(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Review overlay (teacher working copy — transcriptions.review_json)
+# ---------------------------------------------------------------------------
+
+class TranscriptionReviewAnswer(BaseModel):
+    question_number: int
+    sub_question_id: Optional[str] = None
+    answer_text: str
+
+
+class TranscriptionReview(BaseModel):
+    """
+    The teacher's persisted working copy of a transcription review.
+
+    FULL SNAPSHOT, always: `answers` carries the complete answer set, and its
+    (question_number, sub_question_id) key multiset must equal the draft's —
+    a mismatched snapshot is rejected (422), never normalized. No merge
+    semantics exist anywhere, now or in any future endpoint.
+
+    `student_id` is the teacher's chosen student. It lives here (not in the
+    transcriptions.student_id column) because transcriptions_approval_consistency
+    forbids the column before approval.
+
+    Lifecycle: writable only while status='transcribed'; set to NULL inside the
+    same UPDATE that performs the 'transcribed'→'approved' transition (part of
+    the transition write — LCY-1 untouched). Concurrent writes are
+    last-write-wins. Accept endpoints remain body-authoritative: this overlay
+    is durability for the UI, never the approval input (the future batch
+    /submit endpoint is the documented exception — it has no body).
+    """
+    schema_version: str = "1.0"
+    answers: List[TranscriptionReviewAnswer]
+    student_id: Optional[str] = None
+    updated_at: Optional[str] = None  # server-stamped ISO-8601 at write time
+
+
+# ---------------------------------------------------------------------------
 # Contract side (frozen — teacher-approved)
 # ---------------------------------------------------------------------------
 
