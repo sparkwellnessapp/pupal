@@ -5,12 +5,12 @@
 
 -- Create the new user
 -- Email: vivianasteiman@yahoo.com
--- Password: NoamAluf (bcrypt hashed)
+-- Password: <redacted> (bcrypt hashed)
 INSERT INTO users (id, email, password_hash, full_name, subscription_status, started_trial_at, started_pro_at)
 VALUES (
     'b0000000-0000-0000-0000-000000000002',
     'vivianasteiman@yahoo.com',
-    '$2b$12$8b4W9VI14Sagp9IWtbv2Gu1ErYZiC.IqptL1fAMcfjUt8gvdKf4km',
+    '<bcrypt-hash-redacted>',
     'Viviana Tapicer',
     'active',
     NOW(),

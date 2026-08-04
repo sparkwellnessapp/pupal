@@ -186,14 +186,14 @@ ADD COLUMN IF NOT EXISTS raw_graded_test_id UUID UNIQUE REFERENCES raw_graded_te
 CREATE INDEX IF NOT EXISTS idx_graded_tests_user_id ON graded_tests(user_id);
 
 -- =============================================================================
--- 11. Create admin user (password: Takicer123)
+-- 11. Create admin user (password: <redacted>)
 -- =============================================================================
 -- Note: Hash generated with bcrypt (cost 12)
 INSERT INTO users (id, email, password_hash, full_name, subscription_status, started_trial_at, started_pro_at)
 VALUES (
     'a0000000-0000-0000-0000-000000000001',
     'tapicer.business@gmail.com',
-    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewKyNiAYMyzJ/IiC',
+    '<bcrypt-hash-redacted>',
     'Admin',
     'active',
     NOW(),
