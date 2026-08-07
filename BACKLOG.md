@@ -570,3 +570,23 @@ of truth and the only write target; the stale mirror's continued presence is exa
 ambiguity that produced the Phase-5 revertability confusion. Delete it (git rm, its own commit)
 as a Phase-6 item; any deploy-flow implications (CLAUDE.md §10/§12.5 describe a Vercel subtree
 built FROM it) must be resolved at deploy time against the real Vercel wiring, not assumed.
+
+## B-22. Batch review: keyboard prev/next (Alt+arrows)
+
+**Evidence:** plan OD-8 ruled "no keyboard nav in v1" — bare arrow keys conflict with textarea
+editing focus, so the review route ships with on-screen edge arrows only. **The fix:** Alt+←/→
+(or similar chord) wired to the same dirty-gated `goTo` path, so the flush/guard semantics are
+inherited, not reimplemented. **Trigger:** first teacher-feedback pass on the batch review flow.
+
+## B-23. Batch fan-out swallows transcription failures — no row, no failed state
+
+**Evidence:** `backend/app/api/v0/batch_grading.py:L87-L91` logs and swallows a failed
+`transcribe_one`; no transcription row exists, `transcriptions` has no `failed` status
+(`transcriptions_approval_consistency` knows only transcribed/approved), and the rollup counts
+the residue as perpetually "transcribing" (`_build_rollup`, `L129`). The batch-review PR made the
+residue HONEST but display-only (Δ15: progress-based `N קבצים לא תומללו` line, ruled OD-6(i));
+the gate counts rows only, so a batch with a swallowed failure can never reach "all reviewed".
+**The fix direction:** per-file failure tracking — either a `failed` transcription status
+(CHECK churn) or a batch-level failed-files list — plus a retry affordance. **Trigger:** first
+real-classroom batch where a PDF fails transcription (or the deferred `/submit` endpoint PR,
+whose per-item outcomes want the same tracking).

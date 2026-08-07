@@ -211,6 +211,12 @@ The chain insert uses a **deferrable `regraded_to_id` FK** (migration 010): link
 
 **Batch grading (S11):** a batch is M tests through the same per-test pipeline with `batch_id` set; fan-out is bounded (`BATCH_MAX_CONCURRENT_TESTS`). Transcription review is **triaged** — clean transcriptions bulk-acceptable, flagged ones (low logprob span / VLM low confidence / grounding retry / `[?]` markers / missing-or-unmatched student) handled individually. Student auto-match against the batch's class roster is conservative (normalized-exact, never fuzzy); class is **optional** (first-time teachers have no roster → manual pick + inline create).
 
+**Batch transcription review (batch-review PR, 2026-08):** the batch flow's transcription gate is a full-screen, deep-linkable per-item route — `/batches/[id]/review/[transcriptionId]` — replacing the blind inline cards; the dashboard keeps the triage front door (bulk-accept clean, summary rows + links for the rest). Named concepts:
+- **`transcriptions.review_json` — the teacher review overlay** (migration 014): her persisted working copy. Writable ONLY while `status='transcribed'` (PATCH `/transcriptions/{id}/review`; 409 otherwise); a **FULL snapshot** whose answer-key multiset must equal the draft's (422 on mismatch — **no merge semantics exist anywhere**); **nulled inside the approval-transition UPDATE in all three approval paths** (`/grade`, `accept_one`, `accept_clean` — part of the transition write, so LCY-1 is untouched); **never read at approval** by the per-item accepts (their request body is authoritative); and **its presence excludes an item from bulk-accept** (teacher-touched ⇒ not "clean" — server-enforced in `accept_clean`).
+- **Viewing is not commitment (Δ14):** hydration and the StudentPicker auto-match pre-seed are never dirt; only a keystroke or an explicit picker change is. The autosave-on-navigate flush fires only when dirty — a glance at a clean item must never create an overlay (which would silently pull it out of bulk-accept). Do not "simplify" this away.
+- **Per-item grading kickoff is the PERMANENT design, not an interim** (product ruling): accept = approve + insert pending `graded_tests` + queue grading, per item — grading runs while the teacher reviews the rest. The future `POST /batches/{id}/submit` changes **coverage** (accept-everything-remaining-acceptable + completion ceremony, reading `review_json` since it has no body), never **timing**.
+- ⚠️ **Grading-seam caveat:** "accept fires grading" queues a run into a grading path that has **never functioned in this codebase** — the `graded_tests` pending-INSERT was broken from birth (bare-`JSONB` bound Python `None` as jsonb `'null'`, failing the status CHECK; fixed with `none_as_null=True` in the batch-review PR) — so kickoff is a seam into unverified behavior until the grading-endpoint PR lands. Do not read the DFD claim as tested.
+
 ---
 
 ## 8. Repo map — backend (`vivi-codebase/backend/`)
@@ -324,7 +330,9 @@ Next.js 14 App Router + TypeScript + Tailwind, RTL Hebrew, Vercel.
 | `src/components/RubricDocument.tsx` | **The document mirror (PR-5 S2) — the rubric-review surface for the docx flow.** Reads as her DOCX annotated by Vivi (see §11 mirror note) |
 | `src/components/RubricEditor.tsx` | **Rollback** rubric editor; owns the save-blocking state machine (§11). Behind `USE_DOCUMENT_MIRROR=false`; the mirror replaces it live |
 | `src/components/document/` | Mirror primitives: `EditableText`, `EditablePoints`, `CodeBlock`, `DisclosureRow`, `DataTables` (document-styled trace/context/mini-tables) |
-| `src/components/TranscriptionReviewPanel.tsx` | Side-by-side transcription vs. source PDF (the layout reused for graded-test review) |
+| `src/components/batch-review/` | **THE transcription-review surface** (batch-review PR): `TranscriptionReviewSurface` (answer cards + source pages, consumes the DRAFT — serves both flows), `TranscribedTextEditor`, `ReviewItemController` (framework-free Δ4/Δ11/Δ14 state machine), `BatchReviewContext` (the segment-layout entry holder: one fetch, frozen cursor, page cache) |
+| `src/app/batches/[id]/review/` | The per-item review route + its layout. **The Δ10 frozen cursor MUST live in the layout** — pages remount per dynamic-param value, layouts persist; a page-held ref silently reshuffles (empirically proven; `e2e/batch-review-freeze.spec.ts` is the standing guard) |
+| `src/components/TranscriptionReviewPanel.tsx` | Single-test review — now a ~130-line wrapper over the shared surface, prop seam unchanged; batch behaviors (autosave/accept/indicators) inert by construction (`e2e/single-flow-review.spec.ts` asserts it) |
 | `src/components/GradedTestReviewPanel.tsx` | Graded draft review/edit/approve; revision affordances (regrade/manual-edit/retry) |
 | `src/components/AnnotationBanner.tsx` | Single severity-differentiated **rubric** annotation renderer (a real standalone file since PR-5 S2 — RubricEditor + the mirror both import it) |
 | `src/components/StudentPicker.tsx` | Select-or-create student; reused in single + batch flows |
@@ -346,6 +354,10 @@ Next.js 14 App Router + TypeScript + Tailwind, RTL Hebrew, Vercel.
 ### Codegen — the wire types are GENERATED (PR-4, R-B)
 
 `src/lib/api-types.ts` is **generated** from the backend OpenAPI schema (`npm run gen:api` → `scripts/gen-api-types.mjs` → `backend/scripts/dump_openapi.py` + pinned `openapi-typescript`). **Do not hand-edit it.** A GitHub Actions job (`.github/workflows/api-types-drift.yml`) regenerates it in CI and fails on any diff — the wire contract's `suite_hash`. This kills the Decimal type-lie **at the source**: a `Decimal` types as `string` in the schema (matching the wire), so generated types never claim `number` for a field the wire sends as a string. **Two type families coexist BY DESIGN and are NOT interchangeable:** the generated **wire** types (string points, wide unions) feed `api.ts`; the hand-written **editor** family (`types/rubric.ts`, number points, narrow unions like the `question_type` literal set) is what the editor mutates. The seam (`rubric-transform.ts`) is guarded by the golden round-trip suite, **not** the compiler — TS never errors on ignoring a wire field (§11). New/touched wire types consume the generated ones; hand-written mirrors migrate opportunistically. The one deliberately hand-written response type is `CompileErrorDetail` — the 400 compile-rejection rides an HTTPException `detail`, which FastAPI leaves out of the OpenAPI schema.
+
+### Code-in-RTL editors — the bidi standing rule (batch-review PR, empirically adjudicated)
+
+Transcription/code editors inside the RTL app are **pure `dir="ltr"` islands — nothing more**. `unicode-bidi: plaintext` was proposed for per-line direction and **empirically falsified**: plaintext resolves paragraph direction from the FIRST STRONG character, so a Hebrew-initial comment line (`// תכונות`) goes RTL-base and the `//` migrates to the RIGHT of the Hebrew — the exact defect it was meant to prevent. The Playwright test `rtl-bidi-code-comment-rendering` (bounding-box x-comparison) is the standing guard; do not reintroduce plaintext from first principles — run that test against any new mechanism.
 
 ### Trust surfaces — the teacher decides (PR-4)
 
@@ -407,6 +419,8 @@ npm install && npm run dev
 ---
 
 ## 12.5 Repository & deployment layout — READ THIS BEFORE YOU `git push`
+
+> **⚠️ ADDENDUM (2026-08, batch-review PR): the "rename trap" below is RESOLVED on `perf/rubric-extraction-latency`** — commit `d47018a` snapshotted the full working tree, so `frontend/`, `backend/`, `CLAUDE.md`, and `BACKLOG.md` are all TRACKED there; ordinary `git add <paths>` + commit is the workflow on that branch. `grader-frontend/` is the **stale pre-PR deploy mirror** (received zero writes from the batch-review PR; flagged for deletion — BACKLOG **B-21** — pending confirmation of the live Vercel wiring below). The pre-snapshot description that follows still governs `main`'s layout and the deploy flows until the branch lands.
 
 The git layout does **not** match this working tree, and a naive `git add -A` will
 **delete the backend from the repo**. Internalize this before pushing anything.
