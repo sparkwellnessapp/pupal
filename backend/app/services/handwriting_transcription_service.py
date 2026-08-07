@@ -519,6 +519,26 @@ def pdf_to_images(pdf_bytes: bytes, dpi: int = 200) -> List[Image.Image]:
     return images
 
 
+def render_pdf_page(pdf_bytes: bytes, page_number: int, dpi: int = 200) -> Image.Image:
+    """Render ONLY the requested page (1-based) — the same rasterizer as
+    pdf_to_images, bounded to a single page via poppler's first/last_page.
+
+    Exists for the page-image proxy: rendering the whole PDF per page request
+    made a full review of an N-page test cost N² page renders (batch-review
+    plan, Phase 1.5).
+
+    Raises ValueError when page_number is beyond the PDF's last page (poppler
+    returns an empty list) — callers map that to 404.
+    """
+    images = convert_from_bytes(
+        pdf_bytes, dpi=dpi, fmt='PNG',
+        first_page=page_number, last_page=page_number,
+    )
+    if not images:
+        raise ValueError(f"Page {page_number} out of range")
+    return images[0]
+
+
 def pdf_path_to_images(pdf_path: str, dpi: int = 200) -> List[Image.Image]:
     """Convert PDF file path to PIL Images."""
     images = convert_from_path(pdf_path, dpi=dpi, fmt='PNG')

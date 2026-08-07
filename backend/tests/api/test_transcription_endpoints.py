@@ -321,12 +321,14 @@ def test_14_grade_already_approved_returns_409(client, headers_a, student_a, rub
 
     answers = [{"question_number": 1, "sub_question_id": None, "answer_text": "foo"}]
 
-    # First approval succeeds
-    r1 = client.post(
-        "/api/v0/transcriptions/grade",
-        json={"transcription_id": tx_id, "answers": answers, "student_id": student_a["id"]},
-        headers=headers_a,
-    )
+    # First approval succeeds (run_grading mocked — never call OpenAI in tests;
+    # TestClient executes BackgroundTasks for real after the response)
+    with patch("app.api.v0.transcription.run_grading"):
+        r1 = client.post(
+            "/api/v0/transcriptions/grade",
+            json={"transcription_id": tx_id, "answers": answers, "student_id": student_a["id"]},
+            headers=headers_a,
+        )
     assert r1.status_code == 200, r1.text
 
     # Second approval → 409
@@ -389,11 +391,14 @@ def test_16_grade_happy_path(client, headers_a, rubric_a, student_a):
     original_draft = t_resp.json()["draft"]
 
     answers = [{"question_number": 1, "sub_question_id": None, "answer_text": "edited answer"}]
-    g_resp = client.post(
-        "/api/v0/transcriptions/grade",
-        json={"transcription_id": tx_id, "answers": answers, "student_id": student_a["id"]},
-        headers=headers_a,
-    )
+    # run_grading mocked: the row must still be 'pending' when asserted below,
+    # and tests never call OpenAI.
+    with patch("app.api.v0.transcription.run_grading"):
+        g_resp = client.post(
+            "/api/v0/transcriptions/grade",
+            json={"transcription_id": tx_id, "answers": answers, "student_id": student_a["id"]},
+            headers=headers_a,
+        )
     assert g_resp.status_code == 200, g_resp.text
     g_body = g_resp.json()
 
@@ -460,13 +465,14 @@ def test_17_draft_immutable_after_grade(client, headers_a, rubric_a, student_a):
         ).fetchone()
     draft_before = row_before.draft_json
 
-    # Approve
+    # Approve (run_grading mocked — never call OpenAI in tests)
     answers = [{"question_number": 1, "sub_question_id": None, "answer_text": "modified by teacher"}]
-    g_resp = client.post(
-        "/api/v0/transcriptions/grade",
-        json={"transcription_id": tx_id, "answers": answers, "student_id": student_a["id"]},
-        headers=headers_a,
-    )
+    with patch("app.api.v0.transcription.run_grading"):
+        g_resp = client.post(
+            "/api/v0/transcriptions/grade",
+            json={"transcription_id": tx_id, "answers": answers, "student_id": student_a["id"]},
+            headers=headers_a,
+        )
     assert g_resp.status_code == 200
 
     # Snapshot draft_json after /grade

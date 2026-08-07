@@ -66,6 +66,8 @@ Added to §7 as a **stated architectural property**: because accept remains body
 
 Everything this PR ships under OD-2A is unchanged: the two actions on the review page (שמירה / אישור תמלול), the gate computation, the completion state. §11's non-goals line is amended from "no change to *when* grading fires (deferred)" to: **grading-kickoff timing is permanently per-item by product ruling; the deferred endpoint changes coverage (accept-the-rest), not timing.**
 
+> **Caveat (post-Phase-1 ruling):** everywhere this plan says "accept fires grading," read it as *queues a grading run against a path that has never functioned in this codebase* — the `graded_tests` pending-INSERT was broken from birth (see the Phase-1 closure note below), so the kickoff is a seam into a known-nonfunctional grading path until the grading-endpoint PR lands and is verified. Do not read the DFD-style claim as tested behavior.
+
 ---
 
 ## Δ6 — Span-offset frame of reference: FINDING *(feedback §2.6; amends plan §6 OD-4, §8 Phase 3 spec of `deriveReviewFlags`)*
@@ -188,6 +190,38 @@ Verified: the pre-Phase-4 client tolerates the additive skip field. `acceptClean
 
 ### Δ19 — Backlog: persist the anchor line index server-side *(from Δ6; recorded as BACKLOG B-17, not implemented)*
 The backend already computes the answer/line anchor (`best_line_match` → `anchor_key`, `flagging.py:L300-L327`) and discards the line index, shipping only baseline-frame offsets. Persisting the matched answer-line index into `reader_disagreement` metadata would make client line-highlighting exact with zero fuzzy logic anywhere. Recorded in `BACKLOG.md` as **B-17** with the Δ6 line refs, tagged as prerequisite polish for any future two-phase-default switch.
+
+---
+
+## Δ20 — §7 RTL/bidi mechanism CORRECTED by empirical adjudication (Phase 4, ratified)
+
+The plan §7 (and the original ruling) specified `dir="ltr"` islands **plus
+`unicode-bidi: plaintext`** per backdrop line. The ruled Playwright test
+`rtl-bidi-code-comment-rendering` (bounding-box x-comparison) falsified the
+mechanism: plaintext resolves paragraph direction from the FIRST STRONG
+character, so a Hebrew-initial comment line (`// תכונות`) became RTL-base and
+the `//` migrated to the RIGHT of the Hebrew (x≈590 vs ≈559) — the precise
+defect the mechanism was proposed to prevent. **The corrected mechanism is a
+pure `dir="ltr"` island, nothing more** (v0.5's empirically-correct approach).
+The test's assertions were the spec and remain the standing guard; the
+mechanism serves them. Recorded in `TranscribedTextEditor.tsx`'s docstring.
+
+---
+
+## Phase-1 closure note — the `none_as_null` attribution (ruled)
+
+The forced repair's attribution resolved the clean way: **the `graded_tests` pending-INSERT
+path was never live in this codebase — broken from birth and unexercised, so nothing was
+silently broken in production.** Mechanism: `GradedTest.draft_json`/`contract_json` were bare
+`JSONB` columns, and SQLAlchemy binds an explicitly-passed Python `None` as jsonb `'null'`
+(not SQL NULL), which the `graded_tests_status_consistency` CHECK correctly rejects for
+`'pending'` rows — so every `/grade`/accept insert failed at commit, from the first deploy of
+this model file. The pre-existing graded rows in the DB predate this path. Consequence,
+recorded next to Δ5 above: this PR's accept endpoints queue grading runs against a grader
+kickoff that has never functioned here; "accept fires grading" is a seam into a
+known-nonfunctional path until the grading-endpoint PR lands. The repair
+(`JSONB(none_as_null=True)`, ratified) makes the insert legal; the grading run it queues
+remains unverified behavior.
 
 ---
 

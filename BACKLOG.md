@@ -484,3 +484,89 @@ place: the anchor is computed once, server-side, and shipped).
 **Trigger:** before (or with) any switch of `settings.transcription_engine` default to
 `two_phase` — the feature only fires under that engine, so the polish is a prerequisite for the
 switch, not for the batch-review PR (ruled Δ19, batch transcription review revision).
+
+## B-18. KNOWN_FAILURES baseline — the backend suite's standing failures (2026-08-04)
+
+**Purpose:** the phase gate for the batch-review PR (Phase 1.5 onward) and successors is
+**"no NEW failures vs. this baseline"** — not re-litigating these by memory each run. Recorded
+after Phase 1 went green; every entry was attributed (none is caused by the batch-review work).
+Remove entries as their family is fixed.
+
+**Family A — async-harness loop clash (49 → 35 tests; see B-19 for the fix):**
+`tests/api/test_revision_flows.py` — all 22 (4 FAILED + 18 ERROR; the IntegrityErrors are
+secondary cascades of earlier failed inserts, same root) · `tests/api/test_graded_test_approval.py`
+— 6 ERROR · `tests/api/test_batch_grading.py` — 5 integration tests
+(`test_create_batch_fans_out_transcriptions`, `test_bulk_accept_writes_contracts`,
+`test_accept_one_fires_run_grading`, `test_rollup_counts_reflect_child_states`,
+`test_batch_without_class_works`).
+
+**Family B — deprecated users-router auth returns 401 with a valid token (4 tests):**
+`test_s2_auth::test_3_own_resource_returns_200`, `test_s2_auth::test_4_other_users_resource_returns_404`,
+`test_graded_test_endpoints::test_detail_cross_user_404`,
+`test_transcription_endpoints::test_10_uncompiled_rubric_rejected` — all hit `/api/v0/users/me`
+(`app/api/v0/users.py`, header says "Currently deprecated!"). Fix = route tests to `/api/v0/auth/me`
+or fix/retire the users router.
+
+**Family C — spec drift (1 test):** `test_s2_auth::test_7_stubbed_grading_endpoints_return_501`
+expects 501 from endpoints that have since been implemented (got 200). Update the test.
+
+**Family D — Windows `charmap` fixture reads (9 tests):** `tests/rubric_eval_suite/test_pedagogical.py`
+(8) + `test_llm_policy.py::test_truncation_guard_per_provider` — `open()` without `encoding="utf-8"`
+on UTF-8 fixtures, cp1252 default on Windows. Fix = add `encoding=` at the read sites.
+
+**Family E — in-flight branch artifacts (3 tests):** `test_extraction_jobs::test_stale_extracting_is_reported`
+(the `perf/rubric-extraction-latency` branch is mid-rework of staleness; the old staleness test file
+is deleted in the working tree) · `test_contract_parity::test_golden_drafts_compile_clean_in_one_round_trip[hobby_tvshow…]`
+(golden benchmark modified in the working tree). Owned by that branch's work, not a fix target here.
+Also (added 2026-08-07, Phase-3 gate): frontend Playwright
+`e2e/rubric-review.spec.ts › employee: selection header … structured 400 then clean save` —
+the INV-2 compile-rejection chip no longer renders after save; the findings-lifecycle design
+iteration on this branch (`iter-b687b88`) reworked exactly that surface. Consistent, not flake;
+zero overlap with the batch-review diff (14 sibling rubric e2e tests pass).
+
+**Fixed since the 2026-08-03 sweep (not in baseline):** `test_schema_canon::test_db_ahead_of_code_*`
+(hardcoded "014" fixture — now computes head+1) · `test_transcription_endpoints` test_14/16/17
+(unpatched `run_grading` ran REAL LLM grading once inserts were healed — now mocked).
+
+## B-19. Async test harness: `asyncio.run()` against the TestClient-loop-bound engine pool
+
+**Evidence:** `tests/api/test_batch_grading.py:L303-L360` (and the same pattern in
+`test_revision_flows.py` / `test_graded_test_approval.py` helpers) call `asyncio.run(helper())`
+where the helper opens `AsyncSessionLocal()` on the app's shared async engine. The TestClient
+fixture has already bound pooled asyncpg connections to ITS event loop; the helper's fresh
+`asyncio.run` loop checks one out → `RuntimeError: ... attached to a different loop` /
+`Event loop is closed`, cascading IntegrityErrors from half-done state. Reproduced in
+isolation (`test_bulk_accept_writes_contracts` fails alone). One full-suite run **wedged
+indefinitely** (43 min wall, CPU frozen at 43s) in this family — the harness can hang, not
+just fail.
+
+**Fix direction (pick one, apply to all three modules):** (a) sync-engine helpers — direct
+psycopg2 inserts, no loop at all (the pattern `tests/api/test_transcription_review.py`
+uses, working); or (b) a dedicated NullPool async engine per helper call. Do NOT "fix" by
+sharing the TestClient's loop — that's coupling to Starlette internals.
+
+**Trigger:** first PR that needs revision-flow or approval-gate integration tests green
+(bulk grade-approval work will), or any dedicated test-infra cleanup pass.
+
+## B-20. Codegen emits a duplicate-operation-ID warning (rubric_generator.py)
+
+**Evidence:** every `npm run gen:api` prints `UserWarning: Duplicate Operation ID
+list_rubrics_endpoint_api_v0_rubrics_get for function list_rubrics_endpoint at
+app/api/v0/rubric_generator.py` (fastapi/openapi/utils.py). Cosmetic today — but codegen
+warnings rot into ignored noise that masks real ones. Fix = give the rubric_generator route a
+unique `operation_id` (or distinct function name) so the dump is warning-clean.
+
+**Trigger:** next PR that touches rubric_generator.py or the codegen pipeline.
+
+## B-21. DELETE `grader-frontend/` from the repo before the batch-review PR closes (ruled)
+
+**What it actually is (established empirically, pre-Phase-6 §1):** the in-repo `grader-frontend/`
+is the OLD DEPLOY MIRROR of `frontend/`, frozen pre-PR (89 tracked files; contains v1-era
+`TranscriptionReviewPanel.tsx` at its pre-unification 459 lines, `app/batches/`, and none of the
+PR's new surfaces — it is NOT the v0.5 reference copy, which lives OUTSIDE the repo at
+`Desktop\vivi-v0.5\pupal\grader-frontend\`). It received ZERO writes from this PR (verified:
+`git status -- grader-frontend/` empty throughout). **Ruling:** `frontend/` is the only source
+of truth and the only write target; the stale mirror's continued presence is exactly the
+ambiguity that produced the Phase-5 revertability confusion. Delete it (git rm, its own commit)
+as a Phase-6 item; any deploy-flow implications (CLAUDE.md §10/§12.5 describe a Vercel subtree
+built FROM it) must be resolved at deploy time against the real Vercel wiring, not assumed.

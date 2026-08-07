@@ -35,6 +35,7 @@ from ...services.handwriting_transcription_service import (
     HandwritingTranscriptionService,
     get_vlm_provider,
     pdf_to_images,
+    render_pdf_page,
 )
 from ...services.transcription_adapter import build_transcription_draft
 from ...services.grading_runner import run_grading
@@ -295,14 +296,18 @@ async def get_transcription_page(
         logger.error(f"GCS download failed for {transcription.gcs_object_path}: {exc}", exc_info=True)
         raise HTTPException(status_code=502, detail="שגיאה בטעינת הקובץ")
 
-    # 4. Render the requested page only at PAGE_RENDER_DPI
+    # 4. Render ONLY the requested page at PAGE_RENDER_DPI (Phase 1.5 — the
+    # previous code rasterized the whole PDF per request, so a full review of
+    # an N-page test cost N² page renders).
     try:
-        images = await run_in_threadpool(pdf_to_images, pdf_bytes, PAGE_RENDER_DPI)
-        if page_number > len(images):
-            raise HTTPException(status_code=404, detail="Page not found")
-        thumbnail_base64 = image_to_base64(images[page_number - 1])
-    except HTTPException:
-        raise
+        image = await run_in_threadpool(
+            render_pdf_page, pdf_bytes, page_number, PAGE_RENDER_DPI
+        )
+        thumbnail_base64 = image_to_base64(image)
+    except ValueError:
+        # draft page_count can exceed the actual PDF — same guard the
+        # full-render path had via len(images).
+        raise HTTPException(status_code=404, detail="Page not found")
     except Exception as exc:
         logger.error(f"PDF render failed page={page_number}: {exc}", exc_info=True)
         raise HTTPException(status_code=502, detail="שגיאה בעיבוד הדף")
