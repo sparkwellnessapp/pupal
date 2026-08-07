@@ -14,14 +14,10 @@ import {
     ClipboardCheck,
 } from 'lucide-react';
 import { SidebarLayout } from '@/components/SidebarLayout';
-import { StudentPicker } from '@/components/StudentPicker';
-import { TranscriptionReviewPanel } from '@/components/TranscriptionReviewPanel';
 import { GradedTestReviewPanel } from '@/components/GradedTestReviewPanel';
 import {
     getBatch,
-    listBatches,
     acceptCleanTranscriptions,
-    acceptOneTranscription,
     saveGradedTestDraft,
     approveGradedTest,
     getGradedTest,
@@ -31,12 +27,11 @@ import type {
     BatchTranscriptionItem,
     BatchRollup,
     AcceptCleanItem,
-    GradeAnswerInputItem,
-    FLAG_REASON_LABELS,
 } from '@/types/batch';
 import { FLAG_REASON_LABELS as LABELS } from '@/types/batch';
 import type { GradedTestDraftResponse, GradedTestApprovedResponse, GradedTestOverrides } from '@/types/graded_test';
-import type { GradeAnswerInput } from '@/types/transcription';
+import { untranscribedResidue } from '@/utils/batch-residue';
+import { editedExcludedCount, untranscribedFilesCount } from '@/utils/hebrew-plural';
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -87,104 +82,48 @@ function Chip({ label, color }: { label: string; color: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Individual flagged-test review card
+// Per-test summary row — the review itself happens in the full-screen route
+// (/batches/[id]/review/[transcriptionId]); the blind inline editor is gone.
 // ---------------------------------------------------------------------------
-function FlaggedTestCard({
-    item,
-    onAccept,
-}: {
-    item: BatchTranscriptionItem;
-    onAccept: (transcriptionId: string, studentId: string, answers: GradeAnswerInputItem[]) => Promise<void>;
-}) {
-    const [expanded, setExpanded] = useState(false);
-    const [studentId, setStudentId] = useState<string>(item.matched_student_id ?? '');
-    const [accepting, setAccepting] = useState(false);
-    const [answers, setAnswers] = useState<GradeAnswerInputItem[]>(
-        item.draft.answers.map(a => ({
-            question_number: a.question_number,
-            sub_question_id: a.sub_question_id ?? null,
-            answer_text: a.answer_text,
-        }))
-    );
-
-    const handleAccept = async () => {
-        if (!studentId) return;
-        setAccepting(true);
-        try {
-            await onAccept(String(item.transcription_id), studentId, answers);
-        } finally {
-            setAccepting(false);
-        }
-    };
+function TestSummaryRow({ item, batchId }: { item: BatchTranscriptionItem; batchId: string }) {
+    const reviewHref = `/batches/${batchId}/review/${String(item.transcription_id)}`;
 
     if (item.transcription_status === 'approved') {
         return (
-            <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2 text-sm text-green-700">
-                <CheckCircle2 size={16} className="shrink-0" />
-                {item.filename ?? 'ללא שם'} — אושר
+            <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-xl flex items-center justify-between gap-2 text-sm text-green-700">
+                <span className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="shrink-0" />
+                    {item.filename ?? 'ללא שם'} — אושר
+                </span>
+                <Link href={reviewHref} className="text-green-700 underline text-xs shrink-0">
+                    צפייה
+                </Link>
             </div>
         );
     }
 
     return (
-        <div className="border border-amber-300 rounded-xl overflow-hidden">
-            <div
-                className="flex items-center justify-between px-4 py-3 bg-amber-50 cursor-pointer"
-                onClick={() => setExpanded(v => !v)}
-            >
-                <div className="flex items-center gap-2">
-                    <AlertTriangle size={16} className="text-amber-600 shrink-0" />
-                    <span className="font-medium text-sm text-gray-800">{item.filename ?? 'ללא שם'}</span>
-                </div>
-                <div className="flex items-center gap-1 flex-wrap">
-                    {item.flag_verdict.reasons.map(r => (
-                        <span key={r} className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs">
-                            {(LABELS as Record<string, string>)[r] ?? r}
-                        </span>
-                    ))}
-                </div>
+        <div className="flex items-center justify-between gap-3 px-4 py-3 bg-amber-50 border border-amber-300 rounded-xl">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <AlertTriangle size={16} className="text-amber-600 shrink-0" />
+                <span className="font-medium text-sm text-gray-800">{item.filename ?? 'ללא שם'}</span>
+                {item.flag_verdict.reasons.map(r => (
+                    <span key={r} className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs">
+                        {(LABELS as Record<string, string>)[r] ?? r}
+                    </span>
+                ))}
+                {item.review && (
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
+                        נערך ידנית
+                    </span>
+                )}
             </div>
-
-            {expanded && (
-                <div className="p-4 space-y-4">
-                    {/* Student assignment */}
-                    <div>
-                        <label className="block text-xs text-gray-500 mb-1">שיוך תלמיד</label>
-                        <StudentPicker value={studentId || null} onChange={setStudentId} />
-                    </div>
-
-                    {/* Answer review — editable textareas */}
-                    <div className="space-y-2">
-                        {answers.map((ans, i) => (
-                            <div key={i} className="space-y-1">
-                                <label className="text-xs text-gray-500">
-                                    שאלה {ans.question_number}{ans.sub_question_id ? `  (${ans.sub_question_id})` : ''}
-                                </label>
-                                <textarea
-                                    value={ans.answer_text}
-                                    onChange={e => {
-                                        const updated = [...answers];
-                                        updated[i] = { ...updated[i], answer_text: e.target.value };
-                                        setAnswers(updated);
-                                    }}
-                                    rows={3}
-                                    className="w-full border border-surface-300 rounded-lg px-3 py-2 text-sm resize-y font-mono"
-                                    dir="ltr"
-                                />
-                            </div>
-                        ))}
-                    </div>
-
-                    <button
-                        onClick={handleAccept}
-                        disabled={!studentId || accepting}
-                        className="w-full flex items-center justify-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors"
-                    >
-                        {accepting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                        אשר תמלול
-                    </button>
-                </div>
-            )}
+            <Link
+                href={reviewHref}
+                className="shrink-0 bg-primary-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
+            >
+                פתיחה לבדיקה
+            </Link>
         </div>
     );
 }
@@ -197,6 +136,8 @@ function CleanTestsPanel({
     batchId,
     onAccepted,
 }: {
+    /** UNTOUCHED clean items only — teacher-edited ones (Δ1) are the caller's
+     *  problem and go through individual accept in the review route. */
     cleanItems: BatchTranscriptionItem[];
     batchId: string;
     onAccepted: () => void;
@@ -208,8 +149,10 @@ function CleanTestsPanel({
         setAccepting(true);
         setError(null);
         try {
+            // Δ1 client filter (cosmetic — the server enforces the exclusion):
+            // a saved review overlay means teacher-touched ⇒ not "clean".
             const items: AcceptCleanItem[] = cleanItems
-                .filter(i => i.matched_student_id && i.transcription_status === 'transcribed')
+                .filter(i => i.matched_student_id && i.transcription_status === 'transcribed' && !i.review)
                 .map(i => ({
                     transcription_id: String(i.transcription_id),
                     student_id: i.matched_student_id!,
@@ -224,7 +167,7 @@ function CleanTestsPanel({
         }
     };
 
-    const pendingClean = cleanItems.filter(i => i.transcription_status === 'transcribed');
+    const pendingClean = cleanItems.filter(i => i.transcription_status === 'transcribed' && !i.review);
 
     if (pendingClean.length === 0) return null;
 
@@ -238,7 +181,13 @@ function CleanTestsPanel({
                     <div className="mt-1 space-y-0.5">
                         {pendingClean.slice(0, 5).map(i => (
                             <p key={String(i.transcription_id)} className="text-xs text-green-700">
-                                {i.filename ?? 'ללא שם'} → {i.matched_student_name ?? '—'}
+                                <Link
+                                    href={`/batches/${batchId}/review/${String(i.transcription_id)}`}
+                                    className="underline hover:text-green-900"
+                                >
+                                    {i.filename ?? 'ללא שם'}
+                                </Link>
+                                {' '}→ {i.matched_student_name ?? '—'}
                             </p>
                         ))}
                         {pendingClean.length > 5 && (
@@ -406,18 +355,26 @@ export default function BatchDetailPage() {
         );
     }
 
-    const clean = batch.transcriptions.filter(
-        t => !t.flag_verdict.review_needed && t.transcription_status === 'transcribed'
-    );
-    const flagged = batch.transcriptions.filter(
-        t => t.flag_verdict.review_needed && t.transcription_status === 'transcribed'
-    );
-    const allReviewed = batch.transcriptions.every(t => t.transcription_status === 'approved');
+    const pending = batch.transcriptions.filter(t => t.transcription_status === 'transcribed');
+    // Δ1: a saved review overlay means teacher-touched ⇒ needs individual accept,
+    // even when the flag verdict called it clean.
+    const untouchedClean = pending.filter(t => !t.flag_verdict.review_needed && !t.review);
+    const touchedClean = pending.filter(t => !t.flag_verdict.review_needed && t.review);
+    const flagged = pending.filter(t => t.flag_verdict.review_needed);
+    const individualRows = [...flagged, ...touchedClean];
 
-    const handleAcceptOne = async (transcriptionId: string, studentId: string, answers: GradeAnswerInputItem[]) => {
-        await acceptOneTranscription(batchId, transcriptionId, studentId, answers as GradeAnswerInput[]);
-        await refresh();
-    };
+    // The gate counts ROWS ONLY (phantom never-transcribed items are the
+    // residue line's job, never reviewable) — and an empty batch is not "done".
+    const allReviewed = batch.transcriptions.length > 0
+        && batch.transcriptions.every(t => t.transcription_status === 'approved');
+
+    // Δ15: progress-based un-transcribed residue.
+    const residue = untranscribedResidue({
+        testCount: batch.rollup.total,
+        batchCreatedAt: batch.created_at,
+        itemCreatedAts: batch.transcriptions.map(t => t.created_at),
+        now: Date.now(),
+    });
 
     return (
         <SidebarLayout>
@@ -441,40 +398,61 @@ export default function BatchDetailPage() {
                 {/* Roll-up */}
                 <RollupBar rollup={batch.rollup} />
 
+                {/* In-flight transcription / Δ15 residue — honest, mutually exclusive */}
+                {batch.rollup.transcribing > 0 && !residue.visible && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
+                        <Loader2 size={16} className="animate-spin text-blue-500" />
+                        {batch.rollup.transcribing} מבחנים עדיין בתהליך תמלול...
+                    </div>
+                )}
+                {residue.visible && (
+                    <div className="flex items-center gap-2 text-sm text-amber-800 px-4 py-3 bg-amber-50 rounded-xl border border-amber-300">
+                        <AlertTriangle size={16} className="text-amber-600" />
+                        {untranscribedFilesCount(residue.missing)}
+                    </div>
+                )}
+
                 {/* Transcription review phase */}
-                {!allReviewed && (
+                {!allReviewed && batch.transcriptions.length > 0 && (
                     <div className="space-y-4">
                         <h2 className="font-semibold text-gray-800">סקירת תמלולים</h2>
 
-                        {batch.rollup.transcribing > 0 && (
-                            <div className="flex items-center gap-2 text-sm text-gray-600 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
-                                <Loader2 size={16} className="animate-spin text-blue-500" />
-                                {batch.rollup.transcribing} מבחנים עדיין בתהליך תמלול...
-                            </div>
-                        )}
-
-                        {clean.length > 0 && (
+                        {untouchedClean.length > 0 && (
                             <CleanTestsPanel
-                                cleanItems={clean}
+                                cleanItems={untouchedClean}
                                 batchId={batchId}
                                 onAccepted={refresh}
                             />
                         )}
 
-                        {flagged.length > 0 && (
+                        {touchedClean.length > 0 && (
+                            <p className="text-sm text-blue-700">
+                                {editedExcludedCount(touchedClean.length)}
+                            </p>
+                        )}
+
+                        {individualRows.length > 0 && (
                             <div className="space-y-3">
                                 <p className="text-sm font-medium text-amber-700">
-                                    {flagged.length} מבחנים דורשים בדיקה פרטנית:
+                                    {individualRows.length} מבחנים דורשים בדיקה פרטנית:
                                 </p>
-                                {flagged.map(item => (
-                                    <FlaggedTestCard
+                                {individualRows.map(item => (
+                                    <TestSummaryRow
                                         key={String(item.transcription_id)}
                                         item={item}
-                                        onAccept={handleAcceptOne}
+                                        batchId={batchId}
                                     />
                                 ))}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* Transcription phase complete (grading may still be running) */}
+                {allReviewed && (batch.rollup.grading > 0 || batch.rollup.draft > 0) && (
+                    <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2 text-sm text-green-700">
+                        <CheckCircle2 size={16} />
+                        כל התמלולים אושרו — המבחנים נשלחו לבדיקה
                     </div>
                 )}
 

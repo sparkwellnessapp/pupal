@@ -3,6 +3,7 @@
  */
 
 import { getAuthHeaders } from './auth';
+import type { components } from './api-types';
 import type { QuestionOntology } from './ontology-types';
 import type {
     TranscribeResponse,
@@ -1737,7 +1738,6 @@ export async function getShareHistory(
 import type {
   BatchGradeRequest,
   BatchGradeResponse,
-  BatchProgressResponse,
   SessionDetailResponse,
   SessionResumeResponse,
   OntologyGradeRequest,
@@ -1764,43 +1764,12 @@ export type {
   StudentInput,
   BatchGradeRequest,
   BatchGradeResponse,
-  SessionSummary,
-  BatchProgressResponse,
   SessionDetailResponse,
   OntologyGradeRequest,
   OntologyGradeResponse,
   CompileRubricResponse,
 } from './ontology-types';
 
-
-/**
- * Get progress for a batch grading operation.
- * Includes session summaries with scores and flag counts.
- */
-export async function getBatchProgress(
-  batchId: string
-): Promise<BatchProgressResponse> {
-  const response = await apiFetchChecked(`/api/v0/grading/batches/${batchId}/progress`, {
-      });
-
-
-  return response.json();
-}
-
-/**
- * Cancel a batch grading operation.
- * Only pending sessions will be cancelled; completed sessions are preserved.
- */
-export async function cancelBatch(
-  batchId: string
-): Promise<{ batch_id: string; status: string; cancelled_sessions: number }> {
-  const response = await apiFetchChecked(`/api/v0/grading/batches/${batchId}/cancel`, {
-    method: 'POST',
-      });
-
-
-  return response.json();
-}
 
 /**
  * List all grading batches with optional filters.
@@ -1834,25 +1803,6 @@ export async function listBatches(options?: {
   const url = params.toString()
     ? `${API_BASE}/api/v0/grading/batches?${params}`
     : `${API_BASE}/api/v0/grading/batches`;
-
-  const response = await apiFetchChecked(url, {
-      });
-
-
-  return response.json();
-}
-
-/**
- * Get detailed information about a grading session.
- *
- * @param sessionId - Session identifier
- * @param includeDraft - Whether to include the full graded_test_draft (default: true)
- */
-export async function getSessionDetails(
-  sessionId: string,
-  includeDraft: boolean = true
-): Promise<SessionDetailResponse> {
-  const url = `${API_BASE}/api/v0/grading/sessions/${sessionId}?include_draft=${includeDraft}`;
 
   const response = await apiFetchChecked(url, {
       });
@@ -2013,65 +1963,6 @@ export function getQuoteValidationDisplay(status: string): {
   }
 }
 
-/**
- * Watch batch progress with polling.
- * Automatically stops when batch completes or fails.
- *
- * @param batchId - Batch identifier
- * @param onProgress - Callback for progress updates
- * @param options - Polling options
- * @returns Cleanup function to stop polling
- *
- * @example
- * const stop = watchBatchProgress(batchId, (progress) => {
- *   console.log(`${progress.progress_percentage}% complete`);
- * });
- * // Later: stop();
- */
-export function watchBatchProgress(
-  batchId: string,
-  onProgress: (progress: BatchProgressResponse) => void,
-  options?: {
-    intervalMs?: number;
-    onError?: (error: Error) => void;
-    onComplete?: (progress: BatchProgressResponse) => void;
-  }
-): () => void {
-  const interval = options?.intervalMs ?? 2000;
-  let stopped = false;
-  let timeoutId: ReturnType<typeof setTimeout>;
-
-  const poll = async () => {
-    if (stopped) return;
-
-    try {
-      const progress = await getBatchProgress(batchId);
-      onProgress(progress);
-
-      // Check if batch is done
-      if (progress.status === 'completed' || progress.status === 'failed' || progress.status === 'partially_completed') {
-        options?.onComplete?.(progress);
-        return;
-      }
-
-      // Schedule next poll
-      timeoutId = setTimeout(poll, interval);
-    } catch (error) {
-      if (!stopped) {
-        options?.onError?.(error instanceof Error ? error : new Error(String(error)));
-      }
-    }
-  };
-
-  // Start polling
-  poll();
-
-  // Return cleanup function
-  return () => {
-    stopped = true;
-    clearTimeout(timeoutId);
-  };
-}
 
 
 // =============================================================================
@@ -2254,6 +2145,28 @@ export async function submitGrade(params: {
         throw new Error((err as { detail?: string }).detail ?? 'שגיאה בשמירת הבדיקה');
     }
     return res.json() as Promise<GradeQueuedResponse>;
+}
+
+// --- Batch-review Phase 2: the teacher review overlay ------------------------
+// Wire types are GENERATED (OD-9) — consumed from api-types.ts, no hand mirror.
+
+export type TranscriptionReview = components['schemas']['TranscriptionReview'];
+export type TranscriptionReviewSaveRequest = components['schemas']['ReviewSaveRequest'];
+
+/**
+ * Persist the teacher's review working copy (transcriptions.review_json).
+ * FULL snapshot, last-write-wins. Domain errors surface as ApiError:
+ * 409 = transcription already approved (LCY-1); 422 = the snapshot's answer
+ * keys don't match the draft. Never called after a successful accept (Δ4).
+ */
+export async function saveTranscriptionReview(
+    transcriptionId: string,
+    body: TranscriptionReviewSaveRequest,
+): Promise<TranscriptionReview> {
+    return apiFetch<TranscriptionReview>(
+        `/api/v0/transcriptions/${transcriptionId}/review`,
+        jsonInit('PATCH', body),
+    );
 }
 
 export async function getTranscriptionPage(

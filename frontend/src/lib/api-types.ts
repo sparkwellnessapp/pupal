@@ -717,6 +717,47 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /**
+         * Patch Extraction Job Metadata
+         * @description Merge caller-supplied metadata (name / programming_language) into the
+         *     job's request_params. METADATA-ONLY — the runner never reads these keys;
+         *     this only persists them for later save/resume.
+         *
+         *     The merge is a DB-level shallow concat (`request_params || :patch`), NOT a
+         *     read-modify-write in Python: the runner writes progress_stage/heartbeat/
+         *     result to the SAME row concurrently, so a full-row ORM save here would
+         *     clobber its progress. Only the keys the caller actually sent are merged
+         *     (exclude_unset), so an omitted field is untouched while an explicit null
+         *     overwrites with JSON null.
+         */
+        patch: operations["patch_extraction_job_metadata_api_v0_rubrics_extraction_jobs__job_id__patch"];
+        trace?: never;
+    };
+    "/api/v0/rubrics/extraction-jobs/{job_id}/abandon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abandon Extraction Job
+         * @description Let the TEACHER end an active job she no longer wants to wait for.
+         *
+         *     Deadlines (LIV-1) guarantee an orphan eventually expires, but "eventually" is
+         *     still a window in which she is attached to a job she cannot escape — which is
+         *     exactly the trap this whole area exists to prevent. Vivi proposes, the teacher
+         *     decides: she can always walk away and start fresh, without waiting out a TTL.
+         *
+         *     Atomic CAS on the ACTIVE statuses only: a job that completed a moment ago is
+         *     left alone (409) rather than having its result thrown away.
+         */
+        post: operations["abandon_extraction_job_api_v0_rubrics_extraction_jobs__job_id__abandon_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -748,8 +789,9 @@ export interface paths {
         put?: never;
         /**
          * Retry Extraction Job
-         * @description Re-queue a failed job, or a stale 'extracting' one (heartbeat lapsed —
-         *     the instance died mid-job). Source doc is in GCS: no re-upload.
+         * @description Re-queue a failed job, or any EXPIRED active one (LIV-1: a lost dispatch
+         *     still sitting 'queued', or an 'extracting' worker whose heartbeat lapsed).
+         *     Source doc is in GCS: no re-upload.
          */
         post: operations["retry_extraction_job_api_v0_rubrics_extraction_jobs__job_id__retry_post"];
         delete?: never;
@@ -953,6 +995,39 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v0/transcriptions/{transcription_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Save Review
+         * @description Persist the teacher's review working copy (transcriptions.review_json).
+         *
+         *     Rules (batch-review plan, Δ2/Δ3/Δ16):
+         *       * Allowed only while status='transcribed' — 409 otherwise (LCY-1: an
+         *         approved transcription is read-only; the overlay is nulled at approval).
+         *       * FULL SNAPSHOT: the body's (question_number, sub_question_id) key
+         *         multiset must exactly equal the draft's — 422 on mismatch, never
+         *         silently normalized/filled/pruned.
+         *       * A non-null student_id is ownership-validated NOW (cross-tenant → 404,
+         *         §9), not left to detonate at accept.
+         *       * Concurrency: last-write-wins. Two tabs saving concurrently is accepted;
+         *         the later write replaces the earlier whole-snapshot.
+         *       * Approval stays body-authoritative — accept endpoints never read this
+         *         overlay; it exists so edits survive navigation/refresh.
+         */
+        patch: operations["save_review_api_v0_transcriptions__transcription_id__review_patch"];
         trace?: never;
     };
     "/api/v0/users/me": {
@@ -1461,6 +1536,8 @@ export interface components {
          *     Includes the full draft for individual review + pre-computed triage data.
          */
         BatchTranscriptionItem: {
+            /** Created At */
+            created_at: string;
             draft: components["schemas"]["TranscriptionDraft"];
             /** Filename */
             filename?: string | null;
@@ -1473,6 +1550,7 @@ export interface components {
             matched_student_id?: string | null;
             /** Matched Student Name */
             matched_student_name?: string | null;
+            review?: components["schemas"]["TranscriptionReview"] | null;
             /** Student Name Suggestion */
             student_name_suggestion?: string | null;
             /** Total Possible */
@@ -1896,6 +1974,66 @@ export interface components {
             reasoning: string;
             /** Sub Criterion Outcomes */
             sub_criterion_outcomes?: components["schemas"]["SubCriterionOutcome"][] | null;
+        };
+        /**
+         * EditStep
+         * @description One primitive edit to the draft tree — the unit of a SuggestedFix.
+         *
+         *     THE GENERAL FIX WIRE: a fix is an ordered list of EditSteps, applied
+         *     ATOMICALLY by the client on teacher approval (all steps preflight-validated;
+         *     any failure ⇒ no button, never a partial write). Steps address nodes in the
+         *     dotted scope-path vocabulary every other surface already speaks
+         *     (`q2`, `q2.ב`, `q1.א.2`, or `"rubric"` for the declared total):
+         *
+         *       * set_points     — set the points of `scope` (or of its criteria
+         *                          [criterion_index], when given) to `value`. On a question
+         *                          this means total_points; on "rubric", the declared total.
+         *       * move_criterion — move criteria[criterion_index] of `scope` to `to_scope`.
+         *       * move_text      — move the VERBATIM substring `text` out of `scope`'s text
+         *                          into `to_scope`'s. The applier verifies the substring and
+         *                          performs the subtraction itself — the proposer only QUOTES
+         *                          what moves, so it structurally cannot rewrite prose it
+         *                          was not moving (the grader's quote-validation pattern).
+         *
+         *     A `to_scope` naming a sub-question that does not exist CREATES it
+         *     (auto-vivify) — that one rule replaces a whole create_* op family.
+         */
+        EditStep: {
+            /**
+             * Criterion Index
+             * @description 0-based index into scope's own criteria list.
+             */
+            criterion_index?: number | null;
+            /**
+             * Current Value
+             * @description What the draft says today — audit/display, never applied.
+             */
+            current_value?: string | null;
+            /**
+             * Op
+             * @description One of EDIT_OPS.
+             */
+            op: string;
+            /**
+             * Scope
+             * @description Dotted scope path ('q2', 'q2.ב') or 'rubric'.
+             */
+            scope: string;
+            /**
+             * Text
+             * @description Verbatim substring to relocate (move_text only).
+             */
+            text?: string | null;
+            /**
+             * To Scope
+             * @description Destination scope for move ops; auto-vivified when absent from the tree.
+             */
+            to_scope?: string | null;
+            /**
+             * Value
+             * @description New points value, decimal string (set_points only).
+             */
+            value?: string | null;
         };
         /**
          * ErrorResponse
@@ -2488,6 +2626,37 @@ export interface components {
             width: number;
         };
         /**
+         * PatchJobMetadataRequest
+         * @description Metadata patch for a rubric-extraction job (PR-5 S1-2.2).
+         *
+         *     METADATA-ONLY: the runner never reads these keys — this endpoint only
+         *     persists them into request_params for later save/resume. Both fields are
+         *     OPTIONAL and 'omitted' is distinct from 'explicit null': only the keys the
+         *     caller actually sent are merged (build the patch via model_dump(
+         *     exclude_unset=True)), so an omitted field leaves the stored value untouched
+         *     while an explicit null overwrites it with JSON null.
+         */
+        PatchJobMetadataRequest: {
+            /** Name */
+            name?: string | null;
+            /** Programming Language */
+            programming_language?: string | null;
+        };
+        /** PatchJobMetadataResponse */
+        PatchJobMetadataResponse: {
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Request Params */
+            request_params: {
+                [key: string]: unknown;
+            };
+            /** Status */
+            status: string;
+        };
+        /**
          * PedagogicalMistake
          * @description A detected error IN THE TEACHER'S RUBRIC (not in extraction). Distinct from
          *     Annotation: it carries a suggested fix and an explicit 'needs teacher input'
@@ -2503,6 +2672,16 @@ export interface components {
              */
             confidence: number;
             /**
+             * Dismissed
+             * @description She chose «השאירי כך» — the finding stands, and is not re-asked.
+             */
+            dismissed?: boolean | null;
+            /**
+             * Dismissed At
+             * @description ISO-8601 timestamp of that decision.
+             */
+            dismissed_at?: string | null;
+            /**
              * Evidence
              * @description The numbers/labels that prove it.
              */
@@ -2510,10 +2689,25 @@ export interface components {
                 [key: string]: unknown;
             };
             /**
+             * Explained By
+             * @description mistake_id of the root-cause mistake whose single fix resolves this one too.
+             */
+            explained_by?: string | null;
+            /**
              * Explanation
              * @description What is wrong, in the teacher's language (Hebrew).
              */
             explanation: string;
+            /**
+             * Fix Applied
+             * @description She accepted the proposed fix. An UNDONE fix is not an applied fix — this is cleared on undo.
+             */
+            fix_applied?: boolean | null;
+            /**
+             * Fix Applied At
+             * @description ISO-8601 timestamp of that decision.
+             */
+            fix_applied_at?: string | null;
             kind: components["schemas"]["PedagogicalMistakeKind"];
             /** Mistake Id */
             mistake_id: string;
@@ -2670,6 +2864,16 @@ export interface components {
             job_id: string;
             /** Status */
             status: string;
+        };
+        /**
+         * ReviewSaveRequest
+         * @description Full-snapshot review save. `answers` reuses the /grade answer shape.
+         */
+        ReviewSaveRequest: {
+            /** Answers */
+            answers: components["schemas"]["GradeAnswerInput"][];
+            /** Student Id */
+            student_id?: string | null;
         };
         /**
          * RevisionResponse
@@ -3352,6 +3556,12 @@ export interface components {
         /**
          * SuggestedFix
          * @description A concrete, machine-applicable correction the teacher can accept/reject in RubricEditor.
+         *
+         *     `steps` is the machine payload (the general edit wire, applied atomically);
+         *     `description` is the human sentence on the button. `operation`/`params` are the
+         *     LEGACY shape — drafts saved before pipeline 3.6.0 carry fixes expressed only as
+         *     params, and the client keeps a translation arm for them; new emissions populate
+         *     `steps` and leave `params` empty.
          */
         SuggestedFix: {
             /**
@@ -3366,11 +3576,16 @@ export interface components {
             operation: string;
             /**
              * Params
-             * @description Operation-specific args, e.g. {'from':'ב','to':'ג'}.
+             * @description LEGACY operation-specific args (pre-3.6.0 drafts).
              */
             params?: {
                 [key: string]: unknown;
             };
+            /**
+             * Steps
+             * @description The ordered primitive edits this fix performs (pipeline ≥ 3.6.0).
+             */
+            steps?: components["schemas"]["EditStep"][];
         };
         /**
          * TeacherOverride
@@ -3460,6 +3675,48 @@ export interface components {
             page_number: number;
             /** Thumbnail Base64 */
             thumbnail_base64: string;
+        };
+        /**
+         * TranscriptionReview
+         * @description The teacher's persisted working copy of a transcription review.
+         *
+         *     FULL SNAPSHOT, always: `answers` carries the complete answer set, and its
+         *     (question_number, sub_question_id) key multiset must equal the draft's —
+         *     a mismatched snapshot is rejected (422), never normalized. No merge
+         *     semantics exist anywhere, now or in any future endpoint.
+         *
+         *     `student_id` is the teacher's chosen student. It lives here (not in the
+         *     transcriptions.student_id column) because transcriptions_approval_consistency
+         *     forbids the column before approval.
+         *
+         *     Lifecycle: writable only while status='transcribed'; set to NULL inside the
+         *     same UPDATE that performs the 'transcribed'→'approved' transition (part of
+         *     the transition write — LCY-1 untouched). Concurrent writes are
+         *     last-write-wins. Accept endpoints remain body-authoritative: this overlay
+         *     is durability for the UI, never the approval input (the future batch
+         *     /submit endpoint is the documented exception — it has no body).
+         */
+        TranscriptionReview: {
+            /** Answers */
+            answers: components["schemas"]["TranscriptionReviewAnswer"][];
+            /**
+             * Schema Version
+             * @default 1.0
+             */
+            schema_version: string;
+            /** Student Id */
+            student_id?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** TranscriptionReviewAnswer */
+        TranscriptionReviewAnswer: {
+            /** Answer Text */
+            answer_text: string;
+            /** Question Number */
+            question_number: number;
+            /** Sub Question Id */
+            sub_question_id?: string | null;
         };
         /**
          * UnmatchedAnswer
@@ -4931,6 +5188,72 @@ export interface operations {
             };
         };
     };
+    patch_extraction_job_metadata_api_v0_rubrics_extraction_jobs__job_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchJobMetadataRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatchJobMetadataResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    abandon_extraction_job_api_v0_rubrics_extraction_jobs__job_id__abandon_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetryJobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_extraction_job_result_api_v0_rubrics_extraction_jobs__job_id__result_get: {
         parameters: {
             query?: never;
@@ -5257,6 +5580,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TranscriptionPageResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_review_api_v0_transcriptions__transcription_id__review_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewSaveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptionReview"];
                 };
             };
             /** @description Validation Error */

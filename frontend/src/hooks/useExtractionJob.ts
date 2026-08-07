@@ -6,7 +6,7 @@
  * Polls an async rubric-extraction job: 2s self-scheduling loop, ×2 backoff on
  * transient error, stop on terminal status (completed/failed) or staleness.
  *
- * Cloned from useBatchProgress with one mandatory difference: a 401/403
+ * Cloned from the retired useBatchProgress (deleted Phase 5) with one mandatory difference: a 401/403
  * (ApiAuthError) is TERMINAL — stop polling and surface an auth error. The
  * batch hook treats every error as transient, which loops forever against an
  * expired token; an extraction poll must never inherit that.

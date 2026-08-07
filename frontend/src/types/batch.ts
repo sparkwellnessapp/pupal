@@ -4,6 +4,7 @@
  */
 
 import type { TranscriptionDraft } from './transcription'
+import type { components } from '../lib/api-types'
 
 // ---------------------------------------------------------------------------
 // Shared sub-types
@@ -21,7 +22,11 @@ export interface BatchTranscriptionItem {
   transcription_id: string
   filename: string | null
   transcription_status: 'transcribed' | 'approved'
+  /** Row insert time (ISO) — drives the Δ15 progress-based residue horizon. */
+  created_at: string
   draft: TranscriptionDraft
+  /** Teacher review overlay (review_json), if saved — GENERATED wire type (OD-9). */
+  review: components['schemas']['TranscriptionReview'] | null
   student_name_suggestion: string | null
   matched_student_id: string | null     // pre-computed normalized-exact match
   matched_student_name: string | null
