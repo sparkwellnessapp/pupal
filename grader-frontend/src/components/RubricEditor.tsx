@@ -13,6 +13,8 @@ import type {
 import { parseQuestionNumber, recalculateParentsFromCriteria } from '@/utils/rubric-transform';
 import { defaultSubQuestionTitle } from '@/utils/rubric-display';
 import { validateAllQuestions, getQuestionErrorCount } from '@/utils/rubric-validation';
+import { scopeLabel } from '@/utils/scope-label';
+import { errorsBadgeLabel } from '@/utils/session-spine';
 import {
   addQuestion,
   removeQuestion,
@@ -33,6 +35,7 @@ import {
 import { RubricMetadataEditor } from '@/components/RubricMetadataEditor';
 import { ExampleSolutionEditor } from '@/components/ExampleSolutionEditor';
 import { MarkdownTextRenderer } from '@/components/MarkdownTextRenderer';
+import { AnnotationBanner } from '@/components/AnnotationBanner';
 import { PagePreview, QuestionPageMapping, ExtractionMetadata, TraceTableData, Annotation } from '@/lib/api';
 import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, AlertCircle, AlertTriangle, FileText, ChevronLeft, ChevronRight, Maximize2, X, Info, Code, Table, Lightbulb, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 
@@ -587,7 +590,7 @@ export function RubricEditor({
         <div ref={errorBannerRef} className="bg-red-50 border border-red-300 rounded-lg p-3 text-sm text-red-800" dir="rtl">
           <div className="font-semibold flex items-center gap-2">
             <AlertCircle size={15} />
-            לא ניתן לשמור: {errorAnnotations.length} בעיות חסימה
+            לא ניתן לשמור: {errorsBadgeLabel(errorAnnotations.length)} חוסמות
           </div>
           <ul className="mt-2 space-y-1 list-disc list-inside">
             {errorAnnotations.map(a => (
@@ -597,10 +600,11 @@ export function RubricEditor({
                     className="underline text-red-700 hover:text-red-900"
                     onClick={() => scrollToScope(a.target_id)}
                   >
-                    {a.target_id}
+                    {/* S1-9: the naming law — never the raw id (q1.א.2). */}
+                    {scopeLabel(a.target_id, questions)}
                   </button>
                 ) : (
-                  <span>שאלון</span>
+                  <span>המחוון</span>
                 )}
                 {' — '}{a.message}
               </li>
@@ -743,7 +747,7 @@ export function RubricEditor({
                   return errorCount > 0 ? (
                     <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full flex items-center gap-1 font-medium">
                       <AlertCircle size={12} />
-                      {errorCount} שגיאות
+                      {errorsBadgeLabel(errorCount)}
                     </span>
                   ) : null;
                 })()}
@@ -1508,36 +1512,9 @@ function SubCriteriaEditor({ subCriteria, totalPoints, onSubCriteriaChange }: Su
   );
 }
 
-// =============================================================================
-// Annotation Banner — canonical rendering path for ExtractRubricResponse.annotations.
-// One component handles all severities (ERROR / WARNING / INFO).
-// =============================================================================
-
-interface AnnotationBannerProps {
-  annotation: Annotation;
-}
-
-function AnnotationBanner({ annotation }: AnnotationBannerProps) {
-  const styles: Record<string, string> = {
-    error:   'bg-red-50 border-red-300 text-red-800',
-    warning: 'bg-amber-50 border-amber-300 text-amber-800',
-    info:    'bg-blue-50 border-blue-300 text-blue-700',
-  };
-  const icons: Record<string, React.ReactNode> = {
-    error:   <AlertCircle   size={15} className="flex-shrink-0 mt-0.5 text-red-500"    />,
-    warning: <AlertTriangle size={15} className="flex-shrink-0 mt-0.5 text-amber-500"  />,
-    info:    <Info          size={15} className="flex-shrink-0 mt-0.5 text-blue-500"   />,
-  };
-  return (
-    <div
-      className={`flex items-start gap-2 px-3 py-2 border rounded-lg text-sm ${styles[annotation.severity] ?? styles.info}`}
-      dir="rtl"
-    >
-      {icons[annotation.severity] ?? icons.info}
-      <span>{annotation.message}</span>
-    </div>
-  );
-}
+// AnnotationBanner (the rubric-surface severity renderer) was lifted to its own
+// file in PR-5 S2 — `@/components/AnnotationBanner` (imported at the top). The
+// mirror (RubricDocument) imports the same one copy.
 
 // =============================================================================
 // Sub-Question Node (B-11) — recursive render at any nesting depth

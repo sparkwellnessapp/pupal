@@ -31,6 +31,11 @@ export default defineConfig({
     },
     projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
     webServer: {
+        // NEXT_DIST_DIR: the harness's dev server must NEVER share .next with
+        // the user's own dev server — two writers corrupt each other's chunk
+        // manifests and the OTHER process 404s mid-session (bit the owner's
+        // live E2E on 2026-08-22; see next.config.js).
+        env: { NEXT_DIST_DIR: '.next-e2e' },
         command: 'npm run dev -- --port 3100',
         url: 'http://localhost:3100',
         reuseExistingServer: !process.env.CI,

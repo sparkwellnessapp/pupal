@@ -2,9 +2,11 @@ import { test, expect, type Page } from '@playwright/test';
 import { seedAuth, installMocks, type MockOptions } from './fixtures';
 
 /**
- * PR-4 Phase 6 — the two journeys where "curl passed, browser died" actually
- * happened (census G12). Both drive the REAL wizard (upload → extract → review)
- * with the whole API route-mocked, so they exercise the render half deterministically.
+ * PR-4 Phase 6 / PR-5 S2 — the two journeys where "curl passed, browser died"
+ * happened (census G12), MIGRATED to the DOCUMENT MIRROR (RubricDocument). Both
+ * drive the real wizard (upload → extract → arrival → review) with the API
+ * route-mocked, exercising the render half deterministically. These remain the
+ * render-half guard.
  */
 
 async function driveToReview(page: Page, opts: MockOptions): Promise<void> {
@@ -16,57 +18,280 @@ async function driveToReview(page: Page, opts: MockOptions): Promise<void> {
     await page.locator('input[type="file"]').setInputFiles({
         name: 'rubric.docx',
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        buffer: Buffer.from('PK dummy docx — content is irrelevant, extraction is mocked'),
+        buffer: Buffer.from('PK dummy docx — content is irrelevant, extraction is mocked'),
     });
-    // Purpose step → skip → extracting → (mocked poll) → review.
-    await page.getByRole('button', { name: /דלג/ }).click();
-    await expect(page.getByText('סיכום מחוון')).toBeVisible({ timeout: 30_000 });
+    // extracting → arrival summary card → the mirror. The mirror renders the
+    // document itself (question headings), superseding the old "סיכום מחוון" card.
+    await expect(page.getByText('סיימתי לקרוא את המחוון')).toBeVisible({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'עברי על המחוון' }).click();
+    await expect(page.getByRole('heading', { name: /שאלה 1/ })).toBeVisible({ timeout: 30_000 });
 }
 
-test.describe('rubric wizard — the render half (PR-4 Phase 6)', () => {
-    test('bagrut: depth-2 renders, no white-screen, the q1.א.2 mismatch is caught client-side', async ({ page }) => {
+test.describe('rubric mirror — the render half (PR-5 S2)', () => {
+    test('bagrut: the mirror renders the document shape (depth-2), finding anchored at q1.א.2, save blocked', async ({ page }) => {
         const crashes: string[] = [];
         page.on('pageerror', (e) => crashes.push(String(e)));
 
         await driveToReview(page, { fixture: 'bagrut_899371' });
 
-        // Depth-2 nodes render at their FULL dotted paths — a depth-1 renderer could
-        // never emit these. This is the exact screen that used to white-screen with
-        // "e.toFixed is not a function" the moment a real discrepancy existed.
+        // Document shape: nested identity headings render, and depth-2 nodes carry
+        // their FULL dotted data-scope-id — the exact screen that used to white-screen
+        // with "e.toFixed is not a function" the moment a real discrepancy existed.
         await expect(page.locator('[data-scope-id="q1.א.2"]')).toBeVisible();
         await expect(page.locator('[data-scope-id="q1.ב.1"]')).toBeVisible();
 
-        // The recursive client validator caught the leaf mismatch (criteria 2 vs
-        // declared 3), so Save is blocked — the teacher can see and fix the exact node.
+        // The recursive client validator caught the leaf mismatch → the finding is
+        // surfaced in the relocated top summary (with a naming-law jump label, not a
+        // raw id) and Save is blocked at the exact node.
+        await expect(page.getByText('יש לתקן לפני שמירה')).toBeVisible();
+        await expect(page.getByRole('button', { name: /שאלה 1 · סעיף/ })).toBeVisible();
         await expect(page.getByRole('button', { name: 'שמור מחוון' })).toHaveAttribute('aria-disabled', 'true');
 
         expect(crashes, `uncaught page errors: ${crashes.join('\n')}`).toHaveLength(0);
     });
 
-    test('employee: header shows achievable 50 (not offered 100); structured 400 then clean save', async ({ page }) => {
+    test('employee: selection header (achievable 50, not offered 100); structured 400 then clean save', async ({ page }) => {
         await driveToReview(page, {
             fixture: 'employee_course_select1',
             save: 'reject-then-ok',
             rejectLocation: 'q2.א',
         });
 
-        // Selection parity: the summary shows the ACHIEVABLE total (50), never the
-        // offered sum (100) — the census's "two-disagreeing-totals" bug is gone.
-        await expect(page.getByText(/\d+ שאלות\s*·\s*50 נקודות\s*·\s*\d+ קריטריונים/)).toBeVisible();
+        // §5: the header states the selection structure in words and shows the
+        // ACHIEVABLE total (50), never the offered sum (100).
+        await expect(page.getByText(/מבחן בחירה/)).toBeVisible();
+        await expect(page.getByTestId('rubric-achievable-total')).toContainText('50');
         await expect(page.getByText('100 נקודות')).toHaveCount(0);
 
         // No client errors → Save is enabled.
         const save = page.getByRole('button', { name: 'שמור מחוון' });
         await expect(save).toHaveAttribute('aria-disabled', 'false');
 
-        // First save → mocked structured 400. PR-3's payload finally reaches the
-        // teacher's eyes: the named invariant chip + a working jump-to-node.
+        // First save → mocked structured 400 (RubricSaveFlow): the named invariant chip
+        // + a working jump whose label speaks the naming law, never the raw id.
         await save.click();
         await expect(page.getByText('INV-2')).toBeVisible();
-        await expect(page.getByRole('button', { name: /מעבר לרכיב/ })).toBeVisible();
+        await expect(page.getByRole('button', { name: /מעבר ל/ })).toBeVisible();
 
-        // Second save → 201. The rubric is saved.
+        // Second save → 201. The completion card shows her rubric's NAME; the UUID is dead.
         await save.click();
-        await expect(page.getByText('המחוון נשמר בהצלחה!')).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText('מכאן ויוי בודקת לפיו')).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText('employee_course_select1')).toBeVisible();
+        await expect(page.getByText('rub-e2e')).toHaveCount(0);
+
+        // Carry-through: the CTA lands her on upload-tests with THIS rubric selected.
+        await page.getByRole('button', { name: 'המשיכי לבדיקת מבחנים' }).click();
+        await expect(page.getByText('העלאת מבחנים')).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'employee_course_select1' })).toBeVisible();
+    });
+
+    test('mirror is editable: a criterion points cell opens an input and commits (E-3 cascade)', async ({ page }) => {
+        // Editing in the criteria table routes through the same ops as the old editor
+        // (ops-parity is unit-proven byte-identical). Here we only prove the surface is
+        // live: clicking a points chip opens the number input in place.
+        await driveToReview(page, { fixture: 'bagrut_899371' });
+        const chip = page.getByRole('button', { name: /ניקוד קריטריון/ }).first();
+        await expect(chip).toBeVisible();
+        await chip.click();
+        await expect(page.locator('input[type="number"]').first()).toBeVisible();
+    });
+});
+
+
+/**
+ * /design-lab is SERVER-rendered, so its markup exists long before React attaches.
+ * Clicking in that window silently does nothing — the source of a real flake.
+ * The rail auto-expands the ACTIVE question, which is impossible server-side
+ * (activeId is null in SSR), so that row appearing is a precise "React is live"
+ * signal. Every lab-driven test goes through here.
+ */
+async function gotoLab(page: Page, state = 'at-rest'): Promise<void> {
+    await page.goto(`/design-lab?fixture=bagrut_899371&state=${state}`);
+    await expect(page.locator('nav[aria-label="מפת המחוון"] [data-rail-link="q1.א"]'))
+        .toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * Design Recovery Round 2 — D9 (rail landing) and the D5/D8 edit surfaces, driven
+ * against /design-lab so the assertions are LAYOUT assertions, not markup ones.
+ * vitest runs node-env (no layout), so "did it land in the top region" can only be
+ * answered by a real browser — this is that answer.
+ */
+test.describe('Round 2 — rail landing + edit surfaces (design-lab)', () => {
+    for (const vp of [{ w: 1440, h: 900 }, { w: 1280, h: 800 }]) {
+        test(`D9: a rail click lands the question TITLE in the top region @${vp.w}`, async ({ page }) => {
+            await page.setViewportSize({ width: vp.w, height: vp.h });
+            await gotoLab(page);
+
+            const rail = page.getByRole('navigation', { name: 'מפת המחוון' });
+            // target the JUMP control specifically — a parent row also has a chevron
+            await rail.locator('[data-rail-link="q4"]').click();
+            await page.waitForTimeout(1200); // smooth scroll settle
+
+            // The TITLE itself must be visible near the top — not the sub-question
+            // body, and not scrolled under the ~80px sticky app header.
+            const heading = page.locator('[data-scope-id="q4"] h3').first();
+            await expect(heading).toBeInViewport();
+            const box = await heading.boundingBox();
+            expect(box).not.toBeNull();
+            expect(box!.y).toBeGreaterThanOrEqual(0);
+            expect(box!.y).toBeLessThan(220);
+        });
+    }
+
+    test('D5: a SUB-QUESTION points chip opens an input (points editable at every node)', async ({ page }) => {
+        await gotoLab(page);
+        const chip = page.getByRole('button', { name: /^ניקוד סעיף/ }).first();
+        await expect(chip).toBeVisible();
+        await chip.click();
+        await expect(page.locator('input[type="number"]').first()).toBeVisible();
+    });
+
+    test('D8: clicking prose opens a RAW textarea (display-rich / edit-raw)', async ({ page }) => {
+        await gotoLab(page);
+        // At rest the markers are rendered away…
+        await expect(page.getByText('[TABLE', { exact: false })).toHaveCount(0);
+        const prose = page.getByRole('button', { name: /^טקסט שאלה/ }).first();
+        await prose.click();
+        // …and on edit intent she gets the SOURCE back, markers and all.
+        const box = page.locator('textarea').first();
+        await expect(box).toBeVisible();
+        expect(await box.inputValue()).toContain('[TABLE');
+    });
+});
+
+/**
+ * The outline rail as a MAP: nested to full depth, points on every row, branches
+ * collapsible, and every row a jump target. Expansion is an auto rule (the question
+ * you are reading opens) that an explicit chevron click overrides for good.
+ */
+test.describe('Outline rail — nesting, points, collapse, navigation', () => {
+    const NAV = 'nav[aria-label="מפת המחוון"]';
+
+    test('the ACTIVE question auto-expands; the others start collapsed', async ({ page }) => {
+        await gotoLab(page);
+        const rail = page.locator(NAV);
+        await expect(rail).toBeVisible();
+
+        // q1 is what she is looking at, so its branch opens itself…
+        await expect(rail.locator('button[aria-label="כווצי שאלה 1"]')).toBeVisible();
+        const sub = rail.locator('[data-rail-link="q1.א"]');
+        await expect(sub).toBeVisible();
+        await expect(sub).toContainText('סעיף א');
+        await expect(sub).toContainText('15');              // its OWN points
+
+        // …and every other branch stays shut, so the map stays short.
+        await expect(rail.locator('[data-rail-link="q3.א"]')).toHaveCount(0);
+        await expect(rail.locator('button[aria-label="הרחיבי שאלה 3"]')).toBeVisible();
+    });
+
+    test('a chevron expands a collapsed branch, with each row carrying its points', async ({ page }) => {
+        await gotoLab(page);
+        const rail = page.locator(NAV);
+        await rail.locator('button[aria-label="הרחיבי שאלה 3"]').click();
+
+        const sub = rail.locator('[data-rail-link="q3.א"]');
+        await expect(sub).toBeVisible();
+        await expect(sub).toContainText('סעיף א');
+        await expect(sub).toContainText('10');
+        await expect(rail.locator('[data-rail-link="q3.ב"]')).toContainText('15');
+    });
+
+    test('nesting goes ALL the way down (תת-סעיף), and each level collapses', async ({ page }) => {
+        await gotoLab(page);
+        const rail = page.locator(NAV);
+        await rail.locator('button[aria-label="הרחיבי סעיף א"]').click();   // q1 is already open
+
+        const inner = rail.locator('[data-rail-link="q1.א.1"]');
+        await expect(inner).toBeVisible();
+        await expect(inner).toContainText('תת-סעיף 1');
+        await expect(inner).toContainText('12');
+
+        // collapsing removes the whole subtree, but keeps the parent row
+        await rail.locator('button[aria-label="כווצי סעיף א"]').click();
+        await expect(rail.locator('[data-rail-link="q1.א.1"]')).toHaveCount(0);
+        await expect(rail.locator('[data-rail-link="q1.א"]')).toBeVisible();
+    });
+
+    test('clicking a SUB-QUESTION row navigates to it, exactly like a question', async ({ page }) => {
+        await gotoLab(page);
+        const rail = page.locator(NAV);
+        await rail.locator('button[aria-label="הרחיבי שאלה 3"]').click();
+        await rail.locator('[data-rail-link="q3.ב"]').click();
+        await page.waitForTimeout(1200);
+
+        const heading = page.locator('[data-scope-id="q3.ב"] h4').first();
+        await expect(heading).toBeInViewport();
+        const box = await heading.boundingBox();
+        expect(box!.y).toBeGreaterThanOrEqual(0);
+        expect(box!.y).toBeLessThan(260);
+    });
+
+    test('an explicit collapse WINS over the auto rule (her choice is not undone)', async ({ page }) => {
+        await gotoLab(page);
+        const rail = page.locator(NAV);
+        // q1 auto-opened; close it by hand
+        await expect(rail.locator('[data-rail-link="q1.א"]')).toBeVisible();
+        await rail.locator('button[aria-label="כווצי שאלה 1"]').click();
+        await expect(rail.locator('[data-rail-link="q1.א"]')).toHaveCount(0);
+
+        // scroll q1 back into view — the auto rule would reopen it; it must not
+        await page.locator('[data-scope-id="q2"]').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(500);
+        await page.locator('[data-scope-id="q1"]').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(700);
+        await expect(rail.locator('[data-rail-link="q1.א"]')).toHaveCount(0);
+    });
+});
+
+/**
+ * PR-6 §9/§10 — THE DEMO JOURNEY, driven end to end on the real bagrut golden.
+ *
+ * This is the definition of done: she meets the finding as ONE card speaking the
+ * voice law, applies Vivi's proposal in one click, watches the sums settle, and
+ * sees the honest residual — the rubric is fixed, the file she uploaded still says
+ * what it said.
+ */
+test.describe('PR-6 — the findings journey', () => {
+    test('demo: the card proposes, one click applies, the validator closes it, the residual stays honest', async ({ page }) => {
+        await driveToReview(page, { fixture: 'bagrut_899371' });
+
+        // The finding is ONE card at its own scope, carrying Vivi's proposal.
+        const proposal = page.getByRole('button', { name: 'עדכני את הניקוד המוצהר ל-2' });
+        await expect(proposal).toBeVisible();
+
+        // It speaks about the original document in the PAST, never as "now".
+        const card = page.locator('[data-finding-key]').filter({ has: proposal });
+        await expect(card).toContainText('בקובץ המקורי מצוין 3');
+
+        // One click — and the LIVE validator is what closes the card.
+        await proposal.click();
+        await expect(page.getByText('תוקן במחוון')).toBeVisible();
+        await expect(page.getByText('בקובץ המקורי עדיין מצוין 3')).toBeVisible();
+        await expect(proposal).toHaveCount(0);        // the proposal is spent
+
+        // And the arithmetic actually moved: the node now declares 2.
+        await expect(page.locator('[data-scope-id="q1.א.2"]')
+            .getByRole('button', { name: /ניקוד תת-סעיף 2/ })).toHaveText('2');
+    });
+
+    test('undo: «בטלי» reopens the finding — an undone fix is not an applied fix', async ({ page }) => {
+        await driveToReview(page, { fixture: 'bagrut_899371' });
+        await page.getByRole('button', { name: 'עדכני את הניקוד המוצהר ל-2' }).click();
+        await expect(page.getByText('תוקן במחוון')).toBeVisible();
+
+        await page.getByRole('button', { name: 'בטלי' }).first().click();
+
+        // The card is open again, offering the same proposal.
+        await expect(page.getByRole('button', { name: 'עדכני את הניקוד המוצהר ל-2' })).toBeVisible();
+        await expect(page.getByText('תוקן במחוון')).toHaveCount(0);
+    });
+
+    test('the raw scope id never reaches her eyes on the card', async ({ page }) => {
+        await driveToReview(page, { fixture: 'bagrut_899371' });
+        const card = page.locator('[data-finding-key]').first();
+        await expect(card).toBeVisible();
+        expect(await card.innerText()).not.toContain('q1.א.2');
+        expect(await card.innerText()).not.toContain('pts:');
     });
 });

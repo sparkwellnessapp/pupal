@@ -3,7 +3,8 @@
  * All Decimal-valued fields (scores) are serialized as strings by the backend.
  */
 
-import type { TranscriptionDraft } from './transcription'
+import type { AnswerSpaceSelectionGroup, TranscriptionDraft } from './transcription'
+import type { components } from '../lib/api-types'
 
 // ---------------------------------------------------------------------------
 // Shared sub-types
@@ -12,7 +13,9 @@ import type { TranscriptionDraft } from './transcription'
 /** Flag triage result for a single transcription. */
 export interface FlagVerdictResponse {
   review_needed: boolean
-  /** Subset of: "unparseable" | "grounding_retry" | "low_confidence" | "low_logprob_span" | "student_unmatched" */
+  /** Subset of: "unparseable" | "grounding_retry" | "low_confidence" | "low_logprob_span"
+   *  | "code_lint" | "missing_answers" | "segmentation_mismatch"
+   *  | "student_unassigned" | "student_unmatched" */
   reasons: string[]
 }
 
@@ -21,11 +24,18 @@ export interface BatchTranscriptionItem {
   transcription_id: string
   filename: string | null
   transcription_status: 'transcribed' | 'approved'
+  /** Row insert time (ISO) — drives the Δ15 progress-based residue horizon. */
+  created_at: string
   draft: TranscriptionDraft
+  /** Teacher review overlay (review_json), if saved — GENERATED wire type (OD-9). */
+  review: components['schemas']['TranscriptionReview'] | null
   student_name_suggestion: string | null
   matched_student_id: string | null     // pre-computed normalized-exact match
   matched_student_name: string | null
   flag_verdict: FlagVerdictResponse
+  /** B6: the FROZEN contract's answers — present only when approved; the
+   *  read-only review hydrates from these, never from the draft. */
+  approved_answers?: GradeAnswerInputItem[] | null
   // Populated once a GradedTest row exists:
   graded_test_id: string | null
   graded_test_status: string | null
@@ -33,16 +43,45 @@ export interface BatchTranscriptionItem {
   total_possible: string | null
 }
 
+/** One in-flight document (B3) — feeds the dashboard's transcribing ghosts. */
+export interface ActiveJobItem {
+  filename: string | null
+  state: 'queued' | 'running'
+  created_at: string
+  started_at: string | null
+  attempt_count: number
+}
+
 /** Live pipeline counts — derived at query time, never stored. */
 export interface BatchRollup {
   transcribing: number           // VLM calls in-flight
   transcribed: number            // awaiting transcription review
+  /** Ruling 1: the flagged-or-touched subset of `transcribed` — exactly
+   *  what accept_clean refuses. `transcribed - needs_eyes` is the
+   *  bulk-acceptable remainder.
+   *  NULL = not computable for this batch (corrupt rubric contract). The
+   *  display degrades by OMISSION: render the coarser merged truth for that
+   *  row, never a confidently wrong number. */
+  needs_eyes: number | null
   approved_transcription: number // queued for grading
   grading: number                // pending/grading
   draft: number                  // awaiting grade review
   approved: number               // fully approved
   failed: number
+  /** Ledgered transcription failures (migration 015) — dead, not in flight. */
+  transcription_failed: number
   total: number
+}
+
+/** One failed batch document. Cloud Tasks batches source these from failed
+ *  TranscriptionJob rows (job_id present ⇒ one-click retry, no re-upload);
+ *  legacy pre-016 batches from the read-only ledger (job_id null). */
+export interface TranscriptionFailureItem {
+  filename: string | null
+  error: string
+  at: string
+  net_verdict: string | null
+  job_id?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -54,12 +93,23 @@ export interface BatchDetailResponse {
   name: string | null
   rubric_id: string
   class_id: string | null
+  /** B4: display names, resolved server-side. */
+  rubric_name?: string | null
+  class_name?: string | null
   status: string
   started_at: string | null
   completed_at: string | null
   created_at: string
   rollup: BatchRollup
   transcriptions: BatchTranscriptionItem[]
+  /** B3: queued/running documents in doc_priority order (post-reap). */
+  active_jobs?: ActiveJobItem[]
+  /** Rubric selection groups in answer space (batch-level; [] when
+   *  selection-free). The review surface collapses expected-empty containers. */
+  selection_groups?: AnswerSpaceSelectionGroup[]
+  /** Durable per-document failure records — rendered as failed cards
+   *  instead of an eternal "מתמלל" spinner. */
+  transcription_failures?: TranscriptionFailureItem[]
 }
 
 export interface BatchListItem {
@@ -67,6 +117,9 @@ export interface BatchListItem {
   name: string | null
   rubric_id: string
   class_id: string | null
+  /** B4: display names (batch-fetched server-side). */
+  rubric_name?: string | null
+  class_name?: string | null
   status: string
   created_at: string
   rollup: BatchRollup
@@ -101,5 +154,11 @@ export const FLAG_REASON_LABELS: Record<string, string> = {
   grounding_retry: 'חוסר עקביות בזיהוי',
   low_confidence: 'ביטחון נמוך בתמלול',
   low_logprob_span: 'אי-ודאות לשונית',
+  code_lint: 'סוגריים לא מאוזנים',
+  missing_answers: 'תשובות חסרות',
+  segmentation_mismatch: 'חשד לשיוך שגוי',
+  // Two distinct student facts (2026-08-12, owner-ruled copy): a name WAS
+  // extracted but no such student exists yet vs. no name found at all.
+  student_unassigned: 'תלמיד חדש - טרם נוצר',
   student_unmatched: 'שם תלמיד לא זוהה',
 }

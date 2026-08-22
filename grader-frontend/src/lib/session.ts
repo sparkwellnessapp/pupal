@@ -90,6 +90,10 @@ export interface UnsavedWork {
     /** PR-1: the extraction RESULT is already durable server-side (the job row).
      * What this stash protects is the teacher's EDITS on top of it. */
     extractionJobId?: string | null;
+    /** PR-6 §4: her findings decisions (dismiss / apply) ride on the advisories,
+     *  so they are review EDITS too — losing them across a forced logout would
+     *  re-ask questions she already answered. */
+    pedagogicalMistakes?: unknown;
 }
 
 export function stashUnsavedWork(work: Omit<UnsavedWork, 'savedAt'>): void {

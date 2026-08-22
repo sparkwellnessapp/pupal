@@ -146,9 +146,12 @@ export interface paths {
         put?: never;
         /**
          * Create Batch
-         * @description Create a batch and immediately fan out transcription for each PDF.
-         *     Returns {batch_id, test_count} after queuing background tasks.
-         *     The frontend polls GET /batches/{id} to track transcription progress.
+         * @description B9 intake v2 — metadata-only create. Files arrive ONE PER REQUEST via
+         *     POST /batches/{id}/files: the legacy every-PDF-in-one-multipart body hit
+         *     Cloud Run's 32MB request ceiling at ~5 scans, so a 30–40 test batch (the
+         *     target scenario) could not transit it. Jobs enqueue as files land — the
+         *     first ghost can resolve before the last upload. Appends are allowed for
+         *     as long as the batch exists (no separate "start").
          */
         post: operations["create_batch_api_v0_batches_post"];
         delete?: never;
@@ -175,7 +178,12 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename Batch
+         * @description Rename a batch (B5). Strip → reject blank → last-write-wins. Touches
+         *     ONLY name + updated_at; no uniqueness constraint exists or is invented.
+         */
+        patch: operations["rename_batch_api_v0_batches__batch_id__patch"];
         trace?: never;
     };
     "/api/v0/batches/{batch_id}/accept/{transcription_id}": {
@@ -213,14 +221,69 @@ export interface paths {
          * Accept Clean
          * @description Bulk-accept clean transcriptions (no teacher edits needed).
          *     For each item:
+         *       - Recomputes the flag verdict SERVER-side (B1/OD1 — "clean" is a
+         *         server-guaranteed property; the client's filter is belt, this is
+         *         suspenders): review_needed ⇒ skipped {"flagged"}, row untouched.
          *       - Builds the contract from the transcription's draft answers (accepted as-is).
          *       - Updates the transcription to 'approved' with student assignment.
          *       - Inserts a pending GradedTest with batch_id.
-         *       - Queues run_grading via the bounded semaphore.
+         *       - Enqueues one grading Cloud Task per item (after the single commit).
          *
-         *     All items are committed in a single transaction.
+         *     All items are committed in a single transaction. Every non-accepted item
+         *     is REPORTED in `skipped` — nothing is silently dropped.
          */
         post: operations["accept_clean_api_v0_batches__batch_id__accept_clean_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Append Batch File
+         * @description Append one file to a batch (B9): validate (B7, BEFORE GCS — don't store
+         *     garbage) → GCS upload → FOR-UPDATE-serialized job INSERT → commit →
+         *     enqueue. Idempotent on (batch_id, client_file_id). NO silent drop remains
+         *     on any intake path — every rejection is a 422 with a §3.2 reason, every
+         *     downstream failure lands as a durable, retryable failed job.
+         */
+        post: operations["append_batch_file_api_v0_batches__batch_id__files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/jobs/{job_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Transcription Job
+         * @description Re-queue a failed job, or any EXPIRED active one (LIV-1: a dispatch
+         *     lost past the queued backstop, or a worker whose heartbeat lapsed). The
+         *     source PDF is in GCS — the teacher never re-uploads.
+         *
+         *     Atomic CAS: the WHERE encodes exactly the legal retry sources; the full
+         *     reset satisfies the 'queued' arm of the status-consistency CHECK
+         *     (error/verdict/timestamps cleared; attempt_count survives — it counts
+         *     claims, and increments again at the next claim).
+         */
+        post: operations["retry_transcription_job_api_v0_batches__batch_id__jobs__job_id__retry_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -528,7 +591,7 @@ export interface paths {
          * Regrade Graded Test
          * @description Re-grade against the current rubric contract version (stale rows only).
          *
-         *     Creates a pending successor row and fires run_grading via BackgroundTasks.
+         *     Creates a pending successor row and enqueues a grading Cloud Task.
          *     The teacher polls GET /graded_test/{new_id} exactly as in S8.
          *
          *     Preconditions (→ 409 if violated):
@@ -558,8 +621,8 @@ export interface paths {
          * @description Re-attempt a failed grade.
          *
          *     Creates a pending successor pinned to the current rubric contract version
-         *     (naturally picks up any rubric updates since the failure) and fires
-         *     run_grading via BackgroundTasks.
+         *     (naturally picks up any rubric updates since the failure) and enqueues a
+         *     grading Cloud Task.
          *
          *     Preconditions (→ 409 if violated):
          *       - Source is owned (→ 404 if not).
@@ -717,6 +780,47 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /**
+         * Patch Extraction Job Metadata
+         * @description Merge caller-supplied metadata (name / programming_language) into the
+         *     job's request_params. METADATA-ONLY — the runner never reads these keys;
+         *     this only persists them for later save/resume.
+         *
+         *     The merge is a DB-level shallow concat (`request_params || :patch`), NOT a
+         *     read-modify-write in Python: the runner writes progress_stage/heartbeat/
+         *     result to the SAME row concurrently, so a full-row ORM save here would
+         *     clobber its progress. Only the keys the caller actually sent are merged
+         *     (exclude_unset), so an omitted field is untouched while an explicit null
+         *     overwrites with JSON null.
+         */
+        patch: operations["patch_extraction_job_metadata_api_v0_rubrics_extraction_jobs__job_id__patch"];
+        trace?: never;
+    };
+    "/api/v0/rubrics/extraction-jobs/{job_id}/abandon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abandon Extraction Job
+         * @description Let the TEACHER end an active job she no longer wants to wait for.
+         *
+         *     Deadlines (LIV-1) guarantee an orphan eventually expires, but "eventually" is
+         *     still a window in which she is attached to a job she cannot escape — which is
+         *     exactly the trap this whole area exists to prevent. Vivi proposes, the teacher
+         *     decides: she can always walk away and start fresh, without waiting out a TTL.
+         *
+         *     Atomic CAS on the ACTIVE statuses only: a job that completed a moment ago is
+         *     left alone (409) rather than having its result thrown away.
+         */
+        post: operations["abandon_extraction_job_api_v0_rubrics_extraction_jobs__job_id__abandon_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -748,8 +852,9 @@ export interface paths {
         put?: never;
         /**
          * Retry Extraction Job
-         * @description Re-queue a failed job, or a stale 'extracting' one (heartbeat lapsed —
-         *     the instance died mid-job). Source doc is in GCS: no re-upload.
+         * @description Re-queue a failed job, or any EXPIRED active one (LIV-1: a lost dispatch
+         *     still sitting 'queued', or an 'extracting' worker whose heartbeat lapsed).
+         *     Source doc is in GCS: no re-upload.
          */
         post: operations["retry_extraction_job_api_v0_rubrics_extraction_jobs__job_id__retry_post"];
         delete?: never;
@@ -955,26 +1060,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v0/users/me": {
+    "/api/v0/transcriptions/{transcription_id}/review": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get Current User Profile
-         * @description Get the current user's profile.
-         *
-         *     Returns user information including subscription status and subject matters.
-         */
-        get: operations["get_current_user_profile_api_v0_users_me_get"];
+        get?: never;
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Save Review
+         * @description Persist the teacher's review working copy (transcriptions.review_json).
+         *
+         *     Rules (batch-review plan, Δ2/Δ3/Δ16):
+         *       * Allowed only while status='transcribed' — 409 otherwise (LCY-1: an
+         *         approved transcription is read-only; the overlay is nulled at approval).
+         *       * FULL SNAPSHOT: the body's (question_number, sub_question_id) key
+         *         multiset must exactly equal the draft's — 422 on mismatch, never
+         *         silently normalized/filled/pruned.
+         *       * A non-null student_id is ownership-validated NOW (cross-tenant → 404,
+         *         §9), not left to detonate at accept.
+         *       * Concurrency: last-write-wins. Two tabs saving concurrently is accepted;
+         *         the later write replaces the earlier whole-snapshot.
+         *       * Approval stays body-authoritative — accept endpoints never read this
+         *         overlay; it exists so edits survive navigation/refresh.
+         */
+        patch: operations["save_review_api_v0_transcriptions__transcription_id__review_patch"];
         trace?: never;
     };
     "/api/v0/users/me/graded-tests": {
@@ -1186,6 +1302,39 @@ export interface components {
             items: components["schemas"]["AcceptCleanItem"][];
         };
         /**
+         * AcceptCleanResponse
+         * @description Bulk-accept outcome. `skipped` is additive for the pre-Phase-4 client
+         *     (it parses `accepted` only); the redesign dashboard surfaces every skip.
+         */
+        AcceptCleanResponse: {
+            /** Accepted */
+            accepted: number;
+            /**
+             * Skipped
+             * @default []
+             */
+            skipped: components["schemas"]["AcceptCleanSkippedItem"][];
+        };
+        /**
+         * AcceptCleanSkippedItem
+         * @description One skipped row in a bulk-accept response (B1 — server-side clean
+         *     enforcement). Reasons:
+         *       * "flagged"          — the server-side verdict recompute says review_needed
+         *                              (OD1: "clean" is a server-guaranteed property);
+         *       * "has_review_edits" — teacher-touched (Δ1: a saved overlay is never
+         *                              silently discarded by a draft-as-is bulk accept);
+         *       * "already_approved" — idempotent repost / approved via another path.
+         */
+        AcceptCleanSkippedItem: {
+            /**
+             * Skipped Reason
+             * @enum {string}
+             */
+            skipped_reason: "flagged" | "has_review_edits" | "already_approved";
+            /** Transcription Id */
+            transcription_id: string;
+        };
+        /**
          * AcceptOneTranscriptionRequest
          * @description Accept a single flagged transcription with optional teacher edits.
          */
@@ -1197,6 +1346,27 @@ export interface components {
              * Format: uuid
              */
             student_id: string;
+        };
+        /**
+         * ActiveJobItem
+         * @description One in-flight document (B3): sourced from the already-fetched
+         *     queued/running TranscriptionJob rows, doc_priority order. Feeds the
+         *     dashboard's transcribing ghosts — name + elapsed, no fabricated ETA.
+         */
+        ActiveJobItem: {
+            /** Attempt Count */
+            attempt_count: number;
+            /** Created At */
+            created_at: string;
+            /** Filename */
+            filename?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "queued" | "running";
         };
         /** AddStudentToClassRequest */
         AddStudentToClassRequest: {
@@ -1348,6 +1518,22 @@ export interface components {
             /** @description Result of validating quote against student answer (v2.0) */
             validation_status?: string | null;
         };
+        /**
+         * AnswerSpaceSelectionGroup
+         * @description A rubric SelectionGroup translated into transcription-answer space.
+         *
+         *     `of_question_ids` ('q1', 'q2', …) become the `question_number` ints the
+         *     transcription answers actually carry, so review surfaces and triage can
+         *     reason about "choose k of N" without knowing the rubric's shape. Derived
+         *     at read time by `selection_expectation.answer_space_groups` — never
+         *     persisted (the rubric contract stays the single source).
+         */
+        AnswerSpaceSelectionGroup: {
+            /** Choose K */
+            choose_k: number;
+            /** Question Numbers */
+            question_numbers: number[];
+        };
         /** ApproveRequest */
         ApproveRequest: {
             /** Overrides */
@@ -1374,6 +1560,23 @@ export interface components {
             token_type: string;
             user: components["schemas"]["UserResponse"];
         };
+        /**
+         * BatchCreateRequest
+         * @description B9 intake v2: metadata-only create. Files arrive one per request via
+         *     POST /batches/{id}/files — the legacy every-PDF-in-one-multipart body hit
+         *     Cloud Run's 32MB request ceiling at ~5 scans.
+         */
+        BatchCreateRequest: {
+            /** Class Id */
+            class_id?: string | null;
+            /** Name */
+            name?: string | null;
+            /**
+             * Rubric Id
+             * Format: uuid
+             */
+            rubric_id: string;
+        };
         /** BatchCreateResponse */
         BatchCreateResponse: {
             /** Batch Id */
@@ -1383,8 +1586,15 @@ export interface components {
         };
         /** BatchDetailResponse */
         BatchDetailResponse: {
+            /**
+             * Active Jobs
+             * @default []
+             */
+            active_jobs: components["schemas"]["ActiveJobItem"][];
             /** Class Id */
             class_id?: string | null;
+            /** Class Name */
+            class_name?: string | null;
             /** Completed At */
             completed_at?: string | null;
             /** Created At */
@@ -1402,17 +1612,44 @@ export interface components {
              * Format: uuid
              */
             rubric_id: string;
+            /** Rubric Name */
+            rubric_name?: string | null;
+            /**
+             * Selection Groups
+             * @default []
+             */
+            selection_groups: components["schemas"]["AnswerSpaceSelectionGroup"][];
             /** Started At */
             started_at?: string | null;
             /** Status */
             status: string;
+            /**
+             * Transcription Failures
+             * @default []
+             */
+            transcription_failures: components["schemas"]["TranscriptionFailureItem"][];
             /** Transcriptions */
             transcriptions: components["schemas"]["BatchTranscriptionItem"][];
+        };
+        /**
+         * BatchFileAppendResponse
+         * @description One appended file (B9). Idempotent: a retried append that already
+         *     committed returns the EXISTING job with the same body.
+         */
+        BatchFileAppendResponse: {
+            /** Filename */
+            filename?: string | null;
+            /** Job Id */
+            job_id: string;
+            /** Test Count */
+            test_count: number;
         };
         /** BatchListItem */
         BatchListItem: {
             /** Class Id */
             class_id?: string | null;
+            /** Class Name */
+            class_name?: string | null;
             /** Created At */
             created_at: string;
             /**
@@ -1428,14 +1665,32 @@ export interface components {
              * Format: uuid
              */
             rubric_id: string;
+            /** Rubric Name */
+            rubric_name?: string | null;
             /** Status */
             status: string;
+        };
+        /**
+         * BatchRenameRequest
+         * @description B5: rename a batch. Stripped server-side; blank-after-strip → 422.
+         */
+        BatchRenameRequest: {
+            /** Name */
+            name: string;
+        };
+        /** BatchRenameResponse */
+        BatchRenameResponse: {
+            /** Batch Id */
+            batch_id: string;
+            /** Name */
+            name: string;
         };
         /**
          * BatchRollup
          * @description Live pipeline counts for a batch — derived at query time, never stored.
          *     The `transcribing` count is ephemeral: tests whose background task is still
-         *     in flight (batch.test_count minus the number of transcription rows so far).
+         *     in flight (batch.test_count minus transcription rows minus ledgered
+         *     transcription failures — migration 015).
          */
         BatchRollup: {
             /** Approved */
@@ -1448,12 +1703,19 @@ export interface components {
             failed: number;
             /** Grading */
             grading: number;
+            /** Needs Eyes */
+            needs_eyes?: number | null;
             /** Total */
             total: number;
             /** Transcribed */
             transcribed: number;
             /** Transcribing */
             transcribing: number;
+            /**
+             * Transcription Failed
+             * @default 0
+             */
+            transcription_failed: number;
         };
         /**
          * BatchTranscriptionItem
@@ -1461,6 +1723,10 @@ export interface components {
          *     Includes the full draft for individual review + pre-computed triage data.
          */
         BatchTranscriptionItem: {
+            /** Approved Answers */
+            approved_answers?: components["schemas"]["GradeAnswerInputItem"][] | null;
+            /** Created At */
+            created_at: string;
             draft: components["schemas"]["TranscriptionDraft"];
             /** Filename */
             filename?: string | null;
@@ -1473,6 +1739,7 @@ export interface components {
             matched_student_id?: string | null;
             /** Matched Student Name */
             matched_student_name?: string | null;
+            review?: components["schemas"]["TranscriptionReview"] | null;
             /** Student Name Suggestion */
             student_name_suggestion?: string | null;
             /** Total Possible */
@@ -1487,22 +1754,20 @@ export interface components {
             /** Transcription Status */
             transcription_status: string;
         };
-        /** Body_create_batch_api_v0_batches_post */
-        Body_create_batch_api_v0_batches_post: {
-            /** Class Id */
-            class_id?: string | null;
+        /** Body_append_batch_file_api_v0_batches__batch_id__files_post */
+        Body_append_batch_file_api_v0_batches__batch_id__files_post: {
             /**
-             * Files
-             * @description PDF files to grade
-             */
-            files: string[];
-            /** Name */
-            name?: string | null;
-            /**
-             * Rubric Id
+             * Client File Id
              * Format: uuid
+             * @description Client-generated idempotency key
              */
-            rubric_id: string;
+            client_file_id: string;
+            /**
+             * File
+             * Format: binary
+             * @description One student-test PDF
+             */
+            file: string;
         };
         /** Body_extract_rubric_docx_api_v0_grading_extract_rubric_docx_post */
         Body_extract_rubric_docx_api_v0_grading_extract_rubric_docx_post: {
@@ -1896,6 +2161,66 @@ export interface components {
             reasoning: string;
             /** Sub Criterion Outcomes */
             sub_criterion_outcomes?: components["schemas"]["SubCriterionOutcome"][] | null;
+        };
+        /**
+         * EditStep
+         * @description One primitive edit to the draft tree — the unit of a SuggestedFix.
+         *
+         *     THE GENERAL FIX WIRE: a fix is an ordered list of EditSteps, applied
+         *     ATOMICALLY by the client on teacher approval (all steps preflight-validated;
+         *     any failure ⇒ no button, never a partial write). Steps address nodes in the
+         *     dotted scope-path vocabulary every other surface already speaks
+         *     (`q2`, `q2.ב`, `q1.א.2`, or `"rubric"` for the declared total):
+         *
+         *       * set_points     — set the points of `scope` (or of its criteria
+         *                          [criterion_index], when given) to `value`. On a question
+         *                          this means total_points; on "rubric", the declared total.
+         *       * move_criterion — move criteria[criterion_index] of `scope` to `to_scope`.
+         *       * move_text      — move the VERBATIM substring `text` out of `scope`'s text
+         *                          into `to_scope`'s. The applier verifies the substring and
+         *                          performs the subtraction itself — the proposer only QUOTES
+         *                          what moves, so it structurally cannot rewrite prose it
+         *                          was not moving (the grader's quote-validation pattern).
+         *
+         *     A `to_scope` naming a sub-question that does not exist CREATES it
+         *     (auto-vivify) — that one rule replaces a whole create_* op family.
+         */
+        EditStep: {
+            /**
+             * Criterion Index
+             * @description 0-based index into scope's own criteria list.
+             */
+            criterion_index?: number | null;
+            /**
+             * Current Value
+             * @description What the draft says today — audit/display, never applied.
+             */
+            current_value?: string | null;
+            /**
+             * Op
+             * @description One of EDIT_OPS.
+             */
+            op: string;
+            /**
+             * Scope
+             * @description Dotted scope path ('q2', 'q2.ב') or 'rubric'.
+             */
+            scope: string;
+            /**
+             * Text
+             * @description Verbatim substring to relocate (move_text only).
+             */
+            text?: string | null;
+            /**
+             * To Scope
+             * @description Destination scope for move ops; auto-vivified when absent from the tree.
+             */
+            to_scope?: string | null;
+            /**
+             * Value
+             * @description New points value, decimal string (set_points only).
+             */
+            value?: string | null;
         };
         /**
          * ErrorResponse
@@ -2488,6 +2813,37 @@ export interface components {
             width: number;
         };
         /**
+         * PatchJobMetadataRequest
+         * @description Metadata patch for a rubric-extraction job (PR-5 S1-2.2).
+         *
+         *     METADATA-ONLY: the runner never reads these keys — this endpoint only
+         *     persists them into request_params for later save/resume. Both fields are
+         *     OPTIONAL and 'omitted' is distinct from 'explicit null': only the keys the
+         *     caller actually sent are merged (build the patch via model_dump(
+         *     exclude_unset=True)), so an omitted field leaves the stored value untouched
+         *     while an explicit null overwrites it with JSON null.
+         */
+        PatchJobMetadataRequest: {
+            /** Name */
+            name?: string | null;
+            /** Programming Language */
+            programming_language?: string | null;
+        };
+        /** PatchJobMetadataResponse */
+        PatchJobMetadataResponse: {
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Request Params */
+            request_params: {
+                [key: string]: unknown;
+            };
+            /** Status */
+            status: string;
+        };
+        /**
          * PedagogicalMistake
          * @description A detected error IN THE TEACHER'S RUBRIC (not in extraction). Distinct from
          *     Annotation: it carries a suggested fix and an explicit 'needs teacher input'
@@ -2503,6 +2859,16 @@ export interface components {
              */
             confidence: number;
             /**
+             * Dismissed
+             * @description She chose «השאירי כך» — the finding stands, and is not re-asked.
+             */
+            dismissed?: boolean | null;
+            /**
+             * Dismissed At
+             * @description ISO-8601 timestamp of that decision.
+             */
+            dismissed_at?: string | null;
+            /**
              * Evidence
              * @description The numbers/labels that prove it.
              */
@@ -2510,10 +2876,25 @@ export interface components {
                 [key: string]: unknown;
             };
             /**
+             * Explained By
+             * @description mistake_id of the root-cause mistake whose single fix resolves this one too.
+             */
+            explained_by?: string | null;
+            /**
              * Explanation
              * @description What is wrong, in the teacher's language (Hebrew).
              */
             explanation: string;
+            /**
+             * Fix Applied
+             * @description She accepted the proposed fix. An UNDONE fix is not an applied fix — this is cleared on undo.
+             */
+            fix_applied?: boolean | null;
+            /**
+             * Fix Applied At
+             * @description ISO-8601 timestamp of that decision.
+             */
+            fix_applied_at?: string | null;
             kind: components["schemas"]["PedagogicalMistakeKind"];
             /** Mistake Id */
             mistake_id: string;
@@ -2670,6 +3051,16 @@ export interface components {
             job_id: string;
             /** Status */
             status: string;
+        };
+        /**
+         * ReviewSaveRequest
+         * @description Full-snapshot review save. `answers` reuses the /grade answer shape.
+         */
+        ReviewSaveRequest: {
+            /** Answers */
+            answers: components["schemas"]["GradeAnswerInput"][];
+            /** Student Id */
+            student_id?: string | null;
         };
         /**
          * RevisionResponse
@@ -3352,6 +3743,12 @@ export interface components {
         /**
          * SuggestedFix
          * @description A concrete, machine-applicable correction the teacher can accept/reject in RubricEditor.
+         *
+         *     `steps` is the machine payload (the general edit wire, applied atomically);
+         *     `description` is the human sentence on the button. `operation`/`params` are the
+         *     LEGACY shape — drafts saved before pipeline 3.6.0 carry fixes expressed only as
+         *     params, and the client keeps a translation arm for them; new emissions populate
+         *     `steps` and leave `params` empty.
          */
         SuggestedFix: {
             /**
@@ -3366,11 +3763,16 @@ export interface components {
             operation: string;
             /**
              * Params
-             * @description Operation-specific args, e.g. {'from':'ב','to':'ג'}.
+             * @description LEGACY operation-specific args (pre-3.6.0 drafts).
              */
             params?: {
                 [key: string]: unknown;
             };
+            /**
+             * Steps
+             * @description The ordered primitive edits this fix performs (pipeline ≥ 3.6.0).
+             */
+            steps?: components["schemas"]["EditStep"][];
         };
         /**
          * TeacherOverride
@@ -3399,6 +3801,11 @@ export interface components {
         /** TranscribeResponse */
         TranscribeResponse: {
             draft: components["schemas"]["TranscriptionDraft"];
+            /**
+             * Selection Groups
+             * @default []
+             */
+            selection_groups: components["schemas"]["AnswerSpaceSelectionGroup"][];
             /** Transcription Id */
             transcription_id: string;
         };
@@ -3408,7 +3815,7 @@ export interface components {
              * Annotation Type
              * @enum {string}
              */
-            annotation_type: "vlm_uncertainty" | "vlm_unparseable" | "student_name_missing" | "vlm_low_logprob" | "reader_disagreement" | "code_lint";
+            annotation_type: "vlm_uncertainty" | "vlm_unparseable" | "student_name_missing" | "vlm_low_logprob" | "reader_disagreement" | "code_lint" | "segmentation_mismatch";
             /** Id */
             id?: string;
             /** Message */
@@ -3454,12 +3861,73 @@ export interface components {
             /** Sub Question Id */
             sub_question_id?: string | null;
         };
+        /**
+         * TranscriptionFailureItem
+         * @description One failed batch document. Cloud Tasks batches source these from
+         *     FAILED TranscriptionJob rows (job_id present ⇒ retryable without
+         *     re-upload); legacy pre-016 batches from the read-only migration-015
+         *     ledger (job_id None ⇒ no retry affordance).
+         */
+        TranscriptionFailureItem: {
+            /** At */
+            at: string;
+            /** Error */
+            error: string;
+            /** Filename */
+            filename?: string | null;
+            /** Job Id */
+            job_id?: string | null;
+            /** Net Verdict */
+            net_verdict?: string | null;
+        };
         /** TranscriptionPageResponse */
         TranscriptionPageResponse: {
             /** Page Number */
             page_number: number;
             /** Thumbnail Base64 */
             thumbnail_base64: string;
+        };
+        /**
+         * TranscriptionReview
+         * @description The teacher's persisted working copy of a transcription review.
+         *
+         *     FULL SNAPSHOT, always: `answers` carries the complete answer set, and its
+         *     (question_number, sub_question_id) key multiset must equal the draft's —
+         *     a mismatched snapshot is rejected (422), never normalized. No merge
+         *     semantics exist anywhere, now or in any future endpoint.
+         *
+         *     `student_id` is the teacher's chosen student. It lives here (not in the
+         *     transcriptions.student_id column) because transcriptions_approval_consistency
+         *     forbids the column before approval.
+         *
+         *     Lifecycle: writable only while status='transcribed'; set to NULL inside the
+         *     same UPDATE that performs the 'transcribed'→'approved' transition (part of
+         *     the transition write — LCY-1 untouched). Concurrent writes are
+         *     last-write-wins. Accept endpoints remain body-authoritative: this overlay
+         *     is durability for the UI, never the approval input (the future batch
+         *     /submit endpoint is the documented exception — it has no body).
+         */
+        TranscriptionReview: {
+            /** Answers */
+            answers: components["schemas"]["TranscriptionReviewAnswer"][];
+            /**
+             * Schema Version
+             * @default 1.0
+             */
+            schema_version: string;
+            /** Student Id */
+            student_id?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** TranscriptionReviewAnswer */
+        TranscriptionReviewAnswer: {
+            /** Answer Text */
+            answer_text: string;
+            /** Question Number */
+            question_number: number;
+            /** Sub Question Id */
+            sub_question_id?: string | null;
         };
         /**
          * UnmatchedAnswer
@@ -3841,7 +4309,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_create_batch_api_v0_batches_post"];
+                "application/json": components["schemas"]["BatchCreateRequest"];
             };
         };
         responses: {
@@ -3883,6 +4351,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BatchDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_batch_api_v0_batches__batch_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchRenameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchRenameResponse"];
                 };
             };
             /** @description Validation Error */
@@ -3955,9 +4458,74 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AcceptCleanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    append_batch_file_api_v0_batches__batch_id__files_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_append_batch_file_api_v0_batches__batch_id__files_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchFileAppendResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_transcription_job_api_v0_batches__batch_id__jobs__job_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -4931,6 +5499,72 @@ export interface operations {
             };
         };
     };
+    patch_extraction_job_metadata_api_v0_rubrics_extraction_jobs__job_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchJobMetadataRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatchJobMetadataResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    abandon_extraction_job_api_v0_rubrics_extraction_jobs__job_id__abandon_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetryJobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_extraction_job_result_api_v0_rubrics_extraction_jobs__job_id__result_get: {
         parameters: {
             query?: never;
@@ -5270,17 +5904,20 @@ export interface operations {
             };
         };
     };
-    get_current_user_profile_api_v0_users_me_get: {
+    save_review_api_v0_transcriptions__transcription_id__review_patch: {
         parameters: {
-            query?: {
-                /** @description User ID (temporary - will use auth) */
-                user_id?: string | null;
-            };
+            query?: never;
             header?: never;
-            path?: never;
+            path: {
+                transcription_id: string;
+            };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewSaveRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -5288,7 +5925,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserResponse"];
+                    "application/json": components["schemas"]["TranscriptionReview"];
                 };
             };
             /** @description Validation Error */
@@ -5307,8 +5944,6 @@ export interface operations {
             query?: {
                 /** @description Filter by rubric ID */
                 rubric_id?: string | null;
-                /** @description User ID (temporary - will use auth) */
-                user_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -5345,8 +5980,6 @@ export interface operations {
                 owned_only?: boolean;
                 /** @description Only return shared rubrics */
                 shared_only?: boolean;
-                /** @description User ID (temporary - will use auth) */
-                user_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -5376,10 +6009,7 @@ export interface operations {
     };
     get_user_subject_matters_api_v0_users_me_subject_matters_get: {
         parameters: {
-            query?: {
-                /** @description User ID (temporary - will use auth) */
-                user_id?: string | null;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -5395,23 +6025,11 @@ export interface operations {
                     "application/json": components["schemas"]["SubjectMatterResponse"][];
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     update_user_subject_matters_api_v0_users_me_subject_matters_put: {
         parameters: {
-            query?: {
-                /** @description User ID (temporary - will use auth) */
-                user_id?: string | null;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -5444,10 +6062,7 @@ export interface operations {
     };
     share_rubric_api_v0_users_rubrics__rubric_id__share_post: {
         parameters: {
-            query?: {
-                /** @description User ID (temporary - will use auth) */
-                user_id?: string | null;
-            };
+            query?: never;
             header?: never;
             path: {
                 rubric_id: string;
@@ -5482,10 +6097,7 @@ export interface operations {
     };
     get_rubric_shares_api_v0_users_rubrics__rubric_id__shares_get: {
         parameters: {
-            query?: {
-                /** @description User ID (temporary - will use auth) */
-                user_id?: string | null;
-            };
+            query?: never;
             header?: never;
             path: {
                 rubric_id: string;
@@ -5516,10 +6128,7 @@ export interface operations {
     };
     delete_rubric_share_api_v0_users_rubrics__rubric_id__shares__share_id__delete: {
         parameters: {
-            query?: {
-                /** @description User ID (temporary - will use auth) */
-                user_id?: string | null;
-            };
+            query?: never;
             header?: never;
             path: {
                 rubric_id: string;
