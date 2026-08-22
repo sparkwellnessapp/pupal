@@ -15,8 +15,11 @@ import {
     Settings,
     Menu,
     Loader2,
+    Layers,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { LIST_TITLE } from '@/copy/batch';
+import { isNavActive } from '@/utils/nav-active';
 
 interface SidebarProps {
     children: React.ReactNode;
@@ -47,6 +50,13 @@ const navItems: NavItem[] = [
         label: 'הכיתות שלי',
         icon: <GraduationCap size={20} />,
         description: 'ניהול תלמידים וכיתות',
+    },
+    {
+        // L2: the batches section was reachable ONLY from a batch you had
+        // already opened — no nav entry existed at all.
+        href: '/batches',
+        label: LIST_TITLE,
+        icon: <Layers size={20} />,
     },
     {
         href: '/my-graded-tests',
@@ -228,7 +238,9 @@ export function SidebarLayout({ children }: SidebarProps) {
                 {/* Navigation */}
                 <nav className="p-3 space-y-1">
                     {navItems.map((item) => {
-                        const isActive = pathname === item.href;
+                        // L2: section-aware — a nav entry stays lit across its
+                        // descendants (/batches/{id}/review/…); '/' is exact.
+                        const isActive = isNavActive(item.href, pathname);
                         return (
                             <Link
                                 key={item.href}

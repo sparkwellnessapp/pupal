@@ -1,6 +1,8 @@
 'use client';
 
 import { RubricAnnotation, ValidationErrorDetail, RubricSaveError } from '@/lib/api';
+import type { RubricQuestion } from '@/types/rubric';
+import { scopeLabel } from '@/utils/scope-label';
 
 // =============================================================================
 // RubricWarningsModal - Modal for acknowledging compilation warnings
@@ -12,6 +14,8 @@ interface RubricWarningsModalProps {
     onAcknowledge: (warningIds: string[]) => void;
     onCancel: () => void;
     isSubmitting?: boolean;
+    /** The rubric tree — resolves target_ids to the teacher's naming (S1-9). */
+    questions?: RubricQuestion[];
 }
 
 /**
@@ -24,6 +28,7 @@ export function RubricWarningsModal({
     onAcknowledge,
     onCancel,
     isSubmitting = false,
+    questions = [],
 }: RubricWarningsModalProps) {
     const handleAcknowledge = () => {
         const warningIds = warnings.map((w) => w.id);
@@ -68,7 +73,7 @@ export function RubricWarningsModal({
                                         <p className="text-sm text-gray-800">{warning.message}</p>
                                         {warning.target_id && (
                                             <p className="text-xs text-gray-500 mt-1">
-                                                מיקום: <code className="bg-gray-100 px-1 rounded">{warning.target_id}</code>
+                                                מיקום: <span className="font-medium text-gray-700">{scopeLabel(warning.target_id, questions)}</span>
                                             </p>
                                         )}
                                     </div>
@@ -123,13 +128,15 @@ export function RubricWarningsModal({
 interface RubricErrorDisplayProps {
     error: RubricSaveError;
     onDismiss?: () => void;
+    /** The rubric tree — resolves the error location to the teacher's naming (S1-9). */
+    questions?: RubricQuestion[];
 }
 
 /**
  * Inline display for rubric validation or compilation errors.
  * Shows Hebrew message and list of specific errors.
  */
-export function RubricErrorDisplay({ error, onDismiss }: RubricErrorDisplayProps) {
+export function RubricErrorDisplay({ error, onDismiss, questions = [] }: RubricErrorDisplayProps) {
     const isValidation = error.errorType === 'validation_failed';
     const title = isValidation ? 'שגיאות בבדיקת המחוון' : 'שגיאות בהכנת המחוון';
     const bgColor = isValidation ? 'bg-red-50' : 'bg-orange-50';
@@ -213,8 +220,9 @@ export function RubricErrorDisplay({ error, onDismiss }: RubricErrorDisplayProps
                                                 className="text-xs mt-1 inline-flex items-center gap-1 text-primary-600 hover:text-primary-800 hover:underline"
                                                 title="מעבר לרכיב במחוון"
                                             >
-                                                <span>מעבר לרכיב</span>
-                                                <code className="bg-gray-100 px-1.5 py-0.5 rounded">{location}</code>
+                                                {/* S1-9: the naming label for her eyes; the raw
+                                                    dotted path stays the data-scope-id jump anchor. */}
+                                                <span>מעבר ל{scopeLabel(location, questions)}</span>
                                             </button>
                                         )}
                                     </div>

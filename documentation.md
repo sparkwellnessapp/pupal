@@ -1,6 +1,6 @@
 # Pupil Frontend Documentation
 
-Pupil is the React-based frontend for the Grader Vision system. It provides an intuitive interface for teachers to extract rubrics from PDFs, grade student tests in bulk, and review AI-generated results.
+Pupil is the React-based frontend for the Vivi system. It provides an intuitive interface for teachers to extract rubrics from PDFs, grade student tests in bulk, and review AI-generated results.
 
 ## Architecture
 

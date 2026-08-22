@@ -2,6 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { RubricErrorDisplay } from './RubricSaveFlow';
 import { RubricSaveError, type CompileErrorDetail } from '@/lib/api';
+import type { RubricQuestion } from '@/types/rubric';
+
+// A tree matching the error's q1.א.2 location, so scopeLabel resolves to the
+// teacher's naming (PR-5 S1-9) instead of leaking the raw dotted path.
+const QUESTIONS: RubricQuestion[] = [
+    { question_id: 'q1', total_points: 3, criteria: [], sub_questions: [
+        { sub_question_id: 'א', index: 0, points: 3, criteria: [], sub_questions: [
+            { sub_question_id: '2', index: 1, points: 3, criteria: [
+                { criterion_id: 'c1', index: 0, description: '', points: 2 }] },
+        ] },
+    ] },
+];
 
 /**
  * PR-4 Phase 5.2 — the STRUCTURED compile-error render must surface the fields
@@ -26,7 +38,7 @@ const bagrutCompileError = new RubricSaveError(
 );
 
 describe('RubricErrorDisplay — structured compile-error render (PR-4)', () => {
-    const html = renderToStaticMarkup(<RubricErrorDisplay error={bagrutCompileError} />);
+    const html = renderToStaticMarkup(<RubricErrorDisplay error={bagrutCompileError} questions={QUESTIONS} />);
 
     it('renders the named invariant chip', () => {
         expect(html).toContain('INV-2');
@@ -44,8 +56,11 @@ describe('RubricErrorDisplay — structured compile-error render (PR-4)', () => 
         expect(html).not.toContain('criteria sum (2) != declared (3)');
     });
 
-    it('renders a jump-to-node anchor carrying the full dotted path', () => {
-        expect(html).toContain('q1.א.2');
-        expect(html).toContain('מעבר לרכיב');
+    it('the jump target shows the naming LABEL, not the raw dotted path (S1-9)', () => {
+        // The location CHIP now speaks the naming law: "מעבר לשאלה 1 · סעיף א · תת-סעיף 2".
+        // (The raw "q1.א.2" still appears inside the backend message_he text — that is a
+        // separate residual the Sprint-3 finding-voice rework addresses, not S1-9's chip.)
+        expect(html).toContain('שאלה 1 · סעיף א · תת-סעיף 2');
+        expect(html).toContain('מעבר ל');
     });
 });

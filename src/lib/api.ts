@@ -1,8 +1,9 @@
 /**
- * API client for Grader Vision backend
+ * API client for Vivi backend
  */
 
 import { getAuthHeaders } from './auth';
+import type { components } from './api-types';
 import type { QuestionOntology } from './ontology-types';
 import type {
     TranscribeResponse,
@@ -47,6 +48,10 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 //     failed login. That is the difference between a resilience change and a
 //     login-breaking one.
 
+/** E3: what a FastAPI validation failure says to a teacher. Its own `detail`
+ *  is an English list, which must never reach an RTL screen. */
+export const VALIDATION_ERROR_HE = 'הנתונים שנשלחו אינם תקינים — בדקי את השדות ונסי שוב.';
+
 /** A normalized, typed API failure. `detail` is already the human-facing string. */
 export class ApiError extends Error {
   status: number;
@@ -75,6 +80,19 @@ async function normalizeError(response: Response): Promise<ApiError> {
     return new ApiAuthError(response.status);
   }
   const data = await response.json().catch(() => null);
+  // FastAPI's 422 puts a LIST of validation errors in `detail`, each with an
+  // ENGLISH `msg`. Neither branch below could extract it, so a validation
+  // failure surfaced as the generic "שגיאת שרת (422)" — and extracting the
+  // raw msg would render English on an RTL screen. A Hebrew validation
+  // message is the honest surface; the English detail stays in the console
+  // for whoever is debugging. (closeout/E3)
+  if (Array.isArray(data?.detail)) {
+    const first = data.detail[0];
+    if (typeof console !== 'undefined' && first?.msg) {
+      console.warn('[vivi] validation error', data.detail);
+    }
+    return new ApiError(response.status, VALIDATION_ERROR_HE);
+  }
   const detail =
     (typeof data?.detail === 'string' && data.detail) ||
     (typeof data?.detail?.message_he === 'string' && data.detail.message_he) ||
@@ -240,6 +258,38 @@ export interface SelectionGroup {
   label?: string | null;
 }
 
+/**
+ * Step 2c's output — a detected error IN THE TEACHER'S RUBRIC, with the machine's
+ * proposed correction and (PR-6 §4) the record of what she decided about it.
+ *
+ * The provenance fields are optional on the wire because drafts saved before PR-6
+ * do not carry them; absent means "no decision recorded", never "dismissed".
+ */
+export interface PedagogicalMistakeWire {
+  mistake_id: string;
+  kind: string;
+  severity?: string;
+  target_id?: string | null;
+  explanation: string;
+  evidence?: Record<string, unknown> | null;
+  suggested_fix?: {
+    operation: string;
+    description: string;
+    params?: Record<string, unknown> | null;
+    /** The general edit wire (pipeline ≥ 3.6.0): ordered primitive steps. */
+    steps?: Array<Record<string, unknown>> | null;
+  } | null;
+  requires_teacher_input?: boolean;
+  confidence?: number;
+  /** D3 — mistake_id of the root cause whose single fix resolves this one too. */
+  explained_by?: string | null;
+  /** §4 — her decisions are data, and they round-trip. */
+  dismissed?: boolean | null;
+  dismissed_at?: string | null;
+  fix_applied?: boolean | null;
+  fix_applied_at?: string | null;
+}
+
 export interface ExtractRubricResponse {
   questions: ExtractedQuestion[];
   total_points: number;                 // ACHIEVABLE (selection-aware), not the offered sum
@@ -254,6 +304,8 @@ export interface ExtractRubricResponse {
   metadata?: ExtractionMetadata;
   /** Extraction-time annotations (e.g. rubric_mismatch warnings). */
   annotations?: Annotation[];
+  /** Step 2c advisories — the explanation + fix half of a finding (PR-6). */
+  pedagogical_mistakes?: PedagogicalMistakeWire[];
 }
 
 export interface RubricListItem {
@@ -506,26 +558,6 @@ export interface GradedTestResult {
   student_answers_json?: StudentAnswersJson | null;
 }
 
-export interface TranscribedAnswerWithPages {
-  question_number: number;
-  sub_question_id: string | null;
-  answer_text: string;
-  confidence: number;
-  transcription_notes: string | null;
-  page_indexes: number[];
-}
-
-export interface TranscriptionReviewResponse {
-  transcription_id: string;
-  rubric_id: string;
-  student_name: string;
-  filename: string;
-  total_pages: number;
-  pages: PagePreview[];
-  answers: TranscribedAnswerWithPages[];
-  raw_transcription: string | null;
-}
-
 export interface StudentAnswerInput {
   question_number: number;
   sub_question_id: string | null;
@@ -598,6 +630,20 @@ export interface OntologyRubricDraft {
   description?: string;
   programming_language?: string;
   metadata?: ExtractionMetadata;
+  /**
+   * PR-6 (A1) — these three were being DROPPED at the save boundary: the draft
+   * literal never carried them, so `draft_json` stored an empty annotations list,
+   * no advisories at all, and no extraction provenance. Round-tripping them is
+   * what lets a reopened rubric still show its findings, its residual text and its
+   * advisory-scan status.
+   *
+   * ⚠️ Sending `annotations` WAKES the compiler's acknowledgment gate, which has
+   * never fired in this flow (it acks only WARNING annotations present in the
+   * submitted draft). Every save must therefore carry `acknowledged_warning_ids`
+   * derived from her decisions — see acknowledgedIdsFor in utils/findings.
+   */
+  annotations?: Annotation[];
+  pedagogical_mistakes?: PedagogicalMistakeWire[];
 }
 
 /** Request to save ontology rubric with atomic compilation */
@@ -944,7 +990,37 @@ export async function getExtractionJobResult(jobId: string): Promise<ExtractionJ
   return response.json();
 }
 
+/**
+ * PR-5 S1-2: patch metadata (name / programming_language) onto a running job.
+ * METADATA-ONLY by contract — the runner never reads these; they persist in
+ * request_params for save/resume. Backend merges atomically (jsonb ||), so
+ * omitted keys are untouched. Fire from the capture card (one combined PATCH).
+ */
+export async function patchExtractionJobMetadata(
+  jobId: string,
+  patch: { name?: string | null; programming_language?: string | null },
+): Promise<{ job_id: string; status: string }> {
+  const response = await apiFetchChecked(
+    `${EXTRACTION_JOBS_BASE}/${jobId}`,
+    jsonInit('PATCH', patch),
+  );
+  return response.json();
+}
+
 /** Re-queue a failed or stale job. The source DOCX is stored server-side — no re-upload. */
+/**
+ * LIV-1 — let the teacher END an active extraction she no longer wants to wait
+ * for. Deadlines guarantee an orphan eventually expires, but "eventually" is a
+ * window in which she is attached to a job she cannot escape; this is her exit.
+ * 409 means it already finished — the caller should just re-read the job.
+ */
+export async function abandonExtractionJob(jobId: string): Promise<{ job_id: string; status: string }> {
+  const response = await apiFetchChecked(`${EXTRACTION_JOBS_BASE}/${jobId}/abandon`, {
+    method: 'POST',
+  });
+  return response.json();
+}
+
 export async function retryExtractionJob(jobId: string): Promise<{ job_id: string; status: string }> {
   const response = await apiFetchChecked(`${EXTRACTION_JOBS_BASE}/${jobId}/retry`, {
     method: 'POST',
@@ -1088,501 +1164,6 @@ export async function getGradedTestById(testId: string): Promise<GradedTestResul
 }
 
 
-// =============================================================================
-// Streaming Transcription Types & Functions
-// =============================================================================
-
-export type TranscriptionPhase = 'loading' | 'transcribing' | 'verifying' | 'done';
-
-export interface StreamingCallbacks {
-  onMetadata: (transcriptionId: string, studentName: string, filename: string, totalPages: number) => void;
-  onPage: (page: PagePreview) => void;
-  onPhase: (phase: TranscriptionPhase, currentPage?: number, totalPages?: number) => void;
-  onChunk: (page: number, delta: string) => void;
-  onAnswer: (answer: TranscribedAnswerWithPages) => void;
-  onDone: (totalAnswers: number) => void;
-  onError: (message: string) => void;
-}
-
-/**
- * Stream transcription of a handwritten test using SSE.
- * Uses fetch with ReadableStream since EventSource doesn't support POST with file upload.
- * 
- * @returns A function to abort the stream
- */
-export function streamTranscription(
-  rubricId: string,
-  testFile: File,
-  callbacks: StreamingCallbacks,
-  options?: { firstPageIndex?: number; answeredQuestions?: number[] }
-): { abort: () => void } {
-  const abortController = new AbortController();
-
-  const runStream = async () => {
-    try {
-      const formData = new FormData();
-      formData.append('test_file', testFile);
-
-      const params = new URLSearchParams();
-      params.set('rubric_id', rubricId);
-      params.set('first_page_index', (options?.firstPageIndex ?? 0).toString());
-
-      if (options?.answeredQuestions && options.answeredQuestions.length > 0) {
-        params.set('answered_questions', JSON.stringify(options.answeredQuestions));
-      }
-
-      const response = await apiFetchRaw(`/api/v0/grading/stream_transcription?${params.toString()}`,
-        {
-          method: 'POST',
-          body: formData,
-          signal: abortController.signal,
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Stream failed' }));
-        callbacks.onError(error.detail || `Stream failed: ${response.status}`);
-        return;
-      }
-
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let currentEvent = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        // Process complete events (separated by double newlines)
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop() || ''; // Keep incomplete part
-
-        for (const part of parts) {
-          if (!part.trim()) continue;
-
-          const lines = part.split('\n');
-          let eventType = '';
-          let eventData = '';
-
-          for (const line of lines) {
-            if (line.startsWith('event:')) {
-              eventType = line.slice(6).trim();
-            } else if (line.startsWith('data:')) {
-              eventData = line.slice(5).trim();
-            }
-          }
-
-          if (!eventType || !eventData) continue;
-
-          try {
-            const data = JSON.parse(eventData);
-
-            switch (eventType) {
-              case 'metadata':
-                callbacks.onMetadata(
-                  data.transcription_id,
-                  data.student_name,
-                  data.filename,
-                  data.total_pages
-                );
-                break;
-
-              case 'page':
-                callbacks.onPage({
-                  page_index: data.page_index,
-                  page_number: data.page_number,
-                  thumbnail_base64: data.thumbnail_base64,
-                  width: data.width,
-                  height: data.height,
-                });
-                break;
-
-              case 'phase':
-                callbacks.onPhase(
-                  data.phase as TranscriptionPhase,
-                  data.current_page,
-                  data.total_pages
-                );
-                break;
-
-              case 'chunk':
-                callbacks.onChunk(data.page, data.delta);
-                break;
-
-              case 'answer':
-                callbacks.onAnswer({
-                  question_number: data.question_number,
-                  sub_question_id: data.sub_question_id,
-                  answer_text: data.answer_text,
-                  confidence: data.confidence,
-                  transcription_notes: null,
-                  page_indexes: data.page_indexes || [],
-                });
-                break;
-
-              case 'done':
-                callbacks.onDone(data.total_answers || 0);
-                break;
-
-              case 'error':
-                callbacks.onError(data.message);
-                break;
-            }
-          } catch (parseError) {
-            console.warn('Failed to parse SSE event:', eventType, eventData, parseError);
-          }
-        }
-      }
-    } catch (error) {
-      if ((error as Error).name === 'AbortError') {
-        console.log('Stream aborted');
-        return;
-      }
-      callbacks.onError((error as Error).message || 'Stream connection failed');
-    }
-  };
-
-  // Start the stream
-  runStream();
-
-  return {
-    abort: () => abortController.abort(),
-  };
-}
-// =============================================================================
-// Streaming Transcription Types & Functions (TWO-PHASE)
-// =============================================================================
-
-export interface ReviewFlag {
-  line: number;
-  reason: string;
-}
-
-export interface PageStreamState {
-  pageNumber: number;
-  rawText: string;
-  verifiedText: string;
-  markedText: string;  // Text with <Q#> markers
-  detectedQuestions: number[];  // Question numbers detected on this page
-  confidenceScores: Record<number, number>;  // Confidence per question
-  phase: 'raw' | 'verifying' | 'complete';
-  isStreaming: boolean;
-  reviewFlags: ReviewFlag[];  // Lines flagged for review by error detection
-}
-
-export interface TranscriptionStreamState {
-  transcriptionId: string;
-  rubricId: string;
-  studentName: string;
-  filename: string;
-  totalPages: number;
-  pages: PagePreview[];
-  currentPhase: TranscriptionPhase;
-  currentPage: number;
-  phaseMessage: string;
-  pageStates: Map<number, PageStreamState>;
-  answers: TranscribedAnswerWithPages[];
-  isComplete: boolean;
-  error: string | null;
-}
-
-export interface StreamingCallbacksV2 {
-  onMetadata: (data: {
-    transcriptionId: string;
-    studentName: string;
-    filename: string;
-    totalPages: number;
-    rubricId: string;
-  }) => void;
-  onPage: (page: PagePreview) => void;
-  onPhase: (phase: TranscriptionPhase, currentPage: number, totalPages: number, message: string) => void;
-  onRawChunk: (pageNumber: number, delta: string) => void;
-  onRawComplete: (pageNumber: number, fullText: string) => void;
-  onVerifiedChunk: (pageNumber: number, delta: string) => void;
-  onPageComplete: (pageNumber: number, pageIndex: number, markedText: string, detectedQuestions: number[], confidenceScores: Record<number, number>) => void;
-  onReviewFlags?: (pageNumber: number, flags: ReviewFlag[]) => void;  // NEW: error detection results
-  onAnswer: (answer: TranscribedAnswerWithPages) => void;
-  onDone: (totalAnswers: number) => void;
-  onError: (message: string) => void;
-}
-
-/**
- * Stream two-phase transcription using SSE.
- */
-export function streamTranscriptionV2(
-  rubricId: string,
-  testFile: File,
-  callbacks: StreamingCallbacksV2,
-  options?: {
-    firstPageIndex?: number;
-    answeredQuestions?: number[];
-  }
-): { abort: () => void } {
-  const abortController = new AbortController();
-
-  const runStream = async () => {
-    try {
-      const formData = new FormData();
-      formData.append('test_file', testFile);
-
-      const params = new URLSearchParams();
-      params.set('rubric_id', rubricId);
-      params.set('first_page_index', (options?.firstPageIndex ?? 0).toString());
-
-      if (options?.answeredQuestions && options.answeredQuestions.length > 0) {
-        params.set('answered_questions', JSON.stringify(options.answeredQuestions));
-      }
-
-      const response = await apiFetchRaw(`/api/v0/grading/stream_transcription_v2?${params.toString()}`,
-        {
-          method: 'POST',
-          body: formData,
-          signal: abortController.signal,
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Stream failed' }));
-        callbacks.onError(error.detail || `Stream failed: ${response.status}`);
-        return;
-      }
-
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop() || '';
-
-        for (const part of parts) {
-          if (!part.trim()) continue;
-
-          const lines = part.split('\n');
-          let eventType = '';
-          let eventData = '';
-
-          for (const line of lines) {
-            if (line.startsWith('event:')) {
-              eventType = line.slice(6).trim();
-            } else if (line.startsWith('data:')) {
-              eventData = line.slice(5).trim();
-            }
-          }
-
-          if (!eventType || !eventData) continue;
-
-          try {
-            const data = JSON.parse(eventData);
-
-            switch (eventType) {
-              case 'metadata':
-                callbacks.onMetadata({
-                  transcriptionId: data.transcription_id,
-                  studentName: data.student_name,
-                  filename: data.filename,
-                  totalPages: data.total_pages,
-                  rubricId: data.rubric_id,
-                });
-                break;
-              case 'page':
-                callbacks.onPage({
-                  page_index: data.page_index,
-                  page_number: data.page_number,
-                  thumbnail_base64: data.thumbnail_base64,
-                  width: data.width,
-                  height: data.height,
-                });
-                break;
-              case 'phase':
-                callbacks.onPhase(
-                  data.phase as TranscriptionPhase,
-                  data.current_page || 0,
-                  data.total_pages || 0,
-                  data.message || ''
-                );
-                break;
-              case 'raw_chunk':
-                callbacks.onRawChunk(data.page, data.delta);
-                break;
-              case 'raw_complete':
-                callbacks.onRawComplete(data.page, data.full_text);
-                break;
-              case 'verified_chunk':
-                callbacks.onVerifiedChunk(data.page, data.delta);
-                break;
-              case 'chunk': // Legacy compatibility
-                callbacks.onRawChunk(data.page, data.delta);
-                break;
-              case 'answer':
-                callbacks.onAnswer({
-                  question_number: data.question_number,
-                  sub_question_id: data.sub_question_id,
-                  answer_text: data.answer_text,
-                  confidence: data.confidence,
-                  transcription_notes: null,
-                  page_indexes: data.page_indexes || [],
-                });
-                break;
-              case 'page_complete':
-                callbacks.onPageComplete(
-                  data.page_number,
-                  data.page_index,
-                  data.text,
-                  data.detected_questions || [],
-                  data.confidence_scores || {}
-                );
-                break;
-              case 'review_flags':  // NEW: error detection results
-                if (callbacks.onReviewFlags) {
-                  const flags = (data.lines_to_review || []).map((lineNum: number) => ({
-                    line: lineNum,
-                    reason: data.reasons?.[String(lineNum)] || 'needs review'
-                  }));
-                  callbacks.onReviewFlags(data.page, flags);
-                }
-                break;
-              case 'done':
-                callbacks.onDone(data.total_answers || 0);
-                break;
-              case 'error':
-                callbacks.onError(data.message);
-                break;
-            }
-          } catch (parseError) {
-            console.warn('Failed to parse SSE event:', eventType, eventData, parseError);
-          }
-        }
-      }
-    } catch (error) {
-      if ((error as Error).name === 'AbortError') return;
-      callbacks.onError((error as Error).message || 'Stream connection failed');
-    }
-  };
-
-  runStream();
-  return { abort: () => abortController.abort() };
-}
-
-// State management helpers
-export function createInitialStreamState(): TranscriptionStreamState {
-  return {
-    transcriptionId: '',
-    rubricId: '',
-    studentName: '',
-    filename: '',
-    totalPages: 0,
-    pages: [],
-    currentPhase: 'loading',
-    currentPage: 0,
-    phaseMessage: 'מעבד PDF...',
-    pageStates: new Map(),
-    answers: [],
-    isComplete: false,
-    error: null,
-  };
-}
-
-export type StreamAction =
-  | { type: 'METADATA'; payload: { transcriptionId: string; studentName: string; filename: string; totalPages: number; rubricId: string } }
-  | { type: 'PAGE'; payload: PagePreview }
-  | { type: 'PHASE'; payload: { phase: TranscriptionPhase; currentPage: number; totalPages: number; message: string } }
-  | { type: 'RAW_CHUNK'; payload: { pageNumber: number; delta: string } }
-  | { type: 'RAW_COMPLETE'; payload: { pageNumber: number; fullText: string } }
-  | { type: 'VERIFIED_CHUNK'; payload: { pageNumber: number; delta: string } }
-  | { type: 'PAGE_COMPLETE'; payload: { pageNumber: number; pageIndex: number; markedText: string; detectedQuestions: number[]; confidenceScores: Record<number, number> } }
-  | { type: 'REVIEW_FLAGS'; payload: { pageNumber: number; flags: ReviewFlag[] } }  // NEW
-  | { type: 'ANSWER'; payload: TranscribedAnswerWithPages }
-  | { type: 'DONE'; payload: { totalAnswers: number } }
-  | { type: 'ERROR'; payload: { message: string } }
-  | { type: 'RESET' };
-
-export function streamReducer(state: TranscriptionStreamState, action: StreamAction): TranscriptionStreamState {
-  switch (action.type) {
-    case 'METADATA':
-      return { ...state, ...action.payload };
-    case 'PAGE':
-      return { ...state, pages: [...state.pages, action.payload] };
-    case 'PHASE':
-      return { ...state, currentPhase: action.payload.phase, currentPage: action.payload.currentPage, phaseMessage: action.payload.message };
-    case 'RAW_CHUNK': {
-      const pageStates = new Map(state.pageStates);
-      const existing = pageStates.get(action.payload.pageNumber) || { pageNumber: action.payload.pageNumber, rawText: '', verifiedText: '', markedText: '', detectedQuestions: [], confidenceScores: {}, phase: 'raw' as const, isStreaming: true, reviewFlags: [] };
-      pageStates.set(action.payload.pageNumber, { ...existing, rawText: existing.rawText + action.payload.delta, phase: 'raw', isStreaming: true });
-      return { ...state, pageStates };
-    }
-    case 'RAW_COMPLETE': {
-      const pageStates = new Map(state.pageStates);
-      const existing = pageStates.get(action.payload.pageNumber);
-      if (existing) pageStates.set(action.payload.pageNumber, { ...existing, rawText: action.payload.fullText, phase: 'verifying', isStreaming: false });
-      return { ...state, pageStates };
-    }
-    case 'VERIFIED_CHUNK': {
-      const pageStates = new Map(state.pageStates);
-      const existing = pageStates.get(action.payload.pageNumber) || { pageNumber: action.payload.pageNumber, rawText: '', verifiedText: '', markedText: '', detectedQuestions: [], confidenceScores: {}, phase: 'verifying' as const, isStreaming: true, reviewFlags: [] };
-      pageStates.set(action.payload.pageNumber, { ...existing, verifiedText: existing.verifiedText + action.payload.delta, phase: 'verifying', isStreaming: true });
-      return { ...state, pageStates };
-    }
-    case 'PAGE_COMPLETE': {
-      const pageStates = new Map(state.pageStates);
-      const existing = pageStates.get(action.payload.pageNumber) || { pageNumber: action.payload.pageNumber, rawText: '', verifiedText: '', markedText: '', detectedQuestions: [], confidenceScores: {}, phase: 'complete' as const, isStreaming: false, reviewFlags: [] };
-      pageStates.set(action.payload.pageNumber, {
-        ...existing,
-        markedText: action.payload.markedText,
-        detectedQuestions: action.payload.detectedQuestions,
-        confidenceScores: action.payload.confidenceScores,
-        phase: 'complete',
-        isStreaming: false,
-      });
-      return { ...state, pageStates };
-    }
-    case 'REVIEW_FLAGS': {  // NEW: handle review flags
-      const pageStates = new Map(state.pageStates);
-      const existing = pageStates.get(action.payload.pageNumber);
-      if (existing) {
-        pageStates.set(action.payload.pageNumber, { ...existing, reviewFlags: action.payload.flags });
-      }
-      return { ...state, pageStates };
-    }
-    case 'ANSWER': {
-      const pageStates = new Map(state.pageStates);
-      const pageIdx = action.payload.page_indexes[0];
-      if (pageIdx !== undefined) {
-        const existing = pageStates.get(pageIdx + 1);
-        if (existing) pageStates.set(pageIdx + 1, { ...existing, phase: 'complete', isStreaming: false });
-      }
-      return { ...state, pageStates, answers: [...state.answers, action.payload] };
-    }
-    case 'DONE':
-      return { ...state, currentPhase: 'done', phaseMessage: 'התמלול הושלם!', isComplete: true };
-    case 'ERROR':
-      return { ...state, error: action.payload.message };
-    case 'RESET':
-      return createInitialStreamState();
-    default:
-      return state;
-  }
-}
-
-export function streamStateToReviewResponse(state: TranscriptionStreamState): TranscriptionReviewResponse {
-  return {
-    transcription_id: state.transcriptionId,
-    rubric_id: state.rubricId,
-    student_name: state.studentName,
-    filename: state.filename,
-    total_pages: state.totalPages,
-    pages: state.pages,
-    answers: state.answers,
-    raw_transcription: null,
-  };
-}
 
 // =============================================================================
 // Rubric Generator Types & Functions
@@ -1659,7 +1240,6 @@ export async function getShareHistory(
 import type {
   BatchGradeRequest,
   BatchGradeResponse,
-  BatchProgressResponse,
   SessionDetailResponse,
   SessionResumeResponse,
   OntologyGradeRequest,
@@ -1686,8 +1266,6 @@ export type {
   StudentInput,
   BatchGradeRequest,
   BatchGradeResponse,
-  SessionSummary,
-  BatchProgressResponse,
   SessionDetailResponse,
   OntologyGradeRequest,
   OntologyGradeResponse,
@@ -1695,93 +1273,12 @@ export type {
 } from './ontology-types';
 
 
-/**
- * Get progress for a batch grading operation.
- * Includes session summaries with scores and flag counts.
- */
-export async function getBatchProgress(
-  batchId: string
-): Promise<BatchProgressResponse> {
-  const response = await apiFetchChecked(`/api/v0/grading/batches/${batchId}/progress`, {
-      });
-
-
-  return response.json();
-}
-
-/**
- * Cancel a batch grading operation.
- * Only pending sessions will be cancelled; completed sessions are preserved.
- */
-export async function cancelBatch(
-  batchId: string
-): Promise<{ batch_id: string; status: string; cancelled_sessions: number }> {
-  const response = await apiFetchChecked(`/api/v0/grading/batches/${batchId}/cancel`, {
-    method: 'POST',
-      });
-
-
-  return response.json();
-}
-
-/**
- * List all grading batches with optional filters.
- */
-export async function listBatches(options?: {
-  rubric_id?: string;
-  status?: string;
-  limit?: number;
-  offset?: number;
-}): Promise<{
-  batches: Array<{
-    batch_id: string;
-    name?: string;
-    rubric_id: string;
-    status: string;
-    total_sessions: number;
-    completed_sessions: number;
-    failed_sessions: number;
-    progress_percentage: number;
-    created_at: string;
-    completed_at?: string;
-  }>;
-  count: number;
-}> {
-  const params = new URLSearchParams();
-  if (options?.rubric_id) params.set('rubric_id', options.rubric_id);
-  if (options?.status) params.set('status', options.status);
-  if (options?.limit) params.set('limit', options.limit.toString());
-  if (options?.offset) params.set('offset', options.offset.toString());
-
-  const url = params.toString()
-    ? `${API_BASE}/api/v0/grading/batches?${params}`
-    : `${API_BASE}/api/v0/grading/batches`;
-
-  const response = await apiFetchChecked(url, {
-      });
-
-
-  return response.json();
-}
-
-/**
- * Get detailed information about a grading session.
- *
- * @param sessionId - Session identifier
- * @param includeDraft - Whether to include the full graded_test_draft (default: true)
- */
-export async function getSessionDetails(
-  sessionId: string,
-  includeDraft: boolean = true
-): Promise<SessionDetailResponse> {
-  const url = `${API_BASE}/api/v0/grading/sessions/${sessionId}?include_draft=${includeDraft}`;
-
-  const response = await apiFetchChecked(url, {
-      });
-
-
-  return response.json();
-}
+// P5: `listBatches` DELETED — zero callers repo-wide, and it spoke a
+// competing contract (GET /api/v0/grading/batches, rows keyed on `batch_id`
+// with session counters) against the live lister `listGradingBatches`
+// (GET /api/v0/batches → BatchListItem). Two listers for one concept is the
+// duplicate-schema trap; the dead one goes. If filtering/pagination is ever
+// wanted, build it on /api/v0/batches — do not resurrect this.
 
 /**
  * Resume an interrupted grading session.
@@ -1935,65 +1432,6 @@ export function getQuoteValidationDisplay(status: string): {
   }
 }
 
-/**
- * Watch batch progress with polling.
- * Automatically stops when batch completes or fails.
- *
- * @param batchId - Batch identifier
- * @param onProgress - Callback for progress updates
- * @param options - Polling options
- * @returns Cleanup function to stop polling
- *
- * @example
- * const stop = watchBatchProgress(batchId, (progress) => {
- *   console.log(`${progress.progress_percentage}% complete`);
- * });
- * // Later: stop();
- */
-export function watchBatchProgress(
-  batchId: string,
-  onProgress: (progress: BatchProgressResponse) => void,
-  options?: {
-    intervalMs?: number;
-    onError?: (error: Error) => void;
-    onComplete?: (progress: BatchProgressResponse) => void;
-  }
-): () => void {
-  const interval = options?.intervalMs ?? 2000;
-  let stopped = false;
-  let timeoutId: ReturnType<typeof setTimeout>;
-
-  const poll = async () => {
-    if (stopped) return;
-
-    try {
-      const progress = await getBatchProgress(batchId);
-      onProgress(progress);
-
-      // Check if batch is done
-      if (progress.status === 'completed' || progress.status === 'failed' || progress.status === 'partially_completed') {
-        options?.onComplete?.(progress);
-        return;
-      }
-
-      // Schedule next poll
-      timeoutId = setTimeout(poll, interval);
-    } catch (error) {
-      if (!stopped) {
-        options?.onError?.(error instanceof Error ? error : new Error(String(error)));
-      }
-    }
-  };
-
-  // Start polling
-  poll();
-
-  // Return cleanup function
-  return () => {
-    stopped = true;
-    clearTimeout(timeoutId);
-  };
-}
 
 
 // =============================================================================
@@ -2027,17 +1465,25 @@ export type {
 export { ClassroomConflictError };
 
 async function _classroomFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const response = await apiFetchChecked(url, {
+  // RAW fetch + explicit status ladder: apiFetchChecked threw a generic
+  // ApiError on ANY non-OK, which made the 409 branch below DEAD CODE and
+  // silently broke every ClassroomConflictError consumer (StudentPicker's
+  // inline "student already exists", the identity wave's conflict pills) —
+  // discovered by the D4 journey spec, 2026-08-17. 409 must stay a TYPED
+  // conflict at this seam; auth stays terminal; other failures normalize.
+  const response = await apiFetchRaw(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-            ...((options.headers as Record<string, string>) ?? {}),
+      ...((options.headers as Record<string, string>) ?? {}),
     },
   });
+  throwIfAuthError(response);
   if (response.status === 409) {
     const data = await response.json().catch(() => ({ detail: 'ניגוד' }));
     throw new ClassroomConflictError(data.detail ?? 'ניגוד');
   }
+  if (!response.ok) throw await normalizeError(response);
   return response;
 }
 
@@ -2176,6 +1622,28 @@ export async function submitGrade(params: {
         throw new Error((err as { detail?: string }).detail ?? 'שגיאה בשמירת הבדיקה');
     }
     return res.json() as Promise<GradeQueuedResponse>;
+}
+
+// --- Batch-review Phase 2: the teacher review overlay ------------------------
+// Wire types are GENERATED (OD-9) — consumed from api-types.ts, no hand mirror.
+
+export type TranscriptionReview = components['schemas']['TranscriptionReview'];
+export type TranscriptionReviewSaveRequest = components['schemas']['ReviewSaveRequest'];
+
+/**
+ * Persist the teacher's review working copy (transcriptions.review_json).
+ * FULL snapshot, last-write-wins. Domain errors surface as ApiError:
+ * 409 = transcription already approved (LCY-1); 422 = the snapshot's answer
+ * keys don't match the draft. Never called after a successful accept (Δ4).
+ */
+export async function saveTranscriptionReview(
+    transcriptionId: string,
+    body: TranscriptionReviewSaveRequest,
+): Promise<TranscriptionReview> {
+    return apiFetch<TranscriptionReview>(
+        `/api/v0/transcriptions/${transcriptionId}/review`,
+        jsonInit('PATCH', body),
+    );
 }
 
 export async function getTranscriptionPage(
@@ -2339,33 +1807,97 @@ export async function retryGradedTest(id: string): Promise<RevisionResponse> {
 // S11 — Batch grading
 // =============================================================================
 
-/**
- * Create a batch and fan out transcription for each PDF.
- * Returns immediately with the batch_id; poll getBatch() for progress.
- */
-export async function createBatch(
-    files: File[],
+/** One appended batch file (B9 intake v2). */
+export interface BatchFileAppendResponse {
+    job_id: string;
+    filename: string | null;
+    test_count: number;
+}
+
+/** B9/U3: metadata-only batch create — the queue appends the files. */
+export async function createBatchMetadata(
     rubricId: string,
     classId?: string | null,
     name?: string | null,
 ): Promise<BatchCreateResponse> {
-    const form = new FormData();
-    for (const f of files) form.append('files', f);
-    form.append('rubric_id', rubricId);
-    if (classId) form.append('class_id', classId);
-    if (name) form.append('name', name);
+    return apiFetch<BatchCreateResponse>(
+        `/api/v0/batches`,
+        jsonInit('POST', {
+            rubric_id: rubricId,
+            class_id: classId ?? null,
+            name: name ?? null,
+        }),
+    );
+}
 
-    const res = await apiFetchChecked(`/api/v0/batches`, {
-        method: 'POST',
-        headers: { ...getAuthHeaders() },   // no Content-Type — browser sets multipart boundary
-        body: form,
-    });
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        const detail = (err as { detail?: unknown }).detail;
-        throw new Error(typeof detail === 'string' ? detail : `שגיאה ביצירת הבאץ' (${res.status})`);
+/** U3: the append failed with an HTTP status — carries the server's Hebrew
+ *  detail. A 422 is a VALIDATION verdict (terminal, never retried). */
+export class UploadHttpError extends Error {
+    constructor(public readonly status: number, detail: string) {
+        super(detail);
+        this.name = 'UploadHttpError';
     }
-    return res.json() as Promise<BatchCreateResponse>;
+}
+
+/** U3: the caller aborted (unmount) — never surfaces as a failure. */
+export class UploadAbortError extends Error {
+    constructor() {
+        super('upload aborted');
+        this.name = 'UploadAbortError';
+    }
+}
+
+export interface XhrUploadHandle {
+    promise: Promise<BatchFileAppendResponse>;
+    abort: () => void;
+}
+
+/**
+ * B9/U3: append ONE file to a batch over XHR — fetch cannot observe upload
+ * progress (B9.6). Idempotent on client_file_id: a retry with the SAME id
+ * returns the existing job instead of duplicating a test (the queue owns the
+ * id for the file's lifetime, so retries can never mint a new identity).
+ * The returned abort() is fired on unmount — no zombie uploads.
+ */
+export function appendBatchFileXHR(
+    batchId: string,
+    file: File,
+    clientFileId: string,
+    onProgress: (pct: number) => void,
+): XhrUploadHandle {
+    const xhr = new XMLHttpRequest();
+    const promise = new Promise<BatchFileAppendResponse>((resolve, reject) => {
+        xhr.open('POST', `${API_BASE}/api/v0/batches/${batchId}/files`);
+        for (const [k, v] of Object.entries(getAuthHeaders())) {
+            if (k.toLowerCase() !== 'content-type') xhr.setRequestHeader(k, v);
+        }
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+        };
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    resolve(JSON.parse(xhr.responseText) as BatchFileAppendResponse);
+                } catch {
+                    reject(new UploadHttpError(xhr.status, 'תגובת שרת לא תקינה'));
+                }
+                return;
+            }
+            let detail = `שגיאה בהעלאה (${xhr.status})`;
+            try {
+                const parsed = JSON.parse(xhr.responseText) as { detail?: unknown };
+                if (typeof parsed.detail === 'string') detail = parsed.detail;
+            } catch { /* keep the generic detail */ }
+            reject(new UploadHttpError(xhr.status, detail));
+        };
+        xhr.onerror = () => reject(new Error('network'));
+        xhr.onabort = () => reject(new UploadAbortError());
+        const form = new FormData();
+        form.append('file', file);
+        form.append('client_file_id', clientFileId);
+        xhr.send(form);   // no Content-Type — the browser sets the multipart boundary
+    });
+    return { promise, abort: () => xhr.abort() };
 }
 
 /** Poll this for transcription progress and grading progress. */
@@ -2374,6 +1906,34 @@ export async function getBatch(id: string): Promise<BatchDetailResponse> {
             });
     if (!res.ok) throw new Error(`Failed to fetch batch ${id}: ${res.status}`);
     return res.json() as Promise<BatchDetailResponse>;
+}
+
+/**
+ * Retry a failed (or expired) transcription job — Cloud Tasks migration.
+ * The source PDF is durable in GCS, so no re-upload is involved.
+ */
+export async function retryBatchJob(
+    batchId: string,
+    jobId: string,
+): Promise<{ job_id: string; status: string }> {
+    // F2: apiFetch throws a normalized ApiError whose message IS the server's
+    // Hebrew detail (e.g. the retry 409's "המשימה עדיין פעילה או שכבר הושלמה")
+    // — no hand-rolled English fallback may shadow it.
+    return apiFetch<{ job_id: string; status: string }>(
+        `/api/v0/batches/${batchId}/jobs/${jobId}/retry`,
+        { method: 'POST' },
+    );
+}
+
+/** B5: rename a batch (stripped server-side; blank → 422 with Hebrew detail). */
+export async function renameBatch(
+    batchId: string,
+    name: string,
+): Promise<{ batch_id: string; name: string }> {
+    return apiFetch<{ batch_id: string; name: string }>(
+        `/api/v0/batches/${batchId}`,
+        jsonInit('PATCH', { name }),
+    );
 }
 
 export async function listGradingBatches(): Promise<{ batches: BatchListItem[] }> {
@@ -2385,25 +1945,26 @@ export async function listGradingBatches(): Promise<{ batches: BatchListItem[] }
     return { batches: Array.isArray(data) ? data : [] };
 }
 
+/** One skipped row in a bulk-accept response (B1). */
+export interface AcceptCleanSkipped {
+    transcription_id: string;
+    skipped_reason: 'flagged' | 'has_review_edits' | 'already_approved';
+}
+
 /**
- * Bulk-accept all clean transcriptions in one action.
- * Backend builds contracts from draft answers; no teacher edits needed for clean tests.
+ * Bulk-accept all clean transcriptions in one action. "Clean" is a
+ * SERVER-guaranteed property (B1): flagged/edited/already-approved items come
+ * back in `skipped` and the dashboard surfaces every one (F4).
  */
 export async function acceptCleanTranscriptions(
     batchId: string,
     items: AcceptCleanItem[],
-): Promise<{ accepted: number }> {
-    const res = await apiFetchChecked(`/api/v0/batches/${batchId}/accept_clean`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ items }),
-    });
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        const detail = (err as { detail?: unknown }).detail;
-        throw new Error(typeof detail === 'string' ? detail : `שגיאה באישור ניקיים (${res.status})`);
-    }
-    return res.json() as Promise<{ accepted: number }>;
+): Promise<{ accepted: number; skipped: AcceptCleanSkipped[] }> {
+    const data = await apiFetch<{ accepted: number; skipped?: AcceptCleanSkipped[] }>(
+        `/api/v0/batches/${batchId}/accept_clean`,
+        jsonInit('POST', { items }),
+    );
+    return { accepted: data.accepted, skipped: data.skipped ?? [] };
 }
 
 /**
