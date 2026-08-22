@@ -2,28 +2,21 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { handOffUploadFailures } from '@/utils/skip-notice';
 import { FileUpload } from '@/components/FileUpload';
-import { MultiFileUpload } from '@/components/MultiFileUpload';
-import { PageGrid } from '@/components/PageThumbnail';
+import { UploadFilePanel } from '@/components/batch/UploadFilePanel';
 import { RubricEditor } from '@/components/RubricEditor';
 import { RubricDocument } from '@/components/RubricDocument';
-import { AnswerMappingPanel } from '@/components/AnswerMappingPanel';
-import { GradingResults } from '@/components/GradingResults';
 import { RubricSelector } from '@/components/RubricSelector';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import PdfProcessingPage from '@/components/PdfProcessingPage';
 import { TranscriptionReviewPanel } from '@/components/TranscriptionReviewPanel';
 import { GradedTestReviewPanel } from '@/components/GradedTestReviewPanel';
-import { useStreamingTranscription } from '@/lib/useStreamingTranscription';
 import {
   saveOntologyRubric,
   isWarningsResponse,
-  previewStudentTestPdf,
   PagePreview,
   RubricListItem,
-  AnswerPageMapping,
-  GradedTestResult,
-  StudentAnswerInput,
   isDocxFile,
   ExtractionMetadata,
   Annotation,
@@ -31,12 +24,16 @@ import {
   submitGrade,
   getGradedTest,
   listClasses,
-  createBatch,
+  createBatchMetadata,
+  appendBatchFileXHR,
+  UploadAbortError,
+  UploadHttpError,
   // PR-1: async extraction jobs (submit → poll → result → retry)
   submitExtractionJob,
   getExtractionJobResult,
   retryExtractionJob,
   abandonExtractionJob,
+  getBatch,
   listExtractionJobs,
   ExtractRubricResponse,
   RubricSaveError,
@@ -89,151 +86,48 @@ import {
   FileText,
   ClipboardCheck,
   Home as HomeIcon,
-  User,
-  PenTool,
-  Printer,
   X,
 } from 'lucide-react';
+import {
+  UPLOAD_CLASS_HINT,
+  UPLOAD_CONTINUE,
+  UPLOAD_LIVE_READY,
+  UPLOAD_LIVE_STARTED,
+  UPLOAD_CREATE_ERROR,
+  UPLOAD_CTA,
+  UPLOAD_CTA_DISABLED_REASON,
+  UPLOAD_FILE_FAILED,
+  UPLOAD_NAME_HINT,
+  UPLOAD_NAME_LABEL,
+  UPLOAD_UPLOADING,
+} from '@/copy/batch';
+import {
+  aggregatePct,
+  allDone,
+  composeBatchName,
+  initQueue,
+  isDrained,
+  landedCount,
+  nextToStart,
+  uploadQueueReducer,
+  type UploadFileMeta,
+  type UploadItemState,
+  type UploadQueueAction,
+  type UploadQueueState,
+} from '@/utils/batch-upload';
 
 type MainMode = 'select' | 'rubric' | 'grading';
 type RubricStep = 'upload' | 'extracting' | 'arrival' | 'review' | 'saved';
-type GradingStep = 'select_rubric' | 'upload_batch' | 'map_answers' | 'pdf_processing' | 'review_transcription' | 'grading_queued' | 'grading' | 'results' | 'draft_review' | 'grading_failed';
-type TranscriptionMode = 'handwritten' | 'printed' | null;
+// P4/U1: one path — always batch. 'map_answers'/'results'/'grading' (the
+// printed chain + its fake-success terminal) are DELETED; the remaining
+// single-flow steps are QUARANTINED (§11: unreachable, resurrected or removed
+// by the separate single-flow-deletion PR).
+type GradingStep = 'select_rubric' | 'upload_batch' | 'pdf_processing' | 'review_transcription' | 'grading_queued' | 'draft_review' | 'grading_failed';
 
-interface ActiveAnswerAssignment {
-  mappingIndex: number;
-}
-
-interface GradingProgress {
-  current: number;
-  total: number;
-  currentFileName: string;
-  stage?: 'transcribing' | 'grading';
-}
-
-// Store mapping for each test
-interface TestMapping {
-  file: File;
-  pages: PagePreview[];
-  answerMappings: AnswerPageMapping[];
-  isLoaded: boolean;
-}
-
-// Store per-test question selections for handwritten mode
+// QUARANTINED (U1): per-test config of the unreachable single-flow path.
 interface HandwrittenTestConfig {
   file: File;
   answeredQuestions: number[]; // Which questions the student answered (empty = all)
-}
-
-// =============================================================================
-// Transcription Mode Toggle Component
-// =============================================================================
-
-interface TranscriptionModeToggleProps {
-  mode: TranscriptionMode;
-  onChange: (mode: TranscriptionMode) => void;
-}
-
-function TranscriptionModeToggle({ mode, onChange }: TranscriptionModeToggleProps) {
-  return (
-    <div className="mb-6 p-4 bg-surface-50 border border-surface-200 rounded-lg">
-      <label className="block text-sm font-medium text-gray-700 mb-3">
-        סוג המבחנים לבדיקה <span className="text-red-500">*</span>
-      </label>
-      <div className="flex gap-3">
-        <button
-          onClick={() => onChange('handwritten')}
-          className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${mode === 'handwritten'
-            ? 'border-primary-500 bg-primary-50 text-primary-700'
-            : 'border-surface-300 bg-white text-gray-600 hover:border-surface-400'
-            }`}
-        >
-          <PenTool size={20} />
-          <span className="font-medium">תמלול כתב יד</span>
-        </button>
-        <button
-          onClick={() => onChange('printed')}
-          className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${mode === 'printed'
-            ? 'border-primary-500 bg-primary-50 text-primary-700'
-            : 'border-surface-300 bg-white text-gray-600 hover:border-surface-400'
-            }`}
-        >
-          <Printer size={20} />
-          <span className="font-medium">תמלול דפוס</span>
-        </button>
-      </div>
-      {!mode && (
-        <p className="mt-2 text-sm text-amber-600 flex items-center gap-1">
-          <AlertCircle size={14} />
-          יש לבחור סוג מבחנים כדי להמשיך
-        </p>
-      )}
-    </div>
-  );
-}
-
-// =============================================================================
-// Question Selection Component (for handwritten mode)
-// =============================================================================
-
-interface QuestionSelectionProps {
-  rubric: RubricListItem;
-  selectedQuestions: number[];
-  onChange: (questions: number[]) => void;
-  testName: string;
-}
-
-function QuestionSelection({ rubric, selectedQuestions, onChange, testName }: QuestionSelectionProps) {
-  const allQuestions: number[] = [];
-  const allSelected = selectedQuestions.length === 0 || selectedQuestions.length === allQuestions.length;
-
-  const toggleQuestion = (qNum: number) => {
-    if (selectedQuestions.includes(qNum)) {
-      onChange(selectedQuestions.filter(q => q !== qNum));
-    } else {
-      onChange([...selectedQuestions, qNum].sort((a, b) => a - b));
-    }
-  };
-
-  const selectAll = () => {
-    onChange([]); // Empty means all questions
-  };
-
-  return (
-    <div className="p-3 bg-surface-50 rounded-lg border border-surface-200">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-gray-700 truncate max-w-[200px]" title={testName}>
-          {testName}
-        </span>
-        <button
-          onClick={selectAll}
-          className={`text-xs px-2 py-1 rounded ${allSelected
-            ? 'bg-primary-100 text-primary-700'
-            : 'bg-surface-200 text-gray-600 hover:bg-surface-300'
-            }`}
-        >
-          כל השאלות
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {allQuestions.map(qNum => {
-          const isSelected = allSelected || selectedQuestions.includes(qNum);
-          return (
-            <button
-              key={qNum}
-              onClick={() => toggleQuestion(qNum)}
-              className={`px-3 py-1 text-sm rounded-full border transition-colors ${isSelected
-                ? 'bg-primary-500 text-white border-primary-500'
-                : 'bg-white text-gray-600 border-surface-300 hover:border-primary-300'
-                }`}
-            >
-              שאלה {qNum}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 // =============================================================================
@@ -339,31 +233,50 @@ export default function Home() {
   const [gradingStep, setGradingStep] = useState<GradingStep>('select_rubric');
   const [selectedRubric, setSelectedRubric] = useState<RubricListItem | null>(null);
   const [testFiles, setTestFiles] = useState<File[]>([]);
-  const [studentName, setStudentName] = useState('');
 
   // S11: Batch upload state
   const router = useRouter();
   const [batchClassId, setBatchClassId] = useState<string | null>(null);
   const [batchClasses, setBatchClasses] = useState<{ id: string; name: string }[]>([]);
   const [batchUploading, setBatchUploading] = useState(false);
+  // U2/B5: composed default name — editable; a teacher edit stops recomposition.
+  const [batchName, setBatchName] = useState('');
+  const [batchNameTouched, setBatchNameTouched] = useState(false);
 
-  // Transcription mode
-  const [transcriptionMode, setTranscriptionMode] = useState<TranscriptionMode>(null);
+  // U3: the upload queue — state drives the UI; the ref is the driver's truth
+  // (pump/afterSettle run from promise callbacks, outside the render cycle).
+  const [uploadQueue, setUploadQueue] = useState<UploadQueueState | null>(null);
+  const uploadQueueRef = useRef<UploadQueueState | null>(null);
+  const uploadBatchIdRef = useRef<string | null>(null);
+  const uploadFileByIdRef = useRef(new Map<string, File>());
+  const uploadAbortsRef = useRef(new Map<string, () => void>());
+  // Live-E2E fix (2026-08-22): while she is still uploading, transcription is
+  // ALREADY running server-side — jobs enqueue per append. Without a signal
+  // she sat on this page for minutes believing nothing was happening. Poll
+  // the batch once >=1 file landed; render the honest count below the queue.
+  const [uploadLiveRollup, setUploadLiveRollup] = useState<{
+    transcribing: number; transcribed: number; approved_transcription: number;
+  } | null>(null);
+  const uploadAnyLanded = uploadQueue !== null && landedCount(uploadQueue) > 0;
+  useEffect(() => {
+    if (gradingStep !== 'upload_batch' || !uploadAnyLanded) return;
+    const id = uploadBatchIdRef.current;
+    if (!id) return;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const b = await getBatch(id);
+        if (alive) setUploadLiveRollup(b.rollup);
+      } catch { /* transient — the next tick or the dashboard recovers */ }
+    };
+    void tick();
+    const t = setInterval(() => { void tick(); }, 5000);
+    return () => { alive = false; clearInterval(t); };
+  }, [gradingStep, uploadAnyLanded]);
 
-  // Per-test question selection for handwritten mode
+  // QUARANTINED (U1): single-flow state — unreachable, kept for the separate
+  // single-flow-deletion PR to resolve.
   const [handwrittenConfigs, setHandwrittenConfigs] = useState<HandwrittenTestConfig[]>([]);
-
-  // Per-test mapping state (for printed mode)
-  const [testMappings, setTestMappings] = useState<TestMapping[]>([]);
-  const [currentTestIndex, setCurrentTestIndex] = useState(0);
-  const [activeAnswerAssignment, setActiveAnswerAssignment] = useState<ActiveAnswerAssignment | null>(null);
-
-  // Grading results
-  const [gradingResults, setGradingResults] = useState<GradedTestResult[]>([]);
-  const [gradingStats, setGradingStats] = useState({ total: 0, successful: 0, failed: 0, errors: [] as string[] });
-  const [gradingProgress, setGradingProgress] = useState<GradingProgress | null>(null);
-  // Store test page thumbnails for validation in results view
-  const [testPagesMap, setTestPagesMap] = useState<Map<string, PagePreview[]>>(new Map());
 
   // Current test file being processed (for handwritten mode)
   const [currentTestFile, setCurrentTestFile] = useState<File | null>(null);
@@ -471,34 +384,10 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pollingActive, gradedTestId]);
 
-  // =============================================================================
-  // NEW: Streaming Transcription Hook
-  // =============================================================================
-  const streaming = useStreamingTranscription({
-    // Called when PDF processing is complete and pages are ready
-    // This triggers navigation from loading screen to review page
-    onPagesReady: ({ pages, studentName, filename }) => {
-      console.log(`PDF processed: ${pages} pages, student: ${studentName}`);
-      // Navigate to review page
-      setGradingStep('review_transcription');
-    },
-    onComplete: (data) => {
-      console.log('Transcription complete:', data.student_name, data.answers.length, 'answers');
-    },
-    onError: (err) => {
-      console.error('Streaming error:', err);
-      setError(err);
-      // Go back to upload step on error
-      setGradingStep('upload_batch');
-    },
-  });
-
-  // Current test being mapped (printed mode)
-  const currentTest = testMappings[currentTestIndex];
-
-  // Initialize handwritten configs when files change
+  // QUARANTINED (U1): configs for the unreachable single-flow path — kept in
+  // sync with the file list so the quarantined machinery stays coherent.
   useEffect(() => {
-    if (transcriptionMode === 'handwritten' && testFiles.length > 0) {
+    if (testFiles.length > 0) {
       setHandwrittenConfigs(
         testFiles.map(file => ({
           file,
@@ -506,16 +395,16 @@ export default function Home() {
         }))
       );
     }
-  }, [testFiles, transcriptionMode]);
+  }, [testFiles]);
 
-  // Reset transcription mode when going back to rubric selection
   const handleBackToRubricSelect = () => {
-    streaming.reset();
+    resetUploadQueue();
     setGradingStep('select_rubric');
     setSelectedRubric(null);
     setTestFiles([]);
-    setTranscriptionMode(null);
     setHandwrittenConfigs([]);
+    setBatchName('');
+    setBatchNameTouched(false);
   };
 
   // Rubric Handlers — S1-1/S1-2: drop the DOCX and go. No purpose interstitial,
@@ -1110,22 +999,147 @@ export default function Home() {
     }
   }, [gradingStep]);
 
-  // S11: create a batch and navigate to the batch review page
-  const handleGradeAsBatch = async () => {
-    if (!selectedRubric || testFiles.length === 0) return;
-    setBatchUploading(true);
-    try {
-      const result = await createBatch(
-        testFiles,
-        selectedRubric.id,
-        batchClassId || undefined,
-      );
-      router.push(`/batches/${result.batch_id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה ביצירת הבאץ\'');
-      setBatchUploading(false);
+  // U2/B5: compose the default batch name (rubric · class? · he-IL date);
+  // recompose on class change ONLY until the teacher touches the field.
+  useEffect(() => {
+    if (gradingStep !== 'upload_batch' || !selectedRubric || batchNameTouched) return;
+    const cls = batchClasses.find(c => c.id === batchClassId)?.name ?? null;
+    setBatchName(composeBatchName(selectedRubric.name || 'מחוון ללא שם', cls, new Date()));
+  }, [gradingStep, selectedRubric, batchClassId, batchClasses, batchNameTouched]);
+
+  // ---------------------------------------------------------------------------
+  // U3 — the upload-queue driver. Pure transitions live in batch-upload.ts;
+  // this is the impure shell: dispatch → pump free slots → settle → navigate.
+  // ---------------------------------------------------------------------------
+
+  const dispatchUpload = (action: UploadQueueAction): UploadQueueState | null => {
+    const current = uploadQueueRef.current;
+    if (!current) return null;
+    const next = uploadQueueReducer(current, action);
+    uploadQueueRef.current = next;
+    setUploadQueue(next);
+    return next;
+  };
+
+  const classifyUploadError = (err: unknown, filename: string): { reason: string; retryable: boolean } => {
+    if (err instanceof UploadHttpError) {
+      // 422 = the B7 validation verdict — terminal, never retried (U3).
+      // 401/403 = auth — retrying can't heal it either.
+      const retryable = err.status !== 422 && err.status !== 401 && err.status !== 403;
+      return { reason: err.message, retryable };
+    }
+    return { reason: UPLOAD_FILE_FAILED(filename), retryable: true };
+  };
+
+  const settleUploadQueue = () => {
+    pumpUploads();
+    const s = uploadQueueRef.current;
+    // Decision 4: auto-navigate ONLY when everything landed; failures keep
+    // the teacher here with their inline reasons + the explicit continue.
+    if (s && allDone(s) && uploadBatchIdRef.current) {
+      router.push(`/batches/${uploadBatchIdRef.current}`);
     }
   };
+
+  const pumpUploads = () => {
+    const s = uploadQueueRef.current;
+    const batchId = uploadBatchIdRef.current;
+    if (!s || !batchId) return;
+    for (const clientFileId of nextToStart(s)) {
+      const file = uploadFileByIdRef.current.get(clientFileId);
+      if (!file) continue;
+      dispatchUpload({ type: 'start', clientFileId });
+      const handle = appendBatchFileXHR(batchId, file, clientFileId, (pct) => {
+        dispatchUpload({ type: 'progress', clientFileId, pct });
+      });
+      uploadAbortsRef.current.set(clientFileId, handle.abort);
+      handle.promise
+        .then((res) => {
+          uploadAbortsRef.current.delete(clientFileId);
+          dispatchUpload({ type: 'done', clientFileId, jobId: res.job_id });
+          settleUploadQueue();
+        })
+        .catch((err: unknown) => {
+          uploadAbortsRef.current.delete(clientFileId);
+          if (err instanceof UploadAbortError) return;   // unmount — not a failure
+          const { reason, retryable } = classifyUploadError(err, file.name);
+          dispatchUpload({ type: 'fail', clientFileId, reason, retryable });
+          settleUploadQueue();
+        });
+    }
+  };
+
+  // S11/U1: THE one path — metadata create, then the bounded queue appends
+  // (single file = batch of one).
+  const handleGradeAsBatch = async () => {
+    if (!selectedRubric || testFiles.length === 0 || uploadQueue) return;
+    setBatchUploading(true);
+    setError(null);
+    let created: { batch_id: string };
+    try {
+      created = await createBatchMetadata(
+        selectedRubric.id,
+        batchClassId || undefined,
+        batchName.trim() || undefined,   // B5: the composed/edited name at create
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : UPLOAD_CREATE_ERROR);
+      setBatchUploading(false);
+      return;
+    }
+    setBatchUploading(false);
+    uploadBatchIdRef.current = created.batch_id;
+    const metas: UploadFileMeta[] = testFiles.map((f) => ({
+      clientFileId: crypto.randomUUID(),   // the B9 idempotency key — owned for the file's lifetime
+      filename: f.name,
+      size: f.size,
+    }));
+    uploadFileByIdRef.current = new Map(metas.map((m, i) => [m.clientFileId, testFiles[i]]));
+    const q = initQueue(metas);
+    uploadQueueRef.current = q;
+    setUploadQueue(q);
+    pumpUploads();
+  };
+
+  const handleRetryUpload = (index: number) => {
+    const s = uploadQueueRef.current;
+    if (!s) return;
+    const item = s.items[index];
+    if (!item) return;
+    dispatchUpload({ type: 'retry', clientFileId: item.clientFileId });   // SAME id — idempotent server-side
+    pumpUploads();
+  };
+
+  const resetUploadQueue = () => {
+    uploadAbortsRef.current.forEach((abort) => abort());
+    uploadAbortsRef.current.clear();
+    uploadQueueRef.current = null;
+    uploadBatchIdRef.current = null;
+    uploadFileByIdRef.current = new Map();
+    setUploadQueue(null);
+  };
+
+  // U3: per-row states for the panel (index-aligned with testFiles — the
+  // list is locked while the queue exists, so alignment cannot drift).
+  const uploadStatesMap = useMemo<ReadonlyMap<number, UploadItemState> | null>(
+    () => (uploadQueue ? new Map(uploadQueue.items.map((it, i) => [i, it.state] as const)) : null),
+    [uploadQueue],
+  );
+  const uploadActive = uploadQueue !== null && !isDrained(uploadQueue);
+
+  // U3: tab-close guard while any upload is active.
+  useEffect(() => {
+    if (!uploadActive) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [uploadActive]);
+
+  // U3: abort in-flight XHRs on unmount — no zombie uploads.
+  useEffect(() => {
+    const aborts = uploadAbortsRef.current;
+    return () => { aborts.forEach((abort) => abort()); };
+  }, []);
 
   // Grading Handlers
   const handleRubricSelect = (rubric: RubricListItem) => {
@@ -1133,23 +1147,11 @@ export default function Home() {
     setGradingStep('upload_batch');
   };
 
-  // Handle proceed based on transcription mode
-  const handleProceedFromUpload = async () => {
-    if (testFiles.length === 0 || !transcriptionMode) return;
-
-    if (transcriptionMode === 'handwritten') {
-      // Skip page mapping, start streaming transcription
-      await handleGradeHandwritten();
-    } else {
-      // Printed mode - go to page mapping
-      await handleProceedToMapping();
-    }
-  };
-
-
   // =============================================================================
-  // S4: Handwritten transcription — blocking call, no streaming
-  // Flow: Upload → PDF Processing (spinner) → TranscriptionReviewPanel → grading_queued
+  // QUARANTINED (U1, §11): S4 single-flow transcription — UNREACHABLE since
+  // the upload step always batches. Kept (not deleted) for the separate
+  // single-flow-deletion PR; TranscriptionReviewPanel and the steps below it
+  // still render behind gradingStep values nothing sets anymore.
   // =============================================================================
   const handleGradeHandwritten = async () => {
     if (!selectedRubric || handwrittenConfigs.length === 0) return;
@@ -1170,235 +1172,12 @@ export default function Home() {
     }
   };
 
-  // Handle continue from transcription review (grade with edited answers)
-  const handleContinueFromReview = async (editedAnswers: StudentAnswerInput[]) => {
-    if (!selectedRubric || !streaming.transcriptionData || !currentTestFile) return;
-
-    setGradingStep('grading');
-    setGradingProgress({
-      current: 1,
-      total: handwrittenConfigs.length,
-      currentFileName: currentTestFile.name,
-      stage: 'grading'
-    });
-
-    try {
-      // TODO(S4): re-wire to new gradeWithTranscription() endpoint
-      // const result = await gradeWithTranscription({
-      //   rubric_id: selectedRubric.id,
-      //   student_name: streaming.transcriptionData.student_name,
-      //   filename: streaming.transcriptionData.filename,
-      //   answers: editedAnswers,
-      // });
-
-      // Store page thumbnails for results view
-      const pagesMap = new Map<string, PagePreview[]>();
-      pagesMap.set(streaming.transcriptionData.filename, streaming.transcriptionData.pages);
-      setTestPagesMap(pagesMap);
-
-      // TODO(S4): uncomment when gradeWithTranscription is re-wired
-      // setGradingResults([result]);
-      setGradingStats({ total: 1, successful: 1, failed: 0, errors: [] });
-      setGradingProgress(null);
-      setGradingStep('results');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה בהערכת המבחן');
-      setGradingProgress(null);
-      setGradingStep('review_transcription');
-    }
-  };
-
-  // Handle back from PDF processing - return to upload
-  const handleBackFromPdfProcessing = () => {
-    streaming.abort();
-    streaming.reset();
-    setCurrentTestFile(null);
-    setGradingStep('upload_batch');
-  };
-
-  // Handle back from review - return to upload
-  const handleBackFromReview = () => {
-    streaming.abort();
-    streaming.reset();
-    setCurrentTestFile(null);
-    setGradingStep('upload_batch');
-  };
-
-
-  // Initialize test mappings when files are uploaded and user proceeds (printed mode)
-  const handleProceedToMapping = async () => {
-    if (testFiles.length === 0) return;
-
-    const initialMappings: TestMapping[] = testFiles.map(file => ({
-      file,
-      pages: [],
-      answerMappings: [],
-      isLoaded: false,
-    }));
-
-    setTestMappings(initialMappings);
-    setCurrentTestIndex(0);
-    setGradingStep('map_answers');
-
-    await loadTestPages(0, initialMappings);
-  };
-
-  // Load pages for a specific test
-  const loadTestPages = async (index: number, mappings: TestMapping[]) => {
-    if (mappings[index].isLoaded) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await previewStudentTestPdf(mappings[index].file);
-
-      const newMappings = [...mappings];
-      newMappings[index] = {
-        ...newMappings[index],
-        pages: response.pages,
-        isLoaded: true,
-        answerMappings: index > 0 && newMappings[index - 1].answerMappings.length > 0
-          ? JSON.parse(JSON.stringify(newMappings[index - 1].answerMappings))
-          : [],
-      };
-
-      setTestMappings(newMappings);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה בטעינת המבחן');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Update handwritten config for a specific test
-  const updateHandwrittenConfig = (index: number, answeredQuestions: number[]) => {
-    setHandwrittenConfigs(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], answeredQuestions };
-      return updated;
-    });
-  };
-
-  // Navigation for printed mode
-  const handlePrevTest = () => {
-    if (currentTestIndex > 0) {
-      setCurrentTestIndex(currentTestIndex - 1);
-      setActiveAnswerAssignment(null);
-    } else {
-      setGradingStep('upload_batch');
-      setTestMappings([]);
-    }
-  };
-
-  const handleNextTest = async () => {
-    if (currentTestIndex < testMappings.length - 1) {
-      const nextIndex = currentTestIndex + 1;
-      setCurrentTestIndex(nextIndex);
-      setActiveAnswerAssignment(null);
-      await loadTestPages(nextIndex, testMappings);
-    } else {
-      await handleStartGrading();
-    }
-  };
-
-  // Start grading (printed mode)
-  const handleStartGrading = async () => {
-    if (!selectedRubric) return;
-
-    setGradingStep('grading');
-    setGradingProgress({ current: 0, total: testMappings.length, currentFileName: '' });
-
-    const results: GradedTestResult[] = [];
-    const errors: string[] = [];
-    let successful = 0;
-    let failed = 0;
-
-    for (let i = 0; i < testMappings.length; i++) {
-      const testMapping = testMappings[i];
-      setGradingProgress({
-        current: i + 1,
-        total: testMappings.length,
-        currentFileName: testMapping.file.name,
-      });
-
-      try {
-        // TODO(S4): re-wire to new grading endpoint
-        // const result = await gradeSingleTest(
-        //   selectedRubric.id,
-        //   testMapping.answerMappings,
-        //   testMapping.file,
-        //   0
-        // );
-        // results.push(result);
-        successful++;
-      } catch (err) {
-        const errorMsg = `${testMapping.file.name}: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`;
-        errors.push(errorMsg);
-        failed++;
-      }
-    }
-
-    setGradingResults(results);
-    setGradingStats({ total: testMappings.length, successful, failed, errors });
-    setGradingProgress(null);
-    setGradingStep('results');
-  };
-
-  // Answer page click handler (printed mode)
-  const handleAnswerPageClick = useCallback((pageIndex: number) => {
-    if (!activeAnswerAssignment || !currentTest) return;
-
-    const newMappings = [...currentTest.answerMappings];
-    const mapping = newMappings[activeAnswerAssignment.mappingIndex];
-    if (!mapping) return;
-
-    const idx = mapping.page_indexes.indexOf(pageIndex);
-    if (idx >= 0) {
-      mapping.page_indexes.splice(idx, 1);
-    } else {
-      mapping.page_indexes.push(pageIndex);
-      mapping.page_indexes.sort((a, b) => a - b);
-    }
-
-    updateCurrentTestMappings(newMappings);
-  }, [activeAnswerAssignment, currentTest]);
-
-  const updateCurrentTestMappings = (newMappings: AnswerPageMapping[]) => {
-    setTestMappings(prev => {
-      const updated = [...prev];
-      updated[currentTestIndex] = {
-        ...updated[currentTestIndex],
-        answerMappings: newMappings,
-      };
-      return updated;
-    });
-  };
-
-  const getAnswerPageSelections = useCallback(() => {
-    if (!currentTest) return new Map();
-    const selections = new Map<number, { label: string; color: string }>();
-    currentTest.answerMappings.forEach((mapping) => {
-      mapping.page_indexes.forEach((pageIdx) => {
-        const existing = selections.get(pageIdx);
-        let label = `ש${mapping.question_number}`;
-        if (mapping.sub_question_id) label += mapping.sub_question_id;
-        selections.set(pageIdx, {
-          label: existing ? `${existing.label}, ${label}` : label,
-          color: 'bg-green-500',
-        });
-      });
-    });
-    return selections;
-  }, [currentTest]);
-
-  const isCurrentMappingValid = currentTest?.answerMappings.every(m => m.page_indexes.length > 0) ?? false;
 
   const goToHome = () => {
     // S1-8(b): if there is unsaved review work, confirm before discarding it.
     if (!confirmDiscardIfDirty()) return;
     dirtyRef.current = false;
-    streaming.reset();
+    resetUploadQueue();
     setMainMode('select');
     setRubricStep('upload');
     setGradingStep('select_rubric');
@@ -1408,9 +1187,6 @@ export default function Home() {
     setRubricDeclaredTotal(undefined);
     setSelectedRubric(null);
     setTestFiles([]);
-    setTestMappings([]);
-    setGradingResults([]);
-    setTranscriptionMode(null);
     setHandwrittenConfigs([]);
     setCurrentTestFile(null);
     setError(null);
@@ -1422,9 +1198,6 @@ export default function Home() {
     setInferredName(null);
     setFilenameStem('');
   };
-
-  // Can proceed from upload page
-  const canProceedFromUpload = testFiles.length > 0 && transcriptionMode !== null;
 
   return (
     <SidebarLayout>
@@ -1929,7 +1702,7 @@ export default function Home() {
               <div className="max-w-2xl mx-auto animate-fade-in">
                 <div className="bg-white rounded-xl shadow-lg p-8">
                   {/* Rubric info */}
-                  <div className="mb-6 p-4 bg-primary-50 border border-primary-200 rounded-lg">
+                  <div className="mb-6 p-4 bg-primary-50 border border-primary-200 rounded-lg text-center">
                     <h3 className="font-medium text-primary-800">{selectedRubric.name || 'מחוון ללא שם'}</h3>
                     <p className="text-sm text-primary-600">{selectedRubric.total_questions ?? 0} שאלות · {selectedRubric.total_points} נקודות</p>
                   </div>
@@ -1940,162 +1713,140 @@ export default function Home() {
                     <p className="text-gray-500 mt-1">העלי את כל מבחני התלמידים לבדיקה</p>
                   </div>
 
-                  {/* Transcription mode toggle */}
-                  <TranscriptionModeToggle
-                    mode={transcriptionMode}
-                    onChange={setTranscriptionMode}
-                  />
-
-                  {/* Student name input */}
-                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center gap-2 text-sm">
-                      <User size={16} className="text-blue-500" />
-                      <span className="font-medium text-blue-700">שם התלמיד:</span>
-                      <input
-                        type="text"
-                        value={studentName}
-                        onChange={(e) => setStudentName(e.target.value)}
-                        placeholder="הכנס שם תלמיד"
-                        className="bg-white border border-blue-300 rounded px-3 py-1 text-sm flex-1"
-                        dir="rtl"
-                      />
-                    </div>
+                  {/* U2/B5: the editable composed batch name — sent at create. */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{UPLOAD_NAME_LABEL}</label>
+                    <input
+                      type="text"
+                      value={batchName}
+                      onChange={e => { setBatchName(e.target.value); setBatchNameTouched(true); }}
+                      className="w-full border border-surface-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
+                      dir="rtl"
+                      data-testid="batch-name-input"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">{UPLOAD_NAME_HINT}</p>
                   </div>
 
-                  <MultiFileUpload files={testFiles} onFilesChange={setTestFiles} label="העלי מבחני תלמידים" maxFiles={50} />
+                  {/* U2: class select — ALWAYS visible (the old indigo panel
+                      trapped it behind a >1-files gate). */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">כיתה (אופציונלי)</label>
+                    <select
+                      value={batchClassId || ''}
+                      onChange={e => setBatchClassId(e.target.value || null)}
+                      className="w-full border border-surface-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
+                      data-testid="batch-class-select"
+                    >
+                      <option value="">ללא כיתה</option>
+                      {batchClasses.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">{UPLOAD_CLASS_HINT}</p>
+                  </div>
 
-                  {/* S11: Grade as batch (shown when >1 PDF selected in handwritten mode) */}
-                  {transcriptionMode === 'handwritten' && testFiles.length > 1 && (
-                    <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-                      <p className="text-sm font-medium text-indigo-800 mb-3">
-                        בדיקה כאצווה — {testFiles.length} מבחנים יתומללו ויוכנסו לבדיקה יחד
-                      </p>
+                  {/* Student names are captured at review, not at upload:
+                      the identity pass reads them off page 1 and the review
+                      surface's picker assigns/creates the student (B-25). */}
+                  <UploadFilePanel
+                    files={testFiles}
+                    onFilesChange={setTestFiles}
+                    disabled={batchUploading}
+                    uploadStates={uploadStatesMap}
+                    onRetry={handleRetryUpload}
+                  />
 
-                      {/* Optional class selection */}
-                      <div className="mb-3">
-                        <label className="block text-xs text-indigo-700 mb-1">כיתה (אופציונלי — לצורך התאמה אוטומטית של שמות)</label>
-                        <select
-                          value={batchClassId || ''}
-                          onChange={e => setBatchClassId(e.target.value || null)}
-                          className="w-full border border-indigo-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                        >
-                          <option value="">ללא כיתה / תלמיד ראשון</option>
-                          {batchClasses.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
+                  {/* U3: aggregate progress while the queue runs */}
+                  {uploadQueue && (
+                    <div className="mt-4" data-testid="upload-aggregate">
+                      <div className="w-full bg-surface-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-primary-500 h-2 transition-all duration-300"
+                          style={{ width: `${aggregatePct(uploadQueue)}%` }}
+                        />
                       </div>
-
-                      <button
-                        onClick={handleGradeAsBatch}
-                        disabled={batchUploading}
-                        className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors font-medium text-sm"
-                      >
-                        {batchUploading ? (
-                          <><Loader2 size={16} className="animate-spin" /> מעלה אצווה...</>
-                        ) : (
-                          <>
-                            <ClipboardCheck size={16} />
-                            בדוק כאצווה ({testFiles.length} מבחנים)
-                          </>
-                        )}
-                      </button>
                     </div>
                   )}
 
                   {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
 
+                  {/* U1: ONE path — always batch (a single file is a batch of one). */}
                   <div className="mt-6 flex items-center justify-between">
-                    <BackButton onClick={handleBackToRubricSelect} />
-                    <button
-                      onClick={handleProceedFromUpload}
-                      disabled={!canProceedFromUpload || isLoading}
-                      className="flex items-center gap-2 bg-primary-500 text-white px-6 py-2 rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
-                    >
-                      {transcriptionMode === 'handwritten' ? (
-                        <>
-                          <GraduationCap size={18} />
-                          התחל בדיקה ({testFiles.length} מבחנים)
-                        </>
-                      ) : (
-                        <>
-                          המשך למיפוי תשובות
-                          <ArrowLeft size={18} />
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {gradingStep === 'map_answers' && selectedRubric && currentTest && (
-              <div className="animate-fade-in">
-                {/* Progress indicator */}
-                <div className="mb-4 bg-white rounded-xl shadow-sm p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">מיפוי מבחן {currentTestIndex + 1} מתוך {testMappings.length}</span>
-                    <span className="text-sm text-gray-500 truncate max-w-xs">{currentTest.file.name}</span>
-                  </div>
-                  <div className="w-full bg-surface-200 rounded-full h-2">
-                    <div
-                      className="bg-primary-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${((currentTestIndex + 1) / testMappings.length) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-lg font-semibold">עמודי המבחן</h2>
-                      <span className="text-sm text-gray-500">{currentTest.pages.length} עמודים</span>
-                    </div>
-                    {isLoading ? (
-                      <div className="flex items-center justify-center py-12">
-                        <Loader2 className="animate-spin text-primary-500" size={32} />
-                      </div>
-                    ) : (
-                      <div className="max-h-[600px] overflow-y-auto">
-                        <PageGrid pages={currentTest.pages} selections={getAnswerPageSelections()} onPageClick={handleAnswerPageClick} />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <AnswerMappingPanel
-                      rubric={selectedRubric}
-                      mappings={currentTest.answerMappings}
-                      onMappingsChange={updateCurrentTestMappings}
-                      activeAssignment={activeAnswerAssignment}
-                      onSetActiveAssignment={setActiveAnswerAssignment}
-                      firstPageIndex={0}
-                      onFirstPageIndexChange={() => { }}
-                      hideFirstPageSelector={true}
-                    />
-
-                    <div className="mt-6 flex items-center justify-between">
-                      <BackButton onClick={handlePrevTest} />
-
+                    {/* Back stays only while nothing is in flight (the queue's
+                        beforeunload guard covers the tab; this covers the app). */}
+                    {!uploadActive ? <BackButton onClick={handleBackToRubricSelect} /> : <span />}
+                    {uploadQueue === null ? (
                       <button
-                        onClick={handleNextTest}
-                        disabled={!isCurrentMappingValid || isLoading}
+                        onClick={handleGradeAsBatch}
+                        disabled={testFiles.length === 0 || batchUploading}
+                        title={testFiles.length === 0 ? UPLOAD_CTA_DISABLED_REASON : undefined}
+                        data-testid="upload-cta"
                         className="flex items-center gap-2 bg-primary-500 text-white px-6 py-2 rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
                       >
-                        {currentTestIndex < testMappings.length - 1 ? (
-                          <>
-                            המשך למבחן הבא
-                            <ArrowLeft size={18} />
-                          </>
+                        {batchUploading ? (
+                          <><Loader2 size={18} className="animate-spin" /> {UPLOAD_UPLOADING}</>
                         ) : (
                           <>
-                            <GraduationCap size={18} />
-                            התחל בדיקה ({testMappings.length} מבחנים)
+                            <ClipboardCheck size={18} />
+                            {UPLOAD_CTA(testFiles.length)}
                           </>
                         )}
                       </button>
-                    </div>
+                    ) : isDrained(uploadQueue) && !allDone(uploadQueue) && landedCount(uploadQueue) > 0 ? (
+                      /* Decision 4: failures stay visible; the teacher moves on
+                         explicitly once at least one test landed. */
+                      <button
+                        onClick={() => {
+                          const id = uploadBatchIdRef.current;
+                          if (!id) return;
+                          // D1: the batch has no memory of files that never
+                          // became jobs (B9.5 makes JOBS the total), so carry
+                          // their names to the dashboard — otherwise she
+                          // arrives at a tidy batch that is quietly short.
+                          handOffUploadFailures(
+                            id,
+                            uploadQueue.items
+                              .filter((i) => i.state.kind === 'failed')
+                              .map((i) => i.filename),
+                          );
+                          router.push(`/batches/${id}`);
+                        }}
+                        data-testid="upload-continue"
+                        className="flex items-center gap-2 bg-primary-500 text-white px-6 py-2 rounded-lg hover:bg-primary-600 transition-colors"
+                      >
+                        {UPLOAD_CONTINUE}
+                        <ArrowLeft size={18} />
+                      </button>
+                    ) : (
+                      <span className="flex items-center gap-2 text-sm text-gray-500" data-testid="upload-in-flight">
+                        <Loader2 size={16} className="animate-spin" />
+                        {UPLOAD_UPLOADING}
+                      </span>
+                    )}
                   </div>
+
+                  {/* Live-E2E fix: transcription runs server-side per landed
+                      append — say so, with the honest ready-count, instead of
+                      leaving her to believe nothing is happening. */}
+                  {uploadLiveRollup && (() => {
+                    const ready = uploadLiveRollup.transcribed
+                      + uploadLiveRollup.approved_transcription;
+                    if (ready > 0) {
+                      return (
+                        <p className="mt-3 text-sm font-medium text-batch-green-ink" data-testid="upload-live-progress">
+                          {UPLOAD_LIVE_READY(ready)}
+                        </p>
+                      );
+                    }
+                    if (uploadLiveRollup.transcribing > 0) {
+                      return (
+                        <p className="mt-3 text-sm text-batch-muted" data-testid="upload-live-progress">
+                          {UPLOAD_LIVE_STARTED}
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
             )}
@@ -2198,45 +1949,6 @@ export default function Home() {
               </div>
             )}
 
-            {(gradingStep === 'grading') && (
-              <div className="max-w-xl mx-auto animate-fade-in">
-                <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-                  <Loader2 className="mx-auto text-primary-500 mb-4 animate-spin" size={64} />
-                  <h2 className="text-xl font-semibold text-gray-800">
-                    בודק מבחנים...
-                  </h2>
-
-                  {gradingProgress && (
-                    <div className="mt-6 space-y-3">
-                      <div className="w-full bg-surface-200 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="bg-primary-500 h-3 transition-all duration-300"
-                          style={{ width: `${(gradingProgress.current / gradingProgress.total) * 100}%` }}
-                        />
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        {gradingProgress.current} / {gradingProgress.total}
-                      </p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {gradingProgress.currentFileName}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-
-            {gradingStep === 'results' && (
-              <div className="animate-fade-in">
-                <GradingResults
-                  results={gradingResults}
-                  stats={gradingStats}
-                  onBack={goToHome}
-                  testPages={testPagesMap}
-                />
-              </div>
-            )}
           </>
         )}
       </div>

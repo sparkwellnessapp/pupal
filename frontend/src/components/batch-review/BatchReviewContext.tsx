@@ -1,30 +1,37 @@
 'use client';
 
 /**
- * The batch-review entry holder — owns the ONE batch fetch per route entry,
- * the Δ10 FROZEN cursor order, the Δ9 shared page-image cache, and the Δ7
- * dissolution memory.
+ * The batch-review entry holder — owns the batch payload, the OD2
+ * APPEND-ONLY cursor, the Δ9 shared page-image cache, and the Δ7 dissolution
+ * memory.
  *
  * Why a layout-level holder and not page state (rider-a finding, 2026-08-05):
  * the App Router keys page segments by their dynamic-param VALUE, so
  * /review/a → /review/b REMOUNTS the page component — a page-held ref resets
  * silently and the order recomputes from post-accept state, the exact
- * mid-review reshuffle Δ10 forbids (verified empirically in
+ * mid-review reshuffle the freeze rule forbids (verified empirically in
  * e2e/batch-review-freeze.spec.ts before this holder existed). LAYOUTS
  * preserve state across sibling page navigations within their segment and
- * remount on fresh entry — exactly Δ10's "order computed once per route
- * entry" semantics: refresh or re-entering from the batch page = fresh entry.
+ * remount on fresh entry.
  *
- * Constraints owned here:
- *  - Δ11 NO POLLING: one fetch on entry; `refetchAfterAction` exists ONLY for
- *    explicit user actions (accept) and updates item STATE — never the order.
- *  - Δ10 FREEZE: `frozenOrder` is computed from the entry payload exactly once.
+ * OD2 (P3/R6 — the sanctioned Δ10 amendment): the cursor is PREFIX-STABLE,
+ * APPEND-ONLY. Existing entries never move (even when their verdicts change);
+ * late arrivals append — flagged at the partition boundary, clean at the
+ * tail. ONE mergePayload() is the sole writer, fed by the entry fetch, the
+ * post-accept refetch, and a 5s poll that runs ONLY while documents are
+ * still in flight (rollup.transcribing > 0 || active_jobs non-empty) and
+ * tears down the tick that condition clears. Totals grow; the counter bump
+ * is the only signal. Δ11's same-id-refresh-never-clobbers-edits still holds
+ * at the controller layer.
+ *
+ * Also owned here (R11): the soft refetch note — set by the page when a
+ * post-accept refetch fails, survives the intra-segment route.replace of the
+ * auto-advance, cleared by the next successful fetch.
+ *
  *  - Δ9 PAGE CACHE: base64 page images cached per (transcription, page) for
- *    the life of the entry, shared across item navigation — which is what
- *    makes warming/prefetch worth anything. In-flight requests are deduped.
+ *    the life of the entry, shared across item navigation. Deduped in-flight.
  *  - Δ7 DISSOLUTION MEMORY: per-(item, answer), session-scoped — survives
- *    arrow navigation (page remounts), dies with the entry (Δ17: refresh loss
- *    is accepted, stated behavior).
+ *    arrow navigation, dies with the entry (Δ17: refresh loss is accepted).
  */
 
 import {
@@ -35,18 +42,36 @@ import {
 import { getBatch, getTranscriptionPage, saveTranscriptionReview } from '@/lib/api';
 import type { TranscriptionReview } from '@/lib/api';
 import type { BatchDetailResponse } from '@/types/batch';
-import { computeReviewOrder } from '@/utils/batch-review-cursor';
+import {
+    appendNewItems,
+    initialCursor,
+    type FrozenCursor,
+} from '@/utils/batch-review-cursor';
+import { BATCH_LOAD_ERROR } from '@/copy/batch';
+
+const POLL_MS = 5000;
 
 export interface BatchReviewState {
     batch: BatchDetailResponse | null;
-    /** Δ10: flagged-first order from the ENTRY payload. Never recomputed. */
+    /** OD2: the append-only cursor (order + flagged boundary). */
+    cursor: FrozenCursor | null;
+    /** Back-compat view of cursor.order (existing consumers). */
     frozenOrder: string[] | null;
     error: string | null;
-    /**
-     * Δ11: refetch as a direct consequence of an explicit user action only
-     * (accept). Updates `batch` (item state) — the frozen order is untouched.
-     */
-    refetchAfterAction: () => Promise<void>;
+    /** R11: post-accept refetch failed — accepted state stands, data catches
+     *  up later. Cleared by the next successful fetch. */
+    softNote: string | null;
+    showSoftNote: (note: string) => void;
+    /** Refetch as a direct consequence of an explicit user action (accept).
+     *  Merges state + APPENDS new ids (OD2) — never reorders. Throws on
+     *  failure so the caller can decouple accept-success from refetch (R11).
+     *  Returns the merged payload so R4's advance decision can run against
+     *  the freshest snapshot without waiting for a React re-render. */
+    refetchAfterAction: () => Promise<BatchDetailResponse>;
+    /** The cursor as of NOW (the ref, updated synchronously by mergePayload) —
+     *  for decisions inside async handlers (R4/R6 edge: an append landing
+     *  during an accept advance must be visible to advanceTarget). */
+    getCursor: () => FrozenCursor | null;
     /** Merge a just-saved overlay into the in-memory payload (no refetch). */
     applyReviewLocally: (transcriptionId: string, review: TranscriptionReview) => void;
     /** Δ9: cached, deduped page image (base64 PNG). */
@@ -75,32 +100,71 @@ export function BatchReviewProvider({ batchId, children }: {
 }) {
     const [batch, setBatch] = useState<BatchDetailResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const frozenOrderRef = useRef<string[] | null>(null);
+    const [softNote, setSoftNote] = useState<string | null>(null);
+    const cursorRef = useRef<FrozenCursor | null>(null);
     const pageCacheRef = useRef(new Map<string, Promise<string>>());
     const dissolvedRef = useRef(new Map<string, Set<string>>());
+    const aliveRef = useRef(true);
+    const fetchingRef = useRef(false);
+
+    useEffect(() => {
+        aliveRef.current = true;
+        return () => { aliveRef.current = false; };
+    }, []);
+
+    /** OD2's sole writer: entry fetch, poll, and refetchAfterAction all land
+     *  here. Prefix-stable append + state replacement + soft-note clear. */
+    const mergePayload = useCallback((b: BatchDetailResponse) => {
+        cursorRef.current = cursorRef.current === null
+            ? initialCursor(b.transcriptions)
+            : appendNewItems(cursorRef.current, b.transcriptions);
+        setBatch(b);
+        setSoftNote(null);          // R11: a successful fetch clears the note
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
         getBatch(batchId)
-            .then((b) => {
-                if (cancelled) return;
-                if (frozenOrderRef.current === null) {
-                    frozenOrderRef.current = computeReviewOrder(b.transcriptions);
-                }
-                setBatch(b);
-            })
+            .then((b) => { if (!cancelled) mergePayload(b); })
             .catch((e) => {
-                if (!cancelled) setError(e instanceof Error ? e.message : 'שגיאה בטעינת המקבץ');
+                if (!cancelled) setError(e instanceof Error ? e.message : BATCH_LOAD_ERROR);
             });
         return () => { cancelled = true; };
         // Entry-only: batchId is stable for the life of the review segment.
-    }, [batchId]);
+    }, [batchId, mergePayload]);
 
-    const refetchAfterAction = useCallback(async () => {
+    // OD2 poll: ONLY while documents are still in flight. The interval dies
+    // the tick the condition clears; a failing poll is silent (transient —
+    // the next tick or the next explicit action recovers).
+    const stillInFlight = batch !== null
+        && (batch.rollup.transcribing > 0 || (batch.active_jobs?.length ?? 0) > 0);
+    useEffect(() => {
+        if (!stillInFlight) return;
+        const tick = async () => {
+            if (fetchingRef.current) return;      // never overlap fetches
+            fetchingRef.current = true;
+            try {
+                const b = await getBatch(batchId);
+                if (aliveRef.current) mergePayload(b);
+            } catch {
+                /* transient poll failure — silent by design */
+            } finally {
+                fetchingRef.current = false;
+            }
+        };
+        const interval = setInterval(() => { void tick(); }, POLL_MS);
+        return () => clearInterval(interval);
+    }, [stillInFlight, batchId, mergePayload]);
+
+    const refetchAfterAction = useCallback(async (): Promise<BatchDetailResponse> => {
         const b = await getBatch(batchId);
-        frozenOrderRef.current ??= computeReviewOrder(b.transcriptions);
-        setBatch(b);
-    }, [batchId]);
+        if (aliveRef.current) mergePayload(b);
+        return b;
+    }, [batchId, mergePayload]);
+
+    const getCursor = useCallback(() => cursorRef.current, []);
+
+    const showSoftNote = useCallback((note: string) => setSoftNote(note), []);
 
     const applyReviewLocally = useCallback((transcriptionId: string, review: TranscriptionReview) => {
         setBatch((prev) => prev && {
@@ -138,9 +202,13 @@ export function BatchReviewProvider({ batchId, children }: {
         <BatchReviewCtx.Provider
             value={{
                 batch,
-                frozenOrder: batch ? frozenOrderRef.current : null,
+                cursor: batch ? cursorRef.current : null,
+                frozenOrder: batch ? cursorRef.current?.order ?? null : null,
                 error,
+                softNote,
+                showSoftNote,
                 refetchAfterAction,
+                getCursor,
                 applyReviewLocally,
                 getPage,
                 warmPage,

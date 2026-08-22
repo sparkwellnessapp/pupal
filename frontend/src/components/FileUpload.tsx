@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import { Upload, FileText, X } from 'lucide-react';
 import { RubricFormatGuide } from './RubricFormatGuide';
+import { formatMB } from '@/utils/batch-upload';
 
 interface FileUploadProps {
   file: File | null;
@@ -53,8 +54,10 @@ export function FileUpload({
         <FileText className="text-primary-500" size={24} />
         <div className="flex-1">
           <p className="font-medium text-primary-800">{file.name}</p>
-          <p className="text-sm text-primary-600">
-            {(file.size / 1024 / 1024).toFixed(2)} MB
+          {/* §3.1: file sizes are always LTR-isolated islands, unit after
+              the number — otherwise the RTL paragraph reorders "2.6 MB". */}
+          <p className="text-sm text-primary-600" dir="ltr">
+            {formatMB(file.size)}
           </p>
         </div>
         <button

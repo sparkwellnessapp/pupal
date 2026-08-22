@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 import { seedAuth } from './fixtures';
+import {
+    AUTH_ME,
+    fulfillJson,
+    SEED_BATCH_ID,
+    seedBatch,
+    seedItem,
+} from './seedBatch';
 
 /**
  * Phase-4 journeys (plan §9 + the Phase-3 go riders):
@@ -165,14 +172,16 @@ test('batch-review-walkthrough — edit, save, arrows, persisted edit, accept-mi
     await seedAuth(page);
     const state = await installMocks(page);
 
-    // Dashboard: summary rows + links, NO inline editing left.
+    // Dashboard (P2 redesign): the needs-eyes zone carries the summary rows
+    // + per-row links; still NO inline editing on the dashboard. (Assertions
+    // updated 2026-08-17 with the D6 rebuild — same intent, new zone.)
     await page.goto(`/batches/${BATCH_ID}`);
-    await expect(page.getByText('מבחנים דורשים בדיקה פרטנית', { exact: false })).toBeVisible();
+    await expect(page.getByTestId('zone-eyes')).toBeVisible();
     expect(await page.locator('textarea').count()).toBe(0);           // the blind inline editor is gone
-    await expect(page.getByRole('link', { name: 'פתיחה לבדיקה' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'פתחי לעיון' }).first()).toBeVisible();
 
     // Drill into the flagged item (b — first of the frozen order).
-    await page.getByRole('link', { name: 'פתיחה לבדיקה' }).click();
+    await page.getByRole('link', { name: 'פתחי לעיון' }).first().click();
     await expect(page).toHaveURL(new RegExp(`/batches/${BATCH_ID}/review/b$`));
     await expect(page.getByText('1 מתוך 3')).toBeVisible();
 
@@ -193,9 +202,14 @@ test('batch-review-walkthrough — edit, save, arrows, persisted edit, accept-mi
     await expect(editor(page)).toHaveValue('edited by teacher');
 
     // ACCEPT MID-WALK (rider b): confirm modal → accept → refetch returns
-    // FLIPPED verdicts — the frozen order must not move.
+    // FLIPPED verdicts — the frozen order must not move. R4: b was the ONLY
+    // flagged item, so the interstitial appears; Esc declines it (the walk
+    // continues — nothing is bulk-accepted by a dismissal).
     await page.getByRole('button', { name: 'אישור תמלול' }).click();
     await page.getByRole('button', { name: 'אישור תמלול' }).last().click();   // modal confirm
+    await expect(page.getByTestId('review-interstitial')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('review-interstitial')).toBeHidden();
     await expect(page.getByText('אושר')).toBeVisible();
     expect(state.acceptCalls).toEqual(['b']);
 
@@ -296,4 +310,53 @@ test('rtl-bidi-code-comment-rendering — dir=ltr island, // before Hebrew, punc
     // `private` keyword and before the comment markers.
     expect(p.idLine.extra!.privateKw).toBeLessThan(p.idLine.extra!.semi);
     expect(p.idLine.extra!.semi).toBeLessThan(p.idLine.slashes);
+});
+
+// ---------------------------------------------------------------------------
+// StudentPicker inline conflict (P3 wave 0, P2-review item 3): the OTHER
+// dead-code victim of the _classroomFetch regression — the 409's server
+// detail must render inline in the picker, not a generic error.
+// ---------------------------------------------------------------------------
+
+test('student-picker-conflict — a 409 create renders the server detail inline', async ({ page }) => {
+    await seedAuth(page);
+
+    const payload = seedBatch({
+        items: [seedItem('t1', { reasons: ['missing_answers'] })],
+        rollup: { total: 1 },
+    });
+    await page.route('**/api/v0/**', async (route) => {
+        const url = route.request().url();
+        const method = route.request().method();
+        if (url.includes('/api/v0/auth/me')) return fulfillJson(route, AUTH_ME);
+        if (method === 'POST' && url.includes('/api/v0/classroom/students')) {
+            return fulfillJson(route, { detail: 'כבר קיים תלמיד בשם זה' }, 409);
+        }
+        if (url.includes('/api/v0/classroom/students')) {
+            return fulfillJson(route, { students: [] });
+        }
+        if (/\/api\/v0\/transcriptions\/[^/]+\/pages\/\d+/.test(url)) {
+            return fulfillJson(route, {
+                page_number: 1,
+                thumbnail_base64:
+                    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==',
+            });
+        }
+        if (url.includes(`/api/v0/batches/${SEED_BATCH_ID}`)) {
+            return fulfillJson(route, payload);
+        }
+        return fulfillJson(route, {});
+    });
+
+    await page.goto(`/batches/${SEED_BATCH_ID}/review/t1`);
+    await expect(page.getByText('בדיקת תמלול')).toBeVisible();
+
+    const search = page.getByPlaceholder('חפש תלמיד...');
+    await search.click();               // closed state is readonly; click opens
+    await search.fill('דנה לוי');
+    await page.getByText('צור תלמיד חדש').click();
+
+    // The typed conflict's SERVER detail renders inline (was: generic
+    // 'שגיאה ביצירת התלמיד' while the 409 branch was dead).
+    await expect(page.getByText('כבר קיים תלמיד בשם זה')).toBeVisible();
 });

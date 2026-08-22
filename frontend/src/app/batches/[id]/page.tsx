@@ -1,216 +1,83 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+/**
+ * The batch dashboard (P2 redesign, D1–D12) — a live triage board that
+ * converts machine output into teacher decisions at the cheapest sufficient
+ * depth: chip-level (identity wave), panel-level (server-guaranteed clean
+ * bulk), full review (needs-eyes walk). Zone order and styling follow the
+ * approved mockup; every rendered string comes from the C1 copy module.
+ *
+ * State-keying rule (race-proofing the poll): ALL interactive state here is
+ * keyed by transcription_id or normalized name — never array index — so the
+ * payload replacement a poll performs can never clobber or misattach it.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-    Loader2,
-    AlertCircle,
-    CheckCircle2,
-    RefreshCw,
-    Users,
-    ArrowRight,
-    AlertTriangle,
-    ClipboardCheck,
-} from 'lucide-react';
+import { AlertCircle, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { GradedTestReviewPanel } from '@/components/GradedTestReviewPanel';
 import {
-    getBatch,
     acceptCleanTranscriptions,
-    saveGradedTestDraft,
+    ApiAuthError,
     approveGradedTest,
+    createStudent,
+    ClassroomConflictError,
+    getBatch,
     getGradedTest,
+    renameBatch,
+    retryBatchJob,
+    saveGradedTestDraft,
 } from '@/lib/api';
 import type {
     BatchDetailResponse,
     BatchTranscriptionItem,
-    BatchRollup,
-    AcceptCleanItem,
 } from '@/types/batch';
-import { FLAG_REASON_LABELS as LABELS } from '@/types/batch';
-import type { GradedTestDraftResponse, GradedTestApprovedResponse, GradedTestOverrides } from '@/types/graded_test';
-import { untranscribedResidue } from '@/utils/batch-residue';
-import { editedExcludedCount, untranscribedFilesCount } from '@/utils/hebrew-plural';
-
-const POLL_INTERVAL_MS = 3000;
-
-// ---------------------------------------------------------------------------
-// Roll-up progress bar
-// ---------------------------------------------------------------------------
-function RollupBar({ rollup }: { rollup: BatchRollup }) {
-    const pct = rollup.total > 0
-        ? Math.round((rollup.approved / rollup.total) * 100)
-        : 0;
-    return (
-        <div className="bg-white rounded-xl border border-surface-200 p-4">
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
-                <span>התקדמות</span>
-                <span>{rollup.approved}/{rollup.total} מאושרים</span>
-            </div>
-            <div className="w-full bg-surface-100 rounded-full h-2">
-                <div
-                    className="bg-green-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${pct}%` }}
-                />
-            </div>
-            <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-center">
-                {rollup.transcribing > 0 && <Chip label={`${rollup.transcribing} מתמלל`} color="blue" />}
-                {rollup.transcribed > 0 && <Chip label={`${rollup.transcribed} ממתין לבדיקה`} color="amber" />}
-                {rollup.grading > 0 && <Chip label={`${rollup.grading} בבדיקה`} color="purple" />}
-                {rollup.draft > 0 && <Chip label={`${rollup.draft} טיוטה`} color="blue" />}
-                {rollup.approved > 0 && <Chip label={`${rollup.approved} מאושר`} color="green" />}
-                {rollup.failed > 0 && <Chip label={`${rollup.failed} נכשל`} color="red" />}
-            </div>
-        </div>
-    );
-}
-
-function Chip({ label, color }: { label: string; color: string }) {
-    const colors: Record<string, string> = {
-        blue: 'bg-blue-100 text-blue-700',
-        amber: 'bg-amber-100 text-amber-700',
-        purple: 'bg-purple-100 text-purple-700',
-        green: 'bg-green-100 text-green-700',
-        red: 'bg-red-100 text-red-700',
-    };
-    return (
-        <span className={`px-2 py-1 rounded-full font-medium ${colors[color] ?? 'bg-gray-100 text-gray-700'}`}>
-            {label}
-        </span>
-    );
-}
+import type {
+    GradedTestDraftResponse,
+    GradedTestApprovedResponse,
+} from '@/types/graded_test';
+import {
+    BACK_ALL_BATCHES,
+    BATCH_FALLBACK_NAME,
+    BATCH_LOAD_ERROR,
+    BATCH_NOT_FOUND,
+    batchStatusLabel,
+    DISMISS_NOTICE_LABEL,
+    META_CREATED,
+    META_RUBRIC_PREFIX,
+    META_TESTS,
+    RETRY_ERROR,
+    SKIP_NOTICE,
+    SKIP_REASON_FRAGMENTS,
+    UPLOAD_FAILURES_NOTICE,
+} from '@/copy/batch';
+import { StatusChip, type ChipHue } from '@/components/batch/StatusChip';
+import { SegmentBar } from '@/components/batch/SegmentBar';
+import { IdentityWave, type PillView, type PillStatus } from '@/components/batch/IdentityWave';
+import { GhostZone } from '@/components/batch/GhostZone';
+import { CleanPanel } from '@/components/batch/CleanPanel';
+import { NeedsEyesQueue } from '@/components/batch/NeedsEyesQueue';
+import { FailedZone } from '@/components/batch/FailedZone';
+import { GradingLane } from '@/components/batch/GradingLane';
+import { CompletionHero } from '@/components/batch/CompletionHero';
+import { normalizeName, partitionItems } from '@/utils/batch-partition';
+import { assignZones } from '@/utils/zone-assignment';
+import {
+    barSegments,
+    completionReached,
+    pollCadenceMs,
+    relativeTimeHe,
+    selectHeadline,
+    sessionCompletionMinutes,
+} from '@/utils/batch-dashboard';
+import { computeReviewOrder } from '@/utils/batch-review-cursor';
+import { takeSkipNotice, takeUploadFailures } from '@/utils/skip-notice';
+import { SHOW_GRADING_LANE } from '@/lib/flags';
 
 // ---------------------------------------------------------------------------
-// Per-test summary row — the review itself happens in the full-screen route
-// (/batches/[id]/review/[transcriptionId]); the blind inline editor is gone.
-// ---------------------------------------------------------------------------
-function TestSummaryRow({ item, batchId }: { item: BatchTranscriptionItem; batchId: string }) {
-    const reviewHref = `/batches/${batchId}/review/${String(item.transcription_id)}`;
-
-    if (item.transcription_status === 'approved') {
-        return (
-            <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-xl flex items-center justify-between gap-2 text-sm text-green-700">
-                <span className="flex items-center gap-2">
-                    <CheckCircle2 size={16} className="shrink-0" />
-                    {item.filename ?? 'ללא שם'} — אושר
-                </span>
-                <Link href={reviewHref} className="text-green-700 underline text-xs shrink-0">
-                    צפייה
-                </Link>
-            </div>
-        );
-    }
-
-    return (
-        <div className="flex items-center justify-between gap-3 px-4 py-3 bg-amber-50 border border-amber-300 rounded-xl">
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
-                <AlertTriangle size={16} className="text-amber-600 shrink-0" />
-                <span className="font-medium text-sm text-gray-800">{item.filename ?? 'ללא שם'}</span>
-                {item.flag_verdict.reasons.map(r => (
-                    <span key={r} className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs">
-                        {(LABELS as Record<string, string>)[r] ?? r}
-                    </span>
-                ))}
-                {item.review && (
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
-                        נערך ידנית
-                    </span>
-                )}
-            </div>
-            <Link
-                href={reviewHref}
-                className="shrink-0 bg-primary-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
-            >
-                פתיחה לבדיקה
-            </Link>
-        </div>
-    );
-}
-
-// ---------------------------------------------------------------------------
-// Clean-tests panel
-// ---------------------------------------------------------------------------
-function CleanTestsPanel({
-    cleanItems,
-    batchId,
-    onAccepted,
-}: {
-    /** UNTOUCHED clean items only — teacher-edited ones (Δ1) are the caller's
-     *  problem and go through individual accept in the review route. */
-    cleanItems: BatchTranscriptionItem[];
-    batchId: string;
-    onAccepted: () => void;
-}) {
-    const [accepting, setAccepting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const handleAcceptAll = async () => {
-        setAccepting(true);
-        setError(null);
-        try {
-            // Δ1 client filter (cosmetic — the server enforces the exclusion):
-            // a saved review overlay means teacher-touched ⇒ not "clean".
-            const items: AcceptCleanItem[] = cleanItems
-                .filter(i => i.matched_student_id && i.transcription_status === 'transcribed' && !i.review)
-                .map(i => ({
-                    transcription_id: String(i.transcription_id),
-                    student_id: i.matched_student_id!,
-                }));
-            if (items.length === 0) return;
-            await acceptCleanTranscriptions(batchId, items);
-            onAccepted();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'שגיאה');
-        } finally {
-            setAccepting(false);
-        }
-    };
-
-    const pendingClean = cleanItems.filter(i => i.transcription_status === 'transcribed' && !i.review);
-
-    if (pendingClean.length === 0) return null;
-
-    return (
-        <div className="bg-green-50 border border-green-300 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <p className="font-medium text-green-800 text-sm">
-                        {pendingClean.length} תמלולים נקיים — מוכנים לאישור בבת-אחת
-                    </p>
-                    <div className="mt-1 space-y-0.5">
-                        {pendingClean.slice(0, 5).map(i => (
-                            <p key={String(i.transcription_id)} className="text-xs text-green-700">
-                                <Link
-                                    href={`/batches/${batchId}/review/${String(i.transcription_id)}`}
-                                    className="underline hover:text-green-900"
-                                >
-                                    {i.filename ?? 'ללא שם'}
-                                </Link>
-                                {' '}→ {i.matched_student_name ?? '—'}
-                            </p>
-                        ))}
-                        {pendingClean.length > 5 && (
-                            <p className="text-xs text-green-600">ועוד {pendingClean.length - 5}...</p>
-                        )}
-                    </div>
-                </div>
-                <button
-                    onClick={handleAcceptAll}
-                    disabled={accepting}
-                    className="flex items-center gap-1.5 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors shrink-0 mr-4"
-                >
-                    {accepting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                    אשר את כולם ({pendingClean.length})
-                </button>
-            </div>
-            {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-        </div>
-    );
-}
-
-// ---------------------------------------------------------------------------
-// Grade-review section — per-test rows linking to S9 panel
+// Grade-review section — per-test rows opening the S9 panel (pre-redesign
+// machinery kept; chips migrated onto the F8 primitive)
 // ---------------------------------------------------------------------------
 function GradeReviewSection({ items, batchId }: { items: BatchTranscriptionItem[]; batchId: string }) {
     const [activeTestId, setActiveTestId] = useState<string | null>(null);
@@ -247,36 +114,32 @@ function GradeReviewSection({ items, batchId }: { items: BatchTranscriptionItem[
     const gradedItems = items.filter(i => i.graded_test_id);
     if (gradedItems.length === 0) return null;
 
+    const hueFor = (s: string | null): ChipHue =>
+        s === 'approved' ? 'green' : s === 'draft' ? 'blue' : s === 'failed' ? 'red' : 'amber';
+    const labelFor = (s: string | null): string =>
+        s === 'approved' ? 'מאושר' : s === 'draft' ? 'טיוטה' : s === 'failed' ? 'נכשל' : 'בבדיקה...';
+
     return (
         <div className="space-y-2">
-            <h3 className="font-medium text-gray-800 text-sm">סקירת ציונים</h3>
+            <h3 className="text-sm font-medium text-batch-ink">סקירת ציונים</h3>
             {gradedItems.map(item => (
                 <div
                     key={String(item.transcription_id)}
-                    className="flex items-center justify-between px-4 py-3 bg-white border border-surface-200 rounded-xl"
+                    className="flex items-center justify-between rounded-zone-sm border border-batch-line bg-white px-4 py-3"
                 >
                     <div>
-                        <p className="text-sm font-medium text-gray-800">{item.filename ?? 'ללא שם'}</p>
-                        <p className="text-xs text-gray-500">{item.matched_student_name ?? item.student_name_suggestion ?? '—'}</p>
+                        <p className="text-sm font-medium text-batch-ink">{item.filename ?? 'ללא שם'}</p>
+                        <p className="text-xs text-batch-muted">{item.matched_student_name ?? item.student_name_suggestion ?? '—'}</p>
                     </div>
                     <div className="flex items-center gap-3">
                         {item.total_score !== null && item.total_possible !== null && (
-                            <span className="text-sm font-medium text-gray-700">
+                            <span className="text-sm font-medium text-batch-ink" dir="ltr">
                                 {item.total_score}/{item.total_possible}
                             </span>
                         )}
-                        <Chip
-                            label={
-                                item.graded_test_status === 'approved' ? 'מאושר' :
-                                item.graded_test_status === 'draft' ? 'טיוטה' :
-                                item.graded_test_status === 'failed' ? 'נכשל' : 'בבדיקה...'
-                            }
-                            color={
-                                item.graded_test_status === 'approved' ? 'green' :
-                                item.graded_test_status === 'draft' ? 'blue' :
-                                item.graded_test_status === 'failed' ? 'red' : 'amber'
-                            }
-                        />
+                        <StatusChip hue={hueFor(item.graded_test_status)}>
+                            {labelFor(item.graded_test_status)}
+                        </StatusChip>
                         {(item.graded_test_status === 'draft' || item.graded_test_status === 'approved') && (
                             <button
                                 onClick={() => openTest(String(item.graded_test_id!))}
@@ -297,176 +160,512 @@ function GradeReviewSection({ items, batchId }: { items: BatchTranscriptionItem[
 // ---------------------------------------------------------------------------
 export default function BatchDetailPage() {
     const params = useParams();
+    const router = useRouter();
     const batchId = params?.id as string;
 
     const [batch, setBatch] = useState<BatchDetailResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const mountedRef = useRef(true);
+    const authDeadRef = useRef(false);
+
+    // D4 — pill state keyed by NORMALIZED name (survives payload replacement)
+    const [pillStates, setPillStates] = useState<Record<string, { value: string; status: PillStatus }>>({});
+    const [bulkBusy, setBulkBusy] = useState(false);
+    const [sessionCreated, setSessionCreated] = useState(0);
+
+    // D5 — keyed by transcription_id
+    const [cleanExpanded, setCleanExpanded] = useState<ReadonlySet<string>>(new Set());
+    const [cleanShowAll, setCleanShowAll] = useState(false);
+    const [accepting, setAccepting] = useState<ReadonlySet<string>>(new Set());
+    const [cleanBulkBusy, setCleanBulkBusy] = useState(false);
+    const [skipNotice, setSkipNotice] = useState<string | null>(null);
+    // D1: files that never became jobs, handed over from upload.
+    const [uploadFailures, setUploadFailures] = useState<string[]>([]);
+
+    // D8
+    const [retryBusy, setRetryBusy] = useState<ReadonlySet<string>>(new Set());
+
+    // D1 — inline rename
+    const [renaming, setRenaming] = useState(false);
+    const [renameValue, setRenameValue] = useState('');
+    const [renameError, setRenameError] = useState<string | null>(null);
+
+    // D7 — arriving-row highlight
+    const prevIdsRef = useRef<Set<string> | null>(null);
+    const [newIds, setNewIds] = useState<ReadonlySet<string>>(new Set());
+
+    // D10 — session-computed duration
+    const [completionMinutes, setCompletionMinutes] = useState<number | null>(null);
+
+    const gradesRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        // StrictMode-safe: the body RE-ARMS the ref on the second mount —
+        // a cleanup-only effect would leave it false forever after the
+        // simulated unmount and silently discard every payload.
+        mountedRef.current = true;
+        return () => { mountedRef.current = false; };
+    }, []);
+
+    // R4 handoff (decision 2): the review interstitial's bulk accept hands a
+    // skipped>0 notice here via the one-shot sessionStorage key — read and
+    // cleared on mount so the teacher lands on the dashboard WITH the notice
+    // instead of being stranded in a closed modal.
+    useEffect(() => {
+        const notice = takeSkipNotice(batchId);
+        if (notice) setSkipNotice(notice);
+        // D1: a batch cannot report files it never received — the upload
+        // surface is the only place that knows they existed.
+        const failed = takeUploadFailures(batchId);
+        if (failed.length > 0) setUploadFailures(failed);
+    }, [batchId]);
 
     const refresh = useCallback(async () => {
         try {
             const data = await getBatch(batchId);
+            if (!mountedRef.current) return;
             setBatch(data);
+            // F1: a successful poll CLEARS the error — a transient failure is
+            // a banner over live content, never a sticky page-death.
+            setError(null);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'שגיאה בטעינת האצווה');
+            if (!mountedRef.current) return;
+            if (err instanceof ApiAuthError) {
+                // D12: auth is TERMINAL — stop polling, surface, go home.
+                authDeadRef.current = true;
+                if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+                setError(err.message);
+                router.push('/');
+                return;
+            }
+            setError(err instanceof Error ? err.message : BATCH_LOAD_ERROR);
         }
-    }, [batchId]);
+    }, [batchId, router]);
 
     useEffect(() => {
         setLoading(true);
-        refresh().finally(() => setLoading(false));
+        refresh().finally(() => { if (mountedRef.current) setLoading(false); });
     }, [refresh]);
 
-    // Auto-poll while in-progress
+    // D12 — cadence-driven polling: 3s while transcription decisions pend,
+    // 5s while only grading moves, stop when nothing does.
+    const cadence = batch && !authDeadRef.current ? pollCadenceMs(batch) : null;
     useEffect(() => {
-        if (!batch) return;
-        const inProgress = batch.status === 'in_progress';
-        if (inProgress && !pollingRef.current) {
-            pollingRef.current = setInterval(refresh, POLL_INTERVAL_MS);
-        } else if (!inProgress && pollingRef.current) {
-            clearInterval(pollingRef.current);
-            pollingRef.current = null;
-        }
+        if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+        if (cadence === null) return;
+        pollingRef.current = setInterval(refresh, cadence);
         return () => {
             if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
         };
-    }, [batch?.status, refresh]);
+    }, [cadence, refresh]);
+
+    // D7 — highlight rows that arrived since the previous payload.
+    useEffect(() => {
+        if (!batch) return;
+        const ids = new Set(batch.transcriptions.map(t => String(t.transcription_id)));
+        const prev = prevIdsRef.current;
+        prevIdsRef.current = ids;
+        if (!prev) return;
+        const fresh = new Set(Array.from(ids).filter(id => !prev.has(id)));
+        if (fresh.size === 0) return;
+        setNewIds(fresh);
+        const t = setTimeout(() => { if (mountedRef.current) setNewIds(new Set()); }, 2500);
+        return () => clearTimeout(t);
+    }, [batch]);
+
+    // D10 — freeze the duration the moment completion is first observed.
+    // C2: only when THIS session watched it complete; a revisit omits the line
+    // rather than reporting a week as minutes (see sessionCompletionMinutes).
+    const sawIncompleteRef = useRef(false);
+    useEffect(() => {
+        if (!batch) return;
+        if (!completionReached(batch)) { sawIncompleteRef.current = true; return; }
+        if (completionMinutes !== null) return;
+        const minutes = sessionCompletionMinutes(
+            batch.created_at, Date.now(), sawIncompleteRef.current,
+        );
+        if (minutes !== null) setCompletionMinutes(minutes);
+    }, [batch, completionMinutes]);
+
+    const retryJob = useCallback(async (jobId: string) => {
+        setRetryBusy(prev => new Set(prev).add(jobId));
+        try {
+            await retryBatchJob(batchId, jobId);
+            await refresh();
+        } catch (err) {
+            // Refresh FIRST, then surface the action's message — the reverse
+            // order would let the refresh's success-clear (F1) instantly wipe
+            // the 409 detail the teacher needs to read.
+            await refresh().catch(() => {});
+            if (mountedRef.current) setError(err instanceof Error ? err.message : RETRY_ERROR);
+        } finally {
+            if (mountedRef.current) {
+                setRetryBusy(prev => { const n = new Set(prev); n.delete(jobId); return n; });
+            }
+        }
+    }, [batchId, refresh]);
+
+    // ── derived (pure modules do the thinking) ──
+    const partition = useMemo(
+        () => partitionItems(batch?.transcriptions ?? []),
+        [batch],
+    );
+    const activeJobs = batch?.active_jobs ?? [];
+    const complete = batch ? completionReached(batch) : false;
+
+    const pillViews: PillView[] = useMemo(
+        () => partition.identityPills.map(p => {
+            const key = normalizeName(p.name);
+            const s = pillStates[key];
+            return {
+                key,
+                value: s?.value ?? p.name,
+                status: s?.status ?? 'idle',
+                files: p.files,
+            };
+        }),
+        [partition, pillStates],
+    );
+
+    const onEditPill = useCallback((key: string, value: string) => {
+        setPillStates(prev => ({
+            ...prev,
+            [key]: { value, status: prev[key]?.status === 'error' ? 'idle' : (prev[key]?.status ?? 'idle') },
+        }));
+    }, []);
+
+    const createOne = useCallback(async (key: string, value: string) => {
+        const name = value.trim();
+        if (!name) return;
+        setPillStates(prev => ({ ...prev, [key]: { value, status: 'creating' } }));
+        try {
+            await createStudent({ full_name: name });
+            if (!mountedRef.current) return;
+            setPillStates(prev => ({ ...prev, [key]: { value, status: 'done' } }));
+            setSessionCreated(n => n + 1);
+        } catch (err) {
+            if (!mountedRef.current) return;
+            if (err instanceof ClassroomConflictError) {
+                // The student already exists — the next poll's server match
+                // resolves the item; the pill reads as settled (D4).
+                setPillStates(prev => ({ ...prev, [key]: { value, status: 'conflict' } }));
+            } else {
+                setPillStates(prev => ({ ...prev, [key]: { value, status: 'error' } }));
+            }
+        }
+    }, []);
+
+    const onCreatePill = useCallback((key: string) => {
+        const view = pillViews.find(p => p.key === key);
+        if (view) void createOne(key, view.value);
+    }, [pillViews, createOne]);
+
+    const onBulkCreate = useCallback(async () => {
+        const pending = pillViews.filter(p => p.status === 'idle' || p.status === 'error');
+        if (pending.length === 0) return;
+        setBulkBusy(true);
+        try {
+            // Sequential with concurrency 3 (D4): post each pill's CURRENT value.
+            for (let i = 0; i < pending.length; i += 3) {
+                await Promise.all(
+                    pending.slice(i, i + 3).map(p => createOne(p.key, p.value)),
+                );
+            }
+        } finally {
+            if (mountedRef.current) setBulkBusy(false);
+        }
+        // Convergence is the next poll's job — no optimistic verdict flips.
+    }, [pillViews, createOne]);
+
+    const onAcceptAll = useCallback(async () => {
+        if (!batch) return;
+        const items = partition.clean
+            .filter(i => (i as BatchTranscriptionItem).matched_student_id)
+            .map(i => ({
+                transcription_id: String(i.transcription_id),
+                student_id: String((i as BatchTranscriptionItem).matched_student_id),
+            }));
+        if (items.length === 0) return;
+        setCleanBulkBusy(true);
+        setAccepting(new Set(items.map(i => i.transcription_id)));
+        try {
+            const res = await acceptCleanTranscriptions(batchId, items);
+            if (!mountedRef.current) return;
+            if (res.skipped.length > 0) {
+                const fragments = Array.from(new Set(
+                    res.skipped.map(s => SKIP_REASON_FRAGMENTS[s.skipped_reason] ?? s.skipped_reason),
+                ));
+                setSkipNotice(SKIP_NOTICE(res.skipped.length, fragments.join(', ')));
+            } else {
+                setSkipNotice(null);
+            }
+            await refresh();
+        } catch (err) {
+            await refresh().catch(() => {});
+            if (mountedRef.current) setError(err instanceof Error ? err.message : BATCH_LOAD_ERROR);
+        } finally {
+            if (mountedRef.current) {
+                setCleanBulkBusy(false);
+                setAccepting(new Set());
+            }
+        }
+    }, [batch, batchId, partition, refresh]);
+
+    const startRename = useCallback(() => {
+        if (!batch) return;
+        setRenameValue(batch.name ?? BATCH_FALLBACK_NAME(batchId.slice(0, 8)));
+        setRenameError(null);
+        setRenaming(true);
+    }, [batch, batchId]);
+
+    const commitRename = useCallback(async () => {
+        if (!batch) return;
+        const next = renameValue.trim();
+        setRenaming(false);
+        if (!next || next === batch.name) return;
+        const prevName = batch.name;
+        setBatch(b => (b ? { ...b, name: next } : b));      // optimistic
+        try {
+            await renameBatch(batchId, next);
+            setRenameError(null);
+        } catch (err) {
+            if (!mountedRef.current) return;
+            setBatch(b => (b ? { ...b, name: prevName } : b));   // revert
+            setRenameError(err instanceof Error ? err.message : BATCH_LOAD_ERROR);
+        }
+    }, [batch, batchId, renameValue]);
 
     if (loading) {
         return (
             <SidebarLayout>
-                <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="flex min-h-[60vh] items-center justify-center">
                     <Loader2 className="animate-spin text-primary-500" size={40} />
                 </div>
             </SidebarLayout>
         );
     }
 
-    if (error || !batch) {
+    // F1: the full-page error renders ONLY while no payload has ever loaded.
+    if (!batch) {
         return (
             <SidebarLayout>
-                <div className="max-w-xl mx-auto mt-12 p-6 bg-red-50 border border-red-200 rounded-xl text-center">
-                    <AlertCircle className="mx-auto text-red-500 mb-2" size={32} />
-                    <p className="text-red-700">{error ?? 'אצווה לא נמצאה'}</p>
+                <div className="mx-auto mt-12 max-w-xl rounded-zone border border-batch-red-line bg-batch-red-soft p-6 text-center">
+                    <AlertCircle className="mx-auto mb-2 text-batch-red" size={32} />
+                    <p className="text-batch-red-ink">{error ?? BATCH_NOT_FOUND}</p>
                     <Link href="/" className="mt-4 inline-block text-sm text-primary-600 underline">חזרה</Link>
                 </div>
             </SidebarLayout>
         );
     }
 
-    const pending = batch.transcriptions.filter(t => t.transcription_status === 'transcribed');
-    // Δ1: a saved review overlay means teacher-touched ⇒ needs individual accept,
-    // even when the flag verdict called it clean.
-    const untouchedClean = pending.filter(t => !t.flag_verdict.review_needed && !t.review);
-    const touchedClean = pending.filter(t => !t.flag_verdict.review_needed && t.review);
-    const flagged = pending.filter(t => t.flag_verdict.review_needed);
-    const individualRows = [...flagged, ...touchedClean];
-
-    // The gate counts ROWS ONLY (phantom never-transcribed items are the
-    // residue line's job, never reviewable) — and an empty batch is not "done".
-    const allReviewed = batch.transcriptions.length > 0
-        && batch.transcriptions.every(t => t.transcription_status === 'approved');
-
-    // Δ15: progress-based un-transcribed residue.
-    const residue = untranscribedResidue({
-        testCount: batch.rollup.total,
-        batchCreatedAt: batch.created_at,
-        itemCreatedAts: batch.transcriptions.map(t => t.created_at),
-        now: Date.now(),
+    const rollup = batch.rollup;
+    const statusLabel = batchStatusLabel(batch.status, {
+        transcribing: rollup.transcribing,
+        activeJobs: activeJobs.length,
     });
+    const statusHue: ChipHue =
+        batch.status === 'completed' ? 'green'
+        : batch.status === 'failed' ? 'red'
+        : batch.status === 'in_progress' && (rollup.transcribing > 0 || activeJobs.length > 0) ? 'blue'
+        : 'amber';
+
+    const headline = selectHeadline(partition, rollup);
+    const segments = barSegments(partition, rollup);
+
+    // ZC-1 (owner-ruled 2026-08-22): zone membership comes from ONE exhaustive
+    // selector — transcribed = Σ(eyesRows) + Σ(cleanRows), enforced by
+    // construction. The inline spread this replaces filtered identityOnly by
+    // sub-reason, leaving student_unassigned-only items (clean content, a
+    // successfully-extracted NEW name) with no row in ANY zone — visible only
+    // as a wave pill, invisible to every sum.
+    const zones = assignZones(batch.transcriptions as BatchTranscriptionItem[]);
+    const eyesRows = zones.eyesRows;
+    const reviewOrder = computeReviewOrder(batch.transcriptions);
+    const firstReviewId = eyesRows.length > 0 ? reviewOrder[0] ?? null : null;
+    const manualReviewId = zones.cleanRows.length > 0
+        ? String(zones.cleanRows[0].transcription_id)
+        : null;
+
+    const showWave = !complete && (pillViews.length > 0 || partition.unmatchedItems.length > 0);
 
     return (
         <SidebarLayout>
-            <div className="max-w-4xl mx-auto space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <Link href="/batches" className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-1">
-                            <ArrowRight size={14} /> כל האצוות
-                        </Link>
-                        <h1 className="text-xl font-bold text-gray-900">
-                            {batch.name ?? `אצווה ${batchId.slice(0, 8)}`}
-                        </h1>
-                        <p className="text-sm text-gray-500">{batch.rollup.total} מבחנים · {batch.status}</p>
+            <div className="mx-auto max-w-4xl space-y-5">
+                {/* F1: transient poll/action failures — dismissible, above live content */}
+                {error && (
+                    <div
+                        data-testid="batch-poll-error-banner"
+                        className="flex items-start justify-between gap-3 rounded-zone border border-batch-red-line bg-batch-red-soft px-4 py-3 text-sm text-batch-red-ink"
+                    >
+                        <span className="flex items-center gap-2">
+                            <AlertCircle size={16} className="shrink-0" /> {error}
+                        </span>
+                        <button
+                            onClick={() => setError(null)}
+                            aria-label={DISMISS_NOTICE_LABEL}
+                            className="font-bold text-batch-red hover:brightness-75"
+                        >
+                            ✕
+                        </button>
                     </div>
-                    <button onClick={refresh} className="p-2 rounded-lg hover:bg-surface-100 text-gray-500">
-                        <RefreshCw size={18} />
-                    </button>
+                )}
+
+                {/* D1 — header */}
+                <div>
+                    <Link href="/batches" className="inline-flex items-center gap-1.5 text-[13px] text-batch-muted hover:text-batch-teal-ink">
+                        <ArrowRight size={14} /> {BACK_ALL_BATCHES}
+                    </Link>
+                    <div className="mt-1.5 flex flex-wrap items-baseline gap-3">
+                        {renaming ? (
+                            <input
+                                autoFocus
+                                value={renameValue}
+                                onChange={e => setRenameValue(e.target.value)}
+                                onBlur={() => void commitRename()}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter') void commitRename();
+                                    if (e.key === 'Escape') setRenaming(false);
+                                }}
+                                className="rounded-lg border border-batch-line px-2 py-1 text-2xl font-bold tracking-tight outline-none focus:border-primary-500"
+                                data-testid="rename-input"
+                            />
+                        ) : (
+                            <h1 className="text-2xl font-bold tracking-tight text-batch-ink">
+                                {batch.name ?? BATCH_FALLBACK_NAME(batchId.slice(0, 8))}
+                            </h1>
+                        )}
+                        {!renaming && (
+                            <button
+                                onClick={startRename}
+                                className="text-[13px] text-batch-faint hover:text-batch-teal-ink"
+                                aria-label="שינוי שם המקבץ"
+                                data-testid="rename-pencil"
+                            >
+                                ✎
+                            </button>
+                        )}
+                        <StatusChip hue={statusHue} data-testid="batch-status-chip">{statusLabel}</StatusChip>
+                        <button onClick={refresh} className="rounded-lg p-1.5 text-batch-faint hover:bg-surface-100" aria-label="רענון">
+                            <RefreshCw size={15} />
+                        </button>
+                    </div>
+                    {renameError && <p className="mt-1 text-xs text-batch-red-ink">{renameError}</p>}
+                    <p className="mt-1 text-[13px] text-batch-muted">
+                        {META_RUBRIC_PREFIX} {batch.rubric_name ?? '—'}
+                        {batch.class_name ? ` · ${batch.class_name}` : ''}
+                        {' · '}{META_TESTS(rollup.total)}
+                        {' · '}{META_CREATED(relativeTimeHe(batch.created_at, new Date()))}
+                    </p>
+
+                    {/* D1 (closeout) — files that never became jobs. The batch
+                        cannot know about them (jobs ARE the total), so the
+                        upload surface hands their names over and the dashboard
+                        says so plainly. Dismissible: it is a notice, not a
+                        blocker, and the files are still on her machine. */}
+                    {uploadFailures.length > 0 && (
+                        <div
+                            className="mt-4 flex items-start justify-between gap-3 rounded-zone border border-batch-amber-line bg-batch-amber-soft px-4 py-3"
+                            data-testid="upload-failures-notice"
+                        >
+                            <p className="text-sm text-batch-amber-ink">
+                                {UPLOAD_FAILURES_NOTICE(uploadFailures)}
+                            </p>
+                            <button
+                                onClick={() => setUploadFailures([])}
+                                aria-label={DISMISS_NOTICE_LABEL}
+                                className="shrink-0 text-batch-amber-ink hover:opacity-70"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    )}
+
+                    {/* D2 — honesty bar */}
+                    <div className="mt-4">
+                        <SegmentBar segments={segments} />
+                    </div>
+
+                    {/* D3 — headline */}
+                    {headline && !complete && (
+                        <div className="mt-4 text-[18.5px] font-semibold tracking-tight text-batch-ink" data-testid="headline">
+                            {headline}
+                        </div>
+                    )}
                 </div>
 
-                {/* Roll-up */}
-                <RollupBar rollup={batch.rollup} />
-
-                {/* In-flight transcription / Δ15 residue — honest, mutually exclusive */}
-                {batch.rollup.transcribing > 0 && !residue.visible && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
-                        <Loader2 size={16} className="animate-spin text-blue-500" />
-                        {batch.rollup.transcribing} מבחנים עדיין בתהליך תמלול...
-                    </div>
-                )}
-                {residue.visible && (
-                    <div className="flex items-center gap-2 text-sm text-amber-800 px-4 py-3 bg-amber-50 rounded-xl border border-amber-300">
-                        <AlertTriangle size={16} className="text-amber-600" />
-                        {untranscribedFilesCount(residue.missing)}
-                    </div>
-                )}
-
-                {/* Transcription review phase */}
-                {!allReviewed && batch.transcriptions.length > 0 && (
-                    <div className="space-y-4">
-                        <h2 className="font-semibold text-gray-800">סקירת תמלולים</h2>
-
-                        {untouchedClean.length > 0 && (
-                            <CleanTestsPanel
-                                cleanItems={untouchedClean}
+                {complete ? (
+                    <>
+                        <CompletionHero
+                            total={rollup.total}
+                            approvedTranscriptions={zones.approved.length}
+                            durationMinutes={completionMinutes}
+                            sessionCreatedStudents={sessionCreated}
+                        />
+                        {SHOW_GRADING_LANE && <GradingLane
+                            variant="completed"
+                            draftCount={rollup.draft}
+                            gradingCount={rollup.grading}
+                            onOpenGrades={() => gradesRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                        />}
+                        <FailedZone failures={batch.transcription_failures ?? []} onRetry={retryJob} retryBusy={retryBusy} />
+                    </>
+                ) : (
+                    <>
+                        {showWave && (
+                            <IdentityWave
+                                pills={pillViews}
+                                unmatched={partition.unmatchedItems.map(u => ({
+                                    transcription_id: String(u.transcription_id),
+                                    filename: u.filename,
+                                }))}
                                 batchId={batchId}
-                                onAccepted={refresh}
+                                bulkBusy={bulkBusy}
+                                onEditPill={onEditPill}
+                                onCreatePill={onCreatePill}
+                                onBulkCreate={onBulkCreate}
                             />
                         )}
-
-                        {touchedClean.length > 0 && (
-                            <p className="text-sm text-blue-700">
-                                {editedExcludedCount(touchedClean.length)}
-                            </p>
-                        )}
-
-                        {individualRows.length > 0 && (
-                            <div className="space-y-3">
-                                <p className="text-sm font-medium text-amber-700">
-                                    {individualRows.length} מבחנים דורשים בדיקה פרטנית:
-                                </p>
-                                {individualRows.map(item => (
-                                    <TestSummaryRow
-                                        key={String(item.transcription_id)}
-                                        item={item}
-                                        batchId={batchId}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                        <GhostZone jobs={activeJobs} />
+                        <CleanPanel
+                            items={zones.cleanRows}
+                            batchId={batchId}
+                            expanded={cleanExpanded}
+                            onToggle={id => setCleanExpanded(prev => {
+                                const n = new Set(prev);
+                                if (n.has(id)) n.delete(id); else n.add(id);
+                                return n;
+                            })}
+                            showAll={cleanShowAll}
+                            onShowAll={() => setCleanShowAll(true)}
+                            accepting={accepting}
+                            bulkBusy={cleanBulkBusy}
+                            onAcceptAll={() => void onAcceptAll()}
+                            skipNotice={skipNotice}
+                            manualReviewId={manualReviewId}
+                            newIds={newIds}
+                        />
+                        <NeedsEyesQueue
+                            rows={eyesRows}
+                            batchId={batchId}
+                            selectionGroups={batch.selection_groups ?? []}
+                            firstReviewId={firstReviewId}
+                            newIds={newIds}
+                        />
+                        <FailedZone failures={batch.transcription_failures ?? []} onRetry={retryJob} retryBusy={retryBusy} />
+                        {SHOW_GRADING_LANE && <GradingLane
+                            variant="subordinate"
+                            draftCount={rollup.draft}
+                            gradingCount={rollup.grading}
+                            onOpenGrades={() => gradesRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                        />}
+                    </>
                 )}
 
-                {/* Transcription phase complete (grading may still be running) */}
-                {allReviewed && (batch.rollup.grading > 0 || batch.rollup.draft > 0) && (
-                    <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2 text-sm text-green-700">
-                        <CheckCircle2 size={16} />
-                        כל התמלולים אושרו — המבחנים נשלחו לבדיקה
-                    </div>
-                )}
-
-                {/* Grade review phase */}
-                {batch.transcriptions.some(t => t.graded_test_id) && (
+                <div ref={gradesRef}>
                     <GradeReviewSection items={batch.transcriptions} batchId={batchId} />
-                )}
-
-                {allReviewed && batch.rollup.grading === 0 && batch.rollup.draft === 0 && batch.rollup.approved === batch.rollup.total && (
-                    <div className="px-4 py-3 bg-green-50 border border-green-300 rounded-xl flex items-center gap-2 text-green-800">
-                        <ClipboardCheck size={18} />
-                        כל המבחנים אושרו!
-                    </div>
-                )}
+                </div>
             </div>
         </SidebarLayout>
     );

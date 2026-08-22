@@ -54,12 +54,30 @@ export function lowConfidenceCount(n: number): string {
   })
 }
 
-/** Δ15 residue line: «קובץ אחד לא תומלל» / «N קבצים לא תומללו». */
-export function untranscribedFilesCount(n: number): string {
+/** «אין קבצים» / «קובץ אחד» / «N קבצים» (P4 upload aggregate, AM3). */
+export function filesCount(n: number): string {
   return hebrewCount(n, {
-    zero: '',
-    one: 'קובץ אחד לא תומלל',
-    many: (x) => `${x} קבצים לא תומללו`,
+    zero: 'אין קבצים',
+    one: 'קובץ אחד',
+    many: (x) => `${x} קבצים`,
+  })
+}
+
+/** «שאלה אחת» / «N שאלות» (P5/S1 rubric card). */
+export function questionsCount(n: number): string {
+  return hebrewCount(n, {
+    zero: 'ללא שאלות',
+    one: 'שאלה אחת',
+    many: (x) => `${x} שאלות`,
+  })
+}
+
+/** «נקודה אחת» / «N נקודות» (P5/S1 rubric card). */
+export function pointsCount(n: number): string {
+  return hebrewCount(n, {
+    zero: 'ללא נקודות',
+    one: 'נקודה אחת',
+    many: (x) => `${x} נקודות`,
   })
 }
 

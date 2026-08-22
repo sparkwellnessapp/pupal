@@ -18,6 +18,7 @@ import {
 export interface ReviewItemState extends ReviewItemSnapshot {
   onAnswerChange: (key: string, text: string) => void;
   onStudentPick: (id: string) => void;
+  swapAnswers: ReviewItemController['swapAnswers'];
   buildAnswers: ReviewItemController['buildAnswers'];
   flushIfDirty: ReviewItemController['flushIfDirty'];
   markAccepted: () => void;
@@ -40,6 +41,7 @@ export function useReviewItemState(
     ...snapshot,
     onAnswerChange: ctrl.onAnswerChange,
     onStudentPick: ctrl.onStudentPick,
+    swapAnswers: ctrl.swapAnswers,
     buildAnswers: ctrl.buildAnswers,
     flushIfDirty: ctrl.flushIfDirty,
     markAccepted: ctrl.markAccepted,

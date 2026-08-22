@@ -112,6 +112,7 @@ export function TranscriptionReviewPanel({ response, onSubmit, onBack, submittin
             <div className="max-w-7xl mx-auto p-6">
                 <TranscriptionReviewSurface
                     draft={draft}
+                    selectionGroups={response.selection_groups}
                     studentNameSuggestion={draft.student_name_suggestion}
                     editedAnswers={editedAnswers}
                     onAnswerChange={(key, text) => {

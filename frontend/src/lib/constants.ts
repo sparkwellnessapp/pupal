@@ -1,12 +1,10 @@
 /**
- * Named product constants (one definition point each — plan Δ8/Δ15).
+ * Named product constants (one definition point each).
+ *
+ * (Δ15's UNTRANSCRIBED_RESIDUE_HORIZON_MS lived here until the Cloud Tasks
+ * migration made every batch document a durable server-side job row —
+ * staleness is now the server's LIV-1 heartbeat rule, and the client-side
+ * no-progress heuristic is retired.)
  */
 
-/**
- * Δ15: the un-transcribed residue line appears when rows < test_count AND more
- * than this has passed since the LATER of (batch created_at, newest
- * transcription row created_at) — progress-based, so a healthy large batch
- * mid-fan-out never shows a false failure claim; a batch with no new row for
- * this long is genuinely stuck.
- */
-export const UNTRANSCRIBED_RESIDUE_HORIZON_MS = 10 * 60 * 1000;
+export {};

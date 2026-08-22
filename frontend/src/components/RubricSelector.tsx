@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { RubricListItem, listRubrics } from '@/lib/api';
 import { FileText, Calendar, Loader2, RefreshCw, Plus, Lock } from 'lucide-react';
+import { UPLOAD_RETRY } from '@/copy/batch';
+import { pointsCount, questionsCount } from '@/utils/hebrew-plural';
 
 interface RubricSelectorProps {
   onSelect: (rubric: RubricListItem) => void;
@@ -57,7 +59,7 @@ export function RubricSelector({ onSelect }: RubricSelectorProps) {
           className="flex items-center gap-2 mx-auto text-primary-600 hover:text-primary-700"
         >
           <RefreshCw size={16} />
-          נסה שוב
+          {UPLOAD_RETRY}
         </button>
       </div>
     );
@@ -88,7 +90,7 @@ export function RubricSelector({ onSelect }: RubricSelectorProps) {
           <button
             onClick={loadRubrics}
             className="text-gray-400 hover:text-primary-500 transition-colors"
-            title="רענן רשימה"
+            title="רענני רשימה"
           >
             <RefreshCw size={16} />
           </button>
@@ -110,21 +112,21 @@ export function RubricSelector({ onSelect }: RubricSelectorProps) {
               }`}
               title={notCompiled ? 'המחוון לא הורכב — ערכי אותו ושמרי שוב' : undefined}
             >
-              {/* Mini PDF preview placeholder */}
-              <div className="bg-gradient-to-br from-surface-100 to-surface-200 rounded-lg h-24 mb-3 flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-3 space-y-2">
-                  <div className="h-2 bg-surface-300/50 rounded w-3/4"></div>
-                  <div className="h-2 bg-surface-300/50 rounded w-full"></div>
-                  <div className="h-2 bg-surface-300/50 rounded w-5/6"></div>
-                  <div className="h-2 bg-surface-300/50 rounded w-2/3"></div>
-                  <div className="h-2 bg-surface-300/50 rounded w-4/5"></div>
-                </div>
+              {/* S1: a static document glyph — NOT a fake page. The old
+                  placeholder drew five gray bars imitating text lines, so
+                  every rubric looked like a document Vivi had rendered; no
+                  thumbnail is ever fetched. A glyph says "rubric" without
+                  pretending to show one. */}
+              <div
+                className="bg-surface-50 border border-surface-200 rounded-lg h-20 mb-3 flex items-center justify-center"
+                data-testid="rubric-glyph"
+              >
                 {notCompiled ? (
-                  <Lock className="text-gray-400 absolute bottom-2 right-2" size={24} />
+                  <Lock className="text-gray-400" size={28} />
                 ) : (
                   <FileText
-                    className="text-primary-300 group-hover:text-primary-400 transition-colors absolute bottom-2 right-2"
-                    size={24}
+                    className="text-primary-300 group-hover:text-primary-400 transition-colors"
+                    size={28}
                   />
                 )}
               </div>
@@ -136,6 +138,16 @@ export function RubricSelector({ onSelect }: RubricSelectorProps) {
 
               {notCompiled && (
                 <p className="text-xs text-amber-600 mt-1">טרם הורכב</p>
+              )}
+
+              {/* S1: the counts were on the payload all along and dropped. */}
+              {(rubric.total_questions != null || rubric.total_points != null) && (
+                <p className="text-xs text-gray-500 mt-1" data-testid="rubric-counts">
+                  {[
+                    rubric.total_questions != null ? questionsCount(rubric.total_questions) : null,
+                    rubric.total_points != null ? pointsCount(rubric.total_points) : null,
+                  ].filter(Boolean).join(' · ')}
+                </p>
               )}
 
               <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">

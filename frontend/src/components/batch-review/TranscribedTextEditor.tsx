@@ -34,11 +34,14 @@ export function TranscribedTextEditor({
     onChange,
     readOnly = false,
     lineFlags = [],
+    placeholder = 'תמלול ריק — אפשר להקליד כאן',
 }: {
     value: string;
     onChange: (newText: string) => void;
     readOnly?: boolean;
     lineFlags?: ReviewLineFlag[];
+    /** R2: marked empty-answer cards pass the §3.2 guidance placeholder. */
+    placeholder?: string;
 }) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
@@ -70,7 +73,7 @@ export function TranscribedTextEditor({
                     } ${readOnly ? 'cursor-not-allowed opacity-70' : ''}`}
                     dir="ltr"
                     style={{ minHeight: `${minHeight}px`, whiteSpace: 'pre-wrap' }}
-                    placeholder="תמלול ריק — אפשר להקליד כאן"
+                    placeholder={placeholder}
                     data-testid="transcription-editor"
                 />
                 {hasUncertain && (
@@ -141,7 +144,7 @@ export function TranscribedTextEditor({
                         lineHeight: `${LINE_HEIGHT_PX}px`,
                         caretColor: '#1a1a1a',
                     }}
-                    placeholder="תמלול ריק — אפשר להקליד כאן"
+                    placeholder={placeholder}
                     data-testid="transcription-editor"
                 />
             </div>

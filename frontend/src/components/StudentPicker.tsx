@@ -18,15 +18,33 @@ export interface StudentPickerProps {
     onChange: (studentId: string) => void;
     placeholder?: string;
     disabled?: boolean;
+    /**
+     * Identity-pass hint (B-25, 2026-08-12): pre-seeds the SEARCH text so an
+     * unmatched suggested name is one click away — "צור תלמיד חדש" creates
+     * the student with this name and assigns immediately. Seeding is display
+     * state only, never a selection (Δ14: viewing is not commitment).
+     */
+    suggestedName?: string | null;
 }
 
-export function StudentPicker({ value, onChange, placeholder = 'חפש תלמיד...', disabled }: StudentPickerProps) {
+export function StudentPicker({ value, onChange, placeholder = 'חפש תלמיד...', disabled, suggestedName }: StudentPickerProps) {
     const [students, setStudents] = useState<StudentResponse[]>([]);
     const [loadingList, setLoadingList] = useState(true);
     const [listError, setListError] = useState<string | null>(null);
 
-    const [query, setQuery] = useState('');
+    const [query, setQuery] = useState((suggestedName ?? '').trim());
     const [isOpen, setIsOpen] = useState(false);
+
+    // Reactive seeding: the identity hint can arrive AFTER mount (async batch
+    // payload / payload refresh), and initial state alone misses it — observed
+    // live 2026-08-12 as an empty input beside a rendered suggestion label.
+    // Reseed only while the teacher hasn't typed and no student is assigned
+    // (Δ14: display state only, never a selection).
+    const userTypedRef = useRef(false);
+    useEffect(() => {
+        const name = (suggestedName ?? '').trim();
+        if (name && !value && !userTypedRef.current) setQuery(name);
+    }, [suggestedName, value]);
 
     const [showCreateInput, setShowCreateInput] = useState(false);
     const [newName, setNewName] = useState('');
@@ -71,21 +89,44 @@ export function StudentPicker({ value, onChange, placeholder = 'חפש תלמי�
         setCreateError(null);
     };
 
-    const handleCreateSubmit = async () => {
-        if (!newName.trim()) return;
+    const createAndAssign = async (name: string): Promise<boolean> => {
+        if (!name.trim()) return false;
         setCreating(true);
         setCreateError(null);
         try {
-            const created = await createStudent({ full_name: newName.trim() });
+            const created = await createStudent({ full_name: name.trim() });
             setStudents(prev => [...prev, created].sort((a, b) => a.full_name.localeCompare(b.full_name, 'he')));
             onChange(created.id);
             setNewName('');
+            setQuery('');
             setShowCreateInput(false);
             setIsOpen(false);
+            return true;
         } catch (err) {
             setCreateError(err instanceof ClassroomConflictError ? err.detail : 'שגיאה ביצירת התלמיד');
+            return false;
         } finally {
             setCreating(false);
+        }
+    };
+
+    const handleCreateSubmit = () => void createAndAssign(newName);
+
+    // One-click create (the identity-pass UX): a name already in the search
+    // field creates+assigns directly; empty query opens the name input. On a
+    // create error (e.g. name conflict) fall back to the input stage so the
+    // teacher can adjust.
+    const handleCreateAffordance = async () => {
+        if (query.trim()) {
+            const ok = await createAndAssign(query);
+            if (!ok) {
+                setShowCreateInput(true);
+                setNewName(query);
+            }
+        } else {
+            setShowCreateInput(true);
+            setNewName(query);
+            setCreateError(null);
         }
     };
 
@@ -108,8 +149,8 @@ export function StudentPicker({ value, onChange, placeholder = 'חפש תלמי�
                 <input
                     ref={inputRef}
                     type="text"
-                    value={isOpen ? query : (selectedStudent?.full_name ?? '')}
-                    onChange={e => { setQuery(e.target.value); setIsOpen(true); }}
+                    value={isOpen ? query : (selectedStudent?.full_name ?? query)}
+                    onChange={e => { userTypedRef.current = true; setQuery(e.target.value); setIsOpen(true); }}
                     onFocus={() => { if (!disabled) setIsOpen(true); }}
                     placeholder={selectedStudent ? selectedStudent.full_name : placeholder}
                     className="flex-1 outline-none text-sm bg-transparent text-right"
@@ -156,10 +197,11 @@ export function StudentPicker({ value, onChange, placeholder = 'חפש תלמי�
                             {/* Create new affordance */}
                             {!showCreateInput ? (
                                 <button
-                                    onClick={() => { setShowCreateInput(true); setNewName(query); setCreateError(null); }}
-                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-primary-600 hover:bg-primary-50 border-t border-surface-100 transition-colors"
+                                    onClick={() => void handleCreateAffordance()}
+                                    disabled={creating}
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-primary-600 hover:bg-primary-50 border-t border-surface-100 transition-colors disabled:opacity-50"
                                 >
-                                    <Plus size={14} className="shrink-0" />
+                                    {creating ? <Loader2 size={14} className="shrink-0 animate-spin" /> : <Plus size={14} className="shrink-0" />}
                                     <span>צור תלמיד חדש{query ? ` "${query}"` : ''}</span>
                                 </button>
                             ) : (

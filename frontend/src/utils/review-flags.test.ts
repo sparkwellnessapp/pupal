@@ -66,6 +66,53 @@ describe('deriveReviewFlags — frame of reference (Δ6)', () => {
   })
 })
 
+describe('severity gate (2026-08-07 false-red fix)', () => {
+  it('info-tier reader_disagreement renders NOTHING — no line flag, no badge', () => {
+    // Measured precision 0.11-0.36 (one cheap reader's opinion): dropped entirely.
+    const { lineFlags, badges } = deriveReviewFlags({
+      currentText: DRAFT, draftText: DRAFT,
+      annotations: [disagreement('return salary;', { severity: 'info' })],
+      dissolved: false,
+    })
+    expect(lineFlags).toHaveLength(0)
+    expect(badges).toHaveLength(0)
+  })
+
+  it('info-tier with a non-matching quote is also fully dropped (no badge degradation)', () => {
+    const { lineFlags, badges } = deriveReviewFlags({
+      currentText: DRAFT, draftText: DRAFT,
+      annotations: [disagreement('no such line anywhere', { severity: 'info' })],
+      dissolved: false,
+    })
+    expect(lineFlags).toHaveLength(0)
+    expect(badges).toHaveLength(0)
+  })
+
+  it('warning-tier still renders (the gate only removes the noise tier)', () => {
+    const { lineFlags } = deriveReviewFlags({
+      currentText: DRAFT, draftText: DRAFT,
+      annotations: [disagreement('return salary;', { severity: 'warning' })],
+      dissolved: false,
+    })
+    expect(lineFlags).toHaveLength(1)
+  })
+
+  it('segmentation_mismatch never renders here — the LIVE detector owns it', () => {
+    const { lineFlags, badges } = deriveReviewFlags({
+      currentText: DRAFT, draftText: DRAFT,
+      annotations: [{
+        id: 'a3', severity: 'warning', target_id: 'q1',
+        annotation_type: 'segmentation_mismatch',
+        message: 'בכתב היד הקטע מסומן כשאלה 3',
+        metadata: { declared_question: 3, proposed_target: 'q3.א' },
+      }],
+      dissolved: false,
+    })
+    expect(lineFlags).toHaveLength(0)
+    expect(badges).toHaveLength(0)   // no double-display beside the banner
+  })
+})
+
 describe('flag dissolution on edit (Δ7) and [?] liveness', () => {
   it('unedited answer: span flags and [?] flags both present', () => {
     const text = DRAFT + '\nx = [?];'

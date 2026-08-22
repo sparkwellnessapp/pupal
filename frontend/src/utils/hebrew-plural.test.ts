@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   answersCount, editedExcludedCount, hebrewCount, linesForReviewCount,
-  pagesCount, untranscribedFilesCount,
+  pagesCount,
 } from './hebrew-plural'
 
 describe('hebrew pluralization (the "1 תשובות" defect can never ship again)', () => {
@@ -23,9 +23,8 @@ describe('hebrew pluralization (the "1 תשובות" defect can never ship again
     expect(linesForReviewCount(2)).toBe('2 שורות לבדיקה')
   })
 
-  it('residue and excluded-count lines: 1 / many', () => {
-    expect(untranscribedFilesCount(1)).toBe('קובץ אחד לא תומלל')
-    expect(untranscribedFilesCount(4)).toBe('4 קבצים לא תומללו')
+  it('excluded-count lines: 1 / many', () => {
+    // Copy changed by the owner in-tree 2026-08 (קובץ -> מבחן).
     expect(editedExcludedCount(1)).toBe('מבחן אחד נערך ידנית — דורש אישור פרטני')
     expect(editedExcludedCount(3)).toBe('3 מבחנים נערכו ידנית — דורשים אישור פרטני')
   })

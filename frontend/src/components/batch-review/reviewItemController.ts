@@ -36,6 +36,12 @@ export interface ReviewAnswerInput {
 
 export interface ReviewItemSnapshot {
   editedAnswers: Readonly<Record<string, string>>;
+  /** Display provenance per key (page-jump chips). Initialized from the
+   *  draft; SWAPPED alongside text on reassignment so chips keep pointing at
+   *  the moved content's source pages. Session-scoped display state — not
+   *  persisted (a save+refresh reverts chips to draft provenance; known
+   *  minor limitation of the reassignment feature). */
+  pageNumbers: Readonly<Record<string, number[]>>;
   studentId: string | null;
   dirty: boolean;
   saving: boolean;
@@ -46,6 +52,19 @@ export interface ReviewItemSnapshot {
 }
 
 function hydrateAnswers(item: BatchTranscriptionItem): Record<string, string> {
+  // R7: an APPROVED item hydrates from the FROZEN contract's answers (B6) —
+  // what was actually committed — never the draft or the overlay (nulled at
+  // approval; a stale one must not resurface). Overlay-over-draft remains the
+  // fallback for legacy approved rows that predate the approved_answers field.
+  const fromApproved = new Map<string, string>();
+  if (item.transcription_status === 'approved') {
+    for (const a of item.approved_answers ?? []) {
+      fromApproved.set(
+        answerTargetId({ question_number: a.question_number, sub_question_id: a.sub_question_id ?? null }),
+        a.answer_text,
+      );
+    }
+  }
   const fromOverlay = new Map<string, string>();
   for (const a of item.review?.answers ?? []) {
     fromOverlay.set(
@@ -56,7 +75,7 @@ function hydrateAnswers(item: BatchTranscriptionItem): Record<string, string> {
   const out: Record<string, string> = {};
   for (const a of item.draft.answers) {
     const key = answerTargetId(a);
-    out[key] = fromOverlay.get(key) ?? a.answer_text;
+    out[key] = fromApproved.get(key) ?? fromOverlay.get(key) ?? a.answer_text;
   }
   return out;
 }
@@ -89,8 +108,13 @@ export class ReviewItemController {
   }
 
   private static hydrated(item: BatchTranscriptionItem): ReviewItemSnapshot {
+    const pageNumbers: Record<string, number[]> = {};
+    for (const a of item.draft.answers) {
+      pageNumbers[answerTargetId(a)] = a.page_numbers;
+    }
     return {
       editedAnswers: hydrateAnswers(item),
+      pageNumbers,
       studentId: item.review?.student_id ?? item.matched_student_id ?? null,
       dirty: false,
       saving: false,
@@ -131,6 +155,22 @@ export class ReviewItemController {
 
   onStudentPick = (id: string): void => {
     this.set({ studentId: id, dirty: true, saved: false });
+  };
+
+  /**
+   * Reassignment (2026-08-07, owner-ruled SWAP semantics): exchange the two
+   * containers' texts — never overwrite, so no block can be lost and a chain
+   * of misassignments resolves in any click order. Keys stay frozen (the
+   * overlay's full-snapshot key-multiset rule); only content moves. Display
+   * provenance (page chips) travels with the content.
+   */
+  swapAnswers = (keyA: string, keyB: string): void => {
+    if (this.snapshot.accepted || keyA === keyB) return;
+    const ea = { ...this.snapshot.editedAnswers };
+    [ea[keyA], ea[keyB]] = [ea[keyB] ?? '', ea[keyA] ?? ''];
+    const pn = { ...this.snapshot.pageNumbers };
+    [pn[keyA], pn[keyB]] = [pn[keyB] ?? [], pn[keyA] ?? []];
+    this.set({ editedAnswers: ea, pageNumbers: pn, dirty: true, saved: false });
   };
 
   /** Full snapshot in draft key order — the flush body and the accept body. */

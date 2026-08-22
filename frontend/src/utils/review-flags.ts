@@ -5,7 +5,11 @@
  * Sources, in order of trust:
  *  - `[?]` markers: recomputed LIVE against the current editor content —
  *    content-derived and cheap (Δ7).
- *  - `reader_disagreement` annotations (two-phase engine only): the span
+ *  - `reader_disagreement` annotations (retired in production 2026-08-07;
+ *    still present on pre-retirement drafts): SEVERITY-GATED — only
+ *    'warning'-tier annotations render at all. The info tier (single cheap
+ *    reader, measured precision 0.11-0.36) painted red lines on faithful
+ *    transcriptions and is dropped entirely. For warning-tier: the span
  *    offsets in metadata (`char_start`/`char_end`) index the BASELINE PAGE
  *    TEXT, not the answer (backend flagging.py L93-94) — THEY ARE NEVER USED.
  *    The line is located by trimmed-exact match of `metadata.line_quote`
@@ -80,6 +84,9 @@ export function deriveReviewFlags(params: {
 
   for (const ann of annotations) {
     if (ann.annotation_type === 'reader_disagreement') {
+      // Severity gate (2026-08-07): info-tier = one cheap reader's opinion,
+      // measured mostly wrong — never shown. Only warning-tier proceeds.
+      if (ann.severity !== 'warning') continue
       const quote = typeof ann.metadata?.line_quote === 'string'
         ? (ann.metadata.line_quote as string).trim()
         : ''
@@ -92,6 +99,13 @@ export function deriveReviewFlags(params: {
       }
       // Dissolved / edited: the span flag is gone entirely (Δ7) — the edit IS
       // the review. No badge either; the teacher has been to this answer.
+      continue
+    }
+    if (ann.annotation_type === 'segmentation_mismatch') {
+      // Owned by the LIVE detector (utils/segmentation-check.ts) + the
+      // surface's banner/one-click UI — the static annotation here is the
+      // triage/record copy; rendering it too would double-display, and it
+      // goes stale the moment the teacher swaps content between containers.
       continue
     }
     // code_lint and any other answer-anchored annotation: answer-level badge.

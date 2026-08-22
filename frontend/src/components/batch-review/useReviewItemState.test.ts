@@ -120,6 +120,48 @@ describe('overlay-patch-suppressed-after-accept (Δ4)', () => {
   })
 })
 
+describe('swapAnswers — reassignment via content exchange (ruled SWAP semantics)', () => {
+  it('exchanges texts and page provenance, marks dirty, and the flush carries the moved content', async () => {
+    const save = vi.fn(async () => okReview)
+    const ctrl = new ReviewItemController(makeItem(), save)
+
+    ctrl.swapAnswers('q1', 'q2.א')
+    const s = ctrl.getSnapshot()
+    expect(s.editedAnswers).toEqual({ q1: 'draft two', 'q2.א': 'draft one' })
+    expect(s.pageNumbers['q1']).toEqual([1])       // provenance travels with content
+    expect(s.dirty).toBe(true)
+
+    await ctrl.flushIfDirty()
+    expect(save).toHaveBeenCalledWith('tx-1', expect.objectContaining({
+      answers: [
+        { question_number: 1, sub_question_id: null, answer_text: 'draft two' },
+        { question_number: 2, sub_question_id: 'א', answer_text: 'draft one' },
+      ],
+    }))
+  })
+
+  it('swap with an empty container is a move; a second swap is loss-free (chain-safe)', () => {
+    const item = makeItem()
+    item.draft.answers[1].answer_text = ''
+    const ctrl = new ReviewItemController(item, vi.fn() as unknown as SaveFn)
+
+    ctrl.swapAnswers('q1', 'q2.א')                 // move into the empty container
+    expect(ctrl.getSnapshot().editedAnswers).toEqual({ q1: '', 'q2.א': 'draft one' })
+    ctrl.swapAnswers('q1', 'q2.א')                 // and back — nothing lost
+    expect(ctrl.getSnapshot().editedAnswers).toEqual({ q1: 'draft one', 'q2.א': '' })
+  })
+
+  it('suppressed on accepted items; self-swap is a no-op', () => {
+    const ctrl = new ReviewItemController(makeItem(), vi.fn() as unknown as SaveFn)
+    ctrl.swapAnswers('q1', 'q1')
+    expect(ctrl.getSnapshot().dirty).toBe(false)
+
+    ctrl.markAccepted()
+    ctrl.swapAnswers('q1', 'q2.א')
+    expect(ctrl.getSnapshot().editedAnswers['q1']).toBe('draft one')
+  })
+})
+
 describe('needsUnloadGuard — rider-1 amended OD-8 ruling', () => {
   const base = { dirty: false, saving: false, saveError: null as string | null, accepted: false }
 
@@ -182,5 +224,45 @@ describe('hydration (Δ11 guard + overlay-over-draft)', () => {
     ctrl.maybeRehydrate(makeItem({ transcription_id: 'tx-2' }))
     expect(ctrl.getSnapshot().editedAnswers['q1']).toBe('draft one')
     expect(ctrl.getSnapshot().dirty).toBe(false)
+  })
+})
+
+describe('R7 — approved items hydrate from the FROZEN approved answers', () => {
+  it('approved_answers win over both overlay and draft (the contract is what was committed)', () => {
+    const ctrl = new ReviewItemController(makeItem({
+      transcription_status: 'approved',
+      review: {
+        schema_version: '1.0',
+        answers: [
+          { question_number: 1, sub_question_id: null, answer_text: 'stale overlay' },
+          { question_number: 2, sub_question_id: 'א', answer_text: 'stale overlay two' },
+        ],
+        student_id: null, updated_at: null,
+      },
+      approved_answers: [
+        { question_number: 1, sub_question_id: null, answer_text: 'approved one' },
+        { question_number: 2, sub_question_id: 'א', answer_text: 'approved two' },
+      ],
+    }), vi.fn() as unknown as SaveFn)
+    expect(ctrl.getSnapshot().editedAnswers).toEqual({ q1: 'approved one', 'q2.א': 'approved two' })
+    expect(ctrl.getSnapshot().accepted).toBe(true)
+  })
+
+  it('approved without approved_answers falls back to overlay-over-draft (legacy rows)', () => {
+    const ctrl = new ReviewItemController(makeItem({
+      transcription_status: 'approved',
+      approved_answers: null,
+    }), vi.fn() as unknown as SaveFn)
+    expect(ctrl.getSnapshot().editedAnswers).toEqual({ q1: 'draft one', 'q2.א': 'draft two' })
+  })
+
+  it('a transcribed item ignores approved_answers even if present (belt+braces)', () => {
+    const ctrl = new ReviewItemController(makeItem({
+      approved_answers: [
+        { question_number: 1, sub_question_id: null, answer_text: 'should not leak' },
+        { question_number: 2, sub_question_id: 'א', answer_text: 'should not leak' },
+      ],
+    }), vi.fn() as unknown as SaveFn)
+    expect(ctrl.getSnapshot().editedAnswers).toEqual({ q1: 'draft one', 'q2.א': 'draft two' })
   })
 })
