@@ -25,7 +25,7 @@
 | `transcription-jobs` maxConcurrentDispatches | 25 | 100 users/evening ≈ 3,500 docs; C=5 drains 260/hr (13 hrs — fails); C=25 ≈ 1,290/hr with peak-hour headroom |
 | `grading-jobs` maxConcurrentDispatches | 20 | matches accept-wave bursts; bounds spend |
 | both queues maxAttempts / min-backoff | 3 / 10s | CAS claims make redelivery a provable no-op; redelivery is the only healer for dispatch-level failures |
-| Cloud Run `--concurrency` | 5 | (8→5, 2026-08-23) pins docs/instance to the density measured safe at 85% of 2 GiB — under ANY fixed/per-doc memory split, 8 could OOM-kill a container mid-batch; still forces scale-OUT (25÷5 = 5 instances) so the per-instance provider cap doesn't head-of-line-block against the 900s dispatch deadline |
+| Cloud Run `--concurrency` | 4 | (→4, 2026-08-23, measured) memory = 480 fixed + 260/doc MB; C=5 was AT the 85% line (86.9% observed) with no room for a 7-page-heavy draw (~43 MB/page); C=4 = 74% measured under a live 35-doc batch. Throughput is QUEUE-bound (C=2 and C=5 arms drained 35 docs in the same ~2.5 min), so C=4 costs ~2 instances and nothing else |
 | Cloud Run `--memory` / `--max-instances` | 2Gi / 40 | ~8 concurrent docs/instance hold rendered page images (~70MB+/doc peaks); 1Gi was the old single-fan-out sizing |
 
 ## Tier ladder — what changes, and the trigger to change it
