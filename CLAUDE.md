@@ -303,6 +303,7 @@ Raw SQL, zero-padded, sequential (`NNN_description.sql`). No Alembic. Current he
 
 ### Tests
 `tests/` mirrors `app/`. Pure compilers/validators (`gradable_compiler`, `graded_test_contract_compiler`, grader `validator`) are tested with **zero mocks**. The agent and endpoints mock the LLM (patch `with_structured_output(...).ainvoke` / inject a fake `VLMProvider`) — **never call OpenAI in tests.** `pytest -q`.
+**Tests run ONLY against the Vivi-Test database** (Supabase `eqnbojbxsdafwtxvuyuy`): `tests/conftest.py` redirects via `TEST_DATABASE_URL` and hard-aborts any session whose resolved (host, pooler-tenant) is not allow-listed — production can never be reached from pytest again (2026-08-23; the s2test.com residue this prevented has been purged). ⚠️ **Run the full suite in two invocations** (`pytest --ignore=tests/transcription_eval_suit` + `pytest tests/transcription_eval_suit`, or per-directory like CI): a single-process all-907 run executes every test green but then WEDGES in the session-scoped TestClient teardown — the app lifespan's loop-close hangs in Windows `IocpProactor._poll` on an orphaned pooled-connection op after ~700 tests of churn (py-spy-verified 2026-08-23; survives `engine.dispose()`). Windows-only, teardown-only; prod (Linux, SIGTERM) unaffected.
 
 ---
 
