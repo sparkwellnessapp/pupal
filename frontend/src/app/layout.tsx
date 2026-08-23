@@ -6,6 +6,10 @@ import { Toaster } from 'sonner'
 export const metadata: Metadata = {
   title: 'Vivi - עוזר המורה',
   description: 'פלטפורמת AI לבדיקת מבחנים, יצירת מחוונים, ניהול תלמידים ועוד.',
+  other: {
+    // curl -s https://www.vivi-assistant.com | grep build-sha → deployed commit
+    'build-sha': process.env.NEXT_PUBLIC_BUILD_SHA || 'unknown',
+  },
 }
 
 export default function RootLayout({
