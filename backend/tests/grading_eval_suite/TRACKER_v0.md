@@ -31,12 +31,12 @@ Statuses: `[ ]` todo · `[~]` in progress · `[x]` done (evidence in phase repor
 | # | Item | Mission trace | Status |
 |---|---|---|---|
 | B0 | F0 mechanical half: compile original hobby GT (expect q2 block — proof), apply recorded fix_proposal (move_text ג, move_criterion ב.c6→ג, set_points 16; id rename ב.c6→ג.c0 surfaced), compile proof clean, produce `H1_CORRECTION_PROPOSAL.md` (diff + proofs + provenance draft) | F0, R5/H1 | [x] proposal staged |
-| B0-gate | **Owner ratifies H1** (diff + compile proof) → snapshot `benchmarks/contracts/hobby_tvshow_corrected.contract.json` with provenance | R5/H1 | [STOP] awaiting owner |
+| B0-gate | **Owner ratified H1** (Phase-B ruling item 1) → snapshot + provenance written (`ratified_by: Noam, 2026-08-24`; DL-5 + DL-6 accepted) | R5/H1 | [x] ratified |
 | B1 | F1 converter: sibling draft-GT md → `TranscriptionContract` JSON; deterministic; unit-tested; parity guard vs `ground_truth.load_ground_truth` on all 5 docs | F1 | [x] built; parity 5/5 green |
-| B2 | F2 snapshots: 5 transcription contracts → `benchmarks/transcriptions/`; `rebuild_fixtures.py` (deliberate regeneration only; refuses pre-H1) | F2, D2 | [~] tool ready + guarded; snapshots follow H1 |
-| B3 | F3 manifests ×5 (paths + provenance + hashes) | F3 | [ ] after B0-gate |
-| B4 | F4 GT builder: contract → skeleton with every terminal pre-populated, judgments empty | F4 | [x] tool built |
-| B5 | **Owner blind-grades 5 tests** (R1; ~120–150 judgments); C-1..C-5 rulings land in GT_CONVENTIONS **before** F5 | F5, R1, §5 | [STOP] owner |
+| B2 | F2 snapshots: 5 transcription contracts → `benchmarks/transcriptions/` (6 answers each), sources committed first (6337fbc) | F2, D2 | [x] |
+| B3 | F3 manifests ×5 (paths + provenance + sha256 pins; verified loading post-commit) | F3 | [x] |
+| B4 | F4 GT builder: 5 skeletons emitted, 38 terminals each (190 judgments total — above the ~120-150 estimate; flagged) | F4 | [x] |
+| B5 | **Owner blind-grades 5 tests** (R1; 190 judgments from the skeletons); C-1..C-5 RULED 2026-08-24 (verbatim in GT_CONVENTIONS) | F5, R1, §5 | [STOP] owner — THE active gate |
 
 ## Phase C — Baseline (≈$1) → gate: baseline report reviewed; Tier-2 thresholds pre-registered after
 
@@ -71,3 +71,14 @@ Statuses: `[ ]` todo · `[~]` in progress · `[x]` done (evidence in phase repor
 - **DL-6** Corrected draft drops the two stale `rubric_mismatch` WARNINGs + the two `point_sum_mismatch`
   pedagogical mistakes + the applied `structural_mislabel` (they describe the pre-fix state; keeping
   them would force fake acknowledgments at compile). In the H1 diff.
+- **DL-7 (Phase B finding, surfaced not decided):** `q2.ג.c0` is a BRANCH criterion — its four
+  sub-criteria are the actual terminals and retain the pre-move ids `q2.ב.c6.s0..s3` (DL-5 renamed
+  only the criterion id, exactly as ratified). Internally consistent (universe = compiled contract;
+  GT authors against these ids) — but the prefix lies about the path. Owner option BEFORE F5:
+  re-stage with sub-ids `q2.ג.c0.s0..s3` + re-ratify (cheap now, expensive after GT lands).
+  Proceeding as ratified unless ruled otherwise.
+- **DL-8 (fence deviation, justified):** backend/.gitignore's broad `*.json` credential net silently
+  dropped every fixture artifact from commit 3f675db; extended with suite-scoped un-ignores (the
+  rubric suite's PR-4 precedent) + root `.gitattributes` `-text` pins so EOL normalization can never
+  break the D5 sha256 guards on a fresh clone. Without this the ruling's "snapshots point at
+  committed state" is unsatisfiable. Commits 3edbf15 + 624337f.
