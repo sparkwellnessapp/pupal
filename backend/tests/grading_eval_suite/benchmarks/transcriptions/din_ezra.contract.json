@@ -1,0 +1,36 @@
+{
+ "schema_version": "1.0",
+ "contract_version": "gt-din_ezra",
+ "answers": [
+  {
+   "question_number": 1,
+   "sub_question_id": "א",
+   "answer_text": "Public class Hobby\n{\n    private string hobbyName;\n    private bool isSportive;\n    private int durationInMinutes;\n    \n    public Hobby(string hobbyName, bool isSportive, int minutes)\n    {\n        this.hobbyName = hobbyName;\n        this.isSportive = isSportive;\n        this.minutes = durationInMinutes;\n    }"
+  },
+  {
+   "question_number": 1,
+   "sub_question_id": "ב",
+   "answer_text": "public bool pupulatHobbies()\n{\n    bool t = true;\n    bool f = false;\n\n    for(int i=0; i<this.hobbies.length; i++)\n    {\n        cw(\"do u want to crate\n        string a = CR();\n        if(a==\"n\" || a==\"N\")\n        {\n            t = false;\n        }\n\n        if((this.hobbies[i]==null) && (t==true))\n        {\n            f = true;\n            rw(\"enter your hobby\");\n\n            string name = CR();\n            bool sportiv = CR();\n            int min = int.parce(CR());\n            Hobby hobb = new Hobby(name, sportiv, min);\n        }\n    }\n\n    return f;\n}"
+  },
+  {
+   "question_number": 1,
+   "sub_question_id": "ג",
+   "answer_text": "printAverages\n{\n    double Avgyes = 0;\n    double Avgno = 0;\n\n    For(int i=0; i<hobbies.length; i++)\n    {\n        if(hobbies[i].getisSportiv()==true)\n        {\n            Avgyes += hobbies[i].getdurationIn minutes;\n        }\n        else\n        {\n            Avgno += hobbies[i].get durationIn minutes;\n        }\n    }\n\n    cw(\"Avg sportiv= {0}, Avg not sportiv={1}\", Avgyes, Avgno);"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "א",
+   "answer_text": "public class TvShow\n{\n    private string name;\n    private int rate;\n    private int chl;\n    private bool isOn;\n\n    public Tv Show(string name, int channel)\n    {\n        this.name = name;\n        this.channel = chl;\n        this.rate=0;\n        this.isOn=true;\n    }\n\n    public void updateRate(int numViewers)\n    {\n        int sum=0\n\n        for(int i=1; i<=numViewers; i++)\n        {\n            CW(\"how your rate?\");\n            int rateOfThisViewer = int.parse(CR());\n            sum+=rateOfThisViewer;\n        }\n\n        this.rate=sum;\n    }"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "ב",
+   "answer_text": "public static string LowestRateChannel(TV rate tv)\n{\n    int[] arr = new int[tv]\n\n    string min1 = \" \"; int min = arr[0].getrate();\n\n    for(int i=1; i<arr.Length; i++)\n    {\n        if(min>arr[i].getrate)\n        {\n            min = arr[i].getrate();\n            min1 = arr[i].getName();\n        }\n    }\n\n    return min1\n}  "
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "ג",
+   "answer_text": "public static void printLowChannel(TVRate[] tv)\n{\n    int[]arr = new int[tv];\n\n    For(int i=0; i<arr.Length; i++)\n    {\n        if(LowestRateChannel == arr[i].getName())\n        {\n            if(get isOn==true)\n            {\n                CW(getName());\n            }\n        }\n    }\n}"
+  }
+ ]
+}

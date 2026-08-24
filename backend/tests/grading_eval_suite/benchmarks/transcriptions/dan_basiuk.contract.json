@@ -1,0 +1,36 @@
+{
+ "schema_version": "1.0",
+ "contract_version": "gt-dan_basiuk",
+ "answers": [
+  {
+   "question_number": 1,
+   "sub_question_id": "א",
+   "answer_text": "Public class Hobby\n{\n    private string hobbyName;\n    private bool isSportive;\n    private int durationInMinutes; \\\\ 1-60\n\n    public Hobby (string hobbyName ,bool isSportive ,int minutes)\n    {\n        this.hobbyName = hobbyName;\n        this.isSportive = isSportive;\n        this.minutes = minutes;\n    }\n}"
+  },
+  {
+   "question_number": 1,
+   "sub_question_id": "ב",
+   "answer_text": "Public bool populateHobbies ()\n{\n    bool added = false;\n    bool going = true;\n\n    for (int i=0; i< this.hobbies.Length; i++)\n    {\n        cw(\"do u want to create another hobby?\");  // אם מאושר להמשיך\n        string answear = CR();\n        if(answear == \"n\" || answear == \"N\")\n            going = false;\n\n        if((this.hobbies[i] == null) && (going == true))  // אישור להמשיך/מקום פנוי\n        {\n            added = true;   // אפשר להכניס\n            cw(\"enter bobbyName , if its sportive and it duration\");\n            string a = CR();\n            bool b = CR();\n            int c = CR();\n            this.hobbies[i] = new Hobby(a,b,c); // יצירת חדש והסמתו\n        }\n    }\n    return added;  // אם הצליח או לא\n}"
+  },
+  {
+   "question_number": 1,
+   "sub_question_id": "ג",
+   "answer_text": "public void printAverages()\n{\n    int counterS = 0;   // כמה ספורט יש\n    double totaldurationS = 0;    //רמות זמן ספורט\n    doble totaldurationNS = 0;   // רמות זמן לא ספורט\n    int counterNS = 0;   // כמה לא ספורט\n\n    for(int i=0; i< this.Hobbies.Length; i++)    // אם ספורטיבי\n    {\n        if(this.Hobbies[i].getisSportive())   // אם ספורטיבי\n        {\n            counterS++;\n            totaldurations = totaldurations + this.Hobbies[i].getdurationInminutes();\n        }\n        else\n        {\n            counterNS++;\n            totaldurationNS = totaldulutionNS + this.Hobbies[i].getdurationInminutes();\n        }\n\n        double AvgS = totaldurations / counterS;\n        double AvgNS = totaldurationNS / counterNS;\n\n        cw(\"the sportiv Avg is: \" + AvgS);\n        cw(\"the non spotiv Avg is: \" + AvgNS);\n    }\n}"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "א",
+   "answer_text": "Public TvShow (String name,int channel)\n{\n    this.rate = 0;\n    this.isOn = true;\n    this.name = name;\n    this.chl = Channel;\n}\n\npublic void updateRate (int numViewers)\n{\n    for(int i=1; i<numviewers; i++)\n    {\n        cw(\"enter youre rating\")\n        int a = CR();\n        this.rate = this.rate + a;  // מחבר rates\n    }\n}"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "ב",
+   "answer_text": "public static int LowesRateChannel (TvRate A)\n{\n    int[] Rates = new int [101]   // כדי לעשות מ1-> 100\n    for(int i=0; i< Rates.Length; i++)  // איפוס איברים\n    {\n        Rates[i] = 0;\n    }\n\n    for(int J=0; J< A.Length; J++)\n    {\n        Rates[A[J].get.chl()] += A[J].getrate();\n    }\n\n    int maxch = 1;\n\n    for(int t=2; t< Rates.length; t++)\n    {\n        if (Rates[t] < Rates[maxch])  // אם קטן\n        {\n            maxch = t;   // שמירת הערוץ\n        }\n    }\n\n    Return maxch;  // החזרה\n}"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "ג",
+   "answer_text": "Public static Void printLowRatingchannel (TvRate A)\n{\n    int lowchl = LowestRatchannel(A);  // מציאת הערוץ הגרוע\n\n    for(int i=0; i<A.Length; i++)\n    {\n        if((A[i].getchl() == lowchl ) && (A[i].getison() == true))    // אם מוקרן ובערוץ\n        {\n            cw( A[i].getnam()); // מדפיס\n        }\n    }\n}"
+  }
+ ]
+}

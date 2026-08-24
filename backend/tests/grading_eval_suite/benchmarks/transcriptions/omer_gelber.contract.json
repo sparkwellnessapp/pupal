@@ -1,0 +1,36 @@
+{
+ "schema_version": "1.0",
+ "contract_version": "gt-omer_gelber",
+ "answers": [
+  {
+   "question_number": 1,
+   "sub_question_id": "א",
+   "answer_text": "public class Hobby\n{\n    private string hobbyName;\n    private bool isSportive;\n    private int durationInMinutes;\n\n    public Hobby(string hobbyName, bool isSportive, int minutes)\n    {\n        this.hobbyName = hobbyName;\n        this.isSportive = isSportive;\n        durationInMinutes = minutes;\n    }\n}"
+  },
+  {
+   "question_number": 1,
+   "sub_question_id": "ב",
+   "answer_text": "public class School Hobbies\n{\n    public bool PopulateHobbies()\n    {\n        int count=0; // סופר כמה [?] בתוך מקומות של [?]\n        for(int i=0; i<hobbies.Length; i++)\n        {\n            if(hobbies[i] != null)\n            {\n                Console.Write(\"Do you want to create another hobby?\");\n                Char answer = Char.Parse(Console.ReadLine());\n                if(answer!='n' && answer!='N')\n                {\n                    CW(\"Enter the hobby name:\");\n                    string hobbyname = Console.ReadLine();\n\n                    CW(\"Enter if the hobby is sportive: \");\n                    bool isSportive = bool.Parse(Console.ReadLine());\n                    CW(\"The duration in minutes: \");\n                    int duration = int.Parse(Console.ReadLine());\n\n                    hobbies[i] = new Hobby(hobbyName,isSportive,duration);\n                    countHobbies++;\n                    count++;\n                }\n            }\n        }\n    }\n        if(count==0)\n            return false;\n\n        return true;\n}"
+  },
+  {
+   "question_number": 1,
+   "sub_question_id": "ג",
+   "answer_text": "public Void PrintAverages()\n{\n    int countSport=0; int sumSport=0;\n    int countNonSport=0; int sumNonSport=0;\n\n    for(int i=0; i<hobbies.Length; i++)\n    {\n        if(hobbies[i] != null)\n        {\n            if(hobbies[i].GetIsSportive())\n            {\n                count Sport++;\n                sumSport += hobbies[i].GetDurationInMinutes;\n            }\n            else\n            {\n                countNonSport++;\n                sumNonSport += hobbies[i].GetDurationInMinutes;\n            }\n        }\n    }\n    CW(\"The average for sportive is {0}\",(double)sumSport/countSport);\n    CW(\"The average for non sportive is {0}\",(double)sumNonSport/countNonSport);\n}"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "א",
+   "answer_text": "public class TvShow\n{\n    private string name;\n    private int rate;\n    private int chl;\n    private bool isOn;\n\n    public TvShow(string name, int channel)\n    {\n        this.name = name;\n        rate = 0;\n        this.chl = channel;\n        isOn = true;\n    }\n\n    public Void UpdateRate(int numViewers)\n    {\n        for(int i=0; i<numViewers; i++)\n        {\n            CW(\"Enter your rate: \");\n            int rate = int.Parse(Console.ReadLine());\n            this.rate += rate;\n        }\n    }\n}"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "ב",
+   "answer_text": "public static int LowestRateChannel(TVRate tvRate)\n{\n    int[] arr = new int[101];\n\n    TvShow[]arrShow = TVRate.GetArrShows();\n\n    for(int i=0; i<arr.Length; i++)\n        arr[i] = 0;\n\n    For(int i=0; i<arrShow.Length; i++)\n    {\n        int channel = arrShow[i].GetChl();\n        arr[channel] += arrShow[i].GetRate();\n    }\n\n    int minRate = int.MaxValue;\n    int minChl = 0;\n\n    for(int i=1; i<arr.Length; i++)\n    {\n        if(arr[i] < minRate)\n        {\n            minRate = arr[i];\n            minChl = i;\n        }\n    }\n\n    return minChl;\n}"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "ג",
+   "answer_text": "public static Void PrintLowRatingChannel(TVRate tvRate)\n{\n    int chl = LowestRateChannel(tvRate);\n\n    TVShow[] arr = tvRate.GetArrShows();\n\n    for(int i=0; i<arr.Length; i++)\n    {\n        if(arr[i].GetChl() == chl && arr[i].GetIsOn)\n            CW(arr[i].GetName());\n    }\n}"
+  }
+ ]
+}

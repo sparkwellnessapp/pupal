@@ -1,0 +1,36 @@
+{
+ "schema_version": "1.0",
+ "contract_version": "gt-yonatan_basiuk",
+ "answers": [
+  {
+   "question_number": 1,
+   "sub_question_id": "א",
+   "answer_text": "public class Hobby\n{\n    private string hobbyName; // הגדרת תכונות\n    private bool isSportive;\n    private int durationInMinutes;\n\n    public Hobby(string hobbyName, bool isSportive, int minutes)\n    {\n        this.hobbyName = hobbyName;\n        this.isSportive = isSportive;\n        this.durationInMinutes = Minutes;\n    }\n}"
+  },
+  {
+   "question_number": 1,
+   "sub_question_id": "ב",
+   "answer_text": "public class schoolHobbies\n{\n    public bool populateHobbies()\n    {\n        string num = \"\"; bool isSportive = true; int duration = 0;\n\n        if (this.countHobbies == this.hobbies.Length)\n            return false; // בדיקה אם מלא\n\n        Console.Write(\"Do you want to create another hobby?\");\n        char answer = char.Parse(Console.ReadLine());\n\n        for(int i = this.countHobbies; (i < this.hobbies.Length)\n            && (answer != \"N\") && (answer != \"n\"); i++)\n        {\n            if (this.hobbies[i] == null)\n            {\n                CW(\"enter name: \")\n                name = CR();\n\n                CW(\"enter true if sportive and false\n                if not: \");\n                isSportive = bool.Parse(CR());\n\n                CW(\"enter duration(minutes): \");\n                duration = int.Parse(CR());\n\n                this.hobbies[i] = new Hobby(name,\n                isSportive, duration); // יצירת תחביב חדש\n            }\n\n            CW(\"Do you want to create another\n            another hobby?\");\n            char answer = char.Parse(CR());\n        }\n\n        return true;\n    }"
+  },
+  {
+   "question_number": 1,
+   "sub_question_id": "ג",
+   "answer_text": "public void printAverages()\n{\n    double sumSportive = 0;\n    double sumNoSportive = 0;\n    int count = 0;\n    int count1 = 0;\n\n    for(int i = 0; i < this.hobbies.Length; i++)\n    {\n        if (this.hobbies[i].GetisSportive())\n        {\n            sumSportive += this.hobbies[i].GetdurationInMinutes\n            count ++\n        }\n        else\n        {\n            sumNoSportive += this.hobbies[i].GetdurationInMinutes;\n            count1++;\n        }\n    }\n\n    CW(\"the average ua sportive is: \" + sumSportive / count);\n    CW(\"the average ua NotSportiv is: \" + sumSportive / count);"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "א",
+   "answer_text": "public class TVshow\n{\n    public TVshow(String name, int channel)\n    {\n        this.name = name;\n        this.chl = channel;\n        this.rate = 0;\n        this.isOn = true;\n    }\n\n    public void updateRate(int numViewers)\n    {\n        int rate = 0;\n        for(int i = 0; i < numViewers; i++)\n        {\n            this.rate +=\n            CW(\"enter rating: \");\n            int rate = int.Parse(CR());\n            this.rate += rate;\n        }\n    }\n}"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "ב",
+   "answer_text": " // TVshow() arrShows\n\npublic static int LowestRateChannel(TVRate tvRate)\n{\n    int[] chRate = new int[101]\n\n    for(int i = 0; i < chRate.Length; i++) / chRate[i] = 0;\n\n    for(int i = 0; i < tvRate.Length; i++)\n    {\n        if(tvRate.GetarrShows()[i] != null)\n        {\n            chRate[tvRate[i].Getch()] += tvRate[i].Getrate();\n        }\n    }\n\n    int minRate = chRate[0];\n\n    for(int i = 0; i < chRate.Length; i++)\n    {\n        if(chRate[i] < chRate[minRate])\n        {\n            minRate = i;\n        }\n    }\n\n    return minRate;\n}"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "ג",
+   "answer_text": "public static void PrintLowRatingchannel(tVRate tvRate1)\n{\n    int channel = LowestRateChannel(tvRate1);\n\n    for(int i = 0; i < tvRate1.GetArrShows().Length; i++)\n    {\n        if(tvRate1.GetArrShows()[i] != null)\n        {\n            if((tvRate1.GetArrShows()[i].GetChl() == channel)\n            && (tvRate1.GetArrShows()[i].GetIsOn() == true))\n            {\n                CW(tvRate1.GetArrShows()[i].GetName());\n            }\n        }\n    }\n}"
+  }
+ ]
+}

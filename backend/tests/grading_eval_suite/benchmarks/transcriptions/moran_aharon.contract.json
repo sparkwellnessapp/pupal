@@ -1,0 +1,36 @@
+{
+ "schema_version": "1.0",
+ "contract_version": "gt-moran_aharon",
+ "answers": [
+  {
+   "question_number": 1,
+   "sub_question_id": "א",
+   "answer_text": "public class Hobby\n{\n    private string hobbyName;\n    private bool isSportive;\n    private int durationInMinutes;\n\n    public Hobby (string hobbyName, bool isSportive, int minutes)\n    {\n        this.hobbyName = hobbyName; // פעולה בונה\n        this.isSportive = isSportive;\n        this.durationInMinutes = minutes;\n    }\n}"
+  },
+  {
+   "question_number": 1,
+   "sub_question_id": "ב",
+   "answer_text": "public class SchoolHobbies\n{\n    public bool PopulateHobbies()\n    {\n        if(countHobbies == hobbies.Length)\n            return false;\n\n        else\n        {\n            char add = y;\n\n            While ((countHobbies < hobbies.Length) && add != n && add != N)\n            {\n                CW(\"enter hobby name:\");\n                string name = CR();\n                CW(\"enter is the hobby sportive:\");\n                bool sportive = bool.Parse(CR());\n                CW(\"enter the hobby's duration in mins:\");\n                int duration = int.Parse(CR());\n\n                hobbies(countHobbies) = new Hobby(name, sportive, duration);\n                countHobbies++;\n                CW(\"do you want to create another hobby?\");\n                add = char.Parse(CR());\n            }\n        }\n\n        return true; // גם לא הוחזר בהתחלה\n                                  // false אז מקבלת והוחזר true.\n    }\n}"
+  },
+  {
+   "question_number": 1,
+   "sub_question_id": "ג",
+   "answer_text": "public void PrintAverages()\n{\n    int sumSportive = 0;  int countSportive = 0;\n    int sumNotS = 0;   int countNotS = 0;\n\n    for(int i=0; i < countHobbies; i++)\n    {\n        if(hobbies[i].GetIsSportive())\n        {\n            sumSportive += hobbies[i].GetDuration();\n            countSportive++;\n        }\n        else\n        {\n            sumNotS += hobbies[i].GetDuration();\n            countNotS++;\n        }\n    }\n\n    double averageSportive = (double)(sumSportive) / countSportive;\n    double averageNotS = (double)(sumNotS) / countNotS;\n\n    CW(\"average time of sportive hobbies is:\");\n    CW(averageSportive + \"minutes\");\n\n    CW(\"average time of not sportive hobbies is {0} minutes\", averageNotS);\n}"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "א",
+   "answer_text": "public class TvShow\n{\n    public TvShow (string name, int channel) // פעולה בונה\n    {\n        this.name = name;\n        this.chl = channel;\n        this.rate = 0;\n        this.isOn = true;\n    }\n\n    Public void UpdateRate (int numViewers)\n    {\n        For (int i = 0; i < numViewers; i++)\n        {\n            CW(\"enter your rate For the TV Show:\");\n            int ViewerRate = int.Parse(CR());\n\n            SetRate(GetRate() + viewerRate);\n            // שינוי דירוג התוכנית למה שהיה פלוס הדירוג החדש.\n        }\n    }\n}"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "ב",
+   "answer_text": "Public Static int LowestRateChannel (TVRate rates)\n{\n    int[] chlRates = new int[100]; // מערך צבירה חדש\n\n    for(int i = 0; i < chlRates.Length; i++) // איפוס המערך\n    {\n        chlRates[i] = 0;\n    }\n\n    For (int i = 0; i < rates.GetArrShows.Length; i++) // מילוי המערך\n    {\n        chlRates[arrShows[i].GetChl()] += arrShows[i].GetRate();\n    }\n\n    int lowestRate = int.MaxValue;\n    int chlNum = -1;\n\n    For(int i = 1; i <= 100; i++) // מציאת והדפסת מספר הערוץ עם הדירוג בנמוך ביותר\n    {\n        if (chlRate[i] < lowestRate)\n        {\n            lowestRate = chlRate[i];\n            chlNum = i;\n        }\n    }\n    return chlNum;\n    \n}"
+  },
+  {
+   "question_number": 2,
+   "sub_question_id": "ג",
+   "answer_text": "Public Static void PrintLowRatingChannel(TVRate rates)\n{\n    int lowestRateChl = LowestRateChannel(rates);\n\n    TVShow[] arrShows = new TVShow[rates.GetArrShows().Length];\n    arrShows = rates.GetArrShows(); // השמאת מערכים\n\n    for(int i = 0; i < rates.GetArrShows().Length; i++)\n    {\n        if (arrShows[i].GetIsOn() && arrShows[i].GetChl()==lowestRateChl)\n            CW(arrShows[i].GetName());\n    }\n}"
+  }
+ ]
+}

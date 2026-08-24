@@ -170,6 +170,14 @@ gen-lang-client-*.json
 # suites read them in place) — not eval output. The broad *.json above would drop
 # them, breaking CI on a fresh checkout.
 !tests/rubric_eval_suite/benchmarks/*.json
+# Grading eval suite (mission v0, same precedent): configs, per-fixture
+# manifests, frozen contract snapshots and GT files are SOURCE — hash-pinned
+# provenance the runner validates against committed state. NOT eval output.
+!tests/grading_eval_suite/configs/*.json
+!tests/grading_eval_suite/fixtures/*.json
+!tests/grading_eval_suite/benchmarks/**/*.json
+# ...except the F0 staging area (superseded by the ratified snapshot):
+tests/grading_eval_suite/benchmarks/contracts/_proposed/
 # eval RUN OUTPUTS are regenerable artifacts — never commit them (repo bloat).
 tests/*/results/
 annotated-docx*

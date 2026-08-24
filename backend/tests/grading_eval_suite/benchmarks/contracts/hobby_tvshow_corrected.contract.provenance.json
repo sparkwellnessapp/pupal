@@ -1,0 +1,7 @@
+{
+ "derived_from": "../rubric_eval_suite/benchmarks/hobby_tvshow.json",
+ "correction": "structural_mislabel fix_proposal (recorded in the sibling GT) applied verbatim; [DL-5] q2.ב.c6 -> q2.ג.c0; [DL-6] stale pre-fix diagnostics dropped",
+ "ratified_by": "Noam",
+ "date": "2026-08-24",
+ "staged_by_tool": "tools/f0_hobby_correction.py"
+}

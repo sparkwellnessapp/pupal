@@ -1,0 +1,14 @@
+{
+ "rubric_contract": "benchmarks/contracts/hobby_tvshow_corrected.contract.json",
+ "transcription_contract": "benchmarks/transcriptions/dan_basiuk.contract.json",
+ "gt": "benchmarks/gt/dan_basiuk.gt.json",
+ "provenance": {
+  "gt_source": "teacher_manual",
+  "exam": "hobby_tvshow (corrected, H1-ratified)",
+  "transcription_source": "C:/Users/ariel/Desktop/vivi-v1 - 11.04/vivi-codebase/backend/tests/transcription_eval_suit/draft_benchmarks/dan_basiuk.md",
+  "rubric_source": "../rubric_eval_suite/benchmarks/hobby_tvshow.json (via F0 correction)",
+  "rubric_contract_sha256": "3b208a84e573734f36ee9d831094b16c69cb80510014df69e4f13ade1d2d51a7",
+  "transcription_contract_sha256": "b15cddc85f3764991921cda45a0aef88f4cb7f49148ca6c154082770f4e00175",
+  "built_by": "tools/rebuild_fixtures.py"
+ }
+}

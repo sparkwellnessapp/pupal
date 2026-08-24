@@ -1,0 +1,5 @@
+{
+  "model_key": "gpt-4o",
+  "cost_ceiling": 0.10,
+  "notes": "The DEPLOYED PIN [R7]: GraderAgent runs settings.openai_model (default gpt-4o) with prompt grader-v1 — v0 has no model seam (D6 deferred to step 3), so this config's job is honest provenance + registry-priced cost, and the runner refuses if the resolved model_id differs from the live pin [DL-4]. cost_ceiling $0.10/test is the Tier-1 default (owner-adjustable at step 3). Identity/prices registry-owned (tests/eval_common/models_registry.py). This model has NEVER been evaluated; the k=5 baseline this config exists for is the first measurement and doubles as the multi-scope smoke (U2/G-21)."
+}
