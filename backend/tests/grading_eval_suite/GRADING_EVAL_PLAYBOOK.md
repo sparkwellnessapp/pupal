@@ -81,7 +81,8 @@ operating manual. Where they disagree, the mission wins.
   `score_with_selection`); excluded from ALL Tier-2 agreement metrics (MAE,
   within-precision, exact, edit_burden, compensating-error input) AND from the
   calibration input (correctness vs a best-guess GT is noise by construction —
-  the exclusion logic extends to it). Fixtures carrying them are marked
+  the exclusion logic extends to it; RATIFIED 2026-08-24, reviewer verdict +
+  owner approval — Phase-B ruling D3). Fixtures carrying them are marked
   "total includes N ungradable-scope terminals" in their report block.
 - **[C-1, ratified 2026-08-24] table exception**: GT may award per confidently-
   reconstructed intent on structurally garbled tabular content; such terminals

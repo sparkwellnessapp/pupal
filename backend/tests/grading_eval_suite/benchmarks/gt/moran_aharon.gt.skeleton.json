@@ -1,6 +1,6 @@
 {
  "fixture": "moran_aharon",
- "rubric_contract_hash": "3b208a84e573734f36ee9d831094b16c69cb80510014df69e4f13ade1d2d51a7",
+ "rubric_contract_hash": "c988eb7d1856f041bf3b1909c83baca7f77a8e67a05a1a2110e00321456839f1",
  "transcription_contract_hash": "ee2cbe0fffeb8c4d41d6e855057124f2ef0968515a9de52c98b6912448ece966",
  "gt_source": "teacher_manual",
  "authored_by": "Noam",
@@ -280,7 +280,7 @@
    "note": ""
   },
   {
-   "terminal_id": "q2.ב.c6.s0",
+   "terminal_id": "q2.ג.c0.s0",
    "points_possible": "2",
    "description": "כותרת הפעולה PrintLowRatingChannel",
    "awarded": null,
@@ -288,7 +288,7 @@
    "note": ""
   },
   {
-   "terminal_id": "q2.ב.c6.s1",
+   "terminal_id": "q2.ג.c0.s1",
    "points_possible": "3",
    "description": "מציאת הערוץ בעל דירוג מינימלי ע\"י זימון LowestRateChannel",
    "awarded": null,
@@ -296,7 +296,7 @@
    "note": ""
   },
   {
-   "terminal_id": "q2.ב.c6.s2",
+   "terminal_id": "q2.ג.c0.s2",
    "points_possible": "3",
    "description": "הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ- length של מערך ה -TvShowsאם הגישה למערך בלי getter להוריד 1",
    "awarded": null,
@@ -304,7 +304,7 @@
    "note": ""
   },
   {
-   "terminal_id": "q2.ב.c6.s3",
+   "terminal_id": "q2.ג.c0.s3",
    "points_possible": "8",
    "description": "בתוך הלולאה על TvShows: בדיקה האם תוכנית מתאימה להדפסה:אינה null ב (2 נקודות) וגם הערוץ שלה תואם את הערוץ המינימלי (ע\"י GetChl והשוואתם (2 נקודות) וגם היא באוויר (ע\"י GetIsOn ב 2 נקודות) הדפסה של השם של התוכנית (ע\"י GetName ב( 2 נקודות)",
    "awarded": null,

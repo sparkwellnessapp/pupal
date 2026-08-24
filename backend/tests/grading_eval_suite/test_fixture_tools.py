@@ -67,6 +67,11 @@ def test_corrected_hobby_compiles_clean_with_recorded_fix():
     assert set(subs) == {"א", "ב", "ג"}
     assert subs["ג"].points == Decimal("16")
     assert [c.criterion_id for c in subs["ג"].criteria] == ["q2.ג.c0"]   # [DL-5]
+    # [DL-7 / H1-A1, ratified 2026-08-24]: a moved criterion renames its
+    # CHILDREN with it — DL-5's own principle applied to the terminal level
+    # the original proposal didn't know existed.
+    gimel_children = [sc.sub_criterion_id for sc in (subs["ג"].criteria[0].sub_criteria or [])]
+    assert gimel_children == ["q2.ג.c0.s0", "q2.ג.c0.s1", "q2.ג.c0.s2", "q2.ג.c0.s3"], gimel_children
     assert subs["ג"].criteria[0].points == Decimal("16")
     # ב no longer carries the mislabeled component and its sums reconcile
     assert sum(c.points for c in subs["ב"].criteria) == Decimal("29") == subs["ב"].points
@@ -94,3 +99,30 @@ def test_gt_skeleton_prepopulates_all_terminals():
     assert sk["fixture"] == "synthetic"
     # points shown as authoring aid, but NOT a FixtureGT field (stripped on load)
     assert all("points_possible" in t for t in sk["terminals"])
+
+
+# ---------------------------------------------------------------------------
+# Path-honesty structural guard [H1-A1 ruling, 2026-08-24] — closes the CLASS
+# DL-7 was an instance of: every terminal id in every loaded fixture universe
+# must be prefixed by its full ancestor chain (sub-criterion by its criterion
+# id, criterion by its scope target). Would have caught DL-7 at birth.
+# ---------------------------------------------------------------------------
+
+FIXTURE_NAMES = FIVE_DOCS
+
+
+def test_terminal_ids_are_path_honest_in_all_bundles():
+    from .fixtures import load_bundle
+    offenders = []
+    for name in FIXTURE_NAMES:
+        bundle = load_bundle(name, require_gt=False)
+        for scope in bundle.gradable_test.scopes:
+            target = (scope.question_id if scope.sub_question_id is None
+                      else f"{scope.question_id}.{scope.sub_question_id}")
+            for criterion in scope.criteria:
+                if not criterion.criterion_id.startswith(target + "."):
+                    offenders.append((name, target, criterion.criterion_id))
+                for sc in (criterion.sub_criteria or []):
+                    if not sc.sub_criterion_id.startswith(criterion.criterion_id + "."):
+                        offenders.append((name, criterion.criterion_id, sc.sub_criterion_id))
+    assert not offenders, f"path-dishonest ids (child not prefixed by parent): {offenders}"

@@ -76,7 +76,7 @@ Statuses: `[ ]` todo · `[~]` in progress · `[x]` done (evidence in phase repor
   only the criterion id, exactly as ratified). Internally consistent (universe = compiled contract;
   GT authors against these ids) — but the prefix lies about the path. Owner option BEFORE F5:
   re-stage with sub-ids `q2.ג.c0.s0..s3` + re-ratify (cheap now, expensive after GT lands).
-  Proceeding as ratified unless ruled otherwise.
+  RULED 2026-08-24 (H1-A1): fix now — executed as a supersede; class closed by the path-honesty structural guard.
 - **DL-8 (fence deviation, justified):** backend/.gitignore's broad `*.json` credential net silently
   dropped every fixture artifact from commit 3f675db; extended with suite-scoped un-ignores (the
   rubric suite's PR-4 precedent) + root `.gitattributes` `-text` pins so EOL normalization can never

@@ -44,3 +44,24 @@ One teacher fix resolves all three shadows together — the FC worked example, c
 `ratified_by: Noam` · `date: <ratification date>`
 
 Staged artifacts: `C:\Users\ariel\Desktop\vivi-v1 - 11.04\vivi-codebase\backend\tests\grading_eval_suite\benchmarks\contracts\_proposed\hobby_tvshow_corrected.contract.json` (+ the corrected draft beside it).
+
+
+---
+
+# AMENDMENT H1-A1 (ratified 2026-08-24 — owner ruling, Phase-B message D1)
+
+**The one-line diff vs the first ratified snapshot:** the moved criterion's
+children rename with it — `q2.ב.c6.s0..s3` → `q2.ג.c0.s0..s3` (prefix swap,
+suffixes preserved). This is DL-5's own principle ("ids stay path-honest")
+applied to the terminal level the original proposal didn't know existed
+(`q2.ג.c0` is a branch; its four sub-criteria are the actual terminals — the
+DL-7 finding).
+
+**Ratification line:** "The owner's ruling in this message is the
+re-ratification — record it as H1-A1 (amendment), ratified_by: Noam,
+2026-08-24." Supersede executed per the ruled mechanics: prior snapshot +
+provenance deleted in the supersede commit (git history is the archive),
+`--ratify` re-run; new provenance records DL-5 + DL-6 + DL-7; manifests and
+skeletons regenerated (terminal universe unchanged: 38/fixture, 190 total,
+ids-only delta). A class-closing path-honesty structural guard now runs across
+all five bundles (`test_terminal_ids_are_path_honest_in_all_bundles`).

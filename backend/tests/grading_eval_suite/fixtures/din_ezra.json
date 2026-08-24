@@ -7,7 +7,7 @@
   "exam": "hobby_tvshow (corrected, H1-ratified)",
   "transcription_source": "C:/Users/ariel/Desktop/vivi-v1 - 11.04/vivi-codebase/backend/tests/transcription_eval_suit/draft_benchmarks/din_ezra.md",
   "rubric_source": "../rubric_eval_suite/benchmarks/hobby_tvshow.json (via F0 correction)",
-  "rubric_contract_sha256": "3b208a84e573734f36ee9d831094b16c69cb80510014df69e4f13ade1d2d51a7",
+  "rubric_contract_sha256": "c988eb7d1856f041bf3b1909c83baca7f77a8e67a05a1a2110e00321456839f1",
   "transcription_contract_sha256": "634066f3e66b2e7fe0437e268cd2aa24432f1f880dc01e25ae232db5d5935b0e",
   "built_by": "tools/rebuild_fixtures.py"
  }

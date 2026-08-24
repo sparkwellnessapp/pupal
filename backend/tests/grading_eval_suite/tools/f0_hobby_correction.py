@@ -81,8 +81,16 @@ def apply_recorded_fix(resp: ExtractRubricResponse) -> ExtractRubricResponse:
     moved = sq_b["criteria"].pop(idx)
     assert moved["criterion_id"] == "q2.ב.c6", moved["criterion_id"]
     # [DL-5] path-honest rename — surfaced in the H1 diff for ratification
-    moved["criterion_id"] = "q2.ג.c0"
+    old_id, new_id = moved["criterion_id"], "q2.ג.c0"
+    moved["criterion_id"] = new_id
     moved["index"] = 0
+    # [DL-7 / H1-A1, ratified 2026-08-24] a moved criterion renames its CHILDREN
+    # with it — DL-5's own principle ("ids stay path-honest") applied to the
+    # terminal level the original proposal didn't know existed. Prefix swap
+    # preserves the child's own suffix (q2.ב.c6.s2 -> q2.ג.c0.s2).
+    for sc in moved.get("sub_criteria") or []:
+        assert sc["sub_criterion_id"].startswith(old_id + "."), sc["sub_criterion_id"]
+        sc["sub_criterion_id"] = new_id + sc["sub_criterion_id"][len(old_id):]
 
     q2["sub_questions"].append({
         "sub_question_id": "ג",
@@ -198,9 +206,17 @@ def ratify() -> None:
         "derived_from": "../rubric_eval_suite/benchmarks/hobby_tvshow.json",
         "correction": ("structural_mislabel fix_proposal (recorded in the sibling GT) "
                        "applied verbatim; [DL-5] q2.ב.c6 -> q2.ג.c0; [DL-6] stale "
-                       "pre-fix diagnostics dropped"),
+                       "pre-fix diagnostics dropped; [DL-7/H1-A1] the moved "
+                       "criterion's children renamed with it "
+                       "(q2.ב.c6.s0..s3 -> q2.ג.c0.s0..s3)"),
         "ratified_by": "Noam",
         "date": __import__("time").strftime("%Y-%m-%d"),
+        "amendments": [{
+            "id": "H1-A1",
+            "what": "sub-criterion ids follow the moved criterion (path-honest "
+                    "terminals) — supersedes the 2026-08-24 first ratified snapshot",
+            "ratified_by": "Noam", "date": "2026-08-24",
+        }],
         "staged_by_tool": "tools/f0_hobby_correction.py",
     }
     (RATIFIED_PATH.with_suffix(".provenance.json")).write_text(
