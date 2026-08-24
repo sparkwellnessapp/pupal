@@ -1,0 +1,5 @@
+# Grading eval suite: hash-pinned artifacts (D5) — byte-stable across checkouts.
+# The loader validates sha256 of these files; EOL normalization would break
+# every GT hash pin on a fresh clone. No text conversion, ever.
+backend/tests/grading_eval_suite/benchmarks/** -text
+backend/tests/grading_eval_suite/fixtures/*.json -text
