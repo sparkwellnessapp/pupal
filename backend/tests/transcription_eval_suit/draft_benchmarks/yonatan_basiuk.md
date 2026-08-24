@@ -18,7 +18,7 @@ public class schoolHobbies
 {
     public bool populateHobbies()
     {
-        int string num = ""; bool isSportive = true; int duration = 0;
+        string num = ""; bool isSportive = true; int duration = 0;
 
         if (this.countHobbies == this.hobbies.Length)
             return false; // בדיקה אם מלא
@@ -52,12 +52,12 @@ public class schoolHobbies
 
         return true;
     }
-}
+
 === Q1.ג ===
 public void printAverages()
 {
     double sumSportive = 0;
-    double int sumNoSportive = 0;
+    double sumNoSportive = 0;
     int count = 0;
     int count1 = 0;
 

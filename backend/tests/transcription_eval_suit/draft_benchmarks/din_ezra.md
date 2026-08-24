@@ -95,7 +95,7 @@ public class TvShow
 === Q2.ב ===
 public static string LowestRateChannel(TV rate tv)
 {
-    int[] arr = int[tv]
+    int[] arr = new int[tv]
 
     string min1 = " "; int min = arr[0].getrate();
 
