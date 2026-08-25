@@ -97,3 +97,35 @@ affects: suite_hash SHIFTS (tool + tests + snapshot + manifests + skeletons) —
   scoring/schemas/runner — none of this suite's diff touches rubric files).
   [STOP] F5 — owner blind-grades from the REGENERATED skeletons only.
 corrections: none
+
+## CHANGE 2026-08-25 — SUT change (owner lever): grader-v2-evidence-first decode order
+
+what: the OWNER reordered TerminalGrade's fields (app/agents/grader/schemas.py)
+  to quote_text -> reasoning -> points_awarded -> confidence. Field order flows
+  into the structured-output JSON schema and therefore into DECODE order: the
+  award is generated conditioned on the evidence just located and the reasoning
+  just written — evidence-before-verdict, mechanically enforced. Blast-radius
+  sweep (agent-executed on owner instruction): SYSTEM_PROMPT rules + OUTPUT
+  FORMAT resequenced to match (sentences byte-identical to grader-v1; only
+  order/numbering moved); GRADING_PROMPT_VERSION grader-v1 ->
+  grader-v2-evidence-first (the constant's own bump contract: a change that can
+  affect grades); decode-order PIN added
+  (tests/agents/test_grader_agent.py::test_terminal_grade_decode_order_is_evidence_first
+  — field order + json-schema property order + OUTPUT-FORMAT coaching order);
+  synth.py now stamps drafts with the live constant; config notes +
+  PREDICTIONS P2 updated. Order-safe by construction everywhere else
+  (pydantic forbids positional init; validator/grader/tests access by name;
+  TerminalGrade never persists). Inert literals in test_graded_test_approval /
+  test_revision_flows / test_grading_runner left as fixture data.
+why: owner ruling 2026-08-25 — "the single most promising cheap accuracy lever
+  in grader-v1"; applied PRE-BASELINE, the zero-cost moment (no baseline
+  exists, nothing re-run). R7's "gpt-4o + grader-v1" is hereby AMENDED to
+  gpt-4o + grader-v2-evidence-first; the Phase-C baseline measures the new pin.
+  NOTE (recorded, no action): this is an app/ change executed on explicit owner
+  instruction — the mission's no-production-changes fence is owner-amended for
+  exactly this diff; step-3 items (D6 seam, GRADER_VERSION, _compute_cost)
+  remain fenced.
+affects: Phase-C provenance will stamp prompt_version=grader-v2-evidence-first
+  automatically (runner imports the constant). Suite battery + agent battery
+  green. Blindness untouched: no grade-mode run has ever executed.
+corrections: none

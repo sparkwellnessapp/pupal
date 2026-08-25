@@ -36,6 +36,7 @@ from app.schemas.ontology_types import (
     SubQuestion,
 )
 from app.schemas.transcription import TranscriptionContract, TranscriptionContractAnswer
+from app.agents.grader.prompt import GRADING_PROMPT_VERSION
 
 from .fixtures import FixtureBundle, assemble_bundle
 from .schemas import FixtureGT, ScopeUngradable, TerminalGT
@@ -249,7 +250,7 @@ def make_draft(bundle: FixtureBundle, scope_outcomes: List[ScopeOutcome],
     return GradedTestDraft(
         rubric_contract_version=bundle.rubric_contract.contract_version,
         transcription_contract_version=bundle.transcription_contract.contract_version,
-        model_version="gpt-4o", prompt_version="grader-v1",
+        model_version="gpt-4o", prompt_version=GRADING_PROMPT_VERSION,
         scope_outcomes=scope_outcomes, teacher_overrides={},
         annotations=list(annotations or []),
         unmatched_transcription_answers=[],

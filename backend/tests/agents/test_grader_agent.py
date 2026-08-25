@@ -485,3 +485,24 @@ async def test_no_retry_on_parsing_error():
     failure_anns = [a for a in draft.annotations if a.annotation_type == "llm_failure"]
     assert len(failure_anns) == 1
     assert failure_anns[0].severity == AnnotationSeverity.ERROR
+
+
+# ---------------------------------------------------------------------------
+# grader-v2-evidence-first (2026-08-25): the decode-order pin.
+# ---------------------------------------------------------------------------
+
+def test_terminal_grade_decode_order_is_evidence_first():
+    """Field order IS the mechanism: pydantic definition order -> JSON-schema
+    property order -> structured-output decode order. The award must be decoded
+    AFTER the quote and the reasoning (evidence-before-verdict). An innocent
+    reorder/alphabetization would silently revert the lever — this pins it, and
+    pins that the schema LangChain sends carries the same order."""
+    want = ["terminal_criterion_id", "quote_text", "reasoning",
+            "points_awarded", "confidence"]
+    assert list(TerminalGrade.model_fields) == want
+    assert list(TerminalGrade.model_json_schema()["properties"]) == want
+    # the prompt's OUTPUT FORMAT section must coach the same sequence
+    from app.agents.grader.prompt import SYSTEM_PROMPT
+    fmt = SYSTEM_PROMPT[SYSTEM_PROMPT.index("OUTPUT FORMAT"):]
+    positions = [fmt.index(f) for f in want]
+    assert positions == sorted(positions), "OUTPUT FORMAT order drifted from the schema"

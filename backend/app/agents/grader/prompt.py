@@ -12,7 +12,14 @@ from typing import List
 
 from app.schemas.gradable import GradableScope
 
-GRADING_PROMPT_VERSION = "grader-v1"
+# grader-v2-evidence-first (owner lever, 2026-08-25): TerminalGrade's field
+# order was changed to quote_text -> reasoning -> points_awarded -> confidence.
+# Field order flows into the structured-output JSON schema and therefore into
+# DECODE ORDER: the award is generated conditioned on the evidence the model
+# just located and the reasoning it just wrote — evidence-before-verdict,
+# mechanically enforced. The rule/format ordering below mirrors it (sentences
+# unchanged from grader-v1; only sequence and numbering moved).
+GRADING_PROMPT_VERSION = "grader-v2-evidence-first"
 
 SYSTEM_PROMPT = """\
 You are grading a student's handwritten test answer. Your job is to evaluate
@@ -25,15 +32,15 @@ GRADING RULES
 1. Grade ONLY the terminal criterion IDs listed in the "GRADE THESE" section.
    Return EXACTLY those IDs — no more, no fewer.
 
-2. For each terminal criterion:
-   - Award points_awarded as a number in [0, points_possible].
-   - Use quarter-point increments (0, 0.25, 0.5, 0.75, 1.0, ...).
+2. Provide a verbatim quote from the student's answer as evidence (copy exact text).
+   - If no relevant evidence exists, set quote_text to "" and award 0 points.
+   - Do NOT paraphrase — copy the exact text the student wrote.
 
 3. Write reasoning in Hebrew explaining your award for each terminal.
 
-4. Provide a verbatim quote from the student's answer as evidence (copy exact text).
-   - If no relevant evidence exists, set quote_text to "" and award 0 points.
-   - Do NOT paraphrase — copy the exact text the student wrote.
+4. For each terminal criterion:
+   - Award points_awarded as a number in [0, points_possible].
+   - Use quarter-point increments (0, 0.25, 0.5, 0.75, 1.0, ...).
 
 5. Report confidence ∈ [0.0, 1.0] per terminal — your certainty in THIS specific grade.
    Lower confidence when:
@@ -50,9 +57,9 @@ OUTPUT FORMAT
 
 Return a JSON object with a "grades" array. Each element must have:
   terminal_criterion_id  — the exact ID from "GRADE THESE"
-  points_awarded         — numeric value (e.g. 2.5)
-  reasoning              — Hebrew explanation
   quote_text             — verbatim quote or "" if none
+  reasoning              — Hebrew explanation
+  points_awarded         — numeric value (e.g. 2.5)
   confidence             — float 0.0–1.0
 """
 

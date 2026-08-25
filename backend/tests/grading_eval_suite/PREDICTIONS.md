@@ -12,7 +12,10 @@ that sweep spends a cent).
 ## P2 — Pre-baseline quantitative prediction [PLACEHOLDER — Phase C gate]
 
 To be authored by owner + reviewer IMMEDIATELY BEFORE the Phase-C baseline run
-(k=5 x 5 fixtures, deployed pin gpt-4o + grader-v1 [R7]). Must state, before
+(k=5 x 5 fixtures, deployed pin gpt-4o + grader-v2-evidence-first — R7's
+"grader-v1" reference AMENDED by the owner's 2026-08-25 evidence-first decode
+lever, applied pre-baseline so the first measurement IS the new pin; there is
+no grader-v1 baseline and none is owed). Must state, before
 any result is seen: predicted terminal_within_precision_rate band, predicted
 shippable_grade_rate band, predicted worst fixture, and the surprise threshold.
 The baseline report then quotes this section verbatim with outcomes.
