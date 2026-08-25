@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import datetime as _dt
 import hashlib
 import json
@@ -37,7 +38,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
 
-from app.agents.grader.prompt import GRADING_PROMPT_VERSION
+from app.agents.grader.prompt import GRADING_PROMPT_VERSION, effective_prompt_version
 from app.schemas.graded_test_draft import GradedTestDraft
 from app.services.transcription.two_phase.instrument import cost_usd
 from app.services.transcription.vlm_provider import Usage
@@ -117,9 +118,22 @@ def _suite_hash() -> str:
     return h.hexdigest()[:16]
 
 
+def _apply_prior_context_flag(config: dict) -> bool:
+    """[PR-G1 item 4] config key prior_context (default false) -> the env flag
+    the prompt layer reads. Set explicitly BOTH ways so a stale ambient value
+    can never leak into a run; returns the effective state for provenance."""
+    on = bool(config.get("prior_context", False))
+    if on:
+        os.environ["GRADER_PRIOR_CONTEXT_ENABLED"] = "1"
+    else:
+        os.environ.pop("GRADER_PRIOR_CONTEXT_ENABLED", None)
+    return on
+
+
 def _provenance(config_name: str, config: dict, spec: ModelSpec, *,
                 mode: str, k: int, fixtures: List[str],
-                scopes: Optional[List[str]]) -> Dict[str, Any]:
+                scopes: Optional[List[str]],
+                gt_sources: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     import dataclasses
     prov = {
         "config": config_name, "mode": mode, "k": k, "fixtures": fixtures,
@@ -129,7 +143,11 @@ def _provenance(config_name: str, config: dict, spec: ModelSpec, *,
         "models": {spec.key: {"model_id": spec.model_id, "provider": spec.provider,
                               "tier": spec.tier,
                               "price": dataclasses.asdict(spec.price)}},
-        "prompt_version": GRADING_PROMPT_VERSION,
+        # [PR-G1 item 4] stamped version is a pure function of code + flag
+        "prompt_version": effective_prompt_version(),
+        "prior_context": bool(config.get("prior_context", False)),
+        # [M1] gt_source surfaced per fixture in results.json
+        "gt_sources": gt_sources or {},
         "suite_hash": _suite_hash(),
         "timestamp": _dt.datetime.now().isoformat(timespec="seconds"),
         "cost_ceiling": config.get("cost_ceiling"),
@@ -248,6 +266,7 @@ def run_grade(config_name: str, fixture_names: List[str], *, k: int,
     config = _load_config(config_name, suite_dir=suite_dir)
     spec = model_spec(config["model_key"])
     _assert_model_pin(spec)                                     # [DL-4]
+    _apply_prior_context_flag(config)                           # [PR-G1 item 4]
     cost_ceiling = float(config.get("cost_ceiling", 0.10))      # [§6 Tier-1]
     provisional = (k == 1) or bool(scopes)
 
@@ -283,7 +302,8 @@ def run_grade(config_name: str, fixture_names: List[str], *, k: int,
         print(f"[grade] {bundle.name}: {k} trial(s) done")
 
     prov = _provenance(config_name, config, spec, mode="grade", k=k,
-                       fixtures=[b.name for b in bundles], scopes=scopes)
+                       fixtures=[b.name for b in bundles], scopes=scopes,
+                       gt_sources={b.name: b.gt.gt_source for b in bundles})
     suite = SuiteResult(provenance=prov, trials=trials)
     suite.aggregates = reporting.aggregate(trials, k=k)
     reporting.write_results(suite, out_dir)
@@ -305,6 +325,7 @@ def run_score_only(config_name: str, run_dir: Path, *,
                    suite_dir: Path = SUITE_DIR) -> Path:
     config = _load_config(config_name, suite_dir=suite_dir)
     spec = model_spec(config["model_key"])
+    _apply_prior_context_flag(config)                           # [PR-G1 item 4]
     cost_ceiling = float(config.get("cost_ceiling", 0.10))
     drafts_dir = Path(run_dir) / "drafts"
     if not drafts_dir.exists():
@@ -330,6 +351,7 @@ def run_score_only(config_name: str, run_dir: Path, *,
     for fixture, rows in sorted(by_fixture.items()):
         bundle = load_bundle(fixture, suite_dir=suite_dir, require_gt=True)   # [R1]
         assert_blind_sequencing(fixture, bundle.gt, suite_dir / "results")     # [R1]
+        gt_sources[fixture] = bundle.gt.gt_source                              # [M1]
         for ridx, draft, meta in sorted(rows):
             meta = {**meta, "trial_index": ridx}
             trials.append(_score_pair(draft, meta, bundle,
@@ -339,8 +361,10 @@ def run_score_only(config_name: str, run_dir: Path, *,
 
     ts_name = time.strftime("%Y%m%d-%H%M%S")
     out_dir = suite_dir / "results" / f"{ts_name}_{config_name}_rescore"
+    gt_sources: Dict[str, str] = {}
     prov = _provenance(config_name, config, spec, mode="score_only", k=k,
-                       fixtures=sorted(by_fixture), scopes=None)
+                       fixtures=sorted(by_fixture), scopes=None,
+                       gt_sources=gt_sources)
     prov["rescored_run"] = str(run_dir)
     suite = SuiteResult(provenance=prov, trials=trials)
     suite.aggregates = reporting.aggregate(trials, k=k)

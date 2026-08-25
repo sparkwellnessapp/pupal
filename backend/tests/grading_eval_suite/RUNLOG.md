@@ -129,3 +129,48 @@ affects: Phase-C provenance will stamp prompt_version=grader-v2-evidence-first
   automatically (runner imports the constant). Suite battery + agent battery
   green. Blindness untouched: no grade-mode run has ever executed.
 corrections: none
+
+## CHANGE 2026-08-25 — PR-G1 v2: prefix-context seam (RATIFIED) + round-0 carryover
+
+carryover (M1 + version + dispositions): FixtureGT gains the M1 provenance
+  classes — gt_source now {teacher_manual, teacher_validated,
+  production_approval}; teacher_validated requires blind:false + proposed_by +
+  validated_by (loader refuses blind:true on it; refuses missing attribution);
+  v0 GATES on the teacher_validated class per owner ruling; production_approval
+  stays non-gating; gt_source surfaced in results.json provenance + summary.md.
+  Landed BEFORE any GT file is committed (benchmarks/gt/ holds skeletons only —
+  verified). GRADING_PROMPT_VERSION canonicalized "grader-v2-evidence-first" ->
+  "grader-v2" (decode-order lever unchanged; pin test green). PREDICTIONS
+  dispositions appended: P4 WITHDRAWN-UNMEASURABLE, E1 OVERTAKEN-BY-OWNER-
+  ACTION, E3 RESOLVED-BY-ARGUMENT. Skeleton-header regen to M1 form: SKIPPED
+  (optional per ruling — owner grading now; M1 fields default null).
+what (the seam): PriorPartContext {sub_question_id, sub_question_text,
+  example_solution, student_answer_text, answer_missing} — owner-ratified
+  shape, prior criteria + prior awarded points DELIBERATELY EXCLUDED;
+  GradableScope.prior_parts (additive, default []). Compiler populates
+  prefix-only, document order, per question (leaf-level accumulation: equals
+  "all preceding sub-questions" at depth-1; preceding LEAVES in reading order
+  when nested; parent splitters contribute nothing); direct-criteria + first
+  parts get []. Prompt: flag GRADER_PRIOR_CONTEXT_ENABLED (default OFF) —
+  ON renders parent QUESTION -> prior parts (text -> example solution ->
+  answer, «לא נענה» when missing) under the ruled Hebrew header -> current
+  material exactly as today; OFF is BYTE-IDENTICAL to the pre-change renderer
+  (sha256 pin c575112f6d85237e..., captured pre-change, green post-change).
+  Version integrity: stamped prompt_version = pure function of code + flag
+  (grader-v2 / grader-v2+priorctx) — grader.py's two stamp sites now call
+  effective_prompt_version() (MINIMAL enabling touch outside the named files;
+  item 4 is unsatisfiable without it — disclosed). Eval runner: config key
+  prior_context (default false) -> env flag set explicitly both ways ->
+  stamped in provenance; baseline runs OFF; the E4 run's single variable is
+  the flag flip.
+red-first: 6 reds captured pre-implementation (compiler prefix, on-path
+  render, version mapping, 3x M1 loader); off-path byte-pin + OV-1 overlap
+  pin green pre AND post (affirmation pins). OV-1 ruling recorded in the pin:
+  quote validation is an existence check, never exclusivity; within-scope
+  overlap legal for v0; any future constraint = owner ruling + Tier-3 counter
+  first, never a validity gate.
+affects: terminal universe UNCHANGED (all five bundles, 38/fixture, 190 total
+  — pinned by test_terminal_universe_unchanged_after_prior_context_seam);
+  nothing the suite hashes moved (prior_parts is compiler output). suite_hash
+  shifts (instrument files). E4 registered verbatim in PREDICTIONS.
+corrections: none

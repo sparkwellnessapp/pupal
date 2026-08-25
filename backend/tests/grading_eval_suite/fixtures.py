@@ -128,6 +128,19 @@ def _validate_gt(gt: FixtureGT, bundle_name: str,
         raise GTValidationError(
             f"{bundle_name}: gt_source=teacher_manual requires blind: true (R1).")
 
+    # [M1, owner-ratified 2026-08-25] teacher_validated: agent-proposed,
+    # owner-validated — honestly non-blind, with both parties on record.
+    # v0 gates on this class per owner ruling.
+    if gt.gt_source == "teacher_validated":
+        if gt.blind:
+            raise GTValidationError(
+                f"{bundle_name}: gt_source=teacher_validated requires blind: false "
+                f"(M1) — a validated GT must not claim blindness.")
+        if not gt.proposed_by or not gt.validated_by:
+            raise GTValidationError(
+                f"{bundle_name}: gt_source=teacher_validated requires proposed_by "
+                f"AND validated_by (M1 attribution).")
+
     # duplicates
     seen: set = set()
     for t in gt.terminals:

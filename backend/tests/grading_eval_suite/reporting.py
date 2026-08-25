@@ -196,6 +196,8 @@ def write_summary(suite: SuiteResult, out_dir: Path) -> Path:
              f"`{prov.get('model_version')}`  prompt_version: `{prov.get('prompt_version')}`")
     L.append(f"- registry_as_of: `{prov.get('registry_as_of')}`  suite_hash: "
              f"`{prov.get('suite_hash')}`  timestamp: {prov.get('timestamp')}")
+    L.append(f"- prior_context: {prov.get('prior_context')}  "        # [PR-G1]
+             f"gt_sources: {prov.get('gt_sources')}")                 # [M1]
     L.append("")
     L.append(f"**Validity:** {a.get('n_valid')}/{a.get('n_trials')} trials valid"
              + (f" — invalid: {a.get('invalid_reasons')}" if a.get("n_invalid") else ""))

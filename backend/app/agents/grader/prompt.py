@@ -12,14 +12,32 @@ from typing import List
 
 from app.schemas.gradable import GradableScope
 
-# grader-v2-evidence-first (owner lever, 2026-08-25): TerminalGrade's field
-# order was changed to quote_text -> reasoning -> points_awarded -> confidence.
-# Field order flows into the structured-output JSON schema and therefore into
-# DECODE ORDER: the award is generated conditioned on the evidence the model
-# just located and the reasoning it just wrote — evidence-before-verdict,
-# mechanically enforced. The rule/format ordering below mirrors it (sentences
-# unchanged from grader-v1; only sequence and numbering moved).
-GRADING_PROMPT_VERSION = "grader-v2-evidence-first"
+# grader-v2 (owner lever, 2026-08-25; canonical name ruled in the PR-G1 v2
+# carryover — supersedes the interim "grader-v2-evidence-first" string):
+# TerminalGrade's field order is quote_text -> reasoning -> points_awarded ->
+# confidence. Field order flows into the structured-output JSON schema and
+# therefore into DECODE ORDER: the award is generated conditioned on the
+# evidence the model just located and the reasoning it just wrote —
+# evidence-before-verdict, mechanically enforced. The rule/format ordering
+# below mirrors it (sentences unchanged from grader-v1; only sequence moved).
+GRADING_PROMPT_VERSION = "grader-v2"
+
+# PR-G1 v2 (RATIFIED 2026-08-25): the prefix-context seam, gated by env flag.
+# The stamped prompt_version is a PURE FUNCTION of code + flag:
+#   flag off -> "grader-v2"          (rendered prompt byte-identical to today)
+#   flag on  -> "grader-v2+priorctx" (prior parts rendered in exam reading order)
+_PRIOR_CONTEXT_FLAG = "GRADER_PRIOR_CONTEXT_ENABLED"
+
+_PRIOR_PARTS_HEADER = "חלקים קודמים — להקשר בלבד: אין לנקד אותם ואין לצטט מתוכם"
+
+
+def prior_context_enabled() -> bool:
+    import os
+    return os.environ.get(_PRIOR_CONTEXT_FLAG, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def effective_prompt_version() -> str:
+    return GRADING_PROMPT_VERSION + ("+priorctx" if prior_context_enabled() else "")
 
 SYSTEM_PROMPT = """\
 You are grading a student's handwritten test answer. Your job is to evaluate
@@ -89,6 +107,27 @@ def build_user_message(scope: GradableScope) -> str:
     parts.append("═══════════════════════════════════════════════════════════════════════════════")
     if scope.question_text:
         parts.append(scope.question_text)
+
+    # ── PR-G1 v2: prior parts, exam reading order (flag-gated) ──────────────
+    # Inserted between the parent stem and the current part — exactly where
+    # the student read them. When the flag is off (or there are no priors)
+    # this block emits NOTHING and the render is byte-identical to grader-v2
+    # (pinned by test_flag_off_prompt_byte_identical_to_prechange).
+    if prior_context_enabled() and scope.prior_parts:
+        parts.append("")
+        parts.append(_PRIOR_PARTS_HEADER)
+        for pp in scope.prior_parts:
+            parts.append("")
+            parts.append(f"--- תת-שאלה {pp.sub_question_id} ---")
+            if pp.sub_question_text:
+                parts.append(pp.sub_question_text)
+            if pp.example_solution:
+                parts.append("פתרון לדוגמה:")
+                parts.append(pp.example_solution)
+            parts.append("תשובת התלמיד:")
+            parts.append("«לא נענה»" if (pp.answer_missing or not pp.student_answer_text)
+                          else pp.student_answer_text)
+
     if scope.sub_question_text:
         parts.append("")
         parts.append("SUB-QUESTION:")

@@ -12,9 +12,9 @@ that sweep spends a cent).
 ## P2 — Pre-baseline quantitative prediction [PLACEHOLDER — Phase C gate]
 
 To be authored by owner + reviewer IMMEDIATELY BEFORE the Phase-C baseline run
-(k=5 x 5 fixtures, deployed pin gpt-4o + grader-v2-evidence-first — R7's
+(k=5 x 5 fixtures, deployed pin gpt-4o + grader-v2 — R7's
 "grader-v1" reference AMENDED by the owner's 2026-08-25 evidence-first decode
-lever, applied pre-baseline so the first measurement IS the new pin; there is
+lever (canonical version name "grader-v2" per the PR-G1 carryover), applied pre-baseline so the first measurement IS the new pin; there is
 no grader-v1 baseline and none is owed). Must state, before
 any result is seen: predicted terminal_within_precision_rate band, predicted
 shippable_grade_rate band, predicted worst fixture, and the surprise threshold.
@@ -31,3 +31,17 @@ diagnostic-only, never a gate, never the scorer-of-record.
 
 Per the PLAYBOOK STOP list: no threshold gates Tier-2/3 until candidates are
 pre-registered HERE from the measured baseline distribution.
+
+## Dispositions (2026-08-25, append-only — predictions registered in the owner's design-partner session)
+
+- **P4 — WITHDRAWN-UNMEASURABLE**
+- **E1 — OVERTAKEN-BY-OWNER-ACTION**
+- **E3 — RESOLVED-BY-ARGUMENT**
+
+## E4 (registered 2026-08-25, pre-baseline)
+
+"E4 (registered 2026-08-25, pre-baseline): enabling GRADER_PRIOR_CONTEXT_ENABLED
+improves terminal agreement specifically on sub-questions whose grading
+references prior parts, with no regression on non-referencing terminals and
+bounded input-token growth (read from existing per-scope token capture).
+Single variable: the flag."

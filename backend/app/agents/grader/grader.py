@@ -38,7 +38,7 @@ from app.schemas.ontology_types import (
     FlagReason,
     NumericPolicy,
 )
-from app.agents.grader.prompt import GRADING_PROMPT_VERSION, SYSTEM_PROMPT, build_user_message
+from app.agents.grader.prompt import GRADING_PROMPT_VERSION, SYSTEM_PROMPT, build_user_message, effective_prompt_version
 from app.agents.grader.schemas import QuestionGradingResponse
 from app.agents.grader.validator import ValidatedTerminalGrade, validate_scope_grading
 
@@ -483,7 +483,7 @@ class GraderAgent:
                 "rubric_contract_version": gradable_test.rubric_contract_version,
                 "transcription_contract_version": gradable_test.transcription_contract_version,
                 "model_version": settings.openai_model,
-                "prompt_version": GRADING_PROMPT_VERSION,
+                "prompt_version": effective_prompt_version(),   # PR-G1 item 4: code+flag
                 "llm_calls_count": llm_calls,
                 "grading_duration_ms": duration_ms,
                 "scope_count": len(scope_outcomes),
@@ -499,7 +499,7 @@ class GraderAgent:
             rubric_contract_version=gradable_test.rubric_contract_version,
             transcription_contract_version=gradable_test.transcription_contract_version,
             model_version=settings.openai_model,
-            prompt_version=GRADING_PROMPT_VERSION,
+            prompt_version=effective_prompt_version(),   # PR-G1 item 4
             scope_outcomes=scope_outcomes,
             teacher_overrides={},
             annotations=all_annotations,

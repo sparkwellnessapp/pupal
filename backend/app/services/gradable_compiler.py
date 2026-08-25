@@ -21,6 +21,7 @@ import re
 from typing import Dict, List, Optional, Set, Tuple
 
 from ..schemas.gradable import (
+    PriorPartContext,
     GradableCriterion,
     GradableScope,
     GradableSubCriterion,
@@ -80,6 +81,7 @@ def _emit_leaf_scopes(
     scopes: List[GradableScope],
     fallback_scopes: List[str],
     inherited_answer: Optional[str],
+    prior_acc: List[PriorPartContext],
 ) -> None:
     """Emit one GradableScope per LEAF of the sub-question tree (PR-3).
 
@@ -117,6 +119,7 @@ def _emit_leaf_scopes(
                 scopes=scopes,
                 fallback_scopes=fallback_scopes,
                 inherited_answer=answer_for_subtree,
+                prior_acc=prior_acc,
             )
         return   # a parent is NOT a scope — its criteria live on its leaves
 
@@ -140,6 +143,23 @@ def _emit_leaf_scopes(
         sub_question_text=sq.text,
         student_answer_text=answer_text,
         alignment="matched" if answer_text is not None else "answer_missing",
+        # PR-G1 v2 (2026-08-25): the PREFIX of parts already emitted for this
+        # question, in document order — a snapshot BEFORE this leaf joins it
+        # (prefix-only: never current, never subsequent).
+        prior_parts=list(prior_acc),
+    ))
+    # This leaf now becomes prior context for every later part of the question.
+    # Leaf-level accumulation: for depth-1 rubrics this is exactly "all
+    # preceding sub-questions"; for nested rubrics it is the preceding LEAVES
+    # in exam reading order (a parent splitter emits no scope and contributes
+    # no context of its own). Sliced purely from the two frozen contracts —
+    # no new inputs, determinism boundary unmoved, terminal lists untouched.
+    prior_acc.append(PriorPartContext(
+        sub_question_id=path,
+        sub_question_text=sq.text or "",
+        example_solution=sq.example_solution,
+        student_answer_text=answer_text,
+        answer_missing=answer_text is None,
     ))
 
 
@@ -169,6 +189,7 @@ def compile(  # noqa: A001 — shadows built-in; intentional, matches ContractCo
         q_num = _q_num(question.question_id, i)
 
         if question.sub_questions:
+            prior_acc: List[PriorPartContext] = []   # PR-G1: per-question prefix
             # PR-3 — SCOPES ARE LEAVES, AT ANY DEPTH.
             #
             # This loop used to walk ONE level and read `sq.criteria` (flat). On a
@@ -192,6 +213,7 @@ def compile(  # noqa: A001 — shadows built-in; intentional, matches ContractCo
                     scopes=scopes,
                     fallback_scopes=fallback_scopes,
                     inherited_answer=None,
+                    prior_acc=prior_acc,
                 )
 
         else:

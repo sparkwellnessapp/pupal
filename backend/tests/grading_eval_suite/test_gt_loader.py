@@ -167,3 +167,44 @@ def test_blind_sequencing_ignores_other_fixtures(tmp_path):
     (old_run / "other_r0.json").write_text("{}", encoding="utf-8")
     gt = _gt(authored_at="2026-08-24T10:00:00")
     assert_blind_sequencing("hobby", gt, results)   # different fixture: no violation
+
+
+# ---------------------------------------------------------------------------
+# M1 provenance amendment (owner-ratified, carryover 2026-08-25):
+# gt_source ∈ {teacher_manual, teacher_validated, production_approval};
+# teacher_validated requires blind: false + proposed_by + validated_by.
+# v0 gates on the teacher_validated class per owner ruling;
+# production_approval stays non-gating.
+# ---------------------------------------------------------------------------
+
+M1_STAMP = dict(gt_source="teacher_validated", blind=False,
+                proposed_by="claude-fable-5 (design-partner session)",
+                validated_by="Noam")
+
+
+def test_m1_teacher_validated_accepted():
+    gt = synth.make_gt(synth.GT_PERFECT, **M1_STAMP)
+    bundle = synth.make_bundle(gt)
+    assert bundle.gt.gt_source == "teacher_validated"
+    assert bundle.gt.proposed_by and bundle.gt.validated_by
+
+
+def test_m1_teacher_validated_refuses_blind_true():
+    gt = synth.make_gt(synth.GT_PERFECT, **{**M1_STAMP, "blind": True})
+    with pytest.raises(GTValidationError, match="teacher_validated"):
+        synth.make_bundle(gt)
+
+
+def test_m1_teacher_validated_requires_attribution():
+    for drop in ("proposed_by", "validated_by"):
+        stamp = {**M1_STAMP, drop: None}
+        gt = synth.make_gt(synth.GT_PERFECT, **stamp)
+        with pytest.raises(GTValidationError, match="M1"):
+            synth.make_bundle(gt)
+
+
+def test_m1_teacher_manual_still_requires_blind():
+    # the original R1 class is unchanged by M1
+    gt = synth.make_gt(synth.GT_PERFECT, blind=False)
+    with pytest.raises(GTValidationError, match="blind"):
+        synth.make_bundle(gt)

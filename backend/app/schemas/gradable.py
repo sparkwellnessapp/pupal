@@ -51,6 +51,26 @@ class GradableCriterion(BaseModel):
         return str(v)
 
 
+class PriorPartContext(BaseModel):
+    """PR-G1 v2 (RATIFIED 2026-08-25): read-only context about one PRECEDING
+    sub-question of the same question — the prefix the student had already
+    answered when they wrote the current part.
+
+    OWNER-RATIFIED SHAPE — prior criteria and prior awarded points are
+    DELIBERATELY EXCLUDED; do not add them. The context exists so the grader
+    can resolve references ("כמו בסעיף א"), never to grade or re-grade the
+    prior part.
+    """
+
+    model_config = {"frozen": True}
+
+    sub_question_id: str                       # full path within the question
+    sub_question_text: str
+    example_solution: Optional[str] = None
+    student_answer_text: Optional[str] = None
+    answer_missing: bool = False
+
+
 class GradableScope(BaseModel):
     """
     One gradable unit — either a direct-criteria question or a single sub-question.
@@ -89,6 +109,12 @@ class GradableScope(BaseModel):
     # Student's answer for this scope
     student_answer_text: Optional[str] = None  # None when alignment == "answer_missing"
     alignment: Literal["matched", "answer_missing", "scope_not_in_contract"]
+
+    # PR-G1 v2 (2026-08-25): prefix-only prior-part context — all preceding
+    # parts of the same question in document order; NEVER the current part,
+    # never subsequent ones. [] for direct-criteria questions and first parts.
+    # Additive with a safe default: existing constructors are untouched.
+    prior_parts: List[PriorPartContext] = Field(default_factory=list)
 
     @field_serializer("points")
     def _sp(self, v: Decimal) -> str:

@@ -78,3 +78,25 @@ from "model fabricated evidence" [DL-2 stays a model-side rule].
 n=5, ONE exam (hobby_tvshow corrected). No selection-group exam; no depth-2
 nested rubric (parent-fallback unexercised); no fluent-but-wrong answer; no
 all-blank test. Every rate is PROVISIONAL until n>=10 across >=2 exams.
+
+
+---
+
+# AMENDMENT M1 (owner-ratified 2026-08-25) — GT provenance classes
+
+`gt_source ∈ {teacher_manual, teacher_validated, production_approval}`:
+
+| Class | Requirements | Gating |
+|---|---|---|
+| `teacher_manual` | `blind: true` [R1] — owner authors from rubric + transcription only | gates (original class) |
+| `teacher_validated` | `blind: false` + `proposed_by` + `validated_by` — agent-proposed judgments, owner-validated, both parties on record | **v0 gates on this class per owner ruling** |
+| `production_approval` | flywheel imports [D10] | stays NON-gating |
+
+Loader enforcement (fixtures.py): `teacher_validated` with `blind: true` is
+refused (a validated GT must not claim blindness); missing attribution is
+refused. `gt_source` is surfaced per fixture in `results.json` provenance and
+`summary.md`. The session-emitted GTs carry
+`gt_source: teacher_validated, proposed_by: "claude-fable-5 (design-partner
+session)", validated_by: "Noam", blind: false`. Skeleton-header regeneration
+to M1 form is optional (owner grading in progress); the loader accepts both
+header forms since the M1 fields default to null.

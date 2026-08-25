@@ -126,3 +126,15 @@ def test_terminal_ids_are_path_honest_in_all_bundles():
                     if not sc.sub_criterion_id.startswith(criterion.criterion_id + "."):
                         offenders.append((name, criterion.criterion_id, sc.sub_criterion_id))
     assert not offenders, f"path-dishonest ids (child not prefixed by parent): {offenders}"
+
+
+def test_terminal_universe_unchanged_after_prior_context_seam():
+    """[PR-G1 item 6] the seam is additive: all five bundles load, 38 terminals
+    each (190 judgments), hash pins green — nothing the suite hashes moves."""
+    from .fixtures import load_bundle
+    total = 0
+    for name in FIVE_DOCS:
+        bundle = load_bundle(name, require_gt=False)
+        assert len(bundle.terminal_infos) == 38, (name, len(bundle.terminal_infos))
+        total += len(bundle.terminal_infos)
+    assert total == 190

@@ -18,7 +18,7 @@ from pydantic import BaseModel
 class TerminalGrade(BaseModel):
     """LLM's grade for one terminal criterion (leaf grading unit).
 
-    FIELD ORDER IS LOAD-BEARING (grader-v2-evidence-first, 2026-08-25): pydantic
+    FIELD ORDER IS LOAD-BEARING (grader-v2, 2026-08-25): pydantic
     preserves definition order into the JSON schema's properties, which sets the
     structured-output DECODE order — the model locates evidence, writes its
     reasoning, and only then commits the award (evidence-before-verdict,

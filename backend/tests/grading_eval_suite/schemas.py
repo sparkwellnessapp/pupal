@@ -50,10 +50,15 @@ class FixtureGT(BaseModel):
     fixture: str
     rubric_contract_hash: str             # sha256 of the snapshot file bytes [D5]
     transcription_contract_hash: str      # sha256 of the snapshot file bytes [D5]
-    gt_source: Literal["teacher_manual", "production_approval"]  # [D10] flywheel hook (importer NOT v0)
+    # [M1, owner-ratified 2026-08-25] three provenance classes. v0 GATES on the
+    # teacher_validated class per owner ruling; production_approval stays
+    # non-gating ([D10] flywheel hook — importer NOT v0).
+    gt_source: Literal["teacher_manual", "teacher_validated", "production_approval"]
     authored_by: str
     authored_at: str                      # ISO-8601; the R1 blind-sequencing anchor
-    blind: bool                           # [R1] must be true for teacher_manual
+    blind: bool                           # [R1] true for teacher_manual; FALSE for teacher_validated [M1]
+    proposed_by: Optional[str] = None     # [M1] required for teacher_validated
+    validated_by: Optional[str] = None    # [M1] required for teacher_validated
     terminals: List[TerminalGT]
     ungradable_scopes: List[ScopeUngradable] = Field(default_factory=list)
 
