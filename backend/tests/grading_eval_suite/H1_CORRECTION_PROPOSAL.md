@@ -65,3 +65,32 @@ provenance deleted in the supersede commit (git history is the archive),
 skeletons regenerated (terminal universe unchanged: 38/fixture, 190 total,
 ids-only delta). A class-closing path-honesty structural guard now runs across
 all five bundles (`test_terminal_ids_are_path_honest_in_all_bundles`).
+
+
+---
+
+# AMENDMENT H1-A2 (ratified 2026-08-25 — owner ruling, this session) — embedded model solutions
+
+**The diff vs the H1-A1 snapshot:** the six ratified model solutions are
+embedded into the six sub-questions' `example_solution` fields (q1.א/ב/ג,
+q2.א/ב/ג). Content is the fenced blocks of
+`benchmarks/contracts/_sources/model_solutions_transcription.md` VERBATIM,
+fences stripped, everything else byte-for-byte — Hebrew comments, the stray
+`//` after `new int[101];`, the multiline `if (` formatting, `internal class`.
+No normalization, no reformatting. q2.א = constructor + UpdateRate blocks
+concatenated in that order (images 3+4, one scope).
+
+**Source provenance:** owner-supplied teacher solution screenshots, transcribed
+by claude-fable-5 (conventions T-1/T-2/T-3 ratified with the content), ratified
+by Noam 2026-08-25, one in-review correction (the `minChannel` comment).
+
+**Mechanics:** supersede #2, mirroring H1-A1 — prior snapshot + provenance
+deleted in the supersede commit (git history is the archive), `--ratify`
+re-run; the provenance chain now records H1 + A1 + A2. The tool's template
+regen rewrote this doc again, as predicted by the ruling — restored from HEAD
+first; the original text and the A1 amendment are byte-untouched.
+
+**Consequence for the instrument:** from H1-A2 onward, compiled scopes carry
+model solutions — the baseline measures the grader WITH the EXAMPLE SOLUTION
+section rendered (production-realistic; referent and SUT symmetric). E4 /
+prior_parts unaffected — the flag stays off for the baseline.

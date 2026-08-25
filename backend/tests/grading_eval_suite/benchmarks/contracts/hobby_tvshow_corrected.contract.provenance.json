@@ -2,13 +2,20 @@
  "derived_from": "../rubric_eval_suite/benchmarks/hobby_tvshow.json",
  "correction": "structural_mislabel fix_proposal (recorded in the sibling GT) applied verbatim; [DL-5] q2.ב.c6 -> q2.ג.c0; [DL-6] stale pre-fix diagnostics dropped; [DL-7/H1-A1] the moved criterion's children renamed with it (q2.ב.c6.s0..s3 -> q2.ג.c0.s0..s3)",
  "ratified_by": "Noam",
- "date": "2026-08-24",
+ "date": "2026-08-25",
  "amendments": [
   {
    "id": "H1-A1",
    "what": "sub-criterion ids follow the moved criterion (path-honest terminals) — supersedes the 2026-08-24 first ratified snapshot",
    "ratified_by": "Noam",
    "date": "2026-08-24"
+  },
+  {
+   "id": "H1-A2",
+   "what": "six ratified model solutions embedded into the sub-questions' example_solution fields — supersedes the H1-A1 snapshot",
+   "source": "owner-supplied teacher solution screenshots, transcribed by claude-fable-5 (benchmarks/contracts/_sources/model_solutions_transcription.md); one in-review correction",
+   "ratified_by": "Noam",
+   "date": "2026-08-25"
   }
  ],
  "staged_by_tool": "tools/f0_hobby_correction.py"

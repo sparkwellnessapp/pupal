@@ -1,11 +1,13 @@
 {
  "fixture": "din_ezra",
- "rubric_contract_hash": "c988eb7d1856f041bf3b1909c83baca7f77a8e67a05a1a2110e00321456839f1",
+ "rubric_contract_hash": "480c15cff2face1ee4a2eb9536f3d2b9907a124ae9c6e86654b3100abd314007",
  "transcription_contract_hash": "634066f3e66b2e7fe0437e268cd2aa24432f1f880dc01e25ae232db5d5935b0e",
- "gt_source": "teacher_manual",
+ "gt_source": "teacher_validated",
+ "proposed_by": "claude-fable-5 (design-partner session)",
+ "validated_by": "Noam",
  "authored_by": "Noam",
  "authored_at": "",
- "blind": true,
+ "blind": false,
  "terminals": [
   {
    "terminal_id": "q1.א.c0",

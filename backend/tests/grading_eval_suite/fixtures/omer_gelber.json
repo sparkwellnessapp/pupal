@@ -7,7 +7,7 @@
   "exam": "hobby_tvshow (corrected, H1-ratified)",
   "transcription_source": "C:/Users/ariel/Desktop/vivi-v1 - 11.04/vivi-codebase/backend/tests/transcription_eval_suit/draft_benchmarks/omer_gelber.md",
   "rubric_source": "../rubric_eval_suite/benchmarks/hobby_tvshow.json (via F0 correction)",
-  "rubric_contract_sha256": "c988eb7d1856f041bf3b1909c83baca7f77a8e67a05a1a2110e00321456839f1",
+  "rubric_contract_sha256": "480c15cff2face1ee4a2eb9536f3d2b9907a124ae9c6e86654b3100abd314007",
   "transcription_contract_sha256": "0d604c07ed8005d30e9c0f518a0999ce4fc0cecad3fb4e127f126e24d220c77f",
   "built_by": "tools/rebuild_fixtures.py"
  }

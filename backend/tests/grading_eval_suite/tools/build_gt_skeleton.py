@@ -46,10 +46,14 @@ def build_skeleton(bundle: FixtureBundle) -> dict:
         "fixture": bundle.name,
         "rubric_contract_hash": bundle.rubric_contract_hash or "",
         "transcription_contract_hash": bundle.transcription_contract_hash or "",
-        "gt_source": "teacher_manual",
+        # [M1, 2026-08-25] the ruled v0 GT class: agent-proposed judgments,
+        # owner-validated, both parties on record — honestly non-blind.
+        "gt_source": "teacher_validated",
+        "proposed_by": "claude-fable-5 (design-partner session)",
+        "validated_by": "Noam",
         "authored_by": "Noam",
-        "authored_at": "",                # OWNER stamps at completion (R1 anchor)
-        "blind": True,                    # [R1]
+        "authored_at": "",                # OWNER stamps at completion
+        "blind": False,                   # [M1] validated, not blind
         "terminals": terminals,
         "ungradable_scopes": [],          # [C-2] fill per GRADING_GT_CONVENTIONS
         "_instructions": ("Fill awarded (Decimal string on the precision grid), "

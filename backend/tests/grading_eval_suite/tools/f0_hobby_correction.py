@@ -45,6 +45,10 @@ from app.services.contract_compiler import CompilationError, compile_rubric
 
 SUITE_DIR = Path(__file__).resolve().parents[1]
 SIBLING_GT = SUITE_DIR.parents[0] / "rubric_eval_suite" / "benchmarks" / "hobby_tvshow.json"
+# [H1-A2] the ratified model-solutions transcription (owner-supplied teacher
+# screenshots, transcribed by claude-fable-5, ratified by Noam 2026-08-25;
+# one in-review correction applied). The provenance source artifact.
+SOLUTIONS_SOURCE = SUITE_DIR / "benchmarks" / "contracts" / "_sources" / "model_solutions_transcription.md"
 PROPOSED_DIR = SUITE_DIR / "benchmarks" / "contracts" / "_proposed"
 RATIFIED_PATH = SUITE_DIR / "benchmarks" / "contracts" / "hobby_tvshow_corrected.contract.json"
 PROPOSAL_DOC = SUITE_DIR / "H1_CORRECTION_PROPOSAL.md"
@@ -57,6 +61,27 @@ def load_original() -> ExtractRubricResponse:
 
 def compile_response(resp: ExtractRubricResponse) -> GradingRubricContract:
     return compile_rubric(resp)
+
+
+import re as _re
+
+_SOLUTION_SECTION_RE = _re.compile(
+    r"^## (q\d\.\S+) — example_solution.*?\n```csharp\n(.*?)\n```",
+    _re.MULTILINE | _re.DOTALL)
+
+
+def load_model_solutions() -> dict:
+    """[H1-A2] Parse the ratified source: six fenced blocks keyed by scope.
+    Content is the fenced block VERBATIM, fences stripped, everything else
+    byte-for-byte — no normalization, no reformatting (T-1/T-2/T-3 already
+    applied at transcription time and ratified)."""
+    text = SOLUTIONS_SOURCE.read_text(encoding="utf-8")
+    solutions = {key: body for key, body in _SOLUTION_SECTION_RE.findall(text)}
+    expected = {"q1.א", "q1.ב", "q1.ג", "q2.א", "q2.ב", "q2.ג"}
+    if set(solutions) != expected:
+        raise RuntimeError(f"model-solutions source parsed {sorted(solutions)}; "
+                           f"expected {sorted(expected)}")
+    return solutions
 
 
 def _find_recorded_fix(data: dict) -> dict:
@@ -103,6 +128,16 @@ def apply_recorded_fix(resp: ExtractRubricResponse) -> ExtractRubricResponse:
     # [DL-6] drop the artifacts that describe the pre-fix state
     data["annotations"] = []
     data["pedagogical_mistakes"] = []
+
+    # [H1-A2, ratified 2026-08-25] embed the six ratified model solutions into
+    # the six sub-questions' example_solution fields — corrected draft and
+    # compiled contract stay in sync (the compiler carries the field through).
+    solutions = load_model_solutions()
+    for q in data["questions"]:
+        for sq in q.get("sub_questions") or []:
+            key = f"{q['question_id']}.{sq['sub_question_id']}"
+            if key in solutions:
+                sq["example_solution"] = solutions[key]
     return ExtractRubricResponse.model_validate(data)
 
 
@@ -216,6 +251,14 @@ def ratify() -> None:
             "what": "sub-criterion ids follow the moved criterion (path-honest "
                     "terminals) — supersedes the 2026-08-24 first ratified snapshot",
             "ratified_by": "Noam", "date": "2026-08-24",
+        }, {
+            "id": "H1-A2",
+            "what": "six ratified model solutions embedded into the sub-questions' "
+                    "example_solution fields — supersedes the H1-A1 snapshot",
+            "source": ("owner-supplied teacher solution screenshots, transcribed by "
+                       "claude-fable-5 (benchmarks/contracts/_sources/"
+                       "model_solutions_transcription.md); one in-review correction"),
+            "ratified_by": "Noam", "date": "2026-08-25",
         }],
         "staged_by_tool": "tools/f0_hobby_correction.py",
     }

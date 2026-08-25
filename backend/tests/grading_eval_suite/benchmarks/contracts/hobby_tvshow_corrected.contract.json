@@ -1,6 +1,6 @@
 {
  "schema_version": "2.0",
- "contract_version": "b9bd5c27-0442-4f06-bf3d-cf6cd48040c3",
+ "contract_version": "9a6c82dc-dc00-4362-872c-e2a07402a4a7",
  "rubric_id": "hobby_tvshow",
  "subject": "computer_science",
  "programming_language": "csharp",
@@ -27,7 +27,7 @@
      "title": null,
      "text": "א. כתבו כותרת ותכונות המחלקה Hobby, ואת הפעולה הבונה Hobby  כפי שהוגדרה למעלה.",
      "points": "8",
-     "example_solution": null,
+     "example_solution": "internal class Hobby\n{\n    // תכונות\n    private string hobbyName;        // שם התחביב\n    private bool isSportive;         // האם התחביב ספורטיבי\n    private int durationInMinutes;   // משך הפעילות בדקות (1-60)\n\n    // פעולה בונה\n    public Hobby(string hobbyName, bool isSportive, int minutes)\n    {\n        this.hobbyName = hobbyName;\n        this.isSportive = isSportive;\n        if (minutes >= 0 && minutes <= 60)\n            this.durationInMinutes = minutes;\n        // אם לא בדקתם טווח 0-60 גם בסדר\n    }\n}",
      "criteria": [
       {
        "criterion_id": "q1.א.c0",
@@ -63,7 +63,7 @@
      "title": null,
      "text": "ב. כתבו פעולה פנימית בשם PopulateHobbies.\nהפעולה תבצע קליטת תחביבים מהמשתמש ותוסיף אותם למערך האובייקטים hobbies, בהתאם לכללים הבאים:\nאם המערך מלא ולא ניתן להוסיף אפילו תחביב אחד – הפעולה תחזיר false.\nכל עוד קיים מקום פנוי במערך, הפעולה תקלוט מהמשתמש את כל הנתונים הדרושים ליצירת תחביב.\nעבור כל תחביב שנתוניו נקלטו, ייווצר אובייקט חדש מסוג Hobby, והוא יישמר בתא הפנוי הראשון במערך.\nהקליטה תתבצע בתוך לולאה ותימשך עד ייגמר המקום במערך או עד שהמשתמש יענה \"N\" או \"n\" לשאלה:  \"?Do you want to create another hobby\" (קליטת התשובה: תו בודד (char))\nאם נוסף לפחות תחביב אחד בהצלחה – הפעולה תחזיר true.\nהניחו כי המערך מלא עד המקום הראשון הפנוי - כלומר, אין רווחים עד המקום ה- countHobbies במערך. כל התחביבים מתווספים בסוף המערך.",
      "points": "16",
-     "example_solution": null,
+     "example_solution": "// סעיף ב'\npublic bool PopulateHobbies()\n{\n    // אם המערך מלא מראש\n    if (countHobbies == hobbies.Length)\n        return false;\n\n    bool addedAtLeastOne = false;\n    string answer = \"Y\";\n\n    while (countHobbies < hobbies.Length && answer != \"N\" && answer != \"n\")\n    {\n        Console.WriteLine(\"Enter hobby name:\");\n        string name = Console.ReadLine();\n\n        Console.WriteLine(\"Is the hobby sportive? (true/false):\");\n        bool isSportive = bool.Parse(Console.ReadLine());\n\n        Console.WriteLine(\"Enter duration in minutes (1-60):\");\n        int minutes = int.Parse(Console.ReadLine());\n\n        // יצירת אובייקט חדש והוספה לתא הפנוי הראשון\n        hobbies[countHobbies] = new Hobby(name, isSportive, minutes);\n        countHobbies++;            // מקדמים את המונה מס' העצמים המלאים\n        addedAtLeastOne = true;\n\n        if (countHobbies < hobbies.Length)\n        {\n            Console.WriteLine(\"Do you want to create another hobby? (Y/N)\");\n            answer = Console.ReadLine();\n        }\n    }\n\n    return addedAtLeastOne;\n}",
      "criteria": [
       {
        "criterion_id": "q1.ב.c0",
@@ -171,7 +171,7 @@
      "title": null,
      "text": "ג. כתבו פעולה פנימית בשם PrintAverages  במחלקת SchoolHobbies שמחשבת את ממוצע זמן התחביבים הספורטיביים ואת ממוצע זמן התחביבים הלא ספורטיביים ומדפיסה את שניהם.\nיש להשתמש בפעולות הפנימיות של המחלקה הרלוונטית.\nאי שימוש בפעולות פנימיות יגרור הורדת ניקוד.",
      "points": "16",
-     "example_solution": null,
+     "example_solution": "// סעיף ג'\npublic void PrintAverages()\n{\n    int sportSum = 0, sportCount = 0;\n    int nonSportSum = 0, nonSportCount = 0;\n\n    for (int i = 0; i < countHobbies; i++)\n    {\n        if (hobbies[i].GetIsSportive())\n        {\n            sportSum += hobbies[i].GetDurationInMinutes();\n            sportCount++;\n        }\n        else\n        {\n            nonSportSum += hobbies[i].GetDurationInMinutes();\n            nonSportCount++;\n        }\n    }\n\n    if (sportCount > 0)\n        Console.WriteLine(\"Average duration of sportive hobbies: \" +\n                          (double)sportSum / sportCount);\n    else\n        Console.WriteLine(\"No sportive hobbies (0).\");\n\n    if (nonSportCount > 0)\n        Console.WriteLine(\"Average duration of non-sportive hobbies: \" +\n                          (double)nonSportSum / nonSportCount);\n    else\n        Console.WriteLine(\"No non-sportive hobbies (0).\");\n}",
      "criteria": [
       {
        "criterion_id": "q1.ג.c0",
@@ -295,7 +295,7 @@
      "title": null,
      "text": "א. ממשו את את הפעולה הבונה TvShow  ואת הפעולה הפנימית UpdateRate  כפי שהוגדרו למעלה.  הניחו כי כל הקלטים תקנים.",
      "points": "15",
-     "example_solution": null,
+     "example_solution": "// פעולה בונה לפי סעיף א'\n// מתקבלים name ו-channel\n// קובעים rate = 0 , isOn = true\npublic TvShow(string name, int channel)\n{\n    this.name = name;\n    this.chl = channel;\n    this.rate = 0;\n    this.isOn = true;\n}\n\n// פעולה לניהול קליטת דירוג הצופים (סעיף א)\n// מקבלת מספר צופים\n// קולטת דירוגים עבור כ\"א מהצופים ומוסיפה את הדירוג שנקלט לדירוג הקיים\npublic void UpdateRate(int numViewers)\n{\n    int viewerRate;\n\n    for (int i = 1; i <= numViewers; i++)\n    {\n        Console.WriteLine(\"Enter rating for viewer \" + i + \":\");\n        viewerRate = int.Parse(Console.ReadLine());\n        rate += viewerRate;\n    }\n}",
      "criteria": [
       {
        "criterion_id": "q2.א.c0",
@@ -331,7 +331,7 @@
      "title": null,
      "text": "ב. כתבו פעולה חיצונית בשם LowestRateChannel  המקבלת אובייקט מטיפוס TvRate ומחזירה את מספר הערוץ בעל הדירוג הנמוך ביותר מבין הערוצים כאשר דירוג של ערוץ (chl) הוא סכום הדירוגים (rate) של כל התוכניות המשודרות בערוץ זה.\nניתן להניח כי קיים ערוץ אחד בלבד בעל דירוג נמוך ביותר.\nלצורך פתרון סעיף זה יש להשתמש במערך צוברים . אי שימוש במערך צוברים יגרור הורדת ניקוד.\nג. כתבו פעולה חיצונית PrintLowRatingChannel  המקבלת אובייקט מטיפוס TvRate שמדפיסה את השם של כל התוכניות שמשודרות כעת בערוץ בעל הדירוג הנמוך ביותר.\nיש להשתמש בפעולות הפנימיות והחיצוניות המתאימות.\nאי שימוש בפעולות פנימיות וחיצוניות יגרור הורדת ניקוד.",
      "points": "29",
-     "example_solution": null,
+     "example_solution": "//Q2 - start\n// שאלה 2 סעיף ב\npublic static int LowestRateChannel(TvRate tr)\n{\n    TvShow[] arrTvShows = tr.GetArrShows();\n\n    // מערך צוברים לדירוג ערוצים (אינדקס 1-100)\n    int[] sumRates = new int[101];      //\n\n    // איפוס כל התאים ל-0\n    for (int i = 0; i < sumRates.Length; i++)\n        sumRates[i] = 0;\n\n    // צבירת דירוגים לכל ערוץ\n    for (int i = 0; i < arrTvShows.Length; i++)\n    {\n        if (arrTvShows[i] != null)\n        {\n            int channel = arrTvShows[i].GetChl();\n            sumRates[channel] += arrTvShows[i].GetRate();\n        }\n    }\n\n    // מציאת הערוץ בעל הדירוג הנמוך ביותר\n    int minRate = int.MaxValue;   // כל ערך יהיה נמוך מזה\n    int minChannel = -1;          // מניחים שקיים 1 ורק 1 ערוץ קיים בעל דירוג מינימלי ולכן הערך הזה יוחלף\n\n    for (int chl = 1; chl <= 100; chl++)\n    {\n        // ערוץ שנעשה בו שימוש (יש לו דירוג שנצבר)\n        if (   sumRates[chl] > 0     // קיים דירוג כלשהו לערוץ הזה\n            && sumRates[chl] < minRate)\n        {\n            minRate = sumRates[chl];\n            minChannel = chl;\n        }\n    }\n\n    return minChannel;\n}",
      "criteria": [
       {
        "criterion_id": "q2.ב.c0",
@@ -477,7 +477,7 @@
      "title": null,
      "text": "ג. כתבו פעולה חיצונית PrintLowRatingChannel  המקבלת אובייקט מטיפוס TvRate שמדפיסה את השם של כל התוכניות שמשודרות כעת בערוץ בעל הדירוג הנמוך ביותר.\nיש להשתמש בפעולות הפנימיות והחיצוניות המתאימות.\nאי שימוש בפעולות פנימיות וחיצוניות יגרור הורדת ניקוד.",
      "points": "16",
-     "example_solution": null,
+     "example_solution": "// שאלה 2 סעיף ג\npublic static void PrintLowRatingChannel(TvRate tr)\n{\n    int lowChannel = LowestRateChannel(tr);\n    TvShow[] arr = tr.GetArrShows();\n\n    for (int i = 0; i < arr.Length; i++)\n    {\n        if (arr[i] != null && arr[i].GetChl() == lowChannel && arr[i].GetIsOn())\n        {\n            Console.WriteLine(arr[i].GetName());\n        }\n    }\n}",
      "criteria": [
       {
        "criterion_id": "q2.ג.c0",

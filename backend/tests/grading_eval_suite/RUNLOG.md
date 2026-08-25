@@ -174,3 +174,48 @@ affects: terminal universe UNCHANGED (all five bundles, 38/fixture, 190 total
   nothing the suite hashes moved (prior_parts is compiler output). suite_hash
   shifts (instrument files). E4 registered verbatim in PREDICTIONS.
 corrections: none
+
+## CHANGE 2026-08-25 — H1-A2: ratified model solutions embedded (supersede #2) + dan_basiuk GT landed
+
+prereq: M1 loader change confirmed ALREADY LANDED (PR-G1 v2, commit 71305dc) —
+  dan's teacher_validated GT loads under it.
+what: (1) source artifact committed: benchmarks/contracts/_sources/
+  model_solutions_transcription.md (owner screenshots, transcribed by
+  claude-fable-5, T-1/T-2/T-3 conventions ratified, one in-review correction —
+  minChannel comment; RATIFIED Noam 2026-08-25). (2) RED-FIRST: two new pins
+  (six example_solution fields byte-equal to the ratified blocks incl. the
+  stray '//', the multiline 'if (' formatting, 'internal class', Hebrew
+  comments verbatim; q2.א = constructor+UpdateRate concatenated in order) —
+  red = ImportError + all-six-NONE; plus the D5 hash guard already refusing
+  dan's placeholder-hashed GT mid-supersede (the guard working as designed).
+  (3) tool embeds the six blocks (fences stripped, zero normalization) into
+  draft + compiled contract; SUPERSEDE #2 per H1-A1 mechanics (prior snapshot
+  + provenance deleted in the supersede commit; --ratify re-run; provenance
+  chain H1+A1+A2; H1 doc restored-from-HEAD after the tool's template regen —
+  it DID recur as the ruling predicted — then the A2 Amendment appended;
+  original + A1 text byte-untouched). (4) downstream: 5 manifests re-pinned
+  to rubric sha256 480c15cff2face1e...; transcription snapshots asserted
+  byte-unchanged 5/5; 4 remaining skeletons regenerated with M1 headers
+  (teacher_validated / blind:false / proposed_by / validated_by); dan's
+  obsolete skeleton retired (superseded by the real GT — judgment call,
+  disclosed). (5) dan_basiuk.gt.json landed: sha256 stamped mechanically;
+  authored_at left for the OWNER's commit; full loader guard suite GREEN
+  (totality 38/38, bounds, 0.25 grid, hash pin, M1 provenance); zero judgment
+  fields altered; gt_total via real selection_scoring = 83.5/100. NOTE: grade
+  mode stays refused for dan until authored_at is stamped (fromisoformat on
+  the placeholder raises in the R1 sequencing check — correct, not a bug).
+  (6) delta proof old->new contract: exactly 6 example_solution fields +
+  contract_version — nothing else; universe ids UNCHANGED (38/fixture).
+  (7) byte-identity pin re-anchored DELIBERATELY: split into RENDERER pin
+  (solution-stripped scope reproduces the pre-seam hash c575112f... exactly —
+  renderer never drifted) + renderer+content pin (A2 anchor 5b5d72a2...);
+  skeleton pin updated to the M1 header form. Both are ruled-change pin
+  updates, not instrument weakening.
+provenance note: from H1-A2 onward compiled scopes carry model solutions —
+  the baseline measures the grader WITH the EXAMPLE SOLUTION section rendered
+  (production-realistic; referent and SUT symmetric). E4/prior_parts
+  unaffected — flag off for baseline.
+affects: suite_hash shifts (snapshot + manifests + skeletons + tools + tests
+  + the source artifact) — harmless, pre-baseline, no drafts exist. Batteries
+  83 passed / 1 xfailed; import + collect green. Zero app/ changes; zero spend.
+corrections: none

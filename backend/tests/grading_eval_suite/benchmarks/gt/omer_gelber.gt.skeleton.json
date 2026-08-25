@@ -1,11 +1,13 @@
 {
  "fixture": "omer_gelber",
- "rubric_contract_hash": "c988eb7d1856f041bf3b1909c83baca7f77a8e67a05a1a2110e00321456839f1",
+ "rubric_contract_hash": "480c15cff2face1ee4a2eb9536f3d2b9907a124ae9c6e86654b3100abd314007",
  "transcription_contract_hash": "0d604c07ed8005d30e9c0f518a0999ce4fc0cecad3fb4e127f126e24d220c77f",
- "gt_source": "teacher_manual",
+ "gt_source": "teacher_validated",
+ "proposed_by": "claude-fable-5 (design-partner session)",
+ "validated_by": "Noam",
  "authored_by": "Noam",
  "authored_at": "",
- "blind": true,
+ "blind": false,
  "terminals": [
   {
    "terminal_id": "q1.א.c0",

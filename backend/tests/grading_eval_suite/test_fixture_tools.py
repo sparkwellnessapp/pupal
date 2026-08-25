@@ -95,7 +95,9 @@ def test_gt_skeleton_prepopulates_all_terminals():
     assert set(ids) == set(bundle.terminal_infos)
     assert all(t["awarded"] is None for t in sk["terminals"])       # owner fills
     assert all(t["evidence_exists"] is None for t in sk["terminals"])
-    assert sk["blind"] is True and sk["gt_source"] == "teacher_manual"
+    # [M1/H1-A2] skeletons emit the ruled v0 GT class: teacher_validated
+    assert sk["blind"] is False and sk["gt_source"] == "teacher_validated"
+    assert sk["proposed_by"] and sk["validated_by"] == "Noam"
     assert sk["fixture"] == "synthetic"
     # points shown as authoring aid, but NOT a FixtureGT field (stripped on load)
     assert all("points_possible" in t for t in sk["terminals"])
@@ -138,3 +140,51 @@ def test_terminal_universe_unchanged_after_prior_context_seam():
         assert len(bundle.terminal_infos) == 38, (name, len(bundle.terminal_infos))
         total += len(bundle.terminal_infos)
     assert total == 190
+
+
+# ---------------------------------------------------------------------------
+# H1-A2 (ratified 2026-08-25) — embedded ratified model solutions.
+# Source of truth: benchmarks/contracts/_sources/model_solutions_transcription.md
+# (owner-supplied teacher screenshots, transcribed by claude-fable-5, ratified
+# by Noam; one in-review correction applied).
+# ---------------------------------------------------------------------------
+
+SOLUTION_KEYS = ["q1.א", "q1.ב", "q1.ג", "q2.א", "q2.ב", "q2.ג"]
+
+
+def test_h1a2_all_six_example_solutions_embedded_byte_equal():
+    """[H1-A2 item 1a] every sub-question's example_solution is non-empty and
+    byte-equal to its ratified source block (fences stripped, no normalization)."""
+    from .tools.f0_hobby_correction import (
+        apply_recorded_fix, compile_response, load_original, load_model_solutions)
+    solutions = load_model_solutions()
+    assert set(solutions) == set(SOLUTION_KEYS)
+    contract = compile_response(apply_recorded_fix(load_original()))
+    fields = {}
+    for q in contract.questions:
+        for sq in q.sub_questions or []:
+            fields[f"{q.question_id}.{sq.sub_question_id}"] = sq.example_solution
+    for key in SOLUTION_KEYS:
+        assert fields.get(key), f"{key}: example_solution empty"
+        assert fields[key] == solutions[key], f"{key}: not byte-equal to the ratified block"
+    # byte-fidelity spot pins — the exact hazards the ruling names (no
+    # normalization, no reformatting):
+    assert "int[101];      //" in fields["q2.ב"]            # the stray // kept
+    assert "if (   sumRates[chl] > 0" in fields["q2.ב"]     # multiline if( formatting
+    assert "internal class Hobby" in fields["q1.א"]          # internal kept
+    assert "// מקדמים את המונה מס' העצמים המלאים" in fields["q1.ב"]  # Hebrew comment verbatim
+
+
+def test_h1a2_q2_alef_is_constructor_then_updaterate():
+    """[H1-A2 item 1b] q2.א = the constructor block + the UpdateRate block,
+    concatenated in that order (images 3+4, one scope)."""
+    from .tools.f0_hobby_correction import (
+        apply_recorded_fix, compile_response, load_original, load_model_solutions)
+    contract = compile_response(apply_recorded_fix(load_original()))
+    q2 = next(q for q in contract.questions if q.question_id == "q2")
+    alef = next(sq for sq in q2.sub_questions if sq.sub_question_id == "א")
+    es = alef.example_solution or ""
+    i_ctor = es.index("public TvShow(string name, int channel)")
+    i_upd = es.index("public void UpdateRate(int numViewers)")
+    assert i_ctor < i_upd
+    assert es == load_model_solutions()["q2.א"]

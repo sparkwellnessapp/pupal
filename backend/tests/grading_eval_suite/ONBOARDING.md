@@ -90,6 +90,14 @@ Gate ratification (Tier-2 thresholds) requires **n>=10 across >=2 exams**.
 The k=5 baseline doubles as the **multi-scope smoke** (state-report U2/G-21:
 multi-scope grading has zero production evidence — say so in the baseline report).
 
+## 5b. H1-A2 provenance note (2026-08-25)
+
+From H1-A2 onward, compiled scopes carry the teacher's RATIFIED MODEL SOLUTIONS
+(source artifact: `benchmarks/contracts/_sources/model_solutions_transcription.md`)
+— the baseline measures the grader **with the EXAMPLE SOLUTION section
+rendered** (production-realistic; referent and SUT symmetric). E4/prior_parts
+unaffected — the flag stays off for the baseline.
+
 ## 6. Design inputs for step 3 (recorded, NOT v0 gates)
 
 - **[C-1 model-side expectation, ratified 2026-08-24]:** the grader is expected
