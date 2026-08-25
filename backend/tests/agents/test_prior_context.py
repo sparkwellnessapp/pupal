@@ -31,9 +31,15 @@ from app.services.gradable_compiler import compile as compile_gradable
 
 FLAG = "GRADER_PRIOR_CONTEXT_ENABLED"
 
-# Captured 2026-08-25 from build_user_message(dan_basiuk q1.ב) BEFORE the seam
-# landed — the off-path byte-identity pin [PR-G1 item 3].
-PRE_CHANGE_SHA256 = "c575112f6d85237e5946cff8b5cbee601b6d37f8f3c331dbb4502648d1a9b95a"
+# Off-path byte-identity pins [PR-G1 item 3]. TWO anchors, re-anchored ONLY on
+# (a) a renderer change with a version bump or (b) a ratified content amendment
+# — both RUNLOG-entried, never silently:
+#   RENDERER_SHA256: dan_basiuk q1.ב with example_solution STRIPPED — captured
+#     2026-08-25 pre-seam; content-normalized, so it pins the RENDERER alone.
+#   A2_CONTENT_SHA256: the live scope post-H1-A2 (ratified model solutions
+#     embedded) — pins renderer + ratified fixture content together.
+RENDERER_SHA256 = "c575112f6d85237e5946cff8b5cbee601b6d37f8f3c331dbb4502648d1a9b95a"
+A2_CONTENT_SHA256 = "5b5d72a2e65436b2179cde1d523736583f40346ee84e95662e3825be367ddb2b"
 
 HEADER = "חלקים קודמים — להקשר בלבד: אין לנקד אותם ואין לצטט מתוכם"
 
@@ -123,10 +129,16 @@ def test_flag_off_prompt_byte_identical_to_prechange(monkeypatch):
     b = load_bundle("dan_basiuk", require_gt=False)
     scope = next(x for x in b.gradable_test.scopes
                  if x.question_id == "q1" and x.sub_question_id == "ב")
-    msg = build_user_message(scope)
-    assert hashlib.sha256(msg.encode("utf-8")).hexdigest() == PRE_CHANGE_SHA256, (
+    # renderer pin (content-normalized): strip the H1-A2 solution -> must
+    # reproduce the pre-seam hash exactly. Proves the RENDERER never drifted.
+    stripped = scope.model_copy(update={"example_solution": None})
+    assert hashlib.sha256(build_user_message(stripped).encode("utf-8")).hexdigest()         == RENDERER_SHA256, (
         "flag-off render drifted from the pre-change renderer — the off path "
         "must be byte-identical to grader-v2 without the seam")
+    # renderer + ratified-content pin: the live scope post-H1-A2
+    assert hashlib.sha256(build_user_message(scope).encode("utf-8")).hexdigest()         == A2_CONTENT_SHA256, (
+        "flag-off render of the live fixture drifted — either the renderer or "
+        "the ratified snapshot moved without a RUNLOG-entried re-anchor")
 
 
 # ---------------------------------------------------------------------------
