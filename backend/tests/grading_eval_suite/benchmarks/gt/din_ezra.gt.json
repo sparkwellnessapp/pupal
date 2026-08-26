@@ -7,7 +7,7 @@
  "proposed_by": "claude-fable-5 (design-partner session)",
  "validated_by": "Noam",
  "authored_by": "Noam",
- "authored_at": "FILL_AT_COMMIT_ISO8601",
+ "authored_at": "2026-08-26",
  "terminals": [
   {"terminal_id": "q1.א.c0", "points_possible": "4", "awarded": "4", "evidence_exists": true, "note": "Header + all three attributes match the model (durationInMinutes); 'Public' PL-1."},
   {"terminal_id": "q1.א.c1", "points_possible": "4", "awarded": "3", "evidence_exists": true, "note": "'this.minutes = durationInMinutes;' — reversed assignment: nonexistent target AND inverted direction, minutes param discarded, field never set (-1; heavier than dan's -0.5 wrong-target-only)."},

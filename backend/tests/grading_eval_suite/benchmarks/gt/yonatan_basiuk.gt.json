@@ -7,7 +7,7 @@
  "proposed_by": "claude-fable-5 (design-partner session)",
  "validated_by": "Noam",
  "authored_by": "Noam",
- "authored_at": "FILL_AT_COMMIT_ISO8601",
+ "authored_at": "2026-08-26",
  "terminals": [
   {"terminal_id": "q1.א.c0", "points_possible": "4", "awarded": "4", "evidence_exists": true, "note": "Header + all three attributes, model-identical."},
   {"terminal_id": "q1.א.c1", "points_possible": "4", "awarded": "4", "evidence_exists": true, "note": "Correct target field and direction ('this.durationInMinutes = Minutes;'); Minutes/minutes is a case slip on the param declared in the same signature — PL-10 ink. Distinguished from dan/din, whose assignment targets resolved to no declared field at all."},
