@@ -268,3 +268,65 @@ next: [STOP] P2 — the pre-baseline prediction (owner + reviewer) must land in
   PREDICTIONS.md before any spend. Then C2 unchanged: k=5 x 5, deployed pin,
   prior_context OFF, ~$1, doubling as the U2/G-21 multi-scope smoke.
 corrections: none
+
+## RUN 20260826-172246_gpt-4o — C2 BASELINE ATTEMPT: ABORTED BY BILLING (0/25 valid, $0 spent)
+
+ref: P2 (registered 2026-08-26, pre-run) · config gpt-4o · k=5 x 5 fixtures
+purpose: the Phase-C baseline of the deployed pin; doubles as the U2/G-21
+  multi-scope smoke.
+variable: none (baseline).
+config: gpt-4o  k: 5  prior_context: False  prompt_version: grader-v2
+  suite_hash: 8e66db31f1df7490  registry_as_of: 2026-08-15
+  gt_sources: all five teacher_validated
+
+VALIDITY (Tier 0) — THE RESULT: 0/25 valid, 25/25 INVALID.
+  Every scope of every trial failed: 150/150 scope failures, all
+  exception_class=RateLimitError, all carrying the SAME provider payload —
+  "Error code: 429 ... 'You have no credits remaining. Add credits to continue
+  using the API', type: insufficient_quota".
+  Tokens consumed: 0 in / 0 out. ACTUAL SPEND: $0.00 — no call ever reached
+  the model. The ~$1 baseline budget is UNSPENT and still available.
+  D7's one-rerun fired on all 25 trials and correctly did not help (the
+  condition is permanent, not transient). Zero wall-bound hits. Zero parse
+  failures — R6 escalation NOT triggered. Median trial latency 11.8s (pure
+  429-round-trip time).
+
+NO BASELINE DATA EXISTS. Consequently:
+  * P2 is UNSCORED — not confirmed, not falsified, not indeterminate. There is
+    no measurement to score it against. It stands registered and untouched for
+    the re-run.
+  * No worst test, no terminal tables, no Tier-2 distributions, no calibration.
+    Reporting any of these would be fabrication.
+  * Tier-1 tripwires: vacuous (no graded terminal existed to trip them).
+
+INSTRUMENT VERDICT — the harness behaved exactly as designed under total
+  provider failure. It classified the failures as transport (not parse),
+  invalidated every trial, COUNTED them, excluded them from aggregates, wrote
+  full artifacts + drafts, and reported 0/0 rather than inventing numbers.
+  Tier-0-validity-before-significance did its whole job on its first real
+  contact with reality. Provenance stamped correctly throughout.
+
+FIELD CONFIRMATION OF G-3 (recorded, NOT actioned — app/ is fenced, PR-7 owns
+  it): this is the documented defect family observed live. `insufficient_quota`
+  is a PERMANENT billing 429, but it arrives as openai.RateLimitError, which
+  sits in GraderAgent.TRANSIENT_EXCEPTIONS — so the agent retried each scope
+  once (GA-3) before failing. Cost of the mis-classification here: 25 wasted
+  trial re-runs = 150 additional doomed calls, ~12s of latency per trial. Free
+  in dollars only because the account was already at zero. CLAUDE.md predicted
+  exactly this ("insufficient_quota — a permanent billing 429 — is retried as
+  if transient"); the baseline attempt is its first empirical confirmation.
+
+R1 INTACT: the failed run's drafts (20260826-172246) POSTDATE authored_at
+  2026-08-26T00:00:00, so assert_blind_sequencing still PERMITS grade mode for
+  all five — verified post-run. The local-midnight stamping choice is what
+  preserved this; a same-day-afternoon anchor would have blocked the re-run.
+
+decisions: STOP surfaced to the owner. The re-run is a billing action, not an
+  engineering one: add OpenAI credits, then re-run the identical command. No
+  code, config, GT, or prediction changes are needed or permitted for it —
+  the re-run's single variable is "credits exist".
+next: [STOP] owner adds credits -> re-run `python -m
+  tests.grading_eval_suite.runner --config gpt-4o --mode grade -k 5` ->
+  full PLAYBOOK analysis + P2 scoring on real data.
+cost: $0.00  wall: ~5 min
+corrections: none
