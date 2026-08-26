@@ -62,3 +62,14 @@ Single variable: the flag."
 **Worst test:** din — his wrong-target Q2.ב is structurally plausible (loop, min-search, return), and I predict the grader over-credits him by +15 to +25 points, failing to register that the scope solves a different problem. **Best agreement:** moran, whose code tracks the model solution most closely.
 
 **Falsifiers of this model of the grader:** shippable_grade_rate > 0.4, OR terminal MAE < 0.3, OR negative mean signed Δ (systematic harshness rather than leniency).
+
+### P2 — OUTCOME (scored 2026-08-26 against run 20260826-174645_gpt-4o)
+
+**P2's own falsifier FIRED: mean signed terminal Δ = −0.3089 (negative ⇒ systematic harshness, not leniency).** The leniency model is falsified in sign.
+
+CONFIRMED: shippable 0/25 · within_precision 0.6589 (band 0.55–0.70) · pooled median |Δ_total| 10.00 (band 8–15; only 2/5 fixture medians in band) · parse-failure 0 · repeat instability 37.4% (>30%) · omer/q1.ב.c4 full credit exactly as named · moran/q2.ב.c1 off-by-one missed · worst test = din.
+FALSIFIED: systematic leniency (sign inverted) · compensating_error ≥2 fixtures (actual 0 — errors are one-directional, nothing cancels) · yonatan/q1.ג.c7 · the q1.ג.c6/c7/q2.ב.c3.s1 over-credit class · din over-credited +15..+25 (actual **−22.5**, magnitude in band, sign inverted) · best agreement moran (actual omer).
+SPLIT: cost under ceiling CONFIRMED ($0.0698 < $0.10), the $0.03/test estimate FALSIFIED (2.3× high).
+INDETERMINATE: the counterposed syntax-over-deduction mechanism (observed harshness signature is wrong-target all-or-nothing zeroing, not syntax nitpicking; no per-terminal attribution without reading 950 reasonings).
+
+Full analysis: `C2_BASELINE_REPORT.md`.

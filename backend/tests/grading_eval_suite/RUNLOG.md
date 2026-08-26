@@ -330,3 +330,54 @@ next: [STOP] owner adds credits -> re-run `python -m
   full PLAYBOOK analysis + P2 scoring on real data.
 cost: $0.00  wall: ~5 min
 corrections: none
+
+## RUN 20260826-174645_gpt-4o — C2 BASELINE (k=5 x 5, deployed pin) — COMPLETE
+
+ref: P2 (registered 2026-08-26 pre-run) · re-run of the billing-aborted attempt;
+  SINGLE VARIABLE vs that attempt: credits exist. Zero code/config/GT/prediction
+  changes.
+config: gpt-4o  k: 5  prior_context: False  prompt_version: grader-v2
+  suite_hash: 8e66db31f1df7490  registry_as_of: 2026-08-15
+validity: 25/25 VALID, 0 invalid. D7 re-runs 0. Wall hits 0. Parse failures 0 ->
+  R6 escalation NOT triggered. Cost mean $0.0698/test (max $0.0726) under the
+  $0.10 ceiling. Latency median 12.3s. Total spend $1.7462.
+MULTI-SCOPE SMOKE (U2/G-21) PASSED — first multi-scope evidence in the system's
+  history (all 50 production drafts were single-scope): 150 scope-gradings,
+  graded_by = 150 llm / 0 failed / 0 skipped; D3 totality held on all 25 trials;
+  parent_answer_fallback never fired (correct, depth-1 rubric).
+tier1: 24/25 pass. Taxonomy {T1-FABRICATED: 2}, BOTH in dan_basiuk r2
+  (q1.ג.c1 GT1/AI1.00 not_found conf1.00; q1.ג.c7 GT0.5/AI1.00 not_found
+  conf0.80). dan's other four trials clean => 1-in-25 stochastic, not
+  systematic. Quote status 878 exact / 64 none / 6 fuzzy / 2 not_found.
+worst test: din_ezra, median |dtot| 22.5 (GT 55.5 -> AI 33.0).
+tier2 (PROVISIONAL, n=5 one exam): within_precision 0.6589 · exact 0.6084 ·
+  MAE 0.34 · MEAN SIGNED DELTA -0.3089 · direction census over20/under352/
+  exact578 · shippable 0/25 · pooled median |dtot| 10.00 · boundary_flip_rate
+  0.80 · compensating_error 0 · exclusion_mismatch 0.
+  EVERY fixture under-scored; not one over-scored.
+  Harshness attribution by scope: q2.ב -129.75 · q2.א -58.5 · q2.ג -55 ·
+  q1.ג -18.5 · q1.א -18.25 · q1.ב -13.5. Q2 = -243 of -264.
+tier3: repeat instability 71/190 terminals (37.4%) non-zero spread across k=5;
+  per-test total spread up to 6.75 (din). Calibration ECE 0.2438 over n=950,
+  NON-MONOTONE (0.8-bin accuracy 0.387 < 0.7-bin 0.451); 465/950 terminals
+  emitted at confidence exactly 1.00.
+hand-read tables (2, per the read-two rule): (1) din q2.ב — the grader ZEROED
+  the entire scope at confidence 1.00 (GT 9.5 -> AI 0). It registered that din
+  solved a different problem, then refused all partial credit the teacher gave
+  for the correct structural components (loop, min-search, return). The failure
+  is confident all-or-nothing annihilation, NOT a missed wrong target.
+  (2) omer q1.ב — 7/8 terminals exact and stable; the lone miss is P2's named
+  q1.ב.c4 landing exactly (inverted !=null guard missed, 3.00 vs GT 1.5, 5/5).
+P2 SCORED: CONFIRMED 1,2,3(pooled),4,6,10,12,14 · FALSIFIED 7,9,11,13,15,16 ·
+  SPLIT 5 (under-ceiling confirmed; $0.03 estimate falsified at $0.0698) ·
+  INDETERMINATE 8. P2's OWN FALSIFIER FIRED: "negative mean signed delta
+  (systematic harshness rather than leniency)" — -0.3089. The leniency model is
+  falsified in SIGN; absence-leniency is real (omer q1.ב.c4 exactly as named)
+  but swamped ~17:1 by Q2-concentrated harshness.
+decisions: NONE. No grader change proposed, no threshold set — both come after
+  this report per the ruling. E5 (pairwise ordering agreement) remains deferred
+  and is now computable post-hoc from this results.json.
+next: owner review of C2_BASELINE_REPORT.md -> Tier-2 threshold candidates
+  pre-registered from THIS distribution -> Phase D judge bootstrap.
+cost: $1.7462  wall: ~9 min
+corrections: none
