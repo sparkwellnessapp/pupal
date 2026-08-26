@@ -45,3 +45,20 @@ improves terminal agreement specifically on sub-questions whose grading
 references prior parts, with no regression on non-referencing terminals and
 bounded input-token growth (read from existing per-scope token capture).
 Single variable: the flag."
+
+---
+
+## P2 — pre-baseline prediction (registered 2026-08-26, before any grading run)
+
+**Authored by:** reviewer (claude-fable-5, design-partner session). **Owner concurrence:** Noam reviewed and added nothing.
+**Subject:** k=5 × 5 fixtures, deployed pin (gpt-4o + grader-v2), prior_context OFF, model solutions rendered.
+
+**Quantitative.** shippable_grade_rate (|Δ_total| ≤ 1.0) = 0/25 trials. terminal_within_precision_rate = 0.55–0.70. Median per-test |Δ_total| = 8–15 points. Parse-failure rate = 0. Cost ≈ $0.03/test, under the $0.10 ceiling. Repeat instability: >30% of terminals show non-zero award spread across k=5.
+
+**Directional — the mechanism under test.** Systematic leniency: positive mean signed Δ, because nearly every deduction in this rubric requires noticing an absence (missing zero-guard, missing null check, missing countHobbies++, missing getter), and absence-detection is materially harder for an LLM than presence-recognition. Counterposed: over-deduction on visible syntax that PL-10 forgives (parens-for-brackets, case mismatch, missing semicolons, truncated getter names). These partially cancel at the test level, so compensating_error fires on ≥2 fixtures.
+
+**Named terminal predictions (falsifiable, specific).** omer/q1.ב.c4 — the inverted != null guard missed entirely, full credit. yonatan/q1.ג.c7 — the copy-pasted wrong variables missed, full credit. moran/q2.ב.c1 — [100] vs [101] missed. q1.ג.c6/q1.ג.c7 zero-guards and q2.ב.c3.s1 null check — over-credited on most fixtures.
+
+**Worst test:** din — his wrong-target Q2.ב is structurally plausible (loop, min-search, return), and I predict the grader over-credits him by +15 to +25 points, failing to register that the scope solves a different problem. **Best agreement:** moran, whose code tracks the model solution most closely.
+
+**Falsifiers of this model of the grader:** shippable_grade_rate > 0.4, OR terminal MAE < 0.3, OR negative mean signed Δ (systematic harshness rather than leniency).
