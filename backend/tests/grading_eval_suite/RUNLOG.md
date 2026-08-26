@@ -219,3 +219,52 @@ affects: suite_hash shifts (snapshot + manifests + skeletons + tools + tests
   + the source artifact) — harmless, pre-baseline, no drafts exist. Batteries
   83 passed / 1 xfailed; import + collect green. Zero app/ changes; zero spend.
 corrections: none
+
+## CHANGE 2026-08-26 — Phase B closeout: five GTs verified; HOLD at P2
+
+what: (1) dan version check GREEN — q2.ב.c3.s2 == "2" (AUDIT-2 correction
+  present, revised PL-10) and real selection_scoring returns 84.0, not the
+  pre-audit 83.5. The stale file is NOT in place. (2) MECHANICAL FIX, precedented
+  by the H1-A2 ruling ("stamp the sha256 ... (mechanical); leave authored_at for
+  the owner"): dan + din_ezra still carried the FILL_AT_COMMIT_H1A2_SHA256
+  placeholder (dan's stamped value was replaced when the owner placed the
+  AUDIT-2 correction), so the D5 hash guard was REFUSING both. Stamped the live
+  ratified hash 480c15cff2face1e... into those two ONLY after positive evidence
+  each was authored against the A2 contract (both carry H1-A1 path-honest
+  q2.ג.c0.s* ids; din's notes cite the model solutions via R-β/PL-*). moran /
+  omer / yonatan already carried the correct hash. NO judgment field touched in
+  any file. (3) all five verified through the FULL loader guard suite:
+  totality 38/38, bounds, 0.25 grid, D5 hash pin, M1 provenance
+  (teacher_validated / blind:false / proposed_by / validated_by),
+  _instructions removed; terminal-id universes IDENTICAL across all five
+  (single 38-id universe). (4) corpus totals via REAL selection_scoring —
+  din 55.5 · dan 84.0 · omer 89.0 · moran 92 · yonatan 92.5, all matching the
+  owner's expected values under Decimal equality (omer/moran differ only in
+  Decimal string form, 89.0 vs 89 — numerically equal, not a mismatch).
+  evidence_exists=false counts: din 8 · dan 3 · omer 2 · moran 1 · yonatan 1.
+  ungradable_scopes EMPTY in all five. (5) NEW corpus pin
+  (test_corpus_totals_via_real_selection_scoring) makes this verification
+  permanent: any silent GT edit moves a total and reds. Re-anchor only on an
+  owner-ratified GT amendment, RUNLOG-entried — never to make a number pass.
+  (6) two corpus gaps registered in ONBOARDING's seed-gap register (findings,
+  no action): C-1's table-interpretation clause and C-2's ungradable path both
+  ship UNTESTED — this exam has no tabular answers and no illegible scopes;
+  fixture expansion (n>=10, >=2 exams) must deliberately include a trace-table
+  answer and one genuinely illegible scope.
+STOP surfaced (Phase-B exit condition NOT met): authored_at is
+  'FILL_AT_COMMIT_ISO8601' in ALL FIVE GT files, so assert_blind_sequencing
+  REFUSES grade mode for every fixture. This is NOT a blindness violation —
+  results/ does not exist, zero cached drafts, so the moment the owner stamps
+  authored_at all five permit. The stamp is the OWNER's act by ruling
+  (authored_at is the R1 provenance anchor; an agent-invented timestamp would
+  fabricate provenance) — not stamped here, deliberately.
+also: §13 (grading constitution) read as CONTEXT ONLY — nothing built. E5
+  deferred per ruling: computable post-hoc from results.json, does not gate or
+  delay the baseline; NOT implemented.
+affects: suite_hash shifts (two GT files + ONBOARDING + the corpus pin).
+  Batteries 84 passed / 1 xfailed; transcription 134/1 baseline-identical;
+  import + collect green. Zero spend, zero app/ changes.
+next: [STOP] P2 — the pre-baseline prediction (owner + reviewer) must land in
+  PREDICTIONS.md before any spend. Then C2 unchanged: k=5 x 5, deployed pin,
+  prior_context OFF, ~$1, doubling as the U2/G-21 multi-scope smoke.
+corrections: none

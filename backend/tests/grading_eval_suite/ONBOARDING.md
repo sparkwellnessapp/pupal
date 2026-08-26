@@ -85,6 +85,8 @@ prediction in PREDICTIONS.md).
 | No depth-2 nested rubric | `parent_answer_fallback` path unexercised in real runs | a bagrut-style nested fixture |
 | No fluent-but-wrong answer | over-award blind spot | targeted authoring |
 | No all-blank test | mass-skip behavior unexercised | cheap to add |
+| **No tabular answer** (finding, 2026-08-26) | **C-1's ratified table-interpretation clause ships UNTESTED** — this exam contains no tabular answers, so the `[C1-TABLE]` path has zero corpus coverage | fixture expansion must deliberately include a **trace-table answer** |
+| **No illegible scope** (finding, 2026-08-26) | **C-2's ratified `ungradable` path ships UNTESTED** — `ungradable_scopes` is empty in all five GTs, so the reason vocabulary, the totals-only participation, and the Tier-1 ungradable tripwire have zero corpus coverage (synthetic guards only) | fixture expansion must deliberately include one **genuinely illegible scope** |
 
 Gate ratification (Tier-2 thresholds) requires **n>=10 across >=2 exams**.
 The k=5 baseline doubles as the **multi-scope smoke** (state-report U2/G-21:

@@ -188,3 +188,40 @@ def test_h1a2_q2_alef_is_constructor_then_updaterate():
     i_upd = es.index("public void UpdateRate(int numViewers)")
     assert i_ctor < i_upd
     assert es == load_model_solutions()["q2.א"]
+
+
+# ---------------------------------------------------------------------------
+# Phase-B closeout corpus pin (2026-08-26). The five GTs are ratified data;
+# their totals are known-good through the REAL selection_scoring. This makes
+# the closeout verification permanent: any silent GT edit moves a total and
+# reds here. Re-anchor ONLY on an owner-ratified GT amendment (RUNLOG-entried),
+# exactly like the byte pins — never to make a number pass.
+# ---------------------------------------------------------------------------
+
+CORPUS_TOTALS = {"din_ezra": "55.5", "dan_basiuk": "84.0", "omer_gelber": "89",
+                 "moran_aharon": "92", "yonatan_basiuk": "92.5"}
+
+
+def test_corpus_totals_via_real_selection_scoring():
+    from decimal import Decimal
+    from app.services.selection_scoring import ScopeScore, score_with_selection
+    from .fixtures import load_bundle
+    universes = set()
+    for name, expected in CORPUS_TOTALS.items():
+        bundle = load_bundle(name, require_gt=True)     # all loader guards run here
+        gt = bundle.gt
+        assert len(gt.terminals) == 38, (name, len(gt.terminals))
+        universes.add(frozenset(t.terminal_id for t in gt.terminals))
+        by_scope = {}
+        for t in gt.terminals:
+            key = bundle.terminal_infos[t.terminal_id].scope_key
+            by_scope[key] = by_scope.get(key, Decimal("0")) + t.awarded
+        scoring = score_with_selection(
+            [ScopeScore(q, s, a) for (q, s), a in by_scope.items()], bundle.rubric_contract)
+        assert scoring.total_score == Decimal(expected), (name, str(scoring.total_score))
+        assert scoring.total_possible == Decimal("100"), name
+        # [M1] every corpus GT is the ratified v0 provenance class
+        assert gt.gt_source == "teacher_validated" and gt.blind is False
+        assert gt.proposed_by and gt.validated_by
+    # one terminal-id universe across the whole corpus (same exam, same contract)
+    assert len(universes) == 1, "corpus fixtures disagree on the terminal universe"

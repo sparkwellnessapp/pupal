@@ -133,3 +133,59 @@ Per-item execution protocol applies throughout: pre-flight census of touched fil
 - [ ] Baseline k=5 complete, pre-registered, analyzed per PLAYBOOK; worst test named; Tier-2 threshold candidates pre-registered from its distribution.
 - [ ] PREDICTIONS.md carries P1 + the baseline prediction + outcomes.
 - [ ] Zero production files touched; zero Gemini calls; total spend ≈ $1 + judge bootstrap.
+
+---
+
+## 13. Step-3 design input — the grading constitution (RECORDED, **NOT AUTHORIZED**)
+
+**Status:** derived from the F5 GT-authoring session (2026-08-25) and recorded here because §12's step-3 work will be designed against it. **Nothing in §13 is authorized for implementation in v0.** It exists so that (a) the baseline's failure buckets are read against a design that already has a shape, and (b) no future agent re-proposes an alternative already rejected here (§13.4). Do not build any part of it without a separate owner authorization.
+
+### 13.1 The problem it solves
+
+A teacher grades one question down the whole class stack — deliberately — because that is how she stays consistent. The current architecture grades one test at a time, one LLM call per scope, with **no knowledge of how the same criterion was treated on any other test in the batch**. Two students who make the identical error can therefore receive different awards.
+
+This is a product-level risk, not an eval nicety. In Bagrut context, inconsistency across a class is appeal (ערר) exposure, and it is the most attackable property of AI grading. It is also empirically confirmed: grading five tests consistently in the F5 session required **ten named precedents**, and the backward audit caught a terminal (AUDIT-2) that had been graded under a superseded form of one of them.
+
+### 13.2 The mechanism — a three-stage loop
+
+**Stage 1 — SEED.** Before any grading, the constitution is seeded from *teacher artifacts*: the model solutions plus the rubric's own guidance and tariffs. In the F5 session the model solutions overturned two proposer priors on first contact (R-β, the getter question; PL-8, return semantics). The constitution starts from the teacher's own materials, never from the grader's guesses.
+
+**Stage 2 — ACCUMULATE.** Tests are graded; wherever the rubric underdetermines a case, a ruling is *proposed* and (in production) *ratified by the teacher*. A ruling is named, scoped to `(rubric_contract, terminal | global)`, and carries: the situation, the ruling, its **boundary** (what it explicitly does *not* cover), and the evidence that produced it.
+
+Observed convergence in F5: dan 6 rulings · din 1 · moran 1 + 1 revision · omer 0 · yonatan 0. **The marginal ruling rate reached zero by the fourth test.** This convergence is the property that makes the design affordable at class scale — teacher input is front-loaded, not per-test.
+
+**Stage 3 — BACKWARD AUDIT.** Once accumulation converges, the **final** constitution is applied to **all** tests, including those graded under earlier forms of it. This stage is load-bearing, not cosmetic: it is what makes the first test graded under the same law as the last. In F5 it caught AUDIT-2 (a terminal graded under PL-10's pre-revision form) and AUDIT-1 (two fixtures at equal awards for unequal severity).
+
+### 13.3 Design consequences
+
+- **(a) Order-independence without serialization.** Phase-1 fan-out stays fully parallel and per-scope isolated (§3.6). The constitution is **pinned per batch**, exactly as `contract_version` is. Determinism is preserved: same constitution + same contracts + same model/prompt versions ⇒ same grades. Stage 3 reconciles what parallel grading could not know.
+- **(b) Convergence is the batch's progress signal.** A ruling rate that stays high late in a batch means the rubric is underspecified or the batch is heterogeneous. That is diagnostic, and it belongs in the UI as *"N new situations need your ruling"* — not as per-test flags.
+- **(c) The constitution is the compounding artifact.** Rubric-scoped, teacher-owned, human-readable, teacher-editable. Every teacher override in production today creates a precedent and discards it. Captured, it carries her standards forward across batches and years: the next batch needs fewer overrides, and after-school hours fall further. Directly on the §2 north star, and a defensibility asset.
+- **(d) Appeal-defensibility.** The answer to a challenged grade stops being *"the model scored it 1.5"* and becomes *"this idiom is behavior-divergent under the ruling the teacher set on <date>, applied identically to all N students"* — with the ruling, its date, and its application record all inspectable.
+- **(e) Teacher authority preserved end to end.** The agent **proposes** rulings; the teacher **ratifies**. No entry entering force unratified. Stage-3 audit results surface as *proposed* adjustments, never auto-applied (§2: Vivi proposes; the teacher decides).
+
+### 13.4 Rejected alternatives — do not re-propose without a new argument
+
+- **Batch-scope grading** (all N students' answers for one criterion in a single call). Rejected: destroys per-scope failure isolation (§3.6) — one LLM failure would cost N students; breaks closed-world (whose terminals?); large context and cost; incompatible with `GradableTest`'s per-test construction.
+- **Rolling precedent injection** (accumulate exemplars mid-batch, inject into later calls). Rejected: serializes the fan-out, and makes a grade **order-dependent** — the same test scores differently depending on its position in the batch. Fatal for auditability and for re-grade reproducibility.
+- **Statistical divergence detection** (embedding similarity + award dispersion + LLM reconciliation) as the *primary* mechanism. Rejected: it can detect that two grades differ but cannot say **which is wrong**; and it requires an embedding index, a clustering threshold, and a reconciliation prompt — none of which a teacher can inspect or correct. It remains available as a *secondary* detector that nominates candidate situations for Stage-2 ruling, never as the arbiter.
+
+### 13.5 Open mechanics — the pending design session (do NOT resolve unilaterally)
+
+1. **Ruling-proposal surface.** Where in the pipeline does the agent detect "the rubric underdetermines this case"? Candidate signals: low per-terminal confidence; `validation_status=not_found` with a non-zero award; a flag with no corresponding rubric tariff.
+2. **Ratification UX.** How are proposed rulings surfaced without adding work after 18:00 (§2)? Batched at review time, or at end-of-batch?
+3. **Mid-batch churn.** A ruling ratified after some tests are already teacher-reviewed — how is re-audit surfaced without invalidating her completed work?
+4. **Injection budget.** Constitution capped how? Scoped per terminal or per scope? Token budget per call?
+5. **Schema and provenance.** Fields, versioning, and whether the constitution is hash-pinned into `GradedTestDraft` provenance (**recommendation: yes** — a grade is currently a function of rubric + transcription + model + prompt versions; the constitution becomes the fifth).
+6. **Cross-batch inheritance.** Does a constitution follow the rubric contract across batches, terms, years? What happens on rubric recompile?
+7. **Conflict resolution.** Two ratified rulings that collide on one situation.
+8. **Stage-3 scope.** Whole batch, or only tests touching the changed ruling?
+
+### 13.6 Measurement — registered pre-baseline
+
+- **E5 — pairwise ordering agreement** (Tier-3, computable on the current five-fixture corpus): for each terminal, across all C(5,2)=10 fixture pairs, compare `sign(GT_a − GT_b)` against `sign(AI_a − AI_b)` — 380 comparisons. Detects what MAE structurally hides: internal inconsistency that averages out, and flattening of real between-student differences. **Computable post-hoc from `results.json`; it does not gate the baseline.**
+- **E6 — constitution effect** (post-implementation): enabling the three-stage loop improves E5's ordering agreement and reduces terminal disagreement on criteria where the rubric underdetermines, with **no** regression on criteria carrying explicit tariffs, at bounded token cost. Single variable: the constitution.
+
+### 13.7 Evidence base
+
+The F5 session artifacts are the empirical record behind this section and the worked example of the three-stage loop: the five review sheets, the ratified ruling set (PL-1…PL-10, R-α, R-β, C-1…C-5), and `CROSS_FIXTURE_CONSISTENCY_AUDIT`. Any implementation of §13 should be tested first against this corpus, where the correct outcome is already known.
