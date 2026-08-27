@@ -314,3 +314,57 @@ def test_gt_note_travels_to_terminal_rows():
     ts = _score(synth.draft_from_gt(bundle, noted), bundle)
     row = next(t for t in ts.terminals if t.terminal_id == "q1.c0")
     assert row.gt_note and "[C1-TABLE]" in row.gt_note
+
+
+# ---------------------------------------------------------------------------
+# DL-2 SPLIT (owner ruling 2026-08-27): evidence_fabricated vs evidence_stitched.
+# BOTH gate Tier-1. Classification signal: do the quote's constituent fragments
+# exist VERBATIM in the student answer?
+#   - all fragments present, non-contiguous  -> evidence_stitched (citation defect:
+#     breaks span-highlighting in the review UI; a teacher sees a broken citation)
+#   - any fragment absent                    -> evidence_fabricated (trust catastrophe)
+# The 0.85 fuzzy bar is NOT touched — 0.837 is exactly what mostly-real stitched
+# text should score, and moving a threshold so a case passes is the rejected
+# Policy-1 pattern.
+# ---------------------------------------------------------------------------
+
+def test_evidence_stitched_distinguished_from_fabricated():
+    from app.schemas.ontology_types import QuoteValidationStatus
+    gt = synth.make_gt(synth.GT_PERFECT)
+    bundle = synth.make_bundle(gt)
+    s = {x.question_id: x for x in bundle.gradable_test.scopes}
+    answer = synth.ANSWER_Q1          # "the loop runs over items and total accumulates each value correctly"
+    # STITCHED: two real, NON-ADJACENT fragments of the answer joined by a newline
+    stitched = "the loop runs over items" + chr(10) + "each value correctly"
+    # FABRICATED: ink the student never wrote
+    invented = "wholly invented text absent from the answer entirely"
+    o1 = synth.make_scope_outcome(s["q1"], {
+        "q1.c0": ("2", 0.9, stitched, QuoteValidationStatus.NOT_FOUND),
+        "q1.c1.s0": ("1", 0.9, invented, QuoteValidationStatus.NOT_FOUND),
+        "q1.c1.s1": ("2", 0.9, answer[:20], QuoteValidationStatus.EXACT),
+    })
+    o2 = synth.make_scope_outcome(s["q2"], {"q2.א.c0": ("4", 0.9, synth.ANSWER_Q2A[:12],
+                                                       QuoteValidationStatus.EXACT)})
+    ts = _score(synth.make_draft(bundle, [o1, o2]), bundle)
+    rows = {r.terminal_id: r for r in ts.terminals}
+    # the stitched one is NOT fabrication
+    assert rows["q1.c0"].evidence_stitched is True
+    assert rows["q1.c0"].fabricated_evidence is False
+    # the invented one IS fabrication
+    assert rows["q1.c1.s0"].fabricated_evidence is True
+    assert rows["q1.c1.s0"].evidence_stitched is False
+    # clean quote is neither
+    assert not rows["q1.c1.s1"].evidence_stitched and not rows["q1.c1.s1"].fabricated_evidence
+    # BOTH gate Tier-1, under distinct tags
+    assert not ts.tier1_pass
+    tags = " ".join(ts.tier1_failures)
+    assert "[T1-FABRICATED]" in tags and "[T1-STITCHED]" in tags
+
+
+def test_stitched_does_not_move_the_fuzzy_bar():
+    """The 0.85 validator bar is untouched by the split: a stitched quote still
+    arrives as not_found; the scorer re-labels it, it does not re-score it."""
+    from app.agents.grader.validator import _best_substring_ratio
+    ans = " ".join(synth.ANSWER_Q1.lower().split())
+    q = " ".join(("the loop runs over items" + chr(10) + "each value correctly").lower().split())
+    assert _best_substring_ratio(q, ans) < 0.85     # still below the bar — unchanged

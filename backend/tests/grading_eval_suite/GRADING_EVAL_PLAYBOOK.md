@@ -31,7 +31,7 @@ operating manual. Where they disagree, the mission wins.
 | Tier | What | Status |
 |---|---|---|
 | 0 Validity | transport failure / wall-bound hit => INVALID trial (excluded, counted); provenance completeness | precondition for reading anything |
-| 1 Tripwires | `[T1-FABRICATED]` zero positive awards on not_found evidence · `[T1-CW]` zero closed-world survivals (+ draft-terminal totality) · `[T1-SKIP]` skip-agreement on empty answers and GT-`ungradable` scopes · `[T1-SELECTION]` denominator is contract.total_points, exclusion honored by construction · `[T1-COST]` registry-priced cost/trial <= ceiling ($0.10 default) | **GATE from run one** |
+| 1 Tripwires | `[T1-FABRICATED]` zero positive awards on ABSENT ink · `[T1-STITCHED]` zero positive awards on real-but-NON-CONTIGUOUS ink presented as one span · `[T1-CW]` zero closed-world survivals (+ draft-terminal totality) · `[T1-SKIP]` skip-agreement on empty answers and GT-`ungradable` scopes · `[T1-SELECTION]` denominator is contract.total_points, exclusion honored by construction · `[T1-COST]` registry-priced cost/trial <= ceiling ($0.10 default) | **GATE from run one** |
 | 2 Agreement | signed Δ, MAE, `terminal_within_precision_rate` (precision=0.25 [R4']), exact rate, `total_Δ`, `shippable_grade_rate` (<=1.0 [R4']), `grade_boundary_flip_rate` [C-4], `edit_burden` | **UNGATED-WATCHED** |
 | 3 Diagnostics | repeat stability (award spread across k), calibration (reliability + ECE, n-flagged <50), parse-failure rate [R6], `parent_answer_fallback` rate, quote-status distribution, per-scope cost & latency, exclusion mismatch | reported every run |
 
@@ -70,10 +70,22 @@ operating manual. Where they disagree, the mission wins.
 
 ## 4. Operational definitions the scorer implements (grep the tags in scoring.py)
 
-- **[DL-2] fabricated evidence** (Tier-1): awarded > 0 AND a quote is PRESENT with
-  `validation_status == not_found` — the model invented evidence. Award-without-
-  any-quote is `burden_evidence` (edit_burden + Tier-3 distribution), NOT the gate:
-  a prompt violation, but not fabrication.
+- **[DL-2, SPLIT by owner ruling 2026-08-27]** awarded > 0 AND a quote is PRESENT
+  with `validation_status == not_found` is **two different defects**, and the
+  classification signal is *whether the quote's constituent fragments exist
+  VERBATIM in the answer*:
+  - **`[T1-FABRICATED]` evidence_fabricated** — cited ink is ABSENT. Trust catastrophe.
+  - **`[T1-STITCHED]` evidence_stitched** — the ink is REAL but non-contiguous,
+    misrepresented as a single span. A citation defect: it breaks span-highlighting
+    in the review UI and shows a teacher a broken citation.
+  **Both gate Tier-1.** The 0.85 fuzzy bar is NOT touched by the split — 0.837 is
+  exactly what mostly-real stitched text *should* score, and moving a threshold so
+  a case passes is the rejected Policy-1 pattern. The scorer re-LABELS an
+  already-failed quote; it never re-scores one.
+  Award-without-any-quote remains `burden_evidence` (edit_burden + Tier-3
+  distribution), NOT a gate: a prompt violation, but not a citation defect.
+  *Step-3 design input (do NOT build): the structural fix is likely allowing the
+  model to return MULTIPLE quote spans rather than forcing one.*
 - **[T1-SKIP] ungradable-guess**: on a GT-`ungradable` scope [C-2], a positive
   award with ZERO flags anywhere in the scope. A flagged or skipped outcome is
   the correct review-first behavior and passes.
@@ -173,6 +185,7 @@ Every disagreement read by hand gets classified into exactly one bucket, and **t
 | `evidence_miss` | The supporting ink exists; the grader did not find it | → retrieval/attention problem |
 | `evidence_fabricated` | Cited quote is not in the answer | → Tier-1; trust-critical |
 | `right_award_wrong_reason` | Award matches GT; reasoning does not support it | → invisible to every metric; only R-3 finds it |
+| `reasoning_incoherent` *(sub-bucket, added 2026-08-27)* | Award **and** deduction cause both match GT, but the reasoning is internally contradictory (asserts P and ¬P). Distinct from `right_award_wrong_reason`, where the cause diverges | → the number is right; the artifact a teacher reads is not. **Phase-D J2 exemplar.** Exemplar: `moran/q2.ג.c0.s3` (C2 baseline) |
 | `gt_questionable` | Reading the text, the teacher's own award looks arguable | → GT amendment candidate, ratified by owner only |
 | `transcription_artifact` | Disagreement traces to garbled transcription, not grading | → upstream, not this suite's fix |
 

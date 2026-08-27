@@ -47,6 +47,24 @@ COMPENSATING_CANCELLED_MIN = Decimal("2.0")
 _PARSE_EXCEPTION_CLASSES = {"ValueError"}
 
 
+def _quote_fragments_all_present(quote_text: str, answer_text: str) -> bool:
+    """[DL-2 SPLIT, 2026-08-27] Do ALL of a quote's constituent fragments appear
+    VERBATIM in the answer? This is the classification signal between a stitched
+    citation (real ink joined across a gap) and a fabricated one (invented ink).
+
+    Deliberately NOT a re-scoring of the quote: the validator's 0.85 fuzzy bar is
+    untouched and still decides `not_found`. This only re-LABELS an already-failed
+    quote. Whitespace-normalized + casefolded, matching the validator's own
+    normalization. Fragments shorter than 8 normalized chars are ignored as
+    non-discriminating."""
+    norm_answer = " ".join((answer_text or "").lower().split())
+    frags = [" ".join(f.lower().split()) for f in (quote_text or "").splitlines()]
+    frags = [f for f in frags if len(f) >= 8]
+    if not frags:
+        return False
+    return all(f in norm_answer for f in frags)
+
+
 def _scope_target(scope_key: ScopeKey) -> str:
     q, s = scope_key
     return q if s is None else f"{q}.{s}"
@@ -224,6 +242,10 @@ def score_trial(draft: GradedTestDraft,
 
     # ---- Per-terminal agreement -------------------------------------------
     gt_map = {t.terminal_id: t for t in gt.terminals}
+    # answer text per scope — needed by the [DL-2 SPLIT] stitched/fabricated classifier
+    scope_answer: Dict[ScopeKey, Optional[str]] = {
+        (s.question_id, s.sub_question_id): s.student_answer_text
+        for s in bundle.gradable_test.scopes}
     quote_counts: Dict[str, int] = {}
     for tid, info in sorted(wanted_terminals.items()):
         if tid not in draft_terminals:
@@ -236,8 +258,18 @@ def score_trial(draft: GradedTestDraft,
             quote_status = quote.validation_status.value if quote.validation_status else None
         quote_counts[quote_status or "none"] = quote_counts.get(quote_status or "none", 0) + 1
 
-        fabricated = (awarded > 0 and quote is not None
-                      and quote_status == "not_found")          # [T1-FABRICATED][DL-2]
+        # [DL-2 SPLIT] a failed quote on a positive award is EITHER fabricated
+        # (ink absent) OR stitched (all ink real, joined across a gap). Both gate.
+        failed_quote = (awarded > 0 and quote is not None
+                        and quote_status == "not_found")
+        stitched = False
+        fabricated = False
+        if failed_quote:
+            answer_text = scope_answer.get(info.scope_key)
+            if _quote_fragments_all_present(quote.quote_text, answer_text):
+                stitched = True                                  # [T1-STITCHED]
+            else:
+                fabricated = True                                # [T1-FABRICATED]
         burden_evidence = (awarded > 0
                            and (quote is None or quote_status == "not_found"))
         excluded = info.scope_key in excluded_gt
@@ -255,6 +287,7 @@ def score_trial(draft: GradedTestDraft,
             burden_precision=abs(delta) > precision,
             burden_evidence=burden_evidence,
             fabricated_evidence=fabricated,
+            evidence_stitched=stitched,
             excluded_by_selection=excluded,
             ungradable_scope=info.scope_key in ungradable_keys,   # [C-2]
             gt_note=g.note,                                       # [item 6]
@@ -265,6 +298,12 @@ def score_trial(draft: GradedTestDraft,
             # excluded scope (the behavior, not the arithmetic, is the offense)
             tier1.append(f"[T1-FABRICATED] fabricated_evidence at {tid}: positive "
                          f"award on a quote the student never wrote")
+        if stitched:
+            # [T1-STITCHED] real ink, non-contiguous, presented as one span —
+            # a citation defect, not a trust catastrophe, but it breaks
+            # span-highlighting and shows a teacher a broken citation.
+            tier1.append(f"[T1-STITCHED] evidence_stitched at {tid}: positive award "
+                         f"on real but NON-CONTIGUOUS ink presented as one quote")
     ts.quote_status_counts = quote_counts
 
     # ---- Tier 2 aggregates over INCLUDED terminals [§6] --------------------

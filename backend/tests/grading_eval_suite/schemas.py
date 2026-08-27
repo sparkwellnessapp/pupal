@@ -86,7 +86,12 @@ class TerminalScore:
     # burden decomposition [Tier-2 edit_burden]
     burden_precision: bool = False        # |Δ| > precision
     burden_evidence: bool = False         # awarded>0 with unverified evidence (None or not_found)
-    fabricated_evidence: bool = False     # [T1-FABRICATED][DL-2] awarded>0 AND quote PRESENT AND not_found
+    # [DL-2 SPLIT, owner ruling 2026-08-27] both gate Tier-1, distinct labels:
+    #   fabricated = cited ink ABSENT from the answer (trust catastrophe)
+    #   stitched   = real ink, non-contiguous, misrepresented as one span
+    #                (citation defect: breaks span-highlighting in the review UI)
+    fabricated_evidence: bool = False     # [T1-FABRICATED] awarded>0, quote not_found, fragment(s) ABSENT
+    evidence_stitched: bool = False       # [T1-STITCHED]   awarded>0, quote not_found, ALL fragments present
     excluded_by_selection: bool = False   # excluded under the GT-side derivation; not in agreement metrics
     # [C-2, ratified 2026-08-24] terminal sits on a GT-ungradable scope: the
     # owner's best-guess award participates in TOTALS only; excluded from all

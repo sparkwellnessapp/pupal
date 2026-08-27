@@ -88,3 +88,18 @@ Full analysis: `C2_BASELINE_REPORT.md`.
 **Falsifiers:** mean signed Δ moves <0.05; OR any false credit appears on GT-ZERO terminals (row ≠ 80/80); OR `terminal_within_precision_rate` falls below the 0.6589 baseline.
 
 **Not run.** Requires owner authorization: it is a prompt change to `app/` (fenced, step-3 territory) plus ~$1.75 of spend.
+
+### E7 — RESTATED 2026-08-27 (owner ruling: authorized, gated on clause ratification)
+
+The original E7 sizing was against the full 201.75 shaving total and was too generous. Stratified bucketing (C2 addendum item 1) shows **42.50 pts (21.1%) of shaving is outside E7's reach**: `q2.ב.c4.s3` rubric self-contradiction 18.50 («סה"כ 2 נקודות» vs `points_possible=3` → `rubric_underdetermined`), `q2.ב.c4.s3` din wrong-target zeroing 15.00, din wrong-target zeroing elsewhere in q2.ב 9.00. **Addressable: 159.25 pts (78.9%).**
+
+**Restated prediction:** mean signed terminal Δ moves from **−0.3089** toward 0 by **≥0.12** (≈75% of the addressable share, allowing partial compliance), with GT-FULL→AI-PARTIAL falling from **236** toward **<130**. The 42.50 out-of-reach points REMAIN; if they vanish, read it as over-compliance, not success.
+
+**Pre-registered kill criteria (any one kills the change):**
+- **K1** — GT-ZERO → AI-ZERO must hold at **80/80**. Any false credit kills it regardless of Δ improvement.
+- **K2** — GT-PARTIAL → AI-FULL must not exceed the current **2.4%** (6/245).
+- **K3** — `terminal_within_precision_rate` must **improve** on 0.6589. A change that moves mean signed Δ without improving within-precision is adding noise, not accuracy.
+
+**Run parameters:** `grader-v3` (version bumped in the same state), k=5, same five fixtures, `prior_context` OFF, ~$1.75. One variable. §R applies in full to the analysis.
+
+**Gated:** clause text in `E7_CLAUSE_PROPOSAL.md`; nothing runs until the owner ratifies it.

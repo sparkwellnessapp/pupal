@@ -458,3 +458,58 @@ affects: docs + analysis only. No grader change, no threshold set, no GT
   amended, no app/ touched, zero spend. Batteries green.
 corrections: this entry CORRECTS the mechanism and the Q2 arithmetic in the
   2026-08-26 baseline entry; that entry stands unedited (append-only).
+
+## CHANGE 2026-08-27b — stratified bucketing correction · DL-2 split · reasoning_incoherent · E7 clause drafted
+
+item 1 — BUCKET CORRECTION (my 34/34 flat result was unsafe; owner was right).
+  Verified INDEPENDENTLY: q2.ב.c4.s3 has points_possible=3 while its own
+  description ends «...סה"כ 2 נקודות», and the only thing that could forfeit the
+  third point (the >0 usage check) is explicitly «לא להוריד, לכתוב הערה». The
+  model reads the rubric literally and defensibly; GT awards 3. BOTH readings
+  defensible => rubric_underdetermined (gt_questionable secondary). NOT
+  interpretive_divergence. Corroborating q2.א.c1 data confirmed exactly as the
+  owner stated: moran GT10 -> AI 7.5 on all five trials (deterministic);
+  yonatan -2.00, dan -3.20, omer -0.70 mean (din -1.40, unstated). Deterministic
+  wrongness = standards signature, not reasoning failure. q2.א.c1 verified as a
+  10-point monolith with NO itemization (its description text even runs into the
+  constructor signature).
+  STRATIFIED PASS, top 6 terminals by |signed Δ|, 25 observations each (5 fixtures
+  x 5 trials), flat sample retained separately. POINTS attribution of the 201.75
+  shaving total: surface-form cited cause 159.25 (78.9%, E7-addressable);
+  q2.ב.c4.s3 rubric_underdetermined 18.50; q2.ב.c4.s3 din wrong-target 15.00;
+  din wrong-target elsewhere in q2.ב 9.00 => 42.50 (21.1%) OUTSIDE E7's reach.
+  DISCREPANCY REPORTED: the owner estimated "~25 of those 33.5 points outside
+  E7's reach" for q2.ב.c4.s3; my computation says ALL 33.5 are outside — 18.50
+  rubric_underdetermined + 15.00 wrong-target annihilation, neither of which is
+  cosmetic-slip tariffing.
+item 2 — DL-2 SPLIT (owner ruling). evidence_fabricated (cited ink ABSENT, trust
+  catastrophe) vs evidence_stitched (real ink, non-contiguous, misrepresented as
+  one span; citation defect that breaks span-highlighting). BOTH gate Tier-1
+  under distinct tags [T1-FABRICATED] / [T1-STITCHED]. Classification signal:
+  do the quote's fragments exist VERBATIM in the answer. RED-FIRST (AttributeError
+  on the new slots field). The 0.85 bar is UNTOUCHED — the scorer re-LABELS an
+  already-failed quote, never re-scores one; a pin asserts the stitched fixture
+  still scores below 0.85. Re-scored the real dan r2 event: both terminals now
+  evidence_stitched, tier1 still fails => THE CORPUS CONTAINS ZERO FABRICATIONS.
+  Step-3 design input recorded (do NOT build): the structural fix is likely
+  allowing multiple quote spans instead of forcing one.
+item 3 — reasoning_incoherent added as a §R.2 sub-bucket: award AND deduction
+  cause both match GT, but the reasoning asserts P and not-P. Distinct from
+  right_award_wrong_reason (where the cause diverges). Exemplar moran/q2.ג.c0.s3;
+  flagged as a Phase-D J2 exemplar.
+item 4 — E7 CLAUSE DRAFTED (E7_CLAUSE_PROPOSAL.md), NOT RUN. One clause, no
+  worked examples, every element traced to a ratified ruling (PL-1 / PL-10 +
+  AUDIT-2 / PL-2 / R-α + the rubric's own conceptual deduction vocabulary),
+  states the never-compiled reason, and makes the example solution the authority
+  on naming and form. Effectively constitution entry #1 (§13.2 SEED). E7 restated
+  in PREDICTIONS excluding the 42.50 out-of-reach points: mean signed Δ moves
+  >=0.12; GT-FULL->AI-PARTIAL 236 -> <130; K1 80/80 must hold (any false credit
+  kills), K2 <=2.4%, K3 within-precision must improve.
+affects: scoring.py + schemas.py (instrument, owner-ruled) => suite_hash SHIFTS.
+  PLAYBOOK Tier-1 taxonomy and §R.2 updated. No GT amended, no threshold set, no
+  model change (D6 seam and the Terra sweep stay queued — the buckets say this is
+  a STANDARDS failure, not a capability failure, and a stronger model would
+  likely reproduce the same category error). Batteries 86 passed / 1 xfailed.
+  Zero spend.
+corrections: this entry CORRECTS the 34/34 interpretive_divergence result in the
+  2026-08-27 addendum entry; that entry stands unedited (append-only).
