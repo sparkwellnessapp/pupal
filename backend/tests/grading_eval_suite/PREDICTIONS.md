@@ -141,3 +141,24 @@ Full analysis with §R reads: `E7_REPORT.md`. **This run is the evidence for E8*
 - **K4 (new)** max per-fixture `ai_total_spread` must not exceed **14.00**, and the corpus max should fall. Rule 4 removes discretion over magnitudes, so it should reduce variance; if it doesn't, that is diagnostic of **prompt-surface exhaustion**.
 
 **Run:** grader-v4, k=5, same five fixtures, `prior_context` OFF, ~$1.75, one variable.
+
+### E8 — OUTCOME (scored 2026-08-27 against run 20260827-203313_gpt-4o)
+
+**K2 FAILED — E8 is killed by its own pre-registered criterion.** K1 80/80 PASS · **K2 2.9% (7/245) FAIL** (bar ≤2.0%) · K3 0.7400 PASS · K4 max spread **14.00 → 8.25** PASS.
+
+| Prediction | Result | Verdict |
+|---|---|---|
+| GT-PARTIAL→AI-ZERO ≤55 | 72 → **72** | **FALSIFIED** (no movement) |
+| GT-FULL→AI-ZERO ≤22 | 28 → **32** | **FALSIFIED** (worsened) |
+| mean signed Δ improves ≥0.10 | −0.2782 → −0.2574 (**0.0208**) | **FALSIFIED** |
+| within_precision improves on 0.7232 | **0.7400** | **CONFIRMED** |
+| max spread < 14.00 | **8.25** | **CONFIRMED** |
+| `q2.ב.c4.s3` moves | −34.50 → **−23.50** | **CONFIRMED** |
+
+**The central thesis is falsified:** magnitude authority did not reverse zero-inflation (22 zero cells recovered, 26 created, net **+4**). What rule 4 delivered instead: the named-tariff fix (rule 4a — the model now quotes «אין להוריד נקודות על כך, אלא רק לציין זאת») and decisive variance control.
+
+**THE REDISTRIBUTION RULE HAS FIRED.** E8 redistributed −33.25 (E7: −24.50), one previously-clean terminal now harsh, `q2.ג.c0.s3` −15.00 → −29.50. Per the standing condition, **the model seam (D6) and the registered Terra prior (P1) are now the evidence-based next move.**
+
+**Second finding:** `T1-STITCHED` tripled 3 → 9 — rule 4's component reasoning demands multi-span citation, and the single-quote contract forces fabricated contiguity. The multi-span step-3 design input is no longer speculative.
+
+Full analysis: `E8_REPORT.md`.

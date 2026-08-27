@@ -672,3 +672,66 @@ affects: app/ limited to prompt.py (owner-installed). Batteries 91 passed /
   1 xfailed. Zero spend so far.
 corrections: this entry CORRECTS two claims in the 2026-08-27 E7 entry
   (shippable-as-positive, instability-as-improved); that entry stands unedited.
+
+## RUN 20260827-203313_gpt-4o — E8 (grader-v4, deduction-size authority) — K2 FAILED; REDISTRIBUTION RULE FIRES
+
+ref: E7 20260827-191547 · one variable: rule 4 (owner-installed verbatim).
+provenance: grader-v4 · sut_hash ca642409227a86ad (E7 2c2cb60b2175ce90) ·
+  prior_context False · k=5 · $1.98 · prompt.py the only dirty grader-path file.
+KILL CRITERIA (first): K1 GT-ZERO->AI-ZERO 80/80 PASS · K2 GT-PARTIAL->AI-FULL
+  7/245 = 2.9% vs bar <=2.0% ***FAIL*** · K3 within-precision 0.7400 PASS ·
+  K4 max ai_total_spread 14.00 -> 8.25 PASS.
+  ==> E8 IS KILLED BY ITS OWN PRE-REGISTERED CRITERION. Rule 4's leniency floor
+  ("present but imperfect earns partial credit, not zero" + clause (c)'s share
+  judgment) pushed two extra GT-PARTIAL terminals to full credit. K2 caught
+  over-forgiveness BEFORE the improved metrics could sell it as an accuracy win.
+validity: 25/25 · 0 reruns · parse 0 (R6 not triggered) · $0.079/test under
+  ceiling · tier1 19/25, taxonomy {T1-STITCHED: 9} — a 3x increase.
+PREDICTIONS: GT-PARTIAL->AI-ZERO 72 -> 72 FALSIFIED (no movement) ·
+  GT-FULL->AI-ZERO 28 -> 32 FALSIFIED (worse) · mean signed delta -0.2782 ->
+  -0.2574, improved 0.0208 vs predicted >=0.10 FALSIFIED · within_precision
+  0.7400 CONFIRMED · max spread 8.25 CONFIRMED · q2.ב.c4.s3 moved CONFIRMED.
+  CENTRAL THESIS FALSIFIED: magnitude authority did NOT reverse zero-inflation.
+check (a) q2.ב.c4.s3 MOVED -34.50 -> -23.50 and for exactly the right reason:
+  omer 1.5-3.0 -> 3.00 x5, moran -> 3.00 x4, and the reasoning quotes the
+  instruction verbatim — moran r0 "לפי ההנחיות, אין להוריד נקודות על כך, אלא רק
+  לציין זאת"; omer r0 "יש לציין זאת כהערה". Rule 4(a) is a clean success: the
+  model now reads a NAMED TARIFF and obeys it, including the note-don't-deduct
+  instruction it had overridden since C2. din stays 0 (wrong-target, correctly
+  outside rule 4's scope).
+check (b) E7's zeros did NOT come back: of 180 E7 zero cells, 22 recovered, 158
+  unchanged, 26 NEWLY created => net +4 more zero cells.
+check (c) dan's spread FELL 14.00 -> 8.25; yonatan 7.25 -> 2.00; din 7.75 ->
+  6.00; moran/omer rose trivially. Corpus max 14.00 -> 8.25 — the E7 regression
+  I failed to surface is repaired. dan still spans 67.50-75.75 (crosses 75).
+check (d) REDISTRIBUTION AGAIN, LARGER THAN E7: 11 terminals worsened for -33.25
+  (E7 -24.50); q1.ב.c7 clean -> -1.00; q2.ג.c0.s3 -15.00 -> -29.50.
+  ==> THE REDISTRIBUTION RULE FIRES. Two successive clauses, each with a named
+  mechanism, each MOVING failure rather than eliminating it — the
+  prompt-surface-exhaustion signature. Per the standing condition, the model
+  seam (D6) + the registered Terra prior (P1) are now the evidence-based next
+  move. NOTE: the earlier judgment "this is a standards failure, not a capability
+  failure" is what E8 tested; two failed clauses is evidence against it.
+SS-R: T1-STITCHED 3 -> 9 is the second finding, concentrated in 5 cells
+  (omer/q1.ב.c3 x3, dan/q1.ג.c1 x2, dan/q1.ג.c7 x2, moran/q1.ג.c6, moran/q1.ג.c7).
+  Rule 4 asks the model to reason about WHICH COMPONENTS ARE PRESENT, and it now
+  assembles multi-component citations to evidence that reasoning — the same
+  instruction that improved tariff reasoning degrades citation integrity. The
+  single-quote contract forces fabricated contiguity; the multi-span step-3
+  design input is no longer speculative.
+  SHIPPABLE reported as CANCELLATION per the new PLAYBOOK rule: all 4 are omer,
+  all 4 compensating, edit_burden 3-4; rate unchanged at 0.16 and NOT evidence
+  of terminal correctness.
+tier2/3: within-precision 0.7232->0.7400 · exact 0.7137->0.7316 · MAE
+  0.3118->0.2942 · under-awards 252->233, exact 678->695 · boundary-flip
+  0.52->0.44 · ECE 0.2156->0.1987 · E5 inverted 0.5%->0.3%, GT-tie->split
+  20.5%->15.3%, dir-agreement 98.6%->99.3%. INSTABILITY DIVERGES (both measures,
+  per the new rule): terminals moving 30.0% -> 35.3% (worse) while max total
+  spread 14.00 -> 8.25 (much better) — more terminals move, totals move less.
+  Per-fixture: din +2.5, moran +1.0, yonatan +0.75, dan -0.5, omer -0.5.
+decisions: NONE. E8 not adopted (K2). Recommended sequence surfaced for the
+  owner, NOT chosen: (a) narrow rule 4(c) to remove the discretionary share
+  judgment and re-run as E9, or (b) accept prompt-surface exhaustion and move to
+  D6/Terra.
+cost: $1.98  wall: ~11 min
+corrections: none
