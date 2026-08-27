@@ -381,3 +381,80 @@ next: owner review of C2_BASELINE_REPORT.md -> Tier-2 threshold candidates
   pre-registered from THIS distribution -> Phase D judge bootstrap.
 cost: $1.7462  wall: ~9 min
 corrections: none
+
+## CHANGE 2026-08-27 — PLAYBOOK §R inserted (gating) + C2 addendum: mechanism CORRECTED
+
+what: (1) PLAYBOOK gains §R "The qualitative read (MANDATORY, gating)", inserted
+  verbatim per owner ruling (R.0 rationale · R.1 six mandatory reads R-1..R-6 +
+  conditional triggers · R.2 seven-bucket taxonomy · R.3 the three distribution
+  reads · R.4 report contract). §3's analysis contract gains: "...and §R is
+  complete, with its bucket counts and R.3 tables in the report body."
+  Docs-only; no code, no suite_hash concern.
+  (2) C2_BASELINE_ADDENDUM.md — re-analysis of the SAME run (20260826-174645),
+  zero spend, zero re-measurement.
+CORRECTION 1 — MY REPORTED MECHANISM WAS WRONG. "Confident all-or-nothing
+  annihilation" is falsified by my own results.json. Cross-tab (n=950,
+  independently computed; cells match the owner's exactly): GT-ZERO 80/80 -> AI
+  ZERO (100%); GT-PARTIAL 245 -> AI ZERO 54 (22.0%); GT-FULL 625 -> AI PARTIAL
+  236 (37.8%). AI partial share 44.3% vs GT 25.8%. The real mechanism is
+  SHAVING: 258 cases where GT gave full and AI deducted (236 FULL->PARTIAL + 22
+  FULL->ZERO), median 0.5, 201.75 pts = 68.7% of NET harshness (293.50).
+  Annihilation is 54 cases / 49.5 pts / 16.9% — real but a quarter the size.
+  din's zeroed q2.b is ONE scope in ONE fixture (4/5 trials; trial 3 gave 3.0).
+  HEADLINE POSITIVE: zero false credit, 80/80 — the grader never invents merit.
+  ARITHMETIC CORRECTION to the first report: I wrote "Q2 -243 of -264"; the net
+  total is -293.50 and Q2 = -243.25 = 82.9%. Conclusion survives; numbers were
+  wrong and are restated.
+CORRECTION 2 — CALIBRATION. "Non-monotone" was NOISE (0.8 band 38.7% n=111 vs
+  0.7 band 45.1% n=164); I over-read small cells and withdraw it as a property.
+  Now reported in TWO registers: absolute (ECE 0.2438; 465/950 at conf 1.0 ->
+  auto-verification stays blocked, unchanged) and RANK-USEFULNESS (conf 1.0 ->
+  86.2% within-precision; flagging conf<1.0 reviews 51.1% and captures 76.3% of
+  total |delta|, lift 1.49x; residual risk at conf=1.0 is 13.8%). Different
+  properties: review triage is defensible today, auto-verification is not.
+concentration: top-3 terminals -106.00 = 36.1% of net harshness; worst scope
+  q2.b -129.75 = 44.2%; Q2 -243.25 = 82.9%. Named: q2.a.c1 -1.96/trial (~17% of
+  all harshness — the un-itemized 10-pt UpdateRate monolith; GT gave three
+  students 10/10) and q2.b.c4.s3 -33.50 (its own rubric text says do-not-deduct-
+  write-a-note; the grader deducts anyway on 3 of 5 fixtures at confidence 1.00).
+SS-R reads: R-1 din q2.b stable annihilation 4/5 · R-2 omer 7/8 exact, the miss
+  is P2's named q1.b.c4 · R-3 caught a genuine right_award_wrong_reason (moran
+  q2.g.c0.s3, GT=AI=6.00; the reasoning asserts the null check is present AND
+  absent in one sentence, then deducts, and still lands on the right number —
+  invisible to every metric) · R-4 below · R-5 din q2.b.c4.s3 GT3->AI0 at conf
+  1.00 in 4 trials, against an explicit no-deduct tariff · R-6 14 terminals with
+  spread >=1.0, ALL in din's wrong-target scope => prompt underspecification
+  about wrong-target answers, not genuine ambiguity.
+R-4 FINDING — T1-FABRICATED IS MISCLASSIFIED HERE. dan r2's two violations are
+  ONE bad scope-call in one trial. ALL FOUR constituent quote lines are present
+  VERBATIM in dan's answer; the model STITCHED non-contiguous real ink.
+  Validator ratios 0.7190 and 0.8370 (bar 0.85 — the second is 0.013 short).
+  DL-2's definition ("the model invented evidence") does not describe this.
+  SURFACED, NOT ACTED ON (validator is app/ = fenced; the tripwire definition is
+  instrument = STOP-list item 2). Candidate follow-ups for owner ruling: (a) a
+  multi-fragment quote check before declaring not_found; (b) a prompt line
+  forbidding concatenation of non-adjacent lines.
+bucket counts (34 sampled shaving cases across all five fixtures):
+  interpretive_divergence 34/34 (100%). Sub-class: PL-1 cosmetic 19 · PL-10
+  malformed-but-unambiguous 3 (incl. the exact AUDIT-2 get.chl() case) · PL-2
+  CW/CR 3 · R-alpha contradicted-by-the-model-solution 3 (durationInMinutes —
+  the teacher's own solution declares it) · explicit-tariff violations 3 · other
+  interpretive 3. ZERO evidence_miss / evidence_fabricated / gt_questionable /
+  transcription_artifact / rubric_underdetermined.
+E5 (post-hoc, zero spend): aggregation = per-terminal MEDIAN AI award across
+  k=5; 380 comparisons (38 terminals x 10 fixture pairs). Both-tie 129 (33.9%) ·
+  GT-tie->AI-splits 100 (26.3%) · GT-differs->AI-ties 9 (2.4%) · agree 136
+  (35.8%) · INVERTED 6 (1.6%). Directional agreement where both order: 136/142 =
+  95.8%. READING: shaving is largely ORDER-PRESERVING (student ranking
+  substantially intact), but 26.3% of comparisons are the grader manufacturing a
+  distinction between students the teacher graded IDENTICALLY — the SS13.1
+  cross-student inconsistency / appeal exposure, invisible to MAE.
+SS-R.4 deliverable: mechanism "cosmetic-slip tariffing"; the single change is one
+  SYSTEM_PROMPT instruction (do not deduct for unambiguous surface-form
+  deviation); the metric that moves is mean signed terminal delta (-0.3089).
+  Registered as E7 in PREDICTIONS.md, NOT RUN (needs owner authorization: a
+  prompt change to app/ + ~$1.75 spend).
+affects: docs + analysis only. No grader change, no threshold set, no GT
+  amended, no app/ touched, zero spend. Batteries green.
+corrections: this entry CORRECTS the mechanism and the Q2 arithmetic in the
+  2026-08-26 baseline entry; that entry stands unedited (append-only).

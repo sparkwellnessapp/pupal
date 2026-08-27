@@ -65,6 +65,8 @@ operating manual. Where they disagree, the mission wins.
 - **k=1 is PROVISIONAL in every artifact it touches** [§3]. Authoritative = k>=5.
 - One variable per run; kill criterion pre-registered in PREDICTIONS.md before
   spend; RUNLOG entry after every run and every variable change.
+- **The analysis is DONE only when** the above hold **…and §R is complete, with
+  its bucket counts and R.3 tables in the report body.**
 
 ## 4. Operational definitions the scorer implements (grep the tags in scoring.py)
 
@@ -106,3 +108,94 @@ operating manual. Where they disagree, the mission wins.
   debugging. R1 checks still apply.
 - `--scopes` — diagnostic subset: totals suppressed, PROVISIONAL stamped.
 - The judge [§8] is a SEPARATE offline pass (Phase D); never inline with grading.
+
+## R. The qualitative read (MANDATORY, gating)
+
+> Inserted 2026-08-27 by owner ruling, verbatim. This is a **gate**, not an appendix:
+> a run analysis is NOT done until §R is complete and its findings appear in the report body.
+
+---
+
+### R.0 Why this exists
+
+The transcription suite's standing rule — *read at least two diffs by hand every run; the failure nobody
+anticipated shows up in the diff before it shows up in a metric* — applies here with **greater** force,
+for a reason specific to grading.
+
+In transcription, ground truth is **fact**: ink either says `Mobby` or it doesn't, and a scorer that
+computes the ratio correctly has extracted essentially everything the artifact contains. In grading,
+ground truth is **judgment**, and the artifact carries three layers a number cannot see:
+
+1. **the award** — the only layer the scorer reads;
+2. **the reasoning** — whether the award was reached for a defensible cause;
+3. **the evidence quote** — whether the cited ink actually supports the reasoning.
+
+A grader can be right in layer 1 and catastrophically wrong in layers 2-3 (the *right-for-wrong-reason*
+failure), and no Tier-1/2/3 metric in this suite will fire. Conversely, a systematic *interpretive*
+error — one that a single prompt sentence would fix — appears in the metrics only as diffuse
+non-actionable harshness, and is identifiable **only** by reading what the model wrote.
+
+**The baseline proved this empirically.** The scorer said: harsh, MAE 0.34, worst test din. Reading the
+distribution and the per-terminal reasoning said: *the grader shaves ~0.5 points off answers the teacher
+called complete, 258 times, for 68.7% of all harshness* — a different defect with a different fix. The
+numbers were correct and the mechanism read off them was wrong.
+
+### R.1 The protocol — minimum per run
+
+Per fixture, the analyst opens `report_<fixture>.md` and reads the **full terminal table**: `gold | ai |
+Δ | quote_status | confidence | flags | reasoning`. Not the summary. Not the aggregates. The text.
+
+**Mandatory reads (all five, every run):**
+
+| # | Selection rule | What it is for |
+|---|---|---|
+| R-1 | The **worst test's** worst scope, all k trials | The dominant failure, and whether it is stable or stochastic |
+| R-2 | The **best-agreement** fixture's disagreements | Distinguishes "grader is fine, GT is arguable" from real error |
+| R-3 | **Three terminals where AI == GT exactly**, sampled across fixtures | The right-for-wrong-reason audit. Agreement is not evidence of soundness; only the reasoning is |
+| R-4 | Every **Tier-1 violation**, in full, with surrounding scope | A tripwire tells you *that*; only the text tells you *why* |
+| R-5 | The **highest-|Δ| terminal at confidence >= 0.9** | Confident error is the most dangerous class for a teacher-facing product |
+| R-6 | Any terminal on the **instability list** whose award spread >= 1.0, across all k | Separates genuine ambiguity from prompt underspecification |
+
+**Additional reads triggered by conditions:**
+- any `quote_status = not_found` or `fuzzy` carrying a positive award — read the quote against the answer text;
+- any scope zeroed in full — read every terminal in it (a zeroed scope is a *decision*, and the reasoning states it);
+- any fixture whose `mean signed Δ` sign differs from the corpus — read two of its terminals;
+- any `[C1-TABLE]` or `ungradable_scopes` terminal — these rulings are otherwise untested (registered corpus gap).
+
+### R.2 What the analyst is looking for — the taxonomy
+
+Every disagreement read by hand gets classified into exactly one bucket, and **the counts go in the report**:
+
+| Bucket | Definition | Implication |
+|---|---|---|
+| `rubric_underdetermined` | Rubric text genuinely admits both awards | → constitution ruling (§13), not a grader fix |
+| `interpretive_divergence` | Grader applied a consistent standard the teacher does not hold (e.g. charging syntax the teacher treats as ink) | → **prompt-level fix**; the highest-value bucket |
+| `evidence_miss` | The supporting ink exists; the grader did not find it | → retrieval/attention problem |
+| `evidence_fabricated` | Cited quote is not in the answer | → Tier-1; trust-critical |
+| `right_award_wrong_reason` | Award matches GT; reasoning does not support it | → invisible to every metric; only R-3 finds it |
+| `gt_questionable` | Reading the text, the teacher's own award looks arguable | → GT amendment candidate, ratified by owner only |
+| `transcription_artifact` | Disagreement traces to garbled transcription, not grading | → upstream, not this suite's fix |
+
+### R.3 The distribution read (do this before the fixture reads)
+
+Numbers alone under-determine mechanism. Before reading text, compute and state:
+
+- **Partial-credit cross-tab**: GT ∈ {ZERO, PARTIAL, FULL} × AI ∈ {ZERO, PARTIAL, FULL}. This single
+  table distinguishes *nitpicking* (GT=FULL → AI=PARTIAL) from *annihilation* (GT=PARTIAL → AI=ZERO)
+  from *over-credit* (GT=ZERO → AI>0). Report it every run.
+- **Harshness concentration**: what share of total signed Δ comes from the top 3 terminals, and from
+  the single worst scope. Diffuse ≠ concentrated, and they have different fixes.
+- **Confidence as a ranking signal**, separate from ECE: within-precision rate per confidence band, and
+  the error captured by flagging `confidence < 1.0`. Absolute miscalibration and rank-usefulness are
+  different properties, and a product can use the second without the first.
+
+### R.4 Report contract
+
+The run report must contain a **§Qualitative read** section with: the six mandatory reads named and
+summarized (2-4 sentences each, quoting the grader's own reasoning where it is the evidence); the
+bucket counts from R.2; the R.3 tables; and — the deliverable — **one named mechanism hypothesis with
+the single change that would test it and the metric that would move.** One variable. Stated as a
+falsifiable prediction, registered in `PREDICTIONS.md` before any run that tests it.
+
+**The analysis is not done without §R.** A report that cites only aggregates is incomplete regardless
+of how many aggregates it cites.

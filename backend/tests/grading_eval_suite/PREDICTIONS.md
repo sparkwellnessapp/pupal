@@ -73,3 +73,18 @@ SPLIT: cost under ceiling CONFIRMED ($0.0698 < $0.10), the $0.03/test estimate F
 INDETERMINATE: the counterposed syntax-over-deduction mechanism (observed harshness signature is wrong-target all-or-nothing zeroing, not syntax nitpicking; no per-terminal attribution without reading 950 reasonings).
 
 Full analysis: `C2_BASELINE_REPORT.md`.
+
+## E7 — cosmetic-slip tariffing (registered 2026-08-27, NOT RUN)
+
+**Authored by:** reviewer, per PLAYBOOK §R.4, from the C2 baseline qualitative read.
+**Mechanism claimed:** the grader charges points for surface-form deviation (identifier case, spelling, naming, shorthand IO, malformed-but-referent-unambiguous member access, bracket style) where the teacher's ratified rulings PL-1/PL-2/PL-10/R-α treat these as ink. Evidence: 82% (28/34) of sampled GT-FULL→AI-PARTIAL shaving cases; shaving = 201.75 pts = 68.7% of net harshness.
+
+**Single variable:** add one instruction to `SYSTEM_PROMPT` — *do not deduct for surface-form deviations where the student's intent is unambiguous; deduct only for semantic or behavioural defects.* Same model (gpt-4o), same fixtures, same k=5, `prior_context` OFF.
+
+**The metric that moves:** `mean signed terminal Δ`, currently **−0.3089**.
+
+**Prediction:** mean signed terminal Δ moves toward 0 by **≥0.15** (≥50% of the gap), driven by the GT-FULL→AI-PARTIAL cell falling from **236** to **<120**, with **no regression** on the GT-ZERO row (currently **80/80 = 100% correct zeros**, which must hold) and **no** increase in the GT-PARTIAL→AI-FULL cell beyond +10 (currently 6).
+
+**Falsifiers:** mean signed Δ moves <0.05; OR any false credit appears on GT-ZERO terminals (row ≠ 80/80); OR `terminal_within_precision_rate` falls below the 0.6589 baseline.
+
+**Not run.** Requires owner authorization: it is a prompt change to `app/` (fenced, step-3 territory) plus ~$1.75 of spend.
