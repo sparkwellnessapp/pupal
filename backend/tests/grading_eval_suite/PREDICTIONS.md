@@ -113,3 +113,17 @@ Arguably the cleanest single formulation of the whole baseline finding.
 **WHY IT IS EXCLUDED FROM E7 (chosen, not overlooked):** E8 would ALSO move `q2.ב.c4.s3` — whose own text says «לא להוריד, לכתוב הערה» and whose 33.50 points E7 deliberately cannot reach. That destroys one-variable attribution and invalidates the "42.50 points must remain" check that makes E7 falsifiable. Queued strictly behind E7.
 
 **Not run.** Requires its own owner authorization, its own single-variable run, and its own kill criteria.
+
+### E7 — OUTCOME (scored 2026-08-27 against run 20260827-191547_gpt-4o)
+
+**Kill criteria: ALL PASS.** K1 GT-ZERO→AI-ZERO **80/80** (zero false credit) · K2 GT-PARTIAL→AI-FULL **2.0%** (baseline 2.4%) · K3 within-precision **0.7232** (baseline 0.6589).
+
+**FALSIFIED** — mean signed terminal Δ improved only **0.0307** (−0.3089 → −0.2782) against the predicted **≥0.12**.
+**CONFIRMED** — GT-FULL→AI-PARTIAL fell **236 → 111** (predicted <130).
+**Out-of-reach class REMAINED exactly** (63.00 → 63.00): no over-compliance.
+
+**Why the split:** the clause fixed 125 shaves but created **24 new zeros** (GT-PARTIAL→AI-ZERO 54→72; GT-FULL→AI-ZERO 22→28), worth −24.50 against +53.75 of fixes. Mechanism read from the reasoning: the clause told the model *what* is conceptual without telling it *how much* a conceptual defect costs, so over-shaving partly became **over-zeroing** — the model now invokes «פגם קונספטואלי» explicitly and charges to zero where the teacher gave partial or full credit.
+
+Everything else improved: exact-rate 0.6084→0.7137 · MAE 0.34→0.3118 · **shippable 0.0→0.16 (first ever)** · boundary-flip 0.80→0.52 · ECE 0.2438→0.2156 · instability 37.4%→30.0% · E5 inversions 1.6%→0.5%, GT-tie→AI-split 26.3%→20.5%, directional agreement 95.8%→98.6%. 4 of 5 fixtures improved; din regressed −1.5. New: `compensating_error` 0→4.
+
+Full analysis with §R reads: `E7_REPORT.md`. **This run is the evidence for E8** (tariff exclusivity) being the natural successor: the missing half is *how much*.

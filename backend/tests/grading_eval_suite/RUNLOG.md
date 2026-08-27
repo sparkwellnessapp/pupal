@@ -562,3 +562,63 @@ affects: app/ touched ONLY by the single prompt.py clause + version bump (the
   Batteries 89 passed / 1 xfailed. Zero spend so far.
 next: E7 run — k=5 x 5, prior_context OFF, ~$1.75; K1/K2/K3 reported FIRST.
 corrections: none
+
+## RUN 20260827-191547_gpt-4o — E7 (grader-v3, surface-form clause) — ALL KILL CRITERIA PASS; PREDICTION FALSIFIED
+
+ref: C2 baseline 20260826-174645 · one variable: the ratified clause.
+provenance: prompt_version grader-v3 · sut_hash 2c2cb60b2175ce90 (C2:
+  7e0b1f0316a2ae67) · prior_context False · k=5 · cost $1.85. sut_hash EARNED
+  ITS KEEP ON FIRST USE: it proves the SUT changed and that the only grader-path
+  file in the diff is prompt.py, so the clause is provably the single variable
+  rather than an assumption.
+KILL CRITERIA (first, as ruled): K1 GT-ZERO->AI-ZERO 80/80 PASS (zero false
+  credit — the never-creates-credit sentence held) · K2 GT-PARTIAL->AI-FULL 2.0%
+  vs 2.4% PASS · K3 within-precision 0.7232 vs 0.6589 PASS. No kill fired.
+validity: 25/25 valid · 0 reruns · 0 wall hits · parse-rate 0 (R6 not triggered)
+  · $0.0738/test under ceiling · tier1 23/25, taxonomy {T1-STITCHED: 3}, ZERO
+  fabrications (dan r2 x2 reproduced + a new omer r3/q1.b.c3).
+PREDICTION: mean signed delta FALSIFIED — improved only 0.0307 (-0.3089 ->
+  -0.2782) vs predicted >=0.12. GT-FULL->AI-PARTIAL CONFIRMED — 236 -> 111.
+check (a) out-of-reach REMAINED EXACTLY 63.00 -> 63.00 (q2.b.c4.s3
+  rubric-underdetermined 18.50->19.50, din wrong-target 15.00->15.00, din
+  wrong-target elsewhere 29.50->28.50). No over-compliance. q2.b.c4.s3 stays
+  rank 2 at -34.50 — untouched, as E7's design requires; E8 is what moves it.
+check (b) q2.a.c1 WORSE overall (-49.00 -> -51.00) but mixed underneath: moran's
+  deterministic 7.5 DID break (-> 8.0/7.5 mix); omer now 10.0/10.0/9.5/10.0/9.5;
+  dan improved; yonatan flat; DIN COLLAPSED to a deterministic 5.0 and wiped out
+  the other four fixtures' gains.
+check (c) REDISTRIBUTION CONFIRMED — the headline. 12 terminals worsened,
+  -24.50 pts of NEW harshness; 1 previously-clean terminal now harsh (q1.g.c6
+  0 -> -1.00). Cross-tab: GT-PARTIAL->AI-ZERO 54 -> 72, GT-FULL->AI-ZERO 22 ->
+  28, while GT-FULL->AI-PARTIAL 236 -> 111 and GT-FULL->AI-FULL 367 -> 486.
+  125 shaves fixed, ~24 new zeros created; a zero costs the whole criterion, so
+  -24.50 cancels most of +53.75 => net +29.25. q1.b.c2 jumped rank 10 -> 3.
+MECHANISM (SS-R, read from the reasoning, not aggregates): TWO causes.
+  (i) BEHAVIOURAL-TEST OVER-APPLICATION, dominant — the clause said WHAT is
+  deductible but not HOW MUCH. The model now catches conceptual defects it
+  previously missed and charges them far harder than the teacher: moran/q2.b.c1
+  1.00 -> 0 x5 citing "this is a conceptual defect" (this is P2's named
+  [100]-vs-[101] prediction — C2 missed it, E7 catches it and over-charges);
+  dan/q1.a.c1 applies the behavioural test CORRECTLY ("the code would not work")
+  then charges 1.0-1.5 where GT charges 0.5; dan/q1.b.c2 1.50 -> 0 in 3 trials.
+  (ii) RESIDUAL NON-COMPLIANCE, smaller — some pure PL-1 still charged and
+  sometimes harder: dan/q2.b.c0 "LowesRateChannel" spelling 1.75 -> 0.50;
+  din/q2.a.c1 still cites the missing semicolon.
+  WINS read the same way: din/q1.a.c0 3.00 -> 4.00 x5 ("no conceptual problems");
+  moran/q1.a.c0 "durationInMinutes ... but this is not a problem" — the R-alpha
+  element landing precisely. q1.a.c0 -9.50 -> -0.75, the biggest single win.
+tier2/3: exact-rate 0.6084->0.7137 · MAE 0.34->0.3118 · SHIPPABLE 0.0->0.16
+  (4/25 — first shippable trials in the suite's history) · boundary-flip
+  0.80->0.52 · under-awards 352->252, exact 578->678 · ECE 0.2438->0.2156 ·
+  instability 37.4%->30.0% · E5 inverted 1.6%->0.5%, GT-tie->AI-split
+  26.3%->20.5%, directional agreement 95.8%->98.6%. NEW: compensating_error
+  0 -> 4. Per-fixture 4/5 improved (moran +3.25, dan +2, omer +2 landing exactly
+  on GT 89.0, yonatan +0.25); din regressed -1.5. Q2 share 82.9% -> 84.4%.
+decisions: NONE taken. Verdict recorded as adopt-with-reservation, OWNER's call.
+  This run is the evidence for E8 (tariff exclusivity) being the natural
+  successor: the missing half is HOW MUCH. E8 stays registered and unrun.
+surfaced, not acted on: residual PL-1 non-compliance; din/q2.a.c1's new
+  deterministic wrong answer; compensating_error appearing for the first time
+  (4 trials — total-level agreement now masks terminal disagreement on ~1/6).
+cost: $1.85  wall: ~10 min
+corrections: none
