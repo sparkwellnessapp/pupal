@@ -195,7 +195,8 @@ def write_summary(suite: SuiteResult, out_dir: Path) -> Path:
     L.append(f"- model_key: `{prov.get('model_key')}`  model_version: "
              f"`{prov.get('model_version')}`  prompt_version: `{prov.get('prompt_version')}`")
     L.append(f"- registry_as_of: `{prov.get('registry_as_of')}`  suite_hash: "
-             f"`{prov.get('suite_hash')}`  timestamp: {prov.get('timestamp')}")
+             f"`{prov.get('suite_hash')}`  **sut_hash: `{prov.get('sut_hash')}`**  "
+             f"timestamp: {prov.get('timestamp')}")
     L.append(f"- prior_context: {prov.get('prior_context')}  "        # [PR-G1]
              f"gt_sources: {prov.get('gt_sources')}")                 # [M1]
     L.append("")

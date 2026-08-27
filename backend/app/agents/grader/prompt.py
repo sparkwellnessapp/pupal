@@ -12,6 +12,12 @@ from typing import List
 
 from app.schemas.gradable import GradableScope
 
+# grader-v3 (owner ruling 2026-08-27, E7): adds rule 3 — SURFACE FORM IS NOT A
+# DEDUCTION. Ratified clause, derived from PL-1 / PL-10+AUDIT-2 / PL-2 / R-α and
+# the rubric's own conceptual deduction vocabulary; effectively constitution
+# entry #1 (§13.2 SEED). The behavioural test is the discriminator; the
+# never-creates-credit sentence encodes kill-criterion K1 as a constraint the
+# model reads, not merely a detector we measure afterwards.
 # grader-v2 (owner lever, 2026-08-25; canonical name ruled in the PR-G1 v2
 # carryover — supersedes the interim "grader-v2-evidence-first" string):
 # TerminalGrade's field order is quote_text -> reasoning -> points_awarded ->
@@ -20,7 +26,7 @@ from app.schemas.gradable import GradableScope
 # evidence the model just located and the reasoning it just wrote —
 # evidence-before-verdict, mechanically enforced. The rule/format ordering
 # below mirrors it (sentences unchanged from grader-v1; only sequence moved).
-GRADING_PROMPT_VERSION = "grader-v2"
+GRADING_PROMPT_VERSION = "grader-v3"
 
 # PR-G1 v2 (RATIFIED 2026-08-25): the prefix-context seam, gated by env flag.
 # The stamped prompt_version is a PURE FUNCTION of code + flag:
@@ -54,20 +60,36 @@ GRADING RULES
    - If no relevant evidence exists, set quote_text to "" and award 0 points.
    - Do NOT paraphrase — copy the exact text the student wrote.
 
-3. Write reasoning in Hebrew explaining your award for each terminal.
+3. SURFACE FORM IS NOT A DEDUCTION. This is a handwritten exam that was never
+   compiled. Deduct for conceptual defects — including, but not limited to,
+   absent machinery, a wrong algorithm, a missing guard or check, direct
+   attribute access where the rubric requires a getter, a wrong loop bound or
+   range. Do NOT deduct for how the student wrote it when the intent is
+   unambiguous: identifier case, spelling, an obvious local left undeclared,
+   parentheses where brackets belong, a truncated or malformed but
+   clearly-referring name, a missing semicolon, or garbled braces. The test is
+   behavioural: if only the written form is wrong and the intended computation
+   is unambiguous, it is form; if what the code would do differs from what the
+   criterion requires, it is conceptual. This rule never creates credit — a
+   criterion whose required work is absent scores zero however well the rest is
+   written. When the EXAMPLE SOLUTION is present, it — not your own convention —
+   is the authority on naming and form: a student whose naming matches the
+   example solution has made no naming error.
 
-4. For each terminal criterion:
+4. Write reasoning in Hebrew explaining your award for each terminal.
+
+5. For each terminal criterion:
    - Award points_awarded as a number in [0, points_possible].
    - Use quarter-point increments (0, 0.25, 0.5, 0.75, 1.0, ...).
 
-5. Report confidence ∈ [0.0, 1.0] per terminal — your certainty in THIS specific grade.
+6. Report confidence ∈ [0.0, 1.0] per terminal — your certainty in THIS specific grade.
    Lower confidence when:
    - The answer is ambiguous or could be interpreted multiple ways
    - Evidence is weak, indirect, or absent
    - The transcribed handwriting looks garbled or unclear
    - The criterion is difficult to judge from what the student wrote
 
-6. Return one grades entry per terminal criterion ID in the list.
+7. Return one grades entry per terminal criterion ID in the list.
 
 ═══════════════════════════════════════════════════════════════════════════════
 OUTPUT FORMAT

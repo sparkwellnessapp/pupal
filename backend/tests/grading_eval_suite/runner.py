@@ -110,6 +110,39 @@ def _hashed_paths() -> List[Path]:
     return paths
 
 
+# [sut_hash, owner ruling 2026-08-27] suite_hash pins the INSTRUMENT; this pins
+# the SYSTEM UNDER TEST. Two runs are comparable only if the grader-path code is
+# byte-identical — previously an assumption, now a recorded fact stamped in every
+# results.json. Deliberately DISJOINT from _hashed_paths(): the instrument can
+# change without the SUT changing and vice versa, and a single combined hash
+# would make a C2<->E7 comparison unverifiable.
+_BACKEND_ROOT = SUITE_DIR.parents[1]
+_SUT_RELPATHS = (
+    "app/agents/grader/grader.py",
+    "app/agents/grader/prompt.py",
+    "app/agents/grader/schemas.py",
+    "app/agents/grader/validator.py",
+    "app/services/gradable_compiler.py",
+    "app/services/selection_scoring.py",
+    "app/schemas/graded_test_draft.py",
+    "app/schemas/gradable.py",
+    "app/schemas/ontology_types.py",
+)
+
+
+def _sut_paths() -> List[Path]:
+    return [_BACKEND_ROOT / rel for rel in _SUT_RELPATHS]
+
+
+def _sut_hash() -> str:
+    """sha256 over exactly the grader-path file set, computed at run time."""
+    h = hashlib.sha256()
+    for p in _sut_paths():
+        h.update(p.relative_to(_BACKEND_ROOT).as_posix().encode("utf-8") + b"\0")
+        h.update(p.read_bytes() + b"\0")
+    return h.hexdigest()[:16]
+
+
 def _suite_hash() -> str:
     h = hashlib.sha256()
     for p in _hashed_paths():
@@ -149,6 +182,8 @@ def _provenance(config_name: str, config: dict, spec: ModelSpec, *,
         # [M1] gt_source surfaced per fixture in results.json
         "gt_sources": gt_sources or {},
         "suite_hash": _suite_hash(),
+        # [2026-08-27] proof of the CODE this run measured (grader path only)
+        "sut_hash": _sut_hash(),
         "timestamp": _dt.datetime.now().isoformat(timespec="seconds"),
         "cost_ceiling": config.get("cost_ceiling"),
         "trial_wall_s": TRIAL_WALL_S,

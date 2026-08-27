@@ -184,3 +184,50 @@ def test_agent_factory_receives_contract_policy(monkeypatch):
     agent = runner_mod.build_agent(bundle, agent_factory=factory)
     assert isinstance(agent, _FakeAgent)
     assert captured["policy"] is bundle.rubric_contract.numeric_policy
+
+
+# ---------------------------------------------------------------------------
+# sut_hash (owner ruling 2026-08-27, BLOCKING for E7): suite_hash pins the
+# INSTRUMENT; nothing pinned the SYSTEM UNDER TEST. Two runs are only
+# comparable if the grader-path code is byte-identical, and that was an
+# assumption rather than a recorded fact. sut_hash makes it a fact.
+# ---------------------------------------------------------------------------
+
+def test_sut_hash_covers_exactly_the_grader_path():
+    from .runner import _sut_paths, _sut_hash
+    names = [p.as_posix() for p in _sut_paths()]
+    expected_suffixes = [
+        "app/agents/grader/grader.py", "app/agents/grader/prompt.py",
+        "app/agents/grader/schemas.py", "app/agents/grader/validator.py",
+        "app/services/gradable_compiler.py", "app/services/selection_scoring.py",
+        "app/schemas/graded_test_draft.py", "app/schemas/gradable.py",
+        "app/schemas/ontology_types.py",
+    ]
+    for suf in expected_suffixes:
+        assert any(n.endswith(suf) for n in names), f"sut_hash misses {suf}"
+    assert len(names) == len(expected_suffixes), f"unexpected extras: {names}"
+    for p in _sut_paths():
+        assert p.exists(), f"sut path missing on disk: {p}"
+    h = _sut_hash()
+    assert len(h) == 16 and h == _sut_hash()        # stable, short-form
+
+
+def test_sut_hash_is_independent_of_suite_hash():
+    """They must be separate signals: the instrument can change without the SUT
+    changing, and vice versa. A single combined hash would make a C2<->E7
+    comparison unverifiable — exactly the gap this closes."""
+    from .runner import _sut_hash, _suite_hash, _sut_paths, _hashed_paths
+    assert _sut_hash() != _suite_hash()
+    sut = {p.as_posix() for p in _sut_paths()}
+    suite = {p.as_posix() for p in _hashed_paths()}
+    assert not (sut & suite), "sut_hash and suite_hash must not share files"
+
+
+def test_provenance_carries_sut_hash():
+    from tests.eval_common.models_registry import spec
+    from .runner import _provenance, _sut_hash
+    prov = _provenance("gpt-4o", {"cost_ceiling": 0.10, "prior_context": False},
+                       spec("gpt-4o"), mode="grade", k=5, fixtures=["dan_basiuk"],
+                       scopes=None)
+    assert prov["sut_hash"] == _sut_hash()
+    assert prov["suite_hash"] != prov["sut_hash"]

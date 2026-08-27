@@ -513,3 +513,52 @@ affects: scoring.py + schemas.py (instrument, owner-ruled) => suite_hash SHIFTS.
   Zero spend.
 corrections: this entry CORRECTS the 34/34 interpretive_divergence result in the
   2026-08-27 addendum entry; that entry stands unedited (append-only).
+
+## CHANGE 2026-08-27c — SUT-path verification · sut_hash · E7 clause RATIFIED + grader-v3 · E8 registered
+
+BLOCKING CONDITION — SUT PROVENANCE: CLEARED. All nine grader-path files
+  verified clean (no working-tree modification): app/agents/grader/{grader,
+  prompt,schemas,validator}.py · app/services/{gradable_compiler,
+  selection_scoring}.py · app/schemas/{graded_test_draft,gradable,
+  ontology_types}.py. NONE of the 31 pre-existing modified app/ files lies on
+  the grader path. Stronger check also run: the last commit touching the SUT
+  path is 71305dc (PR-G1 v2), which PREDATES the C2 run — no commit since C2
+  has touched it. C2 is reproducible and E7 is a true one-variable comparison.
+sut_hash LANDED (red-first; ImportError on _sut_paths/_sut_hash captured first):
+  sha256 over exactly the nine grader-path files, computed at run time, stamped
+  in results.json provenance beside suite_hash and surfaced in summary.md.
+  DELIBERATELY DISJOINT from _hashed_paths() — the instrument can change without
+  the SUT changing and vice versa; a combined hash would make a C2<->E7
+  comparison unverifiable. Pins: exact file-set coverage, disjointness from
+  suite_hash, presence in provenance.
+  C2-era sut_hash = 7e0b1f0316a2ae67 (recorded here as the baseline SUT identity;
+  C2's own results.json predates the field, so this RUNLOG line is its anchor).
+E7 CLAUSE — RATIFIED WITH THREE AMENDMENTS, inserted VERBATIM as SYSTEM_PROMPT
+  rule 3, rest renumbered (reasoning 3->4, award 4->5, confidence 5->6, return
+  6->7). Amendments accepted as ruled: (1) the deductible list is now explicitly
+  NON-EXHAUSTIVE ("including, but not limited to") plus the BEHAVIOURAL
+  discriminator — form if only the written form is wrong and the intended
+  computation is unambiguous; conceptual if what the code would DO differs from
+  what the criterion requires. This closes the hazard the owner identified:
+  din's if(LowestRateChannel == arr[i].getName()) — a function named but never
+  invoked — sat one inference from "truncated or malformed but clearly-referring
+  name" and would have been a K2 failure. (2) K1 encoded as a constraint the
+  model READS, not only a detector we measure: "This rule never creates credit —
+  a criterion whose required work is absent scores zero however well the rest is
+  written." (3) "correct by definition" narrowed to "has made no naming error".
+  No worked examples (they would pattern-match onto these five fixtures).
+GRADING_PROMPT_VERSION bumped grader-v2 -> grader-v3 in the SAME commit as the
+  clause. Version pins updated. NOTE: the flag-off byte-identity pin still
+  passes and correctly so — it covers build_user_message (the USER message),
+  which this change does not touch; SYSTEM_PROMPT is a separate constant.
+E8 REGISTERED, NOT RUN: "The rubric's stated tariffs are the only source of
+  deductions — do not invent tariffs the rubric does not name." Exclusion reason
+  RECORDED in PREDICTIONS so a future reader sees it was chosen: E8 would also
+  move q2.ב.c4.s3 («לא להוריד, לכתוב הערה»), destroying one-variable attribution
+  and invalidating E7's "42.50 must remain" falsifiability check.
+affects: app/ touched ONLY by the single prompt.py clause + version bump (the
+  ruling's explicit allowance). suite_hash and sut_hash BOTH shift. No GT
+  amended, no threshold set, no model change (D6 + Terra stay queued).
+  Batteries 89 passed / 1 xfailed. Zero spend so far.
+next: E7 run — k=5 x 5, prior_context OFF, ~$1.75; K1/K2/K3 reported FIRST.
+corrections: none

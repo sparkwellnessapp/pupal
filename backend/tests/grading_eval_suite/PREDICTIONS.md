@@ -103,3 +103,13 @@ The original E7 sizing was against the full 201.75 shaving total and was too gen
 **Run parameters:** `grader-v3` (version bumped in the same state), k=5, same five fixtures, `prior_context` OFF, ~$1.75. One variable. §R applies in full to the analysis.
 
 **Gated:** clause text in `E7_CLAUSE_PROPOSAL.md`; nothing runs until the owner ratifies it.
+
+## E8 — rubric-tariff exclusivity (registered 2026-08-27, **NOT RUN — queued behind E7**)
+
+> "The rubric's stated tariffs are the only source of deductions — do not invent tariffs the rubric does not name."
+
+Arguably the cleanest single formulation of the whole baseline finding.
+
+**WHY IT IS EXCLUDED FROM E7 (chosen, not overlooked):** E8 would ALSO move `q2.ב.c4.s3` — whose own text says «לא להוריד, לכתוב הערה» and whose 33.50 points E7 deliberately cannot reach. That destroys one-variable attribution and invalidates the "42.50 points must remain" check that makes E7 falsifiable. Queued strictly behind E7.
+
+**Not run.** Requires its own owner authorization, its own single-variable run, and its own kill criteria.
