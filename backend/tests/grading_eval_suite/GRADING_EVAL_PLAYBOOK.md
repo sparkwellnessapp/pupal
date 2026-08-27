@@ -57,6 +57,16 @@ operating manual. Where they disagree, the mission wins.
   terminal disagreement is large — total-level agreement is NEVER trusted alone.
   Operational definition [DL-1, PROVISIONAL until revisited with baseline data]:
   `|total_Δ| <= 1.0 AND (Σ|terminal Δ| − |total_Δ|) >= 2.0`.
+- **A shippable trial that also fires `compensating_error` is reported as
+  CANCELLATION, never as a pass** [owner ruling 2026-08-27]. `shippable_grade_rate`
+  is not evidence of terminal correctness; **`edit_burden` is the honest cost
+  metric**. (E7: all four "first ever" shippable trials were one fixture and all
+  four were compensating — total_Δ 0.00 on 3.00 points of cancelled terminal error.)
+- **Instability is reported in BOTH measures, every run** [owner ruling
+  2026-08-27]: how MANY terminals move across k, and how FAR the per-test total
+  moves (`max_ai_total_spread`). Never one alone — E7's terminal-count measure
+  improved 37.4%→30.0% while dan's per-test spread went 3.25→14.00, crossing two
+  grade boundaries on identical input.
 - **Read at least two per-fixture terminal tables by hand every run**
   (`report_<fixture>.md` exists for exactly this).
 - **n<10 fixtures => every rate is PROVISIONAL and stamped so.** The seed set is

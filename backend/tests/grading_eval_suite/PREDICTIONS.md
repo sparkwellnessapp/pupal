@@ -127,3 +127,17 @@ Arguably the cleanest single formulation of the whole baseline finding.
 Everything else improved: exact-rate 0.6084→0.7137 · MAE 0.34→0.3118 · **shippable 0.0→0.16 (first ever)** · boundary-flip 0.80→0.52 · ECE 0.2438→0.2156 · instability 37.4%→30.0% · E5 inversions 1.6%→0.5%, GT-tie→AI-split 26.3%→20.5%, directional agreement 95.8%→98.6%. 4 of 5 fixtures improved; din regressed −1.5. New: `compensating_error` 0→4.
 
 Full analysis with §R reads: `E7_REPORT.md`. **This run is the evidence for E8** (tariff exclusivity) being the natural successor: the missing half is *how much*.
+
+## E8 — deduction-magnitude authority (registered 2026-08-27, grader-v4)
+
+> **E8 (registered 2026-08-27):** supplying deduction magnitude authority reverses E7's zero-inflation and cuts variance. Predicted: GT-PARTIAL→AI-ZERO falls from 72 toward **≤55**; GT-FULL→AI-ZERO from 28 toward **≤22**; mean signed terminal Δ improves from −0.2782 by **≥0.10**; `terminal_within_precision_rate` improves on **0.7232**; max per-fixture `ai_total_spread` falls below **14.00**. `q2.ב.c4.s3` is expected to move for the first time (rule 4a directly addresses it) — it is no longer out of reach.
+
+**Clause wording note (owner ruling):** rule 4 is *not* "the rubric is the only source of deductions" — that would be false, since the rubric is silent on many cases and would leave no rule there at all. It is an **order of authority**: named tariff → criterion itemisation → share of required work present.
+
+**Kill criteria — K1–K3 unchanged, K4 added:**
+- **K1** GT-ZERO→AI-ZERO must hold **80/80**. Any false credit kills, regardless of Δ gain.
+- **K2** GT-PARTIAL→AI-FULL must not exceed **2.0%** (E7's value).
+- **K3** `terminal_within_precision_rate` must improve on **0.7232**.
+- **K4 (new)** max per-fixture `ai_total_spread` must not exceed **14.00**, and the corpus max should fall. Rule 4 removes discretion over magnitudes, so it should reduce variance; if it doesn't, that is diagnostic of **prompt-surface exhaustion**.
+
+**Run:** grader-v4, k=5, same five fixtures, `prior_context` OFF, ~$1.75, one variable.

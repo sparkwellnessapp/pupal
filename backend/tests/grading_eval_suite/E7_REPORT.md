@@ -116,3 +116,45 @@ But the primary prediction was **falsified**, and the reason is a real new failu
 **Surfaced, not acted on:** (1) residual PL-1 non-compliance (`LowesRateChannel`, the semicolon); (2) din/`q2.א.c1`'s new deterministic wrong answer; (3) `compensating_error` appearing for the first time (4 trials) — total-level agreement now masks terminal disagreement on a sixth of trials.
 
 **No GT amended · no threshold pre-registered · no model change · `app/` touched only by the ratified clause + version bump.**
+
+
+---
+
+# CORRECTIONS TO THIS REPORT (owner ruling 2026-08-27, recorded before E8)
+
+## C-1 — "first shippable trials" was a CANCELLATION artifact
+
+I reported `shippable_grade_rate 0.0 → 0.16` as a headline positive. **It is not evidence of terminal correctness.** Verified independently:
+
+| trial | total_Δ | Σ\|terminal Δ\| | compensating_error | edit_burden |
+|---|---|---|---|---|
+| omer r0 | **0.00** | **3.00** | True | 2 |
+| omer r1 | 1.00 | 5.00 | True | 5 |
+| omer r2 | −0.50 | 3.50 | True | 3 |
+| omer r4 | 1.00 | 4.00 | True | 4 |
+
+**All four shippable trials are omer, and all four fired `compensating_error`.** r0's total is exactly right because 3.00 points of terminal error cancelled. This is the doc-ratio blindspot in its grading form: the report stated both facts — "shippable 0.0→0.16" and "compensating_error 0→4" — on the same page and **never connected them.** That connection was the finding.
+
+**Restated:** `shippable_grade_rate` is **not** evidence of terminal correctness at this n. **`edit_burden` is the honest cost metric** — omer's *best* trial still needs **2 fixes**. A standing PLAYBOOK rule now forbids reporting a compensating shippable trial as a pass.
+
+## C-2 — an instability REGRESSION was not surfaced
+
+I reported instability as improved (37.4% → 30.0%). That measure counts **how many** terminals move. It does not measure **how far the test total moves**, and on that measure E7 regressed badly:
+
+| fixture | C2 spread | E7 spread | |
+|---|---|---|---|
+| **dan_basiuk** | 3.25 | **14.00** | **WORSE +10.75** |
+| yonatan_basiuk | 5.75 | 7.25 | worse +1.50 |
+| din_ezra | 6.75 | 7.75 | worse +1.00 |
+| moran_aharon | 3.00 | 1.50 | improved |
+| omer_gelber | 3.00 | 2.50 | improved |
+
+**Corpus max spread: 6.75 → 14.00.** dan's five totals on *identical input* are **64.00, 68.75, 70.00, 71.75, 78.00** — a swing that **crosses two grade boundaries (65 and 75)**.
+
+**Only moran and omer improved.** The two weakest papers by GT (din 55.5, dan 84.0) destabilised, and dan's regression dominates the corpus; yonatan also worsened slightly. Consistent with rule 3 introducing a judgment call that is itself a variance source.
+
+**Both measures are now computed and printed every run** (`aggregate()["instability"]`, surfaced in `summary.md`), pinned by `test_aggregate_reports_both_instability_measures`. Neither may be reported alone.
+
+## C-3 — grader-v3 ADOPTED as the pin (owner ruling)
+
+All kill criteria passed; within-precision +6.4pp, exact-rate +10.5pp, boundary-flip 0.80→0.52, E5 inversions 1.6%→0.5%. Reverting would forfeit real gains. **The transcription playbook's redistribution rule is deliberately NOT fired**: E7's redistribution has a *named mechanism* and a *registered successor*, unlike the theory-free redistribution that rule targets. **If E8 also redistributes, the rule fires** and the model seam (D6 → the owner's registered Terra prior, P1) becomes the evidence-based next move.

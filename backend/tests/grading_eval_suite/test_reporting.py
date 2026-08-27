@@ -46,3 +46,38 @@ def test_aggregate_counts_c1_table_and_ungradable_terminals():
     block = agg["per_fixture"]["synthetic"]
     assert block["c1_table_terminals"] == 1
     assert block["ungradable_terminals"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Owner ruling 2026-08-27 (E7-record correction b): instability must be reported
+# in BOTH measures every run — how MANY terminals move, and how FAR the test
+# total moves. E7 reported only the first (37.4% -> 30.0%, "improved") while
+# dan's per-test spread went 3.25 -> 14.00, crossing two grade boundaries on
+# identical input. One measure hid the other.
+# ---------------------------------------------------------------------------
+
+def test_aggregate_reports_both_instability_measures():
+    from .reporting import aggregate
+    from . import synth
+    from .scoring import score_trial
+    gt = synth.make_gt(synth.GT_PERFECT)
+    bundle = synth.make_bundle(gt)
+    s = {x.question_id: x for x in bundle.gradable_test.scopes}
+    trials = []
+    # two trials that differ ONLY in total (same count of moving terminals)
+    for i, award in enumerate(("2", "0")):
+        o1 = synth.make_scope_outcome(s["q1"], {
+            "q1.c0": (award, 0.9, synth.ANSWER_Q1[:8], None),
+            "q1.c1.s0": ("1", 0.9, synth.ANSWER_Q1[:8], None),
+            "q1.c1.s1": ("2", 0.9, synth.ANSWER_Q1[:8], None)})
+        o2 = synth.make_scope_outcome(s["q2"], {"q2.א.c0": ("4", 0.9, synth.ANSWER_Q2A[:8], None)})
+        trials.append(score_trial(synth.make_draft(bundle, [o1, o2]), bundle,
+                                  trial_index=i, cost_usd_value=0.03, cost_ceiling=0.10))
+    agg = aggregate(trials, k=2)
+    inst = agg["instability"]
+    # measure 1: how many terminals move
+    assert "terminals_moving_pct" in inst and inst["terminals_moving_pct"] > 0
+    # measure 2: how FAR the test total moves — the one E7 omitted
+    assert inst["max_ai_total_spread"] == 2.0, inst
+    assert inst["worst_spread_fixture"] == "synthetic"
+    assert inst["per_fixture_ai_total_spread"]["synthetic"] == 2.0

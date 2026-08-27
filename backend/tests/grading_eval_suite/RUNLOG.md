@@ -622,3 +622,53 @@ surfaced, not acted on: residual PL-1 non-compliance; din/q2.a.c1's new
   (4 trials — total-level agreement now masks terminal disagreement on ~1/6).
 cost: $1.85  wall: ~10 min
 corrections: none
+
+## CHANGE 2026-08-27d — E7-record corrections · grader-v3 ADOPTED · grader-v4 clause installed · E8 registered
+
+E7 CORRECTION C-1 (owner ruling): "first shippable trials in the suite's history"
+  was a CANCELLATION artifact and I reported it as a positive. Verified
+  independently: ALL FOUR shippable trials are omer, ALL FOUR fired
+  compensating_error; r0 has total_delta 0.00 against sum|terminal delta| 3.00.
+  My report stated both facts on the same page and never connected them. RESTATED:
+  shippable_grade_rate is NOT evidence of terminal correctness at this n;
+  edit_burden is the honest cost metric (omer's BEST trial still needs 2 fixes).
+  Standing PLAYBOOK rule added: a shippable trial that also fires
+  compensating_error is reported as cancellation, never as a pass.
+E7 CORRECTION C-2 (owner ruling): an instability REGRESSION was not surfaced.
+  I reported 37.4% -> 30.0% as improvement; that measure counts HOW MANY terminals
+  move, not HOW FAR the total moves. Verified: dan ai_total_spread 3.25 -> 14.00
+  (totals 64.00/68.75/70.00/71.75/78.00 on IDENTICAL input, crossing grade
+  boundaries 65 AND 75); yonatan 5.75 -> 7.25; din 6.75 -> 7.75; only moran
+  (3.00->1.50) and omer (3.00->2.50) improved. Corpus max 6.75 -> 14.00. Pattern:
+  the two weakest papers by GT destabilised, dan dominating — consistent with rule
+  3 introducing a judgment call that is itself a variance source. BOTH measures now
+  computed and printed every run (aggregate()["instability"], surfaced in
+  summary.md), red-first, pinned by test_aggregate_reports_both_instability_measures.
+DECISION (owner): grader-v3 ADOPTED as the pin. All kill criteria passed;
+  within-precision +6.4pp, exact-rate +10.5pp, boundary-flip 0.80->0.52, E5
+  inversions 1.6%->0.5%. The transcription playbook's redistribution rule is
+  DELIBERATELY NOT FIRED: E7's redistribution has a named mechanism and a
+  registered successor. If E8 also redistributes, the rule FIRES and the model
+  seam (D6 -> the owner's registered Terra prior P1) becomes the next move.
+grader-v4 CLAUSE INSTALLED BY THE OWNER (verbatim, not drafted by me): rule 4
+  "DEDUCTION SIZE IS SET BY THE RUBRIC, NOT BY YOU", rules renumbered 5-8, rule 3
+  untouched, provenance comment included, GRADING_PROMPT_VERSION = grader-v4.
+  Verified: rules 1..8 sequential; rule 3 precedes rule 4; the order-of-authority
+  (a named tariff -> b criterion itemisation -> c share of required work) present;
+  anti-zero-inflation, note-don't-deduct and charge-once sentences all present.
+  WORDING NOTE (owner ruling): E8 is NOT "the rubric is the only source of
+  deductions" — false, the rubric is silent on many cases — but an ORDER OF
+  AUTHORITY.
+pins updated red-first (version pin grader-v3 -> grader-v4 captured red first);
+  NEW test_system_prompt_rule_structure_v4 pins numbering + both ratified clauses.
+  prior_context OFF path RE-VERIFIED byte-identical (sha256 5b5d72a2… = the E7
+  A2_CONTENT anchor): rule 4 touches SYSTEM_PROMPT only, never build_user_message.
+  sut_hash 2c2cb60b2175ce90 -> ca642409227a86ad; prompt.py confirmed the ONLY
+  dirty grader-path file.
+E8 REGISTERED verbatim in PREDICTIONS with K1-K4 (K4 new: max per-fixture
+  ai_total_spread must not exceed 14.00 and the corpus max should fall; failure is
+  diagnostic of PROMPT-SURFACE EXHAUSTION).
+affects: app/ limited to prompt.py (owner-installed). Batteries 91 passed /
+  1 xfailed. Zero spend so far.
+corrections: this entry CORRECTS two claims in the 2026-08-27 E7 entry
+  (shippable-as-positive, instability-as-improved); that entry stands unedited.

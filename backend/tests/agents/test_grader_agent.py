@@ -506,3 +506,23 @@ def test_terminal_grade_decode_order_is_evidence_first():
     fmt = SYSTEM_PROMPT[SYSTEM_PROMPT.index("OUTPUT FORMAT"):]
     positions = [fmt.index(f) for f in want]
     assert positions == sorted(positions), "OUTPUT FORMAT order drifted from the schema"
+
+
+def test_system_prompt_rule_structure_v4():
+    """[grader-v4] The ratified rules are numbered 1..8 with no gaps, rule 3
+    (surface form, E7) and rule 4 (deduction size, E8) both present and in that
+    order. A renumbering or a silent drop of a ratified clause fails here."""
+    import re
+    from app.agents.grader.prompt import SYSTEM_PROMPT
+    nums = [int(n) for n, _ in re.findall(r"^(\d+)\. (.)", SYSTEM_PROMPT, re.M)]
+    assert nums == list(range(1, len(nums) + 1)), nums
+    assert len(nums) == 8, nums
+    i3 = SYSTEM_PROMPT.index("SURFACE FORM IS NOT A DEDUCTION")
+    i4 = SYSTEM_PROMPT.index("DEDUCTION SIZE IS SET BY THE RUBRIC")
+    assert i3 < i4, "rule 3 must precede rule 4"
+    # rule 4's load-bearing sentences (the anti-zero-inflation counters)
+    for frag in ("order of authority",
+                 "noted rather than deducted",
+                 "present but imperfect earns partial credit, not zero",
+                 "Award zero only"):
+        assert frag in SYSTEM_PROMPT, frag

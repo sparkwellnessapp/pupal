@@ -58,6 +58,7 @@ def aggregate(trials: List[TrialScore], *, k: int) -> Dict[str, Any]:
 
     # Per-fixture blocks + worst test [worst-over-mean, always]
     per_fixture: Dict[str, Any] = {}
+    by_terminal_all: Dict[Any, List[Decimal]] = {}   # (fixture, terminal) -> awards across k
     for fx in fixtures:
         recs = [t for t in valid if t.fixture == fx]
         if not recs:
@@ -73,6 +74,8 @@ def aggregate(trials: List[TrialScore], *, k: int) -> Dict[str, Any]:
         for t in recs:
             for row in t.terminals:
                 by_terminal.setdefault(row.terminal_id, []).append(Decimal(row.ai_awarded))
+        for _tid, _v in by_terminal.items():
+            by_terminal_all[(fx, _tid)] = _v
         spreads = {tid: max(v) - min(v) for tid, v in by_terminal.items() if len(v) > 1}
         worst_spread = max(spreads.values()) if spreads else Decimal("0")
         per_fixture[fx] = {
@@ -132,6 +135,28 @@ def aggregate(trials: List[TrialScore], *, k: int) -> Dict[str, Any]:
                      for t in trials)
     parse_fails = sum(len(t.parse_failed_scopes) for t in trials)
     agg["parse_failure_rate"] = round(parse_fails / llm_scopes, 4) if llm_scopes else 0.0
+
+    # [owner ruling 2026-08-27, E7-record correction b] Instability in BOTH
+    # measures, every run. "How many terminals move" and "how far the test total
+    # moves" are different properties, and reporting only the first hid a real
+    # regression: E7's terminal-count instability improved (37.4% -> 30.0%) while
+    # dan's per-test spread went 3.25 -> 14.00, crossing two grade boundaries on
+    # identical input. Never report one without the other.
+    spreads = {fx: b["ai_total_spread"] for fx, b in per_fixture.items()
+               if b.get("ai_total_spread") is not None}
+    moving = sum(1 for v in by_terminal_all.values() if len(set(v)) > 1) if by_terminal_all else 0
+    n_terms = len(by_terminal_all) if by_terminal_all else 0
+    agg["instability"] = {
+        # measure 1 — HOW MANY terminals move across k
+        "terminals_moving": moving,
+        "terminals_total": n_terms,
+        "terminals_moving_pct": round(100 * moving / n_terms, 1) if n_terms else 0.0,
+        # measure 2 — HOW FAR the test total moves (the one E7 omitted)
+        "per_fixture_ai_total_spread": spreads,
+        "max_ai_total_spread": max(spreads.values()) if spreads else 0.0,
+        "worst_spread_fixture": (max(spreads.items(), key=lambda kv: kv[1])[0]
+                                 if spreads else None),
+    }
     agg["parse_failure_escalation"] = parse_fails > 0     # [R6] bucket before any sweep
 
     # Calibration (reliability bins + ECE), n-flagged [Tier-3]
@@ -231,6 +256,14 @@ def write_summary(suite: SuiteResult, out_dir: Path) -> Path:
     if a.get("latency_s"):
         L.append(f"- latency: median {a['latency_s']['median']}s  max {a['latency_s']['max']}s")
     L.append(f"- re-runs (transport/wall, D7): {a.get('rerun_count_total', 0)}")
+    inst = a.get("instability")
+    if inst:
+        # BOTH measures, always [owner ruling 2026-08-27]
+        L.append(f"- instability: **{inst['terminals_moving_pct']}%** of terminals move "
+                 f"({inst['terminals_moving']}/{inst['terminals_total']}) · "
+                 f"**max per-test total spread {inst['max_ai_total_spread']}** "
+                 f"(worst: `{inst['worst_spread_fixture']}`) — "
+                 f"how many AND how far; never report one alone")
     L.append("")
     L.append("## Per-fixture")
     for fx, b in (a.get("per_fixture") or {}).items():
