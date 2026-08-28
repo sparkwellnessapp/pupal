@@ -25,7 +25,7 @@ Nothing else stops the loop. No per-trial approval. EVAL_ANALYSIS.md (§6) is th
 4. **Gates decide adoption.** k=3 results are stamped SCREENING and never justify adoption. Adoption = k=5 confirmation.
 5. **No threshold or gate moves.** GA numbers are owner-editable only.
 6. **Spend fence:** $60 envelope, hard. Per-trial spend logged to a running ledger in RUNLOG.
-7. **Google quota isolation:** before the first Gemini call, verify the eval path uses a key/project **isolated from the production transcription quota**. If isolation cannot be positively established, skip all Google entrants and report the skip. The launch resource is never put at risk for an eval.
+7. **Google quota isolation — WITHDRAWN by owner ruling 2026-08-28 (recorded here per the ruling):** quota-budget separation is not a concern — the DSQ ceiling sits far above any expected usage volume for the first three months post-launch, so eval traffic on the production Vertex project is immaterial. Google entrants run through the google-genai/Vertex adapter (temp 0, D6 params seam). ATTRIBUTION requirement (bookkeeping, not a guard): every eval call carries the Vertex request label `vivi-workload: grading-eval` so the COST_TRUTH per-provider reconciliation can separate eval spend from production transcription in the GCP billing view. *(Original clause, superseded: verify key/project isolation before the first call; skip all Google entrants if not established.)*
 8. §R qualitative reads still gate each trial's analysis; EVAL_ANALYSIS.md is their human-facing distillation.
 
 ## §2 — Gates (the definition of "working")

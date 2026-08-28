@@ -873,3 +873,57 @@ produced ~161 environmental failures (test-DB churn on back-to-back full
 sweeps) — spot re-runs pass; enumeration discipline: never pipe a battery
 through tail again. Surfaced to owner in the H-4 report; NOT fixed (other
 mission's instrument).
+
+## 2026-08-28 — H-4 RATIFIED WITH AMENDMENTS; items 1–5 + 7 EXECUTED; loop unblocked
+
+**Rulings recorded:** Q-1 as authored (comparison 3 / usage note_only — the 2+1
+alternative makes five ratified GT 3s unreachable) · Q-2 as authored · Q-3 as
+authored except A-1 · Q-4 both fields stay. Item 5 accepted-as-known: dan
+q2.א.c1 faithful-path 8.5 vs GT 9 — deliberate ±0.5 non-overfit, recorded in
+the review render, not patched.
+
+**Amendments applied (plan v2, 78 checks = 64 required / 13 tariff / 1
+note_only):** A-1 q1.א.c1 → 1+1+1+1 per-parameter · A-2 q2.ב.c4.s2 start-index
+tariff 0.5 + base-candidate equivalence · A-3 q1.ב.c7 semantic-flag equivalence
+[PL-8] · A-4 min-index idiom on s0/s4 [PL-3] · A-5 cw/CR shorthand on q1.ב.c3
+[PL-2] · A-6 wrong-math verdict semantics on q1.ג.c6/c7 (met + tariff, never
+compounded). plan_version hobby_tvshow/v2 · plan_sha256 55017347381002da….
+
+**Expressibility guard (item 3) — RED→GREEN exactly as ordered:** vs v1:
+188/190 with PRECISELY the two known failures (dan/q1.א.c1 3.5 unreachable
+under 2+2; yonatan/q2.ב.c4.s2 1.5 with no start-index tariff) — no third. vs
+v2: **190/190**. Permanent: plan_expressibility.py + test_plan_expressibility
++ wired into _load_plan (pre-spend refusal).
+
+**COST_TRUTH (item 4, was blocking) — LANDED:** (a) served-model truth-chain:
+both agents capture the provider-REPORTED id → draft.served_models →
+per-trial runner assert vs the registry model_id (date-suffix tolerant) →
+provenance (absence surfaced as <unreported-by-provider>, never equated);
+(b) registry unit test — **first run caught a real card defect:**
+claude-sonnet-4-6 carried the 5-min cache-WRITE rate (3.75) in the cache-READ
+field; corrected to 0.30 per the platform table (the old value overcharged
+cached input 12.5×, affecting the transcription suite's cost math too);
+(c) tools/cost_truth.py per-(UTC-day, model) ledger incl. invalid trials
+(the provider billed them regardless); (d) COST_TRUTH.md protocol. Ledger
+note recorded: Sonnet 5 projects ~$0.062/test pre-caching, inside the ceiling.
+
+**Item 7 — GOOGLE RULING REVERSAL (owner, 2026-08-28):** §1.7's isolation
+condition WITHDRAWN — DSQ headroom sits far above three months of launch
+volume; eval traffic on the production Vertex project is immaterial. Executed:
+llm_factory gemini branch is now a google-genai/Vertex adapter (_GenAIChat:
+native response_schema structured output, temp 0, reasoning_effort→
+ThinkingLevel, output_tokens = candidates+thoughts because thoughts BILL as
+output, timeout 240s) — and EVERY call carries the Vertex request label
+`vivi-workload: grading-eval` (Vertex has no per-key split; the label is what
+makes the GCP billing view separable — the COST_TRUTH attribution the owner
+mandated). genai ServerError added to the v5 transient tuple (429 deliberately
+not — class-indistinguishable from 400; the runner's D7 re-run owns it).
+gemini-3.1-pro-preview card re-verified 2026-08-28 ($2/$12 short-context
+confirmed; id production-proven on this project); flash-lite card already
+verified 2026-08-15. Configs: flashlite-v5 (cheap position), gemini31pro-v5
+(mid). Mission §1.7 + PLAYBOOK §0.6 + ONBOARDING amended with the ruling.
+Envelope unchanged. xAI stays out.
+
+Stage-1 order (11 entrants, cheap→expensive): haiku45 → flashlite → nano →
+luna → gpt4o (control) → sonnet5 → gemini31pro → gpt55-medium → terra-medium
+→ terra-high → opus5. Batteries: 135 suite+agents+eval_common green.

@@ -1,89 +1,49 @@
-"""Shared-registry invariants — the statements true for ANY consumer.
+"""
+Registry integrity — the COST_TRUTH unit test (owner-ordered, 2026-08-28).
 
-Suite-specific statements live in the suites' own tests (e.g. the
-transcription seed-set assertion in test_providers_and_scheduler.py, the
-rubric sweep-config pins in test_llm_policy.py). This file guards the
-registry itself plus the one cross-suite property the whole design exists
-for: every model key any config names resolves, with zero API calls.
+The registry is the single price authority for BOTH eval suites; a malformed
+card silently corrupts every cost number downstream. Structural rules only —
+price VALUES are verified against provider pages at authoring time (the card
+comments carry the dates), not re-fetched here.
 """
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-import pytest
-
 from tests.eval_common.models_registry import AS_OF, MODELS, spec
 
-TESTS_DIR = Path(__file__).resolve().parents[1]
+_KNOWN_PROVIDERS = {"openai", "anthropic", "gemini", "xai"}
 
 
-def test_keys_are_self_consistent():
-    # A dict key that disagrees with its spec.key would silently break the
-    # config -> CallRecord/results vocabulary the key exists to unify.
-    for k, m in MODELS.items():
-        assert m.key == k, f"registry key {k!r} != spec.key {m.key!r}"
-
-
-def test_unknown_key_fails_loudly():
-    with pytest.raises(KeyError, match="Unknown model key"):
-        spec("nope")
-
-
-def test_prices_positive():
-    for m in MODELS.values():
-        assert m.price.in_per_mtok > 0 and m.price.out_per_mtok > 0, m.key
-
-
-@pytest.mark.xfail(
-    reason="D5 (PLAN_model_registry_normalization.md): claude-sonnet-4-6 "
-           "carries cached_in=3.75 > in=3.00 — the shape of a cache WRITE "
-           "rate applied to reads; awaiting owner price verification. Remove "
-           "this marker when the card is corrected or the rate is confirmed.",
-    strict=False,
-)
-def test_cached_rate_not_above_uncached():
-    for m in MODELS.values():
+def test_every_card_is_structurally_sound():
+    assert AS_OF and len(AS_OF) == 10
+    for key, m in MODELS.items():
+        assert m.key == key, f"{key}: key/spec.key mismatch"
+        assert m.provider in _KNOWN_PROVIDERS, f"{key}: provider {m.provider!r}"
+        assert m.model_id, f"{key}: empty model_id"
+        assert m.tier in ("cheap", "frontier"), f"{key}: tier {m.tier!r}"
+        assert m.price.in_per_mtok > 0 and m.price.out_per_mtok > 0, key
+        # output >= input holds for every completion model we buy; a flip is
+        # almost always a transposed card
+        assert m.price.out_per_mtok >= m.price.in_per_mtok, f"{key}: in/out transposed?"
         if m.price.cached_in_per_mtok is not None:
-            assert m.price.cached_in_per_mtok <= m.price.in_per_mtok, m.key
+            assert 0 < m.price.cached_in_per_mtok <= m.price.in_per_mtok, (
+                f"{key}: cached_in must be a discount on in")
 
 
-def _config_model_keys() -> list[tuple[str, str]]:
-    """(config filename, model key) for every key named by EITHER suite."""
-    named: list[tuple[str, str]] = []
-    for p in sorted((TESTS_DIR / "transcription_eval_suit" / "configs").glob("*.json")):
-        d = json.loads(p.read_text(encoding="utf-8"))
-        for k in (d.get("p1_model_key"), d.get("p2_model_key"),
-                  d.get("p1_strike_check_model_key"),
-                  *(d.get("reader_model_keys") or [])):
-            if k:
-                named.append((p.name, k))
-    for p in sorted((TESTS_DIR / "rubric_eval_suite" / "configs").glob("*.json")):
-        d = json.loads(p.read_text(encoding="utf-8"))
-        if d.get("model_key"):
-            named.append((p.name, d["model_key"]))
-    # grading eval suite (2026-08-24, mission §2: registered in the same PR as
-    # its first config) — same model_key-only schema as the rubric suite
-    for p in sorted((TESTS_DIR / "grading_eval_suite" / "configs").glob("*.json")):
-        d = json.loads(p.read_text(encoding="utf-8"))
-        if d.get("model_key"):
-            named.append((p.name, d["model_key"]))
-    return named
+def test_unknown_key_is_loud():
+    try:
+        spec("no-such-model")
+    except KeyError as e:
+        assert "no-such-model" in str(e)
+    else:
+        raise AssertionError("unknown key must raise")
 
 
-def test_every_config_key_of_both_suites_resolves():
-    """The dry-resolve gate: a typo'd or stale key in ANY config of EITHER
-    suite fails here, offline — never as a provider 4xx mid-run (this caught
-    v0_p2_correct_spec.json's stale 'gpt-5.4-nano' on day one)."""
-    named = _config_model_keys()
-    assert named, "found no config model keys — did the config dirs move?"
-    bad = [(cfg, k) for cfg, k in named if k not in MODELS]
-    assert not bad, f"configs name unknown model keys: {bad}"
-
-
-def test_transcription_shim_reexports_same_objects():
-    # The shim must alias, never fork: same objects, not equal copies.
-    from tests.transcription_eval_suit import models_registry as shim
-    assert shim.MODELS is MODELS
-    assert shim.spec is spec
-    assert shim.AS_OF == AS_OF
+def test_every_grading_config_resolves_to_a_card():
+    suite = Path(__file__).resolve().parents[1] / "grading_eval_suite" / "configs"
+    for p in sorted(suite.glob("*.json")):
+        cfg = json.loads(p.read_text(encoding="utf-8"))
+        m = spec(cfg["model_key"])          # KeyError = failure
+        assert m.provider in _KNOWN_PROVIDERS

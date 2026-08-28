@@ -98,13 +98,24 @@ def _load_config(name: str, *, suite_dir: Path = SUITE_DIR) -> dict:
 def _assert_draft_stamp(draft: Optional[GradedTestDraft], spec: ModelSpec) -> None:
     """[DL-4 successor, seam era] provenance may never claim a model the SUT
     didn't run — now asserted against what ACTUALLY ran: the draft's own
-    model_version stamp, per trial, not the process env before the run."""
-    if draft is not None and draft.model_version != spec.model_id:
+    model_version stamp, per trial, not the process env before the run.
+    [COST_TRUTH] plus the PROVIDER-reported ids: every served model must be
+    the requested one modulo the provider's date-suffix convention
+    (gpt-4o -> gpt-4o-2024-08-06); anything else is a truth failure."""
+    if draft is None:
+        return
+    if draft.model_version != spec.model_id:
         raise SystemExit(
             f"model stamp mismatch: config resolves to model_id={spec.model_id!r} "
             f"but the draft was graded by {draft.model_version!r} — the seam "
             f"wiring is broken; provenance may never claim a model the SUT "
             f"didn't run.")
+    for served in draft.served_models or []:
+        if not (served.startswith(spec.model_id) or spec.model_id.startswith(served)):
+            raise SystemExit(
+                f"COST_TRUTH: provider served {served!r} for a request pinned to "
+                f"{spec.model_id!r} — halt before spend accrues to the wrong "
+                f"card; verify the registry model_id.")
 
 
 # ---------------------------------------------------------------------------
@@ -252,6 +263,17 @@ def _load_plan(config: dict, bundle: FixtureBundle, suite_dir: Path):
     if errs:
         raise SystemExit(f"plan {plan.plan_version!r} failed validation against "
                          f"{bundle.name!r}:\n  " + "\n  ".join(errs))
+    # [owner H-4 item 3, 2026-08-28] the expressibility guard is PRE-SPEND:
+    # a plan that cannot express the fixture's ratified GT awards never grades.
+    if bundle.gt is not None:
+        from .plan_expressibility import expressibility_errors
+        errs = expressibility_errors(
+            plan, bundle.gt, bundle.terminal_infos,
+            bundle.rubric_contract.numeric_policy.precision)
+        if errs:
+            raise SystemExit(
+                f"plan {plan.plan_version!r} cannot express {bundle.name!r}'s "
+                f"GT:\n  " + "\n  ".join(errs))
     return plan, hashlib.sha256(plan_path.read_bytes()).hexdigest()
 
 
@@ -427,6 +449,10 @@ def run_grade(config_name: str, fixture_names: List[str], *, k: int,
     prov = _provenance(config_name, config, spec, mode="grade", k=k,
                        fixtures=[b.name for b in bundles], scopes=scopes,
                        gt_sources={b.name: b.gt.gt_source for b in bundles})
+    served_all = sorted({m for by_r in drafts_by_fixture.values()
+                         for d in by_r.values() for m in (d.served_models or [])})
+    # [COST_TRUTH] absence is surfaced, never silently equated with the request
+    prov["served_models"] = served_all or ["<unreported-by-provider>"]
     if config.get("architecture") == "v5" and bundles:
         plan, plan_sha = _load_plan(config, bundles[0], suite_dir)
         prov["plan_version"] = plan.plan_version

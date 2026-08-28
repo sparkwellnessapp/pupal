@@ -26,13 +26,14 @@ operating manual. Where they disagree, the mission wins.
    additive draft-schema fields, the grader-v3 restore) is ratified app/ work,
    recorded in the mission-start RUNLOG entry and pinned by `sut_hash`.
    Everything else under `app/` stays frozen.
-6. **No Gemini, anywhere in this suite** — *amended 2026-08-28: mission §1.7
-   replaced the blanket ban with an isolation precondition, and the check
-   FAILED on this machine* (google-genai rides Vertex on GOOGLE_CLOUD_PROJECT —
-   the production transcription project; no separate eval key exists), *so all
-   Google entrants are SKIPPED and `llm_factory` refuses the provider.* The
-   practical effect is unchanged: zero Gemini calls; the launch quota is never
-   put at risk for an eval.
+6. **No Gemini, anywhere in this suite** — *WITHDRAWN by owner ruling
+   2026-08-28 (second amendment; supersedes the same-day skip):* the isolation
+   condition is withdrawn — DSQ headroom dwarfs three months of launch volume,
+   so eval traffic on the production Vertex project is immaterial. Google
+   entrants run via `llm_factory`'s google-genai/Vertex adapter, and every
+   call carries the `vivi-workload: grading-eval` request label so the
+   COST_TRUTH reconciliation can split eval spend from production in the GCP
+   billing view (Vertex has no per-key split).
 7. **The judge never gates and is never the scorer-of-record** [R2]. Promotion to
    any gating role has a pre-registered bar (n>=50 Tier-A fixtures AND judge-owner
    agreement >= the bootstrap bar).
@@ -60,6 +61,13 @@ erred twice) FIRST in every analysis, before any headline number:
   GA-4 boundary-flip ≤0.10 · GA-5 max spread ≤3.0 · GA-6 edit_burden ≤4
   median /≤8 max · GA-7 ≤$0.08/test hard, $0.05 target.
 - k=3 runs are stamped SCREENING in provenance and never justify adoption.
+- The expressibility guard (H-4 item 3) is permanent: every fixture GT award
+  must be reachable under the plan algebra — `plan_expressibility.py`, wired
+  into `_load_plan` pre-spend and the standing pytest.
+- COST_TRUTH (H-4 item 4) governs spend honesty: registry unit test ·
+  per-trial served-model truth-check · per-day ledger (`tools/cost_truth.py`)
+  diffed against provider dashboards after each Stage — protocol in
+  `COST_TRUTH.md`.
 - **grader-v5 evidence semantics:** declared multi-span citations
   (`evidence_quotes`) validate PER SPAN; separate spans over non-adjacent ink
   are the honest citation (never T1-STITCHED); an `evidence_unverified`

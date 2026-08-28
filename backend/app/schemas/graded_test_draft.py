@@ -189,6 +189,11 @@ class GradedTestDraft(BaseModel):
     model_version: str                      # the ACTUAL model id the agent ran
     prompt_version: str                     # GRADING_PROMPT_VERSION / VERIFIER_PROMPT_VERSION
     plan_version: Optional[str] = None      # grader-v5 only: the ratified GradingPlan version
+    # [COST_TRUTH, owner-ordered] the PROVIDER-REPORTED model id(s) that served
+    # this grade (response metadata), distinct from model_version (what we
+    # requested). None = the provider did not report one — surfaced as
+    # "unreported", never silently equated with the request.
+    served_models: Optional[List[str]] = None
 
     scope_outcomes: List[ScopeOutcome]
     teacher_overrides: GradedTestOverrides = Field(default_factory=dict)  # EMPTY at S7; S9 populates

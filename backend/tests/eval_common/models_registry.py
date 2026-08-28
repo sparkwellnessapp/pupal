@@ -172,6 +172,12 @@ MODELS: dict[str, ModelSpec] = {
                         cached_in_per_mtok=0.15),
         supports_logprobs=False, supports_json_schema=True, tier="frontier",
     ),
+    # RE-VERIFIED 2026-08-28 for the grading roster (owner Google reversal):
+    # $2 in / $12 out confirmed (short-context tier; grading renders never
+    # approach the 200K threshold where in doubles). Thinking tokens BILL AS
+    # OUTPUT — the grader adapter counts candidates+thoughts as output_tokens
+    # so the ledger matches the dashboard. model_id string is production-proven
+    # on this Vertex project (two_phase_engine P1 baseline).
     "gemini-3.1-pro-preview": ModelSpec(
         key="gemini-3.1-pro-preview", provider="gemini", model_id="gemini-3.1-pro-preview",
         price=PriceCard(in_per_mtok=2.00, out_per_mtok=12.00,
@@ -193,10 +199,15 @@ MODELS: dict[str, ModelSpec] = {
                         cached_in_per_mtok=1.25),
         supports_logprobs=True, supports_json_schema=True, tier="frontier",
     ),
+    # cached_in CORRECTED 3.75 -> 0.30 (2026-08-28, caught by the COST_TRUTH
+    # registry unit test on its first run): 3.75 is the 5-minute cache WRITE
+    # rate (1.25x in), not the cache-READ rate. platform.claude.com pricing
+    # table: Sonnet 4.6 = $3 in / $3.75 5m-write / $0.30 cache hits / $15 out.
+    # The old value overcharged cached input 12.5x in every cost figure.
     "claude-sonnet-4-6": ModelSpec(
         key="claude-sonnet-4-6", provider="anthropic", model_id="claude-sonnet-4-6",
         price=PriceCard(in_per_mtok=3.00, out_per_mtok=15.00,
-                        cached_in_per_mtok=3.75),
+                        cached_in_per_mtok=0.30),
         supports_logprobs=False, supports_json_schema=True, tier="frontier",
     ),
     # --- xAI ---

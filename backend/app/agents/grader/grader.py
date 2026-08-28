@@ -66,6 +66,17 @@ class _ScopeResult:
     annotations: List[GradingAnnotation] = field(default_factory=list)
 
 
+def _capture_served_model(raw, into: set) -> None:
+    """[COST_TRUTH] record the provider-REPORTED model id from a response.
+    Absence is honest (the draft's served_models stays None -> "unreported");
+    it is never silently equated with the requested id."""
+    meta = getattr(raw, "response_metadata", None)
+    if isinstance(meta, dict):
+        served = meta.get("model_name") or meta.get("model")
+        if served:
+            into.add(str(served))
+
+
 def _scope_target_id(scope: GradableScope) -> str:
     if scope.sub_question_id:
         return f"{scope.question_id}.{scope.sub_question_id}"
@@ -285,6 +296,7 @@ class GraderAgent:
         as a seam side effect."""
         self._policy = numeric_policy or NumericPolicy()
         self._model_version = model_version or settings.openai_model
+        self._served_models: set = set()   # [COST_TRUTH] provider-reported ids
         self._llm = llm if llm is not None else ChatOpenAI(
             model=settings.openai_model,
             temperature=0.0,
@@ -325,6 +337,7 @@ class GraderAgent:
             if result.get("parsing_error"):
                 # Deterministic parse failure at temperature=0.0 — never retry (GA-3).
                 raise ValueError(f"LLM parse failure: {result['parsing_error']}")
+            _capture_served_model(result.get("raw"), self._served_models)
             usage = (result["raw"].usage_metadata or {}) if result.get("raw") else {}
             return (
                 result["parsed"],
@@ -508,6 +521,7 @@ class GraderAgent:
             rubric_contract_version=gradable_test.rubric_contract_version,
             transcription_contract_version=gradable_test.transcription_contract_version,
             model_version=self._model_version,
+            served_models=sorted(self._served_models) or None,
             prompt_version=effective_prompt_version(),   # PR-G1 item 4
             scope_outcomes=scope_outcomes,
             teacher_overrides={},

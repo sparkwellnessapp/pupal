@@ -89,6 +89,8 @@ class FakeLLM:
                 raw.usage_metadata = {
                     "input_tokens": 100, "output_tokens": 40,
                     "input_token_details": {"cache_read": 25}}
+                # [COST_TRUTH] the provider-reported id the agents must capture
+                raw.response_metadata = {"model_name": "fake-model-2026-01-01"}
                 return {"raw": raw, "parsed": item, "parsing_error": None}
         return _Runner()
 
@@ -116,6 +118,9 @@ async def test_grade_path_prices_from_verdicts():
     assert "חיפשתי בדיקת null" in co.reasoning
     assert draft.total_cached_input_tokens == 25
     assert draft.scope_outcomes[0].cached_input_tokens == 25
+    # [COST_TRUTH] served id captured from response metadata, distinct from
+    # model_version (the request)
+    assert draft.served_models == ["fake-model-2026-01-01"]
 
 
 @pytest.mark.asyncio

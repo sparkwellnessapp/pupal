@@ -129,5 +129,6 @@ emits verdicts per plan check, `app/agents/grader/pricer.py` computes every
 point). Start with: the mission file → `GRADING_EVAL_PLAYBOOK.md` §0/§1b →
 `K2_FORENSICS.md` → `plans/hobby_tvshow_plan_review.md` (the H-4 artifact).
 Every run's analysis starts with `python -m tests.grading_eval_suite.tools.gates
-<results_dir>` — kills first. Google entrants are skipped (§1.7 isolation
-failed on this machine); xAI is excluded by default.
+<results_dir>` — kills first. Google entrants RUN (owner reversal 2026-08-28;
+Vertex adapter with `vivi-workload: grading-eval` billing labels); xAI is
+excluded by default. Spend honesty: `COST_TRUTH.md`.

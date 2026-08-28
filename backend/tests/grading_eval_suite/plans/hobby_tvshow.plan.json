@@ -1,5 +1,5 @@
 {
- "plan_version": "hobby_tvshow/v1",
+ "plan_version": "hobby_tvshow/v2",
  "exam_id": "hobby_tvshow (corrected, H1-ratified)",
  "rubric_contract_sha256": "480c15cff2face1ee4a2eb9536f3d2b9907a124ae9c6e86654b3100abd314007",
  "terminals": [
@@ -39,7 +39,7 @@
      "check_id": "q1.א.c1.k1",
      "description_he": "חתימת פעולה בונה: public Hobby(string hobbyName, bool isSportive, int minutes)",
      "kind": "required",
-     "points": "2",
+     "points": "1",
      "tariff_amount": null,
      "partial_fraction": "0.5",
      "equivalence_note": null,
@@ -48,9 +48,31 @@
     },
     {
      "check_id": "q1.א.c1.k2",
-     "description_he": "גוף הבונה משים את שלושת הפרמטרים לתכונות המתאימות",
+     "description_he": "גוף הבונה משים את הפרמטר hobbyName לתכונה המתאימה",
      "kind": "required",
-     "points": "2",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם"
+    },
+    {
+     "check_id": "q1.א.c1.k3",
+     "description_he": "גוף הבונה משים את הפרמטר isSportive לתכונה המתאימה",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם"
+    },
+    {
+     "check_id": "q1.א.c1.k4",
+     "description_he": "גוף הבונה משים את הפרמטר minutes לתכונה המתאימה",
+     "kind": "required",
+     "points": "1",
      "tariff_amount": null,
      "partial_fraction": "0.5",
      "equivalence_note": "בדיקת טווח על minutes אופציונלית — הפתרון לדוגמה מציין «אם לא בדקתם טווח גם בסדר»",
@@ -143,7 +165,7 @@
      "points": "1",
      "tariff_amount": null,
      "partial_fraction": "0.5",
-     "equivalence_note": null,
+     "equivalence_note": "[A-5/PL-2] קיצור cw/CR מתקבל כקליטה מוקלדת; המרה מפורשת אינה נדרשת",
      "charge_group": null,
      "rubric_quote": "קליטה של 3 נתוני התחביב (name, isSportive, minutes)"
     },
@@ -154,7 +176,7 @@
      "points": "1",
      "tariff_amount": null,
      "partial_fraction": "0.5",
-     "equivalence_note": null,
+     "equivalence_note": "[A-5/PL-2] קיצור cw/CR מתקבל כקליטה מוקלדת; המרה מפורשת אינה נדרשת",
      "charge_group": null,
      "rubric_quote": "קליטה של 3 נתוני התחביב (name, isSportive, minutes)"
     },
@@ -165,7 +187,7 @@
      "points": "1",
      "tariff_amount": null,
      "partial_fraction": "0.5",
-     "equivalence_note": null,
+     "equivalence_note": "[A-5/PL-2] קיצור cw/CR מתקבל כקליטה מוקלדת; המרה מפורשת אינה נדרשת",
      "charge_group": null,
      "rubric_quote": "קליטה של 3 נתוני התחביב (name, isSportive, minutes)"
     }
@@ -255,7 +277,7 @@
      "points": "1",
      "tariff_amount": null,
      "partial_fraction": "0.5",
-     "equivalence_note": null,
+     "equivalence_note": "[A-3/PL-8] החזרת דגל-הצלחה סמנטי (למשל addedAtLeastOne) שקולה — הפתרון לדוגמה עצמו מחזיר כך",
      "charge_group": null,
      "rubric_quote": "מחוץ ללולאה - להחזיר ערך true"
     }
@@ -457,7 +479,7 @@
     },
     {
      "check_id": "q1.ג.c6.k2",
-     "description_he": "חישוב ממוצע הספורטיביים והדפסתו",
+     "description_he": "חישוב ממוצע הספורטיביים והדפסתו — חישוב שגוי אינו פוגע בבדיקה זו (met; הוא מחויב בניכוי הנפרד); partially_met שמור למקרה שרכיב שלם — חישוב או הדפסה — נעדר או שהמיקום שגוי [A-6]",
      "kind": "required",
      "points": "1",
      "tariff_amount": null,
@@ -468,7 +490,7 @@
     },
     {
      "check_id": "q1.ג.c6.k3",
-     "description_he": "החישוב המתמטי של הממוצע נכון",
+     "description_he": "החישוב המתמטי של הממוצע נכון (כאן, ורק כאן, מחויב חישוב שגוי) [A-6]",
      "kind": "tariff",
      "points": "0",
      "tariff_amount": "0.5",
@@ -507,7 +529,7 @@
     },
     {
      "check_id": "q1.ג.c7.k2",
-     "description_he": "חישוב ממוצע הלא-ספורטיביים והדפסתו",
+     "description_he": "חישוב ממוצע הלא-ספורטיביים והדפסתו — חישוב שגוי אינו פוגע בבדיקה זו (met; הוא מחויב בניכוי הנפרד); partially_met שמור למקרה שרכיב שלם — חישוב או הדפסה — נעדר או שהמיקום שגוי [A-6]",
      "kind": "required",
      "points": "1",
      "tariff_amount": null,
@@ -518,7 +540,7 @@
     },
     {
      "check_id": "q1.ג.c7.k3",
-     "description_he": "החישוב המתמטי של הממוצע נכון",
+     "description_he": "החישוב המתמטי של הממוצע נכון (כאן, ורק כאן, מחויב חישוב שגוי) [A-6]",
      "kind": "tariff",
      "points": "0",
      "tariff_amount": "0.5",
@@ -814,7 +836,7 @@
      "points": "1",
      "tariff_amount": null,
      "partial_fraction": "0.5",
-     "equivalence_note": null,
+     "equivalence_note": "[A-4/PL-3] מעקב מינימום מרומז דרך arr[minIndex] — ניב מינימום-אינדקס — שקול למשתנה מפורש",
      "charge_group": null,
      "rubric_quote": "הגדרת מינימום דירוג + אתחול"
     }
@@ -848,9 +870,20 @@
      "points": "2",
      "tariff_amount": null,
      "partial_fraction": "0.5",
-     "equivalence_note": null,
+     "equivalence_note": "[A-2] התחלה מ-2 עם מועמד-בסיס באינדקס 1 שקולה לכיסוי מלא 1..100",
      "charge_group": null,
      "rubric_quote": "הגדרת לולאה על מערך צוברים מ-1 עד 100"
+    },
+    {
+     "check_id": "q2.ב.c4.s2.k2",
+     "description_he": "הסריקה מתחילה מ-1, לא מ-0 — תא 0 אינו ערוץ",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "0.5",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "הגדרת לולאה על מערך צוברים מ-1 עד 100 [A-2 owner tariff]"
     }
    ]
   },
@@ -904,7 +937,7 @@
      "points": "1",
      "tariff_amount": null,
      "partial_fraction": "0.5",
-     "equivalence_note": null,
+     "equivalence_note": "[A-4/PL-3] בניב מינימום-אינדקס עדכון האינדקס הוא גם עדכון המינימום — שקול",
      "charge_group": null,
      "rubric_quote": "בתוך התנאי (בתוך הלולאה) - החלפה של מינימום דירוג"
     }

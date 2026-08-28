@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import anthropic
 import openai
+from google.genai import errors as genai_errors
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agents.grader.grader import (
@@ -37,6 +38,7 @@ from app.agents.grader.grader import (
     _ScopeResult,
     _build_failure_result,
     _build_skip_result,
+    _capture_served_model,
     _get_terminal_map,
     _scope_target_id,
 )
@@ -84,6 +86,10 @@ V5_TRANSIENT_EXCEPTIONS = (
     anthropic.RateLimitError,
     anthropic.APIConnectionError,
     anthropic.InternalServerError,
+    # gemini (owner reversal 2026-08-28): 5xx retries once in-agent; a 429
+    # (ClientError) deliberately does NOT — the class alone can't be told from
+    # a 400 without code inspection, and the runner's D7 re-run owns that path.
+    genai_errors.ServerError,
 )
 
 _ORDINAL = {"not_met": 0, "partially_met": 1, "met": 2}
@@ -112,6 +118,7 @@ class PlanVerifyGrader:
             t.terminal_id: t for t in plan.terminals}
         self._policy = numeric_policy or NumericPolicy()
         self._model_version = model_version or settings.openai_model
+        self._served_models: set = set()   # [COST_TRUTH] provider-reported ids
         self._sc_n = sc_n
         base = llm if llm is not None else build_chat_model(
             "openai", settings.openai_model)
@@ -128,6 +135,7 @@ class PlanVerifyGrader:
         if result.get("parsing_error"):
             # Deterministic parse failure at temp 0 — never retried (R6/GA-3).
             raise ValueError(f"LLM parse failure: {result['parsing_error']}")
+        _capture_served_model(result.get("raw"), self._served_models)
         usage = (result["raw"].usage_metadata or {}) if result.get("raw") else {}
         cached = (usage.get("input_token_details") or {}).get("cache_read")
         return (result["parsed"], usage.get("input_tokens", 0),
@@ -351,6 +359,7 @@ class PlanVerifyGrader:
             model_version=self._model_version,
             prompt_version=VERIFIER_PROMPT_VERSION,
             plan_version=self._plan.plan_version,
+            served_models=sorted(self._served_models) or None,
             scope_outcomes=scope_outcomes,
             teacher_overrides={},
             annotations=all_annotations,

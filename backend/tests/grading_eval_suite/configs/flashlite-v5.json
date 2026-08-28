@@ -1,0 +1,6 @@
+{
+ "model_key": "gemini-3.5-flash-lite",
+ "architecture": "v5",
+ "plan": "plans/hobby_tvshow.plan.json",
+ "cost_ceiling": 0.08
+}

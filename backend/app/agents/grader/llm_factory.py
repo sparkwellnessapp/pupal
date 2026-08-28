@@ -22,10 +22,14 @@ Providers:
   anthropic  ChatAnthropic; ANTHROPIC_API_KEY read from the environment by the
              SDK. Structured output rides Anthropic tool-use — same LangChain
              surface, include_raw works, usage_metadata is normalized.
-  gemini     REFUSED. Mission §1.7: the only Google path on this machine rides
-             Vertex on GOOGLE_CLOUD_PROJECT — the PRODUCTION transcription
-             project. Isolation from the launch quota cannot be positively
-             established, so every Google entrant is skipped, loudly.
+  gemini     APPROVED (owner RULING REVERSAL, 2026-08-28 — §1.7's isolation
+             condition withdrawn: DSQ headroom dwarfs three months of launch
+             volume, so eval traffic on the production project is immaterial).
+             Served by _GenAIChat below: the google-genai/Vertex SDK path
+             (same auth env as production), native response_schema structured
+             output, temperature 0, and — MANDATORY for the COST_TRUTH
+             reconciliation — every request carries the eval attribution
+             labels, since Vertex has no per-key billing split.
   xai        REFUSED. Excluded by default per the mission roster (owner
              skepticism); a one-line owner flip reintroduces it deliberately.
 """
@@ -55,11 +59,9 @@ def build_chat_model(provider: str, model_id: str, *,
     timeout = GRADER_LLM_TIMEOUT_S if timeout_s is None else timeout_s
 
     if provider == "gemini":
-        raise RuntimeError(
-            "Google entrants are SKIPPED (mission §1.7): the google-genai path on "
-            "this machine rides Vertex on GOOGLE_CLOUD_PROJECT — the production "
-            "transcription project — and quota isolation cannot be positively "
-            "established. The launch resource is never put at risk for an eval.")
+        return _GenAIChat(model_id, reasoning_effort=reasoning_effort,
+                          max_output_tokens=max_output_tokens or 16000,
+                          timeout_s=timeout)
     if provider == "xai":
         raise RuntimeError(
             "xAI is excluded by default (mission §3 roster — owner skepticism). "
@@ -80,3 +82,105 @@ def build_chat_model(provider: str, model_id: str, *,
 
     from langchain_openai import ChatOpenAI
     return ChatOpenAI(model=model_id, api_key=settings.openai_api_key, **params)
+
+
+# ---------------------------------------------------------------------------
+# Google adapter — google-genai over Vertex (owner ruling reversal 2026-08-28)
+# ---------------------------------------------------------------------------
+
+# [COST_TRUTH] Vertex has no per-key split; these request labels are how the
+# GCP billing view separates eval spend from production transcription. Without
+# them the owner-mandated reconciliation is blind on one of three providers.
+EVAL_REQUEST_LABELS = {"vivi-workload": "grading-eval"}
+
+_THINKING_LEVELS = ("minimal", "low", "medium", "high")
+
+
+class _GenAIChat:
+    """Minimal chat-model stand-in exposing exactly the surface both grader
+    agents consume: with_structured_output(schema, include_raw=True) ->
+    .ainvoke([...]) -> {"raw", "parsed", "parsing_error"}, with raw carrying
+    LangChain-shaped usage_metadata and response_metadata.
+
+    Auth rides the same env as production transcription (GOOGLE_GENAI_USE_
+    VERTEXAI + GOOGLE_CLOUD_PROJECT/LOCATION) — deliberate, per the reversal.
+    Token accounting: thoughts bill as OUTPUT on Gemini, so output_tokens =
+    candidates + thoughts (the number the dashboard will show; anything else
+    breaks the reconciliation). reasoning_effort maps to ThinkingLevel; unset
+    leaves the provider default. 429s are NOT retried in-adapter — the
+    runner's D7 re-run owns that; ServerError (5xx) is in the v5 transient
+    tuple."""
+
+    def __init__(self, model_id: str, *, reasoning_effort: Optional[str],
+                 max_output_tokens: int, timeout_s: float) -> None:
+        from google import genai
+        from google.genai import types as genai_types
+        if "labels" not in genai_types.GenerateContentConfig.model_fields:
+            raise RuntimeError(
+                "google-genai SDK lacks GenerateContentConfig.labels — the "
+                "COST_TRUTH attribution labels cannot be attached; upgrade the "
+                "SDK before running Google entrants (owner-mandated bookkeeping).")
+        if reasoning_effort is not None and reasoning_effort not in _THINKING_LEVELS:
+            raise ValueError(f"gemini reasoning_effort must be one of "
+                             f"{_THINKING_LEVELS}, got {reasoning_effort!r}")
+        self._genai = genai
+        self._types = genai_types
+        self.model = model_id
+        self._effort = reasoning_effort
+        self._max_tokens = max_output_tokens
+        self._client = genai.Client(
+            http_options=genai_types.HttpOptions(timeout=int(timeout_s * 1000)))
+
+    def with_structured_output(self, schema, include_raw: bool = False):
+        assert include_raw, "grader agents always use include_raw=True"
+        return _GenAIStructuredRunner(self, schema)
+
+
+class _GenAIStructuredRunner:
+    def __init__(self, chat: _GenAIChat, schema) -> None:
+        self._chat = chat
+        self._schema = schema
+
+    async def ainvoke(self, messages):
+        from types import SimpleNamespace
+        t = self._chat._types
+        system = "\n".join(m.content for m in messages
+                            if getattr(m, "type", "") == "system")
+        user = "\n".join(m.content for m in messages
+                          if getattr(m, "type", "") != "system")
+        cfg_kwargs = dict(
+            temperature=0.0,
+            max_output_tokens=self._chat._max_tokens,
+            response_mime_type="application/json",
+            response_schema=self._schema,
+            system_instruction=system or None,
+            labels=dict(EVAL_REQUEST_LABELS),        # [COST_TRUTH] every call
+        )
+        if self._chat._effort is not None:
+            cfg_kwargs["thinking_config"] = t.ThinkingConfig(
+                thinking_level=t.ThinkingLevel(self._chat._effort.upper()))
+        response = await self._chat._client.aio.models.generate_content(
+            model=self._chat.model, contents=user,
+            config=t.GenerateContentConfig(**cfg_kwargs))
+
+        parsed = response.parsed
+        parsing_error = None
+        if parsed is None:
+            parsing_error = (f"gemini returned no parseable {self._schema.__name__}: "
+                             f"{(response.text or '')[:300]!r}")
+        um = response.usage_metadata
+        in_tok = (um.prompt_token_count or 0) if um else 0
+        out_tok = (((um.candidates_token_count or 0) + (um.thoughts_token_count or 0))
+                   if um else 0)
+        cached = um.cached_content_token_count if um else None
+        raw = SimpleNamespace(
+            usage_metadata={
+                "input_tokens": in_tok,
+                "output_tokens": out_tok,
+                "input_token_details": ({"cache_read": cached}
+                                        if cached is not None else {}),
+            },
+            response_metadata={"model_name": getattr(response, "model_version", None)
+                               or self._chat.model},
+        )
+        return {"raw": raw, "parsed": parsed, "parsing_error": parsing_error}

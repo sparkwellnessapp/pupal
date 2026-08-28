@@ -1,16 +1,29 @@
-# H-4 REVIEW — GradingPlan `hobby_tvshow/v1` (awaiting owner ratification)
+# GradingPlan `hobby_tvshow/v2` — RATIFIED (owner H-4, 2026-08-28, amendments A-1…A-6)
 
-**plan_version:** `hobby_tvshow/v1` · **contract pin:** `480c15cff2face1e…` (= the hobby_tvshow_corrected snapshot) · **38 terminals · 75 checks** (62 required / 12 tariff / 1 note_only) · validator: **CLEAN**
+**plan_version:** `hobby_tvshow/v2` · **contract pin:** `480c15cff2face1e…` · **38 terminals ·
+78 checks** (1 note_only / 64 required / 13 tariff) · validator: **CLEAN** · expressibility:
+**190/190** (red-first vs v1 caught exactly the two ratified-unreachable cases;
+the guard is now permanent — `plan_expressibility.py`, wired into `_load_plan`
+pre-spend and `test_plan_expressibility.py`).
 
-**How to read:** every check is requirement-phrased — the verifier model answers met/partially_met/not_met with a verbatim evidence span, and the deterministic pricer converts: required met→100%, partially_met→50% (per-check overridable; none overridden in v1), not_met→0; tariff not_met→the named deduction, once per charge-group; note_only→annotation, never points. **The verifier never sees point values.** Every check cites the rubric span it derives from («מקור»); a check with no rubric anchor was not authored.
+**Ratification record:** Q-1 as authored (comparison carries 3; usage-check
+note_only — the 2+1 alternative makes five ratified GT 3s unreachable and
+contradicts «לא להוריד, לכתוב הערה») · Q-2 as authored · Q-3 as authored except
+A-1 · Q-4 both fields stay. Amendments: **A-1** q1.א.c1 → 1+1+1+1 per-parameter
+· **A-2** q2.ב.c4.s2 start-index tariff 0.5 + base-candidate equivalence ·
+**A-3** q1.ב.c7 semantic-flag equivalence [PL-8] · **A-4** min-index idiom
+equivalence on q2.ב.c4.s0/s4 [PL-3] · **A-5** cw/CR shorthand on q1.ב.c3 [PL-2]
+· **A-6** wrong-math verdict semantics on q1.ג.c6/c7 (met + tariff, never
+compounded).
 
-## Open questions for the owner (blocking checks marked ⚠; everything else is ratify-or-amend)
+**Accepted-as-known (owner item 5):** dan `q2.א.c1` — the faithful verdict path
+prices 8.5 vs GT 9, a deliberate ±0.5 non-overfit; recorded here, not patched.
 
-- **Q-1 ⚠ `q2.ב.c4.s3` (3 נק' בחוזה, «סה"כ 2 נקודות» בטקסט):** the rubric text prices the min-comparison at 2 while the contract terminal carries 3, and the usage-check clause says «לא להוריד, לכתוב הערה». Authored: the comparison carries **all 3**; the usage-check is note_only (0). Alternative: comparison 2 + usage-check 1 — but that contradicts the rubric's own note-don't-deduct. Ruling requested.
-- **Q-2 the max-search tariff placement:** «אם חיפשו את המקסימום אך הלוגיקה בסדר להוריד 3» is criterion-level (q2.ב.c4); authored as a tariff (3) anchored at s3 — the comparison, where direction manifests — with s3's required check phrased direction-agnostic so the defect is charged exactly once. Confirm placement.
-- **Q-3 authored splits (the rubric names components without itemizing points):** q1.א.c0 → 1(כותרת)+3(תכונות) · q1.א.c1 → 2(חתימה)+2(השמות) · q1.ב.c2 → 1.5+1.5 (תנאי מקום/תנאי משתמש) · **q1.ב.c4 → 1.5(יצירה)+1.5(תא נכון)** — the K2-forensics split; prices omer's inverted-guard case exactly at the GT's 1.5 · q2.א.c0 → 1+2+2 (per the stem's own itemization) · q2.א.c1 → 2+3+2+3 (חתימה/לולאה/קליטה/צבירה). Amend any split you graded differently.
-- **Q-4 two additive schema fields beyond the ratified mission schema:** `partial_fraction` (the mission's «50% default, plan-overridable» has to live somewhere — it lives on the check) and `rubric_quote` (H-4 traceability / anti-GT-leak audit). Flagging per the mission's surface-don't-decide rule.
-- **Honesty note:** the plan was authored from the CONTRACT TEXT ONLY (every check cites its span), but this agent has read the five GT files during C2–E8 analysis and cannot claim blindness. Two GT-informed choices are declared: the q1.ב.c4 split granularity and q2.ב.c4.s1's «אינדקס, לא ערך דירוג» phrasing — both derive from rubric semantics, both sharpened by K2_FORENSICS. Your review is the anti-leak gate.
+**How to read:** the verifier answers met/partially_met/not_met per check with a
+verbatim span; the pricer converts (required met→100% · partially_met→50% ·
+not_met→0 · tariff not_met→the amount, once per charge-group · note_only→
+annotation). **The verifier never sees point values.** «מקור» cites the rubric
+span each check derives from.
 
 
 ## סעיף q1.א
@@ -23,9 +36,13 @@
   - מקור: «סעיף א: כותרת ותכונות המחלקה Hobby»
 
 ### `q1.א.c1` — 4 נק'
-- [נדרש] `q1.א.c1.k1` · **2 נק'**: חתימת פעולה בונה: public Hobby(string hobbyName, bool isSportive, int minutes)
+- [נדרש] `q1.א.c1.k1` · **1 נק'**: חתימת פעולה בונה: public Hobby(string hobbyName, bool isSportive, int minutes)
   - מקור: «סעיף א: פעולה בונה Hobby(string hobbyName, bool isSportive, int minutes)»
-- [נדרש] `q1.א.c1.k2` · **2 נק'**: גוף הבונה משים את שלושת הפרמטרים לתכונות המתאימות
+- [נדרש] `q1.א.c1.k2` · **1 נק'**: גוף הבונה משים את הפרמטר hobbyName לתכונה המתאימה
+  - מקור: «פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם»
+- [נדרש] `q1.א.c1.k3` · **1 נק'**: גוף הבונה משים את הפרמטר isSportive לתכונה המתאימה
+  - מקור: «פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם»
+- [נדרש] `q1.א.c1.k4` · **1 נק'**: גוף הבונה משים את הפרמטר minutes לתכונה המתאימה
   - שקילות: בדיקת טווח על minutes אופציונלית — הפתרון לדוגמה מציין «אם לא בדקתם טווח גם בסדר»
   - מקור: «פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם»
 
@@ -51,10 +68,13 @@
 
 ### `q1.ב.c3` — 3 נק'
 - [נדרש] `q1.ב.c3.k1` · **1 נק'**: בתוך הלולאה: קליטת שם התחביב
+  - שקילות: [A-5/PL-2] קיצור cw/CR מתקבל כקליטה מוקלדת; המרה מפורשת אינה נדרשת
   - מקור: «קליטה של 3 נתוני התחביב (name, isSportive, minutes)»
 - [נדרש] `q1.ב.c3.k2` · **1 נק'**: בתוך הלולאה: קליטת isSportive
+  - שקילות: [A-5/PL-2] קיצור cw/CR מתקבל כקליטה מוקלדת; המרה מפורשת אינה נדרשת
   - מקור: «קליטה של 3 נתוני התחביב (name, isSportive, minutes)»
 - [נדרש] `q1.ב.c3.k3` · **1 נק'**: בתוך הלולאה: קליטת minutes
+  - שקילות: [A-5/PL-2] קיצור cw/CR מתקבל כקליטה מוקלדת; המרה מפורשת אינה נדרשת
   - מקור: «קליטה של 3 נתוני התחביב (name, isSportive, minutes)»
 
 ### `q1.ב.c4` — 3 נק'
@@ -75,6 +95,7 @@
 
 ### `q1.ב.c7` — 1 נק'
 - [נדרש] `q1.ב.c7.k1` · **1 נק'**: מחוץ ללולאה: החזרת true
+  - שקילות: [A-3/PL-8] החזרת דגל-הצלחה סמנטי (למשל addedAtLeastOne) שקולה — הפתרון לדוגמה עצמו מחזיר כך
   - מקור: «מחוץ ללולאה - להחזיר ערך true»
 
 
@@ -122,9 +143,9 @@
 ### `q1.ג.c6` — 2 נק'
 - [נדרש] `q1.ג.c6.k1` · **1 נק'**: בדיקה שמונה הספורטיביים שונה מאפס לפני החלוקה
   - מקור: «בדיקה האם המונה … שונה מאפס (1) אם לא מנעו חלוקה באפס להוריד 1»
-- [נדרש] `q1.ג.c6.k2` · **1 נק'**: חישוב ממוצע הספורטיביים והדפסתו
+- [נדרש] `q1.ג.c6.k2` · **1 נק'**: חישוב ממוצע הספורטיביים והדפסתו — חישוב שגוי אינו פוגע בבדיקה זו (met; הוא מחויב בניכוי הנפרד); partially_met שמור למקרה שרכיב שלם — חישוב או הדפסה — נעדר או שהמיקום שגוי [A-6]
   - מקור: «חישוב הממוצע והדפסה (1)»
-- [ניכוי] `q1.ג.c6.k3` · **ניכוי 0.5**: החישוב המתמטי של הממוצע נכון
+- [ניכוי] `q1.ג.c6.k3` · **ניכוי 0.5**: החישוב המתמטי של הממוצע נכון (כאן, ורק כאן, מחויב חישוב שגוי) [A-6]
   - מקור: «אם טעו בחישוב מתמטי להוריד 0.5»
 - [ניכוי] `q1.ג.c6.k4` · **ניכוי 0.5** · חיוב חד-פעמי בקבוצה `q1g-cast-once`: קיימת המרה לממשי בחישוב הממוצע (חלוקה שלמה אינה מספיקה)
   - מקור: «אם לא המירו לממשי בחישוב הממוצע להוריד 0.5 (רק פעם אחת)»
@@ -132,9 +153,9 @@
 ### `q1.ג.c7` — 2 נק'
 - [נדרש] `q1.ג.c7.k1` · **1 נק'**: בדיקה שמונה הלא-ספורטיביים שונה מאפס לפני החלוקה
   - מקור: «בדיקה האם המונה של … הלא-הספורטיבים שונה מאפס (1)»
-- [נדרש] `q1.ג.c7.k2` · **1 נק'**: חישוב ממוצע הלא-ספורטיביים והדפסתו
+- [נדרש] `q1.ג.c7.k2` · **1 נק'**: חישוב ממוצע הלא-ספורטיביים והדפסתו — חישוב שגוי אינו פוגע בבדיקה זו (met; הוא מחויב בניכוי הנפרד); partially_met שמור למקרה שרכיב שלם — חישוב או הדפסה — נעדר או שהמיקום שגוי [A-6]
   - מקור: «חישוב הממוצע והדפסה (1)»
-- [ניכוי] `q1.ג.c7.k3` · **ניכוי 0.5**: החישוב המתמטי של הממוצע נכון
+- [ניכוי] `q1.ג.c7.k3` · **ניכוי 0.5**: החישוב המתמטי של הממוצע נכון (כאן, ורק כאן, מחויב חישוב שגוי) [A-6]
   - מקור: «אם טעו בחישוב מתמטי להוריד 0.5»
 - [ניכוי] `q1.ג.c7.k4` · **ניכוי 0.5** · חיוב חד-פעמי בקבוצה `q1g-cast-once`: קיימת המרה לממשי בחישוב הממוצע
   - מקור: «אם לא המירו לממשי … להוריד 0.5 (רק פעם אחת)»
@@ -203,6 +224,7 @@
 
 ### `q2.ב.c4.s0` — 1 נק'
 - [נדרש] `q2.ב.c4.s0.k1` · **1 נק'**: הגדרת משתנה מינימום-דירוג + אתחולו
+  - שקילות: [A-4/PL-3] מעקב מינימום מרומז דרך arr[minIndex] — ניב מינימום-אינדקס — שקול למשתנה מפורש
   - מקור: «הגדרת מינימום דירוג + אתחול»
 
 ### `q2.ב.c4.s1` — 1 נק'
@@ -211,7 +233,10 @@
 
 ### `q2.ב.c4.s2` — 2 נק'
 - [נדרש] `q2.ב.c4.s2.k1` · **2 נק'**: לולאה על מערך הצוברים מ-1 עד 100
+  - שקילות: [A-2] התחלה מ-2 עם מועמד-בסיס באינדקס 1 שקולה לכיסוי מלא 1..100
   - מקור: «הגדרת לולאה על מערך צוברים מ-1 עד 100»
+- [ניכוי] `q2.ב.c4.s2.k2` · **ניכוי 0.5**: הסריקה מתחילה מ-1, לא מ-0 — תא 0 אינו ערוץ
+  - מקור: «הגדרת לולאה על מערך צוברים מ-1 עד 100 [A-2 owner tariff]»
 
 ### `q2.ב.c4.s3` — 3 נק'
 - [נדרש] `q2.ב.c4.s3.k1` · **3 נק'**: בתוך הלולאה: השוואת סכום הדירוגים של הערוץ הנוכחי לערך הקיצון הנוכחי (התנאי שמאתר את הערוץ בעל הדירוג הנמוך)
@@ -223,6 +248,7 @@
 
 ### `q2.ב.c4.s4` — 1 נק'
 - [נדרש] `q2.ב.c4.s4.k1` · **1 נק'**: בתוך התנאי: עדכון מינימום הדירוג
+  - שקילות: [A-4/PL-3] בניב מינימום-אינדקס עדכון האינדקס הוא גם עדכון המינימום — שקול
   - מקור: «בתוך התנאי (בתוך הלולאה) - החלפה של מינימום דירוג»
 
 ### `q2.ב.c4.s5` — 1 נק'
