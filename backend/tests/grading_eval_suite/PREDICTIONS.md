@@ -187,3 +187,23 @@ K4 ≤ 8.25 with the corpus max expected to FALL under verdict-median + pricing
 determinism. Per-trial HYPOTHESIZE lines live in RUNLOG (§4 loop protocol);
 they name expected gate movement, not new thresholds — no threshold moves
 without pre-registration here.
+
+
+### Mission grader-v5 closed loop — OUTCOMES (scored 2026-08-29, H-2)
+
+- **P1: FALSIFIED on every axis** (terra@high triple-killed — K1 45/48, K2
+  2.72%, K4 9.75 the worst spread measured; accuracy/stability -> opus5,
+  cost -> luna/flashlite). Full numbers: EVAL_REPORT.md §2-3.
+- **P-S5: FALSIFIED** (sonnet5 5th on GA-2, 3rd on GA-5; top-2 = opus5,
+  gemini-3.1-pro). Sonnet5 is the cheapest frontier-quality seat (~$0.12
+  cached) — a different claim, recorded as such.
+- **P-ARCH: SPLIT** — spread/citations/zero-false-credit CONFIRMED (every v5
+  config beat every v3 run on spread at k=3; 720 GT-ZERO cells, zero
+  invented credit; nano v5-vs-v3 better on EVERY gate); K2-on-gpt-4o
+  FALSIFIED (2.9% -> 18.4% — discrete verdicts expose the loose
+  met-threshold).
+- **S2-1 (SC-3 rescues nano): FALSIFIED** — GA-5 5.0 -> 6.25; the median of
+  harsh draws is harsher.
+- **CONF-1/CONF-3: both k=3 kill-clean boards KILLED at k=5** (nano K4 11.5;
+  terra-medium K1 77/80) — k=3 under-samples the kill tails; the SCREENING
+  stamp is vindicated as load-bearing.

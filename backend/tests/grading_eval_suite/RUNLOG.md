@@ -1162,3 +1162,70 @@ should collapse GA-5 (5.0 → ≤3 predicted) and may lift GA-2 modestly if
 flips are asymmetric (0.723 → ~0.75-0.78 plausible; ≥0.85 NOT predicted).
 Kills expected to stay clean (voting cannot create credit the pricer refuses).
 ~$0.075/test (3× calls, unchanged ceiling).
+
+**S2-1 RESULT — nano-sc3-v5 k=3 ($1.0623): kill-clean but the HYPOTHESIS IS
+FALSIFIED — SC-3 made nano WORSE where it was supposed to help.** GA-5 5.0 →
+6.25 (predicted ≤3), GA-4 0.786, burden 11.5/19, annihilation deepened
+(P→Z 64, partial band 62 vs 81 solo — median-of-3 harsh draws is harsher),
+GA-2 +0.014 noise. 13/15 valid (2 transport-invalid). $0.076/test. SC-3 is
+not a rescue for verdict-severity bias — voting collapses flips toward the
+MODE, and nano's mode is not_met.
+
+**STAGE 2 CLOSES · H-2 FIRES (trial 12 of 12; §3 space exhausted):** SC-3
+measured and falsified; frontier caching derived analytically (GA-7 at
+frontier tiers is an OUTPUT-token constraint — sonnet5's output alone bills
+$0.10/test; the OpenAI screens already ran at ~81% auto-cache); effort sweep
+moot (terra does not lead); cascade (Stage 3) not built — no cheap verifier
+is verdict-severity-aligned enough to route from, and the frontier targets
+carry the plan-side K2 cells the cascade would import. CHAMPION (owner cost
+ruling: the ceiling constrains, then GA-2/GA-5 select): nano-v5 solo — the
+only kill-clean under-ceiling board (terra-medium's better GA-2 sits
+permanently over the ceiling at 81% cache). Confirmation per §3: k=5 nano-v5
++ k=3 nano×grader-v3 attribution, then EVAL_REPORT.md and the H-2 halt.
+
+**CONF-1 HYPOTHESIZE — nano-v5 k=5 (confirmation):** the k=3 board holds at
+k=5 (kills clean; GA-2 0.72±0.02; GA-5 ≤ 8.25; $0.025/test).
+**CONF-2 HYPOTHESIZE — nano-v3 k=3 (attribution, not gating):** nano on the
+points-emitting grader-v3 prompt. If v3-nano shows the E-series shave pattern
+(harsh but K2-dirty citations, spread > v5's), the architecture's variance
+and citation-integrity gains replicate on a fourth model.
+LEDGER: +$1.0623 · cumulative $28.82 · remaining $31.18
+
+**CONF-2 RESULT — nano×grader-v3 k=3 ($0.1429, attribution, not gating):**
+the SAME model under points-emission: GA-2 0.5807 (v5: 0.7228, +0.14 from
+architecture alone) · K2 4.08% (v5: 0.68%) · spread 7.75 (v5: 5.0) · GA-4
+1.0 — worse on EVERY gate. Refines the P-ARCH story: on weak models the
+architecture is a large across-the-board upgrade; on gpt-4o it traded shaving
+for both-tails; capability curves the benefit. Citations: v3-nano quote
+discipline also worse (per taxonomy). EVAL_ANALYSIS folded into EVAL_REPORT
+§5 (attribution section).
+LEDGER: +$0.1429 · cumulative $28.97 · remaining $31.03
+
+**CONF-1 RESULT — nano-v5 k=5 ($0.6022): CHAMPION FAILS CONFIRMATION — K4
+FIRES (max spread 11.5; k=3 showed 5.0).** K1 80/80 and K2 0.00% HOLD at the
+authoritative tier; GA-2 holds 0.7168; $0.024/test. The SCREENING stamp
+earned its keep: three draws under-sample nano's instability. Per §4 nano may
+return only in a variant addressing K4 — SC-3 was that class and worsened it.
+
+**CONF-3 HYPOTHESIZE — terra-medium-v5 k=5 (last sanctioned candidate):**
+either it confirms as the only kill-clean k=5 board (over-ceiling, GA-2 red —
+presented as such), or its spread blows like nano's and the report's finding
+hardens: k=3 spread under-samples systematically and no ratified-space config
+confirms. Both outcomes are report-grade; ~$2.9.
+
+**CONF-3 RESULT — terra-medium-v5 k=5 ($2.7893): K1 FIRES AT CONFIRMATION
+(77/80 — din q2.ב.c1 r3, q2.ב.c4.s2 r3/r4: the family wrong-target hedge,
+invisible at k=3).** Both k=3 kill-clean boards are dead at the authoritative
+tier; k=3 under-samples exactly the tail properties the kills catch.
+
+## H-2 HALT (2026-08-29) — EVAL_REPORT.md delivered
+
+No adoptable config in the ratified space; the paths to H-1 are three
+owner-gated decisions (plan-v3 two cells -> opus/sonnet/gemini under the K2
+bar by measured counterfactual; the wrong-target clause -> the only K1 class;
+a GA-7 ruling — the ceiling is an output-token constraint at frontier tier).
+P1 FALSIFIED · P-S5 FALSIFIED · P-ARCH split (variance/citations/zero-false-
+credit confirmed; verdict quality scales with capability). LEDGER
+(authoritative, cost_truth tool): mission $32.53 of $60; remaining $27.47;
+the running-ledger drift of $0.17 is superseded by the tool. Fences: GT
+untouched · thresholds untouched · plan v2 as ratified · batteries green.
