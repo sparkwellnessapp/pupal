@@ -71,7 +71,12 @@ from .trace import resolve as _resolve_tracer, NULL_TRACER  # injected tracelog 
 #     honesty survives into the saved draft instead of dying with the job row.
 # Selection-normalization deliberately keeps suggested_fix=None: its intent is
 # unknowable, and inventing a number there is precisely what FC forbids.
-PIPELINE_VERSION = "3.6.0"
+# 3.6.1: additive xai provider branch (grok via the OpenAI-compatible endpoint) —
+#   zero behavior change for openai/anthropic/gemini; version bumped only so the
+#   provenance stamp announces the pipeline-code change (suite_hash is blind to it).
+# 3.6.2: xai branch constructs with streaming=True + stream_usage=True — x.ai's
+#   non-streaming path hangs on real extraction workloads (see _get_llm comment).
+PIPELINE_VERSION = "3.6.2"
 _MAX_RETRIES = 2
 _SUM_TOLERANCE = 0.5   # validation tolerance (pre-save, human-readable)
 _COMPILE_TOLERANCE = 0.01  # compilation tolerance (INV-1/INV-2 exact)
@@ -609,7 +614,7 @@ class RubricExtraction(BaseModel):
 # --- listed in the table's LOGICAL order, so direction is what decides which end
 # --- is column 1; the UI used to GUESS it from cell content and mirrored 16 tables
 # --- across the fixtures in both directions. The token must be copied verbatim.
-EXTRACTION_PROMPT_VERSION = "3.7.0-tabledir"
+EXTRACTION_PROMPT_VERSION = "3.10.0-fixsource"
 
 EXTRACTION_SYSTEM_PROMPT = """You are an expert Israeli education rubric extractor. You read Hebrew exam rubric documents (מחוון) carefully and extract their structure into JSON.
 
@@ -771,6 +776,7 @@ SECTION 4: EXAMPLE SOLUTIONS
 
 • Extract text under "פתרון לדוגמה" / "פתרון:" / "תשובה:" / "ערך מוחזר:" verbatim; assign to the correct scope when possible.
 • VERBATIM MEANS THE WHOLE ANSWER-KEY INK, UNCLEANED: include ALL alternative solutions the teacher wrote (e.g. "OPTION 1" AND "OPTION 2 (WHILE)" blocks — never pick one), commented-out / dead code blocks (/* ... */ or // lines the teacher left in), boundary/separator lines (e.g. "//Q2 - ב - START", "//------"), and the teacher's own typos or naming inconsistencies exactly as written (a solution named ArrangeMirrorBR stays ArrangeMirrorBR even if the question says ArrangeMirror). The answer key is teacher ink — you copy it, you never edit, select, deduplicate, or normalize it.
+• BLOCK-BOUNDARY TEST — decide where the solution ENDS before you copy it. The end of the CODE is not the end of the BLOCK. Walk forward from the solution's first line and keep copying until you reach the next scope's content (its question/sub-question label, its rubric table, or its scoring lines). Everything before that boundary is part of this solution — INCLUDING a closing ruler/separator comment line such as "//----------------------------------------" that the teacher used to close the block off. A closing brace "}" is NOT a stop signal; a ruler line AFTER it still belongs to this solution. Copy only what is actually present in the source — never add a ruler the teacher did not write.
 • If the solution appears as [IMAGE: ...] markers (screenshots, not extractable text), set example_solution to null.
 • [IMAGE: ...] markers indicate embedded images that cannot be read as text — never place them in any text field; drop them.
 • A TABLE THE TEACHER FILLED WITH VALUES — first, wherever it lands, PRESERVE IT AS MARKDOWN, VERBATIM: copy the `[TABLE N: RxC]` marker, the header row, the `|---|` separator, and every value row exactly as rendered — keep empty cells so the columns stay aligned; strip ONLY the teacher-ink annotation tokens ([[color:...]] and [[hl:...]]) from the cell contents, never the values themselves; never flatten to space-joined text; the HEADER ROW is INCLUDED so the table renders self-labeled. This is SYMMETRIC with SECTION 1, and both obey the SECTION 1 1×1 EXCEPTION (a block wrapped in a 1×1 table is code/prose, NOT a grid — unwrap it, dropping the marker/pipes).
@@ -825,8 +831,11 @@ How to recognize a scoring line: it names an evaluation component and carries po
 Extraction rules:
 • description = the line VERBATIM, INCLUDING its point notation and any parenthetical guidance. "כותרת – 3 נק'" stays exactly that.
 • points = the line's scope-level point value ("סעיף א : 15 נק (כל עדכון 2/3 נק)" → points=15; the 2/3 is internal per-item guidance inside the verbatim text).
-• A scope whose ONLY scoring ink is a bare "ניקוד: N נקודות" line → emit ONE criterion with that verbatim line as its description and points=N.
-• A "ניקוד: N נקודות" line FOLLOWED by itemized component lines (e.g. "- זיהוי ש... – 2 נק'") → the declared N is the sub-question's points; each component line is its own criterion with its own points. Copy both faithfully EVEN IF the components do not sum to N (never reconcile — the pipeline flags it).
+• TOTAL-LABEL TEST — run this BEFORE emitting anything for a "ניקוד: N נקודות" line. Look through that scope's WHOLE scoring block, not just the next line:
+  – If the block contains itemized component lines carrying their own points (e.g. "- זיהוי ש... – 2 נק'", "הבנת הבדיקה...  1.5 נק'") → the "ניקוד: N נקודות" line is the scope's TOTAL. Set the sub-question's points=N and emit ONE CRITERION PER COMPONENT LINE. **Do NOT emit the "ניקוד: N נקודות" line itself as a criterion.** Copy both faithfully EVEN IF the components do not sum to N (never reconcile — the pipeline flags it).
+  – ONLY if the block has NO such component lines anywhere → the "ניקוד: N נקודות" line IS the scope's single criterion: emit ONE criterion, description = that verbatim line, points=N.
+• INTERVENING LINES DO NOT BREAK THE ASSOCIATION. The component lines often do not sit directly under the label — an example-solution line (תשובה:/פתרון:/ערך מוחזר:, SECTION 7 above) or a deduction/penalty note ("אם כתבו הפוך... להוריד 0.5") frequently sits between them. Those lines are not criteria and are not separators: keep scanning past them to the end of the scope's scoring block before deciding which branch of the TOTAL-LABEL TEST applies.
+• WHY THIS MATTERS: emitting the total label as a criterion double-counts the scope's points (its components already carry them). The scope then sums to ~2x its declared value, and the pipeline raises a point-sum mismatch on a node the teacher wrote CORRECTLY — a false alarm the teacher has to chase. That is worse than a missing criterion, because it destroys trust in every real flag.
 • Lines starting with תשובה: / פתרון: / ערך מוחזר: are EXAMPLE SOLUTIONS → example_solution field, never criteria.
 • Deduction/penalty guidance ("להוריד X נק' אם...", "אם לא השתמשו... להוריד 2") is NOT a criterion — do not emit it as one.
 • Question body text, task instructions, and data values are NEVER criteria, even when they contain numbers. Only lines whose purpose is scoring qualify.
@@ -899,9 +908,27 @@ def _llm_params(
     bounded: Dict[str, Any] = {"timeout": timeout, "max_retries": 0}
 
     if provider == "anthropic":
+        # Claude 5 family REJECTS the temperature parameter outright (live 400,
+        # 2026-08-28 grading-eval screen: "`temperature` is deprecated for this
+        # model", req_011CeVWAnCj55zLZezwwRNGm) — the same knob-drop the OpenAI
+        # reasoning family made above; omission is the only valid setting.
+        # 4.x models (haiku-4.5, sonnet-4.x, opus-4.x) keep temperature=0.
+        if model.startswith(("claude-sonnet-5", "claude-opus-5",
+                             "claude-haiku-5", "claude-fable", "claude-mythos")):
+            return {"max_tokens": max_output_tokens or 16000, **bounded}
         return {"temperature": 0, "max_tokens": max_output_tokens or 16000, **bounded}
     if provider == "gemini":
         return {"temperature": 0, "max_output_tokens": max_output_tokens or 16000}
+    if provider == "xai":
+        # grok (OpenAI-compatible, reasoning family): temperature OMITTED (grok-4+
+        # reasoning models reject/ignore sampling knobs — omission is always safe),
+        # reasoning_effort passed through only when explicitly set, completion
+        # budget defaults to 32k (reasoning tokens bill against it). Bounded like
+        # openai — same SDK underneath, same hidden retry layer to disable.
+        params: Dict[str, Any] = {"max_tokens": max_output_tokens or 32000, **bounded}
+        if reasoning_effort:
+            params["reasoning_effort"] = reasoning_effort
+        return params
     # openai
     if _is_openai_reasoning(model):
         params: Dict[str, Any] = {"max_tokens": max_output_tokens or 32000, **bounded}
@@ -910,6 +937,16 @@ def _llm_params(
         return params
     return {"temperature": 0, "max_tokens": max_output_tokens or 12000, **bounded}
 
+
+
+def _tier_b_prompt_version() -> Optional[str]:
+    """Tier-B prompt identity, read lazily and defensively: provenance must never
+    be able to break an extraction."""
+    try:
+        from .pedagogical_mistakes import TIER_B_PROMPT_VERSION
+        return TIER_B_PROMPT_VERSION
+    except Exception:
+        return None
 
 def _llm_timeout_s() -> float:
     """Per-attempt wall bound. Ruled default 360s (see PR-2 F6): the observed
@@ -945,6 +982,21 @@ def _get_llm(provider: str, model: str, timeout_s: Optional[float] = None):
     if provider == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
         return ChatGoogleGenerativeAI(model=model, **params)
+    if provider == "xai":
+        # grok rides the OpenAI-compatible endpoint: same ChatOpenAI client,
+        # different base_url + key. XAI_API_KEY is REQUIRED explicitly — a silent
+        # fallback to OPENAI_API_KEY would 401 with a misattributed key.
+        from langchain_openai import ChatOpenAI
+        xai_key = os.environ.get("XAI_API_KEY")
+        if not xai_key:
+            raise RuntimeError("provider 'xai' requires XAI_API_KEY in the environment")
+        # streaming REQUIRED for xai (empirical, 2026-08-15): x.ai's NON-streaming
+        # response path hangs indefinitely on large-prompt/long-generation requests
+        # (probe: identical request streamed → TTFT 1.5s, done 156s; non-streamed →
+        # ReadTimeout at 620s). stream_usage keeps token accounting for cost.
+        return ChatOpenAI(model=model, api_key=xai_key,
+                          base_url="https://api.x.ai/v1",
+                          streaming=True, stream_usage=True, **params)
     from langchain_openai import ChatOpenAI
     return ChatOpenAI(model=model, **params)
 
@@ -954,7 +1006,7 @@ def _get_llm_config() -> Tuple[str, str]:
     provider = os.environ.get("EXTRACTION_LLM_PROVIDER", "openai")
     model = os.environ.get("EXTRACTION_LLM_MODEL", None)
     defaults = {"openai": "gpt-4o", "anthropic": "claude-sonnet-4-20250514",
-                "gemini": "gemini-3.1-pro-preview"}
+                "gemini": "gemini-3.1-pro-preview", "xai": "grok-4.6"}
     return provider, model or defaults.get(provider, "gpt-4o")
 
 
@@ -1848,7 +1900,10 @@ def _build_response(
         questions=questions,
         selection_groups=selection_groups,
         annotations=mismatch_annotations,
-        extraction_metadata={"pipeline_version": PIPELINE_VERSION, "method": "structured_output_v3"},
+        extraction_metadata={"pipeline_version": PIPELINE_VERSION, "method": "structured_output_v3",
+                             # Tier-B prompt identity travels with the run (2026-08-24): a
+                             # change to that prompt is otherwise invisible to provenance.
+                             "tier_b_prompt_version": _tier_b_prompt_version()},
     )
 
     # Convert non-mismatch validation issues to human-readable warnings

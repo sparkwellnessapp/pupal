@@ -195,6 +195,13 @@ def _apply_prior_context_flag(config: dict) -> bool:
     return on
 
 
+def _effective_prompt_version_for(config: dict) -> str:
+    if config.get("architecture") == "v5":
+        from app.agents.grader.verifier_prompt import VERIFIER_PROMPT_VERSION
+        return VERIFIER_PROMPT_VERSION
+    return effective_prompt_version()
+
+
 def _provenance(config_name: str, config: dict, spec: ModelSpec, *,
                 mode: str, k: int, fixtures: List[str],
                 scopes: Optional[List[str]],
@@ -208,8 +215,10 @@ def _provenance(config_name: str, config: dict, spec: ModelSpec, *,
         "models": {spec.key: {"model_id": spec.model_id, "provider": spec.provider,
                               "tier": spec.tier,
                               "price": dataclasses.asdict(spec.price)}},
-        # [PR-G1 item 4] stamped version is a pure function of code + flag
-        "prompt_version": effective_prompt_version(),
+        # [PR-G1 item 4] stamped version is a pure function of code + flag;
+        # [2026-08-28 flashlite-screen fix] v5 runs report the VERIFIER prompt —
+        # the run-level field must agree with what the drafts stamp
+        "prompt_version": _effective_prompt_version_for(config),
         "prior_context": bool(config.get("prior_context", False)),
         # [M1] gt_source surfaced per fixture in results.json
         "gt_sources": gt_sources or {},

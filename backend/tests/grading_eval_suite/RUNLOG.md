@@ -986,3 +986,179 @@ known temp-0 nondeterminism); expect verdict-median + pricing to damp spread
 vs the E-series; accuracy unknown; ~$0.025/test.
 
 LEDGER: smokes flashlite $0.0326 + nano $0.0244 · cumulative $0.14 · remaining $59.86
+
+**S1-2 RESULT — flashlite-v5 k=3 ($0.4682): KILLED (K2 23.81%, systematic —
+7/16 terminals at 3/3, SC-3 cannot rescue).** K1 48/48 · K4 6.25 · GA-2 0.8439
+(vs 0.74 all-time v3 best) · MAE 0.157 · moving 10.5% · $0.031/test. Mechanism
+(§R): wholesale-✓ presence-confirmation — tariffs never fire, imperfect
+components credited met; the K2-forensics class-1 blind spot at flash scale.
+Direction FLIPPED vs v3 (over-credit, not shaving). One T1-FABRICATED
+(refused). P-ARCH partial evidence: variance/MAE/instability all collapsed on
+a CHEAPER model than the v3 record. EVAL_ANALYSIS.md in the run dir.
+Also fixed: run-level provenance stamped grader-v3 on v5 runs (drafts were
+right; _provenance now reports the verifier version) — the two still-running
+screens carry the wrong run-level field only; noted, not re-run.
+LEDGER: +$0.4682 · cumulative $0.61 · remaining $59.39
+
+**S1-4 HYPOTHESIZE — gemini31pro-v5 (k=3):** the tier question flashlite just
+sharpened: if pro-class capability collapses K2 toward the bar on the SAME 16
+terminals, the blind spot is tier-bound (capability), and the frontier
+entrants decide the mission; if K2 persists at pro tier, the verdict-guidance
+surface (Stage-2 clause) rises. Expect GA-2 ≥ flashlite's 0.844, cost
+~$0.15-0.25/test (OVER-CEILING — runs for information), thinking billed as
+output.
+
+**S1-1 RESULT — haiku45-v5 k=3 ($1.1891 run): KILLED (K1 — PERMANENT).**
+45/48 GT-ZERO — three 0.5-credit cells, ONE deterministic terminal
+(din/q1.ג.c1): haiku's reasoning CORRECTLY says din's double-accumulators are
+not the required counters, then hedges partially_met 3/3 at conf 0.85. The K1
+leak shape = hedged partial on a wrong-thing-present (evidence real, verdict
+legal — pricer can't catch; verdict-guidance input registered for Stage 2:
+"a different thing of the right shape is not_met"). Elsewhere HARSH
+(P→Z 65, F→Z 27; GA-2 0.663 < the v3 record; burden 11/25; $0.0851 over
+ceiling). K2 2.04% PASS · K4 4.5 PASS. The prime cheap candidate is dead;
+P-S5 (sonnet5) now carries the Anthropic lane. EVAL_ANALYSIS.md in run dir.
+
+**S1-5 HYPOTHESIZE — sonnet5-v5 (k=3):** the owner's P-S5 (Hebrew reasoning,
+instruction hierarchy, verbatim extraction). Expect: K1 clean (no hedged
+partials on wrong-things), K2 near bar, GA-2 > flashlite's 0.844, GA-5 ≤ 3,
+~$0.062/test pre-caching (the ledger note). This is the first entrant with a
+credible shot at multiple green GAs.
+LEDGER: +$1.1891 (haiku k=3) · cumulative $1.80 · remaining $58.20
+
+**S1-5 INCIDENT ($0.00):** sonnet5-v5 first launch — 30/30 scope calls 400'd:
+«`temperature` is deprecated for this model» (the Claude 5 family drops the
+knob, exactly like the OpenAI reasoning family). Every trial invalidated,
+ZERO dollars billed — the bounded fail-fast design (max_retries=0, 400
+non-transient) worked as written. Fix in the ONE kwargs policy
+(docx_v3._llm_params): 5-family predicate omits temperature; 4.x unchanged
+(haiku screen unaffected); policy tests 7/7 green; also pre-fixes opus5-v5.
+Re-launched.
+
+**S1-3 RESULT — nano-v5 k=3 ($0.3792): KILL-CLEAN (first!), gate-far.**
+K1 48/48 · K2 0.68% · K4 5.0 · Tier-1 15/15 with EMPTY taxonomy (zero
+stitched/fabricated/refused — perfect citation discipline). But GA-2 0.723,
+P→Z 65 / F→Z 27 = genuine wholesale not_met (0 refusals): the ANNIHILATION
+pole, mirror of flashlite's forgiveness pole. din −23.0 / yonatan −20.0
+Δmed. $0.025/test (cheapest). EVAL_ANALYSIS.md in run dir.
+
+**S1-6 HYPOTHESIZE — luna-v5 (k=3):** nano's successor tier at the same
+price; if the annihilation pole is tier-capability, luna should shift toward
+the teacher's partial band (GA-2 up from 0.723) while keeping nano's kill
+cleanliness; ~$0.03/test.
+LEDGER: +$0.3792 · cumulative $2.18 · remaining $57.82
+
+**S1-6 RESULT — luna-v5 k=3 ($0.2233): KILLED (K1 — one stochastic cell).**
+din/q2.ב.c4.s2 r2: partially_met hedged onto WRONG-TARGET work (loop over the
+wrong array, own reasoning admits it; GT charge-once note). K2 0.00% · K4 5.5
+· GA-2 0.8088 · $0.0149/test · tier1 14/15. THE cheap-tier K1 leak class is
+now cross-vendor: hedged partial on wrong-thing-present (haiku deterministic,
+luna stochastic). Stage-2 rule-6 hardening registered (usable on non-killed
+configs only). EVAL_ANALYSIS.md in run dir.
+
+**S1-7 HYPOTHESIZE — gpt4o-v5 (k=3): THE P-ARCH CONTROL.** Same model as
+C2/E7/E8; prediction (PREDICTIONS.md P-ARCH): v5-on-gpt-4o beats grader-v3 on
+K2 (≤2.4%) and spread (<8.25) because magnitude discretion is code. GA-2
+movement vs 0.7400 is the architecture's accuracy claim; the kill risk is the
+now-named hedged-partial leak.
+LEDGER: +$0.2233 · cumulative $2.40 · remaining $57.60
+
+**S1-4 RESULT — gemini31pro-v5 k=3 ($5.4251, OVER-CEILING for information):
+KILLED (K2 4.08% — exactly TWO deterministic terminals, both shared with
+flashlite: dan/q1.א.c1, yonatan/q2.ב.c3.s0 — a Google-FAMILY severity blind
+spot; SC-3 inapplicable).** Otherwise the best profile yet: GA-2 0.8895 and
+GA-5 2.75 both PASS (firsts), moving 2.1%, MAE 0.1355, citations perfect
+(tier1 fails = T1-COST only). din (the wrong-target paper) absorbs the error:
+Δmed 17.5/burden 13 vs ≤4.25/≤5 everywhere else. Thinking = $0.32 of the
+$0.362/test. Tier hypothesis CONFIRMED (cheap-tier chasm is capability).
+Return condition: Stage-2 severity clause + thinking_level=low. Google lane
+COMPLETE. EVAL_ANALYSIS.md in run dir.
+LEDGER: +$5.4251 · cumulative $7.83 · remaining $52.17
+
+**S1-5 RESULT — sonnet5-v5 k=3 ($2.5618): KILLED (K2 3.40% — din/q1.ג.c0
+genuine severity miss ×3; dan/q1.א.c1 = A PLAN GAP: the teacher's R-α/PL-1
+tariff (wrong-identifier −0.5) has no plan check AND rule 5's form-clause
+actively suppresses it — three vendors now vote met on that cell as
+instructed).** K1 clean · K4 3.5 · GA-2 0.8404 · $0.171/test (tokenizer +30%;
+caching is the only ceiling path). din concentration again (13.5). P-S5:
+currently GA-2 3rd / GA-5 2nd. Plan-v3 input surfaced (owner-gated).
+EVAL_ANALYSIS.md in run dir.
+
+**S1-8 HYPOTHESIZE — opus5-v5 (k=3):** frontier-intelligence probe, expected
+OVER-CEILING ($5/$25); screened per the owner's priority ruling. Expect the
+severity misses to shrink further; the dan/q1.א.c1 plan gap should PERSIST
+(it's instructed behavior) — a clean natural experiment for §3's theory.
+LEDGER: +$2.5618 · cumulative $10.39 · remaining $49.61
+
+**S1-7 RESULT — gpt4o-v5 k=3 ($1.1829): KILLED (K2 18.37%) — THE P-ARCH
+CONTROL, half-falsified and worth it.** Same model as C2/E7/E8: spread 6.0
+beats every v3 run (CONFIRMS the variance half), K1/citations clean — but K2
+exploded 2.9%→18.37% (FALSIFIES the K2 half): discrete verdicts EXPOSE the
+loose met-threshold that points-emission blurred. Verdict quality is the
+binding constraint; it scales with capability (23.8% → 18.4% → 4.08% → 3.40%
+across the tiers run so far). EVAL_ANALYSIS.md in run dir.
+
+**S1-9 HYPOTHESIZE — gpt55-medium-v5 (k=3):** first OpenAI reasoning-tier
+entrant; the capability→K2 curve predicts a large drop from gpt-4o's 18.4%;
+reasoning effort medium; ~$0.15-0.25/test (5/30 pricing, thinking as output).
+LEDGER: +$1.1829 · cumulative $11.57 · remaining $48.43
+
+**S1-8 RESULT — opus5-v5 k=3 ($6.1069, OVER-CEILING probe): KILLED (K2 3.40%)
+— best board of the screen: GA-2 0.9053 ✓, GA-3 0.533 ✓ (first), GA-5 1.5 ✓,
+F→Z ZERO, MAE 0.0912, moran Δmed 0.0, citations perfect.** K2 = the SAME two
+cells as the rest of the frontier (dan plan-gap ×3, yonatan access-site ×2 —
+zero novel classes). COUNTERFACTUAL: plan-v3 with the PL-1 tariff +
+access-site text takes opus to 1.36%, sonnet5 AND gemini-pro to 2.04% — all
+under the bar. Owner-gated; queued for the post-terra Stage-2 decision. din
+(wrong-target policy) is the last big per-fixture error (9.75). GA-7:
+unclearable for opus (output alone ~$0.24). EVAL_ANALYSIS.md in run dir.
+LEDGER: +$6.1069 · cumulative $17.68 · remaining $42.32
+
+**S1-10 HYPOTHESIZE — terra-medium-v5 (k=3):** P1's cost-viable variant. The
+capability→K2 curve + the terra extraction record predict a sonnet/opus-class
+board; the open questions are (a) whether reasoning@medium reproduces the two
+plan-side K2 cells like every other capable model (theory says yes — one is
+instructed), (b) price: 2/12 with thinking-as-completion could land NEAR the
+ceiling with OpenAI's automatic prefix caching. Parallel-lane deviation: two
+OpenAI runs concurrently (bounded 429 handling); rationale ledgered.
+
+**S1-9 RESULT — gpt55-medium-v5 k=3 ($5.8308): KILLED (K1 — FIVE cells, all
+din, all hedged-◐-on-wrong-target machinery; its own reasoning names the
+defect and hedges anyway).** K2 0.00% (the screen's only zero — also the only
+model NOT firing the dan plan-gap cell). GA-2 0.8632 ✓ · K4 3.5 · $0.389.
+The K1 leak class is now CROSS-TIER and 100% din-concentrated — the §7.4
+hardest-test prediction made flesh; the Stage-2 wrong-target clause is the
+named counter. EVAL_ANALYSIS.md in run dir.
+
+**S1-11 HYPOTHESIZE — terra-high-v5 (k=3):** P1's headline entrant. Predict
+opus-class board (GA-2 ≥0.89, K4 ≤3) with the two plan-side K2 cells
+(dan/q1.א.c1 instructed-met; yonatan access-site), K1 clean (terra@high
+should not hedge wrong-target — the extraction record shows disciplined
+tariff-following); cost $0.3-0.5 (thinking at 12/M out). Parallel with
+terra-medium (ledgered deviation).
+LEDGER: +$5.8308 · cumulative $23.51 · remaining $36.49
+
+**S1-10 RESULT — terra-medium-v5 k=3 ($1.7297): kill-clean (second ever:
+K1 48/48 · K2 0.68% · K4 6.25) but HARSH (P→Z 55, F→Z 25, GA-2 0.7632,
+GA-4 0.667, burden 8/18, $0.115).** The OpenAI harsh pole holds at reasoning
+tier. Vendor-family pattern three-for-three (OpenAI strict/annihilating,
+Google lenient→converging, Anthropic nearest the teacher). EVAL_ANALYSIS.md
+in run dir.
+LEDGER: +$1.7297 · cumulative $25.24 · remaining $34.76
+
+**S1-11 RESULT — terra-high-v5 k=3 ($2.5168): TRIPLE KILL (K1 45/48 — the din
+wrong-target hedge, same cells as gpt-5.5 · K2 2.72% · K4 9.75, the only
+config to EXCEED the E8 spread record). GA-2 0.7544. → P1 FALSIFIED on every
+axis (accuracy/stability→opus5, cost→luna/flashlite). Extraction excellence
+did not transfer to teacher-like partial-credit judgment.** STAGE 1 COMPLETE:
+11 screens, 2 kill-clean (nano, terra-medium), 0 all-green; the frontier
+residual is two plan-side K2 cells + the din wrong-target K1 class + GA-7.
+LEDGER: +$2.5168 · cumulative $27.76 · remaining $32.24
+
+**S2-1 HYPOTHESIZE — nano-sc3-v5 (k=3, SC-3 sc_n=3):** §3 Stage-2's named
+variant on the best kill-clean cheap config. nano moves 21.1% of terminals
+across k — the most voting material of the kill-clean pair; median-of-3
+should collapse GA-5 (5.0 → ≤3 predicted) and may lift GA-2 modestly if
+flips are asymmetric (0.723 → ~0.75-0.78 plausible; ≥0.85 NOT predicted).
+Kills expected to stay clean (voting cannot create credit the pricer refuses).
+~$0.075/test (3× calls, unchanged ceiling).

@@ -1,0 +1,10 @@
+{
+ "model_key": "gpt-5.4-nano-2026-03-17",
+ "architecture": "v5",
+ "params": {
+  "reasoning_effort": "medium"
+ },
+ "sc_n": 3,
+ "plan": "plans/hobby_tvshow.plan.json",
+ "cost_ceiling": 0.08
+}
