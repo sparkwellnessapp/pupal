@@ -1,0 +1,6 @@
+{
+ "model_key": "gpt-4o",
+ "architecture": "v5",
+ "plan": "plans/hobby_tvshow.plan.json",
+ "cost_ceiling": 0.08
+}

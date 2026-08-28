@@ -127,6 +127,10 @@ class FlagReason(str, Enum):
     CLOSED_WORLD_VIOLATION = "closed_world_violation"
     UNGRADED_CRITERION = "ungraded_criterion"
     BOUNDS_CLAMPED = "bounds_clamped"
+    # grader-v5 Plan/Verify/Price (additive; wire-safe — clients read strings)
+    UNVERIFIED_CHECK = "unverified_check"        # plan check received no verdict
+    EVIDENCE_UNVERIFIED = "evidence_unverified"  # met/partially_met on an unverifiable span — credit refused
+    TARIFF_COERCED = "tariff_coerced"            # partially_met on a binary tariff check — treated as fired
 
 
 # =============================================================================

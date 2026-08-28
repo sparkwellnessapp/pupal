@@ -119,3 +119,15 @@ Model identity/prices: `tests/eval_common/models_registry.py` (`model_key` is
 the cross-suite join key; this suite's configs are covered by eval_common's
 offline dry-resolve test). Cost: the ONE shared `cost_usd`. Sibling GT is read
 + snapshotted only — never edited [§2].
+
+## Mission era: grader-v5 closed loop (2026-08-28 →)
+
+`MISSION_grader_v5_closed_loop.md` governs. The suite now drives TWO
+architectures through one runner: `architecture: "v3"` (GraderAgent,
+points-emitting) and `"v5"` (PlanVerifyGrader — Plan/Verify/Price: the model
+emits verdicts per plan check, `app/agents/grader/pricer.py` computes every
+point). Start with: the mission file → `GRADING_EVAL_PLAYBOOK.md` §0/§1b →
+`K2_FORENSICS.md` → `plans/hobby_tvshow_plan_review.md` (the H-4 artifact).
+Every run's analysis starts with `python -m tests.grading_eval_suite.tools.gates
+<results_dir>` — kills first. Google entrants are skipped (§1.7 isolation
+failed on this machine); xAI is excluded by default.

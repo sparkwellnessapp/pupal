@@ -17,11 +17,22 @@ operating manual. Where they disagree, the mission wins.
 3. **No threshold moves without pre-registration.** Tier-2/3 are UNGATED-WATCHED
    until thresholds are pre-registered in PREDICTIONS.md from a measured
    distribution (the INV-6/A4 lesson: a check nobody can pass trains click-through).
-4. **No model or tier escalation without the owner.** The judge model, any sweep
-   model, any reasoning-effort change — owner decisions under registry discipline.
-5. **No production code changes.** Nothing under `app/` — including `_compute_cost`'s
-   known-stale prices, the D6 model seam, `GRADER_VERSION`. All step-3 territory.
-6. **No Gemini, anywhere in this suite.** Production quota is untouchable [R2].
+4. **No model or tier escalation without the owner** — *amended 2026-08-28 by
+   `MISSION_grader_v5_closed_loop` (the mission wins):* the §3 roster and its
+   params (reasoning_effort, SC-3) are owner-RATIFIED and run without per-trial
+   approval; anything beyond the roster stays an owner decision.
+5. **No production code changes** — *amended 2026-08-28 by the same mission:*
+   V5-A's grader-path scope (the D6 seam, the Plan/Verify/Price modules, the
+   additive draft-schema fields, the grader-v3 restore) is ratified app/ work,
+   recorded in the mission-start RUNLOG entry and pinned by `sut_hash`.
+   Everything else under `app/` stays frozen.
+6. **No Gemini, anywhere in this suite** — *amended 2026-08-28: mission §1.7
+   replaced the blanket ban with an isolation precondition, and the check
+   FAILED on this machine* (google-genai rides Vertex on GOOGLE_CLOUD_PROJECT —
+   the production transcription project; no separate eval key exists), *so all
+   Google entrants are SKIPPED and `llm_factory` refuses the provider.* The
+   practical effect is unchanged: zero Gemini calls; the launch quota is never
+   put at risk for an eval.
 7. **The judge never gates and is never the scorer-of-record** [R2]. Promotion to
    any gating role has a pre-registered bar (n>=50 Tier-A fixtures AND judge-owner
    agreement >= the bootstrap bar).
@@ -32,8 +43,30 @@ operating manual. Where they disagree, the mission wins.
 |---|---|---|
 | 0 Validity | transport failure / wall-bound hit => INVALID trial (excluded, counted); provenance completeness | precondition for reading anything |
 | 1 Tripwires | `[T1-FABRICATED]` zero positive awards on ABSENT ink · `[T1-STITCHED]` zero positive awards on real-but-NON-CONTIGUOUS ink presented as one span · `[T1-CW]` zero closed-world survivals (+ draft-terminal totality) · `[T1-SKIP]` skip-agreement on empty answers and GT-`ungradable` scopes · `[T1-SELECTION]` denominator is contract.total_points, exclusion honored by construction · `[T1-COST]` registry-priced cost/trial <= ceiling ($0.10 default) | **GATE from run one** |
-| 2 Agreement | signed Δ, MAE, `terminal_within_precision_rate` (precision=0.25 [R4']), exact rate, `total_Δ`, `shippable_grade_rate` (<=1.0 [R4']), `grade_boundary_flip_rate` [C-4], `edit_burden` | **UNGATED-WATCHED** |
+| 2 Agreement | signed Δ, MAE, `terminal_within_precision_rate` (precision=0.25 [R4']), exact rate, `total_Δ`, `shippable_grade_rate` (<=1.0 [R4']), `grade_boundary_flip_rate` [C-4], `edit_burden` | **UNGATED-WATCHED**, except the GA-gated subset below |
 | 3 Diagnostics | repeat stability (award spread across k), calibration (reliability + ECE, n-flagged <50), parse-failure rate [R6], `parent_answer_fallback` rate, quote-status distribution, per-scope cost & latency, exclusion mismatch | reported every run |
+
+### 1b. The grader-v5 mission era (2026-08-28): kills and GA gates
+
+`MISSION_grader_v5_closed_loop` §1.1/§2 promoted a subset to GATES for the
+closed loop, evaluated by `tools/gates.py` (mechanized — hand arithmetic has
+erred twice) FIRST in every analysis, before any headline number:
+
+- **Kills (per trial):** K1 = GA-1 (any GT-ZERO→AI-nonzero kills the config
+  permanently) · K2 GT-PARTIAL→AI-FULL ≤ the C2 baseline 2.4% (6/245) ·
+  K4 max per-fixture `ai_total_spread` ≤ 8.25.
+- **GA gates (adoption = all green on k=5):** GA-1 100% · GA-2 within-precision
+  ≥0.85 · GA-3 STRICT shippable (|Δ|≤1 AND no compensating_error) ≥0.50 ·
+  GA-4 boundary-flip ≤0.10 · GA-5 max spread ≤3.0 · GA-6 edit_burden ≤4
+  median /≤8 max · GA-7 ≤$0.08/test hard, $0.05 target.
+- k=3 runs are stamped SCREENING in provenance and never justify adoption.
+- **grader-v5 evidence semantics:** declared multi-span citations
+  (`evidence_quotes`) validate PER SPAN; separate spans over non-adjacent ink
+  are the honest citation (never T1-STITCHED); an `evidence_unverified`
+  refusal (met claimed on an unverifiable span — the pricer refused credit)
+  still GATES, classified fabricated/stitched by the DL-2 fragments signal.
+  The bar is thus STRICTER than v3: zero met-claims on absent ink, award or no
+  award.
 
 ## 2. Validity taxonomy [mission §7]
 

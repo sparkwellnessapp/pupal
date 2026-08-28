@@ -102,6 +102,21 @@ def _best_substring_ratio(quote: str, text: str) -> float:
     return best
 
 
+def quote_match_status(quote_text: str, student_answer: str) -> Optional[QuoteValidationStatus]:
+    """Pure per-SPAN quote check — the primitive shared by the v3 terminal-level
+    validation below and the grader-v5 per-check span validation. Returns None
+    for an empty quote (no claim to validate). Same normalization and the same
+    0.85 sliding-window bar as _validate_quote — one definition, two callers."""
+    if not quote_text:
+        return None
+    norm_quote = " ".join(quote_text.lower().split())
+    norm_answer = " ".join((student_answer or "").lower().split())
+    if norm_quote in norm_answer:
+        return QuoteValidationStatus.EXACT
+    ratio = _best_substring_ratio(norm_quote, norm_answer)
+    return QuoteValidationStatus.FUZZY if ratio >= 0.85 else QuoteValidationStatus.NOT_FOUND
+
+
 def _validate_quote(
     quote_text: str,
     student_answer: str,

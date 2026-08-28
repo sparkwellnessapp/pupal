@@ -206,6 +206,58 @@ def make_scope_outcome(scope: GradableScope,
     )
 
 
+def make_v5_scope_outcome(scope: GradableScope,
+                          terminals: Dict[str, tuple],
+                          *, extra_flags: Optional[List[FlaggedOutcome]] = None,
+                          terminal_flags: Optional[Dict[str, List[FlaggedOutcome]]] = None
+                          ) -> ScopeOutcome:
+    """grader-v5 shape: TerminalSpec-v5 = (awarded, conf, [(span, status), ...]).
+    evidence_quotes carries the DECLARED multi-span list; evidence_quote mirrors
+    the first span (the agent's legacy-display convention)."""
+    tflags = terminal_flags or {}
+
+    def _leaf(tid, desc, pts):
+        a, conf, spans = terminals[tid]
+        quotes = [AnswerQuotation(quote_text=t, validation_status=st)
+                  for t, st in spans]
+        return dict(points_possible=pts, points_awarded=Decimal(a),
+                    reasoning="נימוק v5", confidence=conf,
+                    evidence_quote=quotes[0] if quotes else None,
+                    evidence_quotes=quotes,   # [] = v5 with zero verified spans
+                    flags=list(tflags.get(tid, [])))
+
+    criterion_outcomes: List[CriterionOutcome] = []
+    confidences: List[float] = []
+    for criterion in scope.criteria:
+        if criterion.sub_criteria:
+            subs = [SubCriterionOutcome(sub_criterion_id=sc.sub_criterion_id,
+                                        description=sc.description,
+                                        **_leaf(sc.sub_criterion_id, sc.description, sc.points))
+                    for sc in criterion.sub_criteria]
+            confidences.extend(s.confidence for s in subs)
+            criterion_outcomes.append(CriterionOutcome(
+                criterion_id=criterion.criterion_id, description=criterion.description,
+                points_possible=criterion.points,
+                points_awarded=sum((s.points_awarded for s in subs), Decimal("0")),
+                reasoning="", confidence=min(c.confidence for c in subs) if subs else 0.0,
+                evidence_quote=None, sub_criterion_outcomes=subs))
+        else:
+            fields = _leaf(criterion.criterion_id, criterion.description, criterion.points)
+            criterion_outcomes.append(CriterionOutcome(
+                criterion_id=criterion.criterion_id, description=criterion.description,
+                sub_criterion_outcomes=None, **fields))
+            confidences.append(fields["confidence"])
+    return ScopeOutcome(
+        scope_kind=scope.scope_kind, question_id=scope.question_id,
+        sub_question_id=scope.sub_question_id, points_possible=scope.points,
+        points_awarded=sum((c.points_awarded for c in criterion_outcomes), Decimal("0")),
+        min_confidence=min(confidences) if confidences else 0.0,
+        criterion_outcomes=criterion_outcomes,
+        flags=list(extra_flags or []), graded_by="llm",
+        input_tokens=1000, output_tokens=400, cached_input_tokens=200,
+    )
+
+
 def make_skip_outcome(scope: GradableScope) -> ScopeOutcome:
     """Mirror of the agent's _build_skip_result shape (zero awards + NO_ANSWER)."""
     cos = []

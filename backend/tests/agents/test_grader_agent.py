@@ -508,21 +508,21 @@ def test_terminal_grade_decode_order_is_evidence_first():
     assert positions == sorted(positions), "OUTPUT FORMAT order drifted from the schema"
 
 
-def test_system_prompt_rule_structure_v4():
-    """[grader-v4] The ratified rules are numbered 1..8 with no gaps, rule 3
-    (surface form, E7) and rule 4 (deduction size, E8) both present and in that
-    order. A renumbering or a silent drop of a ratified clause fails here."""
+def test_system_prompt_rule_structure_v3():
+    """[grader-v3, restored 2026-08-28 per MISSION_grader_v5_closed_loop] E8's
+    rule 4 was KILLED by its own K2 criterion — the v4 prompt must not persist
+    as the default (de-facto adoption). The ratified v3 structure: rules 1..7,
+    no gaps, rule 3 (surface form, E7) present with its load-bearing sentences,
+    and NO magnitude clause (that concern is code in the v5 pricer)."""
     import re
     from app.agents.grader.prompt import SYSTEM_PROMPT
     nums = [int(n) for n, _ in re.findall(r"^(\d+)\. (.)", SYSTEM_PROMPT, re.M)]
     assert nums == list(range(1, len(nums) + 1)), nums
-    assert len(nums) == 8, nums
-    i3 = SYSTEM_PROMPT.index("SURFACE FORM IS NOT A DEDUCTION")
-    i4 = SYSTEM_PROMPT.index("DEDUCTION SIZE IS SET BY THE RUBRIC")
-    assert i3 < i4, "rule 3 must precede rule 4"
-    # rule 4's load-bearing sentences (the anti-zero-inflation counters)
-    for frag in ("order of authority",
-                 "noted rather than deducted",
-                 "present but imperfect earns partial credit, not zero",
-                 "Award zero only"):
+    assert len(nums) == 7, nums
+    assert "SURFACE FORM IS NOT A DEDUCTION" in SYSTEM_PROMPT
+    assert "DEDUCTION SIZE IS SET BY THE RUBRIC" not in SYSTEM_PROMPT, (
+        "rule 4 (E8) was killed by K2 — it must not silently return")
+    # rule 3's load-bearing sentences (the E7 ratified clause)
+    for frag in ("This rule never creates credit",
+                 "is the authority on naming and form"):
         assert frag in SYSTEM_PROMPT, frag

@@ -18,19 +18,6 @@ from app.schemas.gradable import GradableScope
 # entry #1 (§13.2 SEED). The behavioural test is the discriminator; the
 # never-creates-credit sentence encodes kill-criterion K1 as a constraint the
 # model reads, not merely a detector we measure afterwards.
-# grader-v4 (owner ruling 2026-08-27, E8): adds rule 4 — DEDUCTION SIZE IS SET BY
-# THE RUBRIC, NOT BY YOU. Diagnosis from the E7 run: rule 3 established WHAT
-# counts as a conceptual defect but left HOW MUCH it costs to the model's
-# discretion. Consequence measured: zero-inflation (GT-PARTIAL->AI-ZERO 54->72,
-# GT-FULL->AI-ZERO 22->28) which cancelled most of the +53.75 recovered by rule
-# 3, and per-fixture instability (dan ai_total_spread 3.25 -> 14.00) driven by
-# the model freely choosing deduction magnitudes. Rule 4 supplies an ORDER OF
-# AUTHORITY (named tariff -> criterion itemisation -> share of required work
-# present) rather than a single source, because the rubric is silent on many
-# cases and a rubric-only rule would leave no rule there at all (owner ruling).
-# The "present but imperfect earns partial, not zero" sentence is the direct
-# anti-zero-inflation counter; "charge each defect once" encodes the
-# charge-once precedent from the F5 GT session.
 # grader-v2 (owner lever, 2026-08-25; canonical name ruled in the PR-G1 v2
 # carryover — supersedes the interim "grader-v2-evidence-first" string):
 # TerminalGrade's field order is quote_text -> reasoning -> points_awarded ->
@@ -39,12 +26,12 @@ from app.schemas.gradable import GradableScope
 # evidence the model just located and the reasoning it just wrote —
 # evidence-before-verdict, mechanically enforced. The rule/format ordering
 # below mirrors it (sentences unchanged from grader-v1; only sequence moved).
-GRADING_PROMPT_VERSION = "grader-v4"
+GRADING_PROMPT_VERSION = "grader-v3"
 
 # PR-G1 v2 (RATIFIED 2026-08-25): the prefix-context seam, gated by env flag.
 # The stamped prompt_version is a PURE FUNCTION of code + flag:
-#   flag off -> GRADING_PROMPT_VERSION            (render unchanged)
-#   flag on  -> GRADING_PROMPT_VERSION + "+priorctx" (prior parts in reading order)
+#   flag off -> "grader-v2"          (rendered prompt byte-identical to today)
+#   flag on  -> "grader-v2+priorctx" (prior parts rendered in exam reading order)
 _PRIOR_CONTEXT_FLAG = "GRADER_PRIOR_CONTEXT_ENABLED"
 
 _PRIOR_PARTS_HEADER = "חלקים קודמים — להקשר בלבד: אין לנקד אותם ואין לצטט מתוכם"
@@ -89,39 +76,20 @@ GRADING RULES
    is the authority on naming and form: a student whose naming matches the
    example solution has made no naming error.
 
-4. DEDUCTION SIZE IS SET BY THE RUBRIC, NOT BY YOU. Start from the full
-   points_possible and subtract only for defects you have actually identified.
-   For the size of each deduction, use this order of authority:
-   (a) If the criterion, its Guidance or its Notes names a penalty for this
-       defect, apply exactly that number — no more. Where the rubric says a
-       point should be noted rather than deducted, deduct nothing and record
-       the observation in your reasoning instead.
-   (b) Otherwise, if the criterion itemises its own components with point
-       values, deduct only the value of the components that are missing or
-       wrong. Every other component still earns its points.
-   (c) Otherwise, judge how much of the work the criterion requires is present
-       in the answer, and award that share of points_possible.
-   A defect never costs more than the component it belongs to. A component that
-   is present but imperfect earns partial credit, not zero. Award zero only
-   when nothing the criterion asks for appears in the answer. Charge each
-   distinct defect once, at the criterion whose requirement it violates — if
-   the same mistake is visible again under another criterion, do not deduct for
-   it a second time.
+4. Write reasoning in Hebrew explaining your award for each terminal.
 
-5. Write reasoning in Hebrew explaining your award for each terminal.
-
-6. For each terminal criterion:
+5. For each terminal criterion:
    - Award points_awarded as a number in [0, points_possible].
    - Use quarter-point increments (0, 0.25, 0.5, 0.75, 1.0, ...).
 
-7. Report confidence ∈ [0.0, 1.0] per terminal — your certainty in THIS specific grade.
+6. Report confidence ∈ [0.0, 1.0] per terminal — your certainty in THIS specific grade.
    Lower confidence when:
    - The answer is ambiguous or could be interpreted multiple ways
    - Evidence is weak, indirect, or absent
    - The transcribed handwriting looks garbled or unclear
    - The criterion is difficult to judge from what the student wrote
 
-8. Return one grades entry per terminal criterion ID in the list.
+7. Return one grades entry per terminal criterion ID in the list.
 
 ═══════════════════════════════════════════════════════════════════════════════
 OUTPUT FORMAT
@@ -148,11 +116,12 @@ def _get_terminal_ids(scope: GradableScope) -> List[str]:
     return terminals
 
 
-def build_user_message(scope: GradableScope) -> str:
-    """
-    Render the per-scope user message. Pure function — no I/O, no side effects.
-    Called once per scope per grade() invocation.
-    """
+def _render_context_sections(scope: GradableScope) -> List[str]:
+    """The scope-context prefix (question, priors, sub-question, example
+    solution, tables) shared VERBATIM by build_user_message (grader-v3) and the
+    grader-v5 verifier renderer (verifier_prompt.py) — one rendering, two
+    consumers. Extracted 2026-08-28; byte-identity of build_user_message is
+    pinned by tests/agents/test_prior_context.py (RENDERER_SHA256)."""
     parts: List[str] = []
 
     # ── Question / sub-question text ────────────────────────────────────────
@@ -207,6 +176,16 @@ def build_user_message(scope: GradableScope) -> str:
         if scope.context_tables:
             parts.append("Context tables:")
             parts.append(json.dumps(scope.context_tables, ensure_ascii=False, indent=2))
+
+    return parts
+
+
+def build_user_message(scope: GradableScope) -> str:
+    """
+    Render the per-scope user message. Pure function — no I/O, no side effects.
+    Called once per scope per grade() invocation.
+    """
+    parts: List[str] = _render_context_sections(scope)
 
     # ── Criteria tree ────────────────────────────────────────────────────────
     parts.append("")

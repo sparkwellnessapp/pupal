@@ -274,9 +274,18 @@ class GraderAgent:
             Callers with access to the rubric contract should pass its policy.
     """
 
-    def __init__(self, numeric_policy: Optional[NumericPolicy] = None) -> None:
+    def __init__(self, numeric_policy: Optional[NumericPolicy] = None,
+                 llm=None, model_version: Optional[str] = None) -> None:
+        """llm/model_version are the D6 model seam (mission V5-A): pass a
+        factory-constructed chat model (llm_factory.build_chat_model) to run
+        this SAME prompt/schema path on another model — the champion×grader-v3
+        attribution run. DEFAULT construction (both None) is byte-for-byte the
+        historical path: settings model, no timeout, SDK retries — deliberately
+        unchanged so C2/E7 comparability and production behavior do not shift
+        as a seam side effect."""
         self._policy = numeric_policy or NumericPolicy()
-        self._llm = ChatOpenAI(
+        self._model_version = model_version or settings.openai_model
+        self._llm = llm if llm is not None else ChatOpenAI(
             model=settings.openai_model,
             temperature=0.0,
             max_tokens=8192,
@@ -482,7 +491,7 @@ class GraderAgent:
             extra={
                 "rubric_contract_version": gradable_test.rubric_contract_version,
                 "transcription_contract_version": gradable_test.transcription_contract_version,
-                "model_version": settings.openai_model,
+                "model_version": self._model_version,
                 "prompt_version": effective_prompt_version(),   # PR-G1 item 4: code+flag
                 "llm_calls_count": llm_calls,
                 "grading_duration_ms": duration_ms,
@@ -498,7 +507,7 @@ class GraderAgent:
         return GradedTestDraft(
             rubric_contract_version=gradable_test.rubric_contract_version,
             transcription_contract_version=gradable_test.transcription_contract_version,
-            model_version=settings.openai_model,
+            model_version=self._model_version,
             prompt_version=effective_prompt_version(),   # PR-G1 item 4
             scope_outcomes=scope_outcomes,
             teacher_overrides={},

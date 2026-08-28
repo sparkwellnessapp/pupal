@@ -17,7 +17,7 @@ from . import runner as runner_mod
 from .runner import (
     _hashed_paths,
     _load_config,
-    _assert_model_pin,
+    _assert_draft_stamp,
     grade_fixture_trials,
 )
 
@@ -46,16 +46,32 @@ def test_shipped_config_resolves():
     assert cfg["cost_ceiling"] == 0.10           # Tier-1 default ceiling [§6]
 
 
-def test_model_pin_assertion(monkeypatch):
-    """[DL-4] v0 has no model seam (D6 deferred): provenance may never claim a
-    model the SUT didn't run — mismatch refuses before any spend."""
+def test_draft_stamp_assertion():
+    """[DL-4 successor, seam era 2026-08-28] provenance may never claim a model
+    the SUT didn't run — asserted per trial against the draft's OWN stamp (what
+    actually ran), which is strictly stronger than the old env-pin check."""
     from tests.eval_common.models_registry import spec
-    import app.config as app_config
-    monkeypatch.setattr(app_config.settings, "openai_model", "gpt-4o", raising=False)
-    _assert_model_pin(spec("gpt-4o"))            # match: no raise
-    monkeypatch.setattr(app_config.settings, "openai_model", "gpt-5.5", raising=False)
-    with pytest.raises(SystemExit, match="pin"):
-        _assert_model_pin(spec("gpt-4o"))
+    gt = synth.make_gt(synth.GT_PERFECT)
+    bundle = synth.make_bundle(gt)
+    draft = synth.draft_from_gt(bundle, gt)      # stamps model_version="gpt-4o"
+    _assert_draft_stamp(draft, spec("gpt-4o"))   # match: no raise
+    _assert_draft_stamp(None, spec("gpt-5.5"))   # invalid trial: nothing to assert
+    with pytest.raises(SystemExit, match="stamp"):
+        _assert_draft_stamp(draft, spec("gpt-5.5"))
+
+
+def test_v5_config_shape_rules(tmp_path):
+    """architecture v5 requires a plan; v3 refuses v5-only keys."""
+    import json
+    cfgdir = tmp_path / "configs"; cfgdir.mkdir()
+    (cfgdir / "bad1.json").write_text(json.dumps(
+        {"model_key": "gpt-4o", "architecture": "v5"}), encoding="utf-8")
+    with pytest.raises(SystemExit, match="requires 'plan'"):
+        _load_config("bad1", suite_dir=tmp_path)
+    (cfgdir / "bad2.json").write_text(json.dumps(
+        {"model_key": "gpt-4o", "plan": "plans/x.json"}), encoding="utf-8")
+    with pytest.raises(SystemExit, match="v5-only"):
+        _load_config("bad2", suite_dir=tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +215,10 @@ def test_sut_hash_covers_exactly_the_grader_path():
     expected_suffixes = [
         "app/agents/grader/grader.py", "app/agents/grader/prompt.py",
         "app/agents/grader/schemas.py", "app/agents/grader/validator.py",
+        # grader-v5 path (mission V5-A) — the SUT grew; the hash must see it
+        "app/agents/grader/plan_schemas.py", "app/agents/grader/plan_validator.py",
+        "app/agents/grader/pricer.py", "app/agents/grader/verifier_prompt.py",
+        "app/agents/grader/grader_v5.py", "app/agents/grader/llm_factory.py",
         "app/services/gradable_compiler.py", "app/services/selection_scoring.py",
         "app/schemas/graded_test_draft.py", "app/schemas/gradable.py",
         "app/schemas/ontology_types.py",

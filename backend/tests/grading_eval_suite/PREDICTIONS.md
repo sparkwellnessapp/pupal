@@ -162,3 +162,28 @@ Full analysis with §R reads: `E7_REPORT.md`. **This run is the evidence for E8*
 **Second finding:** `T1-STITCHED` tripled 3 → 9 — rule 4's component reasoning demands multi-span citation, and the single-quote contract forces fabricated contiguity. The multi-span step-3 design input is no longer speculative.
 
 Full analysis: `E8_REPORT.md`.
+
+## Mission grader-v5 closed loop — registered 2026-08-28, BEFORE any Stage-1 spend
+
+**P1 stands and now activates:** the terra entrants (`terra-high-v5`,
+`terra-medium-v5`) run in Stage 1; P1 is scored in EVAL_REPORT.md §3 against
+the full frontier map.
+
+**P-S5 — the Sonnet-5 hypothesis (owner, mission §3):** claude-sonnet-5's
+Hebrew reasoning quality, instruction hierarchy and verbatim extraction make it
+a top-2 Stage-1 entrant on the gate-distance ordering (GA-2, GA-5 weighted
+first). Scored CONFIRMED if sonnet5-v5 lands top-2 of the Stage-1 screen;
+FALSIFIED otherwise.
+
+**P-ARCH — the architecture prior (mission §3, the reason v5 exists):** on the
+SAME model (gpt-4o), Plan/Verify/Price beats grader-v3 on K2 (≤2.4%) and GA-5
+(spread < 8.25) — the two defects two prompt clauses failed to fix — because
+magnitude discretion is code now. Scored on `gpt4o-v5` vs the C2/E7 records
+(same model, same fixtures, k≥3).
+
+**Standing kills for every trial (mission §1.1):** K1 = GA-1 100% (a config
+that fires K1 is dead permanently) · K2 ≤ 2.4% (6/245, the C2 baseline) ·
+K4 ≤ 8.25 with the corpus max expected to FALL under verdict-median + pricing
+determinism. Per-trial HYPOTHESIZE lines live in RUNLOG (§4 loop protocol);
+they name expected gate movement, not new thresholds — no threshold moves
+without pre-registration here.

@@ -71,15 +71,19 @@ def _scope_target(scope_key: ScopeKey) -> str:
 
 
 def _walk_outcome_terminals(outcome: ScopeOutcome):
-    """Yield (terminal_id, awarded, confidence, evidence_quote, flag_reasons)."""
+    """Yield (terminal_id, awarded, confidence, evidence_quote, flag_reasons,
+    evidence_quotes). The 6th element is the grader-v5 DECLARED span list
+    (None on the v3 single-quote path)."""
     for co in outcome.criterion_outcomes:
         if co.sub_criterion_outcomes:
             for so in co.sub_criterion_outcomes:
                 yield (so.sub_criterion_id, so.points_awarded, so.confidence,
-                       so.evidence_quote, [f.reason.value for f in so.flags])
+                       so.evidence_quote, [f.reason.value for f in so.flags],
+                       so.evidence_quotes)
         else:
             yield (co.criterion_id, co.points_awarded, co.confidence,
-                   co.evidence_quote, [f.reason.value for f in co.flags])
+                   co.evidence_quote, [f.reason.value for f in co.flags],
+                   co.evidence_quotes)
 
 
 def _classify_failed_scopes(draft: GradedTestDraft) -> Tuple[List[str], List[str]]:
@@ -162,12 +166,12 @@ def score_trial(draft: GradedTestDraft,
             tier1.append(f"[T1-CW] closed_world: draft scope {_scope_target(key)} "
                          f"is not a contract scope")
             continue
-        for tid, awarded, conf, quote, flags in _walk_outcome_terminals(outcome):
+        for tid, awarded, conf, quote, flags, quotes in _walk_outcome_terminals(outcome):
             if tid not in infos or infos[tid].scope_key != key:
                 tier1.append(f"[T1-CW] closed_world: terminal {tid!r} is outside "
                              f"the contract universe")
                 continue
-            draft_terminals[tid] = (awarded, conf, quote, flags)
+            draft_terminals[tid] = (awarded, conf, quote, flags, quotes)
 
     # coverage: every in-scope contract terminal must appear in the draft
     # (the agent's D3 totality, re-checked independently — defense in depth)
@@ -201,7 +205,7 @@ def score_trial(draft: GradedTestDraft,
             # not a confident award: positive points with ZERO flags anywhere
             # in the scope is the violation.
             has_flags = bool(outcome.flags) or any(
-                flags for _, _, _, _, flags in _walk_outcome_terminals(outcome))
+                flags for _, _, _, _, flags, _ in _walk_outcome_terminals(outcome))
             if outcome.points_awarded > 0 and not has_flags:
                 v = (f"[T1-SKIP] ungradable scope {_scope_target(key)} received an "
                      f"unflagged positive award (guess where a flag was owed)")
@@ -246,32 +250,77 @@ def score_trial(draft: GradedTestDraft,
     scope_answer: Dict[ScopeKey, Optional[str]] = {
         (s.question_id, s.sub_question_id): s.student_answer_text
         for s in bundle.gradable_test.scopes}
+    # [grader-v5] the pricer's credit REFUSALS: an evidence_unverified
+    # annotation records a met/partially_met claim on an unverifiable span.
+    # The credit was already refused; the CLAIM is the trust offense and it
+    # gates, classified by the same DL-2 fragments signal as a failed quote.
+    unverified_claims: Dict[str, List[str]] = {}
+    for ann in draft.annotations:
+        if ann.annotation_type == "evidence_unverified":
+            unverified_claims.setdefault(ann.target_id, []).append(
+                str((ann.metadata or {}).get("quote_text", "")))
     quote_counts: Dict[str, int] = {}
     for tid, info in sorted(wanted_terminals.items()):
         if tid not in draft_terminals:
             continue                       # counted under [T1-CW] already
-        awarded, conf, quote, flags = draft_terminals[tid]
+        awarded, conf, quote, flags, quotes = draft_terminals[tid]
         g = gt_map[tid]
         delta = awarded - g.awarded
-        quote_status = None
-        if quote is not None:
-            quote_status = quote.validation_status.value if quote.validation_status else None
-        quote_counts[quote_status or "none"] = quote_counts.get(quote_status or "none", 0) + 1
-
-        # [DL-2 SPLIT] a failed quote on a positive award is EITHER fabricated
-        # (ink absent) OR stitched (all ink real, joined across a gap). Both gate.
-        failed_quote = (awarded > 0 and quote is not None
-                        and quote_status == "not_found")
+        answer_text = scope_answer.get(info.scope_key)
         stitched = False
         fabricated = False
-        if failed_quote:
-            answer_text = scope_answer.get(info.scope_key)
-            if _quote_fragments_all_present(quote.quote_text, answer_text):
-                stitched = True                                  # [T1-STITCHED]
+
+        if quotes is not None:
+            # ── grader-v5 declared multi-span path [V5-A 2026-08-28] ───────
+            # Aggregate status over declared spans: worst wins. The SUT stores
+            # only verified spans; a not_found here is a SUT lie (defense in
+            # depth) and classifies exactly like a v3 failed quote. Declared
+            # spans verified individually are NEVER stitched — separate spans
+            # over non-adjacent ink is the honest citation the E8 T1-STITCHED
+            # finding asked for.
+            statuses = [q.validation_status.value if q.validation_status else None
+                        for q in quotes]
+            if not statuses:
+                quote_status = None
+            elif any(st == "not_found" for st in statuses):
+                quote_status = "not_found"
+            elif any(st == "fuzzy" for st in statuses):
+                quote_status = "fuzzy"
             else:
-                fabricated = True                                # [T1-FABRICATED]
-        burden_evidence = (awarded > 0
-                           and (quote is None or quote_status == "not_found"))
+                quote_status = "exact"
+            for q, st in zip(quotes, statuses):
+                if st == "not_found":
+                    if _quote_fragments_all_present(q.quote_text, answer_text):
+                        stitched = True
+                    else:
+                        fabricated = True
+            burden_evidence = awarded > 0 and not quotes
+        else:
+            # ── v3 single-quote path (unchanged) ───────────────────────────
+            quote_status = None
+            if quote is not None:
+                quote_status = quote.validation_status.value if quote.validation_status else None
+
+            # [DL-2 SPLIT] a failed quote on a positive award is EITHER fabricated
+            # (ink absent) OR stitched (all ink real, joined across a gap). Both gate.
+            failed_quote = (awarded > 0 and quote is not None
+                            and quote_status == "not_found")
+            if failed_quote:
+                if _quote_fragments_all_present(quote.quote_text, answer_text):
+                    stitched = True                                  # [T1-STITCHED]
+                else:
+                    fabricated = True                                # [T1-FABRICATED]
+            burden_evidence = (awarded > 0
+                               and (quote is None or quote_status == "not_found"))
+        # [grader-v5] refusal claims gate on EITHER branch — the signal is the
+        # annotation, not the span storage (a terminal whose every span was
+        # refused stores an empty list, and must still gate on the claim)
+        for claimed in unverified_claims.get(tid, []):
+            if _quote_fragments_all_present(claimed, answer_text):
+                stitched = True
+            else:
+                fabricated = True
+        quote_counts[quote_status or "none"] = quote_counts.get(quote_status or "none", 0) + 1
         excluded = info.scope_key in excluded_gt
 
         row = TerminalScore(

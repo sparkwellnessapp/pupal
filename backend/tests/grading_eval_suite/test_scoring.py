@@ -368,3 +368,123 @@ def test_stitched_does_not_move_the_fuzzy_bar():
     ans = " ".join(synth.ANSWER_Q1.lower().split())
     q = " ".join(("the loop runs over items" + chr(10) + "each value correctly").lower().split())
     assert _best_substring_ratio(q, ans) < 0.85     # still below the bar — unchanged
+
+
+# ---------------------------------------------------------------------------
+# grader-v5 multi-span evidence [mission V5-A, 2026-08-28] — red-first
+# ---------------------------------------------------------------------------
+# The v5 agent DECLARES one span per plan check (evidence_quotes); the pricer
+# refuses credit on unverifiable spans and records the refusal as an
+# `evidence_unverified` annotation. The scorer's v5 rules:
+#   * declared, individually-verified spans are NEVER "stitched" — non-adjacent
+#     ink cited as separate spans is the honest citation the E8 finding asked for;
+#   * an `evidence_unverified` annotation IS the fabrication signal (the model
+#     claimed met on ink it could not quote) — T1 fires on the BEHAVIOR even
+#     though the pricer already refused the credit;
+#   * a stored span with status not_found is a SUT lie (v5 stores only verified
+#     spans) — defense in depth, T1 fires.
+
+def _v5_draft(bundle, q1_terminals, annotations=None):
+    scopes = bundle.gradable_test.scopes
+    q1 = next(s for s in scopes if s.question_id == "q1")
+    q2 = next(s for s in scopes if s.question_id == "q2")
+    o1 = synth.make_v5_scope_outcome(q1, q1_terminals)
+    o2 = synth.make_v5_scope_outcome(q2, {
+        "q2.א.c0": ("4", 0.9, [("the function returns the maximum",
+                                QuoteValidationStatus.EXACT)])})
+    return synth.make_draft(bundle, [o1, o2], annotations)
+
+
+def test_v5_declared_multispan_passes_and_is_never_stitched():
+    """Two individually-verified NON-ADJACENT spans on one terminal: exact
+    status, no T1-STITCHED, no T1-FABRICATED — the structural fix works."""
+    gt = synth.make_gt(synth.GT_PERFECT)
+    bundle = synth.make_bundle(gt)
+    draft = _v5_draft(bundle, {
+        "q1.c0": ("2", 0.9, [("the loop runs over items", QuoteValidationStatus.EXACT),
+                             ("accumulates each value correctly", QuoteValidationStatus.EXACT)]),
+        "q1.c1.s0": ("1", 0.9, [("total accumulates", QuoteValidationStatus.EXACT)]),
+        "q1.c1.s1": ("2", 0.9, [("accumulates each value", QuoteValidationStatus.EXACT)]),
+    })
+    ts = _score(draft, bundle)
+    assert ts.valid and ts.tier1_pass, ts.tier1_failures
+    row = next(r for r in ts.terminals if r.terminal_id == "q1.c0")
+    assert row.quote_status == "exact"
+    assert not row.evidence_stitched and not row.fabricated_evidence
+
+
+def test_v5_unverified_met_claim_fires_fabricated():
+    """The pricer refused the credit; the annotation records the claim; the
+    scorer still gates — invented ink is a trust offense at ANY award."""
+    from app.schemas.graded_test_draft import GradingAnnotation
+    from app.schemas.ontology_types import AnnotationSeverity
+    gt = synth.make_gt(synth.GT_PERFECT)
+    bundle = synth.make_bundle(gt)
+    ann = GradingAnnotation(
+        severity=AnnotationSeverity.WARNING, target_id="q1.c0",
+        annotation_type="evidence_unverified",
+        message="ציטוט לא נמצא", metadata={
+            "check_id": "q1.c0.k1", "claimed_verdict": "met",
+            "quote_text": "ink the student never wrote anywhere"})
+    draft = _v5_draft(bundle, {
+        "q1.c0": ("0", 0.9, []),
+        "q1.c1.s0": ("1", 0.9, [("total accumulates", QuoteValidationStatus.EXACT)]),
+        "q1.c1.s1": ("2", 0.9, [("accumulates each value", QuoteValidationStatus.EXACT)]),
+    }, annotations=[ann])
+    ts = _score(draft, bundle)
+    assert any("[T1-FABRICATED]" in f for f in ts.tier1_failures), ts.tier1_failures
+    row = next(r for r in ts.terminals if r.terminal_id == "q1.c0")
+    assert row.fabricated_evidence
+
+
+def test_v5_unverified_stitched_claim_fires_stitched():
+    """All the claimed ink is real but joined across a gap — the DL-2 split
+    applies to v5 refusals exactly as it did to v3 awards."""
+    from app.schemas.graded_test_draft import GradingAnnotation
+    from app.schemas.ontology_types import AnnotationSeverity
+    gt = synth.make_gt(synth.GT_PERFECT)
+    bundle = synth.make_bundle(gt)
+    ann = GradingAnnotation(
+        severity=AnnotationSeverity.WARNING, target_id="q1.c0",
+        annotation_type="evidence_unverified",
+        message="ציטוט לא נמצא", metadata={
+            "check_id": "q1.c0.k1", "claimed_verdict": "met",
+            "quote_text": "the loop runs over items\naccumulates each value correctly"})
+    draft = _v5_draft(bundle, {
+        "q1.c0": ("0", 0.9, []),
+        "q1.c1.s0": ("1", 0.9, [("total accumulates", QuoteValidationStatus.EXACT)]),
+        "q1.c1.s1": ("2", 0.9, [("accumulates each value", QuoteValidationStatus.EXACT)]),
+    }, annotations=[ann])
+    ts = _score(draft, bundle)
+    assert any("[T1-STITCHED]" in f for f in ts.tier1_failures), ts.tier1_failures
+    row = next(r for r in ts.terminals if r.terminal_id == "q1.c0")
+    assert row.evidence_stitched and not row.fabricated_evidence
+
+
+def test_v5_stored_notfound_span_is_a_sut_lie_and_gates():
+    """v5 stores only verified spans; a not_found span in evidence_quotes means
+    the SUT's own gating failed — defense in depth."""
+    gt = synth.make_gt(synth.GT_PERFECT)
+    bundle = synth.make_bundle(gt)
+    draft = _v5_draft(bundle, {
+        "q1.c0": ("2", 0.9, [("completely invented span text",
+                              QuoteValidationStatus.NOT_FOUND)]),
+        "q1.c1.s0": ("1", 0.9, [("total accumulates", QuoteValidationStatus.EXACT)]),
+        "q1.c1.s1": ("2", 0.9, [("accumulates each value", QuoteValidationStatus.EXACT)]),
+    })
+    ts = _score(draft, bundle)
+    assert any("[T1-FABRICATED]" in f for f in ts.tier1_failures), ts.tier1_failures
+
+
+def test_v5_award_without_any_span_is_burden_not_gate():
+    gt = synth.make_gt(synth.GT_PERFECT)
+    bundle = synth.make_bundle(gt)
+    draft = _v5_draft(bundle, {
+        "q1.c0": ("2", 0.9, []),                       # award, zero spans
+        "q1.c1.s0": ("1", 0.9, [("total accumulates", QuoteValidationStatus.EXACT)]),
+        "q1.c1.s1": ("2", 0.9, [("accumulates each value", QuoteValidationStatus.EXACT)]),
+    })
+    ts = _score(draft, bundle)
+    assert ts.tier1_pass, ts.tier1_failures
+    row = next(r for r in ts.terminals if r.terminal_id == "q1.c0")
+    assert row.burden_evidence and row.quote_status is None

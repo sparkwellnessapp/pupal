@@ -63,6 +63,12 @@ class GradingAnnotation(BaseModel):
         "fuzzy_match",
         "no_answer",
         "llm_failure",
+        # grader-v5 Plan/Verify/Price (additive)
+        "unverified_check",      # a plan check received no verdict from the model
+        "evidence_unverified",   # met on an unverifiable span — credit refused by the pricer
+        "tariff_coerced",        # partially_met on a binary tariff — treated as fired
+        "charge_group_dedup",    # tariff suppressed: its charge_group already fired
+        "note_only",             # rubric says note-don't-deduct — the observation, recorded
     ]
     message: str  # Hebrew, user-facing
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -82,6 +88,12 @@ class SubCriterionOutcome(BaseModel):
     reasoning: str                          # Hebrew
     confidence: float                       # 0.0–1.0 LLM self-assessed per leaf
     evidence_quote: Optional[AnswerQuotation] = None
+    # grader-v5: DECLARED multi-span evidence (one verified span per plan check).
+    # None on the v3 single-quote path. When present, evidence_quote holds the
+    # first span for legacy display and each span validates independently —
+    # the structural fix for the E8 T1-STITCHED finding (a model whose reasoning
+    # spans several places must not be forced to fabricate contiguity).
+    evidence_quotes: Optional[List[AnswerQuotation]] = None
     flags: List[FlaggedOutcome] = Field(default_factory=list)
 
     @field_serializer("points_possible", "points_awarded")
@@ -106,6 +118,7 @@ class CriterionOutcome(BaseModel):
     reasoning: str                          # Hebrew; empty string for branch criteria
     confidence: float                       # 0.0–1.0; min of children for branches
     evidence_quote: Optional[AnswerQuotation] = None
+    evidence_quotes: Optional[List[AnswerQuotation]] = None   # grader-v5 multi-span (see SubCriterionOutcome)
     sub_criterion_outcomes: Optional[List[SubCriterionOutcome]] = None
     flags: List[FlaggedOutcome] = Field(default_factory=list)
 
@@ -151,6 +164,7 @@ class ScopeOutcome(BaseModel):
     retry_count: int = 0                    # 0 = first-try success/failure; 1 = needed retry
     input_tokens: int = 0                   # S8 — LLM input tokens for this scope; 0 for skipped/failed
     output_tokens: int = 0                  # S8 — LLM output tokens for this scope; 0 for skipped/failed
+    cached_input_tokens: Optional[int] = None   # provider-reported cache reads (None: not broken out)
 
     @field_serializer("points_possible", "points_awarded")
     def _sd(self, v: Decimal) -> str:
@@ -172,8 +186,9 @@ class GradedTestDraft(BaseModel):
     schema_version: str = "1.0"
     rubric_contract_version: str            # echoed from GradableTest — audit/reproducibility
     transcription_contract_version: str
-    model_version: str                      # settings.openai_model used
-    prompt_version: str                     # GRADING_PROMPT_VERSION from prompt.py
+    model_version: str                      # the ACTUAL model id the agent ran
+    prompt_version: str                     # GRADING_PROMPT_VERSION / VERIFIER_PROMPT_VERSION
+    plan_version: Optional[str] = None      # grader-v5 only: the ratified GradingPlan version
 
     scope_outcomes: List[ScopeOutcome]
     teacher_overrides: GradedTestOverrides = Field(default_factory=dict)  # EMPTY at S7; S9 populates
@@ -185,3 +200,4 @@ class GradedTestDraft(BaseModel):
     grading_duration_ms: int                # wall-clock for the whole parallel grade
     total_input_tokens: int = 0             # S8 — Σ scope_outcomes.input_tokens
     total_output_tokens: int = 0            # S8 — Σ scope_outcomes.output_tokens
+    total_cached_input_tokens: Optional[int] = None  # Σ cached reads when the provider reports them

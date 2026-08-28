@@ -735,3 +735,141 @@ decisions: NONE. E8 not adopted (K2). Recommended sequence surfaced for the
   D6/Terra.
 cost: $1.98  wall: ~11 min
 corrections: none
+
+---
+
+## 2026-08-28 — MISSION START: grader-v5 closed loop (MISSION_grader_v5_closed_loop.md, RATIFIED)
+
+Feature-First Mode. Build order (V5-A → F → V5-B → [STOP H-4] → §4 loop):
+
+1. REVERT app prompt to grader-v3 (f3c56d3). Rationale: E8 killed by K2 — leaving
+   rule 4 in the default prompt is de-facto adoption; every §2 baseline is
+   grader-v3; the champion×grader-v3 attribution run needs v3 runnable. Proof
+   obligation: post-revert sut_hash == E7's 2c2cb60b2175ce90 (E8 dirtied only
+   prompt.py). test_system_prompt_rule_structure_v4 updated to the v3 structure.
+2. F — K2 forensics (zero spend): 6 C2 + 5 E7 + 7 E8 GT-PARTIAL→AI-FULL cases
+   side by side → K2_FORENSICS.md → feeds the verifier's absence-audit wording.
+   (Pulled BEFORE the prompt is written, not parallel — it is an input to it.)
+3. V5-A instrument & schemas (zero spend), red-first:
+   - app/agents/grader/: plan_schemas.py (GradingPlan/TerminalPlan/PlanCheck),
+     plan_validator.py (sum-exact, grid, tariff bounds, note_only pointless,
+     totality vs contract), pricer.py (met/partial/not_met; tariff once per
+     charge_group; clamp+grid; note_only→annotation), verifier_schemas.py
+     (CheckVerdict — decode order check_id→evidence_quote→basis_he→verdict→
+     confidence, the grader-v2 lever carried forward), verifier_prompt.py
+     (VERIFIER_PROMPT_VERSION="grader-v5"; carries ONLY the two proven clauses
+     + F-informed absence audit; verdicts are POINT-BLIND), grader_v5.py
+     (PlanVerifyGrader: same skip/failure/semaphore skeleton as GraderAgent,
+     SC-3 optional), llm_factory.py (openai+anthropic via docx_v3's _llm_params
+     — one kwargs policy, imported not forked; gemini branch raises with the
+     §1.7 ruling).
+   - Draft schema additions (all optional, additive): evidence_quotes (multi-span
+     — the E8 T1-STITCHED structural fix), cached_input_tokens/total_cached_
+     input_tokens (§1.3 provenance), plan_version. New GradingAnnotation types:
+     unverified_check, tariff_coerced, note_only.
+   - Suite: scoring.py multi-span awareness (per-span verbatim validation;
+     declared spans are never "stitched"; any absent span ⇒ T1-FABRICATED);
+     reporting.py adds corpus edit_burden{median,max} + strict_shippable_rate;
+     runner.py model seam (config: architecture v3|v5, params, plan, sc_n;
+     DL-4 env-pin assert replaced by a stronger post-trial assert
+     draft.model_version == spec.model_id); _SUT_RELPATHS += the v5 files;
+     plans/ swept into suite_hash; provenance += architecture/params/
+     plan_version/plan_sha256/cached tokens; tools/gates.py (kills-first K1/K2/
+     K4 + GA-1..7 + R.3 cross-tab from results.json — mechanized, because E8's
+     K2 was hand-computed and hand arithmetic has already erred twice).
+   - Registry: add claude-sonnet-5 + claude-opus-5 (prices web-verified before
+     entry); roster note: ALL Google entrants SKIPPED — §1.7 isolation cannot
+     be positively established (this machine's google-genai path rides Vertex on
+     GOOGLE_CLOUD_PROJECT = the production project; no separate eval key exists).
+   - PLAYBOOK STOP-list items 4/5/6 annotated as mission-superseded (dated);
+     GA gates recorded. PREDICTIONS.md: Sonnet-5 hypothesis registered.
+4. V5-B — author plans/hobby_tvshow.plan.json from the CONTRACT TEXT ONLY
+   (every check carries its rubric span for traceability; agent GT-exposure
+   risk stated plainly in the render for the owner's review) + validator green
+   + human-readable Hebrew render → [STOP H-4].
+
+Deviations from §4 search policy: none yet. Spend so far: $0.
+
+## 2026-08-28 — V5-A + F + V5-B COMPLETE (zero spend) → [STOP H-4]
+
+**Step 1 — grader-v3 restore, PROVEN:** prompt.py restored from f3c56d3;
+post-revert sut_hash == E7's `2c2cb60b2175ce90` byte-for-byte (E8 had dirtied
+only prompt.py). Version pins updated (test_system_prompt_rule_structure_v3,
+test_prior_context version literal).
+
+**F — K2_FORENSICS.md:** all 18 GT-PARTIAL→AI-FULL cells across C2/E7/E8 are
+THREE terminals: omer/q1.ב.c4 15/15 deterministic (defect-UNFOUND — presence-
+verification instead of behavior-tracing over an inverted guard); yonatan/
+q2.ב.c4.s1 2 cells (one unfound, one FOUND-BUT-UNCHARGED — «לא בצורה הנכונה…
+עם זאת» → full credit); dan/q2.ג.c0.s3 1 cell (HALLUCINATED PRESENCE of the
+absent null check). → three verifier counters: per-check evidence gating,
+verdict-only output, behavior-tracing + absence-audit prompt language.
+
+**V5-A shipped (all red-first, 130 suite+agent tests green):**
+- app/agents/grader/: plan_schemas (GradingPlan/PlanCheck/CheckVerdict —
+  decode order evidence→basis→verdict, the grader-v2 lever), plan_validator
+  (V1–V8), pricer (evidence-gated credit, tariffs once per charge_group,
+  note_only→annotation, clamp+snap), verifier_prompt (grader-v5: the two
+  proven clauses + F-informed rules 3/4; POINT-BLIND rendering — a model that
+  can see prices reasons about outcomes instead of evidence), grader_v5
+  (PlanVerifyGrader; SC-3 median; per-span validation via the shared
+  quote_match_status), llm_factory (openai+anthropic via docx_v3's _llm_params
+  — one kwargs policy; gemini/xai refuse loudly).
+- D6 seam: GraderAgent(llm=, model_version=) — default path byte-identical
+  (pins green); eval always constructs through the factory.
+- Draft schema (additive): evidence_quotes ([] = v5 marker — a caught seam bug:
+  every-span-refused terminals must still gate), cached_input_tokens,
+  plan_version; FlagReason +3; GradingAnnotation +5 types.
+- Instrument: scoring.py per-span/refusal-claim rules (v3 path byte-unchanged);
+  reporting.py strict_shippable_rate + corpus edit_burden + run_cost_usd_total;
+  runner.py seam configs (architecture/plan/sc_n/params), plan hash-pin +
+  pre-spend validation, DL-4 → per-trial draft-stamp assert (stronger),
+  SCREENING stamp, cached-token cost, spend print; _SUT_RELPATHS +6;
+  plans/ in suite_hash. Latent score_only gt_sources NameError fixed.
+- tools/gates.py: kills-first K1/K2/K4 + GA-1..7 + R.3 cross-tab, mechanized;
+  KNOWN-ANSWER VALIDATED against the E8 dir — reproduced the ratified record
+  exactly (80/80 · 7/245=2.86% KILLED · 8.25 · cross-tab 72/32/7).
+- Registry: claude-sonnet-5 ($2/$10/$0.20) + claude-opus-5 ($5/$25/$0.50),
+  VERIFIED 2026-08-28 from platform.claude.com (Sonnet 5's $2/$10 is the
+  STANDARD price — the scheduled Sept-1 rise to $3/$15 "will not occur", so no
+  sol-style list-rate conservatism applies; ~30% tokenizer inflation noted on
+  the cards). haiku-4.5 card re-verified correct.
+- §1.7 Google isolation: FAILED to establish (google-genai rides Vertex on the
+  production GOOGLE_CLOUD_PROJECT; no separate eval key) → ALL Google entrants
+  SKIPPED; llm_factory refuses the provider. xAI excluded per roster default.
+- Configs: 9 Stage-1 entrants (haiku45/nano/luna/gpt4o/sonnet5/gpt55-medium/
+  terra-medium/terra-high/opus5, all -v5, ceiling 0.08). PLAYBOOK STOP 4/5/6
+  amended (mission supersessions, dated); §1b mission-era gates section added.
+  PREDICTIONS: P-S5 + P-ARCH registered pre-spend; P1 activation noted.
+
+**V5-B — plans/hobby_tvshow.plan.json AUTHORED + VALIDATED:** 38 terminals,
+75 checks (62 required / 12 tariff / 1 note_only), validator CLEAN against the
+real contract, hash-pinned to the corrected snapshot. plan_sha256
+4ce8a6bbc9463ec6…. Human render: plans/hobby_tvshow_plan_review.md with FOUR
+open questions (Q-1 the q2.ב.c4.s3 «סה"כ 2» contradiction — comparison-carries-3
+authored, ruling requested; Q-2 max-search tariff placement at s3; Q-3 the six
+authored splits incl. the K2 q1.ב.c4 1.5+1.5; Q-4 the two additive schema
+fields) + the honesty note (this agent has read GT during C2–E8; the owner
+review is the anti-leak gate).
+
+**Deviations from §4 policy:** none. **Spend: $0.00 · envelope $60.00 intact.**
+
+LEDGER — mission spend
+| item | cost | cumulative | remaining |
+|---|---|---|---|
+| V5-A + F + V5-B (build, zero spend) | $0.00 | $0.00 | $60.00 |
+
+**Battery verdict (2026-08-28, before commit):** agents + api + root structural
++ this suite: GREEN with the diff (agents/api covered by the 418-pass -x run +
+spot re-verification; 178 root structural; 130 suite+agents; import app.main
+OK; collect-only 901 OK). tests/rubric_eval_suite + tests/services: 320 passed,
+9 failed — ALL NINE PRE-EXISTING and foreign to this diff: 8× test_pedagogical
+(one root cause — benchmark read_text() without encoding, Windows-cp1252
+latent; file unmodified by us) and 1× test_contract_parity hobby_tvshow
+(golden-benchmark drift shipped in commit b687b88, the rubric-findings
+workstream; benchmark + test + compiler all unmodified in the working tree;
+the failure is the benchmark's own arithmetic, 44≠60). A no-`-x` full run also
+produced ~161 environmental failures (test-DB churn on back-to-back full
+sweeps) — spot re-runs pass; enumeration discipline: never pipe a battery
+through tail again. Surfaced to owner in the H-4 report; NOT fixed (other
+mission's instrument).

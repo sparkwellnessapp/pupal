@@ -1,0 +1,9 @@
+{
+ "model_key": "gpt-5.6-terra",
+ "architecture": "v5",
+ "params": {
+  "reasoning_effort": "medium"
+ },
+ "plan": "plans/hobby_tvshow.plan.json",
+ "cost_ceiling": 0.08
+}

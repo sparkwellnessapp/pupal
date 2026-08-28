@@ -124,6 +124,16 @@ def aggregate(trials: List[TrialScore], *, k: int) -> Dict[str, Any]:
     ship = [t for t in valid if t.shippable is not None]
     if ship:
         agg["shippable_grade_rate"] = round(sum(t.shippable for t in ship) / len(ship), 4)
+        # [GA-3, mission §2] STRICT shippable: |total Δ| <= 1.0 AND no
+        # compensating_error — the cancellation ruling made executable.
+        agg["strict_shippable_rate"] = round(
+            sum(1 for t in ship if t.shippable and not t.compensating_error)
+            / len(ship), 4)
+    # [GA-6, mission §2] corpus edit_burden per test — median and max
+    burdens_all = [t.edit_burden for t in valid if t.edit_burden is not None]
+    if burdens_all:
+        agg["edit_burden"] = {"median": statistics.median(burdens_all),
+                              "max": max(burdens_all)}
     agg["boundary_flip_rate"] = round(
         sum(1 for t in valid if t.boundary_flips) / len(valid), 4)
     agg["compensating_error_count"] = sum(1 for t in valid if t.compensating_error)
@@ -190,6 +200,7 @@ def aggregate(trials: List[TrialScore], *, k: int) -> Dict[str, Any]:
     if costs:
         agg["cost_usd"] = {"mean": round(statistics.mean(costs), 4),
                            "max": round(max(costs), 4)}
+        agg["run_cost_usd_total"] = round(sum(costs), 4)   # the ledger line [§1.6]
     if lats:
         agg["latency_s"] = {"median": round(statistics.median(lats), 2),
                             "max": round(max(lats), 2)}

@@ -176,11 +176,13 @@ def test_flag_on_renders_priors_in_ruled_order(monkeypatch):
 
 def test_version_is_pure_function_of_code_and_flag(monkeypatch):
     from app.agents.grader.prompt import GRADING_PROMPT_VERSION, effective_prompt_version
-    assert GRADING_PROMPT_VERSION == "grader-v4"
+    # grader-v3 RESTORED 2026-08-28 (E8's rule 4 killed by K2 — v4 must not
+    # persist as the default; MISSION_grader_v5_closed_loop mission-start entry)
+    assert GRADING_PROMPT_VERSION == "grader-v3"
     monkeypatch.delenv(FLAG, raising=False)
-    assert effective_prompt_version() == "grader-v4"
+    assert effective_prompt_version() == "grader-v3"
     monkeypatch.setenv(FLAG, "1")
-    assert effective_prompt_version() == "grader-v4+priorctx"
+    assert effective_prompt_version() == "grader-v3+priorctx"
 
 
 # ---------------------------------------------------------------------------
