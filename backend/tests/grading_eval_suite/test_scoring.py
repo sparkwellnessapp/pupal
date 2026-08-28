@@ -488,3 +488,33 @@ def test_v5_award_without_any_span_is_burden_not_gate():
     assert ts.tier1_pass, ts.tier1_failures
     row = next(r for r in ts.terminals if r.terminal_id == "q1.c0")
     assert row.burden_evidence and row.quote_status is None
+
+
+def test_semicolon_joined_adjacent_statements_classify_stitched_not_fabricated():
+    """[DL-2 fidelity, 2026-08-28 smoke finding] a single-LINE span joining two
+    real statements with ';' (skipping an inline comment between them) is real
+    ink presented as one span — STITCHED by the ratified definition ("do the
+    constituent fragments exist verbatim"), not FABRICATED. The old splitter
+    saw one newline-free fragment and called the whole span invented. Both
+    labels GATE — this changes truthfulness, never pass/fail."""
+    from app.schemas.graded_test_draft import GradingAnnotation
+    from app.schemas.ontology_types import AnnotationSeverity
+    gt = synth.make_gt(synth.GT_PERFECT)
+    bundle = synth.make_bundle(gt)
+    # the real q1 answer contains both statements, separated in the source
+    ann = GradingAnnotation(
+        severity=AnnotationSeverity.WARNING, target_id="q1.c0",
+        annotation_type="evidence_unverified",
+        message="ציטוט לא נמצא", metadata={
+            "check_id": "q1.c0.k1", "claimed_verdict": "met",
+            "quote_text": "the loop runs over items; accumulates each value correctly"})
+    draft = _v5_draft(bundle, {
+        "q1.c0": ("0", 0.9, []),
+        "q1.c1.s0": ("1", 0.9, [("total accumulates", QuoteValidationStatus.EXACT)]),
+        "q1.c1.s1": ("2", 0.9, [("accumulates each value", QuoteValidationStatus.EXACT)]),
+    }, annotations=[ann])
+    ts = _score(draft, bundle)
+    row = next(r for r in ts.terminals if r.terminal_id == "q1.c0")
+    assert row.evidence_stitched and not row.fabricated_evidence, ts.tier1_failures
+    assert any("[T1-STITCHED]" in f for f in ts.tier1_failures)
+    assert not any("[T1-FABRICATED]" in f for f in ts.tier1_failures)

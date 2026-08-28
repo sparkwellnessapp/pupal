@@ -56,9 +56,19 @@ def _quote_fragments_all_present(quote_text: str, answer_text: str) -> bool:
     untouched and still decides `not_found`. This only re-LABELS an already-failed
     quote. Whitespace-normalized + casefolded, matching the validator's own
     normalization. Fragments shorter than 8 normalized chars are ignored as
-    non-discriminating."""
+    non-discriminating.
+
+    [2026-08-28, first-live-v5 smoke] constituents split on statement
+    boundaries (';') as well as newlines: a model joining two real, adjacent
+    statements on ONE line (skipping an inline comment between them) is
+    presenting real ink as one span — STITCHED by this rule's own ratified
+    definition — and the newline-only splitter mislabeled it FABRICATED, the
+    trust-catastrophe label. Both labels gate Tier-1; this changes label
+    truthfulness, never pass/fail. The 0.85 bar remains untouched."""
     norm_answer = " ".join((answer_text or "").lower().split())
-    frags = [" ".join(f.lower().split()) for f in (quote_text or "").splitlines()]
+    frags = [" ".join(f.lower().split())
+             for line in (quote_text or "").splitlines()
+             for f in line.split(";")]
     frags = [f for f in frags if len(f) >= 8]
     if not frags:
         return False
@@ -342,17 +352,25 @@ def score_trial(draft: GradedTestDraft,
             gt_note=g.note,                                       # [item 6]
         )
         ts.terminals.append(row)
+        refused = bool(unverified_claims.get(tid))
         if fabricated:
             # fabrication is a model-trust tripwire — it fires even on an
-            # excluded scope (the behavior, not the arithmetic, is the offense)
-            tier1.append(f"[T1-FABRICATED] fabricated_evidence at {tid}: positive "
-                         f"award on a quote the student never wrote")
+            # excluded scope (the behavior, not the arithmetic, is the offense),
+            # and on the v5 REFUSAL path even at award 0 (the pricer already
+            # withheld the credit; the claim itself is the offense)
+            tier1.append(f"[T1-FABRICATED] fabricated_evidence at {tid}: "
+                         + ("met-claim on ink the student never wrote "
+                            "(credit already refused by the pricer)" if refused
+                            else "positive award on a quote the student never wrote"))
         if stitched:
             # [T1-STITCHED] real ink, non-contiguous, presented as one span —
             # a citation defect, not a trust catastrophe, but it breaks
             # span-highlighting and shows a teacher a broken citation.
-            tier1.append(f"[T1-STITCHED] evidence_stitched at {tid}: positive award "
-                         f"on real but NON-CONTIGUOUS ink presented as one quote")
+            tier1.append(f"[T1-STITCHED] evidence_stitched at {tid}: "
+                         + ("met-claim cited real but NON-CONTIGUOUS ink as one "
+                            "span (credit already refused)" if refused
+                            else "positive award on real but NON-CONTIGUOUS ink "
+                                 "presented as one quote"))
     ts.quote_status_counts = quote_counts
 
     # ---- Tier 2 aggregates over INCLUDED terminals [§6] --------------------

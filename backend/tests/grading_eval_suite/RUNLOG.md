@@ -927,3 +927,62 @@ Envelope unchanged. xAI stays out.
 Stage-1 order (11 entrants, cheap→expensive): haiku45 → flashlite → nano →
 luna → gpt4o (control) → sonnet5 → gemini31pro → gpt55-medium → terra-medium
 → terra-high → opus5. Batteries: 135 suite+agents+eval_common green.
+
+---
+
+## STAGE 1 — the §4 loop (k=3 screens, kills first, cheap→expensive)
+
+**S1-1 HYPOTHESIZE — haiku45-v5 (k=3):** checklist verification is exactly the
+task class small Claude models are strong at (mission §3 — the prime cheap-tier
+candidate). Expected: GA-1 100% (pricer-enforced by construction), GA-5 well
+under 8.25 (verdicts + deterministic pricing kill magnitude wobble), GA-2 is
+the open question (can a cheap model TRACE behavior — the omer guard — or only
+match presence), cost ~$0.06/test. Kill exposure: K2 via over-generous met
+verdicts on partially-present work. Pre-run: one k=1 dan smoke (PROVISIONAL,
+ledgered) to validate the live v5 wire — first real Anthropic structured-output
+call, first live pricer pass — before 15 trials ride on it.
+
+**S1-1 SMOKE (k=1 dan, PROVISIONAL, $0.0868):** run 20260828-194827. The whole
+v5 wire held on first live contact: Anthropic structured output parsed 6/6
+scopes; pricer refused credit on 3 unverifiable spans; served-model truth-chain
+live (`claude-haiku-4-5-20251001`, prefix-verified). Findings:
+(a) INSTRUMENT FIX (labels only, gates unchanged, red-first): all 3 refusals
+    were REAL INK — adjacent statements joined on one line with ';' skipping an
+    inline comment — but the DL-2 fragment splitter (newlines only) labeled
+    2/3 FABRICATED. Constituents now split on ';' as well; all three relabel
+    T1-STITCHED (the ratified definition applied faithfully; 0.85 bar
+    untouched; both labels gate so pass/fail moved for NOTHING). Rescore
+    20260828-195130 confirms. Fire-messages for the refusal path now say
+    "credit already refused" instead of the false "positive award".
+    score_only mode + its NameError fix validated live in the same pass.
+(b) ZERO fabricated evidence — haiku invented no ink. Trust datum.
+(c) T1-COST: $0.0868/test > the $0.08 hard ceiling PRE-CACHING (in 30.5k /
+    out 11.3k tok — the v5 check-render + basis_he outputs are token-heavy and
+    the Claude 4.7+ tokenizer +30% bites). The prime cheap candidate screens
+    OVER-CEILING uncached; Anthropic caching (Stage-2 axis) is its only path
+    under. Recorded, screen proceeds for information.
+(d) dan k=1: Δ −9.75 (GT 84 → 74.25) — harsh-side; k=3 decides.
+
+**Deviation (one-line rationale):** provider-independent screens run in
+PARALLEL (isolated results dirs, one queue per provider); analysis stays
+sequential, kills-first per run.
+
+LEDGER: smoke $0.0868 · cumulative $0.09 · remaining $59.91
+
+**S1-2 SMOKE flashlite-v5 (k=1 dan, $0.0326):** the gemini/Vertex adapter's
+first live call — 6/6 scopes parsed, labels attached, served id verified
+(`gemini-3.5-flash-lite`), thoughts-inclusive token accounting. **Δ −0.50**
+(GT 84 → 83.5) at $0.033/test — under the $0.05 TARGET. 2× T1-STITCHED
+(same join-adjacent-statements citation class as haiku), zero fabricated.
+Full k=3 launched.
+**S1-2 HYPOTHESIZE — flashlite-v5 (k=3):** cheapest viable entrant (~$0.03);
+smoke suggests startlingly strong agreement; open question is stability
+(GA-5) — flash-tier nondeterminism is the roster's stated concern.
+
+**S1-3 SMOKE nano-v5 (k=1 dan, $0.0244):** first OpenAI-lane v5 call —
+**tier1 PASS**, see line below. Full k=3 launched.
+**S1-3 HYPOTHESIZE — nano-v5 (k=3):** the deliberate GA-5 probe (nano's
+known temp-0 nondeterminism); expect verdict-median + pricing to damp spread
+vs the E-series; accuracy unknown; ~$0.025/test.
+
+LEDGER: smokes flashlite $0.0326 + nano $0.0244 · cumulative $0.14 · remaining $59.86
