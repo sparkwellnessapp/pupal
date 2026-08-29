@@ -102,7 +102,7 @@ class CheckVerdict(BaseModel):
 
     check_id: str
     evidence_quote: str                 # 1st content field: verbatim span; "" only for not_met
-    basis_he: str                       # Hebrew; for not_met: what was searched and not found
+    basis_he: str                       # v5.1 basis-lean: "" for met; for not_met: what was searched
     verdict: Literal["met", "partially_met", "not_met"]
     confidence: float                   # 0.0–1.0 for THIS check's verdict
 

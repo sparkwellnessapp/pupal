@@ -26,7 +26,17 @@ from app.schemas.gradable import GradableScope
 # could affect verdicts. Stamped into GradedTestDraft.prompt_version alongside
 # plan_version (draft field) — a v5 grade is a function of FIVE versions:
 # rubric contract, transcription contract, model, prompt, plan.
-VERIFIER_PROMPT_VERSION = "grader-v5"
+# v5.1 (owner H-2-review rulings 2+3, 2026-08-29, bundled): rule 6 gains the
+# PL-9 wrong-target clause (owner text verbatim) — the counter to the ONE K1
+# class the mission observed (hedged partial credit on wrong-target
+# machinery; killed haiku/luna/gpt-5.5/terra). Rule 8 becomes the BASIS-LEAN
+# output contract: met emits the quote only (self-evidencing; ~85% of
+# verdicts), partially_met/not_met keep the full basis incl. the mandatory
+# search statement — the GA-7 engineering move (output tokens are the cost
+# driver at frontier tier). Known trade, owner-recorded: the R-3
+# right-for-wrong-reason audit re-anchors on partial/not_met prose + quote-
+# fit on met; Phase-D J2 audits met via quotes, not prose.
+VERIFIER_PROMPT_VERSION = "grader-v5.1"
 
 _KIND_HE = {
     "required": "רכיב נדרש",
@@ -100,15 +110,19 @@ VERIFICATION RULES
    - Checks labeled "בדיקת ליקוי" (defect checks) and "הערה בלבד" (note-only)
      are BINARY: answer met (the issue is absent) or not_met (the issue is
      present, quote it); never partially_met.
+   - [PL-9] partially_met מחייב שהרכיב הנדרש של הבדיקה עצמו קיים בצורה כלשהי
+     בתשובה. דמיון מבני לחישוב אחר אינו נוכחות חלקית: אם הרכיב הנדרש נעדר —
+     not_met, עם ציון מה חופש.
 
 7. An equivalence note on a check («שקילות:») names alternative forms the
    teacher accepts — a student using an equivalent form has met the check.
 
-8. Write basis_he in Hebrew for every check: for met, one sentence naming what
-   the quoted span does; for not_met, what you searched and what you found
-   instead. Report confidence ∈ [0.0, 1.0] per check — your certainty in THIS
-   verdict; lower it when the answer is ambiguous, the handwriting garbled, or
-   the trace uncertain.
+8. basis_he is LEAN: for met, return "" — the verbatim quote is the evidence
+   and no prose is wanted. For partially_met, state in Hebrew what is present
+   and what is missing. For not_met, state in Hebrew what you searched for and
+   where (mandatory, unchanged). Report confidence ∈ [0.0, 1.0] per check —
+   your certainty in THIS verdict; lower it when the answer is ambiguous, the
+   handwriting garbled, or the trace uncertain.
 
 ═══════════════════════════════════════════════════════════════════════════════
 OUTPUT FORMAT
@@ -117,7 +131,7 @@ OUTPUT FORMAT
 Return a JSON object with a "verdicts" array. Each element must have:
   check_id        — the exact ID from "VERIFY THESE"
   evidence_quote  — verbatim span, or "" (not_met absences only)
-  basis_he        — Hebrew basis for the verdict
+  basis_he        — "" for met; Hebrew basis for partially_met/not_met
   verdict         — "met" | "partially_met" | "not_met"
   confidence      — float 0.0–1.0
 """

@@ -107,7 +107,7 @@ async def test_grade_path_prices_from_verdicts():
         _verdict("c1.k2", "not_met", quote="", basis="חיפשתי בדיקת null — אין")])
     draft = await _agent(_basic_plan(), [resp]).grade(_gradable([_scope()]))
 
-    assert draft.prompt_version == VERIFIER_PROMPT_VERSION == "grader-v5"
+    assert draft.prompt_version == VERIFIER_PROMPT_VERSION == "grader-v5.1"
     assert draft.plan_version == "test-plan/v1"
     assert draft.model_version == "fake-model"
     co = draft.scope_outcomes[0].criterion_outcomes[0]
@@ -221,6 +221,10 @@ def test_check_verdict_decode_order_is_evidence_first():
 def test_verifier_prompt_is_point_blind_and_carries_the_two_proven_clauses():
     assert "SURFACE FORM IS NEVER A DEFECT" in VERIFIER_SYSTEM_PROMPT
     assert "is the authority on naming and form" in VERIFIER_SYSTEM_PROMPT
+    # v5.1 ruling 2: the PL-9 wrong-target clause, owner text verbatim
+    assert "דמיון מבני לחישוב אחר אינו נוכחות חלקית" in VERIFIER_SYSTEM_PROMPT
+    # v5.1 ruling 3: the basis-lean contract
+    assert "basis_he is LEAN" in VERIFIER_SYSTEM_PROMPT
     # the killed magnitude language must not resurface
     assert "DEDUCTION SIZE" not in VERIFIER_SYSTEM_PROMPT
     assert "points_awarded" not in VERIFIER_SYSTEM_PROMPT

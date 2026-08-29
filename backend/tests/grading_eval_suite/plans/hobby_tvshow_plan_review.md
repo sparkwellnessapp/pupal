@@ -1,6 +1,6 @@
-# GradingPlan `hobby_tvshow/v2` — RATIFIED (owner H-4, 2026-08-28, amendments A-1…A-6)
+# GradingPlan `hobby_tvshow/v3` — RATIFIED (owner H-4, 2026-08-28, amendments A-1…A-6)
 
-**plan_version:** `hobby_tvshow/v2` · **contract pin:** `480c15cff2face1e…` · **38 terminals ·
+**plan_version:** `hobby_tvshow/v3` · **contract pin:** `480c15cff2face1e…` · **38 terminals ·
 78 checks** (1 note_only / 64 required / 13 tariff) · validator: **CLEAN** · expressibility:
 **190/190** (red-first vs v1 caught exactly the two ratified-unreachable cases;
 the guard is now permanent — `plan_expressibility.py`, wired into `_load_plan`
@@ -14,7 +14,9 @@ A-1 · Q-4 both fields stay. Amendments: **A-1** q1.א.c1 → 1+1+1+1 per-parame
 **A-3** q1.ב.c7 semantic-flag equivalence [PL-8] · **A-4** min-index idiom
 equivalence on q2.ב.c4.s0/s4 [PL-3] · **A-5** cw/CR shorthand on q1.ב.c3 [PL-2]
 · **A-6** wrong-math verdict semantics on q1.ג.c6/c7 (met + tariff, never
-compounded).
+compounded). **v3 (H-2-review Ruling 1, 2026-08-29):** the PL-10/AUDIT-3
+undeclared-target boundary on q1.א.c1.k2–k4 and the R-β per-access-site rule
+on both getter tariffs — constitution transcriptions, owner text verbatim.
 
 **Accepted-as-known (owner item 5):** dan `q2.א.c1` — the faithful verdict path
 prices 8.5 vs GT 9, a deliberate ±0.5 non-overfit; recorded here, not patched.
@@ -38,11 +40,11 @@ span each check derives from.
 ### `q1.א.c1` — 4 נק'
 - [נדרש] `q1.א.c1.k1` · **1 נק'**: חתימת פעולה בונה: public Hobby(string hobbyName, bool isSportive, int minutes)
   - מקור: «סעיף א: פעולה בונה Hobby(string hobbyName, bool isSportive, int minutes)»
-- [נדרש] `q1.א.c1.k2` · **1 נק'**: גוף הבונה משים את הפרמטר hobbyName לתכונה המתאימה
+- [נדרש] `q1.א.c1.k2` · **1 נק'**: גוף הבונה משים את הפרמטר hobbyName לתכונה המתאימה — [PL-10/AUDIT-3] החלקה בזיהוי היא "דיו" רק כאשר היעד קיים בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met
   - מקור: «פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם»
-- [נדרש] `q1.א.c1.k3` · **1 נק'**: גוף הבונה משים את הפרמטר isSportive לתכונה המתאימה
+- [נדרש] `q1.א.c1.k3` · **1 נק'**: גוף הבונה משים את הפרמטר isSportive לתכונה המתאימה — [PL-10/AUDIT-3] החלקה בזיהוי היא "דיו" רק כאשר היעד קיים בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met
   - מקור: «פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם»
-- [נדרש] `q1.א.c1.k4` · **1 נק'**: גוף הבונה משים את הפרמטר minutes לתכונה המתאימה
+- [נדרש] `q1.א.c1.k4` · **1 נק'**: גוף הבונה משים את הפרמטר minutes לתכונה המתאימה — [PL-10/AUDIT-3] החלקה בזיהוי היא "דיו" רק כאשר היעד קיים בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met
   - שקילות: בדיקת טווח על minutes אופציונלית — הפתרון לדוגמה מציין «אם לא בדקתם טווח גם בסדר»
   - מקור: «פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם»
 
@@ -201,7 +203,7 @@ span each check derives from.
   - מקור: «הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ-length»
 - [ניכוי] `q2.ב.c3.s0.k2` · **ניכוי 0.5**: הלולאה מתחילה מ-0 (לא מ-1)
   - מקור: «אם התחילו מ-1 במקום מ-0 להוריד 0.5»
-- [ניכוי] `q2.ב.c3.s0.k3` · **ניכוי 1**: הגישה למערך התוכניות נעשית דרך ה-Getter
+- [ניכוי] `q2.ב.c3.s0.k3` · **ניכוי 1**: הגישה למערך התוכניות נעשית דרך ה-Getter — [R-β] הקנס חל על כל אתר גישה — כולל גבול הלולאה; שימוש ב-Getter במקום אחר בגוף אינו מרפא גישה ישירה באתר הנבדק
   - מקור: «אם ניגשו למערך TvShows בלי Getter להוריד 1»
 - [ניכוי] `q2.ב.c3.s0.k4` · **ניכוי 0.5**: הגבול העליון של הלולאה נכון (קטן ממש מ-length)
   - מקור: «אם טעו בגבול העליון של הלולאה להוריד 0.5»
@@ -273,7 +275,7 @@ span each check derives from.
 ### `q2.ג.c0.s2` — 3 נק'
 - [נדרש] `q2.ג.c0.s2.k1` · **3 נק'**: לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ-length
   - מקור: «הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ-length»
-- [ניכוי] `q2.ג.c0.s2.k2` · **ניכוי 1**: הגישה למערך נעשית דרך ה-getter
+- [ניכוי] `q2.ג.c0.s2.k2` · **ניכוי 1**: הגישה למערך נעשית דרך ה-getter — [R-β] הקנס חל על כל אתר גישה — כולל גבול הלולאה; שימוש ב-Getter במקום אחר בגוף אינו מרפא גישה ישירה באתר הנבדק
   - מקור: «אם הגישה למערך בלי getter להוריד 1»
 
 ### `q2.ג.c0.s3` — 8 נק'

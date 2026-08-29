@@ -31,7 +31,9 @@ A-1 · Q-4 both fields stay. Amendments: **A-1** q1.א.c1 → 1+1+1+1 per-parame
 **A-3** q1.ב.c7 semantic-flag equivalence [PL-8] · **A-4** min-index idiom
 equivalence on q2.ב.c4.s0/s4 [PL-3] · **A-5** cw/CR shorthand on q1.ב.c3 [PL-2]
 · **A-6** wrong-math verdict semantics on q1.ג.c6/c7 (met + tariff, never
-compounded).
+compounded). **v3 (H-2-review Ruling 1, 2026-08-29):** the PL-10/AUDIT-3
+undeclared-target boundary on q1.א.c1.k2–k4 and the R-β per-access-site rule
+on both getter tariffs — constitution transcriptions, owner text verbatim.
 
 **Accepted-as-known (owner item 5):** dan `q2.א.c1` — the faithful verdict path
 prices 8.5 vs GT 9, a deliberate ±0.5 non-overfit; recorded here, not patched.

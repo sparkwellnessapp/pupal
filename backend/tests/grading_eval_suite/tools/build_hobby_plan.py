@@ -57,6 +57,14 @@ def TP(tid, pts, checks):
     return TerminalPlan(terminal_id=tid, points_possible=D(str(pts)), checks=checks)
 
 
+# [Ruling 1, owner H-2 review 2026-08-29] constitution transcriptions,
+# phrased as GENERAL rulings (never fixture patches):
+_PL10 = (" — [PL-10/AUDIT-3] החלקה בזיהוי היא \"דיו\" רק כאשר היעד קיים "
+         "בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז "
+         "באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met")
+_RBETA = (" — [R-β] הקנס חל על כל אתר גישה — כולל גבול הלולאה; שימוש "
+          "ב-Getter במקום אחר בגוף אינו מרפא גישה ישירה באתר הנבדק")
+
 TERMINALS = [
     # ── q1.א — מחלקת Hobby ──────────────────────────────────────────────────
     TP("q1.א.c0", 4, [
@@ -75,13 +83,13 @@ TERMINALS = [
           "חתימת פעולה בונה: public Hobby(string hobbyName, bool isSportive, int minutes)",
           "סעיף א: פעולה בונה Hobby(string hobbyName, bool isSportive, int minutes)"),
         R("q1.א.c1.k2", 1,
-          "גוף הבונה משים את הפרמטר hobbyName לתכונה המתאימה",
+          "גוף הבונה משים את הפרמטר hobbyName לתכונה המתאימה" + _PL10,
           "פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם"),
         R("q1.א.c1.k3", 1,
-          "גוף הבונה משים את הפרמטר isSportive לתכונה המתאימה",
+          "גוף הבונה משים את הפרמטר isSportive לתכונה המתאימה" + _PL10,
           "פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם"),
         R("q1.א.c1.k4", 1,
-          "גוף הבונה משים את הפרמטר minutes לתכונה המתאימה",
+          "גוף הבונה משים את הפרמטר minutes לתכונה המתאימה" + _PL10,
           "פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם",
           equiv="בדיקת טווח על minutes אופציונלית — הפתרון לדוגמה מציין «אם לא בדקתם טווח גם בסדר»"),
     ]),
@@ -265,7 +273,7 @@ TERMINALS = [
           "הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ-length"),
         T("q2.ב.c3.s0.k2", 0.5, "הלולאה מתחילה מ-0 (לא מ-1)",
           "אם התחילו מ-1 במקום מ-0 להוריד 0.5"),
-        T("q2.ב.c3.s0.k3", 1, "הגישה למערך התוכניות נעשית דרך ה-Getter",
+        T("q2.ב.c3.s0.k3", 1, "הגישה למערך התוכניות נעשית דרך ה-Getter" + _RBETA,
           "אם ניגשו למערך TvShows בלי Getter להוריד 1"),
         T("q2.ב.c3.s0.k4", 0.5, "הגבול העליון של הלולאה נכון (קטן ממש מ-length)",
           "אם טעו בגבול העליון של הלולאה להוריד 0.5"),
@@ -354,7 +362,7 @@ TERMINALS = [
         R("q2.ג.c0.s2.k1", 3,
           "לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ-length",
           "הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ-length"),
-        T("q2.ג.c0.s2.k2", 1, "הגישה למערך נעשית דרך ה-getter",
+        T("q2.ג.c0.s2.k2", 1, "הגישה למערך נעשית דרך ה-getter" + _RBETA,
           "אם הגישה למערך בלי getter להוריד 1"),
     ]),
     # the K2_FORENSICS case-3 terminal: the rubric's own 2+2+2+2 itemization
@@ -375,7 +383,7 @@ TERMINALS = [
 def main() -> None:
     bundle = load_bundle("dan_basiuk", suite_dir=SUITE)
     plan = GradingPlan(
-        plan_version="hobby_tvshow/v2",   # v2 = H-4 ratification + A-1..A-6 (owner, 2026-08-28)
+        plan_version="hobby_tvshow/v3",   # v3 = H-2-review Ruling 1: PL-10 + R-β transcriptions (owner, 2026-08-29)
         exam_id="hobby_tvshow (corrected, H1-ratified)",
         rubric_contract_sha256=bundle.rubric_contract_hash,
         terminals=TERMINALS,

@@ -1254,3 +1254,40 @@ reasoning names the defect and hedges ◐ anyway) · per-paper divergence 1.5→
 model (PH2-2, $0). Conclusion: thinking budget is what suppresses the
 wrong-target hedge; low is not the cost path under accuracy-first weighting.
 LEDGER: +$1.9366 (+$0.00 minimal) · mission $34.47 of $60 · remaining $25.53
+
+## 2026-08-29 — H-2 REVIEWED: three rulings executed; FINAL PHASE opens
+
+**Ruling 1 (plan v3, RATIFIED):** PL-10/AUDIT-3 undeclared-target boundary
+appended to q1.א.c1.k2–k4 (owner text verbatim, incl. → partially_met);
+R-β per-access-site rule appended to both getter tariffs (q2.ב.c3.s0.k3,
+q2.ג.c0.s2.k2). plan_version hobby_tvshow/v3, sha e7ed1611caff6298….
+Expressibility 190/190 on v3; NO red-first differential exists — the rulings
+bind VERDICT semantics, not the point algebra (nothing numeric moved), so the
+binding surface is testable only by model runs. Review re-rendered with the
+Ruling-1 record. Overfit note per owner: all three transcribe ratified
+precedent (PL-10, R-β, PL-9); completeness provable only against this corpus;
+gate-pass ≠ generalization; fresh-exam validation gates adoption.
+
+**Rulings 2+3 (grader-v5.1, bundled):** rule 6 gains the PL-9 wrong-target
+clause (owner Hebrew verbatim); rule 8 becomes the BASIS-LEAN contract (met →
+"" basis, the quote is the evidence; partially_met/not_met full, not_met
+search statement unchanged). Known trade recorded: R-3 right-for-wrong-reason
+re-anchors on partial/not_met prose + quote-fit on met (Phase-D J2). Projected
+output-cost cut ≈ half at frontier tier (~85% of verdicts are met); gemini's
+thinking term is NOT touched by this (its cost stays thinking-bound).
+Ceiling ruling DEFERRED per owner: moot if the k=5 winner lands ≤$0.08, else
+STOP with the measured frontier table.
+
+**Bundle {plan-v3, rule-6, basis-lean} = ONE adoption unit** (Feature-First).
+Guards green: expressibility 190/190 · pricer injected-error suite · prompt
+pins updated (v5.1 literals) · byte-identity on the untouched grader-v3 path ·
+136 suite+agents+eval_common.
+
+**FINAL-PHASE HYPOTHESIZE (five k=3 re-screens, kills first, EVAL_ANALYSIS
+each):** opus5/sonnet5/gemini-pro — the two plan cells were their ENTIRE
+frontier K2 residual → predict K2 under the 2.4% bar for all three (opus
+1.36%, sonnet 2.04%, gemini 2.04% by measured counterfactual — now tested
+live); K1 stays clean; basis-lean cuts their $/test ~half except gemini.
+haiku45/luna RESURRECTION (§4-legal: rule 6 targets their exact K1 class) —
+if either clears the kills post-clause, GA-7 solves by construction. Winner
+by GA-2/GA-5 gate-distance → k=5 confirmation → H-1 / GA-7-STOP / H-2-final.

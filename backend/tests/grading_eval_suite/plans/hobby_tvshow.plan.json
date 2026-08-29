@@ -1,5 +1,5 @@
 {
- "plan_version": "hobby_tvshow/v2",
+ "plan_version": "hobby_tvshow/v3",
  "exam_id": "hobby_tvshow (corrected, H1-ratified)",
  "rubric_contract_sha256": "480c15cff2face1ee4a2eb9536f3d2b9907a124ae9c6e86654b3100abd314007",
  "terminals": [
@@ -48,7 +48,7 @@
     },
     {
      "check_id": "q1.א.c1.k2",
-     "description_he": "גוף הבונה משים את הפרמטר hobbyName לתכונה המתאימה",
+     "description_he": "גוף הבונה משים את הפרמטר hobbyName לתכונה המתאימה — [PL-10/AUDIT-3] החלקה בזיהוי היא \"דיו\" רק כאשר היעד קיים בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met",
      "kind": "required",
      "points": "1",
      "tariff_amount": null,
@@ -59,7 +59,7 @@
     },
     {
      "check_id": "q1.א.c1.k3",
-     "description_he": "גוף הבונה משים את הפרמטר isSportive לתכונה המתאימה",
+     "description_he": "גוף הבונה משים את הפרמטר isSportive לתכונה המתאימה — [PL-10/AUDIT-3] החלקה בזיהוי היא \"דיו\" רק כאשר היעד קיים בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met",
      "kind": "required",
      "points": "1",
      "tariff_amount": null,
@@ -70,7 +70,7 @@
     },
     {
      "check_id": "q1.א.c1.k4",
-     "description_he": "גוף הבונה משים את הפרמטר minutes לתכונה המתאימה",
+     "description_he": "גוף הבונה משים את הפרמטר minutes לתכונה המתאימה — [PL-10/AUDIT-3] החלקה בזיהוי היא \"דיו\" רק כאשר היעד קיים בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met",
      "kind": "required",
      "points": "1",
      "tariff_amount": null,
@@ -730,7 +730,7 @@
     },
     {
      "check_id": "q2.ב.c3.s0.k3",
-     "description_he": "הגישה למערך התוכניות נעשית דרך ה-Getter",
+     "description_he": "הגישה למערך התוכניות נעשית דרך ה-Getter — [R-β] הקנס חל על כל אתר גישה — כולל גבול הלולאה; שימוש ב-Getter במקום אחר בגוף אינו מרפא גישה ישירה באתר הנבדק",
      "kind": "tariff",
      "points": "0",
      "tariff_amount": "1",
@@ -1028,7 +1028,7 @@
     },
     {
      "check_id": "q2.ג.c0.s2.k2",
-     "description_he": "הגישה למערך נעשית דרך ה-getter",
+     "description_he": "הגישה למערך נעשית דרך ה-getter — [R-β] הקנס חל על כל אתר גישה — כולל גבול הלולאה; שימוש ב-Getter במקום אחר בגוף אינו מרפא גישה ישירה באתר הנבדק",
      "kind": "tariff",
      "points": "0",
      "tariff_amount": "1",
