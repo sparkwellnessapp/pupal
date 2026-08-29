@@ -2,9 +2,11 @@
 
 **Mission:** `MISSION_grader_v5_closed_loop.md` · **Halt:** H-2 (trial ceiling
 reached with the §3 space exhausted; both confirmation candidates killed at
-k=5) · **Spend:** $32.53 of $60 · **Fences:** GT untouched · thresholds
-untouched · plan v2 as ratified · batteries green · every run kills-first with
-EVAL_ANALYSIS.md in its results dir.
+k=5) · **Spend:** $34.47 of $60 (incl. the post-halt owner-directed thinking
+sweep, §6b) · **Fences:** GT untouched · thresholds untouched · plan v2 as
+ratified · batteries green · every run kills-first with EVAL_ANALYSIS.md in
+its results dir. **Amended 2026-08-29:** §6b folds in the gemini-3.1-pro
+thinking sweep and the $0.15-ceiling recommendation.
 
 ---
 
@@ -53,6 +55,7 @@ a cost ruling.
 | gpt4o (control) | v5 | ✓ | **18.4%** | 6.0 | .761 | 0 | .20 | 6.0 | 8/19 | .079 | K2 dead |
 | sonnet5 | v5 | ✓ | **3.40%** | 3.5 | .840 | .07 | .20 | 3.5 | 6/15 | .171⁺ | K2 dead |
 | gemini-3.1-pro | v5 | ✓ | **4.08%** | 2.75 | **.890✓** | .40 | .20 | **2.75✓** | 1/13 | .362⁺ | K2 dead |
+| gemini-3.1-pro@LOW ᵃ | v5 | **44/46** | 3.55% | 5.0 | .872✓ | .21 | .21 | 5.0 | 5/13 | .138⁺ | K1+K2 dead (post-halt) |
 | gpt-5.5@med | v5 | **43/48** | 0.00% | 3.5 | .863✓ | .27 | .20 | 3.5 | 4/14 | .389⁺ | K1 dead |
 | terra@med k=3 | v5 | ✓ | 0.68% | 6.25 | .763 | 0 | .67 | 6.25 | 8/18 | .115⁺ | kill-clean → conf |
 | **terra@med k=5** | v5 | **77/80** | 0.41% | 8.25 | .775 | 0 | .52 | 8.25 | 6/20 | .112⁺ | **K1 at confirmation** |
@@ -61,7 +64,8 @@ a cost ruling.
 | nano-SC3 | v5 | ✓ | 0.00% | 6.25 | .737 | 0 | .79 | 6.25 | 11.5/19 | .076 | SC-3 falsified |
 | nano×v3 (attrib) | v3 | ✓ | 4.08% | 7.75 | .581 | 0 | 1.0 | 7.75 | — | .010 | attribution only |
 
-⁺ = OVER-CEILING, ran for information. OpenAI $/test already at ~81% measured
+⁺ = OVER-CEILING, ran for information. ᵃ = post-halt owner-directed run
+(2026-08-29); MINIMAL thinking is refused by the model (Vertex 400, $0). OpenAI $/test already at ~81% measured
 auto-cache; Anthropic measured at 0% cache (explicit `cache_control` unbuilt —
 analytically sonnet5 lands ≈$0.121 cached, still output-bound over the $0.08
 hard ceiling; opus ≈$0.28).
@@ -165,9 +169,61 @@ decision:
 6. Production stays pinned to grader-v3/gpt-4o meanwhile (zero behavior
    change shipped; the v5 path lives dark behind the config seam).
 
+## 6b. Post-halt addendum (owner-directed, 2026-08-29): the thinking sweep and the $0.15 recommendation
+
+**The gemini-3.1-pro thinking sweep.** Two owner-ordered k=3 runs after the
+halt. "Minimal" does not exist for this model (Vertex refuses it; $0 billed).
+"Low" is 62% cheaper and worse exactly where it matters:
+
+| | default thinking | LOW thinking |
+|---|---|---|
+| invented credit on teacher-zeroed criteria (K1) | 0 in 15 papers | **2 cells** (din wrong-target) |
+| full credit where the teacher deducted (K2) | 4.08% | 3.55% (same two spots) |
+| criterion agreement (GA-2) | 89.0% | 87.2% |
+| points off per paper (median) | 1.5 | **4.0** |
+| grade drift across re-runs (K4) | 2.75 | 5.0 |
+| bad quotes | 0 | 0 |
+| $/test | $0.362 | **$0.138** |
+
+**Finding: the thinking budget is what buys the discipline.** At low thinking
+gemini-pro's reasoning still *names* din's defect and then hedges partial
+credit onto it — the same see-it-and-hedge failure as the cheap tier. The
+model's disciplined form costs $0.36 (87% of it thinking tokens), and there
+is no cheaper form of it. Under accuracy-first weighting, low thinking is
+not a cost path for gemini-pro.
+
+**The recommendation under a $0.15/fixture ceiling (engineering bet, not yet
+run — both rule fixes below are PENDING OWNER APPROVAL):**
+
+- **Bet 1 — sonnet5 on the current verify-and-price harness + Anthropic
+  prompt caching + the two owner-gated rule fixes** (plan-v3's two cells;
+  the wrong-target clause). Projected ≈**$0.12/test** (input is ~80% stable
+  text; 81% cache-hit measured on identical renders at OpenAI; sonnet's
+  output term $0.102 is untouched by caching). Projected board from measured
+  parts: zero invented credit (measured 48/48), over-credit ≈2.0% — under
+  the bar — once the plan carries the PL-1 tariff (measured counterfactual),
+  quotes clean with a one-span-per-check prompt line (its 4 stitched quotes
+  are join-behavior, not invention), drift ≤3.5, agreement 84–86%. Every
+  component is measured or a small, boring change; no new machinery.
+- **Bet 2 (performance ceiling, build required) — nano-filters-then-sonnet-
+  judges.** Nano's k=5 record shows its "met" verdicts are essentially never
+  over-credits (0/245 partial-credit cells); its entire failure is
+  strictness. Route: nano ($0.024) checks everything, its met verdicts
+  stand, contested checks (~40%) escalate to cached sonnet5. ≈$0.07–0.08
+  total, and it should beat sonnet-alone (sonnet's own errors are mostly
+  harsh calls on checks nano would have passed). New escalation machinery
+  with tuning knobs — build only if Bet 1 falls short after the rule fixes.
+- **Out at $0.15, structurally:** gemini-pro (its disciplined form is
+  $0.36 of mostly-thinking; the cheap form leaks K1) and opus5 (output
+  tokens alone bill $0.24).
+- **Standing caveat:** the largest accuracy lever at any price remains the
+  two unencoded teacher rulings + fixture expansion past one exam — every
+  model from $0.015 to $0.41 lost most of its points on the same handful of
+  judgments the rubric never wrote down.
+
 ## 7. Appendix
 
-- Per-trial analyses: `results/<run>/EVAL_ANALYSIS.md` ×13 + `gates.md` (the
+- Per-trial analyses: `results/<run>/EVAL_ANALYSIS.md` ×14 + `gates.md` (the
   kills-first tool output) per evaluated run.
 - Predictions: `PREDICTIONS.md` (P1, P-S5, P-ARCH, S2-1, CONF outcomes).
 - Spend: `COST_TRUTH_LEDGER.md` (authoritative; mission $32.53 = tool total
