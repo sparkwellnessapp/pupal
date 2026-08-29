@@ -35,8 +35,12 @@ compounded). **v3 (H-2-review Ruling 1, 2026-08-29):** the PL-10/AUDIT-3
 undeclared-target boundary on q1.א.c1.k2–k4 and the R-β per-access-site rule
 on both getter tariffs — constitution transcriptions, owner text verbatim.
 
-**Accepted-as-known (owner item 5):** dan `q2.א.c1` — the faithful verdict path
-prices 8.5 vs GT 9, a deliberate ±0.5 non-overfit; recorded here, not patched.
+**v5 (FP2 rulings R-A/R-B/R-C, 2026-08-29):** the credit-once completion on
+the PL-9 note («הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי» — source: the GT's own
+charge-once note); the q1.ג.c0 header split (0.5+0.5, the criterion's own two
+components); the q2.א.c1 off-by-one tariff transcribing the GT's "Owner-ruled
+−1" — which RETIRES the H-4 item-5 accepted ±0.5 (dan q2.א.c1 GT 9 is now on
+the faithful path: structure met + tariff).
 
 **How to read:** the verifier answers met/partially_met/not_met per check with a
 verbatim span; the pricer converts (required met→100% · partially_met→50% ·

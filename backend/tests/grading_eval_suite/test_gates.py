@@ -63,12 +63,13 @@ def test_k4_reads_instability_aggregate():
 
 
 def test_ga_table_reads_aggregates():
+    # [R-3, 2026-08-29] GA-7 ceilings are 0.15 hard / 0.10 target
     agg = {"terminal_within_precision_rate": 0.86, "strict_shippable_rate": 0.5,
            "boundary_flip_rate": 0.1, "edit_burden": {"median": 4, "max": 8},
-           "cost_usd": {"mean": 0.06},
+           "cost_usd": {"mean": 0.12},
            "instability": {"max_ai_total_spread": 2.5}}
     g = gates([_trial([_row("t1", "0", "0")])], POINTS, agg)
     assert all(g[n]["pass"] for n in ("GA-1", "GA-2", "GA-3", "GA-4", "GA-5", "GA-6", "GA-7"))
-    assert g["GA-7"]["target_met"] is False     # 0.06 > 0.05 target
+    assert g["GA-7"]["target_met"] is False     # 0.12 > 0.10 target
     agg["edit_burden"] = {"median": 5, "max": 8}
     assert gates([], POINTS, agg)["GA-6"]["pass"] is False

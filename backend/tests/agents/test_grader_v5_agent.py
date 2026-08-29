@@ -107,7 +107,7 @@ async def test_grade_path_prices_from_verdicts():
         _verdict("c1.k2", "not_met", quote="", basis="חיפשתי בדיקת null — אין")])
     draft = await _agent(_basic_plan(), [resp]).grade(_gradable([_scope()]))
 
-    assert draft.prompt_version == VERIFIER_PROMPT_VERSION == "grader-v5.1"
+    assert draft.prompt_version == VERIFIER_PROMPT_VERSION == "grader-v5.2"
     assert draft.plan_version == "test-plan/v1"
     assert draft.model_version == "fake-model"
     co = draft.scope_outcomes[0].criterion_outcomes[0]
@@ -237,3 +237,71 @@ def test_verifier_prompt_is_point_blind_and_carries_the_two_proven_clauses():
 def test_sc_n_must_be_odd():
     with pytest.raises(ValueError):
         PlanVerifyGrader(_basic_plan(), NumericPolicy(), llm=FakeLLM([]), sc_n=2)
+
+
+# ---------------------------------------------------------------------------
+# CascadeGrader (Stage 3, FP2) — router + two-tier accounting, zero API calls
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_cascade_routes_on_partially_met_and_champion_wins():
+    from app.agents.grader.grader_cascade import CascadeGrader
+    base_resp = ScopeVerificationResponse(verdicts=[
+        _verdict("c1.k1", "partially_met"),          # router trigger
+        _verdict("c1.k2", "met", quote="and a null check there")])
+    champ_resp = ScopeVerificationResponse(verdicts=[
+        _verdict("c1.k1", "met"),
+        _verdict("c1.k2", "met", quote="and a null check there")])
+    agent = CascadeGrader(_basic_plan(), NumericPolicy(),
+                          base_llm=FakeLLM([base_resp]),
+                          champion_llm=FakeLLM([champ_resp]),
+                          base_model_version="base-model",
+                          champion_model_version="champ-model")
+    draft = await agent.grade(_gradable([_scope()]))
+    co = draft.scope_outcomes[0].criterion_outcomes[0]
+    assert co.points_awarded == Decimal("3")          # champion verdicts won
+    assert any(a.annotation_type == "cascade_routed" for a in draft.annotations)
+    assert draft.cascade_usage["base-model"]["input"] == 100
+    assert draft.cascade_usage["champ-model"]["input"] == 100
+    assert draft.model_version == "cascade:base-model+champ-model"
+    assert agent.routed_scopes == ["q1"]
+
+
+@pytest.mark.asyncio
+async def test_cascade_clean_scope_never_escalates():
+    from app.agents.grader.grader_cascade import CascadeGrader
+    base_resp = ScopeVerificationResponse(verdicts=[
+        _verdict("c1.k1", "met"),
+        _verdict("c1.k2", "not_met", quote="", basis="חיפשתי — אין")])
+    champ = FakeLLM([ScopeVerificationResponse(verdicts=[])])
+    agent = CascadeGrader(_basic_plan(), NumericPolicy(),
+                          base_llm=FakeLLM([base_resp]), champion_llm=champ,
+                          base_model_version="base-model",
+                          champion_model_version="champ-model")
+    draft = await agent.grade(_gradable([_scope()]))
+    assert champ.calls == []                          # champion never invoked
+    assert draft.cascade_usage["champ-model"]["input"] == 0
+    assert agent.routed_scopes == []
+    assert draft.scope_outcomes[0].criterion_outcomes[0].points_awarded == Decimal("2")
+
+
+@pytest.mark.asyncio
+async def test_cascade_routes_on_low_confidence_and_unverified_span():
+    from app.agents.grader.grader_cascade import CascadeGrader
+    # low confidence
+    r1 = ScopeVerificationResponse(verdicts=[
+        _verdict("c1.k1", "met", conf=0.5),
+        _verdict("c1.k2", "met", quote="and a null check there")])
+    # unverified span on met
+    r2 = ScopeVerificationResponse(verdicts=[
+        _verdict("c1.k1", "met", quote="invented ink entirely"),
+        _verdict("c1.k2", "met", quote="and a null check there")])
+    for base_resp in (r1, r2):
+        champ = FakeLLM([ScopeVerificationResponse(verdicts=[
+            _verdict("c1.k1", "met"),
+            _verdict("c1.k2", "met", quote="and a null check there")])])
+        agent = CascadeGrader(_basic_plan(), NumericPolicy(),
+                              base_llm=FakeLLM([base_resp]), champion_llm=champ,
+                              base_model_version="b", champion_model_version="c")
+        await agent.grade(_gradable([_scope()]))
+        assert agent.routed_scopes == ["q1"], "router must fire"

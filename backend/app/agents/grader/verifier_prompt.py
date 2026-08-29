@@ -36,7 +36,11 @@ from app.schemas.gradable import GradableScope
 # driver at frontier tier). Known trade, owner-recorded: the R-3
 # right-for-wrong-reason audit re-anchors on partial/not_met prose + quote-
 # fit on met; Phase-D J2 audits met via quotes, not prose.
-VERIFIER_PROMPT_VERSION = "grader-v5.1"
+# v5.2 (owner FP2 ruling R-1, 2026-08-29): rule 6 gains its BOUNDARY
+# sentence — the clause governs ABSENT components; it must not annihilate
+# in-own-terms-valid components operating on a wrong target (that read is
+# charged ONCE, at the absent-machinery checks). Din policy: GT stands.
+VERIFIER_PROMPT_VERSION = "grader-v5.2"
 
 _KIND_HE = {
     "required": "רכיב נדרש",
@@ -113,6 +117,9 @@ VERIFICATION RULES
    - [PL-9] partially_met מחייב שהרכיב הנדרש של הבדיקה עצמו קיים בצורה כלשהי
      בתשובה. דמיון מבני לחישוב אחר אינו נוכחות חלקית: אם הרכיב הנדרש נעדר —
      not_met, עם ציון מה חופש.
+   - [PL-9 boundary, R-1] כלל 6 חל על רכיב שנעדר; הוא אינו שולל רכיב שקיים
+     ותקף במונחי עצמו אך פועל על יעד שגוי — במקרה כזה הרכיב present, והקריאה
+     השגויה מחויבת פעם אחת, בבדיקת המנגנון הנעדר.
 
 7. An equivalence note on a check («שקילות:») names alternative forms the
    teacher accepts — a student using an equivalent form has met the check.

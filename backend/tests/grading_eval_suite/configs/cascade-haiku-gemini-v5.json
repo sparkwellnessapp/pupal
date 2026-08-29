@@ -1,9 +1,10 @@
 {
  "model_key": "gemini-3.1-pro-preview",
  "architecture": "v5",
- "params": {
-  "reasoning_effort": "minimal"
- },
  "plan": "plans/hobby_tvshow.plan.json",
- "cost_ceiling": 0.15
+ "cost_ceiling": 0.15,
+ "cascade": {
+  "base_model_key": "claude-haiku-4.5",
+  "conf_threshold": 0.8
+ }
 }

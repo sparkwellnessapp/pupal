@@ -51,6 +51,7 @@ from app.schemas.graded_test_draft import GradedTestDraft
 from app.services.transcription.two_phase.instrument import cost_usd
 from app.services.transcription.vlm_provider import Usage
 from tests.eval_common.models_registry import AS_OF as REGISTRY_AS_OF, ModelSpec
+from tests.eval_common.models_registry import MODELS as _REGISTRY_MODELS
 from tests.eval_common.models_registry import spec as model_spec
 
 from . import reporting
@@ -92,6 +93,12 @@ def _load_config(name: str, *, suite_dir: Path = SUITE_DIR) -> dict:
         raise SystemExit(f"config '{name}': architecture v5 requires 'plan'.")
     if arch != "v5" and (config.get("plan") or config.get("sc_n")):
         raise SystemExit(f"config '{name}': 'plan'/'sc_n' are v5-only keys.")
+    casc = config.get("cascade")
+    if casc is not None:
+        if arch != "v5":
+            raise SystemExit(f"config '{name}': cascade requires architecture v5.")
+        if not casc.get("base_model_key"):
+            raise SystemExit(f"config '{name}': cascade.base_model_key required.")
     return config
 
 
@@ -103,6 +110,20 @@ def _assert_draft_stamp(draft: Optional[GradedTestDraft], spec: ModelSpec) -> No
     the requested one modulo the provider's date-suffix convention
     (gpt-4o -> gpt-4o-2024-08-06); anything else is a truth failure."""
     if draft is None:
+        return
+    if draft.cascade_usage is not None:
+        # [cascade] the draft's own usage split names the allowed model set
+        allowed = tuple(draft.cascade_usage.keys())
+        if spec.model_id not in allowed:
+            raise SystemExit(
+                f"cascade stamp mismatch: champion {spec.model_id!r} not in the "
+                f"draft's tier set {allowed!r}.")
+        for served in draft.served_models or []:
+            if not any(served.startswith(m) or m.startswith(served)
+                       for m in allowed):
+                raise SystemExit(
+                    f"COST_TRUTH: cascade served {served!r} outside its tier "
+                    f"set {allowed!r}.")
         return
     if draft.model_version != spec.model_id:
         raise SystemExit(
@@ -153,6 +174,7 @@ _SUT_RELPATHS = (
     "app/agents/grader/pricer.py",
     "app/agents/grader/verifier_prompt.py",
     "app/agents/grader/grader_v5.py",
+    "app/agents/grader/grader_cascade.py",
     "app/agents/grader/llm_factory.py",
     "app/services/gradable_compiler.py",
     "app/services/selection_scoring.py",
@@ -305,10 +327,25 @@ def build_agent(bundle: FixtureBundle, agent_factory=None, *,
     params = config.get("params") or {}
     llm = build_chat_model(spec.provider, spec.model_id,
                            reasoning_effort=params.get("reasoning_effort"),
-                           max_output_tokens=params.get("max_output_tokens"))
+                           max_output_tokens=params.get("max_output_tokens"),
+                           thinking_budget=params.get("thinking_budget"))
     if config.get("architecture", "v3") == "v5":
-        from app.agents.grader.grader_v5 import PlanVerifyGrader   # lazy
         plan, _sha = _load_plan(config, bundle, suite_dir)
+        casc = config.get("cascade")
+        if casc:
+            from app.agents.grader.grader_cascade import CascadeGrader   # lazy
+            base_spec = model_spec(casc["base_model_key"])
+            base_params = casc.get("base_params") or {}
+            base_llm = build_chat_model(
+                base_spec.provider, base_spec.model_id,
+                reasoning_effort=base_params.get("reasoning_effort"),
+                thinking_budget=base_params.get("thinking_budget"))
+            return CascadeGrader(
+                plan, policy, base_llm=base_llm, champion_llm=llm,
+                base_model_version=base_spec.model_id,
+                champion_model_version=spec.model_id,
+                conf_threshold=float(casc.get("conf_threshold", 0.80)))
+        from app.agents.grader.grader_v5 import PlanVerifyGrader   # lazy
         return PlanVerifyGrader(plan, policy, llm=llm,
                                 model_version=spec.model_id,
                                 sc_n=int(config.get("sc_n", 1)))
@@ -390,7 +427,19 @@ def _score_pair(draft: Optional[GradedTestDraft], meta: dict,
         return empty
     cost = None
     per_scope_cost: Dict[str, float] = {}
-    if price is not None:
+    if draft.cascade_usage is not None:
+        # [COST_TRUTH, cascade] price each tier by its OWN registry card
+        cost = 0.0
+        for model_id, u in draft.cascade_usage.items():
+            tier_spec = next((m for m in _REGISTRY_MODELS.values()
+                              if m.model_id == model_id), None)
+            if tier_spec is None:
+                raise SystemExit(f"cascade tier {model_id!r} has no registry card")
+            cost += cost_usd(Usage(input_tokens=u.get("input", 0),
+                                   output_tokens=u.get("output", 0),
+                                   cached_input_tokens=u.get("cached") or None),
+                             tier_spec.price)
+    elif price is not None:
         cost = cost_usd(Usage(input_tokens=draft.total_input_tokens,
                               output_tokens=draft.total_output_tokens,
                               cached_input_tokens=draft.total_cached_input_tokens),

@@ -69,6 +69,7 @@ class GradingAnnotation(BaseModel):
         "tariff_coerced",        # partially_met on a binary tariff — treated as fired
         "charge_group_dedup",    # tariff suppressed: its charge_group already fired
         "note_only",             # rubric says note-don't-deduct — the observation, recorded
+        "cascade_routed",        # Stage-3 router: scope escalated to the champion (trigger in metadata)
     ]
     message: str  # Hebrew, user-facing
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -206,3 +207,7 @@ class GradedTestDraft(BaseModel):
     total_input_tokens: int = 0             # S8 — Σ scope_outcomes.input_tokens
     total_output_tokens: int = 0            # S8 — Σ scope_outcomes.output_tokens
     total_cached_input_tokens: Optional[int] = None  # Σ cached reads when the provider reports them
+    # [COST_TRUTH, cascade] per-tier token split ({model_id: {input, output,
+    # cached}}) — a cascade bills two tiers and each must be priced by its own
+    # card; None on single-model paths.
+    cascade_usage: Optional[Dict[str, Dict[str, int]]] = None

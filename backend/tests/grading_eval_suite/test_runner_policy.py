@@ -219,6 +219,7 @@ def test_sut_hash_covers_exactly_the_grader_path():
         "app/agents/grader/plan_schemas.py", "app/agents/grader/plan_validator.py",
         "app/agents/grader/pricer.py", "app/agents/grader/verifier_prompt.py",
         "app/agents/grader/grader_v5.py", "app/agents/grader/llm_factory.py",
+        "app/agents/grader/grader_cascade.py",   # Stage 3, FP2
         "app/services/gradable_compiler.py", "app/services/selection_scoring.py",
         "app/schemas/graded_test_draft.py", "app/schemas/gradable.py",
         "app/schemas/ontology_types.py",

@@ -62,6 +62,19 @@ def TP(tid, pts, checks):
 _PL10 = (" — [PL-10/AUDIT-3] החלקה בזיהוי היא \"דיו\" רק כאשר היעד קיים "
          "בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז "
          "באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met")
+# [R-1, owner FP2 ruling 2026-08-29] PL-9 CREDIT side — din policy: GT
+# stands; rule 6 must not annihilate in-own-terms-valid components whose
+# wrong-target read was already charged at the absent-machinery checks.
+_PL9C = (" — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, "
+         "החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם "
+         "קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו "
+         "(הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. "
+         # [R-A, owner FP2 2026-08-29, verbatim] credit-once mirror; source:
+         # the GT's own din note ("one loop is never credited twice").
+         # Boundary (owner, for the record): binds the SAME ink — two
+         # genuinely distinct loops are two components, each creditable once.
+         "רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — "
+         "הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.")
 _RBETA = (" — [R-β] הקנס חל על כל אתר גישה — כולל גבול הלולאה; שימוש "
           "ב-Getter במקום אחר בגוף אינו מרפא גישה ישירה באתר הנבדק")
 
@@ -157,8 +170,13 @@ TERMINALS = [
                 "הפתרון לדוגמה עצמו מחזיר כך"),
     ]),
     # ── q1.ג — PrintAverages ────────────────────────────────────────────────
+    # [R-B, owner FP2 2026-08-29] the criterion's own text names BOTH
+    # components («כותרת הפעולה + void»); A-1 itemization precedent; prices
+    # din's ratified 0.5 structurally.
     TP("q1.ג.c0", 1, [
-        R("q1.ג.c0.k1", 1, "כותרת פעולה פנימית PrintAverages עם טיפוס void",
+        R("q1.ג.c0.k1", 0.5, "שם הפעולה PrintAverages קיים",
+          "כותרת הפעולה + void"),
+        R("q1.ג.c0.k2", 0.5, "כותרת מלאה ותקינה עם טיפוס void",
           "כותרת הפעולה + void"),
     ]),
     TP("q1.ג.c1", 1, [
@@ -245,8 +263,18 @@ TERMINALS = [
     TP("q2.א.c1", 10, [
         R("q2.א.c1.k1", 2, "חתימה: public void UpdateRate(int numViewers)",
           "פעולה פנימית UpdateRate — public void UpdateRate (int numViewers)"),
-        R("q2.א.c1.k2", 3, "לולאה על כל numViewers הצופים",
+        # [R-C, owner FP2 2026-08-29, MANDATORY rephrase — else the tariff
+        # double-charges] k2 is STRUCTURE-presence; the one-off boundary slip
+        # is priced by the tariff below, transcribing the GT's "Owner-ruled
+        # −1" on dan. Retires the H-4 item-5 accepted ±0.5.
+        R("q2.א.c1.k2", 3,
+          "לולאת קליטה על הצופים קיימת ותקינה במבנה — סטיית-גבול של צופה אחד "
+          "⇒ k2 met והtariff מחייב; סטייה גסה יותר ⇒ שיפוט k2 רגיל, ללא "
+          "tariff זה",
           "עבור כל צופה הפעולה קולטת …"),
+        T("q2.א.c1.t1", 1, "גבולות הלולאה מפספסים צופה אחד — ניכוי 1",
+          "Owner-ruled −1 (GT note, dan): for(i=1; i<numViewers) runs "
+          "numViewers-1 times"),
         R("q2.א.c1.k3", 2, "קליטת דירוג מכל צופה בתוך הלולאה",
           "קולטת ומוסיפה את הדירוג שלו"),
         R("q2.א.c1.k4", 3,
@@ -296,7 +324,7 @@ TERMINALS = [
           "אם ניגשו ישירות לתכונה rate במקום GetRate להוריד 1"),
     ]),
     TP("q2.ב.c4.s0", 1, [
-        R("q2.ב.c4.s0.k1", 1, "הגדרת משתנה מינימום-דירוג + אתחולו",
+        R("q2.ב.c4.s0.k1", 1, "הגדרת משתנה מינימום-דירוג + אתחולו" + _PL9C,
           "הגדרת מינימום דירוג + אתחול",
           equiv="[A-4/PL-3] מעקב מינימום מרומז דרך arr[minIndex] — ניב "
                 "מינימום-אינדקס — שקול למשתנה מפורש"),
@@ -305,13 +333,13 @@ TERMINALS = [
     TP("q2.ב.c4.s1", 1, [
         R("q2.ב.c4.s1.k1", 1,
           "הגדרת משתנה ערוץ-מינימלי + אתחולו — המשתנה מייצג מספר ערוץ (אינדקס), "
-          "ומאותחל כערוץ, לא כערך דירוג",
+          "ומאותחל כערוץ, לא כערך דירוג" + _PL9C,
           "הגדרת ערוץ מינימלי +אתחול"),
     ]),
     # [A-2, owner H-4] start-index tariff (yonatan's ratified 1.5) + dan's
     # base-candidate idiom as ratified-full equivalence
     TP("q2.ב.c4.s2", 2, [
-        R("q2.ב.c4.s2.k1", 2, "לולאה על מערך הצוברים מ-1 עד 100",
+        R("q2.ב.c4.s2.k1", 2, "לולאה על מערך הצוברים מ-1 עד 100" + _PL9C,
           "הגדרת לולאה על מערך צוברים מ-1 עד 100",
           equiv="[A-2] התחלה מ-2 עם מועמד-בסיס באינדקס 1 שקולה לכיסוי מלא 1..100"),
         T("q2.ב.c4.s2.k2", 0.5,
@@ -324,7 +352,7 @@ TERMINALS = [
     TP("q2.ב.c4.s3", 3, [
         R("q2.ב.c4.s3.k1", 3,
           "בתוך הלולאה: השוואת סכום הדירוגים של הערוץ הנוכחי לערך הקיצון הנוכחי "
-          "(התנאי שמאתר את הערוץ בעל הדירוג הנמוך)",
+          "(התנאי שמאתר את הערוץ בעל הדירוג הנמוך)" + _PL9C,
           "והאם סה\"כ הדירוגים קטן מהמינימום - סה\"כ 2 נקודות"),
         N("q2.ב.c4.s3.k2",
           "בדיקה שהתא גדול מאפס (כלומר הערוץ בשימוש) — לציין בלבד, ללא ניכוי",
@@ -334,17 +362,17 @@ TERMINALS = [
           "אם חיפשו את המקסימום אך הלוגיקה בסדר להוריד 3"),
     ]),
     TP("q2.ב.c4.s4", 1, [
-        R("q2.ב.c4.s4.k1", 1, "בתוך התנאי: עדכון מינימום הדירוג",
+        R("q2.ב.c4.s4.k1", 1, "בתוך התנאי: עדכון מינימום הדירוג" + _PL9C,
           "בתוך התנאי (בתוך הלולאה) - החלפה של מינימום דירוג",
           equiv="[A-4/PL-3] בניב מינימום-אינדקס עדכון האינדקס הוא גם עדכון "
                 "המינימום — שקול"),
     ]),
     TP("q2.ב.c4.s5", 1, [
-        R("q2.ב.c4.s5.k1", 1, "בתוך התנאי: עדכון הערוץ המינימלי",
+        R("q2.ב.c4.s5.k1", 1, "בתוך התנאי: עדכון הערוץ המינימלי" + _PL9C,
           "בתוך התנאי (בתוך הלולאה) - החלפת הערוץ המינימלי"),
     ]),
     TP("q2.ב.c5", 1, [
-        R("q2.ב.c5.k1", 1, "החזרת הערוץ המינימלי",
+        R("q2.ב.c5.k1", 1, "החזרת הערוץ המינימלי" + _PL9C,
           "החזרת הערוץ המינימלי"),
     ]),
     # ── q2.ג — PrintLowRatingChannel ────────────────────────────────────────
@@ -383,7 +411,7 @@ TERMINALS = [
 def main() -> None:
     bundle = load_bundle("dan_basiuk", suite_dir=SUITE)
     plan = GradingPlan(
-        plan_version="hobby_tvshow/v3",   # v3 = H-2-review Ruling 1: PL-10 + R-β transcriptions (owner, 2026-08-29)
+        plan_version="hobby_tvshow/v5",   # v5 = FP2 R-A credit-once + R-B header split + R-C off-by-one tariff (owner, 2026-08-29)
         exam_id="hobby_tvshow (corrected, H1-ratified)",
         rubric_contract_sha256=bundle.rubric_contract_hash,
         terminals=TERMINALS,

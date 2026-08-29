@@ -1372,3 +1372,78 @@ GA-7 $0.360 → the deferred ceiling ruling is LIVE; measured frontier table in
 EVAL_REPORT §8.3. LEDGER (cost_truth authoritative): mission $59.04 of $60 —
 envelope held by $0.96. Fences: GT untouched · kill bars untouched · plan v3
 as ratified · production pinned to grader-v3/gpt-4o.
+
+## 2026-08-29 — FINAL PHASE 2 (owner rulings R-1…R-4; envelope $20; GA-7 → $0.15/$0.10)
+
+R-2/R-3 landed (gates.py + 15 configs re-ceilinged). R-1 landed: plan v4
+(PL-9 credit-side note on q2.ב.c4.s0–s5 + c5, owner verbatim; sha e5a00176…)
++ grader-v5.2 (rule-6 boundary sentence). Guards 35 green; expressibility
+190/190 (verdict-semantics change; algebra untouched).
+
+**SONNET K2 FORENSICS (free, pre-spend):** 9 cells across both screens →
+THREE classes: (1) din/q1.ג.c0 ×5 BOTH screens — the header check bundles
+name+void+form which the teacher prices separately (rubric text itself names
+two components) → PROPOSED addendum: split into 0.5+0.5 (the A-1 itemization
+precedent); (2) dan/q2.א.c1 ×2 bundle-screen — the off-by-one loop carries
+"Owner-ruled −1" in the GT note → PROPOSED addendum: transcribe it as a
+1-pt tariff (also retires the item-5 accepted ±0.5); (3) dan/q1.א.c1 ×2
+v2-screen only — ALREADY FIXED by PL-10 (absent from the bundle screen).
+Proposals surfaced for owner review; NOT applied.
+
+**FP2-1 HYPOTHESIZE — champion din re-run (gemini31pro, v4/v5.2, k=5, din
+only):** the PL-9 credit-side note should recover most of din's −12…−13.75
+(the teacher credited his in-own-terms min-search components); K1 must stay
+clean (the wrong-target ARRAY cells q2.ב.c1/c2 stay charged). ~$1.8.
+**FP2-2 HYPOTHESIZE — gpt4o under the full bundle (k=3):** the report's
+honest gap; its pre-bundle K2 was 18.4% — the bundle's structural fixes bind
+elsewhere; expect improvement but not kill-clean. ~$1.2.
+
+**FP2-3 HYPOTHESIZE — gemini31pro @ thinking_budget=1536 (k=3):** the knob is
+PROBE-VERIFIED on this model (2048 accepted; level-MINIMAL remains refused —
+budget and level are different parameters). Pre-registered: budget 1536/call
+projects ≈$0.19-0.22/test (mid-band; default ≈3.5k thinking/call → cap at
+1536 roughly halves the thinking term). Watch-point: does BUDGET-constrained
+thinking leak K1 like LEVEL-low did, or is depth-truncated default-style
+thinking disciplined? K1 is the kill; the band point is the prize. ~$3.
+
+**FP2-1 RESULT — champion din re-run under v4/v5.2 ($1.82):** the PL-9
+credit-side note recovered HALF of din exactly as intended (Δ −12…−13.75 →
+−5.5…−7.5) — **but it over-swings by ONE SENTENCE: din/q2.ב.c4.s2 now earns
+2.00 in 5/5 trials against GT-ZERO** («one loop is never credited twice» —
+din's single loop was already credited at c3.s0; the model quotes the PL-9
+note verbatim as its license). The note transcribes charge-once but not its
+mirror. **CREDIT-ONCE COMPLETION SENTENCE PROPOSED to owner (H-3 surface,
+not applied):** append to the note: «רכיב שכבר זוכה בבדיקה אחרת אינו נחשב
+קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.» Until ruled, every v4
+board carries this deterministic K1 cell → the winner/k=5 track is FROZEN.
+
+**FP2-2 RESULT — gpt4o under the bundle ($1.23):** the honest gap is closed —
+K2 18.4% → 10.88%, K4 8.5, GA-2 0.700. Still double-killed; not a contender.
+
+**FP2-3 RESULT — gemini31pro @ thinking_budget=1536 ($0.60/test → $0.20!
+band point measured):** GA-2 0.893 HOLDS · K2 2.04% · K4 2.5 · out 12.7k tok
+(half of default). K1 43/48 decomposes: 3× the v4 credit-once gap (above) +
+**2× din/q2.ב.c1 — the wrong-target hedge partially returns under a budget
+cap** (milder than level-low). The band exists ($0.20, near-champion
+accuracy) but is not kill-clean at 1536 even net of the v4 gap.
+
+**SONNET PLAN-ADDENDUM PROPOSALS (from the free forensics, owner review):**
+(P-A) q1.ג.c0 header split 0.5+0.5 (rubric names two components; A-1
+precedent) — retires sonnet's dominant K2 class (5 cells). (P-B) q2.א.c1
+off-by-one tariff 1.0 transcribing the GT's own "Owner-ruled −1" — retires
+its second class (2 cells) AND the item-5 accepted ±0.5. Class 3 (dan
+constructor) already fixed by PL-10.
+LEDGER: din $1.82 + gpt4o $1.23 + tb1536 $3.00 + probe $0.01 ≈ $6.06 of $20 ·
+remaining ≈$13.9
+
+**FP2 rulings R-A/R-B/R-C EXECUTED → plan hobby_tvshow/v5 (sha 994e41eb…, 80
+checks):** credit-once completion verbatim (+boundary noted: binds the SAME
+ink); q1.ג.c0 split 0.5+0.5; q2.א.c1 structure-rephrase + off-by-one tariff
+(H-4 item-5 ±0.5 RETIRED — dan GT 9 now on the faithful path). Guards 25
+green; expressibility 190/190; all three ruled cells faithful-reachable;
+render updated.
+
+**FP2-4 HYPOTHESIZE — champion din-only re-verify (v5/v5.2, k=5, ~$1.8):**
+the credit-once sentence kills the 5/5 c4.s2 leak; din Δ expected ≈ −5…−7.5
+(the R-1 recovery preserved); K1 clean unfreezes the winner track AND the
+bridge pin.

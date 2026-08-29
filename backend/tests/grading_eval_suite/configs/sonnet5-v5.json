@@ -2,5 +2,5 @@
  "model_key": "claude-sonnet-5",
  "architecture": "v5",
  "plan": "plans/hobby_tvshow.plan.json",
- "cost_ceiling": 0.08
+ "cost_ceiling": 0.15
 }

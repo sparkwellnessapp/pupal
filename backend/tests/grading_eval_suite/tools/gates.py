@@ -30,7 +30,9 @@ GA = {
     "GA-4": ("boundary_flip_rate", "<=", 0.10),
     "GA-5": ("max_ai_total_spread", "<=", 3.0),
 }
-GA7_HARD, GA7_TARGET = 0.08, 0.05
+# [R-3, owner ruling 2026-08-29 FP2] was 0.08/0.05; OVER-CEILING stamps
+# re-evaluate against the new hard bar.
+GA7_HARD, GA7_TARGET = 0.15, 0.10
 
 
 def _cls(v: Decimal, possible: Decimal) -> str:
@@ -139,7 +141,7 @@ def render(run_dir: Path, kills_d: dict, gates_d: dict, tab: dict,
     for name, d in gates_d.items():
         v = "-" if d["pass"] is None else ("PASS" if d["pass"] else "✗")
         if name == "GA-7" and d.get("pass") and not d.get("target_met"):
-            v += " (over $0.05 target)"
+            v += f" (over ${GA7_TARGET} target)"
         L.append(f"| {name} | {d['target']} | {d['value']} | {v} |")
     L.append("")
     L.append("## R.3 partial-credit cross-tab (GT rows × AI cols)")

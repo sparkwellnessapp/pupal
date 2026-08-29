@@ -55,13 +55,17 @@ GRADER_MAX_TOKENS_NON_REASONING = 8192
 def build_chat_model(provider: str, model_id: str, *,
                      reasoning_effort: Optional[str] = None,
                      max_output_tokens: Optional[int] = None,
+                     thinking_budget: Optional[int] = None,
                      timeout_s: Optional[float] = None):
     timeout = GRADER_LLM_TIMEOUT_S if timeout_s is None else timeout_s
 
     if provider == "gemini":
         return _GenAIChat(model_id, reasoning_effort=reasoning_effort,
                           max_output_tokens=max_output_tokens or 16000,
+                          thinking_budget=thinking_budget,
                           timeout_s=timeout)
+    if thinking_budget is not None:
+        raise ValueError("thinking_budget is a gemini-only knob")
     if provider == "xai":
         raise RuntimeError(
             "xAI is excluded by default (mission §3 roster — owner skepticism). "
@@ -112,7 +116,8 @@ class _GenAIChat:
     tuple."""
 
     def __init__(self, model_id: str, *, reasoning_effort: Optional[str],
-                 max_output_tokens: int, timeout_s: float) -> None:
+                 max_output_tokens: int, timeout_s: float,
+                 thinking_budget: Optional[int] = None) -> None:
         from google import genai
         from google.genai import types as genai_types
         if "labels" not in genai_types.GenerateContentConfig.model_fields:
@@ -123,6 +128,11 @@ class _GenAIChat:
         if reasoning_effort is not None and reasoning_effort not in _THINKING_LEVELS:
             raise ValueError(f"gemini reasoning_effort must be one of "
                              f"{_THINKING_LEVELS}, got {reasoning_effort!r}")
+        if reasoning_effort is not None and thinking_budget is not None:
+            raise ValueError("set reasoning_effort OR thinking_budget, not both")
+        # [FP2, probe-verified 2026-08-29] explicit per-call thinking-token cap
+        # — the knob that charts the empty $0.15-0.36 band on gemini-3.1-pro
+        self._thinking_budget = thinking_budget
         self._genai = genai
         self._types = genai_types
         self.model = model_id
@@ -159,6 +169,9 @@ class _GenAIStructuredRunner:
         if self._chat._effort is not None:
             cfg_kwargs["thinking_config"] = t.ThinkingConfig(
                 thinking_level=t.ThinkingLevel(self._chat._effort.upper()))
+        elif self._chat._thinking_budget is not None:
+            cfg_kwargs["thinking_config"] = t.ThinkingConfig(
+                thinking_budget=self._chat._thinking_budget)
         response = await self._chat._client.aio.models.generate_content(
             model=self._chat.model, contents=user,
             config=t.GenerateContentConfig(**cfg_kwargs))
