@@ -5,7 +5,7 @@
  "provenance": {
   "gt_source": "teacher_manual",
   "exam": "hobby_tvshow (corrected, H1-ratified)",
-  "transcription_source": "C:/Users/ariel/Desktop/vivi-v1 - 11.04/vivi-codebase/backend/tests/transcription_eval_suit/draft_benchmarks/din_ezra.md",
+  "transcription_source": "C:/Users/ariel/Desktop/vivi-v1 - 11.04/vivi-codebase/backend/tests/transcription_eval_suit/draft_benchmarks/hobby_tvshow.din_ezra.md",
   "rubric_source": "../rubric_eval_suite/benchmarks/hobby_tvshow.json (via F0 correction)",
   "rubric_contract_sha256": "480c15cff2face1ee4a2eb9536f3d2b9907a124ae9c6e86654b3100abd314007",
   "transcription_contract_sha256": "634066f3e66b2e7fe0437e268cd2aa24432f1f880dc01e25ae232db5d5935b0e",

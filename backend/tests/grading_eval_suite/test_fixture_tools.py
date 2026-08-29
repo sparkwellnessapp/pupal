@@ -12,7 +12,11 @@ import pytest
 SIBLING_TR = Path(__file__).resolve().parents[1] / "transcription_eval_suit"
 SIBLING_RU = Path(__file__).resolve().parents[1] / "rubric_eval_suite"
 
+# The grading suite keeps its OWN bare doc_ids; the sibling transcription corpus
+# prefixes its fixtures with the exam ("hobby_tvshow.<student>", 2026-08-29), so the
+# cross-suite read maps between the two namespaces here and nowhere else.
 FIVE_DOCS = ["dan_basiuk", "din_ezra", "moran_aharon", "omer_gelber", "yonatan_basiuk"]
+SIBLING_DOC = {d: f"hobby_tvshow.{d}" for d in FIVE_DOCS}
 
 
 # ---------------------------------------------------------------------------
@@ -26,7 +30,7 @@ def test_converter_parity_on_all_five_docs():
     from .tools.convert_transcription_gt import convert_gold_document
 
     for doc in FIVE_DOCS:
-        p = SIBLING_TR / "draft_benchmarks" / f"{doc}.md"
+        p = SIBLING_TR / "draft_benchmarks" / f"{SIBLING_DOC[doc]}.md"
         gold = load_ground_truth(p)
         contract = convert_gold_document(gold)
         got = [(a.question_number, a.sub_question_id, a.answer_text)

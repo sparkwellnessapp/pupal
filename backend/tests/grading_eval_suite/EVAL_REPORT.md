@@ -318,3 +318,67 @@ Mission spend **$59.04 of $60.00** (cost_truth authoritative; tool total
 $64.61 − $5.57 pre-mission E-series). The envelope held with $0.96. Final
 phase: 6 screens + 1 confirmation ≈ $26.5 incl. the billing-truncated
 Anthropic first attempts (unbilled 400s; valid fragments ledgered).
+
+---
+
+## 9. FINAL PHASE 2 (rulings R-1…R-4, R-A…R-D; H-2-FINAL close, 2026-08-29)
+
+**Envelope $20, spent $9.52, $10.48 returned by the stop rule.** GA-7 became
+$0.15 hard / $0.10 target (R-3). Every ruling was executed and measured;
+the phase closed on R-D's own pre-registered gate.
+
+### 9.1 What the rulings fixed (measured)
+- **R-1/PL-9 credit side:** din's over-harshness HALVED (Δ −12…−13.75 →
+  −5.5…−7.5) — the intended recovery — but exposed the slot problem below.
+- **R-A/R-B/R-C (plan v5):** credit-once completion; the q1.ג.c0 header split
+  (0.5+0.5); the q2.א.c1 off-by-one tariff — retiring sonnet's two remaining
+  K2 classes by construction and the H-4 item-5 accepted deviation. All
+  faithful-path-verified by the expressibility guard.
+- **Sonnet forensics (free):** its 9 wrong-credit cells collapse to three
+  classes — two retired by R-B/R-C, one already fixed by PL-10.
+- **The band (probe-verified thinking_budget knob):** tb1536 = $0.20/test at
+  GA-2 0.893 — but the wrong-target hedge partially returns; thinking depth
+  buys the discipline at every setting tested.
+- **gpt-4o gap closed:** 18.4% → 10.9% K2 under the bundle; still dead.
+- **Stage-3 cascade:** BUILT (haiku base → deterministic router → champion
+  re-verify; per-tier COST_TRUTH accounting; 139 tests green) — never
+  screened: cancelled unspent by the stop rule.
+
+### 9.2 The din min-scan cell — four data points, prompt surface exhausted
+din's single loop serves two roles; the teacher credits it once at the SCAN
+slot (her note: «one loop is never credited twice»); every prompt-level
+transcription failed to move the model's slotting reliably: v4 5/5 leak @2.00
+· v5 (credit-once sentence) 5/5 @2.00 — the model credits ONCE but at the
+MIN slot · tb1536 3/3 · v5.3 (C-1 object-literalism) 1/3 @1.00 — reduced,
+stochastic, not zero, and literalism harshened din's other cells. **R-D's
+gate criterion (0 on all three draws) failed on the fourth data point → STOP,
+cell carried to fixture expansion as its first named test** (rule 6 / PL-9 /
+C-1 on fresh paper). The withdrawn credit-group mechanism and its
+edge-case-falsification are on the record in RUNLOG (the constitution's
+method applied to itself).
+
+### 9.3 The bridge ruling — returned to the owner with the attribution note
+Two honest pin candidates, differing on din ALONE (totals-level):
+- **{plan v3 + grader-v5.1} — the CONFIRMED record** (k=5: K1 80/80 · K2
+  1.22% · K4 2.25 · GA-2 0.9063): kill-clean, but din is graded under the
+  pre-R-1 policy the owner has since ruled over-harsh (−12…−13.75).
+- **{plan v5 + grader-v5.3} — the ruled-fairer bundle:** din recovers ~4–6
+  points toward his ratified GT, all other papers within noise of the
+  confirmed record — but it carries the stochastic din K1 cell (1.00, 1/3
+  draws) and is NOT k=5-confirmed.
+The bridge never ships a known leak (owner's standing condition) and never
+ships a known mis-transcription either — the pin choice is the owner's call,
+and R-4 (the config-driven model seam PR) is pin-agnostic and remains owed.
+
+### 9.4 Standing caveats (verbatim, per the rulings)
+n=5/one-exam sensitivity is now the binding constraint on every remaining
+decision; fixture expansion (n≥10, ≥2 exams) is the next mission regardless
+of this phase's outcome, with rule 6 vs PL-9 on fresh paper as its first
+named test. GT untouched · kill bars untouched · production pinned to
+grader-v3/gpt-4o until an owner-reviewed cutover.
+
+### 9.5 Ledger
+FP2: $9.52 of $20 (din-v4 $1.82 · gpt4o $1.23 · tb1536 $3.00 · probe $0.01 ·
+din-v5 $2.36 · R-D gate $1.10) · $10.48 returned. Missions cumulative:
+$59.04 + $9.52 ≈ **$68.6 total spend** across both envelopes, cost_truth-
+reconciled per UTC day.

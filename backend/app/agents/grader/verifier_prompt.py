@@ -40,7 +40,13 @@ from app.schemas.gradable import GradableScope
 # sentence — the clause governs ABSENT components; it must not annihilate
 # in-own-terms-valid components operating on a wrong target (that read is
 # charged ONCE, at the absent-machinery checks). Din policy: GT stands.
-VERIFIER_PROMPT_VERSION = "grader-v5.2"
+# v5.3 (owner ruling R-D, 2026-08-29): C-1 OBJECT-LITERALISM, constitution-
+# sourced, probe-gated — a check binds to the OBJECT IT NAMES; structure
+# serving the same purpose on another object does not satisfy it ("grade the
+# ink, not the intent"). The deterministic credit-group alternative was
+# WITHDRAWN by the owner (mis-scores the lone-min-loop case); no schema or
+# pricer change rides this version.
+VERIFIER_PROMPT_VERSION = "grader-v5.3"
 
 _KIND_HE = {
     "required": "רכיב נדרש",
@@ -120,6 +126,10 @@ VERIFICATION RULES
    - [PL-9 boundary, R-1] כלל 6 חל על רכיב שנעדר; הוא אינו שולל רכיב שקיים
      ותקף במונחי עצמו אך פועל על יעד שגוי — במקרה כזה הרכיב present, והקריאה
      השגויה מחויבת פעם אחת, בבדיקת המנגנון הנעדר.
+   - [C-1, R-D] כל בדיקה נבחנת אך ורק מול האובייקט או המבנה הנקוב בה. מבנה
+     הפועל על אובייקט אחר — גם אם הוא משרת את אותה מטרה — אינו מקיים את
+     הבדיקה: מדרגים את הדיו, לא את הכוונה. אם האובייקט הנקוב אינו קיים
+     בתשובה כלל — not_met, בציון מה נעדר.
 
 7. An equivalence note on a check («שקילות:») names alternative forms the
    teacher accepts — a student using an equivalent form has met the check.

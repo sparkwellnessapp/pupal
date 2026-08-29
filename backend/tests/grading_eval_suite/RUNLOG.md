@@ -1447,3 +1447,46 @@ render updated.
 the credit-once sentence kills the 5/5 c4.s2 leak; din Δ expected ≈ −5…−7.5
 (the R-1 recovery preserved); K1 clean unfreezes the winner track AND the
 bridge pin.
+
+**R-D RULING LEDGER (recorded verbatim per owner order):** the deterministic
+credit-group mechanism was PROPOSED (agent), EDGE-CASE-FALSIFIED by owner
+challenge + reviewer re-review (it mis-scores the lone-min-loop case —
+reviewer's error, on the record), and WITHDRAWN; the C-1 object-literalism
+PRINCIPLE substituted at prompt level (grader-v5.3, owner Hebrew verbatim:
+«כל בדיקה נבחנת אך ורק מול האובייקט או המבנה הנקוב בה… מדרגים את הדיו, לא
+את הכוונה»), probe-gated before any sequence spend. The slot-rule sentence
+proposal is dropped. No schema change, no pricer stage. This is the
+constitution's method applied to the constitution itself.
+
+**FP2-5 HYPOTHESIZE — the R-D falsification gate (din-only, champion, k=3,
+~$1):** SUCCESS = din/q2.ב.c4.s2 prices 0 on ALL THREE draws (the named
+object — מערך הצוברים — does not exist in din's answer) with the scan-slot
+state unharmed. FOURTH failure ⇒ STOP: prompt surface declared exhausted on
+this cell class (four data points), option-4 close (cell to fixture
+expansion; H-2-final; bridge ruling returns to owner with the din-attribution
+note: totals identical at 2.0 — the K1 cell proxy is the only thing firing).
+
+**FP2-5 RESULT — THE R-D GATE FAILS (fourth data point; $1.0959):** din/
+q2.ב.c4.s2 under v5.3 = 1.00 / 0 / 0 — r0 still leaks (stochastic now, down
+from deterministic 2.00×5). The pre-registered criterion («0 on all three
+draws») is not met. Per R-D §2: **STOP — the prompt surface is declared
+exhausted on this cell class with four data points** (v4 5/5@2.00 · v5
+5/5@2.00 · tb1536 3/3@2.00 · v5.3 1/3@1.00). Side observation: C-1
+literalism also HARSHENED din overall (Δ −10.75/−16.25/−15.50; the scan-slot
+stays 0 vs gt 2 — the lone-loop slot credit does not transcribe either).
+
+## H-2-FINAL (2026-08-29) — option-4 close per R-D
+
+Cascade k=3, sonnet k=3, and the ≤$0.15 k=5 are CANCELLED UNSPENT (all would
+carry the cell). The din min-scan cell is CARRIED TO FIXTURE EXPANSION as its
+first named test (rule 6 / PL-9 / C-1 on fresh paper). The CONFIRMED champion
+record remains {plan hobby_tvshow/v3 + grader-v5.1} (run 20260829-153604:
+K1 80/80 · K2 1.22% · K4 2.25 · GA-2 0.9063) — kill-clean, din harsh-stable
+under the pre-R-1 policy. The {v5 + v5.3} bundle is din-fairer by ruling but
+carries the stochastic cell and is NOT confirmed. **The bridge ruling returns
+to the owner with the din-attribution note:** totals-level, the two bundles
+differ on din alone; the K1 cell proxy (1.00, 1/3 draws) is the only kill
+firing on v5.3; the pin choice {v3+v5.1 confirmed} vs {v5+v5.3 ruled-fairer}
+is the owner's. R-4 (config-driven model seam PR) remains owed and is
+unblocked — it is pin-agnostic by design (GRADER_MODEL_KEY + params).
+FP2 LEDGER: $6.06 + $2.36 + $1.10 = $9.52 of $20 · $10.48 returned unspent.
