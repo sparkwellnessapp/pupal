@@ -1229,3 +1229,28 @@ credit confirmed; verdict quality scales with capability). LEDGER
 (authoritative, cost_truth tool): mission $32.53 of $60; remaining $27.47;
 the running-ledger drift of $0.17 is superseded by the tool. Fences: GT
 untouched · thresholds untouched · plan v2 as ratified · batteries green.
+
+## Post-H-2 owner-directed runs (2026-08-29)
+
+**PH2-1/PH2-2 HYPOTHESIZE — gemini31pro @ low and @ minimal (k=3 each, owner
+order):** measurement runs informing the GA-7/adoption discussion — NOT
+re-entry of the killed default config (the §4 note stands: thinking level does
+not address its two wrong-credit cells, which were deterministic). Questions:
+does the 89% criterion agreement and the zero-bad-quotes record survive lower
+thinking, and where does cost land (est. $0.10-0.15/test at low). Expect the
+two known wrong-credit spots to persist at both levels.
+
+**PH2-2 RESULT — gemini31pro @ minimal ($0.00):** the provider refuses it —
+«thinking_level MINIMAL is not supported by this model» (Vertex 400 on every
+call, zero billed, fail-fast clean). gemini-3.1-pro's floor is LOW; the
+minimal data point does not exist for this model.
+
+**PH2-1 RESULT — gemini31pro @ LOW k=3 ($1.9366): cheaper and worse where it
+matters.** $0.362→$0.138/test (−62%) BUT the din wrong-target hedge APPEARS
+(2 K1 cells at r2 — the exact cells full thinking suppressed for 15 trials;
+reasoning names the defect and hedges ◐ anyway) · per-paper divergence 1.5→4.0
+· spread 2.75→5.0 · agreement 89.0→87.2% · quotes still perfect · K2 3.55%
+(same two spots) · 14/15 valid (one transport). MINIMAL: unsupported by the
+model (PH2-2, $0). Conclusion: thinking budget is what suppresses the
+wrong-target hedge; low is not the cost path under accuracy-first weighting.
+LEDGER: +$1.9366 (+$0.00 minimal) · mission $34.47 of $60 · remaining $25.53
