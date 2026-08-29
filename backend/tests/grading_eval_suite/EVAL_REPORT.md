@@ -6,7 +6,10 @@ k=5) · **Spend:** $34.47 of $60 (incl. the post-halt owner-directed thinking
 sweep, §6b) · **Fences:** GT untouched · thresholds untouched · plan v2 as
 ratified · batteries green · every run kills-first with EVAL_ANALYSIS.md in
 its results dir. **Amended 2026-08-29:** §6b folds in the gemini-3.1-pro
-thinking sweep and the $0.15-ceiling recommendation.
+thinking sweep and the $0.15-ceiling recommendation. **FINAL (2026-08-29,
+§8):** the three H-2-review rulings were executed and the final phase ran to
+completion — gemini-3.1-pro is the mission's confirmed, kill-clean champion;
+the deferred GA-7 ceiling ruling is now live. Mission spend $59.04 of $60.
 
 ---
 
@@ -234,3 +237,84 @@ run — both rule fixes below are PENDING OWNER APPROVAL):**
   CONF-3): the grader-v3 byte-restore proof, the DL-2 splitter fix, the
   provenance stamp fix, the Claude-5 temperature 400, the §1.7 reversal
   execution, the sonnet-4.6 cache-card correction.
+
+---
+
+## 8. FINAL PHASE (owner rulings executed, 2026-08-29): the confirmed champion
+
+**The bundle {plan-v3 · rule-6 · basis-lean} was adopted as one unit and
+re-screened five configs; gemini-3.1-pro then CONFIRMED at k=5 — the only
+configuration in the entire mission to survive the authoritative tier.**
+
+### 8.1 The five re-screens under the bundle (k=3)
+
+| config | K1 | K2 | K4 | GA-2 | $/test | fate |
+|---|---|---|---|---|---|---|
+| **gemini-3.1-pro** | ✓ | **1.36%** | 2.25 | **.9035✓** | .364 | **kill-clean → k=5** |
+| opus5 | **47/48** | 1.36% | 3.0 | .893✓ | .352 | K1: ONE stochastic din hedge (conf 0.70) |
+| sonnet5 | ✓ | 2.72% | **12.25** | .844 | .143 | K2+K4: din-severity variance (−8.75…−21.0) |
+| haiku45 | ✓ | **6.12%** | 4.0 | .705 | .073 | K1 RESURRECTED (rule 6 binds at 4.5-tier) but K2 leniency moved |
+| luna | **46/48** | 0.00% | 7.0 | .823 | .014 | rule 6 does NOT bind at nano tier |
+
+**Ruling validations, measured:** the PL-10 note took `dan/q1.א.c1` from
+4.0-everywhere to **the teacher's exact 3.50** on every capable model's every
+trial; the access-site cell vanished; rule 6 erased haiku's deterministic K1
+leak (its tier-boundary: binds at 4.5, not at nano); basis-lean cut sonnet
+−16% and haiku under the ceiling, and — as predicted — moved gemini $0.00
+(its output is thinking).
+
+### 8.2 The champion at k=5 (run 20260829-153604, $9.00)
+
+**K1 80/80 · K2 1.22% (3/245) · K4 2.25 — kills PASS at the authoritative
+tier. GA-1 ✓ · GA-2 0.9063 ✓ · GA-5 2.25 ✓.** MAE 0.1034 · exact 0.9063 ·
+4.7% of criteria move across five re-grades · citations perfect in all 25
+trials. What a teacher gets: **moran Δ −1.00 five times straight; omer −1.50
+five times straight; yonatan +0.5/0.0; dan −2.0…−4.25** — four of five papers
+graded at or near teacher level with near-zero drift (spreads 0.0/0.0/0.5/
+2.25).
+
+**Every remaining accuracy-side red is ONE paper.** din: −12.0…−13.75 on all
+five trials, the 55-boundary flipped every time, burden 12–13, spread 1.75 —
+a SYSTEMATIC, STABLE policy divergence on wrong-target credit (rule 6's
+written zero-side vs the teacher's din-era leniencies), not stochastic error.
+GA-3 (0.40), GA-4 (0.20) and GA-6-max (13) are all din shadows; GA-6-median
+is 1. Residual K2 = one stochastic half-point cell (yonatan min-channel init,
+3/5). Per owner caveat (b), this policy boundary is fixture expansion's first
+test case — surfaced, not adjudicated here.
+
+### 8.3 GA-7 — the deferred ceiling ruling is now LIVE (the measured table)
+
+The champion costs **$0.360/test** (max $0.476): ~26k output tokens/test of
+thinking, untouchable by basis-lean or caching. The measured frontier at each
+price point, kills-first honest:
+
+| price | what it buys | what it forfeits |
+|---|---|---|
+| **$0.360** | the confirmed champion: kills clean at k=5, GA-2 .906, GA-5 2.25, 4/5 papers at teacher level | GA-7 (4.5× the $0.08 ceiling) |
+| ~$0.14 | sonnet5 (K2 2.72%, K4 12.25 din-variance) or gemini@low (K1 leak returns) | the kills |
+| ≤$0.08 | haiku (K2 6.12%) / luna (K1) / nano (K4@k=5) | the kills |
+
+**At this corpus size, no configuration under $0.36 holds the kills.** The
+options, unchanged from Ruling 3's deferral: (a) accept the champion's price
+for the review-first launch scale (30-test batch ≈ $10.80); (b) hold the
+ceiling and take the next mission (fixture expansion + the din policy ruling)
+before adoption; (c) owner-directed variants (e.g. a thinking-budget cap
+between low and default) — new spend, new screens. **Owner's call, with
+numbers.**
+
+### 8.4 Standing caveats (owner-ordered, verbatim)
+
+(a) plan-v3 and rule-6 transcribe ratified precedents (PL-9, PL-10, R-β) —
+but their completeness is only provable against this corpus; gate-pass here
+is not generalization. (b) Production adoption requires validation on a fresh
+exam the plan has never seen; fixture expansion (n≥10, ≥2 exams) is the next
+mission regardless of outcome, and din's wrong-target policy — now written
+down as rule 6 — is its first test case. (c) Production stays pinned to
+grader-v3/gpt-4o until an H-1 champion passes owner review.
+
+### 8.5 Final ledger
+
+Mission spend **$59.04 of $60.00** (cost_truth authoritative; tool total
+$64.61 − $5.57 pre-mission E-series). The envelope held with $0.96. Final
+phase: 6 screens + 1 confirmation ≈ $26.5 incl. the billing-truncated
+Anthropic first attempts (unbilled 400s; valid fragments ledgered).

@@ -14,7 +14,12 @@
 | 2026-08-28 | gpt-5.5 | gpt-5.5-2026-04-23 | 15 | 297,150 | 192,768 | 173,751 | $5.8308 | 1 |
 | 2026-08-28 | gpt-5.6-luna | gpt-5.6-luna | 15 | 297,150 | 239,854 | 136,546 | $0.2233 | 1 |
 | 2026-08-28 | gpt-5.6-terra | gpt-5.6-terra | 30 | 594,300 | 479,708 | 326,786 | $4.2466 | 2 |
+| 2026-08-29 | claude-haiku-4.5 | claude-haiku-4-5-20251001 | 30 | 542,655 | 0 | 139,841 | $1.2419 | 2 |
+| 2026-08-29 | claude-opus-5 | claude-opus-5 | 30 | 605,888 | 0 | 118,068 | $5.9811 | 2 |
+| 2026-08-29 | claude-sonnet-5 | claude-sonnet-5 | 30 | 628,610 | 0 | 129,798 | $2.5552 | 2 |
+| 2026-08-29 | gemini-3.1-pro-preview | <unreported-by-provider>, gemini-3.1-pro-preview | 70 | 1,307,198 | 0 | 1,158,999 | $16.5224 | 4 |
 | 2026-08-29 | gpt-5.4-nano-2026-03-17 | gpt-5.4-nano-2026-03-17 | 40 | 719,710 | 344,576 | 480,934 | $0.7451 | 2 |
+| 2026-08-29 | gpt-5.6-luna | gpt-5.6-luna | 15 | 310,875 | 248,839 | 124,890 | $0.2120 | 1 |
 | 2026-08-29 | gpt-5.6-terra | gpt-5.6-terra | 25 | 495,250 | 437,774 | 215,566 | $2.7893 | 1 |
 
-**Total computed spend: $38.0937** — diff each row against the provider dashboard for that UTC day before the next Stage.
+**Total computed spend: $64.6063** — diff each row against the provider dashboard for that UTC day before the next Stage.

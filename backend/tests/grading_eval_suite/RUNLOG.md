@@ -1291,3 +1291,84 @@ live); K1 stays clean; basis-lean cuts their $/test ~half except gemini.
 haiku45/luna RESURRECTION (§4-legal: rule 6 targets their exact K1 class) —
 if either clears the kills post-clause, GA-7 solves by construction. Winner
 by GA-2/GA-5 gate-distance → k=5 confirmation → H-1 / GA-7-STOP / H-2-final.
+
+**FINAL-PHASE INCIDENT (2026-08-29): ANTHROPIC CREDITS EXHAUSTED mid-screen.**
+All three Anthropic re-screens ran dry after dan (fixtures run alphabetically):
+haiku 2/15 valid, sonnet 3/15, opus 2/15 — 38 trials died on billing 400s
+(«credit balance is too low», unbilled, fail-fast clean). Valid fragments
+(dan only, tiny-n): opus Δ −1.75 ×2 · sonnet −1.00/+0.50 (+ one −14.00 draw)
+· haiku −3.50 ×2 with K1 clean on the cells sampled. NO din data — the
+resurrection question stays open. Also noted: one sonnet parse failure
+(verdicts returned as a stringified list — R6, scored not re-run) and opus
+cost fell only $0.41→$0.35 (basis-lean compliance needs the §R read on a full
+run). OWNER ACTION REQUIRED: top up Anthropic credits; the three screens
+re-run in full afterwards (~$9-10 est.). Google/OpenAI lanes unaffected.
+
+**FP RESULT — luna-v5 under the bundle ($0.2116): STILL K1-KILLED (2 cells,
+both din q2.ב.c1 wrong-target hedge — reasoning quotes the defect, votes ◐
+anyway).** Rule 6 does not bind at nano tier: the K1 leak is capability-bound.
+GA-2 0.809→0.823 · K2 0.00% · $0.0141. Luna dead; cheap-tier GA-7 hope now
+rests on haiku alone (billing-blocked).
+LEDGER: +$0.2116 · mission ≈$34.9 (partial-run spends reconciled at phase end
+via cost_truth) · remaining ≈$25.1
+
+**FP RESULT — gemini31pro-v5 under the bundle ($5.4585): KILL-CLEAN — first
+frontier board to clear all three kills.** K2 1.36% < the ruled 2.04%
+counterfactual · dan/q1.א.c1 = 3.50 exact ×3 (RULING 1 VALIDATED — PL-10
+binds at frontier tier) · access-site cell gone · residual K2 = one NEW
+stochastic flicker (yonatan/q2.ב.c4.s1, 2/3) · GA-2 0.9035 ✓ · GA-5 2.25 ✓ ·
+MAE 0.1096 · din 17.5→13.75 · basis-lean: ZERO effect on gemini (output is
+thinking; $0.364 stands — the GA-7 story for gemini is thinking-bound,
+unreachable by ruling 3). Winner-of-five blocked at 2/5 on Anthropic credits.
+LEDGER: +$5.4585 · remaining ≈$19.5
+
+**2026-08-29 — owner added $10 Anthropic credits; the three screens re-run.**
+Sequencing: haiku + sonnet in parallel (~$3 est.), THEN opus alone (~$5.3
+est.) — if the $10 falls short, the shortfall isolates to one run instead of
+corrupting three (the lesson of the first attempt).
+
+**FP RESULT — haiku45-v5 under the bundle ($1.0963): K1 RESURRECTION WORKED
+(48/48 — the deterministic din hedge is gone; rule 6 BINDS at 4.5-tier,
+NOT at nano tier — luna is the contrast), but KILLED on K2 6.12% (9 new
+over-credit cells; leniency moved, not vanished). GA-2 0.705 · $0.073 (under
+ceiling — basis-lean works on haiku). Cheap-tier GA-7 path closed.
+LEDGER: +$1.0963 · remaining ≈$18.4
+
+**FP RESULT — sonnet5-v5 under the bundle ($2.1420): DOUBLE-KILLED (K2 2.72%
+— above the bar by ONE cell-rate notch; K4 12.25 — pure din variance: −8.75/
+−12.75/−21.00, zero artifacts).** Ruling 1 landed (dan constructor cell gone;
+dan spans −2.5…+1.75; omer −1.00 ×3). Basis-lean −16% ($0.171→$0.143).
+Rule 6 on the wrong-target paper is applied with unstable severity at
+sonnet-tier. Winner-of-five now between gemini-pro (kill-clean) and opus.
+LEDGER: +$2.1420 · remaining ≈$16.3
+
+**FP RESULT — opus5-v5 under the bundle ($5.2760): KILLED (K1 — one
+stochastic cell: din/q2.ב.c1 r0, the wrong-target hedge at conf 0.70, its own
+reasoning naming the wrong-target fact).** Rest superb: K2 1.36% (= the ruled
+counterfactual) · K4 3.0 · GA-2 0.893 ✓ · GA-5 3.0 ✓ · F→Z zero · $0.352.
+Post-clause census on the adversarial cell: luna 2/3, opus 1/3 leak; haiku/
+sonnet/gemini clean — the clause's limit is structural resemblance +
+stochastic hedging.
+
+**WINNER-OF-FIVE: gemini-3.1-pro — the only kill-clean board AND the
+GA-2/GA-5 leader (0.9035 / 2.25). CONF HYPOTHESIZE — gemini31pro-v5 k=5:**
+kills hold at the authoritative tier (prior: 30/30 K1-clean trials across two
+plan versions; moving 4.2% — the lowest of any config, so the nano-style k=5
+spread blowup is not predicted); GA-2 ≥0.88; GA-7 $0.36 stands (thinking-
+bound) → if all else green, the deferred GA-7 ceiling ruling STOP fires with
+the measured frontier table. ~$6.1.
+LEDGER: +$5.2760 · remaining ≈$11.0
+
+## FINAL PHASE CLOSED (2026-08-29) — CONFIRMED CHAMPION: gemini-3.1-pro
+
+k=5 CONFIRMATION HOLDS (run 20260829-153604, $9.00): K1 80/80 · K2 1.22% ·
+K4 2.25 · GA-2 0.9063 ✓ · GA-5 2.25 ✓ — the mission's ONLY config to survive
+the authoritative tier. Four of five papers at teacher level with near-zero
+drift (moran −1.00 ×5, omer −1.50 ×5, yonatan +0.5/0.0, dan −2…−4.25); ALL
+remaining accuracy reds are din (−12…−13.75 stable — the rule-6-vs-teacher-
+leniency policy boundary, fixture expansion's first test case per owner
+caveat b). Residual K2 = yonatan/q2.ב.c4.s1 3/5 (half-point flicker).
+GA-7 $0.360 → the deferred ceiling ruling is LIVE; measured frontier table in
+EVAL_REPORT §8.3. LEDGER (cost_truth authoritative): mission $59.04 of $60 —
+envelope held by $0.96. Fences: GT untouched · kill bars untouched · plan v3
+as ratified · production pinned to grader-v3/gpt-4o.
