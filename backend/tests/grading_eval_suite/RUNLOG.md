@@ -1773,3 +1773,97 @@ correct logic) is CONTESTED ground truth. A one-page artifact goes to the pilot
 teacher — her scan, the question text, no model output, one question. Her
 answer becomes the fixture's GT and resolves PL-9. **Until then the din cell is
 marked CONTESTED in the eval summary and counts as a kill for NEITHER model.**
+
+## PILOT-BRIDGE REGRESSION CHECK (2026-08-31, owner-directed) — pre-registration
+
+**Target:** the production pilot-bridge pin — gemini-3.1-pro, plan
+`hobby_tvshow/v3` + `grader-v5.1`. k=2 x 5 fixtures.
+
+**PROVENANCE CAVEAT, stated before the run because it cannot be stated
+honestly after it: the champion run's exact SUT BYTES are NOT reconstructible
+from git.** The confirmed record (`20260829-153604_gemini31pro-v5`) carries
+`sut_hash 95ab30afd460a1a5`. Recomputing the grader-path file set at every
+commit — using each commit's OWN `_SUT_RELPATHS`, since that list is itself
+versioned (grader_cascade.py joined it in FP2) — yields `9c0f3ae62221f052` at
+both `71c3a29` and `cf36906` (LF blobs) and `d7b3701bd2a5802e` on a CRLF
+checkout of `cf36906`. None is the recorded value, so the champion ran on an
+uncommitted intermediate working tree that no longer exists.
+
+What IS byte-exact: **plan `hobby_tvshow/v3`, `plan_sha256
+e7ed1611caff6298…` — identical to the champion's record** — plus the prompt
+version `grader-v5.1` and the model. So this is a **VERSION-FAITHFUL, not
+BYTE-FAITHFUL** reconstruction, run from a throwaway git worktree at
+`cf36906` so the main tree (ruled to grader-v5.3) is never mutated. A
+difference from the champion's numbers therefore has two candidate causes —
+regression, or the unreconstructible byte delta — and the report must say so
+rather than attribute it to one.
+
+**Champion reference (k=5, authoritative):** K1 80/80 · K2 1.22% · K4 2.25 ·
+GA-2 0.9063 · $0.3601/test.
+
+**Regression criteria at k=2 (SCREENING tier; k=2 is BELOW even the k=3 screen,
+so it can only DETECT a regression, never certify absence):**
+- K1 must remain total. Any false credit is a regression. **Per the
+  2026-08-31 ruling the din/q2.ב cell is CONTESTED and is excluded from the
+  kill tally** — reported separately, counted for neither side.
+- K2 <= 2.449% (the C2 bar). K4 <= 8.25. GA-2 >= 0.85.
+- Cost expected ~$0.36/test.
+
+**LEDGER NOTE, surfaced before spending:** at the champion's measured
+$0.3601/test this run costs ~**$3.60** against the **$3.12** held — an overage
+of ~$0.48 (15%). Proceeding on the owner's explicit instruction; recorded here
+rather than absorbed silently.
+
+**PILOT-BRIDGE REGRESSION RESULT — NO REGRESSION DETECTED ($3.534, run
+`20260830-154903_gemini31pro-v5`, k=2 x 5, 10/10 valid, 0 parse failures).**
+All three kills pass and every quality gate that the champion passed still
+passes.
+
+| | champion k=5 (authoritative) | this k=2 | |
+|---|---|---|---|
+| K1 | 80/80 | **32/32** | PASS |
+| K2 | 1.22% | **1.02%** (1/98) | PASS |
+| K4 | 2.25 | **1.75** | PASS |
+| GA-2 | 0.9063 | **0.9053** | PASS |
+| GA-5 | 2.25 | **1.75** | PASS |
+| MAE | 0.1034 | **0.102** | — |
+| $/test | 0.3601 | **0.3534** | — |
+
+Per-paper reproduction against the champion's k=5 envelope: moran −1.00 x2
+(champion −1.00 x5, exact) · omer −1.50 x2 (exact) · yonatan +0.00/+0.50
+(inside the champion's own +0.5/0.0 range) · dan −2.00 x2 (the good end of
+champion −2.0…−4.25) · din −14.50/−12.75 (champion −12.0…−13.75; −14.50 sits
+0.75 outside the low end — the only value in the run that does, on the
+highest-variance paper, at n=2).
+
+**The CONTESTED din cell prices 0 / gt 0 on BOTH draws, at confidence 1.00** —
+no hedge, no leak, no uncertainty. This settles an attribution question the
+FP2/v6 arc left open: **the min-scan leak is an artifact of plan v4/v5's PL-9
+credit-side note and was never present in the production pin.** The pin's
+reading of din is the HARSH one, held with total confidence — which is exactly
+why the teacher, not us, has to rule on it (item 6).
+
+Failures/red that are NOT regressions: GA-3 0.40, GA-4 0.20, GA-6 max 13 and
+GA-7 — all four were red on the champion's own k=5 record, all four are din
+shadows or the known cost overage, and the owner has ruled the $0.15 ceiling a
+SCALE constraint rather than a launch constraint. (The gates print shows
+GA-7's superseded $0.08/$0.05 bars because the worktree predates the R-3
+ruling; against the current $0.15 bar the verdict is unchanged — over, and
+accepted.) Three transient scope failures were absorbed by the runner's single
+re-run (rerun_count 1); no trial was lost.
+
+**Caveat, restated so it travels with the number: this is VERSION-faithful,
+not BYTE-faithful** — `sut_hash d7b3701bd2a5802e` vs the champion's recorded
+`95ab30afd460a1a5`, which no committed tree reproduces (see the
+pre-registration above). Plan bytes ARE exact (`e7ed1611caff6298…`). The
+agreement is close enough across five papers, five metrics and the contested
+cell that the byte delta is evidently immaterial to behaviour — but "no
+regression" here means *no behavioural regression against the champion's
+recorded metrics*, not *bit-identical re-execution*.
+
+Run executed in a throwaway git worktree at `cf36906`; the main tree was never
+mutated and remains on the ruled state (`grader-v5.3`, `sut_hash
+615821fe0f66e724`). Worktree removed after the run; artifacts copied to
+`results/`.
+LEDGER: +$3.534 · envelope $3.12 -> **−$0.41 (overspent by 41 cents, flagged
+before the run and again here)**.
