@@ -23,10 +23,10 @@ Statuses: `[ ]` todo · `[~]` in progress · `[x]` done (evidence in phase repor
 | # | Item | Status |
 |---|---|---|
 | B0.1 | Census A/B/D/E/F on the record → `CENSUS_B0_backend_grade_review.md` | [x] |
-| B0.2 | Plan: G1 (schema-touching) | [~] drafted below, awaiting ratification |
-| B0.3 | Plan: G4 (schema-touching) | [~] drafted below, awaiting ratification |
-| B0.4 | Plan: G5 (schema-touching) | [~] drafted below, awaiting ratification |
-| B0.5 | Plan: G7 (schema-touching) | [~] drafted below, awaiting ratification |
+| B0.2 | Plan: G1 (schema-touching) | [x] `PLANS_G1_G4_G5_…md` → [STOP] ratification |
+| B0.3 | Plan: G4 (schema-touching) | [x] `PLANS_G1_G4_G5_…md` → [STOP] ratification |
+| B0.4 | Plan: G5 (schema-touching) | [x] `PLANS_G1_G4_G5_…md` (R-2 count = 0) → [STOP] ratification |
+| B0.5 | ~~Plan: G7~~ | [x] **DEFERRED by ruling R-1** — audit is next week's PR |
 | B0.6 | Open decisions OD-B2..OD-B6 + the four census discrepancies | [STOP] owner |
 
 **OD-B1 is CLOSED** (owner ruling 2026-08-31): gemini-3.1-pro, plan `hobby_tvshow/v3` +
@@ -48,7 +48,7 @@ Gate: fixtures diffed · all G1/G5 tests green from red · codegen committed ·
 | B1.5 | **G1(d)** — codegen; TS regenerated, drift job green | codegen diff clean | [!] B0.2 |
 | B1.6 | **G1(e)** — `scripts/gen_grade_review_fixtures.py` + §1.7 fixture set | `fixtures-regenerate-clean` | [!] B0.2 |
 | B1.7 | **G5** — overlay v2, `app/services/pricing.py`, `/approve` mismatch, CW-3 on `check_id`, overlay data migration | `pricer-override-composition` (12 vectors), `override-preserves-proposal-provenance`, `revert-clears-override-and-note`, `approve-rejects-pricing-mismatch`, `cw3-rejects-unknown-check-id`, `overlay-migration-wraps-lists` | [!] B0.4 |
-| B1.8 | **G6** — `018_schools.sql` + `users.school_id` + `PATCH /users/me` | `override-attribution-joins-resolve`, migration up/down | [ ] |
+| B1.8 | **G6** — `018_schools.sql` + `users.school_id` + `PATCH /users/me/school` | `override-attribution-joins-resolve` +2, migration applied to TEST db | [x] 3 green from red; **UNCOMMITTED — blocked by migrations 015–017** |
 
 ---
 
@@ -66,7 +66,15 @@ batch-feed fixtures match.
 
 ---
 
-## Phase B3 — G7 (audit applier)
+## Phase B3 — DEFERRED (ruling R-1, 2026-08-31)
+
+The consistency audit is out of this PR. `audit_status` ships as the literal
+`"disabled"`; no `audit_deltas` table, no `audit_edit` revision kind, no audit
+columns in the migration list. Census D already established there is no audit
+producer, so nothing is lost by deferring. The rows below are the design record
+next week's spec starts from — **do not build them.**
+
+## ~~Phase B3 — G7 (audit applier)~~ [DEFERRED]
 
 Gate: applier property tests · chain tests · guard never fires on the fixture deltas.
 
@@ -102,10 +110,10 @@ Gate: golden render diff · ZIP manifest tests · cache invalidation count corre
 |---|---|---|
 | 018 | `018_schools.sql` — `schools` + `users.school_id` | G6 |
 | 019 | `019_graded_tests_opened_at.sql` | G8 |
-| 020 | `020_grading_batches_audit_and_appendix.sql` | G7/G9 |
-| 021 | `021_audit_deltas.sql` | G7 |
+| 020 | `020_grading_batches_appendix.sql` (audit cols DROPPED — R-1) | G9 |
+| ~~021~~ | ~~`audit_deltas`~~ — struck by R-1 | — |
 | 022 | `022_graded_tests_returned_exam_key.sql` | G9 |
-| — | overlay JSON data migration (idempotent, dry-run count) | G5 |
+| ~~—~~ | ~~overlay JSON data migration~~ — struck: R-2 count is **0** | G5 |
 
 Each ends with its `schema_migrations` commit token; each version added to
 `EXPECTED_MIGRATIONS` in `app/database.py` (§8 CLAUDE.md).
