@@ -28,6 +28,7 @@ import pytest
 from app.schemas.gradable import GradableTest
 from app.schemas.graded_test_draft import GradedTestDraft, ScopeOutcome
 from app.schemas.ontology_types import (
+    PedagogicalMistakeKind,
     Criterion,
     ExtractRubricResponse,
     GradingRubricContract,
@@ -65,7 +66,8 @@ def _load(name: str) -> ExtractRubricResponse:
 
 @pytest.mark.parametrize("name, expected_total, expected_groups", [
     ("csharp_plane_combine",   Decimal("100"), 0),
-    ("hobby_tvshow",           Decimal("100"), 0),
+    # hobby_tvshow is NOT here: it faithfully captures a real teacher
+    # mislabel and MUST block. Its two-step truth is pinned below (PR-G0).
     ("foundations_cs",         Decimal("100"), 0),
     # The selection exam: offered 15+50+35 = 100, ACHIEVABLE (choose 1) = 50.
     # Before PR-3 this was a hard dead-end — INV-4 compared offered vs declared.
@@ -367,3 +369,102 @@ def test_zero_achievable_does_not_divide_by_zero():
     assert r.total_possible == Decimal("0")
     assert r.total_score == Decimal("0")
     assert r.excluded == frozenset()
+
+
+# ===========================================================================
+# PR-G0 — hobby_tvshow: the faithful-capture two-step (owner ruling, R-4)
+# ===========================================================================
+#
+# The teacher's own DOCX tagged the PrintLowRatingChannel component under
+# sub-question ב, so ג was never extracted as its own sub-question. The draft
+# preserves her labelling — that IS the product (§2 FC: capture the error,
+# identify the probable fix, let the teacher decide) — and one error casts
+# several shadows: q2.ב sums 45 vs declared 29, q2 sums 44 vs declared 60, the
+# same 16 points twice.
+#
+# So: the raw draft MUST block, and the SAME draft with her one-click fix
+# applied MUST compile clean. Asserting only the second half (what this file
+# used to do) hid the first.
+
+def _hobby_raw():
+    return _load("hobby_tvshow")
+
+
+def test_hobby_raw_draft_blocks_and_offers_the_teachers_fix():
+    """Step 1 — the rubric gate does its job, and the fix is reachable.
+
+    The point-sum mistake at q2.ב deliberately carries NO fix of its own: D3
+    root-cause subordination points it at the structural_mislabel that explains
+    it, whose single fix resolves both shadows. A local fix here would be
+    actively wrong (it would 'correct' a sum that is only wrong because a
+    criterion is in the wrong place)."""
+    raw = _hobby_raw()
+
+    with pytest.raises(CompilationError) as ei:
+        _compile(raw)
+
+    errors = ei.value.errors
+    anchored = [e for e in errors if e.target_id == "q2.ב"]
+    assert anchored, [f"{e.invariant}@{e.target_id}" for e in errors]
+    assert anchored[0].invariant == "INV-2"
+
+    # the shadow, and the root that carries the actual fix
+    shadow = next(m for m in raw.pedagogical_mistakes if m.target_id == "q2.ב")
+    assert shadow.kind == PedagogicalMistakeKind.POINT_SUM_MISMATCH
+    assert shadow.suggested_fix is None, "the shadow must not carry a local fix"
+    assert shadow.explained_by, "the shadow must name its root cause"
+
+    root = next(m for m in raw.pedagogical_mistakes
+                if m.mistake_id == shadow.explained_by)
+    assert root.kind == PedagogicalMistakeKind.STRUCTURAL_MISLABEL
+    assert root.suggested_fix is not None, "the root must carry the one-click fix"
+    ops = [st.op for st in root.suggested_fix.steps]
+    assert ops == ["move_text", "move_criterion", "set_points"], ops
+
+
+def test_hobby_compiles_clean_after_the_proposed_fix():
+    """Step 2 — her one click, and the same draft compiles: 100 points, no
+    selection groups, and NO acknowledgment dance."""
+    from tests.grading_eval_suite.tools.f0_hobby_correction import apply_recorded_fix
+
+    contract = _compile(apply_recorded_fix(_hobby_raw()))
+    assert contract.total_points == Decimal("100")
+    assert len(contract.selection_groups) == 0
+
+
+def test_corrected_contract_derives_from_raw_plus_proposed_fix():
+    """The two suites are LINKED, so the grading suite's corrected contract can
+    no longer drift from the rubric suite's raw capture.
+
+    If this fails, the hand-corrected file is the bug — never regenerate the raw
+    benchmark from it, which would erase the evidence of the teacher's error.
+    """
+    from tests.grading_eval_suite.tools.f0_hobby_correction import apply_recorded_fix
+
+    derived = _compile(apply_recorded_fix(_hobby_raw()))
+    hand = json.load(open("tests/grading_eval_suite/benchmarks/contracts/"
+                          "hobby_tvshow_corrected.contract.json", encoding="utf-8"))
+
+    got = json.loads(derived.model_dump_json())
+    # contract_version is a fresh UUID per compile (by design) — identity of the
+    # ARTEFACT, never of its content.
+    for d in (got, hand):
+        d.pop("contract_version", None)
+
+    def terminals(doc):
+        out = {}
+        for q in doc["questions"]:
+            for sq in (q.get("sub_questions") or []):
+                for c in (sq.get("criteria") or []):
+                    for sc in (c.get("sub_criteria") or []):
+                        out[sc["sub_criterion_id"]] = str(sc["points"])
+                    if not (c.get("sub_criteria") or []):
+                        out[c["criterion_id"]] = str(c["points"])
+            for c in (q.get("criteria") or []):
+                out[c["criterion_id"]] = str(c["points"])
+        return out
+
+    assert str(got["total_points"]) == str(hand["total_points"])
+    assert terminals(got) == terminals(hand), (
+        "the hand-corrected contract does not match raw + the recorded fix — "
+        "the HAND-CORRECTED FILE is the bug, not the raw benchmark")
