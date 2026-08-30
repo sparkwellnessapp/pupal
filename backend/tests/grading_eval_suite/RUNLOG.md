@@ -1490,3 +1490,112 @@ firing on v5.3; the pin choice {v3+v5.1 confirmed} vs {v5+v5.3 ruled-fairer}
 is the owner's. R-4 (config-driven model seam PR) remains owed and is
 unblocked — it is pin-agnostic by design (GRADER_MODEL_KEY + params).
 FP2 LEDGER: $6.06 + $2.36 + $1.10 = $9.52 of $20 · $10.48 returned unspent.
+
+## POST-FP2 (2026-08-30) — owner-directed: sonnet-5 on the current provenance set
+
+**PF-1 HYPOTHESIZE — sonnet5-v5, k=3, all 5 fixtures, ~$2.2 (owner-directed
+spend, outside the closed FP2 envelope):** SUT = {plan hobby_tvshow/v5 (sha
+994e41eb…, 80 checks) + grader-v5.3}. This is the FIRST measurement of the
+R-A/R-B/R-C rulings on the model they were DERIVED FROM (the sonnet forensics
+proposed P-A/P-B; the owner ratified them as R-B/R-C), and the first
+measurement of C-1 (v5.3) on the Anthropic lane at all.
+
+Pre-registered predictions + kill criteria:
+- K2 (bar ≤ 6/245 = 2.449%): last measured 2.72% (≈20/735 cells) under
+  {v3+v5.1}. R-B retires the q1.ג.c0 header class (5 cells), R-C the q2.א.c1
+  off-by-one class (2 cells) ⇒ arithmetic prediction ≈13/735 = 1.77% ⇒ K2
+  PASSES. FALSIFIED IF K2 stays > 2.449%: the class attribution in the
+  sonnet forensics was wrong, and the rulings bought nothing on their own
+  source model.
+- K4 (bar ≤ 8.25): last 12.25, PURE din spread (−8.75/−12.75/−21.00), zero
+  artifacts. No ruling touches din's driver, and C-1 HARSHENED din on the
+  champion (Δ −10.75/−16.25/−15.50). Prediction: K4 still FAILS. A K4 pass
+  would mean C-1 stabilised din's severity at sonnet tier — a new finding,
+  not an expected one.
+- K1: sonnet was K1-clean under both prior bundles. Live question: does the
+  CARRIED din min-scan cell (q2.ב.c4.s2 — four data points, all on the
+  Google/champion lane) fire on a DIFFERENT VENDOR FAMILY? Either answer is
+  evidence the fixture-expansion mission wants: a clean sonnet cell makes the
+  leak vendor-specific; a leaking one makes it prompt-surface-general.
+- GA-7 (≤$0.15 hard): last $0.143/test with basis-lean. Prediction: holds.
+
+Attribution rule for this run: K2 movement is attributable to R-B/R-C ONLY at
+the named cells (q1.ג.c0, q2.א.c1); movement anywhere else is C-1, and must
+be reported as such. Two variables move together here BY OWNER DIRECTION (the
+provenance set is the unit under test, not one knob) — so per-cell
+attribution, not headline attribution, is the deliverable.
+
+**PF-1 INCIDENT ($0.7925, run 20260830-003405_sonnet5-v5) — ANTHROPIC BILLING
+WALL, second occurrence.** 5 of 15 trials completed (dan x3, din x2); the
+remaining 10 died on `400 invalid_request_error: 'Your credit balance is too
+low to access the Anthropic API'` — every scope failed, trials correctly
+marked INVALID and excluded from aggregates, and UNBILLED (a 400 bills
+nothing). NOT A TRIAL: no kill verdict from this run is carried anywhere; the
+gates print covers dan+din only, with din short a draw. Owner topped credits
+up; k=3 relaunched whole (recommended path: one clean provenance-pinned run,
+single sut_hash, no cross-run merge semantics invented).
+
+**PF-1 PARTIAL SIGNAL (survives the incident; the named-cell attribution the
+pre-registration promised, all three cells inside the surviving trials):**
+- **R-C CONFIRMED on its source model** — dan/q2.א.c1 prices 9.00/9.00/9.00
+  against GT 9. The structure-rephrase + off-by-one tariff put dan on the
+  faithful path; the H-4 item-5 accepted ±0.5 is genuinely retired at sonnet
+  tier.
+- **R-B did NOT retire its class** — din/q1.ג.c0 credits 0.75 and 1.00 against
+  GT 0.5. The split made 0.5 EXPRESSIBLE; the model still does not judge the
+  second half unmet. Expressibility ≠ reachability: the guard only ever
+  promised the former, and this is the first measured case of the difference.
+- **The carried din min-scan cell is CLEAN on the Anthropic lane** —
+  din/q2.ב.c4.s2 = 0 both draws (GT 0), dan = 2.00 x3 (GT 2). The leak with
+  four data points on the Google/champion lane DID NOT REPRODUCE here. n=2 on
+  the zero side ⇒ provisional and directional, but it points at
+  vendor-specific behaviour over a general prompt-surface defect — a real
+  input to the fixture-expansion mission's first named test.
+- Both K2 firings are din, and both are the ruled cells (q2.א.c1 ai 10.0 =
+  full vs GT 8; q1.ג.c0 ai 1.00 = full vs GT 0.5). Shape of the residual: the
+  rulings fixed dan (the paper the forensics were read off) and left din (the
+  wrong-target paper) untouched. Generalisation UNMEASURED — moran/omer/
+  yonatan never ran and carry the rest of the prior K2 class.
+- UNMEASURABLE from this run: K2 as a rate (2/72 over dan+din is not
+  comparable to the 2.72% ≈ 20/735 baseline — the pre-registered
+  falsification test is unanswered); K4 (printed 2.75 "PASS" is an artifact —
+  din is missing the draw, and the prior 12.25 came from a −21.00 outlier
+  that never ran); GA-7 ($0.1585 over a biased fixture mix, directionally up
+  from $0.143 as v5's extra checks + C-1 text predict). din Δ −10.50/−12.25
+  vs −8.75/−12.75/−21.00 under {v3+v5.1}: C-1 harshening visible, consistent
+  with the champion's −10.75/−16.25/−15.50, settles nothing at n=2. One parse
+  failure (rate 0.0333, escalation flagged) — same class as the FP screen's.
+EVAL_ANALYSIS.md in run dir. LEDGER: +$0.7925 (owner-directed, post-FP2).
+
+**PF-1 RESULT - sonnet5-v5 k=3 under {plan v5 + grader-v5.3} ($2.3425, run
+20260830-130644; 15/15 valid, 0 call failures, 0 parse failures): KILLED on
+K1 (45/48) while BOTH other kills improved decisively - K2 2.72% -> 0.00%
+(0/147), K4 12.25 -> 4.75.** All three K1 firings are ONE cell on ONE paper:
+din/q2.ב.c4.s2 credited full 2.00 vs GT 0, all three draws, at model
+confidence 0.40/0.50/0.60 with exact-matching quotes.
+
+Pre-registered scorecard: K2 predicted PASS ~1.77% -> **0.00%, confirmed and
+beyond the arithmetic** (over-credit-to-full is absent, not reduced; R-B/R-C
++ C-1 retired the class outright). K4 predicted FAIL -> **PASSED at 4.75, my
+prediction was wrong**: C-1 STABILISED din (-7.00/-5.50/-7.00, spread 1.50)
+where {v3+v5.1} gave -8.75/-12.75/-21.00; worst spread moved to dan (4.75).
+GA-2 0.8596 - sonnet's FIRST pass on per-item agreement (prior 0.8404).
+GA-7 $0.1562, over the $0.15 hard bar by 1.4%.
+
+**CORRECTION - PF-1's partial-run finding is WITHDRAWN.** The aborted run
+reported din/q2.ב.c4.s2 "CLEAN on the Anthropic lane" from two draws at 0.
+Identical SUT and config, three further draws: 2.00 x3. The cell is
+stochastic across runs with a high leak rate and the n=2 sample caught its
+quiet side. The n=2 hedge was correctly stated at the time; the direction it
+pointed was wrong. **The corrected finding inverts it:** the carried min-scan
+leak DOES reproduce off the Google lane, and WORSE - 3/3 here vs 1/3 for the
+champion under the same v5.3. Fifth configuration data point on this cell;
+strengthens plan/prompt-surface attribution (the R-1 PL-9 credit-side note)
+over vendor attribution. The cell remains carried to fixture expansion.
+
+**Cascade note (measured, not speculative):** all three leaking draws sit at
+confidence 0.40/0.50/0.60 - every one below the 0.80 router threshold of the
+FP2 cascade, which would have escalated all three scopes to the champion. The
+cascade's case is no longer cost-only; it now has a kill-cell it demonstrably
+addresses. Still unscreened.
+LEDGER: +$2.3425 (owner-directed, post-FP2) - PF total $3.1350
