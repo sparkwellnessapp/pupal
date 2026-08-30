@@ -25,6 +25,34 @@ from pydantic import BaseModel, field_serializer
 from app.schemas.ontology_types import AnswerQuotation
 
 
+class ContractCheck(BaseModel):
+    """One check, frozen at approval (PR-G1, spec §1.4).
+
+    Provenance is preserved the way the terminal already preserves it: what the
+    AI said (`ai_verdict`) is immutable, and the teacher's decision rides beside
+    it (`final_verdict` + `was_overridden`) rather than overwriting it. Until
+    PR-G5 wires the check-level overlay there are no verdict overrides, so
+    final == ai and was_overridden is False — the SHAPE is what freezes here.
+
+    `evidence_disputed` and `teacher_comment` are per-check because the teacher
+    reviews per-check; the terminal's own teacher_comment stays for the v3 wire.
+    """
+    model_config = {"frozen": True}
+
+    check_id: str
+    text: str
+    tariff: Optional[Decimal] = None
+    ai_verdict: Literal["met", "partially_met", "not_met"]
+    final_verdict: Literal["met", "partially_met", "not_met"]
+    was_overridden: bool = False
+    evidence_disputed: bool = False
+    teacher_comment: Optional[str] = None
+
+    @field_serializer("tariff")
+    def _sd(self, v: Optional[Decimal]) -> Optional[str]:
+        return None if v is None else str(v)
+
+
 class ContractTerminalOutcome(BaseModel):
     """Frozen, provenance-preserving record for one terminal criterion."""
     model_config = {"frozen": True}
@@ -38,6 +66,9 @@ class ContractTerminalOutcome(BaseModel):
     ai_points_awarded: Decimal
     ai_reasoning: str
     ai_evidence_quote: Optional[AnswerQuotation] = None
+
+    # [PR-G1] the per-check record, frozen. None on v3-era contracts.
+    checks: Optional[List[ContractCheck]] = None
 
     # Teacher decision
     was_overridden: bool                    # True iff teacher changed the points

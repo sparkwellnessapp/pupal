@@ -52,6 +52,9 @@ if _ENV_PATH.exists():
 
 if _os.environ.get("TEST_DATABASE_URL"):
     _os.environ["DATABASE_URL"] = _os.environ["TEST_DATABASE_URL"]
+    # Pooled connections that outlive a test wedge session teardown on
+    # Windows (every test green, process never exits). NullPool under test.
+    _os.environ["DB_DISABLE_POOLING"] = "true"
 
 # (host, username-suffix) pairs a test session may touch. None = any user.
 _ALLOWED_TEST_TARGETS = (

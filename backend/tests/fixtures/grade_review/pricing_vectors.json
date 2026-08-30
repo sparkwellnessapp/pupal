@@ -1,0 +1,5290 @@
+[
+ {
+  "case": "dan_basiuk:q1.א.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.א.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "4.00",
+  "overlay": {},
+  "points_possible": "4",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.א.c0"
+ },
+ {
+  "case": "dan_basiuk:q1.א.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.א.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   }
+  ],
+  "expected_points_awarded": "3.50",
+  "overlay": {},
+  "points_possible": "4",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.א.c1"
+ },
+ {
+  "case": "dan_basiuk:q1.ב.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ב.c0"
+ },
+ {
+  "case": "dan_basiuk:q1.ב.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ב.c1"
+ },
+ {
+  "case": "dan_basiuk:q1.ב.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ב.c2.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   }
+  ],
+  "expected_points_awarded": "0.75",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ב.c2"
+ },
+ {
+  "case": "dan_basiuk:q1.ב.c3:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c3.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c3.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ב.c3"
+ },
+ {
+  "case": "dan_basiuk:q1.ב.c4:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c4.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   }
+  ],
+  "expected_points_awarded": "2.25",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ב.c4"
+ },
+ {
+  "case": "dan_basiuk:q1.ב.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ב.c5"
+ },
+ {
+  "case": "dan_basiuk:q1.ב.c6:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c6.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ב.c6.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ב.c6"
+ },
+ {
+  "case": "dan_basiuk:q1.ב.c7:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c7.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ב.c7"
+ },
+ {
+  "case": "dan_basiuk:q1.ג.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ג.c0"
+ },
+ {
+  "case": "dan_basiuk:q1.ג.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ג.c1"
+ },
+ {
+  "case": "dan_basiuk:q1.ג.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c2.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ג.c2"
+ },
+ {
+  "case": "dan_basiuk:q1.ג.c3:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   },
+   {
+    "check_id": "q1.ג.c3.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0.50",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ג.c3"
+ },
+ {
+  "case": "dan_basiuk:q1.ג.c4:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c4.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c4.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ג.c4"
+ },
+ {
+  "case": "dan_basiuk:q1.ג.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c5.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c5.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ג.c5"
+ },
+ {
+  "case": "dan_basiuk:q1.ג.c6:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c6.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c6.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c6.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c6.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ג.c6"
+ },
+ {
+  "case": "dan_basiuk:q1.ג.c7:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c7.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c7.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c7.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c7.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "dan_basiuk",
+  "terminal_id": "q1.ג.c7"
+ },
+ {
+  "case": "dan_basiuk:q2.א.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.א.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c0.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "5.0",
+  "overlay": {},
+  "points_possible": "5",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.א.c0"
+ },
+ {
+  "case": "dan_basiuk:q2.א.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.א.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.t1",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.א.c1.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "9.00",
+  "overlay": {},
+  "points_possible": "10",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.א.c1"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c0"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c1"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c2"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c3.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   },
+   {
+    "check_id": "q2.ב.c3.s0.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s0.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ב.c3.s0.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "0.50",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c3.s0"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c3.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c3.s1"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c3.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c3.s2"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c3.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s3.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "5.0",
+  "overlay": {},
+  "points_possible": "5",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c3.s3"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c4.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c4.s0"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c4.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c4.s1"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c4.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c4.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c4.s2"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c4.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c4.s3.k2",
+    "kind": "note_only",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ב.c4.s3.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "3",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c4.s3"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c4.s4:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c4.s4"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c4.s5:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c4.s5"
+ },
+ {
+  "case": "dan_basiuk:q2.ב.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ב.c5"
+ },
+ {
+  "case": "dan_basiuk:q2.ג.c0.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ג.c0.s0"
+ },
+ {
+  "case": "dan_basiuk:q2.ג.c0.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ג.c0.s1"
+ },
+ {
+  "case": "dan_basiuk:q2.ג.c0.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ג.c0.s2"
+ },
+ {
+  "case": "dan_basiuk:q2.ג.c0.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "6.00",
+  "overlay": {},
+  "points_possible": "8",
+  "student": "dan_basiuk",
+  "terminal_id": "q2.ג.c0.s3"
+ },
+ {
+  "case": "din_ezra:q1.א.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.א.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "4.00",
+  "overlay": {},
+  "points_possible": "4",
+  "student": "din_ezra",
+  "terminal_id": "q1.א.c0"
+ },
+ {
+  "case": "din_ezra:q1.א.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.א.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   }
+  ],
+  "expected_points_awarded": "3.50",
+  "overlay": {},
+  "points_possible": "4",
+  "student": "din_ezra",
+  "terminal_id": "q1.א.c1"
+ },
+ {
+  "case": "din_ezra:q1.ב.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "din_ezra",
+  "terminal_id": "q1.ב.c0"
+ },
+ {
+  "case": "din_ezra:q1.ב.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "din_ezra",
+  "terminal_id": "q1.ב.c1"
+ },
+ {
+  "case": "din_ezra:q1.ב.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ב.c2.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   }
+  ],
+  "expected_points_awarded": "0.75",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "din_ezra",
+  "terminal_id": "q1.ב.c2"
+ },
+ {
+  "case": "din_ezra:q1.ב.c3:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c3.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c3.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "din_ezra",
+  "terminal_id": "q1.ב.c3"
+ },
+ {
+  "case": "din_ezra:q1.ב.c4:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c4.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "1.50",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "din_ezra",
+  "terminal_id": "q1.ב.c4"
+ },
+ {
+  "case": "din_ezra:q1.ב.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "din_ezra",
+  "terminal_id": "q1.ב.c5"
+ },
+ {
+  "case": "din_ezra:q1.ב.c6:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c6.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ב.c6.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "din_ezra",
+  "terminal_id": "q1.ב.c6"
+ },
+ {
+  "case": "din_ezra:q1.ב.c7:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c7.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   }
+  ],
+  "expected_points_awarded": "0.50",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "din_ezra",
+  "terminal_id": "q1.ב.c7"
+ },
+ {
+  "case": "din_ezra:q1.ג.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   }
+  ],
+  "expected_points_awarded": "0.75",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "din_ezra",
+  "terminal_id": "q1.ג.c0"
+ },
+ {
+  "case": "din_ezra:q1.ג.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "din_ezra",
+  "terminal_id": "q1.ג.c1"
+ },
+ {
+  "case": "din_ezra:q1.ג.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c2.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "din_ezra",
+  "terminal_id": "q1.ג.c2"
+ },
+ {
+  "case": "din_ezra:q1.ג.c3:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   },
+   {
+    "check_id": "q1.ג.c3.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0.50",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "din_ezra",
+  "terminal_id": "q1.ג.c3"
+ },
+ {
+  "case": "din_ezra:q1.ג.c4:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c4.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c4.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "din_ezra",
+  "terminal_id": "q1.ג.c4"
+ },
+ {
+  "case": "din_ezra:q1.ג.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c5.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c5.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "din_ezra",
+  "terminal_id": "q1.ג.c5"
+ },
+ {
+  "case": "din_ezra:q1.ג.c6:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c6.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c6.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c6.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": null,
+    "tariff": "0.5",
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c6.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": null,
+    "tariff": "0.5",
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "din_ezra",
+  "terminal_id": "q1.ג.c6"
+ },
+ {
+  "case": "din_ezra:q1.ג.c7:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c7.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c7.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c7.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": null,
+    "tariff": "0.5",
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c7.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": null,
+    "tariff": "0.5",
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "din_ezra",
+  "terminal_id": "q1.ג.c7"
+ },
+ {
+  "case": "din_ezra:q2.א.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.א.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.א.c0.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "5",
+  "student": "din_ezra",
+  "terminal_id": "q2.א.c0"
+ },
+ {
+  "case": "din_ezra:q2.א.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.א.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.t1",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "7.00",
+  "overlay": {},
+  "points_possible": "10",
+  "student": "din_ezra",
+  "terminal_id": "q2.א.c1"
+ },
+ {
+  "case": "din_ezra:q2.ב.c0:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c0"
+ },
+ {
+  "case": "din_ezra:q2.ב.c1:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c1"
+ },
+ {
+  "case": "din_ezra:q2.ב.c2:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c2"
+ },
+ {
+  "case": "din_ezra:q2.ב.c3.s0:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c3.s0"
+ },
+ {
+  "case": "din_ezra:q2.ב.c3.s1:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c3.s1"
+ },
+ {
+  "case": "din_ezra:q2.ב.c3.s2:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c3.s2"
+ },
+ {
+  "case": "din_ezra:q2.ב.c3.s3:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "5",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c3.s3"
+ },
+ {
+  "case": "din_ezra:q2.ב.c4.s0:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c4.s0"
+ },
+ {
+  "case": "din_ezra:q2.ב.c4.s1:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c4.s1"
+ },
+ {
+  "case": "din_ezra:q2.ב.c4.s2:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c4.s2"
+ },
+ {
+  "case": "din_ezra:q2.ב.c4.s3:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c4.s3"
+ },
+ {
+  "case": "din_ezra:q2.ב.c4.s4:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c4.s4"
+ },
+ {
+  "case": "din_ezra:q2.ב.c4.s5:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c4.s5"
+ },
+ {
+  "case": "din_ezra:q2.ב.c5:ai_only",
+  "checks": [],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "din_ezra",
+  "terminal_id": "q2.ב.c5"
+ },
+ {
+  "case": "din_ezra:q2.ג.c0.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "din_ezra",
+  "terminal_id": "q2.ג.c0.s0"
+ },
+ {
+  "case": "din_ezra:q2.ג.c0.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "din_ezra",
+  "terminal_id": "q2.ג.c0.s1"
+ },
+ {
+  "case": "din_ezra:q2.ג.c0.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "din_ezra",
+  "terminal_id": "q2.ג.c0.s2"
+ },
+ {
+  "case": "din_ezra:q2.ג.c0.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "4.00",
+  "overlay": {},
+  "points_possible": "8",
+  "student": "din_ezra",
+  "terminal_id": "q2.ג.c0.s3"
+ },
+ {
+  "case": "moran_aharon:q1.א.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.א.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "4.00",
+  "overlay": {},
+  "points_possible": "4",
+  "student": "moran_aharon",
+  "terminal_id": "q1.א.c0"
+ },
+ {
+  "case": "moran_aharon:q1.א.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.א.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "4.00",
+  "overlay": {},
+  "points_possible": "4",
+  "student": "moran_aharon",
+  "terminal_id": "q1.א.c1"
+ },
+ {
+  "case": "moran_aharon:q1.ב.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ב.c0"
+ },
+ {
+  "case": "moran_aharon:q1.ב.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ב.c1"
+ },
+ {
+  "case": "moran_aharon:q1.ב.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c2.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ב.c2"
+ },
+ {
+  "case": "moran_aharon:q1.ב.c3:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c3.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c3.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ב.c3"
+ },
+ {
+  "case": "moran_aharon:q1.ב.c4:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c4.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ב.c4"
+ },
+ {
+  "case": "moran_aharon:q1.ב.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ב.c5"
+ },
+ {
+  "case": "moran_aharon:q1.ב.c6:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c6.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ב.c6.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ב.c6"
+ },
+ {
+  "case": "moran_aharon:q1.ב.c7:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c7.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ב.c7"
+ },
+ {
+  "case": "moran_aharon:q1.ג.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ג.c0"
+ },
+ {
+  "case": "moran_aharon:q1.ג.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ג.c1"
+ },
+ {
+  "case": "moran_aharon:q1.ג.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c2.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ג.c2"
+ },
+ {
+  "case": "moran_aharon:q1.ג.c3:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c3.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ג.c3"
+ },
+ {
+  "case": "moran_aharon:q1.ג.c4:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c4.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c4.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ג.c4"
+ },
+ {
+  "case": "moran_aharon:q1.ג.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c5.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c5.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ג.c5"
+ },
+ {
+  "case": "moran_aharon:q1.ג.c6:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c6.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c6.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c6.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c6.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ג.c6"
+ },
+ {
+  "case": "moran_aharon:q1.ג.c7:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c7.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c7.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c7.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c7.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "moran_aharon",
+  "terminal_id": "q1.ג.c7"
+ },
+ {
+  "case": "moran_aharon:q2.א.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.א.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c0.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "5.0",
+  "overlay": {},
+  "points_possible": "5",
+  "student": "moran_aharon",
+  "terminal_id": "q2.א.c0"
+ },
+ {
+  "case": "moran_aharon:q2.א.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.א.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.t1",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "10.0",
+  "overlay": {},
+  "points_possible": "10",
+  "student": "moran_aharon",
+  "terminal_id": "q2.א.c1"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c0"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c1"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c2"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c3.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s0.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s0.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ב.c3.s0.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c3.s0"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c3.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c3.s1"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c3.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c3.s2"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c3.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s3.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "5.0",
+  "overlay": {},
+  "points_possible": "5",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c3.s3"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c4.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c4.s0"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c4.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c4.s1"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c4.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c4.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c4.s2"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c4.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c4.s3.k2",
+    "kind": "note_only",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ב.c4.s3.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "3",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c4.s3"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c4.s4:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c4.s4"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c4.s5:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c4.s5"
+ },
+ {
+  "case": "moran_aharon:q2.ב.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ב.c5"
+ },
+ {
+  "case": "moran_aharon:q2.ג.c0.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ג.c0.s0"
+ },
+ {
+  "case": "moran_aharon:q2.ג.c0.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ג.c0.s1"
+ },
+ {
+  "case": "moran_aharon:q2.ג.c0.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ג.c0.s2"
+ },
+ {
+  "case": "moran_aharon:q2.ג.c0.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "6.00",
+  "overlay": {},
+  "points_possible": "8",
+  "student": "moran_aharon",
+  "terminal_id": "q2.ג.c0.s3"
+ },
+ {
+  "case": "omer_gelber:q1.א.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.א.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "4.00",
+  "overlay": {},
+  "points_possible": "4",
+  "student": "omer_gelber",
+  "terminal_id": "q1.א.c0"
+ },
+ {
+  "case": "omer_gelber:q1.א.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.א.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "4.00",
+  "overlay": {},
+  "points_possible": "4",
+  "student": "omer_gelber",
+  "terminal_id": "q1.א.c1"
+ },
+ {
+  "case": "omer_gelber:q1.ב.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ב.c0"
+ },
+ {
+  "case": "omer_gelber:q1.ב.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ב.c1"
+ },
+ {
+  "case": "omer_gelber:q1.ב.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ב.c2.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ב.c2"
+ },
+ {
+  "case": "omer_gelber:q1.ב.c3:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c3.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c3.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ב.c3"
+ },
+ {
+  "case": "omer_gelber:q1.ב.c4:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c4.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "1.50",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ב.c4"
+ },
+ {
+  "case": "omer_gelber:q1.ב.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ב.c5"
+ },
+ {
+  "case": "omer_gelber:q1.ב.c6:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c6.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ב.c6.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ב.c6"
+ },
+ {
+  "case": "omer_gelber:q1.ב.c7:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c7.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ב.c7"
+ },
+ {
+  "case": "omer_gelber:q1.ג.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ג.c0"
+ },
+ {
+  "case": "omer_gelber:q1.ג.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ג.c1"
+ },
+ {
+  "case": "omer_gelber:q1.ג.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c2.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ג.c2"
+ },
+ {
+  "case": "omer_gelber:q1.ג.c3:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c3.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ג.c3"
+ },
+ {
+  "case": "omer_gelber:q1.ג.c4:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c4.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c4.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ג.c4"
+ },
+ {
+  "case": "omer_gelber:q1.ג.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c5.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c5.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ג.c5"
+ },
+ {
+  "case": "omer_gelber:q1.ג.c6:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c6.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c6.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c6.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c6.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ג.c6"
+ },
+ {
+  "case": "omer_gelber:q1.ג.c7:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c7.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c7.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c7.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c7.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "omer_gelber",
+  "terminal_id": "q1.ג.c7"
+ },
+ {
+  "case": "omer_gelber:q2.א.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.א.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c0.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "5.0",
+  "overlay": {},
+  "points_possible": "5",
+  "student": "omer_gelber",
+  "terminal_id": "q2.א.c0"
+ },
+ {
+  "case": "omer_gelber:q2.א.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.א.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.t1",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "10.0",
+  "overlay": {},
+  "points_possible": "10",
+  "student": "omer_gelber",
+  "terminal_id": "q2.א.c1"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c0"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c1"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c2"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c3.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s0.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s0.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ב.c3.s0.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c3.s0"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c3.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c3.s1"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c3.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c3.s2"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c3.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s3.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "5.0",
+  "overlay": {},
+  "points_possible": "5",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c3.s3"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c4.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c4.s0"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c4.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c4.s1"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c4.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c4.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c4.s2"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c4.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c4.s3.k2",
+    "kind": "note_only",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ב.c4.s3.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "3",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c4.s3"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c4.s4:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c4.s4"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c4.s5:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c4.s5"
+ },
+ {
+  "case": "omer_gelber:q2.ב.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ב.c5"
+ },
+ {
+  "case": "omer_gelber:q2.ג.c0.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ג.c0.s0"
+ },
+ {
+  "case": "omer_gelber:q2.ג.c0.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ג.c0.s1"
+ },
+ {
+  "case": "omer_gelber:q2.ג.c0.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ג.c0.s2"
+ },
+ {
+  "case": "omer_gelber:q2.ג.c0.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "6.00",
+  "overlay": {},
+  "points_possible": "8",
+  "student": "omer_gelber",
+  "terminal_id": "q2.ג.c0.s3"
+ },
+ {
+  "case": "yonatan_basiuk:q1.א.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.א.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "4.00",
+  "overlay": {},
+  "points_possible": "4",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.א.c0"
+ },
+ {
+  "case": "yonatan_basiuk:q1.א.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.א.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.א.c1.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   }
+  ],
+  "expected_points_awarded": "3.50",
+  "overlay": {},
+  "points_possible": "4",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.א.c1"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ב.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ב.c0"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ב.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ב.c1"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ב.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c2.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ב.c2"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ב.c3:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c3.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c3.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ב.c3"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ב.c4:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ב.c4.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ב.c4"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ב.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ב.c5"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ב.c6:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c6.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ב.c6.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ב.c6"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ב.c7:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ב.c7.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ב.c7"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ג.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ג.c0"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ג.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "0.50",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ג.c1"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ג.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c2.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "0.5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ג.c2"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ג.c3:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c3.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ג.c3"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ג.c4:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c4.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c4.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ג.c4"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ג.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c5.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c5.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ג.c5"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ג.c6:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c6.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c6.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c6.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q1.ג.c6.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ג.c6"
+ },
+ {
+  "case": "yonatan_basiuk:q1.ג.c7:ai_only",
+  "checks": [
+   {
+    "check_id": "q1.ג.c7.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": null,
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c7.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c7.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q1.ג.c7.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q1.ג.c7"
+ },
+ {
+  "case": "yonatan_basiuk:q2.א.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.א.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c0.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c0.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "5.0",
+  "overlay": {},
+  "points_possible": "5",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.א.c0"
+ },
+ {
+  "case": "yonatan_basiuk:q2.א.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.א.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.t1",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": null,
+    "tariff": "1",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.א.c1.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "10.0",
+  "overlay": {},
+  "points_possible": "10",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.א.c1"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c0"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c1"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c2"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c3.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s0.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s0.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ב.c3.s0.k4",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c3.s0"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c3.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c3.s1"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c3.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c3.s2"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c3.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c3.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "5",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c3.s3.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "5.0",
+  "overlay": {},
+  "points_possible": "5",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c3.s3"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c4.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c4.s0"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c4.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "partially_met"
+   }
+  ],
+  "expected_points_awarded": "0.50",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c4.s1"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c4.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c4.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "0.5",
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "1.50",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c4.s2"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c4.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ב.c4.s3.k2",
+    "kind": "note_only",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   },
+   {
+    "check_id": "q2.ב.c4.s3.k3",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "3",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c4.s3"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c4.s4:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s4.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c4.s4"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c4.s5:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c4.s5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "not_met"
+   }
+  ],
+  "expected_points_awarded": "0",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c4.s5"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ב.c5:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ב.c5.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "1",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "1.00",
+  "overlay": {},
+  "points_possible": "1",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ב.c5"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ג.c0.s0:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s0.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "2.00",
+  "overlay": {},
+  "points_possible": "2",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ג.c0.s0"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ג.c0.s1:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s1.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ג.c0.s1"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ג.c0.s2:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s2.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "3",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s2.k2",
+    "kind": "tariff",
+    "partial_fraction": "0.5",
+    "points": "0",
+    "quote_status": "exact",
+    "tariff": "1",
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "3.00",
+  "overlay": {},
+  "points_possible": "3",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ג.c0.s2"
+ },
+ {
+  "case": "yonatan_basiuk:q2.ג.c0.s3:ai_only",
+  "checks": [
+   {
+    "check_id": "q2.ג.c0.s3.k1",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k2",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k3",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   },
+   {
+    "check_id": "q2.ג.c0.s3.k4",
+    "kind": "required",
+    "partial_fraction": "0.5",
+    "points": "2",
+    "quote_status": "exact",
+    "tariff": null,
+    "verdict": "met"
+   }
+  ],
+  "expected_points_awarded": "8.00",
+  "overlay": {},
+  "points_possible": "8",
+  "student": "yonatan_basiuk",
+  "terminal_id": "q2.ג.c0.s3"
+ }
+]

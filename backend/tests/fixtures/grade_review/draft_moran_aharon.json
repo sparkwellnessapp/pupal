@@ -1,0 +1,2306 @@
+{
+ "annotations": [
+  {
+   "annotation_type": "note_only",
+   "id": "bf43a632",
+   "message": "לתשומת לב (ללא הורדת נקודות): בדיקה שהתא גדול מאפס (כלומר הערוץ בשימוש) — לציין בלבד, ללא ניכוי — חיפשתי בדיקה שהתא גדול מאפס (chlRate[i] > 0) בתוך התנאי — לא נמצאה, יש רק השוואה למינימום ללא בדיקת שימוש בערוץ.",
+   "metadata": {
+    "check_id": "q2.ב.c4.s3.k2",
+    "quote_text": "if (chlRate[i] < lowestRate)"
+   },
+   "severity": "info",
+   "target_id": "q2.ב.c4.s3"
+  }
+ ],
+ "cascade_usage": null,
+ "grading_duration_ms": 19297,
+ "llm_calls_count": 6,
+ "model_version": "claude-sonnet-5",
+ "plan_version": "hobby_tvshow/v5",
+ "prompt_version": "grader-v5.3",
+ "rubric_contract_version": "9a6c82dc-dc00-4362-872c-e2a07402a4a7",
+ "schema_version": "1.0",
+ "scope_outcomes": [
+  {
+   "cached_input_tokens": 0,
+   "criterion_outcomes": [
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.א.c0.k1",
+       "confidence": 0.98,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "public class Hobby",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "כותרת מחלקה בשם Hobby",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.א.c0.k2",
+       "confidence": 0.97,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "3",
+       "quote": "private string hobbyName;\n    private bool isSportive;\n    private int durationInMinutes;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "שלוש תכונות המחלקה מוגדרות בטיפוסים הנכונים: hobbyName מחרוזת, isSportive בוליאני, minutes מספר שלם",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.97,
+     "criterion_id": "q1.א.c0",
+     "description": "סעיף א: כותרת ותכונות המחלקה Hobby",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "public class Hobby",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "public class Hobby",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "private string hobbyName;\n    private bool isSportive;\n    private int durationInMinutes;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "4.00",
+     "points_possible": "4",
+     "reasoning": "✓ כותרת מחלקה בשם Hobby\n✓ שלוש תכונות המחלקה מוגדרות בטיפוסים הנכונים: hobbyName מחרוזת, isSportive בוליאני, minutes מספר שלם",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.א.c1.k1",
+       "confidence": 0.98,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "public Hobby (string hobbyName, bool isSportive, int minutes)",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "חתימת פעולה בונה: public Hobby(string hobbyName, bool isSportive, int minutes)",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.א.c1.k2",
+       "confidence": 0.97,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "this.hobbyName = hobbyName; // פעולה בונה",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "גוף הבונה משים את הפרמטר hobbyName לתכונה המתאימה — [PL-10/AUDIT-3] החלקה בזיהוי היא \"דיו\" רק כאשר היעד קיים בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.א.c1.k3",
+       "confidence": 0.97,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "this.isSportive = isSportive;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "גוף הבונה משים את הפרמטר isSportive לתכונה המתאימה — [PL-10/AUDIT-3] החלקה בזיהוי היא \"דיו\" רק כאשר היעד קיים בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.א.c1.k4",
+       "confidence": 0.97,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "this.durationInMinutes = minutes;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "גוף הבונה משים את הפרמטר minutes לתכונה המתאימה — [PL-10/AUDIT-3] החלקה בזיהוי היא \"דיו\" רק כאשר היעד קיים בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.97,
+     "criterion_id": "q1.א.c1",
+     "description": "סעיף א: פעולה בונה Hobby(string hobbyName, bool isSportive, int minutes)",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "public Hobby (string hobbyName, bool isSportive, int minutes)",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "public Hobby (string hobbyName, bool isSportive, int minutes)",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "this.hobbyName = hobbyName; // פעולה בונה",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "this.isSportive = isSportive;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "this.durationInMinutes = minutes;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "4.00",
+     "points_possible": "4",
+     "reasoning": "✓ חתימת פעולה בונה: public Hobby(string hobbyName, bool isSportive, int minutes)\n✓ גוף הבונה משים את הפרמטר hobbyName לתכונה המתאימה — [PL-10/AUDIT-3] החלקה בזיהוי היא \"דיו\" רק כאשר היעד קיים בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met\n✓ גוף הבונה משים את הפרמטר isSportive לתכונה המתאימה — [PL-10/AUDIT-3] החלקה בזיהוי היא \"דיו\" רק כאשר היעד קיים בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met\n✓ גוף הבונה משים את הפרמטר minutes לתכונה המתאימה — [PL-10/AUDIT-3] החלקה בזיהוי היא \"דיו\" רק כאשר היעד קיים בהצהרה כלשהי (של התלמיד או של הפתרון); השמה ליעד שאינו מוכרז באף הצהרה = שדה שלא אותחל = פגם מהותי → partially_met",
+     "sub_criterion_outcomes": null
+    }
+   ],
+   "flags": [],
+   "graded_by": "llm",
+   "input_tokens": 5506,
+   "min_confidence": 0.97,
+   "output_tokens": 484,
+   "points_awarded": "8.00",
+   "points_possible": "8",
+   "question_id": "q1",
+   "retry_count": 1,
+   "scope_kind": "sub_question",
+   "sub_question_id": "א"
+  },
+  {
+   "cached_input_tokens": 0,
+   "criterion_outcomes": [
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c0.k1",
+       "confidence": 0.98,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "public bool PopulateHobbies()",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "פעולה פנימית בשם PopulateHobbies מוגדרת במחלקה",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c0.k2",
+       "confidence": 0.98,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "public bool PopulateHobbies()",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "טיפוס מוחזר bool",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.98,
+     "criterion_id": "q1.ב.c0",
+     "description": "סעיף ב: פעולה פנימית בשם PopulateHobbies (סה\"כ 16)כותרת הפעולה + טיפוס מוחזר bool",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "public bool PopulateHobbies()",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "public bool PopulateHobbies()",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "2.00",
+     "points_possible": "2",
+     "reasoning": "✓ פעולה פנימית בשם PopulateHobbies מוגדרת במחלקה\n✓ טיפוס מוחזר bool",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c1.k1",
+       "confidence": 0.97,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "if(countHobbies == hobbies.Length)\n            return false;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "לפני הלולאה: בדיקה אם המערך מלא והחזרת false במקרה זה",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.97,
+     "criterion_id": "q1.ב.c1",
+     "description": "סעיף ב בתוך PopulateHobbies: לפני הלולאה - לבדוק אם המערך מלא, להחזיר false",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "if(countHobbies == hobbies.Length)\n            return false;",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "if(countHobbies == hobbies.Length)\n            return false;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "1.00",
+     "points_possible": "1",
+     "reasoning": "✓ לפני הלולאה: בדיקה אם המערך מלא והחזרת false במקרה זה",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c2.k1",
+       "confidence": 0.95,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1.5",
+       "quote": "While ((countHobbies < hobbies.Length) && add != n && add != N)",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "לולאת קליטה שתנאי ההמשך שלה כולל קיום מקום פנוי במערך (countHobbies קטן מ-length)",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c2.k2",
+       "confidence": 0.9,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1.5",
+       "quote": "add != n && add != N",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "תנאי ההמשך כולל את רצון המשתמש — כל עוד המשתמש עונה Y או y",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.9,
+     "criterion_id": "q1.ב.c2",
+     "description": "סעיף ב בתוך PopulateHobbies: לולאה עד שאין מקום במערך (כל עוד countHobbies קטן מ-length) או כל עוד המשתמש יענה Y או y לשאלה",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "While ((countHobbies < hobbies.Length) && add != n && add != N)",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "While ((countHobbies < hobbies.Length) && add != n && add != N)",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "add != n && add != N",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "3.00",
+     "points_possible": "3",
+     "reasoning": "✓ לולאת קליטה שתנאי ההמשך שלה כולל קיום מקום פנוי במערך (countHobbies קטן מ-length)\n✓ תנאי ההמשך כולל את רצון המשתמש — כל עוד המשתמש עונה Y או y",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c3.k1",
+       "confidence": 0.95,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "CW(\"enter hobby name:\");\n                string name = CR();",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "בתוך הלולאה: קליטת שם התחביב",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c3.k2",
+       "confidence": 0.95,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "CW(\"enter is the hobby sportive:\");\n                bool sportive = bool.Parse(CR());",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "בתוך הלולאה: קליטת isSportive",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c3.k3",
+       "confidence": 0.95,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "CW(\"enter the hobby's duration in mins:\");\n                int duration = int.Parse(CR());",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "בתוך הלולאה: קליטת minutes",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.95,
+     "criterion_id": "q1.ב.c3",
+     "description": "סעיף ב בתוך PopulateHobbies: בתוך הלולאה קליטה של 3 נתוני התחביב (name, isSportive, minutes)",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "CW(\"enter hobby name:\");\n                string name = CR();",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "CW(\"enter hobby name:\");\n                string name = CR();",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "CW(\"enter is the hobby sportive:\");\n                bool sportive = bool.Parse(CR());",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "CW(\"enter the hobby's duration in mins:\");\n                int duration = int.Parse(CR());",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "3.00",
+     "points_possible": "3",
+     "reasoning": "✓ בתוך הלולאה: קליטת שם התחביב\n✓ בתוך הלולאה: קליטת isSportive\n✓ בתוך הלולאה: קליטת minutes",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c4.k1",
+       "confidence": 0.9,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1.5",
+       "quote": "hobbies(countHobbies) = new Hobby(name, sportive, duration);",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "יצירת עצם חדש מטיפוס Hobby עם שלושת הנתונים שנקלטו",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c4.k2",
+       "confidence": 0.85,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1.5",
+       "quote": "hobbies(countHobbies) = new Hobby(name, sportive, duration);",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "ההשמה מכניסה את העצם לתא הפנוי המתאים — hobbies[countHobbies] — כך שהתחביב אכן נוסף למערך ואינו דורס תחביב קיים (יש לעקוב אחר התנהגות התנאים סביב ההשמה, לא רק אחר צורת השורה)",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.85,
+     "criterion_id": "q1.ב.c4",
+     "description": "סעיף ב בתוך PopulateHobbies: בתוך הלולאה יצירה של עצם חדש מטיפוס Hobby בתא המתאים במערך (hobbies[countHobbies])",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "hobbies(countHobbies) = new Hobby(name, sportive, duration);",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "hobbies(countHobbies) = new Hobby(name, sportive, duration);",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "3.00",
+     "points_possible": "3",
+     "reasoning": "✓ יצירת עצם חדש מטיפוס Hobby עם שלושת הנתונים שנקלטו\n✓ ההשמה מכניסה את העצם לתא הפנוי המתאים — hobbies[countHobbies] — כך שהתחביב אכן נוסף למערך ואינו דורס תחביב קיים (יש לעקוב אחר התנהגות התנאים סביב ההשמה, לא רק אחר צורת השורה)",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c5.k1",
+       "confidence": 0.97,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "countHobbies++;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "בתוך הלולאה: קידום countHobbies",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.97,
+     "criterion_id": "q1.ב.c5",
+     "description": "סעיף ב בתוך PopulateHobbies: בתוך הלולאה קידום countHobbies",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "countHobbies++;",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "countHobbies++;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "1.00",
+     "points_possible": "1",
+     "reasoning": "✓ בתוך הלולאה: קידום countHobbies",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "חיפשתי בדיקה נפרדת של מקום פנוי לפני שאלת ההמשך (למשל if(countHobbies<hobbies.Length)) בתוך הלולאה - לא נמצאה; השאלה נשאלת תמיד ללא תנאי נוסף, הבדיקה מתבצעת רק בתנאי הלולאה עצמו",
+       "check_id": "q1.ב.c6.k1",
+       "confidence": 0.85,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": null,
+       "quote_status": null,
+       "tariff": null,
+       "text": "לפני שאלת ההמשך: בדיקה שעדיין יש מקום במערך",
+       "verdict": "not_met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c6.k2",
+       "confidence": 0.9,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "CW(\"do you want to create another hobby?\");\n                add = char.Parse(CR());",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "שאלה למשתמש האם להמשיך + קליטת התשובה",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.85,
+     "criterion_id": "q1.ב.c6",
+     "description": "סעיף ב בתוך PopulateHobbies: בדיקה אם עדיין יש מקום ושאלה למשתמש האם להמשיך + קליטת תשובהאם הציגו את ההודעה בלי לבדוק האם יש עדיין מקום להוריד 1",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "CW(\"do you want to create another hobby?\");\n                add = char.Parse(CR());",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "CW(\"do you want to create another hobby?\");\n                add = char.Parse(CR());",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "1.00",
+     "points_possible": "2",
+     "reasoning": "✗ לפני שאלת ההמשך: בדיקה שעדיין יש מקום במערך — חיפשתי בדיקה נפרדת של מקום פנוי לפני שאלת ההמשך (למשל if(countHobbies<hobbies.Length)) בתוך הלולאה - לא נמצאה; השאלה נשאלת תמיד ללא תנאי נוסף, הבדיקה מתבצעת רק בתנאי הלולאה עצמו\n✓ שאלה למשתמש האם להמשיך + קליטת התשובה",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ב.c7.k1",
+       "confidence": 0.8,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "return true; // גם לא הוחזר בהתחלה",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "מחוץ ללולאה: החזרת true",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.8,
+     "criterion_id": "q1.ב.c7",
+     "description": "סעיף ב בתוך PopulateHobbies: מחוץ ללולאה - להחזיר ערך true",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "return true; // גם לא הוחזר בהתחלה",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "return true; // גם לא הוחזר בהתחלה",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "1.00",
+     "points_possible": "1",
+     "reasoning": "✓ מחוץ ללולאה: החזרת true",
+     "sub_criterion_outcomes": null
+    }
+   ],
+   "flags": [],
+   "graded_by": "llm",
+   "input_tokens": 6825,
+   "min_confidence": 0.8,
+   "output_tokens": 1251,
+   "points_awarded": "15.00",
+   "points_possible": "16",
+   "question_id": "q1",
+   "retry_count": 1,
+   "scope_kind": "sub_question",
+   "sub_question_id": "ב"
+  },
+  {
+   "cached_input_tokens": 0,
+   "criterion_outcomes": [
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c0.k1",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "0.5",
+       "quote": "public void PrintAverages()",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "שם הפעולה PrintAverages קיים",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c0.k2",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "0.5",
+       "quote": "public void PrintAverages()",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "כותרת מלאה ותקינה עם טיפוס void",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 1.0,
+     "criterion_id": "q1.ג.c0",
+     "description": "סעיף ג': פעולה פנימית בשם PrintAverages (סה\"כ 16)כותרת הפעולה + void",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "public void PrintAverages()",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "public void PrintAverages()",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "1.00",
+     "points_possible": "1",
+     "reasoning": "✓ שם הפעולה PrintAverages קיים\n✓ כותרת מלאה ותקינה עם טיפוס void",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c1.k1",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "0.5",
+       "quote": "int countSportive = 0;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "מונה לחוגים הספורטיביים + אתחול ב-0",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c1.k2",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "0.5",
+       "quote": "int countNotS = 0;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "מונה לחוגים הלא-ספורטיביים + אתחול ב-0",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 1.0,
+     "criterion_id": "q1.ג.c1",
+     "description": "סעיף ג' בתוך PrintAverages : יצירת 2 מונה לכמות החוגים בספורטיבים והלא ספורטיבים + אתחולם ב-0 (0.5 כ\"א)",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "int countSportive = 0;",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "int countSportive = 0;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "int countNotS = 0;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "1.00",
+     "points_possible": "1",
+     "reasoning": "✓ מונה לחוגים הספורטיביים + אתחול ב-0\n✓ מונה לחוגים הלא-ספורטיביים + אתחול ב-0",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c2.k1",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "0.5",
+       "quote": "int sumSportive = 0;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "צובר דקות לחוגים הספורטיביים + אתחול ב-0",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c2.k2",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "0.5",
+       "quote": "int sumNotS = 0;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "צובר דקות לחוגים הלא-ספורטיביים + אתחול ב-0",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 1.0,
+     "criterion_id": "q1.ג.c2",
+     "description": "סעיף ג' בתוך PrintAverages : יצירת 2 צוברים לדקות של החוגים הספורטיבים והלא ספורטיבים + אתחולם ב-0 (0.5 כ\"א)",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "int sumSportive = 0;",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "int sumSportive = 0;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "int sumNotS = 0;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "1.00",
+     "points_possible": "1",
+     "reasoning": "✓ צובר דקות לחוגים הספורטיביים + אתחול ב-0\n✓ צובר דקות לחוגים הלא-ספורטיביים + אתחול ב-0",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c3.k1",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "3",
+       "quote": "for(int i=0; i < countHobbies; i++)",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "לולאה על מערך התחביבים בגבולות נכונים",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "הלולאה רצה עד countHobbies ולא עד length, כך שאין צורך בבדיקת null - הדרישה מתקיימת ללא ליקוי",
+       "check_id": "q1.ג.c3.k2",
+       "confidence": 1.0,
+       "kind": "tariff",
+       "partial_fraction": "0.5",
+       "points": "0",
+       "quote": "for(int i=0; i < countHobbies; i++)",
+       "quote_status": "exact",
+       "tariff": "1",
+       "text": "אם הלולאה רצה עד length — קיימת בתוכה בדיקת hobbies[i]!=null (לולאה עד countHobbies מקיימת את הדרישה ללא בדיקה)",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 1.0,
+     "criterion_id": "q1.ג.c3",
+     "description": "סעיף ג' בתוך PrintAverages : לולאה על מערך התחביבים מ-0 עד countHobbiesאו לולאה על מערך התחביבים עד hobbies.length ובדיקה בתוך הלולאה אם hobbies[i]!=nullאם עשו לולאה עד length ולא בדקו בפנים שהתא שונה מ-null להוריד 1",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "for(int i=0; i < countHobbies; i++)",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "for(int i=0; i < countHobbies; i++)",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "3.00",
+     "points_possible": "3",
+     "reasoning": "✓ לולאה על מערך התחביבים בגבולות נכונים\n✓ אם הלולאה רצה עד length — קיימת בתוכה בדיקת hobbies[i]!=null (לולאה עד countHobbies מקיימת את הדרישה ללא בדיקה)",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c4.k1",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "if(hobbies[i].GetIsSportive())",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "בתוך הלולאה: בדיקה אם החוג הנוכחי ספורטיבי",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c4.k2",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "sumSportive += hobbies[i].GetDuration();",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "צבירת הדקות של חוג ספורטיבי לצובר המתאים",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c4.k3",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "countSportive++;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "קידום מונה הספורטיביים",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 1.0,
+     "criterion_id": "q1.ג.c4",
+     "description": "סעיף ג' בתוך PrintAverages : בתוך הלולאה, בדיקת האם החוג הנוכחי ספורטיבי (1)+ צבירה של הדקות שלו (1)+ קידום המונה שלו (1 כ\"א)",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "if(hobbies[i].GetIsSportive())",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "if(hobbies[i].GetIsSportive())",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "sumSportive += hobbies[i].GetDuration();",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "countSportive++;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "3.00",
+     "points_possible": "3",
+     "reasoning": "✓ בתוך הלולאה: בדיקה אם החוג הנוכחי ספורטיבי\n✓ צבירת הדקות של חוג ספורטיבי לצובר המתאים\n✓ קידום מונה הספורטיביים",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c5.k1",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "else\n        {",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "ענף else / תנאי לחוג לא-ספורטיבי",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c5.k2",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "sumNotS += hobbies[i].GetDuration();",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "צבירת הדקות לצובר הלא-ספורטיבי",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c5.k3",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "countNotS++;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "קידום מונה הלא-ספורטיביים",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 1.0,
+     "criterion_id": "q1.ג.c5",
+     "description": "סעיף ג' בתוך PrintAverages : בתוך הלולאה, אם החוג הנוכחי לא ספורטיבי (else) (1)+ צבירה של הדקות שלו (1)+ קידום המונה שלו (1)",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "else\n        {",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "else\n        {",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "sumNotS += hobbies[i].GetDuration();",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "countNotS++;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "3.00",
+     "points_possible": "3",
+     "reasoning": "✓ ענף else / תנאי לחוג לא-ספורטיבי\n✓ צבירת הדקות לצובר הלא-ספורטיבי\n✓ קידום מונה הלא-ספורטיביים",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "חיפשתי בדיקת countSportive != 0 / > 0 לפני החלוקה - לא קיימת, החלוקה מתבצעת ישירות ללא בדיקה",
+       "check_id": "q1.ג.c6.k1",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": null,
+       "quote_status": null,
+       "tariff": null,
+       "text": "בדיקה שמונה הספורטיביים שונה מאפס לפני החלוקה",
+       "verdict": "not_met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c6.k2",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "double averageSportive = (double)(sumSportive) / countSportive;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "חישוב ממוצע הספורטיביים והדפסתו — חישוב שגוי אינו פוגע בבדיקה זו (met; הוא מחויב בניכוי הנפרד); partially_met שמור למקרה שרכיב שלם — חישוב או הדפסה — נעדר או שהמיקום שגוי [A-6]",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c6.k3",
+       "confidence": 1.0,
+       "kind": "tariff",
+       "partial_fraction": "0.5",
+       "points": "0",
+       "quote": "double averageSportive = (double)(sumSportive) / countSportive;",
+       "quote_status": "exact",
+       "tariff": "0.5",
+       "text": "החישוב המתמטי של הממוצע נכון (כאן, ורק כאן, מחויב חישוב שגוי) [A-6]",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c6.k4",
+       "confidence": 1.0,
+       "kind": "tariff",
+       "partial_fraction": "0.5",
+       "points": "0",
+       "quote": "double averageSportive = (double)(sumSportive) / countSportive;",
+       "quote_status": "exact",
+       "tariff": "0.5",
+       "text": "קיימת המרה לממשי בחישוב הממוצע (חלוקה שלמה אינה מספיקה)",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 1.0,
+     "criterion_id": "q1.ג.c6",
+     "description": "סעיף ג' בתוך PrintAverages : מחוץ ללולאה, בדיקה האם המונה של התחביבים הספורטיבים שונה מאפס (1) אם לא מנעו חלוקה באפס להוריד 1חישוב הממוצע והדפסה (1) (אם טעו בחישוב מתמטי להוריד 0.5)אם לא המירו לממשי בחישוב הממוצע להוריד 0.5 (רק פעם אחת)",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "double averageSportive = (double)(sumSportive) / countSportive;",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "double averageSportive = (double)(sumSportive) / countSportive;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "1.00",
+     "points_possible": "2",
+     "reasoning": "✗ בדיקה שמונה הספורטיביים שונה מאפס לפני החלוקה — חיפשתי בדיקת countSportive != 0 / > 0 לפני החלוקה - לא קיימת, החלוקה מתבצעת ישירות ללא בדיקה\n✓ חישוב ממוצע הספורטיביים והדפסתו — חישוב שגוי אינו פוגע בבדיקה זו (met; הוא מחויב בניכוי הנפרד); partially_met שמור למקרה שרכיב שלם — חישוב או הדפסה — נעדר או שהמיקום שגוי [A-6]\n✓ החישוב המתמטי של הממוצע נכון (כאן, ורק כאן, מחויב חישוב שגוי) [A-6]\n✓ קיימת המרה לממשי בחישוב הממוצע (חלוקה שלמה אינה מספיקה)",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "חיפשתי בדיקת countNotS != 0 / > 0 לפני החלוקה - לא קיימת, החלוקה מתבצעת ישירות ללא בדיקה",
+       "check_id": "q1.ג.c7.k1",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": null,
+       "quote_status": null,
+       "tariff": null,
+       "text": "בדיקה שמונה הלא-ספורטיביים שונה מאפס לפני החלוקה",
+       "verdict": "not_met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c7.k2",
+       "confidence": 1.0,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "double averageNotS = (double)(sumNotS) / countNotS;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "חישוב ממוצע הלא-ספורטיביים והדפסתו — חישוב שגוי אינו פוגע בבדיקה זו (met; הוא מחויב בניכוי הנפרד); partially_met שמור למקרה שרכיב שלם — חישוב או הדפסה — נעדר או שהמיקום שגוי [A-6]",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c7.k3",
+       "confidence": 1.0,
+       "kind": "tariff",
+       "partial_fraction": "0.5",
+       "points": "0",
+       "quote": "double averageNotS = (double)(sumNotS) / countNotS;",
+       "quote_status": "exact",
+       "tariff": "0.5",
+       "text": "החישוב המתמטי של הממוצע נכון (כאן, ורק כאן, מחויב חישוב שגוי) [A-6]",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q1.ג.c7.k4",
+       "confidence": 1.0,
+       "kind": "tariff",
+       "partial_fraction": "0.5",
+       "points": "0",
+       "quote": "double averageNotS = (double)(sumNotS) / countNotS;",
+       "quote_status": "exact",
+       "tariff": "0.5",
+       "text": "קיימת המרה לממשי בחישוב הממוצע",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 1.0,
+     "criterion_id": "q1.ג.c7",
+     "description": "סעיף ג' בתוך PrintAverages : מחוץ ללולאה,בדיקה האם המונה של התחביבים הלא-הספורטיבים שונה מאפס (1)אם לא מנעו חלוקה באפס להוריד 1חישוב הממוצע והדפסה (1) (אם טעו בחישוב מתמטי להוריד 0.5)אם לא המירו לממשי בחישוב הממוצע להוריד 0.5 (רק פעם אחת)",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "double averageNotS = (double)(sumNotS) / countNotS;",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "double averageNotS = (double)(sumNotS) / countNotS;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "1.00",
+     "points_possible": "2",
+     "reasoning": "✗ בדיקה שמונה הלא-ספורטיביים שונה מאפס לפני החלוקה — חיפשתי בדיקת countNotS != 0 / > 0 לפני החלוקה - לא קיימת, החלוקה מתבצעת ישירות ללא בדיקה\n✓ חישוב ממוצע הלא-ספורטיביים והדפסתו — חישוב שגוי אינו פוגע בבדיקה זו (met; הוא מחויב בניכוי הנפרד); partially_met שמור למקרה שרכיב שלם — חישוב או הדפסה — נעדר או שהמיקום שגוי [A-6]\n✓ החישוב המתמטי של הממוצע נכון (כאן, ורק כאן, מחויב חישוב שגוי) [A-6]\n✓ קיימת המרה לממשי בחישוב הממוצע",
+     "sub_criterion_outcomes": null
+    }
+   ],
+   "flags": [],
+   "graded_by": "llm",
+   "input_tokens": 6888,
+   "min_confidence": 1.0,
+   "output_tokens": 1648,
+   "points_awarded": "14.00",
+   "points_possible": "16",
+   "question_id": "q1",
+   "retry_count": 0,
+   "scope_kind": "sub_question",
+   "sub_question_id": "ג"
+  },
+  {
+   "cached_input_tokens": 0,
+   "criterion_outcomes": [
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q2.א.c0.k1",
+       "confidence": 0.98,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "public TvShow (string name, int channel) // פעולה בונה",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "חתימת פעולה בונה: public TvShow(string name, int channel)",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q2.א.c0.k2",
+       "confidence": 0.98,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "2",
+       "quote": "this.name = name;\n        this.chl = channel;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "השמת name ו-chl מהפרמטרים",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q2.א.c0.k3",
+       "confidence": 0.98,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "2",
+       "quote": "this.rate = 0;\n        this.isOn = true;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "קביעת rate=0 ו-isOn=true",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.98,
+     "criterion_id": "q2.א.c0",
+     "description": "סעיף א': פעולה בונה public TvShow (string name, int channel)",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "public TvShow (string name, int channel) // פעולה בונה",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "public TvShow (string name, int channel) // פעולה בונה",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "this.name = name;\n        this.chl = channel;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "this.rate = 0;\n        this.isOn = true;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "5.0",
+     "points_possible": "5",
+     "reasoning": "✓ חתימת פעולה בונה: public TvShow(string name, int channel)\n✓ השמת name ו-chl מהפרמטרים\n✓ קביעת rate=0 ו-isOn=true",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q2.א.c1.k1",
+       "confidence": 0.95,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "2",
+       "quote": "Public void UpdateRate (int numViewers)",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "חתימה: public void UpdateRate(int numViewers)",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q2.א.c1.k2",
+       "confidence": 0.9,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "3",
+       "quote": "For (int i = 0; i < numViewers; i++)",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "לולאת קליטה על הצופים קיימת ותקינה במבנה — סטיית-גבול של צופה אחד ⇒ k2 met והtariff מחייב; סטייה גסה יותר ⇒ שיפוט k2 רגיל, ללא tariff זה",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "הלולאה רצה מ-0 עד numViewers-1, כלומר בדיוק numViewers פעמים - כל הצופים נספרים, אין פספוס גבול.",
+       "check_id": "q2.א.c1.t1",
+       "confidence": 0.9,
+       "kind": "tariff",
+       "partial_fraction": "0.5",
+       "points": "0",
+       "quote": "For (int i = 0; i < numViewers; i++)",
+       "quote_status": "exact",
+       "tariff": "1",
+       "text": "גבולות הלולאה מפספסים צופה אחד — ניכוי 1",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q2.א.c1.k3",
+       "confidence": 0.9,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "2",
+       "quote": "int ViewerRate = int.Parse(CR());",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "קליטת דירוג מכל צופה בתוך הלולאה",
+       "verdict": "met"
+      },
+      {
+       "basis_he": "",
+       "check_id": "q2.א.c1.k4",
+       "confidence": 0.9,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "3",
+       "quote": "SetRate(GetRate() + viewerRate);",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "הוספת כל דירוג שנקלט לדירוג הקיים (rate += …) — צבירה, לא דריסה",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.9,
+     "criterion_id": "q2.א.c1",
+     "description": "סעיף א': פעולה פנימית UpdateRate (סה\"כ לפעולה 10)public TvShow (string name, int channel)",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "Public void UpdateRate (int numViewers)",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "Public void UpdateRate (int numViewers)",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "For (int i = 0; i < numViewers; i++)",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "int ViewerRate = int.Parse(CR());",
+       "span_pointer": null,
+       "validation_status": "exact"
+      },
+      {
+       "position_hint": null,
+       "quote_text": "SetRate(GetRate() + viewerRate);",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "10.0",
+     "points_possible": "10",
+     "reasoning": "✓ חתימה: public void UpdateRate(int numViewers)\n✓ לולאת קליטה על הצופים קיימת ותקינה במבנה — סטיית-גבול של צופה אחד ⇒ k2 met והtariff מחייב; סטייה גסה יותר ⇒ שיפוט k2 רגיל, ללא tariff זה\n✓ גבולות הלולאה מפספסים צופה אחד — ניכוי 1\n✓ קליטת דירוג מכל צופה בתוך הלולאה\n✓ הוספת כל דירוג שנקלט לדירוג הקיים (rate += …) — צבירה, לא דריסה",
+     "sub_criterion_outcomes": null
+    }
+   ],
+   "flags": [],
+   "graded_by": "llm",
+   "input_tokens": 5539,
+   "min_confidence": 0.9,
+   "output_tokens": 641,
+   "points_awarded": "15.0",
+   "points_possible": "15",
+   "question_id": "q2",
+   "retry_count": 0,
+   "scope_kind": "sub_question",
+   "sub_question_id": "א"
+  },
+  {
+   "cached_input_tokens": 0,
+   "criterion_outcomes": [
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q2.ב.c0.k1",
+       "confidence": 0.95,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "2",
+       "quote": "Public Static int LowestRateChannel (TVRate rates)",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "כותרת פעולה חיצונית LowestRateChannel המקבלת TvRate ומחזירה מספר ערוץ",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.95,
+     "criterion_id": "q2.ב.c0",
+     "description": "סעיף ב': פעולה חיצונית LowestRateChannel כותרת הפעולה",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "Public Static int LowestRateChannel (TVRate rates)",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "Public Static int LowestRateChannel (TVRate rates)",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "2.00",
+     "points_possible": "2",
+     "reasoning": "✓ כותרת פעולה חיצונית LowestRateChannel המקבלת TvRate ומחזירה מספר ערוץ",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "המערך בגודל 100 ולא 101, כך שערוץ 100 ייגרם לחריגה מהתחום/לא יתאים לאינדקס 100. הרכיב הבסיסי (מערך צוברים לערוצים) קיים אך בגודל שגוי לכיסוי 1-100.",
+       "check_id": "q2.ב.c1.k1",
+       "confidence": 0.85,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "2",
+       "quote": "int[] chlRates = new int[100]; // מערך צבירה חדש",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "הגדרת מערך צוברים מטיפוס int לערוצים 1-100, בגודל 101",
+       "verdict": "partially_met"
+      }
+     ],
+     "confidence": 0.85,
+     "criterion_id": "q2.ב.c1",
+     "description": "סעיף ב': בתוך LowestRateChannel : הגדרת מערך צוברים int לכל 100 הערוצים (ערוצים 1-100, המערך אמור להיות בגודל 101)",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "int[] chlRates = new int[100]; // מערך צבירה חדש",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "int[] chlRates = new int[100]; // מערך צבירה חדש",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "1.00",
+     "points_possible": "2",
+     "reasoning": "◐ הגדרת מערך צוברים מטיפוס int לערוצים 1-100, בגודל 101 — המערך בגודל 100 ולא 101, כך שערוץ 100 ייגרם לחריגה מהתחום/לא יתאים לאינדקס 100. הרכיב הבסיסי (מערך צוברים לערוצים) קיים אך בגודל שגוי לכיסוי 1-100.",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q2.ב.c2.k1",
+       "confidence": 0.95,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "3",
+       "quote": "for(int i = 0; i < chlRates.Length; i++) // איפוס המערך\n    {\n        chlRates[i] = 0;\n    }",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "לולאת איפוס על מערך הצוברים",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.95,
+     "criterion_id": "q2.ב.c2",
+     "description": "סעיף ב': בתוך LowestRateChannel : לולאה על מערך הצוברים לאיפוס המערך",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "for(int i = 0; i < chlRates.Length; i++) // איפוס המערך\n    {\n        chlRates[i] = 0;\n    }",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "for(int i = 0; i < chlRates.Length; i++) // איפוס המערך\n    {\n        chlRates[i] = 0;\n    }",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "3.00",
+     "points_possible": "3",
+     "reasoning": "✓ לולאת איפוס על מערך הצוברים",
+     "sub_criterion_outcomes": null
+    },
+    {
+     "checks": null,
+     "confidence": 0.75,
+     "criterion_id": "q2.ב.c3",
+     "description": "סעיף ב': בתוך LowestRateChannel : לולאה על מערך התוכניות TvShows לצבירת הדירוגים לכל הערוצים - סה\"כ לצבירה 12.פירוט ל-12:",
+     "evidence_quote": null,
+     "evidence_quotes": null,
+     "flags": [],
+     "points_awarded": "9.00",
+     "points_possible": "12",
+     "reasoning": "",
+     "sub_criterion_outcomes": [
+      {
+       "checks": [
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c3.s0.k1",
+         "confidence": 0.9,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "3",
+         "quote": "For (int i = 0; i < rates.GetArrShows.Length; i++) // מילוי המערך",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "לולאה העוברת על מערך התוכניות TvShows",
+         "verdict": "met"
+        },
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c3.s0.k2",
+         "confidence": 0.9,
+         "kind": "tariff",
+         "partial_fraction": "0.5",
+         "points": "0",
+         "quote": "For (int i = 0; i < rates.GetArrShows.Length; i++)",
+         "quote_status": "exact",
+         "tariff": "0.5",
+         "text": "הלולאה מתחילה מ-0 (לא מ-1)",
+         "verdict": "met"
+        },
+        {
+         "basis_he": "הגישה למערך התוכניות בגוף הלולאה נעשית ישירות דרך arrShows[i] ולא דרך Getter של TvRate (rates.GetArrShows()[i]) — arrShows אינו משתנה מוגדר, וגם אם היינו מניחים כוונה, זו גישה ישירה למערך ולא דרך getter בכל אתרי הגישה.",
+         "check_id": "q2.ב.c3.s0.k3",
+         "confidence": 0.75,
+         "kind": "tariff",
+         "partial_fraction": "0.5",
+         "points": "0",
+         "quote": "chlRates[arrShows[i].GetChl()] += arrShows[i].GetRate();",
+         "quote_status": "exact",
+         "tariff": "1",
+         "text": "הגישה למערך התוכניות נעשית דרך ה-Getter — [R-β] הקנס חל על כל אתר גישה — כולל גבול הלולאה; שימוש ב-Getter במקום אחר בגוף אינו מרפא גישה ישירה באתר הנבדק",
+         "verdict": "not_met"
+        },
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c3.s0.k4",
+         "confidence": 0.85,
+         "kind": "tariff",
+         "partial_fraction": "0.5",
+         "points": "0",
+         "quote": "For (int i = 0; i < rates.GetArrShows.Length; i++)",
+         "quote_status": "exact",
+         "tariff": "0.5",
+         "text": "הגבול העליון של הלולאה נכון (קטן ממש מ-length)",
+         "verdict": "met"
+        }
+       ],
+       "confidence": 0.75,
+       "description": "הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ- length של מערך ה -TvShowsאם התחילו מ-1 במקום מ-0 להוריד 0.5 אם ניגשו למערך TvShows בלי Getter להוריד 1 אם טעו בגבול העליון של הלולאה להוריד 0.5",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "For (int i = 0; i < rates.GetArrShows.Length; i++) // מילוי המערך",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "For (int i = 0; i < rates.GetArrShows.Length; i++) // מילוי המערך",
+         "span_pointer": null,
+         "validation_status": "exact"
+        },
+        {
+         "position_hint": null,
+         "quote_text": "chlRates[arrShows[i].GetChl()] += arrShows[i].GetRate();",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "2.00",
+       "points_possible": "3",
+       "reasoning": "✓ לולאה העוברת על מערך התוכניות TvShows\n✓ הלולאה מתחילה מ-0 (לא מ-1)\n✗ הגישה למערך התוכניות נעשית דרך ה-Getter — [R-β] הקנס חל על כל אתר גישה — כולל גבול הלולאה; שימוש ב-Getter במקום אחר בגוף אינו מרפא גישה ישירה באתר הנבדק — ניכוי 1 — הגישה למערך התוכניות בגוף הלולאה נעשית ישירות דרך arrShows[i] ולא דרך Getter של TvRate (rates.GetArrShows()[i]) — arrShows אינו משתנה מוגדר, וגם אם היינו מניחים כוונה, זו גישה ישירה למערך ולא דרך getter בכל אתרי הגישה.\n✓ הגבול העליון של הלולאה נכון (קטן ממש מ-length)",
+       "sub_criterion_id": "q2.ב.c3.s0"
+      },
+      {
+       "checks": [
+        {
+         "basis_he": "חיפשתי בדיקת null על התא של מערך התוכניות בתוך הלולאה (arrShows[i] != null) — לא נמצאה, הלולאה ניגשת ישירות ל-arrShows[i] ללא בדיקה.",
+         "check_id": "q2.ב.c3.s1.k1",
+         "confidence": 0.85,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "2",
+         "quote": null,
+         "quote_status": null,
+         "tariff": null,
+         "text": "בתוך הלולאה: בדיקה שהתא אינו null",
+         "verdict": "not_met"
+        }
+       ],
+       "confidence": 0.85,
+       "description": "בתוך הלולאה על TvShows: בדיקה אם התא אינו null",
+       "evidence_quote": null,
+       "evidence_quotes": [],
+       "flags": [],
+       "points_awarded": "0",
+       "points_possible": "2",
+       "reasoning": "✗ בתוך הלולאה: בדיקה שהתא אינו null — חיפשתי בדיקת null על התא של מערך התוכניות בתוך הלולאה (arrShows[i] != null) — לא נמצאה, הלולאה ניגשת ישירות ל-arrShows[i] ללא בדיקה.",
+       "sub_criterion_id": "q2.ב.c3.s1"
+      },
+      {
+       "checks": [
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c3.s2.k1",
+         "confidence": 0.9,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "2",
+         "quote": "arrShows[i].GetChl()",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "קריאת הערוץ של התוכנית הנוכחית",
+         "verdict": "met"
+        },
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c3.s2.k2",
+         "confidence": 0.9,
+         "kind": "tariff",
+         "partial_fraction": "0.5",
+         "points": "0",
+         "quote": "arrShows[i].GetChl()",
+         "quote_status": "exact",
+         "tariff": "1",
+         "text": "הקריאה נעשית ע\"י GetChl ולא בגישה ישירה לתכונה chl",
+         "verdict": "met"
+        }
+       ],
+       "confidence": 0.9,
+       "description": "בתוך הלולאה על TvShows: אם התא אינו null , גישה לערוץ GetChl (ולא ע\"י גישה ישירה לתכונה)אם ניגשו ישירות לתכונה chl להוריד 1",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "arrShows[i].GetChl()",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "arrShows[i].GetChl()",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "2.00",
+       "points_possible": "2",
+       "reasoning": "✓ קריאת הערוץ של התוכנית הנוכחית\n✓ הקריאה נעשית ע\"י GetChl ולא בגישה ישירה לתכונה chl",
+       "sub_criterion_id": "q2.ב.c3.s2"
+      },
+      {
+       "checks": [
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c3.s3.k1",
+         "confidence": 0.85,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "5",
+         "quote": "chlRates[arrShows[i].GetChl()] += arrShows[i].GetRate();",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "צבירת הדירוג של התוכנית לתא של הערוץ שלה במערך הצוברים",
+         "verdict": "met"
+        },
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c3.s3.k2",
+         "confidence": 0.9,
+         "kind": "tariff",
+         "partial_fraction": "0.5",
+         "points": "0",
+         "quote": "arrShows[i].GetRate()",
+         "quote_status": "exact",
+         "tariff": "1",
+         "text": "קריאת הדירוג ע\"י GetRate ולא בגישה ישירה לתכונה rate",
+         "verdict": "met"
+        }
+       ],
+       "confidence": 0.85,
+       "description": "בתוך הלולאה על TvShows: אם התא אינו null , צבירה של הדירוג של הערוץ (GetChl) לתוך מערך הצוברים במקום של הערוץ הזהאם ניגשו ישירות לתכונה rate במקום GetRate להוריד 1",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "chlRates[arrShows[i].GetChl()] += arrShows[i].GetRate();",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "chlRates[arrShows[i].GetChl()] += arrShows[i].GetRate();",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "5.0",
+       "points_possible": "5",
+       "reasoning": "✓ צבירת הדירוג של התוכנית לתא של הערוץ שלה במערך הצוברים\n✓ קריאת הדירוג ע\"י GetRate ולא בגישה ישירה לתכונה rate",
+       "sub_criterion_id": "q2.ב.c3.s3"
+      }
+     ]
+    },
+    {
+     "checks": null,
+     "confidence": 0.85,
+     "criterion_id": "q2.ב.c4",
+     "description": "סעיף ב': בתוך LowestRateChannel : לולאה על מערך הצוברים לחיפוש הערוץ בעל הדירוג המינימלי. סה\"כ לחיפוש מינימום 9 נקודות.פירוט ל-10:אם חיפשו את המקסימום אך הלוגיקה בסדר להוריד 3",
+     "evidence_quote": null,
+     "evidence_quotes": null,
+     "flags": [],
+     "points_awarded": "9.00",
+     "points_possible": "9",
+     "reasoning": "",
+     "sub_criterion_outcomes": [
+      {
+       "checks": [
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c4.s0.k1",
+         "confidence": 0.9,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "1",
+         "quote": "int lowestRate = int.MaxValue;",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "הגדרת משתנה מינימום-דירוג + אתחולו — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.",
+         "verdict": "met"
+        }
+       ],
+       "confidence": 0.9,
+       "description": "הגדרת מינימום דירוג + אתחול",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "int lowestRate = int.MaxValue;",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "int lowestRate = int.MaxValue;",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "1.00",
+       "points_possible": "1",
+       "reasoning": "✓ הגדרת משתנה מינימום-דירוג + אתחולו — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.",
+       "sub_criterion_id": "q2.ב.c4.s0"
+      },
+      {
+       "checks": [
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c4.s1.k1",
+         "confidence": 0.9,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "1",
+         "quote": "int chlNum = -1;",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "הגדרת משתנה ערוץ-מינימלי + אתחולו — המשתנה מייצג מספר ערוץ (אינדקס), ומאותחל כערוץ, לא כערך דירוג — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.",
+         "verdict": "met"
+        }
+       ],
+       "confidence": 0.9,
+       "description": "הגדרת ערוץ מינימלי +אתחול",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "int chlNum = -1;",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "int chlNum = -1;",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "1.00",
+       "points_possible": "1",
+       "reasoning": "✓ הגדרת משתנה ערוץ-מינימלי + אתחולו — המשתנה מייצג מספר ערוץ (אינדקס), ומאותחל כערוץ, לא כערך דירוג — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.",
+       "sub_criterion_id": "q2.ב.c4.s1"
+      },
+      {
+       "checks": [
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c4.s2.k1",
+         "confidence": 0.9,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "2",
+         "quote": "For(int i = 1; i <= 100; i++) // מציאת והדפסת מספר הערוץ עם הדירוג בנמוך ביותר",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "לולאה על מערך הצוברים מ-1 עד 100 — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.",
+         "verdict": "met"
+        },
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c4.s2.k2",
+         "confidence": 0.9,
+         "kind": "tariff",
+         "partial_fraction": "0.5",
+         "points": "0",
+         "quote": "For(int i = 1; i <= 100; i++)",
+         "quote_status": "exact",
+         "tariff": "0.5",
+         "text": "הסריקה מתחילה מ-1, לא מ-0 — תא 0 אינו ערוץ",
+         "verdict": "met"
+        }
+       ],
+       "confidence": 0.9,
+       "description": "הגדרת לולאה על מערך צוברים מ-1 עד 100",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "For(int i = 1; i <= 100; i++) // מציאת והדפסת מספר הערוץ עם הדירוג בנמוך ביותר",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "For(int i = 1; i <= 100; i++) // מציאת והדפסת מספר הערוץ עם הדירוג בנמוך ביותר",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "2.00",
+       "points_possible": "2",
+       "reasoning": "✓ לולאה על מערך הצוברים מ-1 עד 100 — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.\n✓ הסריקה מתחילה מ-1, לא מ-0 — תא 0 אינו ערוץ",
+       "sub_criterion_id": "q2.ב.c4.s2"
+      },
+      {
+       "checks": [
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c4.s3.k1",
+         "confidence": 0.85,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "3",
+         "quote": "if (chlRate[i] < lowestRate)",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "בתוך הלולאה: השוואת סכום הדירוגים של הערוץ הנוכחי לערך הקיצון הנוכחי (התנאי שמאתר את הערוץ בעל הדירוג הנמוך) — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.",
+         "verdict": "met"
+        },
+        {
+         "basis_he": "חיפשתי בדיקה שהתא גדול מאפס (chlRate[i] > 0) בתוך התנאי — לא נמצאה, יש רק השוואה למינימום ללא בדיקת שימוש בערוץ.",
+         "check_id": "q2.ב.c4.s3.k2",
+         "confidence": 0.85,
+         "kind": "note_only",
+         "partial_fraction": "0.5",
+         "points": "0",
+         "quote": "if (chlRate[i] < lowestRate)",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "בדיקה שהתא גדול מאפס (כלומר הערוץ בשימוש) — לציין בלבד, ללא ניכוי",
+         "verdict": "not_met"
+        },
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c4.s3.k3",
+         "confidence": 0.9,
+         "kind": "tariff",
+         "partial_fraction": "0.5",
+         "points": "0",
+         "quote": "if (chlRate[i] < lowestRate)",
+         "quote_status": "exact",
+         "tariff": "3",
+         "text": "כיוון החיפוש הוא מינימום (ולא מקסימום) — ההשוואה בכיוון קטן-מ",
+         "verdict": "met"
+        }
+       ],
+       "confidence": 0.85,
+       "description": "בתוך הלולאה על מערך הצוברים: בדיקה האם התא מתאים לערוץ הנוכחי של TvShow בתוך מערך הצוברים גדול מאפס (כלומר יש שימוש בערוץ זה) - לא להוריד, לכתוב הערהוהאם סה\"כ הדירוגים קטן מהמינימום - סה\"כ 2 נקודות",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "if (chlRate[i] < lowestRate)",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "if (chlRate[i] < lowestRate)",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "3.00",
+       "points_possible": "3",
+       "reasoning": "✓ בתוך הלולאה: השוואת סכום הדירוגים של הערוץ הנוכחי לערך הקיצון הנוכחי (התנאי שמאתר את הערוץ בעל הדירוג הנמוך) — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.\n◦ בדיקה שהתא גדול מאפס (כלומר הערוץ בשימוש) — לציין בלבד, ללא ניכוי — צוין, ללא ניכוי\n✓ כיוון החיפוש הוא מינימום (ולא מקסימום) — ההשוואה בכיוון קטן-מ",
+       "sub_criterion_id": "q2.ב.c4.s3"
+      },
+      {
+       "checks": [
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c4.s4.k1",
+         "confidence": 0.9,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "1",
+         "quote": "lowestRate = chlRate[i];",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "בתוך התנאי: עדכון מינימום הדירוג — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.",
+         "verdict": "met"
+        }
+       ],
+       "confidence": 0.9,
+       "description": "בתוך התנאי (בתוך הלולאה) - החלפה של מינימום דירוג",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "lowestRate = chlRate[i];",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "lowestRate = chlRate[i];",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "1.00",
+       "points_possible": "1",
+       "reasoning": "✓ בתוך התנאי: עדכון מינימום הדירוג — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.",
+       "sub_criterion_id": "q2.ב.c4.s4"
+      },
+      {
+       "checks": [
+        {
+         "basis_he": "",
+         "check_id": "q2.ב.c4.s5.k1",
+         "confidence": 0.9,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "1",
+         "quote": "chlNum = i;",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "בתוך התנאי: עדכון הערוץ המינימלי — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.",
+         "verdict": "met"
+        }
+       ],
+       "confidence": 0.9,
+       "description": "בתוך התנאי (בתוך הלולאה) - החלפת הערוץ המינימלי",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "chlNum = i;",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "chlNum = i;",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "1.00",
+       "points_possible": "1",
+       "reasoning": "✓ בתוך התנאי: עדכון הערוץ המינימלי — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.",
+       "sub_criterion_id": "q2.ב.c4.s5"
+      }
+     ]
+    },
+    {
+     "checks": [
+      {
+       "basis_he": "",
+       "check_id": "q2.ב.c5.k1",
+       "confidence": 0.9,
+       "kind": "required",
+       "partial_fraction": "0.5",
+       "points": "1",
+       "quote": "return chlNum;",
+       "quote_status": "exact",
+       "tariff": null,
+       "text": "החזרת הערוץ המינימלי — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.",
+       "verdict": "met"
+      }
+     ],
+     "confidence": 0.9,
+     "criterion_id": "q2.ב.c5",
+     "description": "סעיף ב': בתוך LowestRateChannel : החזרת הערוץ המינימלי",
+     "evidence_quote": {
+      "position_hint": null,
+      "quote_text": "return chlNum;",
+      "span_pointer": null,
+      "validation_status": "exact"
+     },
+     "evidence_quotes": [
+      {
+       "position_hint": null,
+       "quote_text": "return chlNum;",
+       "span_pointer": null,
+       "validation_status": "exact"
+      }
+     ],
+     "flags": [],
+     "points_awarded": "1.00",
+     "points_possible": "1",
+     "reasoning": "✓ החזרת הערוץ המינימלי — [PL-9] רכיב תקף במונחי עצמו — לולאת מינימום, משתנה מינימום, החלפה, החזרה — נחשב קיים גם כשהוא פועל על אוסף שגוי, כאשר עצם קריאת-הבעיה-השגויה כבר חויבה בבדיקות המכונן שנעדרו (הצוברים/הערוצים). אין לחייב את הקריאה השגויה פעמיים. רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי חד-פעמי, כשם שהחיוב חד-פעמי.",
+     "sub_criterion_outcomes": null
+    }
+   ],
+   "flags": [],
+   "graded_by": "llm",
+   "input_tokens": 9454,
+   "min_confidence": 0.75,
+   "output_tokens": 2077,
+   "points_awarded": "25.00",
+   "points_possible": "29",
+   "question_id": "q2",
+   "retry_count": 0,
+   "scope_kind": "sub_question",
+   "sub_question_id": "ב"
+  },
+  {
+   "cached_input_tokens": 0,
+   "criterion_outcomes": [
+    {
+     "checks": null,
+     "confidence": 0.55,
+     "criterion_id": "q2.ג.c0",
+     "description": "סעיף ב': פעולה חיצונית PrintLowRatingChannel סה\"כ לכל הפעולה 16פירוט:",
+     "evidence_quote": null,
+     "evidence_quotes": null,
+     "flags": [],
+     "points_awarded": "13.00",
+     "points_possible": "16",
+     "reasoning": "",
+     "sub_criterion_outcomes": [
+      {
+       "checks": [
+        {
+         "basis_he": "",
+         "check_id": "q2.ג.c0.s0.k1",
+         "confidence": 0.95,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "2",
+         "quote": "Public Static void PrintLowRatingChannel(TVRate rates)",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "כותרת פעולה חיצונית PrintLowRatingChannel המקבלת TvRate",
+         "verdict": "met"
+        }
+       ],
+       "confidence": 0.95,
+       "description": "כותרת הפעולה PrintLowRatingChannel",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "Public Static void PrintLowRatingChannel(TVRate rates)",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "Public Static void PrintLowRatingChannel(TVRate rates)",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "2.00",
+       "points_possible": "2",
+       "reasoning": "✓ כותרת פעולה חיצונית PrintLowRatingChannel המקבלת TvRate",
+       "sub_criterion_id": "q2.ג.c0.s0"
+      },
+      {
+       "checks": [
+        {
+         "basis_he": "",
+         "check_id": "q2.ג.c0.s1.k1",
+         "confidence": 0.95,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "3",
+         "quote": "int lowestRateChl = LowestRateChannel(rates);",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "מציאת הערוץ המינימלי ע\"י זימון LowestRateChannel (ולא חישוב מחדש)",
+         "verdict": "met"
+        }
+       ],
+       "confidence": 0.95,
+       "description": "מציאת הערוץ בעל דירוג מינימלי ע\"י זימון LowestRateChannel",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "int lowestRateChl = LowestRateChannel(rates);",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "int lowestRateChl = LowestRateChannel(rates);",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "3.00",
+       "points_possible": "3",
+       "reasoning": "✓ מציאת הערוץ המינימלי ע\"י זימון LowestRateChannel (ולא חישוב מחדש)",
+       "sub_criterion_id": "q2.ג.c0.s1"
+      },
+      {
+       "checks": [
+        {
+         "basis_he": "",
+         "check_id": "q2.ג.c0.s2.k1",
+         "confidence": 0.9,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "3",
+         "quote": "for(int i = 0; i < rates.GetArrShows().Length; i++)",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ-length",
+         "verdict": "met"
+        },
+        {
+         "basis_he": "הגישה לאיברי המערך בגוף הלולאה (arrShows[i]) נעשית ישירות על מערך מקומי ולא דרך getter בכל אתר - עם זאת arrShows הוא עותק שהתקבל מ-GetArrShows(), אך הגישה לאיברים הבודדים היא ישירה במקום arrShows.GetX(i) או דומה; כמו כן גבול הלולאה משתמש ב-rates.GetArrShows().Length (getter) אך גישה לאיברים בגוף היא ישירה על מערך מקומי",
+         "check_id": "q2.ג.c0.s2.k2",
+         "confidence": 0.55,
+         "kind": "tariff",
+         "partial_fraction": "0.5",
+         "points": "0",
+         "quote": "if (arrShows[i].GetIsOn() && arrShows[i].GetChl()==lowestRateChl)",
+         "quote_status": "exact",
+         "tariff": "1",
+         "text": "הגישה למערך נעשית דרך ה-getter — [R-β] הקנס חל על כל אתר גישה — כולל גבול הלולאה; שימוש ב-Getter במקום אחר בגוף אינו מרפא גישה ישירה באתר הנבדק",
+         "verdict": "not_met"
+        }
+       ],
+       "confidence": 0.55,
+       "description": "הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ- length של מערך ה -TvShowsאם הגישה למערך בלי getter להוריד 1",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "for(int i = 0; i < rates.GetArrShows().Length; i++)",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "for(int i = 0; i < rates.GetArrShows().Length; i++)",
+         "span_pointer": null,
+         "validation_status": "exact"
+        },
+        {
+         "position_hint": null,
+         "quote_text": "if (arrShows[i].GetIsOn() && arrShows[i].GetChl()==lowestRateChl)",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "2.00",
+       "points_possible": "3",
+       "reasoning": "✓ לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ-length\n✗ הגישה למערך נעשית דרך ה-getter — [R-β] הקנס חל על כל אתר גישה — כולל גבול הלולאה; שימוש ב-Getter במקום אחר בגוף אינו מרפא גישה ישירה באתר הנבדק — ניכוי 1 — הגישה לאיברי המערך בגוף הלולאה (arrShows[i]) נעשית ישירות על מערך מקומי ולא דרך getter בכל אתר - עם זאת arrShows הוא עותק שהתקבל מ-GetArrShows(), אך הגישה לאיברים הבודדים היא ישירה במקום arrShows.GetX(i) או דומה; כמו כן גבול הלולאה משתמש ב-rates.GetArrShows().Length (getter) אך גישה לאיברים בגוף היא ישירה על מערך מקומי",
+       "sub_criterion_id": "q2.ג.c0.s2"
+      },
+      {
+       "checks": [
+        {
+         "basis_he": "חיפשתי בדיקת null על arrShows[i] בגוף הלולאה - לא נמצאה כל בדיקה כזו לפני הגישה לתכונות",
+         "check_id": "q2.ג.c0.s3.k1",
+         "confidence": 0.9,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "2",
+         "quote": null,
+         "quote_status": null,
+         "tariff": null,
+         "text": "בתוך הלולאה: בדיקה שהתוכנית אינה null",
+         "verdict": "not_met"
+        },
+        {
+         "basis_he": "",
+         "check_id": "q2.ג.c0.s3.k2",
+         "confidence": 0.95,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "2",
+         "quote": "arrShows[i].GetChl()==lowestRateChl",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "בדיקה שהערוץ של התוכנית תואם את הערוץ המינימלי ע\"י GetChl",
+         "verdict": "met"
+        },
+        {
+         "basis_he": "",
+         "check_id": "q2.ג.c0.s3.k3",
+         "confidence": 0.95,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "2",
+         "quote": "arrShows[i].GetIsOn()",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "בדיקה שהתוכנית באוויר ע\"י GetIsOn",
+         "verdict": "met"
+        },
+        {
+         "basis_he": "",
+         "check_id": "q2.ג.c0.s3.k4",
+         "confidence": 0.9,
+         "kind": "required",
+         "partial_fraction": "0.5",
+         "points": "2",
+         "quote": "CW(arrShows[i].GetName());",
+         "quote_status": "exact",
+         "tariff": null,
+         "text": "הדפסת שם התוכנית ע\"י GetName",
+         "verdict": "met"
+        }
+       ],
+       "confidence": 0.9,
+       "description": "בתוך הלולאה על TvShows: בדיקה האם תוכנית מתאימה להדפסה:אינה null ב (2 נקודות) וגם הערוץ שלה תואם את הערוץ המינימלי (ע\"י GetChl והשוואתם (2 נקודות) וגם היא באוויר (ע\"י GetIsOn ב 2 נקודות) הדפסה של השם של התוכנית (ע\"י GetName ב( 2 נקודות)",
+       "evidence_quote": {
+        "position_hint": null,
+        "quote_text": "arrShows[i].GetChl()==lowestRateChl",
+        "span_pointer": null,
+        "validation_status": "exact"
+       },
+       "evidence_quotes": [
+        {
+         "position_hint": null,
+         "quote_text": "arrShows[i].GetChl()==lowestRateChl",
+         "span_pointer": null,
+         "validation_status": "exact"
+        },
+        {
+         "position_hint": null,
+         "quote_text": "arrShows[i].GetIsOn()",
+         "span_pointer": null,
+         "validation_status": "exact"
+        },
+        {
+         "position_hint": null,
+         "quote_text": "CW(arrShows[i].GetName());",
+         "span_pointer": null,
+         "validation_status": "exact"
+        }
+       ],
+       "flags": [],
+       "points_awarded": "6.00",
+       "points_possible": "8",
+       "reasoning": "✗ בתוך הלולאה: בדיקה שהתוכנית אינה null — חיפשתי בדיקת null על arrShows[i] בגוף הלולאה - לא נמצאה כל בדיקה כזו לפני הגישה לתכונות\n✓ בדיקה שהערוץ של התוכנית תואם את הערוץ המינימלי ע\"י GetChl\n✓ בדיקה שהתוכנית באוויר ע\"י GetIsOn\n✓ הדפסת שם התוכנית ע\"י GetName",
+       "sub_criterion_id": "q2.ג.c0.s3"
+      }
+     ]
+    }
+   ],
+   "flags": [],
+   "graded_by": "llm",
+   "input_tokens": 5628,
+   "min_confidence": 0.55,
+   "output_tokens": 887,
+   "points_awarded": "13.00",
+   "points_possible": "16",
+   "question_id": "q2",
+   "retry_count": 0,
+   "scope_kind": "sub_question",
+   "sub_question_id": "ג"
+  }
+ ],
+ "served_models": [
+  "claude-sonnet-5"
+ ],
+ "teacher_overrides": {},
+ "total_cached_input_tokens": 0,
+ "total_input_tokens": 39840,
+ "total_output_tokens": 6988,
+ "transcription_contract_version": "gt-moran_aharon",
+ "unmatched_transcription_answers": []
+}

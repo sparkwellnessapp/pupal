@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Literal, Optional
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_serializer
+from pydantic import model_validator, BaseModel, Field, field_serializer
 
 from app.schemas.gradable import UnmatchedAnswer
 from app.schemas.ontology_types import (
@@ -79,6 +79,41 @@ class GradingAnnotation(BaseModel):
 # Outcome hierarchy (flat-recursive — one level of sub_criterion_outcomes)
 # ---------------------------------------------------------------------------
 
+class Check(BaseModel):
+    """One plan check as the grader priced it — the atomic unit the teacher
+    reviews (PR-G1, spec §1.1).
+
+    Field names follow the EXISTING AssessedVerdict vocabulary (`basis_he`,
+    `confidence`) rather than inventing parallel ones (rev-3 correction).
+    `confidence` is carried for the eval suite and is never rendered.
+
+    The pricing inputs (`kind`, `points`, `tariff`, `partial_fraction`) ride
+    along because §1.1 makes the terminal's awarded_points DERIVED and has the
+    client re-derive it from the verdicts: a verdict plus a bare tariff cannot
+    price a `required` check. Spec §1.1 listed only `tariff`; that is a spec
+    bug, fixed here and reported.
+
+    NOT PRESENT: `audit` (reserved out of v1 by ruling R-8 — dropped from the
+    wire, not shipped dark) and `equivalence_note` (never invented).
+    """
+
+    check_id: str                       # stable under plan_version
+    text: str                           # the plan's own Hebrew phrasing
+    kind: Literal["required", "tariff", "note_only"]
+    points: Decimal                     # required: the credit at stake; else 0
+    tariff: Optional[Decimal] = None    # tariff only
+    partial_fraction: Decimal = Decimal("0.5")
+    verdict: Literal["met", "partially_met", "not_met"]
+    quote: Optional[str] = None         # None when not_met, or when unverifiable
+    quote_status: Optional[Literal["exact", "fuzzy", "not_found"]] = None
+    basis_he: str = ""                  # lean: "" on met (the quote speaks)
+    confidence: float = 0.0
+
+    @field_serializer("points", "tariff", "partial_fraction")
+    def _sd(self, v: Optional[Decimal]) -> Optional[str]:
+        return None if v is None else str(v)
+
+
 class SubCriterionOutcome(BaseModel):
     """Leaf grading result when a criterion has sub_criteria (one-level depth)."""
 
@@ -95,6 +130,9 @@ class SubCriterionOutcome(BaseModel):
     # the structural fix for the E8 T1-STITCHED finding (a model whose reasoning
     # spans several places must not be forced to fabricate contiguity).
     evidence_quotes: Optional[List[AnswerQuotation]] = None
+    # [PR-G1] the per-check record; REQUIRED under a v5 pin (validator on the
+    # draft), None on v3 drafts so every existing row stays parseable.
+    checks: Optional[List[Check]] = None
     flags: List[FlaggedOutcome] = Field(default_factory=list)
 
     @field_serializer("points_possible", "points_awarded")
@@ -121,6 +159,7 @@ class CriterionOutcome(BaseModel):
     evidence_quote: Optional[AnswerQuotation] = None
     evidence_quotes: Optional[List[AnswerQuotation]] = None   # grader-v5 multi-span (see SubCriterionOutcome)
     sub_criterion_outcomes: Optional[List[SubCriterionOutcome]] = None
+    checks: Optional[List[Check]] = None          # [PR-G1] leaf criteria only
     flags: List[FlaggedOutcome] = Field(default_factory=list)
 
     @field_serializer("points_possible", "points_awarded")
@@ -211,3 +250,28 @@ class GradedTestDraft(BaseModel):
     # cached}}) — a cascade bills two tiers and each must be priced by its own
     # card; None on single-model paths.
     cascade_usage: Optional[Dict[str, Dict[str, int]]] = None
+
+    # [PR-G1, OD-G1.3] `checks` is optional on the TYPE so v3 drafts stay
+    # parseable, and REQUIRED whenever a plan_version is stamped: under the v5
+    # pin the review module renders checks and nothing else, so a terminal
+    # without them would render as an empty card rather than fail loudly.
+    @model_validator(mode="after")
+    def _checks_required_under_v5_pin(self):
+        if not self.plan_version:
+            return self
+        missing = []
+        for scope in self.scope_outcomes:
+            if scope.graded_by in ("failed", "skipped_no_answer"):
+                continue          # no verdicts were produced; nothing to carry
+            for crit in scope.criterion_outcomes:
+                leaves = crit.sub_criterion_outcomes or [crit]
+                for leaf in leaves:
+                    if leaf.checks is None:
+                        missing.append(getattr(leaf, "sub_criterion_id", None)
+                                       or crit.criterion_id)
+        if missing:
+            raise ValueError(
+                f"plan_version={self.plan_version!r} is stamped but "
+                f"{len(missing)} terminal(s) carry no checks: {missing[:5]} — "
+                f"a v5 draft must carry its per-check record (PR-G1)")
+        return self

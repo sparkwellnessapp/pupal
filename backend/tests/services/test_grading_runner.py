@@ -182,7 +182,7 @@ async def test_happy_path_pending_to_draft():
 
     draft = _make_draft([("q1", "10", "7")])
 
-    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
+    with patch("app.services.grading_runner.build_grader") as MockAgent:
         mock_agent_instance = AsyncMock()
         mock_agent_instance.grade = AsyncMock(return_value=draft)
         MockAgent.return_value = mock_agent_instance
@@ -232,7 +232,7 @@ async def test_failed_path_sets_error_message():
     gt_obj = _make_graded_test_obj(graded_test_id, "pending")
     db = _make_db_mock(gt_obj, MINIMAL_TRANSCRIPTION_CONTRACT_JSON, MINIMAL_RUBRIC_CONTRACT_JSON)
 
-    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
+    with patch("app.services.grading_runner.build_grader") as MockAgent:
         mock_agent_instance = AsyncMock()
         mock_agent_instance.grade = AsyncMock(side_effect=RuntimeError("agent exploded"))
         MockAgent.return_value = mock_agent_instance
@@ -263,7 +263,7 @@ async def test_idempotency_duplicate_delivery_noop():
         yield db
 
     with patch("app.services.grading_runner.get_db_context", _ctx), \
-         patch("app.services.grading_runner.GraderAgent") as MockAgent:
+         patch("app.services.grading_runner.build_grader") as MockAgent:
         ran = await run_grading(uuid4())
 
     assert ran is False
@@ -283,7 +283,7 @@ async def test_aggregates_computed_correctly():
     # Two scopes: 7/10 + 4/5 = 11/15
     draft = _make_draft([("q1", "10", "7"), ("q2", "5", "4")])
 
-    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
+    with patch("app.services.grading_runner.build_grader") as MockAgent:
         mock_agent_instance = AsyncMock()
         mock_agent_instance.grade = AsyncMock(return_value=draft)
         MockAgent.return_value = mock_agent_instance
@@ -302,7 +302,7 @@ async def test_divide_by_zero_guarded():
 
     draft = _make_draft([("q1", "0", "0")])
 
-    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
+    with patch("app.services.grading_runner.build_grader") as MockAgent:
         mock_agent_instance = AsyncMock()
         mock_agent_instance.grade = AsyncMock(return_value=draft)
         MockAgent.return_value = mock_agent_instance
@@ -328,7 +328,7 @@ async def test_decimal_jsonb_roundtrip():
 
     draft = _make_draft([("q1", "10", "7.25")])
 
-    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
+    with patch("app.services.grading_runner.build_grader") as MockAgent:
         mock_agent_instance = AsyncMock()
         mock_agent_instance.grade = AsyncMock(return_value=draft)
         MockAgent.return_value = mock_agent_instance
@@ -377,7 +377,7 @@ async def test_all_scopes_failed_marks_row_failed():
     for so in draft.scope_outcomes:
         object.__setattr__(so, "graded_by", "failed")
 
-    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
+    with patch("app.services.grading_runner.build_grader") as MockAgent:
         inst = AsyncMock()
         inst.grade = AsyncMock(return_value=draft)
         MockAgent.return_value = inst
@@ -398,7 +398,7 @@ async def test_partial_scope_failure_still_lands_a_draft():
     draft = _make_draft([("q1", "10", "7"), ("q2", "10", "0")])
     object.__setattr__(draft.scope_outcomes[1], "graded_by", "failed")
 
-    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
+    with patch("app.services.grading_runner.build_grader") as MockAgent:
         inst = AsyncMock()
         inst.grade = AsyncMock(return_value=draft)
         MockAgent.return_value = inst
@@ -422,7 +422,7 @@ async def test_row_budget_bounds_a_hung_grade(monkeypatch):
     async def _hang(*_a, **_kw):
         await asyncio.sleep(30)
 
-    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
+    with patch("app.services.grading_runner.build_grader") as MockAgent:
         inst = AsyncMock()
         inst.grade = _hang
         MockAgent.return_value = inst

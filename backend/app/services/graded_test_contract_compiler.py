@@ -25,6 +25,7 @@ from typing import Dict, List, Literal, NamedTuple, Optional, Set, Tuple
 from uuid import uuid4
 
 from app.schemas.graded_test_contract import (
+    ContractCheck,
     ContractScopeOutcome,
     ContractTerminalOutcome,
     GradedTestContract,
@@ -70,6 +71,7 @@ class _TerminalInfo(NamedTuple):
     ai_points_awarded: Decimal
     ai_reasoning: str
     ai_evidence_quote: object          # Optional[AnswerQuotation]
+    checks: object                     # Optional[List[Check]] (PR-G1)
     scope_key: Tuple[str, Optional[str]]  # (question_id, sub_question_id)
 
 
@@ -102,6 +104,7 @@ def _build_terminal_index(
                         ai_points_awarded=sub.points_awarded,
                         ai_reasoning=sub.reasoning,
                         ai_evidence_quote=sub.evidence_quote,
+                        checks=sub.checks,
                         scope_key=scope_key,
                     )
             else:
@@ -114,6 +117,7 @@ def _build_terminal_index(
                     ai_points_awarded=crit.points_awarded,
                     ai_reasoning=crit.reasoning,
                     ai_evidence_quote=crit.evidence_quote,
+                    checks=crit.checks,
                     scope_key=scope_key,
                 )
 
@@ -249,6 +253,13 @@ def compile_graded_test(
             was_overridden=was_overridden,
             teacher_comment=teacher_comment,
             final_points_awarded=final,
+            # [PR-G1] mirror the checks. No verdict overlay exists until PR-G5,
+            # so final == ai here; the provenance SHAPE is what freezes.
+            checks=([ContractCheck(
+                check_id=c.check_id, text=c.text, tariff=c.tariff,
+                ai_verdict=c.verdict, final_verdict=c.verdict,
+                was_overridden=False,
+            ) for c in info.checks] if info.checks else None),
         )
         scope_terminals[info.scope_key].append(terminal)
 

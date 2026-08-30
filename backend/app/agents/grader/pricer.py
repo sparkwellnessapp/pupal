@@ -34,7 +34,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List, Optional
 
 from app.agents.grader.plan_schemas import PlanCheck, TerminalPlan
-from app.schemas.graded_test_draft import GradingAnnotation
+from app.schemas.graded_test_draft import Check, GradingAnnotation
 from app.schemas.ontology_types import (
     AnnotationSeverity,
     AnswerQuotation,
@@ -63,6 +63,9 @@ class PricedTerminal:
     points_awarded: Decimal
     reasoning: str
     confidence: float
+    # [PR-G1] the per-check record this class used to drop on the floor. The
+    # verdicts were always here; only the carrying was missing.
+    checks: List[Check] = field(default_factory=list)
     evidence_quotes: List[AnswerQuotation] = field(default_factory=list)
     flags: List[FlaggedOutcome] = field(default_factory=list)
     annotations: List[GradingAnnotation] = field(default_factory=list)
@@ -117,8 +120,36 @@ def price_scope(terminal_plans: List[TerminalPlan],
                 quotes.append(AnswerQuotation(quote_text=av.quote_text,
                                               validation_status=av.quote_status))
 
+        checks: List[Check] = []
+
+        def _record(check: PlanCheck, av: Optional[AssessedVerdict]) -> None:
+            """One Check per plan check, ALWAYS — including the no-verdict case.
+
+            A check the model never answered is priced as no-credit, so the
+            record says not_met at confidence 0 with the reason in basis_he.
+            The terminal's UNVERIFIED_CHECK flag carries the fact that no
+            verdict arrived; conflating the two into a fourth verdict value
+            would expand the wire vocabulary without a ruling."""
+            verified = av is not None and _evidence_verified(av)
+            checks.append(Check(
+                check_id=check.check_id,
+                text=check.description_he,
+                kind=check.kind,
+                points=check.points,
+                tariff=check.tariff_amount,
+                partial_fraction=check.partial_fraction,
+                verdict=(av.verdict if av is not None else "not_met"),
+                quote=(av.quote_text or None) if (av is not None and verified) else None,
+                quote_status=(av.quote_status.value
+                              if av is not None and av.quote_status is not None else None),
+                basis_he=(av.basis_he if av is not None
+                          else "לא אומת על ידי המודל"),
+                confidence=(max(0.0, min(1.0, av.confidence)) if av is not None else 0.0),
+            ))
+
         for check in tp.checks:
             av = assessed.get(check.check_id)
+            _record(check, av)
 
             # ── missing verdict: no credit without verification ────────────
             if av is None:
@@ -224,6 +255,7 @@ def price_scope(terminal_plans: List[TerminalPlan],
                 message=f"pricer clamped/snapped: {raw} → {final}"))
 
         out[tp.terminal_id] = PricedTerminal(
+            checks=checks,
             points_awarded=final,
             reasoning="\n".join(lines),
             confidence=min(confidences) if confidences else 0.0,

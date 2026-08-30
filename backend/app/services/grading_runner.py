@@ -41,7 +41,8 @@ from app.schemas.transcription import TranscriptionContract
 from app.schemas.ontology_types import GradingRubricContract
 from app.services.gradable_compiler import compile as compile_gradable_test
 from app.services.selection_scoring import ScopeScore, score_with_selection
-from app.agents.grader.grader import MAX_CONCURRENT_SCOPES, GraderAgent
+from app.agents.grader.grader import MAX_CONCURRENT_SCOPES
+from app.services.grader_selection import build_grader
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +140,10 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
         gradable_test = compile_gradable_test(rubric_contract, transcription_contract)
 
         # ── 5. Grade (S7) ─────────────────────────────────────────────────────
-        agent = GraderAgent(numeric_policy=rubric_contract.numeric_policy)
+        # [PR-G1(a)] the config seam — dark and default-off, so this is
+        # the historical v3 construction until the pin is deliberately set.
+        agent = build_grader(str(graded_test.rubric_id),
+                             rubric_contract.numeric_policy)
         budget = _row_budget_s(len(gradable_test.scopes))
         try:
             draft = await asyncio.wait_for(agent.grade(gradable_test), timeout=budget)

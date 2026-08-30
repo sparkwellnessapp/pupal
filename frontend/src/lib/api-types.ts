@@ -1137,6 +1137,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/users/me/school": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Me
+         * @description Set the teacher's school. The owning user is ALWAYS current_user
+         *     (CLAUDE.md §9) — there is no user_id in the body or the query string.
+         *
+         *     PATH NOTE (open decision, owner): the spec's PR-G6 text says
+         *     `PATCH /users/me`. Mounting ANY method at that exact path turns
+         *     `GET /api/v0/users/me` from 404 into 405 and fires
+         *     `test_duplicate_users_me_is_gone` — the guard left behind by the worst bug
+         *     this codebase shipped (two auth resolvers; a duplicate profile route).
+         *     The guard's intent is intact either way, but it is written as `== 404` and
+         *     weakening a guard of that provenance to accommodate a new endpoint is not a
+         *     call to make in passing. `/me/school` follows the existing sibling
+         *     (`PUT /me/subject-matters`), says what it does, and leaves the guard
+         *     untouched. One line to move it if the owner prefers the spec's path.
+         *
+         *     Matching is NORMALIZED-EXACT, never fuzzy: trimmed, internal whitespace
+         *     collapsed, case-folded, mirroring migration 018's unique index. Two schools
+         *     differing by one character are two schools; a fuzzy match would merge real
+         *     institutions with no way back.
+         */
+        patch: operations["update_me_api_v0_users_me_school_patch"];
+        trace?: never;
+    };
     "/api/v0/users/me/subject-matters": {
         parameters: {
             query?: never;
@@ -1859,6 +1896,60 @@ export interface components {
              */
             rubric_id: string;
         };
+        /**
+         * Check
+         * @description One plan check as the grader priced it — the atomic unit the teacher
+         *     reviews (PR-G1, spec §1.1).
+         *
+         *     Field names follow the EXISTING AssessedVerdict vocabulary (`basis_he`,
+         *     `confidence`) rather than inventing parallel ones (rev-3 correction).
+         *     `confidence` is carried for the eval suite and is never rendered.
+         *
+         *     The pricing inputs (`kind`, `points`, `tariff`, `partial_fraction`) ride
+         *     along because §1.1 makes the terminal's awarded_points DERIVED and has the
+         *     client re-derive it from the verdicts: a verdict plus a bare tariff cannot
+         *     price a `required` check. Spec §1.1 listed only `tariff`; that is a spec
+         *     bug, fixed here and reported.
+         *
+         *     NOT PRESENT: `audit` (reserved out of v1 by ruling R-8 — dropped from the
+         *     wire, not shipped dark) and `equivalence_note` (never invented).
+         */
+        Check: {
+            /**
+             * Basis He
+             * @default
+             */
+            basis_he: string;
+            /** Check Id */
+            check_id: string;
+            /**
+             * Confidence
+             * @default 0
+             */
+            confidence: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "required" | "tariff" | "note_only";
+            /** Partial Fraction */
+            partial_fraction?: string | null;
+            /** Points */
+            points: string | null;
+            /** Quote */
+            quote?: string | null;
+            /** Quote Status */
+            quote_status?: ("exact" | "fuzzy" | "not_found") | null;
+            /** Tariff */
+            tariff?: string | null;
+            /** Text */
+            text: string;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "met" | "partially_met" | "not_met";
+        };
         /** ClassDetailResponse */
         ClassDetailResponse: {
             /**
@@ -2023,6 +2114,49 @@ export interface components {
             warnings: components["schemas"]["AnnotationSchema"][];
         };
         /**
+         * ContractCheck
+         * @description One check, frozen at approval (PR-G1, spec §1.4).
+         *
+         *     Provenance is preserved the way the terminal already preserves it: what the
+         *     AI said (`ai_verdict`) is immutable, and the teacher's decision rides beside
+         *     it (`final_verdict` + `was_overridden`) rather than overwriting it. Until
+         *     PR-G5 wires the check-level overlay there are no verdict overrides, so
+         *     final == ai and was_overridden is False — the SHAPE is what freezes here.
+         *
+         *     `evidence_disputed` and `teacher_comment` are per-check because the teacher
+         *     reviews per-check; the terminal's own teacher_comment stays for the v3 wire.
+         */
+        ContractCheck: {
+            /**
+             * Ai Verdict
+             * @enum {string}
+             */
+            ai_verdict: "met" | "partially_met" | "not_met";
+            /** Check Id */
+            check_id: string;
+            /**
+             * Evidence Disputed
+             * @default false
+             */
+            evidence_disputed: boolean;
+            /**
+             * Final Verdict
+             * @enum {string}
+             */
+            final_verdict: "met" | "partially_met" | "not_met";
+            /** Tariff */
+            tariff?: string | null;
+            /** Teacher Comment */
+            teacher_comment?: string | null;
+            /** Text */
+            text: string;
+            /**
+             * Was Overridden
+             * @default false
+             */
+            was_overridden: boolean;
+        };
+        /**
          * ContractScopeOutcome
          * @description Frozen scope record. final_points_awarded = Σ terminal_outcomes[*].final_points_awarded.
          */
@@ -2058,6 +2192,8 @@ export interface components {
             ai_points_awarded: string;
             /** Ai Reasoning */
             ai_reasoning: string;
+            /** Checks */
+            checks?: components["schemas"]["ContractCheck"][] | null;
             /** Description */
             description: string;
             /** Final Points Awarded */
@@ -2144,6 +2280,8 @@ export interface components {
          *     confidence = min(sub_criterion confidences) for branches.
          */
         CriterionOutcome: {
+            /** Checks */
+            checks?: components["schemas"]["Check"][] | null;
             /** Confidence */
             confidence: number;
             /** Criterion Id */
@@ -2151,6 +2289,8 @@ export interface components {
             /** Description */
             description: string;
             evidence_quote?: components["schemas"]["AnswerQuotation"] | null;
+            /** Evidence Quotes */
+            evidence_quotes?: components["schemas"]["AnswerQuotation"][] | null;
             /** Flags */
             flags?: components["schemas"]["FlaggedOutcome"][];
             /** Points Awarded */
@@ -2325,7 +2465,7 @@ export interface components {
          *     Used by FlaggedOutcome to indicate why an item needs attention.
          * @enum {string}
          */
-        FlagReason: "no_answer" | "quote_not_found" | "low_confidence" | "unmeasurable" | "llm_uncertainty" | "fuzzy_match" | "max_retries_exceeded" | "closed_world_violation" | "ungraded_criterion" | "bounds_clamped";
+        FlagReason: "no_answer" | "quote_not_found" | "low_confidence" | "unmeasurable" | "llm_uncertainty" | "fuzzy_match" | "max_retries_exceeded" | "closed_world_violation" | "ungraded_criterion" | "bounds_clamped" | "unverified_check" | "evidence_unverified" | "tariff_coerced";
         /**
          * FlagVerdictResponse
          * @description Flag triage result for a single transcription.
@@ -2488,12 +2628,20 @@ export interface components {
         GradedTestDraft: {
             /** Annotations */
             annotations?: components["schemas"]["GradingAnnotation"][];
+            /** Cascade Usage */
+            cascade_usage?: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            } | null;
             /** Grading Duration Ms */
             grading_duration_ms: number;
             /** Llm Calls Count */
             llm_calls_count: number;
             /** Model Version */
             model_version: string;
+            /** Plan Version */
+            plan_version?: string | null;
             /** Prompt Version */
             prompt_version: string;
             /** Rubric Contract Version */
@@ -2505,10 +2653,14 @@ export interface components {
             schema_version: string;
             /** Scope Outcomes */
             scope_outcomes: components["schemas"]["ScopeOutcome"][];
+            /** Served Models */
+            served_models?: string[] | null;
             /** Teacher Overrides */
             teacher_overrides?: {
                 [key: string]: components["schemas"]["TeacherOverride-Output"];
             };
+            /** Total Cached Input Tokens */
+            total_cached_input_tokens?: number | null;
             /**
              * Total Input Tokens
              * @default 0
@@ -2630,7 +2782,7 @@ export interface components {
              * Annotation Type
              * @enum {string}
              */
-            annotation_type: "closed_world_violation" | "ungraded_criterion" | "bounds_clamped" | "quote_not_found" | "fuzzy_match" | "no_answer" | "llm_failure";
+            annotation_type: "closed_world_violation" | "ungraded_criterion" | "bounds_clamped" | "quote_not_found" | "fuzzy_match" | "no_answer" | "llm_failure" | "unverified_check" | "evidence_unverified" | "tariff_coerced" | "charge_group_dedup" | "note_only" | "cascade_routed";
             /** Id */
             id?: string;
             /** Message */
@@ -3417,6 +3569,8 @@ export interface components {
          *     0.0 for skipped and failed scopes (no grade was produced).
          */
         ScopeOutcome: {
+            /** Cached Input Tokens */
+            cached_input_tokens?: number | null;
             /** Criterion Outcomes */
             criterion_outcomes: components["schemas"]["CriterionOutcome"][];
             /** Flags */
@@ -3647,11 +3801,15 @@ export interface components {
          * @description Leaf grading result when a criterion has sub_criteria (one-level depth).
          */
         SubCriterionOutcome: {
+            /** Checks */
+            checks?: components["schemas"]["Check"][] | null;
             /** Confidence */
             confidence: number;
             /** Description */
             description: string;
             evidence_quote?: components["schemas"]["AnswerQuotation"] | null;
+            /** Evidence Quotes */
+            evidence_quotes?: components["schemas"]["AnswerQuotation"][] | null;
             /** Flags */
             flags?: components["schemas"]["FlaggedOutcome"][];
             /** Points Awarded */
@@ -4013,6 +4171,33 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /**
+         * UpdateMeRequest
+         * @description Exactly one of the two is meaningful per call. `school_id` picks an
+         *     existing school; `school_name` is the one-field onboarding answer and is
+         *     create-or-pick. Sending neither is a no-op, not an error — the prompt is
+         *     skippable by design.
+         */
+        UpdateMeRequest: {
+            /** School City */
+            school_city?: string | null;
+            /** School Id */
+            school_id?: string | null;
+            /** School Name */
+            school_name?: string | null;
+        };
+        /** UpdateMeResponse */
+        UpdateMeResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** School Id */
+            school_id?: string | null;
+            /** School Name */
+            school_name?: string | null;
         };
         /** UpdateStudentRequest */
         UpdateStudentRequest: {
@@ -5994,6 +6179,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserRubricsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_me_api_v0_users_me_school_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateMeResponse"];
                 };
             };
             /** @description Validation Error */

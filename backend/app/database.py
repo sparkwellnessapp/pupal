@@ -4,6 +4,7 @@ Uses SQLAlchemy async for database operations.
 """
 import logging
 from sqlalchemy import text
+from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 
@@ -12,17 +13,25 @@ from .config import settings
 logger = logging.getLogger(__name__)
 
 # Create async engine for PostgreSQL (Supabase)
+# NullPool closes every connection when it is returned. Under test that is the
+# point: a pooled connection that survives the test is still registered with the
+# Windows proactor when the lifespan closes the loop, and teardown hangs there
+# with every test already green. Production keeps the QueuePool.
+_pool_kwargs = (
+    {"poolclass": NullPool}                      # sizing kwargs are invalid here
+    if settings.db_disable_pooling else
+    {"pool_size": 5, "max_overflow": 10, "pool_timeout": 30}
+)
+
 engine = create_async_engine(
     settings.database_url,
     echo=settings.sql_echo,
     pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
     pool_recycle=1800,  # Recycle connections every 30 mins
-    pool_timeout=30,    # Wait up to 30s for a connection
     connect_args={
         "statement_cache_size": 0,
     },
+    **_pool_kwargs,
 )
 
 # Create async session factory

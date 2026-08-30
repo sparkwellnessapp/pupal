@@ -369,3 +369,46 @@ def test_gate_collect_all_violations():
         compile_graded_test(draft, overrides, _rubric_contract())
 
     assert len(exc_info.value.violations) == 2
+
+
+# ---------------------------------------------------------------------------
+# PR-G1(c) — contract-mirrors-checks
+# ---------------------------------------------------------------------------
+
+def test_contract_mirrors_checks():
+    """The per-check record survives the freeze, with provenance separated the
+    way the terminal already separates it: what the AI said is immutable and
+    the teacher's decision rides beside it.
+
+    No verdict overlay exists until PR-G5, so final == ai and was_overridden is
+    False here — the SHAPE is what this pins, so G5 cannot quietly drop it.
+    """
+    from app.schemas.graded_test_draft import Check
+
+    checks = [
+        Check(check_id="c1.k1", text="הצהרת המערך", kind="required",
+              points=Decimal("3"), partial_fraction=Decimal("0.5"),
+              verdict="met", quote="int[] a;", quote_status="exact",
+              basis_he="", confidence=0.9),
+        Check(check_id="c1.k2", text="שם שגוי", kind="tariff",
+              points=Decimal("0"), tariff=Decimal("1"),
+              partial_fraction=Decimal("0.5"), verdict="not_met",
+              basis_he="תקין", confidence=0.8),
+    ]
+    leaf = _leaf_criterion(points_awarded="4")
+    object.__setattr__(leaf, "checks", checks)
+    draft = _draft([_scope(criterion_outcomes=[leaf])])
+
+    contract = compile_graded_test(draft, {}, _rubric_contract())
+
+    terminal = contract.scope_outcomes[0].terminal_outcomes[0]
+    assert terminal.checks is not None, "the contract dropped the checks"
+    got = {c.check_id: c for c in terminal.checks}
+    assert set(got) == {"c1.k1", "c1.k2"}
+    assert got["c1.k1"].ai_verdict == "met"
+    assert got["c1.k1"].final_verdict == "met"
+    assert got["c1.k1"].was_overridden is False
+    assert got["c1.k2"].tariff == Decimal("1")
+    # frozen, like every other contract type
+    with pytest.raises(Exception):
+        got["c1.k1"].ai_verdict = "not_met"

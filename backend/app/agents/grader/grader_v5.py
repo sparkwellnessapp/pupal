@@ -205,6 +205,7 @@ class PlanVerifyGrader:
                 # [] (not None) when no span verified: the presence of the
                 # field marks the v5 path for the eval scorer
                 evidence_quotes=pt.evidence_quotes,
+                checks=pt.checks,          # [PR-G1] the per-check record
                 flags=pt.flags,
             )
 

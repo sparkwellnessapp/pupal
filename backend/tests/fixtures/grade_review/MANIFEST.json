@@ -1,0 +1,31 @@
+{
+ "coverage": {
+  "failed_scope": [
+   "din_ezra:q2"
+  ],
+  "fuzzy": [],
+  "not_found": [],
+  "skipped_no_answer": [],
+  "terminals_with_checks": 176,
+  "terminals_without_checks": 14
+ },
+ "coverage_gap": {
+  "fuzzy": "absent — same",
+  "how_covered": "synthetic shapes via --with-synthetic; generated for the test run and deleted afterwards so the published set stays observed-only (owner instruction)",
+  "not_found": "absent — this run quoted exactly on all 336 verified spans",
+  "skipped_no_answer": "UNOBTAINABLE from this cohort: all five students answered every question. Spec §1.7 names din Q2.ב, but din answered Q2.ב — that is a spec bug."
+ },
+ "generated_from_run": "20260830-205954_sonnet5-v5",
+ "generator": "scripts/gen_grade_review_fixtures.py",
+ "pending": {
+  "audit_deltas_example.json": "STRUCK by ruling R-1 (audit deferred)",
+  "batch_feed_*.json": "PR-G8 — the batch feed shape does not exist yet",
+  "overlay_examples.json": "PR-G5 — needs the verdict-level overlay model",
+  "pricing_vectors.json:overlay_cases": "PR-G5 — AI-only vectors present now"
+ },
+ "provenance": {
+  "model_version": "claude-sonnet-5",
+  "plan_version": "hobby_tvshow/v5",
+  "prompt_version": "grader-v5.3"
+ }
+}

@@ -23,6 +23,28 @@ class Settings(BaseSettings):
     # Slack added to the row-level budget on top of timeout x waves, to
     # cover compile + assembly + one GA-3 retry landing in the last wave.
     grader_row_grace_s: float = 120.0
+
+    # Disable SQLAlchemy connection pooling (NullPool). TEST-ONLY knob,
+    # default OFF: production keeps its QueuePool. Pooled asyncpg
+    # connections outlive a test and stay registered with the Windows
+    # proactor, so the app lifespan's loop-close hangs on an orphaned op at
+    # session teardown — every test passes and the process never exits.
+    db_disable_pooling: bool = False
+
+    # [PR-G1(a), the owed R-4 pilot-bridge seam] Which grader production
+    # runs. DARK AND DEFAULT-OFF: with these unset the selection is the
+    # historical v3 path byte-for-byte, so landing the seam cannot move
+    # production behaviour — flipping them does, deliberately.
+    # The ratified pin (EVAL_REPORT §9.3, k=5 confirmed, k=2 re-verified
+    # 2026-08-31): gemini-3.1-pro + plan hobby_tvshow/v3 + grader-v5.1.
+    grader_architecture: str = "v3"                    # v3 | v5
+    grader_model_key: Optional[str] = None             # registry key
+    grader_model_provider: str = "openai"               # openai | anthropic | gemini
+    grader_plan_path: Optional[str] = None             # ratified GradingPlan JSON
+    # The ONE rubric this plan is ratified for. See grader_selection's
+    # module docstring (OD-G1.4): the plan's own sha256 pin is over contract
+    # FILE bytes, which do not exist for a JSONB-stored production contract.
+    grader_plan_rubric_id: Optional[str] = None
     openai_vision_model: str = "gpt-4o"  # For vision/transcription tasks
     
     # Google Cloud settings

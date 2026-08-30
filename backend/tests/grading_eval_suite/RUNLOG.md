@@ -1867,3 +1867,22 @@ mutated and remains on the ruled state (`grader-v5.3`, `sut_hash
 `results/`.
 LEDGER: +$3.534 · envelope $3.12 -> **−$0.41 (overspent by 41 cents, flagged
 before the run and again here)**.
+
+**PR-G1(e) FIXTURE SEED (2026-08-31, $0.7503, run `20260830-205954_sonnet5-v5`,
+k=1 x 5):** owner switched the fixture trial to Sonnet 5 — gemini-3.1-pro at
+$0.36/test is too expensive to seed fixtures with. Provenance of the published
+set is therefore `claude-sonnet-5` + `grader-v5.3` + plan `hobby_tvshow/v5`,
+NOT the ratified pin. That is fine for a SEAM artefact (the fixtures carry
+shapes; pricer-parity works off any valid draft) and is NOT evidence about the
+pin's grading quality — the R-9 condition (ii) canary still needs the real pin.
+
+COVERAGE GAP, on the record: the run produced 336 `exact` quote validations, 42
+checks with no span, and **zero `fuzzy`, zero `not_found`, zero
+`skipped_no_answer`**. The three missing shapes are review-surface STATES the
+frontend must render, so they were synthesised from a real draft, labelled
+`_synthetic`, used to prove the shapes render, and then DELETED per owner
+instruction so the published set stays observed-only. `skipped_no_answer` is
+UNOBTAINABLE from this cohort at any k: it needs a scope with no student
+answer, and all five students answered every question. Spec §1.7 names din Q2.ב
+for it — but din answered Q2.ב (her scan was read during the PL-9 work). That
+is a spec bug, not a fixture gap.
