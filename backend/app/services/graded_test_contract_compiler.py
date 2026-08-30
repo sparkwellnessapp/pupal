@@ -343,6 +343,7 @@ def compile_graded_test(
 
     return GradedTestContract(
         contract_version=str(uuid4()),
+        feedback=_freeze_feedback(draft, overrides),   # [PR-G4] effective text
         rubric_contract_version=draft.rubric_contract_version,
         transcription_contract_version=draft.transcription_contract_version,
         model_version=draft.model_version,
@@ -387,3 +388,34 @@ def _price_by_scope(draft, terminal_index, overrides, precision):
         final_prices.update(price_scope_checks(final_terms, precision,
                                                overridden_check_ids=touched))
     return ai_prices, final_prices, effective, touched
+
+
+def _freeze_feedback(draft, overrides):
+    """The EFFECTIVE feedback at approval: her edit wins, and was_edited says so.
+
+    Her words are never overwritten by a regeneration (OD-G4.2) and never
+    silently attributed to the model.
+    """
+    from app.schemas.graded_test_contract import ContractFeedback, ContractFeedbackText
+
+    edits = dict(getattr(overrides, "feedback", {}) or {})
+    block = getattr(draft, "feedback", None)
+    if block is None and not edits:
+        return None
+
+    scopes = {}
+    for scope_id, text in ((block.scopes if block else {}) or {}).items():
+        scopes[scope_id] = ContractFeedbackText(
+            text=edits.get(scope_id, text.text),
+            was_edited=scope_id in edits)
+    for scope_id, edited in edits.items():          # she wrote where the model did not
+        if scope_id not in scopes and scope_id != "summary":
+            scopes[scope_id] = ContractFeedbackText(text=edited, was_edited=True)
+
+    summary_src = block.summary.text if block and block.summary else None
+    summary = None
+    if "summary" in edits or summary_src is not None:
+        summary = ContractFeedbackText(
+            text=edits.get("summary", summary_src or ""),
+            was_edited="summary" in edits)
+    return ContractFeedback(scopes=scopes, summary=summary)

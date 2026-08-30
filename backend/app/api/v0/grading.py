@@ -15,6 +15,7 @@ from sqlalchemy import case, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.deps import get_owned_or_404
+from ...config import settings
 from ...database import get_db
 from ...models.grading import GradedTest, Rubric
 from ...models.user import User
@@ -987,3 +988,82 @@ async def run_grading_job_task(graded_test_id: UUID, request: Request) -> dict:
 
     ran = await run_grading(graded_test_id)
     return {"graded_test_id": str(graded_test_id), "ran": bool(ran)}
+
+
+class RegenerateFeedbackResponse(BaseModel):
+    target: str
+    text: str
+    # True when the teacher already wrote her own text for this target: the new
+    # text is RETURNED for her to consider and the draft is left alone.
+    offered_only: bool
+
+
+@router.post("/graded_test/{graded_test_id}/feedback/regenerate",
+             response_model=RegenerateFeedbackResponse)
+async def regenerate_feedback(
+    graded_test_id: UUID,
+    target: str = Query(..., description='scope id, or the literal "summary"'),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> RegenerateFeedbackResponse:
+    """Regenerate the feedback for ONE target.
+
+    OD-G4.2 — her words are never overwritten. If she has already edited this
+    target, the fresh text is returned for the UI to offer and the draft is left
+    exactly as it was; the decision to take it is hers, not the endpoint's.
+    """
+    row = await get_owned_or_404(db, GradedTest, graded_test_id, current_user.id)
+    if row.status != "draft":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot regenerate feedback: graded test is '{row.status}'.")
+
+    draft = GradedTestDraft.model_validate(row.draft_json)
+
+    from ...agents.feedback.agent import FeedbackAgent
+    from ...agents.feedback.prompt import render_scope_for_feedback
+    from ...agents.feedback.staleness import basis_hash, flatten_checks
+    from ...agents.grader.llm_factory import build_chat_model
+    from ...schemas.graded_test_draft import FeedbackText
+
+    if not settings.feedback_model_key:
+        raise HTTPException(status_code=503,
+                            detail="לא הוגדר מודל משוב במערכת.")
+
+    scopes = [(so.question_id if so.sub_question_id is None
+               else f"{so.question_id}.{so.sub_question_id}", so)
+              for so in draft.scope_outcomes if so.graded_by == "llm"]
+    if target != "summary" and target not in {sid for sid, _ in scopes}:
+        raise HTTPException(status_code=404,
+                            detail=f"Unknown feedback target '{target}'.")
+
+    agent = FeedbackAgent(build_chat_model(settings.feedback_model_provider,
+                                           settings.feedback_model_key),
+                          model_version=settings.feedback_model_key)
+    block, _annotations = await agent.generate(
+        [(sid, render_scope_for_feedback(so)) for sid, so in scopes])
+    if block is None:
+        raise HTTPException(status_code=502, detail="יצירת המשוב נכשלה. נסי שוב.")
+
+    fresh = (block.summary.text if target == "summary"
+             else (block.scopes.get(target).text if block.scopes.get(target) else ""))
+
+    # her text stands: return the alternative, change nothing
+    if target in (draft.teacher_overrides.feedback or {}):
+        return RegenerateFeedbackResponse(target=target, text=fresh, offered_only=True)
+
+    existing = draft.feedback
+    if existing is None:
+        updated_block = block
+    elif target == "summary":
+        updated_block = existing.model_copy(update={"summary": FeedbackText(text=fresh)})
+    else:
+        so = next(so for sid, so in scopes if sid == target)
+        new_scopes = dict(existing.scopes)
+        new_scopes[target] = FeedbackText(
+            text=fresh, basis_hash=basis_hash(list(flatten_checks(so))))
+        updated_block = existing.model_copy(update={"scopes": new_scopes})
+
+    row.draft_json = draft.model_copy(update={"feedback": updated_block}).model_dump(mode="json")
+    await db.commit()
+    return RegenerateFeedbackResponse(target=target, text=fresh, offered_only=False)

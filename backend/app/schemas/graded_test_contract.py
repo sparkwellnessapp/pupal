@@ -17,12 +17,32 @@ TestGraderAgent system and has a different shape. This is the S9 contract.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 from uuid import uuid4
 
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, Field, field_serializer
 
 from app.schemas.ontology_types import AnswerQuotation
+
+
+class ContractFeedbackText(BaseModel):
+    """Frozen feedback. `text` is the EFFECTIVE text — the teacher's edit when
+    she wrote one, the model's otherwise — and `was_edited` records which.
+
+    The returned exam renders from the contract only, so what she saw when she
+    approved is what the student receives.
+    """
+    model_config = {"frozen": True}
+
+    text: str
+    was_edited: bool = False
+
+
+class ContractFeedback(BaseModel):
+    model_config = {"frozen": True}
+
+    scopes: Dict[str, ContractFeedbackText] = Field(default_factory=dict)
+    summary: Optional[ContractFeedbackText] = None
 
 
 class ContractCheck(BaseModel):
@@ -114,7 +134,8 @@ class GradedTestContract(BaseModel):
     model_config = {"frozen": True}
 
     schema_version: str = "1.0"
-    contract_version: str               # fresh uuid4 at approval
+    contract_version: str
+    feedback: Optional[ContractFeedback] = None   # [PR-G4]               # fresh uuid4 at approval
     rubric_contract_version: str        # rubric version this was graded against (pinned)
     transcription_contract_version: str
     model_version: str                  # LLM model that produced the draft

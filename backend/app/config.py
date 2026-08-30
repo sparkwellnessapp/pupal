@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     # module docstring (OD-G1.4): the plan's own sha256 pin is over contract
     # FILE bytes, which do not exist for a JSONB-stored production contract.
     grader_plan_rubric_id: Optional[str] = None
+
+    # [PR-G4] Feedback model — a SEPARATE dial from the grader (OD10/OD-B3).
+    # Feedback is prose and cheaper; tying it to the grading pin would make
+    # every grading-model decision a feedback decision too. Unset = no
+    # feedback generated, which is a state the wire and the UI both carry.
+    feedback_model_provider: str = "openai"
+    feedback_model_key: Optional[str] = None
     openai_vision_model: str = "gpt-4o"  # For vision/transcription tasks
     
     # Google Cloud settings

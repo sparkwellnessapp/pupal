@@ -545,6 +545,30 @@ export interface paths {
         patch: operations["save_draft_overrides_api_v0_grading_graded_test__graded_test_id__draft_patch"];
         trace?: never;
     };
+    "/api/v0/grading/graded_test/{graded_test_id}/feedback/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate Feedback
+         * @description Regenerate the feedback for ONE target.
+         *
+         *     OD-G4.2 — her words are never overwritten. If she has already edited this
+         *     target, the fresh text is returned for the UI to offer and the draft is left
+         *     exactly as it was; the decision to take it is hers, not the endpoint's.
+         */
+        post: operations["regenerate_feedback_api_v0_grading_graded_test__graded_test_id__feedback_regenerate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v0/grading/graded_test/{graded_test_id}/manual_edit": {
         parameters: {
             query?: never;
@@ -2157,6 +2181,31 @@ export interface components {
              */
             was_overridden: boolean;
         };
+        /** ContractFeedback */
+        ContractFeedback: {
+            /** Scopes */
+            scopes?: {
+                [key: string]: components["schemas"]["ContractFeedbackText"];
+            };
+            summary?: components["schemas"]["ContractFeedbackText"] | null;
+        };
+        /**
+         * ContractFeedbackText
+         * @description Frozen feedback. `text` is the EFFECTIVE text — the teacher's edit when
+         *     she wrote one, the model's otherwise — and `was_edited` records which.
+         *
+         *     The returned exam renders from the contract only, so what she saw when she
+         *     approved is what the student receives.
+         */
+        ContractFeedbackText: {
+            /** Text */
+            text: string;
+            /**
+             * Was Edited
+             * @default false
+             */
+            was_edited: boolean;
+        };
         /**
          * ContractScopeOutcome
          * @description Frozen scope record. final_points_awarded = Σ terminal_outcomes[*].final_points_awarded.
@@ -2460,6 +2509,43 @@ export interface components {
             total_points?: string;
         };
         /**
+         * FeedbackBlock
+         * @description Per-scope feedback plus a whole-test summary (spec §1.3).
+         *
+         *     Generated ONCE per test, strictly AFTER pricing, from the priced verdicts.
+         *     `None` on the draft is a first-class state — the call may fail and the grade
+         *     must still land (review-first, not guess) — not an error the UI hides.
+         */
+        FeedbackBlock: {
+            /** Model Version */
+            model_version: string;
+            /** Prompt Version */
+            prompt_version: string;
+            /** Scopes */
+            scopes?: {
+                [key: string]: components["schemas"]["FeedbackText"];
+            };
+            summary: components["schemas"]["FeedbackText"];
+        };
+        /**
+         * FeedbackText
+         * @description One piece of student-facing feedback, with the basis it was written for.
+         *
+         *     `basis_hash` is sha256 of the ORDERED EFFECTIVE VERDICT VECTOR at generation
+         *     (OD-G4.1). Staleness is derived from it rather than stored as a flag: when
+         *     the verdicts move, the text says so by construction instead of relying on
+         *     someone remembering to invalidate it.
+         */
+        FeedbackText: {
+            /**
+             * Basis Hash
+             * @default
+             */
+            basis_hash: string;
+            /** Text */
+            text: string;
+        };
+        /**
          * FlagReason
          * @description Reasons for flagging an outcome for teacher review.
          *
@@ -2597,6 +2683,7 @@ export interface components {
             approved_at: string;
             /** Contract Version */
             contract_version: string;
+            feedback?: components["schemas"]["ContractFeedback"] | null;
             /** Model Version */
             model_version: string;
             /** Percentage */
@@ -2635,6 +2722,7 @@ export interface components {
                     [key: string]: number;
                 };
             } | null;
+            feedback?: components["schemas"]["FeedbackBlock"] | null;
             /** Grading Duration Ms */
             grading_duration_ms: number;
             /** Llm Calls Count */
@@ -2810,7 +2898,7 @@ export interface components {
              * Annotation Type
              * @enum {string}
              */
-            annotation_type: "closed_world_violation" | "ungraded_criterion" | "bounds_clamped" | "quote_not_found" | "fuzzy_match" | "no_answer" | "llm_failure" | "unverified_check" | "evidence_unverified" | "tariff_coerced" | "charge_group_dedup" | "note_only" | "cascade_routed";
+            annotation_type: "closed_world_violation" | "ungraded_criterion" | "bounds_clamped" | "quote_not_found" | "fuzzy_match" | "no_answer" | "llm_failure" | "unverified_check" | "evidence_unverified" | "tariff_coerced" | "charge_group_dedup" | "note_only" | "cascade_routed" | "feedback_unavailable";
             /** Id */
             id?: string;
             /** Message */
@@ -3203,6 +3291,15 @@ export interface components {
          * @enum {string}
          */
         QuoteValidationStatus: "exact" | "fuzzy" | "not_found";
+        /** RegenerateFeedbackResponse */
+        RegenerateFeedbackResponse: {
+            /** Offered Only */
+            offered_only: boolean;
+            /** Target */
+            target: string;
+            /** Text */
+            text: string;
+        };
         /**
          * Requirement
          * @description A constraint or rule (vs a teachable skill).
@@ -5350,6 +5447,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GradedTestDraftResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    regenerate_feedback_api_v0_grading_graded_test__graded_test_id__feedback_regenerate_post: {
+        parameters: {
+            query: {
+                /** @description scope id, or the literal "summary" */
+                target: string;
+            };
+            header?: never;
+            path: {
+                graded_test_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegenerateFeedbackResponse"];
                 };
             };
             /** @description Validation Error */

@@ -104,6 +104,9 @@ class GradingAnnotation(BaseModel):
         "charge_group_dedup",    # tariff suppressed: its charge_group already fired
         "note_only",             # rubric says note-don't-deduct — the observation, recorded
         "cascade_routed",        # Stage-3 router: scope escalated to the champion (trigger in metadata)
+        # [PR-G4] the feedback call failed; the GRADE is unaffected and the
+        # draft lands regardless — INFO, never a blocker.
+        "feedback_unavailable",
     ]
     message: str  # Hebrew, user-facing
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -253,6 +256,31 @@ class ScopeOutcome(BaseModel):
 # GradedTestDraft — the agent's complete in-memory output
 # ---------------------------------------------------------------------------
 
+class FeedbackText(BaseModel):
+    """One piece of student-facing feedback, with the basis it was written for.
+
+    `basis_hash` is sha256 of the ORDERED EFFECTIVE VERDICT VECTOR at generation
+    (OD-G4.1). Staleness is derived from it rather than stored as a flag: when
+    the verdicts move, the text says so by construction instead of relying on
+    someone remembering to invalidate it.
+    """
+    text: str
+    basis_hash: str = ""
+
+
+class FeedbackBlock(BaseModel):
+    """Per-scope feedback plus a whole-test summary (spec §1.3).
+
+    Generated ONCE per test, strictly AFTER pricing, from the priced verdicts.
+    `None` on the draft is a first-class state — the call may fail and the grade
+    must still land (review-first, not guess) — not an error the UI hides.
+    """
+    scopes: Dict[str, FeedbackText] = Field(default_factory=dict)
+    summary: FeedbackText
+    model_version: str
+    prompt_version: str
+
+
 class GradedTestDraft(BaseModel):
     """
     Complete in-memory output of GraderAgent.grade().
@@ -267,6 +295,9 @@ class GradedTestDraft(BaseModel):
     model_version: str                      # the ACTUAL model id the agent ran
     prompt_version: str                     # GRADING_PROMPT_VERSION / VERIFIER_PROMPT_VERSION
     plan_version: Optional[str] = None      # grader-v5 only: the ratified GradingPlan version
+    # [PR-G4] student-facing feedback. None when the call failed — the grade
+    # lands regardless; an INFO annotation says why.
+    feedback: Optional[FeedbackBlock] = None
     # [COST_TRUTH, owner-ordered] the PROVIDER-REPORTED model id(s) that served
     # this grade (response metadata), distinct from model_version (what we
     # requested). None = the provider did not report one — surfaced as

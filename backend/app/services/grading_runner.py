@@ -188,6 +188,13 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
             ],
             rubric_contract,
         )
+        # [PR-G4] Feedback runs AFTER pricing, on the final verdicts, and never
+        # blocks: a failed call lands the draft with feedback=None + an INFO
+        # annotation. Losing a graded test because a sentence could not be
+        # written is the opposite of review-first, not guess.
+        from app.agents.feedback.runner import attach_feedback
+        draft = await attach_feedback(draft)
+
         if scoring.excluded:
             draft = draft.model_copy(update={
                 "scope_outcomes": [
