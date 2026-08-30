@@ -5,7 +5,8 @@ Endpoints for rubric extraction (DOCX) and graded test retrieval.
 """
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional, Union
+from decimal import Decimal
+from typing import Dict, List, Optional, Union
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, Form
@@ -39,10 +40,17 @@ from .auth import get_current_user
 
 class SaveDraftRequest(BaseModel):
     overrides: GradedTestOverrides
+    # [PR-G5] What the CLIENT priced from the same overlay. Optional: an older
+    # client simply does not send it and gets no mismatch signal.
+    client_totals: Optional[Dict[str, Decimal]] = None
 
 
 class ApproveRequest(BaseModel):
     overrides: GradedTestOverrides
+    # [PR-G5] The total the teacher SAW. If the server prices differently, the
+    # approval is refused with an ERROR annotation — never a silent server win,
+    # because freezing a number she never reviewed is the §5 catastrophe.
+    client_total: Optional[Decimal] = None
 from ...services.pdf_preview_service import generate_pdf_previews
 from ...services.document_parser import (
     pdf_to_images,
@@ -608,25 +616,19 @@ async def save_draft_overrides(
         raise HTTPException(status_code=404, detail="Rubric contract not found.")
     rubric_contract = GradingRubricContract.model_validate(rubric.contract_json)
 
-    # Run a subset of the gate: closed-world + bounds (no error-annotation check)
-    # We reuse the compiler's helper for the terminal index, then validate manually.
+    # [PR-G5] Gate the OVERLAY (terminals + checks), then RE-PRICE on the
+    # server. There is nothing to bound or round any more: an override is a
+    # verdict and the pricer derives the number, clamping and snapping.
     from ...services.graded_test_contract_compiler import (
         GateViolation,
         _build_terminal_index,
+        _price_by_scope,
     )
-    from decimal import ROUND_HALF_UP
     terminal_index, branch_criterion_ids = _build_terminal_index(draft)
     precision = rubric_contract.numeric_policy.precision
     violations = []
-    rounded_overrides: GradedTestOverrides = {}
 
-    for tid, override in body.overrides.items():
-        rounded = (override.points_awarded / precision).to_integral_value(
-            rounding=ROUND_HALF_UP
-        ) * precision
-        rounded_override = override.model_copy(update={"points_awarded": rounded})
-        rounded_overrides[tid] = rounded_override
-
+    for tid, decisions in body.overrides.terminals.items():
         if tid in branch_criterion_ids:
             violations.append(GateViolation(
                 terminal_id=tid,
@@ -641,21 +643,37 @@ async def save_draft_overrides(
                 message=f"Override key '{tid}' is not a known terminal in this graded test.",
             ))
             continue
-        info = terminal_index[tid]
-        if rounded < 0 or rounded > info.points_possible:
-            violations.append(GateViolation(
-                terminal_id=tid,
-                violation_kind="out_of_bounds",
-                message=(
-                    f"Override for '{tid}': {rounded} is outside [0, {info.points_possible}]."
-                ),
-            ))
+        known = {c.check_id for c in (terminal_index[tid].checks or [])}
+        for decision in decisions:
+            if decision.check_id not in known:
+                violations.append(GateViolation(
+                    terminal_id=tid,
+                    violation_kind="closed_world",
+                    message=(f"Override on '{tid}' references check "
+                             f"'{decision.check_id}', which is not a check of that "
+                             f"terminal in this draft."),
+                ))
 
     if violations:
         raise HTTPException(
             status_code=422,
             detail={"gate_violations": [v.__dict__ for v in violations]},
         )
+
+    _ai, final_prices, _eff, _touched = _price_by_scope(
+        draft, terminal_index, body.overrides, precision)
+    effective_totals = {
+        info.terminal_id: final_prices.get(info.terminal_id, info.ai_points_awarded)
+        for info in terminal_index.values()
+    }
+    effective_total = sum(effective_totals.values(), Decimal("0"))
+    pricing_mismatch = bool(
+        body.client_totals is not None
+        and any(Decimal(str(v)) != effective_totals.get(k)
+                for k, v in body.client_totals.items())
+    )
+
+    rounded_overrides = body.overrides
 
     # Write only teacher_overrides — AI outcomes untouched
     updated_draft = draft.model_copy(update={"teacher_overrides": rounded_overrides})
@@ -673,6 +691,9 @@ async def save_draft_overrides(
         total_cost_usd=row.total_cost_usd,
         transcription_id=row.transcription_id,
         draft=updated_draft,
+        effective_totals=effective_totals,
+        effective_total=effective_total,
+        pricing_mismatch=pricing_mismatch,
     )
 
 
@@ -715,6 +736,30 @@ async def approve_graded_test(
 
     try:
         contract = compile_graded_test(draft, body.overrides, rubric_contract)
+
+        # [PR-G5] The teacher approves a NUMBER she saw. If the server prices
+        # the same overlay differently, freezing the server's answer silently is
+        # the §5 catastrophe in miniature — she reviews one total and another one
+        # becomes immutable. Refuse, and say so as an ERROR annotation.
+        if body.client_total is not None and Decimal(str(body.client_total)) != contract.total_score:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "pricing_mismatch": True,
+                    "client_total": str(body.client_total),
+                    "server_total": str(contract.total_score),
+                    "annotation": {
+                        "severity": "ERROR",
+                        "annotation_type": "pricing_mismatch",
+                        "target_id": None,
+                        "message": (
+                            f"הציון שהוצג ({body.client_total}) שונה מהציון שחושב "
+                            f"בשרת ({contract.total_score}). האישור נעצר — רענני "
+                            f"את הדף ובדקי את הסעיפים לפני אישור."
+                        ),
+                    },
+                },
+            )
     except GateError as e:
         raise HTTPException(
             status_code=422,

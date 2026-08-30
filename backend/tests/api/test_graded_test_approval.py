@@ -27,6 +27,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.schemas.graded_test_draft import (
+    Check,
     CriterionOutcome,
     GradedTestDraft,
     ScopeOutcome,
@@ -61,6 +62,14 @@ def _minimal_draft_json() -> dict:
                         points_awarded=Decimal("4"),
                         reasoning="AI reasoning text",
                         confidence=0.9,
+                        # [PR-G5] an override is a verdict on a CHECK, so the
+                        # draft must carry the check she decides on
+                        checks=[Check(
+                            check_id="q1.c0.k1", text="check", kind="required",
+                            points=Decimal("5"), partial_fraction=Decimal("0.8"),
+                            verdict="partially_met", quote="q",
+                            quote_status="exact", basis_he="", confidence=0.9,
+                        )],
                     )
                 ],
                 graded_by="llm",
@@ -258,7 +267,7 @@ def test_patch_saves_overrides_ai_outcomes_immutable(client, graded_draft):
     # Save an override
     resp = client.patch(
         f"/api/v0/grading/graded_test/{gid}/draft",
-        json={"overrides": {"q1.c0": {"points_awarded": "3", "teacher_comment": "Adjusted"}}},
+        json={"overrides": {"terminals": {"q1.c0": [{"check_id": "q1.c0.k1", "verdict": "not_met", "teacher_comment": "Adjusted"}]}}},
         headers=headers,
     )
     assert resp.status_code == 200
@@ -267,12 +276,16 @@ def test_patch_saves_overrides_ai_outcomes_immutable(client, graded_draft):
 
     # Verify override persisted
     saved_overrides = data["draft"]["teacher_overrides"]
-    assert "q1.c0" in saved_overrides
-    # Value equality, format-agnostic: the save path quantizes to the rubric's
-    # numeric precision ("3" → "3.00") — asserting the raw string coupled the
-    # test to serialization cosmetics (2026-08-17, P1 harness chore).
+    # [PR-G5] the overlay is a model: her decisions live under `terminals`, and
+    # an override is a VERDICT on a check — there is no points value to compare.
+    assert "q1.c0" in saved_overrides["terminals"]
+    decision = saved_overrides["terminals"]["q1.c0"][0]
+    assert decision["check_id"] == "q1.c0.k1"
+    assert decision["verdict"] == "not_met"
+    assert decision["teacher_comment"] == "Adjusted"
+    # the server priced it, and says what will freeze
     from decimal import Decimal as _D
-    assert _D(saved_overrides["q1.c0"]["points_awarded"]) == _D("3")
+    assert _D(str(data["effective_totals"]["q1.c0"])) == _D("0")
 
     # [CORE-17] AI outcomes MUST be byte-unchanged
     updated_scope = data["draft"]["scope_outcomes"][0]
@@ -290,7 +303,7 @@ def test_approve_happy_path_atomic_freeze(client, graded_draft):
 
     resp = client.post(
         f"/api/v0/grading/graded_test/{gid}/approve",
-        json={"overrides": {"q1.c0": {"points_awarded": "5", "teacher_comment": "Full marks"}}},
+        json={"overrides": {"terminals": {"q1.c0": [{"check_id": "q1.c0.k1", "verdict": "not_met", "teacher_comment": "Full marks"}]}}},
         headers=headers,
     )
     assert resp.status_code == 200
@@ -307,7 +320,8 @@ def test_approve_happy_path_atomic_freeze(client, graded_draft):
     # approval pipeline quantizes to the rubric's numeric precision, so the
     # wire string may carry trailing zeros ("5.0"/"5.00").
     from decimal import Decimal as _D
-    assert _D(contract["total_score"]) == _D("5")
+    # she rejected the only check: derived total is 0 (was a typed 5 under v1)
+    assert _D(contract["total_score"]) == _D("0")
     # PR-3 / selection_scoring (updated 2026-08-17, P1 harness chore): the
     # denominator is the CONTRACT's achievable total — consumers never re-sum
     # scope points (that re-derivation halved every selection-exam grade).
@@ -315,11 +329,13 @@ def test_approve_happy_path_atomic_freeze(client, graded_draft):
     # 100/5% is exactly the no-re-sum rule under test; the old "5"/"100%"
     # asserts encoded the pre-PR-3 re-sum semantics.
     assert _D(contract["total_possible"]) == _D("100")
-    assert float(contract["percentage"]) == 5.0
+    assert float(contract["percentage"]) == 0.0   # 0 of 100
 
     # Provenance: teacher override is reflected
     terminal = contract["scope_outcomes"][0]["terminal_outcomes"][0]
-    assert _D(terminal["final_points_awarded"]) == _D("5")
+    # derived from her not_met verdict on the terminal's only check
+    assert _D(terminal["final_points_awarded"]) == _D("0")
+    assert _D(terminal["ai_points_awarded"]) == _D("4")   # the AI's record stands
     assert terminal["ai_points_awarded"] == "4"  # original AI value preserved
     assert terminal["was_overridden"] is True
     assert terminal["teacher_comment"] == "Full marks"
@@ -440,7 +456,7 @@ def test_ai_outcome_immutability_after_patch_and_approve(client, graded_draft):
     # PATCH: add an override
     client.patch(
         f"/api/v0/grading/graded_test/{gid}/draft",
-        json={"overrides": {"q1.c0": {"points_awarded": "2", "teacher_comment": "Too low"}}},
+        json={"overrides": {"terminals": {"q1.c0": [{"check_id": "q1.c0.k1", "verdict": "not_met", "teacher_comment": "Too low"}]}}},
         headers=headers,
     )
 
@@ -455,7 +471,7 @@ def test_ai_outcome_immutability_after_patch_and_approve(client, graded_draft):
     # APPROVE
     client.post(
         f"/api/v0/grading/graded_test/{gid}/approve",
-        json={"overrides": {"q1.c0": {"points_awarded": "2", "teacher_comment": "Too low"}}},
+        json={"overrides": {"terminals": {"q1.c0": [{"check_id": "q1.c0.k1", "verdict": "not_met", "teacher_comment": "Too low"}]}}},
         headers=headers,
     )
 
@@ -473,5 +489,6 @@ def test_ai_outcome_immutability_after_patch_and_approve(client, graded_draft):
     assert terminal["ai_reasoning"] == orig_reasoning
     # Value equality, format-agnostic (see test_approve_happy_path note).
     from decimal import Decimal as _D
-    assert _D(terminal["final_points_awarded"]) == _D("2")
+    # derived from her not_met verdict, not a typed number
+    assert _D(terminal["final_points_awarded"]) == _D("0")
     assert terminal["was_overridden"] is True

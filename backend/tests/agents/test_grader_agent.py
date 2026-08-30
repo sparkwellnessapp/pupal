@@ -324,7 +324,11 @@ async def test_empty_teacher_overrides():
     agent._structured_llm.ainvoke = AsyncMock()
 
     draft = await agent.grade(gt)
-    assert draft.teacher_overrides == {}
+    # [PR-G5] the overlay is a MODEL now, not a bare dict alias — the agent still
+    # emits an EMPTY one (S7 never populates it; S9 does).
+    assert draft.teacher_overrides.terminals == {}
+    assert draft.teacher_overrides.feedback == {}
+    assert draft.teacher_overrides.stamp_position is None
 
 
 # ---------------------------------------------------------------------------

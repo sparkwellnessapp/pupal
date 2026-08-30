@@ -1573,10 +1573,9 @@ export interface components {
         };
         /** ApproveRequest */
         ApproveRequest: {
-            /** Overrides */
-            overrides: {
-                [key: string]: components["schemas"]["TeacherOverride-Input"];
-            };
+            /** Client Total */
+            client_total?: number | string | null;
+            overrides: components["schemas"]["GradedTestOverrides"];
         };
         /**
          * AuthResponse
@@ -1920,6 +1919,8 @@ export interface components {
              * @default
              */
             basis_he: string;
+            /** Charge Group */
+            charge_group?: string | null;
             /** Check Id */
             check_id: string;
             /**
@@ -2655,10 +2656,7 @@ export interface components {
             scope_outcomes: components["schemas"]["ScopeOutcome"][];
             /** Served Models */
             served_models?: string[] | null;
-            /** Teacher Overrides */
-            teacher_overrides?: {
-                [key: string]: components["schemas"]["TeacherOverride-Output"];
-            };
+            teacher_overrides?: components["schemas"]["GradedTestOverrides"];
             /** Total Cached Input Tokens */
             total_cached_input_tokens?: number | null;
             /**
@@ -2682,6 +2680,12 @@ export interface components {
          */
         GradedTestDraftResponse: {
             draft: components["schemas"]["GradedTestDraft"];
+            /** Effective Total */
+            effective_total?: string | null;
+            /** Effective Totals */
+            effective_totals?: {
+                [key: string]: string;
+            } | null;
             /** Filename */
             filename?: string | null;
             /**
@@ -2691,6 +2695,11 @@ export interface components {
             id: string;
             /** Percentage */
             percentage?: string | null;
+            /**
+             * Pricing Mismatch
+             * @default false
+             */
+            pricing_mismatch: boolean;
             /** Regraded From Id */
             regraded_from_id?: string | null;
             /**
@@ -2760,6 +2769,25 @@ export interface components {
             total_possible?: string | null;
             /** Total Score */
             total_score?: string | null;
+        };
+        /**
+         * GradedTestOverrides
+         * @description The teacher's working copy, laid over the draft — never mutating it.
+         *
+         *     SPARSE: only what she touched appears, so everything she did not look at
+         *     keeps the AI's record. A terminal maps to a LIST because a terminal has
+         *     several checks and she may decide any subset of them.
+         */
+        GradedTestOverrides: {
+            /** Feedback */
+            feedback?: {
+                [key: string]: string;
+            };
+            stamp_position?: components["schemas"]["StampPosition"] | null;
+            /** Terminals */
+            terminals?: {
+                [key: string]: components["schemas"]["TeacherOverride"][];
+            };
         };
         /**
          * GradedTestStatusResponse
@@ -3447,10 +3475,11 @@ export interface components {
         };
         /** SaveDraftRequest */
         SaveDraftRequest: {
-            /** Overrides */
-            overrides: {
-                [key: string]: components["schemas"]["TeacherOverride-Input"];
-            };
+            /** Client Totals */
+            client_totals?: {
+                [key: string]: number | string;
+            } | null;
+            overrides: components["schemas"]["GradedTestOverrides"];
         };
         /**
          * SaveOntologyDraftRequest
@@ -3729,6 +3758,19 @@ export interface components {
             /** Start Char */
             start_char?: number | null;
         };
+        /**
+         * StampPosition
+         * @description Where the approved stamp sits on page 1 — a corner, or a normalized
+         *     point. Set by the teacher or auto-chosen; PR-G9 renders it.
+         */
+        StampPosition: {
+            /** Corner */
+            corner?: ("tl" | "tr" | "bl" | "br") | null;
+            /** X */
+            x?: number | null;
+            /** Y */
+            y?: number | null;
+        };
         /** StudentDetailResponse */
         StudentDetailResponse: {
             /** Classes */
@@ -3934,27 +3976,36 @@ export interface components {
         };
         /**
          * TeacherOverride
-         * @description Teacher's edit for one terminal criterion.
-         *     Always carries the effective points_awarded (AI's value if unchanged, teacher's if changed).
-         *     Presence in the map means "the teacher touched this terminal."
+         * @description The teacher's decision on ONE check.
+         *
+         *     An override is a VERDICT, not a number. Points are derived from verdicts by
+         *     `app/services/pricing.py`, in one direction, everywhere — so there is no
+         *     `points_awarded` here and no second pricing path to keep in agreement.
+         *
+         *     (R-2, owner ruling: decide by count. The production count of unapproved
+         *     v3-era drafts carrying an overlay was 0 — in fact `graded_tests` was empty —
+         *     so the simple branch applies with no legacy path and no data migration.)
          */
-        "TeacherOverride-Input": {
-            /** Points Awarded */
-            points_awarded: number | string;
+        TeacherOverride: {
+            /** Check Id */
+            check_id: string;
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at?: string;
+            /**
+             * Evidence Disputed
+             * @default false
+             */
+            evidence_disputed: boolean;
             /** Teacher Comment */
             teacher_comment?: string | null;
-        };
-        /**
-         * TeacherOverride
-         * @description Teacher's edit for one terminal criterion.
-         *     Always carries the effective points_awarded (AI's value if unchanged, teacher's if changed).
-         *     Presence in the map means "the teacher touched this terminal."
-         */
-        "TeacherOverride-Output": {
-            /** Points Awarded */
-            points_awarded: string;
-            /** Teacher Comment */
-            teacher_comment?: string | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "met" | "partially_met" | "not_met";
         };
         /** TranscribeResponse */
         TranscribeResponse: {

@@ -35,6 +35,7 @@ from typing import Dict, List, Optional
 
 from app.agents.grader.plan_schemas import PlanCheck, TerminalPlan
 from app.schemas.graded_test_draft import Check, GradingAnnotation
+from app.services.pricing import price_scope_checks_detailed
 from app.schemas.ontology_types import (
     AnnotationSeverity,
     AnswerQuotation,
@@ -103,6 +104,9 @@ def price_scope(terminal_plans: List[TerminalPlan],
                     group_amount[group] = amount
 
     out: Dict[str, PricedTerminal] = {}
+    # every terminal's checks, so the shared composer can dedup charge
+    # groups across the whole scope exactly as the pre-pass above does
+    all_checks: Dict[str, tuple] = {}
 
     for tp in terminal_plans:
         earned = Decimal("0")
@@ -141,6 +145,7 @@ def price_scope(terminal_plans: List[TerminalPlan],
                 points=check.points,
                 tariff=check.tariff_amount,
                 partial_fraction=check.partial_fraction,
+                charge_group=check.charge_group,
                 verdict=(av.verdict if av is not None else "not_met"),
                 quote=(av.quote_text or None) if av is not None else None,
                 quote_status=(av.quote_status.value
@@ -250,8 +255,16 @@ def price_scope(terminal_plans: List[TerminalPlan],
                 else:
                     lines.append(f"✓ {check.description_he}")
 
-        raw = earned - deducted
-        final = _snap(raw, Decimal("0"), tp.points_possible, precision)
+        # [PR-G5] ONE arithmetic. The per-check loop above owns the flags,
+        # annotations and reasoning lines; the POINTS come from the shared
+        # composer that /draft, /approve and the batch feed also use. Two
+        # implementations that agree today is how the selection-scoring
+        # incident happened (§5).
+        all_checks[tp.terminal_id] = (tp.points_possible, checks)
+        priced_here = price_scope_checks_detailed(
+            [(t, p, c) for t, (p, c) in all_checks.items()],
+            precision)[tp.terminal_id]
+        raw, final = priced_here.raw, priced_here.awarded
         if final != raw:
             flags.append(FlaggedOutcome(
                 criterion_id=tp.terminal_id, reason=FlagReason.BOUNDS_CLAMPED,

@@ -9,6 +9,7 @@ GradedTestDraft   → graded_tests.draft_json  (persisted by S8)
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Literal, Optional
 from uuid import uuid4
@@ -28,22 +29,55 @@ from app.schemas.ontology_types import (
 # Sparse terminal-level overlay: only terminals the teacher actually changed.
 # ---------------------------------------------------------------------------
 
+class StampPosition(BaseModel):
+    """Where the approved stamp sits on page 1 — a corner, or a normalized
+    point. Set by the teacher or auto-chosen; PR-G9 renders it."""
+    corner: Optional[Literal["tl", "tr", "bl", "br"]] = None
+    x: Optional[float] = None
+    y: Optional[float] = None
+
+
 class TeacherOverride(BaseModel):
+    """The teacher's decision on ONE check.
+
+    An override is a VERDICT, not a number. Points are derived from verdicts by
+    `app/services/pricing.py`, in one direction, everywhere — so there is no
+    `points_awarded` here and no second pricing path to keep in agreement.
+
+    (R-2, owner ruling: decide by count. The production count of unapproved
+    v3-era drafts carrying an overlay was 0 — in fact `graded_tests` was empty —
+    so the simple branch applies with no legacy path and no data migration.)
     """
-    Teacher's edit for one terminal criterion.
-    Always carries the effective points_awarded (AI's value if unchanged, teacher's if changed).
-    Presence in the map means "the teacher touched this terminal."
+    check_id: str
+    verdict: Literal["met", "partially_met", "not_met"]
+    teacher_comment: Optional[str] = None      # the "H" note; no new field
+    evidence_disputed: bool = False
+    decided_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class GradedTestOverrides(BaseModel):
+    """The teacher's working copy, laid over the draft — never mutating it.
+
+    SPARSE: only what she touched appears, so everything she did not look at
+    keeps the AI's record. A terminal maps to a LIST because a terminal has
+    several checks and she may decide any subset of them.
     """
-    points_awarded: Decimal
-    teacher_comment: Optional[str] = None
+    # An old-shape payload ({terminal_id: {points_awarded: ...}}) would otherwise
+    # parse as an EMPTY overlay: 200 OK, every override silently discarded. A
+    # wrong shape must be loud (422), never a quiet no-op.
+    model_config = {"extra": "forbid"}
 
-    @field_serializer("points_awarded")
-    def _sd(self, v: Decimal) -> str:
-        return str(v)
+    # terminal_id -> her decisions on that terminal's checks
+    terminals: Dict[str, List[TeacherOverride]] = Field(default_factory=dict)
+    # scope_id | "summary" -> her edited feedback text
+    feedback: Dict[str, str] = Field(default_factory=dict)
+    stamp_position: Optional[StampPosition] = None
 
+    def overrides_for(self, terminal_id: str) -> List[TeacherOverride]:
+        return self.terminals.get(terminal_id, [])
 
-# key = terminal_id (criterion_id for leaf criteria, sub_criterion_id for sub-criteria)
-GradedTestOverrides = Dict[str, TeacherOverride]
+    def all_check_ids(self) -> List[str]:
+        return [o.check_id for lst in self.terminals.values() for o in lst]
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +137,10 @@ class Check(BaseModel):
     points: Decimal                     # required: the credit at stake; else 0
     tariff: Optional[Decimal] = None    # tariff only
     partial_fraction: Decimal = Decimal("0.5")
+    # Same-defect-once, scope-wide. Without it neither the composer nor
+    # the client can reproduce the pricer's dedup, and a defect charged
+    # once by the grader would be charged twice on review.
+    charge_group: Optional[str] = None
     verdict: Literal["met", "partially_met", "not_met"]
     quote: Optional[str] = None         # None when not_met, or when unverifiable
     quote_status: Optional[Literal["exact", "fuzzy", "not_found"]] = None
@@ -236,7 +274,7 @@ class GradedTestDraft(BaseModel):
     served_models: Optional[List[str]] = None
 
     scope_outcomes: List[ScopeOutcome]
-    teacher_overrides: GradedTestOverrides = Field(default_factory=dict)  # EMPTY at S7; S9 populates
+    teacher_overrides: GradedTestOverrides = Field(default_factory=GradedTestOverrides)  # EMPTY at S7; S9 populates
 
     annotations: List[GradingAnnotation] = Field(default_factory=list)
     unmatched_transcription_answers: List[UnmatchedAnswer] = Field(default_factory=list)

@@ -158,19 +158,12 @@ def compile_graded_test(
     # ------------------------------------------------------------------
     violations: List[GateViolation] = []
 
-    # Round overrides to precision in-place (mutate a working copy)
-    rounded_overrides = {}
-    for tid, override in overrides.items():
-        # Round to the nearest multiple of precision (e.g. 4.3 → 4.25 when precision=0.25).
-        # Decimal.quantize(precision) controls only decimal places; to snap to a grid
-        # we divide, round to nearest integer, then multiply back.
-        rounded = (override.points_awarded / precision).to_integral_value(
-            rounding=ROUND_HALF_UP
-        ) * precision
-        # Rebuild with rounded value (TeacherOverride is a Pydantic model)
-        rounded_overrides[tid] = override.model_copy(update={"points_awarded": rounded})
-
-    for tid in rounded_overrides:
+    # [PR-G5] An override is a VERDICT on a CHECK, so there is nothing to
+    # round and no teacher-typed number to bound: points are derived by the one
+    # pricer, which clamps and snaps. The bounds check survives on the DERIVED
+    # value further down — a firing guard there would mean the pricer is wrong,
+    # which is exactly what we want to hear about (§0.5).
+    for tid, decisions in overrides.terminals.items():
         # Check 1: branch criterion ID (not overridable)
         if tid in branch_criterion_ids:
             violations.append(GateViolation(
@@ -195,18 +188,21 @@ def compile_graded_test(
             ))
             continue
 
-        # Check 3: bounds
-        info = terminal_index[tid]
-        awarded = rounded_overrides[tid].points_awarded
-        if awarded < Decimal("0") or awarded > info.points_possible:
-            violations.append(GateViolation(
-                terminal_id=tid,
-                violation_kind="out_of_bounds",
-                message=(
-                    f"Override for '{tid}': points_awarded={awarded} is outside "
-                    f"[0, {info.points_possible}]."
-                ),
-            ))
+        # Check 3 [CW-3, extended to checks]: every overridden check_id must be
+        # a real check in THIS terminal's draft. The closed world is now the
+        # check set, because the check is what she decides.
+        known = {c.check_id for c in (terminal_index[tid].checks or [])}
+        for decision in decisions:
+            if decision.check_id not in known:
+                violations.append(GateViolation(
+                    terminal_id=tid,
+                    violation_kind="closed_world",
+                    message=(
+                        f"Override on '{tid}' references check "
+                        f"'{decision.check_id}', which is not a check of that "
+                        f"terminal in this draft."
+                    ),
+                ))
 
     # Check 5: no error-severity annotations in draft
     for ann in draft.annotations:
@@ -233,14 +229,30 @@ def compile_graded_test(
         (s.question_id, s.sub_question_id): [] for s in draft.scope_outcomes
     }
 
+    # [PR-G5, R-9 condition i] BOTH numbers are derived by the one pricer:
+    # ai_points_awarded from the AI verdicts, final_points_awarded from the
+    # effective ones. Copying the draft's stored points for the AI side would
+    # reintroduce a second source of truth for a number the pricer owns.
+    ai_prices, final_prices, effective_checks, touched_ids = _price_by_scope(
+        draft, terminal_index, overrides, precision)
+
     for info in terminal_index.values():
-        override = rounded_overrides.get(info.terminal_id)
-        final = override.points_awarded if override is not None else info.ai_points_awarded
-        was_overridden = (
-            override is not None
-            and override.points_awarded != info.ai_points_awarded
-        )
-        teacher_comment = override.teacher_comment if override is not None else None
+        decisions = overrides.overrides_for(info.terminal_id)
+        by_check = {d.check_id: d for d in decisions}
+        final = final_prices.get(info.terminal_id, info.ai_points_awarded)
+        ai_award = ai_prices.get(info.terminal_id, info.ai_points_awarded)
+        was_overridden = final != ai_award
+        # the terminal-level note keeps the v3 wire: the first comment she wrote
+        teacher_comment = next((d.teacher_comment for d in decisions
+                                if d.teacher_comment), None)
+
+        # Belt and braces on the DERIVED value (§0.5): the pricer clamps and
+        # snaps, so this can only fire if the pricer is wrong.
+        if final < Decimal("0") or final > info.points_possible:
+            raise GateError([GateViolation(
+                terminal_id=info.terminal_id, violation_kind="out_of_bounds",
+                message=(f"derived award {final} for '{info.terminal_id}' is "
+                         f"outside [0, {info.points_possible}] — the pricer is wrong"))])
 
         terminal = ContractTerminalOutcome(
             terminal_id=info.terminal_id,
@@ -257,8 +269,14 @@ def compile_graded_test(
             # so final == ai here; the provenance SHAPE is what freezes.
             checks=([ContractCheck(
                 check_id=c.check_id, text=c.text, tariff=c.tariff,
-                ai_verdict=c.verdict, final_verdict=c.verdict,
-                was_overridden=False,
+                ai_verdict=c.verdict,
+                final_verdict=(by_check[c.check_id].verdict
+                               if c.check_id in by_check else c.verdict),
+                was_overridden=c.check_id in by_check,
+                evidence_disputed=(by_check[c.check_id].evidence_disputed
+                                   if c.check_id in by_check else False),
+                teacher_comment=(by_check[c.check_id].teacher_comment
+                                 if c.check_id in by_check else None),
             ) for c in info.checks] if info.checks else None),
         )
         scope_terminals[info.scope_key].append(terminal)
@@ -335,3 +353,37 @@ def compile_graded_test(
         percentage=percentage,
         approved_at=datetime.now(timezone.utc).isoformat(),
     )
+
+
+def _price_by_scope(draft, terminal_index, overrides, precision):
+    """Price every terminal twice — AI verdicts and effective verdicts — through
+    the ONE composer. Charge groups dedup scope-wide, which is why this is done
+    per scope rather than per terminal.
+
+    v3 drafts carry no checks; those terminals keep their stored award and
+    cannot be verdict-overridden, so both sides fall back to the draft.
+    """
+    from app.services.pricing import apply_overlay, price_scope_checks
+
+    ai_prices, final_prices, effective, touched = {}, {}, {}, set()
+    by_scope = {}
+    for info in terminal_index.values():
+        by_scope.setdefault(info.scope_key, []).append(info)
+
+    for _key, infos in by_scope.items():
+        ai_terms, final_terms = [], []
+        for info in infos:
+            if not info.checks:
+                continue
+            eff, ids = apply_overlay(info.checks,
+                                     overrides.overrides_for(info.terminal_id))
+            effective[info.terminal_id] = eff
+            touched |= ids
+            ai_terms.append((info.terminal_id, info.points_possible, info.checks))
+            final_terms.append((info.terminal_id, info.points_possible, eff))
+        if not ai_terms:
+            continue
+        ai_prices.update(price_scope_checks(ai_terms, precision))
+        final_prices.update(price_scope_checks(final_terms, precision,
+                                               overridden_check_ids=touched))
+    return ai_prices, final_prices, effective, touched

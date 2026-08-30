@@ -61,6 +61,36 @@ def _rubric_contract(
     )
 
 
+def _check(check_id: str, possible: str, awarded: str):
+    """A required check worth the terminal's full points, with partial_fraction
+    chosen so the DERIVED award equals the fixture's stated award exactly.
+
+    Points are derived from verdicts now, so a fixture that states an award the
+    verdict vocabulary cannot express would be testing an impossible draft."""
+    from app.schemas.graded_test_draft import Check
+    pp, pa = Decimal(possible), Decimal(awarded)
+    verdict = "met" if pa == pp else ("not_met" if pa == 0 else "partially_met")
+    fraction = Decimal("0.5") if pa in (Decimal(0), pp) else (pa / pp)
+    return Check(check_id=check_id, text=check_id, kind="required",
+                 points=pp, partial_fraction=fraction,
+                 verdict=verdict, quote="q", quote_status="exact",
+                 basis_he="", confidence=0.9)
+
+
+def _no_ov():
+    """The empty overlay — a model, not a bare dict (the alias was §0.4's smell)."""
+    from app.schemas.graded_test_draft import GradedTestOverrides
+    return GradedTestOverrides()
+
+
+def _ov(terminal_id: str, check_id: str, verdict: str, comment=None):
+    """Overlay v2: a verdict on a check."""
+    from app.schemas.graded_test_draft import GradedTestOverrides, TeacherOverride
+    return GradedTestOverrides(terminals={
+        terminal_id: [TeacherOverride(check_id=check_id, verdict=verdict,
+                                      teacher_comment=comment)]})
+
+
 def _leaf_criterion(
     criterion_id: str = "q1.c0",
     description: str = "Leaf criterion",
@@ -76,6 +106,9 @@ def _leaf_criterion(
         reasoning=reasoning,
         confidence=0.9,
         sub_criterion_outcomes=None,
+        # one required check worth the whole terminal — enough for the pricer to
+        # derive the same award the fixture used to assert directly
+        checks=[_check(f"{criterion_id}.k1", points_possible, points_awarded)],
     )
 
 
@@ -93,6 +126,7 @@ def _branch_criterion(
             points_awarded=Decimal(pa),
             reasoning="Reasonable",
             confidence=0.8,
+            checks=[_check(f"{sid}.k1", pp, pa)],
         )
         for sid, pp, pa in sub_ids
     ]
@@ -169,7 +203,7 @@ def _draft(
 
 def test_no_overrides_finals_equal_ai():
     draft = _draft()
-    contract = compile_graded_test(draft, {}, _rubric_contract())
+    contract = compile_graded_test(draft, _no_ov(), _rubric_contract())
 
     assert len(contract.scope_outcomes) == 1
     scope = contract.scope_outcomes[0]
@@ -189,11 +223,13 @@ def test_no_overrides_finals_equal_ai():
 
 def test_leaf_override_updates_final_preserves_ai():
     draft = _draft()
-    overrides = {"q1.c0": TeacherOverride(points_awarded=Decimal("3"), teacher_comment="Good try")}
+    # she disagrees with the check: partially, not fully met -> 5 * 0.5 = 2.5
+    # she rejects the check outright: not_met -> 0, and the AI's 4 is preserved
+    overrides = _ov("q1.c0", "q1.c0.k1", "not_met", comment="Good try")
     contract = compile_graded_test(draft, overrides, _rubric_contract())
 
     t = contract.scope_outcomes[0].terminal_outcomes[0]
-    assert t.final_points_awarded == Decimal("3")
+    assert t.final_points_awarded == Decimal("0")
     assert t.ai_points_awarded == Decimal("4")   # AI value preserved
     assert t.was_overridden is True
     assert t.teacher_comment == "Good try"
@@ -208,16 +244,16 @@ def test_branch_sub_criterion_override_updates_scope_total():
     branch = _branch_criterion(sub_ids=[("q1.c1.s0", "3", "2"), ("q1.c1.s1", "4", "3")])
     draft = _draft(scope_outcomes=[_scope(criterion_outcomes=[branch])])
 
-    # Override first sub-criterion: 2 → 1
-    overrides = {"q1.c1.s0": TeacherOverride(points_awarded=Decimal("1"))}
+    # Override first sub-criterion: she rejects its check
+    overrides = _ov("q1.c1.s0", "q1.c1.s0.k1", "not_met")
     contract = compile_graded_test(draft, overrides, _rubric_contract())
 
     scope = contract.scope_outcomes[0]
-    # Scope final = 1 (overridden s0) + 3 (AI s1) = 4
-    assert scope.final_points_awarded == Decimal("4")
+    # she rejects s0's only check: 2 -> 0. s1 is untouched at 3.
+    assert scope.final_points_awarded == Decimal("3")
 
     finals = {t.terminal_id: t.final_points_awarded for t in scope.terminal_outcomes}
-    assert finals["q1.c1.s0"] == Decimal("1")
+    assert finals["q1.c1.s0"] == Decimal("0")
     assert finals["q1.c1.s1"] == Decimal("3")
 
 
@@ -229,46 +265,45 @@ def test_branch_sub_criterion_override_updates_scope_total():
 def test_provenance_all_four_fields():
     crit = _leaf_criterion(points_awarded="3", reasoning="Solid reasoning")
     draft = _draft(scope_outcomes=[_scope(criterion_outcomes=[crit])])
-    overrides = {"q1.c0": TeacherOverride(points_awarded=Decimal("4"), teacher_comment="Adjusted")}
+    overrides = _ov("q1.c0", "q1.c0.k1", "not_met", comment="Adjusted")
     contract = compile_graded_test(draft, overrides, _rubric_contract())
 
     t = contract.scope_outcomes[0].terminal_outcomes[0]
     assert t.ai_points_awarded == Decimal("3")
     assert t.ai_reasoning == "Solid reasoning"
     assert t.teacher_comment == "Adjusted"
-    assert t.final_points_awarded == Decimal("4")
+    assert t.final_points_awarded == Decimal("0")   # she rejected the check
 
 
 # ---------------------------------------------------------------------------
 # Test 5: Gate — out of bounds → GateError with out_of_bounds violation
 # ---------------------------------------------------------------------------
 
-def test_gate_out_of_bounds():
-    draft = _draft()
-    overrides = {"q1.c0": TeacherOverride(points_awarded=Decimal("99"))}  # max is 5
-    with pytest.raises(GateError) as exc_info:
-        compile_graded_test(draft, overrides, _rubric_contract())
+def test_derived_award_is_always_within_bounds_and_on_the_grid():
+    """RE-HOMED (was test_gate_out_of_bounds + test_gate_precision_rounds_not_rejects).
 
-    kinds = [v.violation_kind for v in exc_info.value.violations]
-    assert "out_of_bounds" in kinds
+    Those tests bounded and rounded a number the TEACHER typed. Under overlay v2
+    she decides a verdict and the pricer derives the number, clamping to
+    [0, possible] and snapping to the precision grid — so an out-of-bounds or
+    off-grid award is no longer reachable from the input, it would be a pricer
+    bug. The invariant is therefore asserted on the OUTPUT, where a violation
+    still means something is wrong.
+    """
+    crit = _leaf_criterion(points_possible="5", points_awarded="4")
+    draft = _draft(scope_outcomes=[_scope(criterion_outcomes=[crit])])
+
+    for verdict in ("met", "partially_met", "not_met"):
+        contract = compile_graded_test(
+            draft, _ov("q1.c0", "q1.c0.k1", verdict), _rubric_contract("0.25"))
+        t = contract.scope_outcomes[0].terminal_outcomes[0]
+        assert Decimal("0") <= t.final_points_awarded <= t.points_possible
+        # on the 0.25 grid
+        assert (t.final_points_awarded / Decimal("0.25")) % 1 == 0
 
 
 # ---------------------------------------------------------------------------
 # Test 6: Gate — precision → off-grid override is ROUNDED (not rejected)
 # ---------------------------------------------------------------------------
-
-def test_gate_precision_rounds_not_rejects():
-    # precision = 0.25; teacher enters 4.3 → should be rounded to 4.25
-    crit = _leaf_criterion(points_possible="5", points_awarded="4")
-    draft = _draft(scope_outcomes=[_scope(criterion_outcomes=[crit])])
-    overrides = {"q1.c0": TeacherOverride(points_awarded=Decimal("4.3"))}
-
-    # Should NOT raise
-    contract = compile_graded_test(draft, overrides, _rubric_contract("0.25"))
-    t = contract.scope_outcomes[0].terminal_outcomes[0]
-    # 4.3 rounded to nearest 0.25 = 4.25
-    assert t.final_points_awarded == Decimal("4.25")
-
 
 # ---------------------------------------------------------------------------
 # Test 7: Gate — closed-world → unknown terminal_id → GateError
@@ -276,7 +311,7 @@ def test_gate_precision_rounds_not_rejects():
 
 def test_gate_closed_world_unknown_terminal():
     draft = _draft()
-    overrides = {"nonexistent.criterion": TeacherOverride(points_awarded=Decimal("1"))}
+    overrides = _ov("nonexistent.criterion", "nonexistent.criterion.k1", "met")
     with pytest.raises(GateError) as exc_info:
         compile_graded_test(draft, overrides, _rubric_contract())
 
@@ -292,7 +327,7 @@ def test_gate_branch_criterion_not_overridable():
     branch = _branch_criterion()  # criterion_id = "q1.c1"
     draft = _draft(scope_outcomes=[_scope(criterion_outcomes=[branch])])
 
-    overrides = {"q1.c1": TeacherOverride(points_awarded=Decimal("5"))}  # branch ID
+    overrides = _ov("q1.c1", "q1.c1.k1", "met")  # branch ID
     with pytest.raises(GateError) as exc_info:
         compile_graded_test(draft, overrides, _rubric_contract())
 
@@ -309,7 +344,7 @@ def test_gate_error_annotation_blocks():
     error_ann = _annotation(AnnotationSeverity.ERROR, annotation_type="no_answer")
     draft = _draft(annotations=[error_ann])
     with pytest.raises(GateError) as exc_info:
-        compile_graded_test(draft, {}, _rubric_contract())
+        compile_graded_test(draft, _no_ov(), _rubric_contract())
 
     kinds = [v.violation_kind for v in exc_info.value.violations]
     assert "error_annotation" in kinds
@@ -320,7 +355,7 @@ def test_gate_warning_and_info_do_not_block():
     info_ann = _annotation(AnnotationSeverity.INFO, annotation_type="no_answer")
     draft = _draft(annotations=[warning_ann, info_ann])
     # Should compile without raising
-    contract = compile_graded_test(draft, {}, _rubric_contract())
+    contract = compile_graded_test(draft, _no_ov(), _rubric_contract())
     assert contract is not None
 
 
@@ -333,7 +368,7 @@ def test_aggregates_correct_post_override():
     crit_a = _leaf_criterion("q1.c0", points_possible="5", points_awarded="4")
     crit_b = _leaf_criterion("q1.c1", points_possible="10", points_awarded="8")
     draft = _draft(scope_outcomes=[_scope(criterion_outcomes=[crit_a, crit_b])])
-    overrides = {"q1.c0": TeacherOverride(points_awarded=Decimal("3"))}
+    overrides = _ov("q1.c0", "q1.c0.k1", "not_met")
 
     # PR-3: the denominator now comes from the CONTRACT (achievable), never from
     # re-summing scopes. A real contract whose scopes are 5+10 declares total 15 —
@@ -342,10 +377,10 @@ def test_aggregates_correct_post_override():
     # bit-for-bit the old math.
     contract = compile_graded_test(draft, overrides, _rubric_contract(total_points="15"))
 
-    assert contract.total_score == Decimal("11")    # 3 + 8
+    assert contract.total_score == Decimal("8")     # 0 (rejected) + 8
     assert contract.total_possible == Decimal("15") # achievable == offered here
     # 11 / 15 * 100 = 73.33...
-    assert contract.percentage == Decimal("73.33")
+    assert contract.percentage == Decimal("53.33")   # 8 / 15
     # nothing excluded on a non-selection contract
     assert all(s.counted_in_total for s in contract.scope_outcomes)
 
@@ -354,17 +389,18 @@ def test_aggregates_zero_possible_no_division_error():
     # Degenerate: all criteria have 0 points_possible
     crit = _leaf_criterion(points_possible="0", points_awarded="0")
     draft = _draft(scope_outcomes=[_scope(criterion_outcomes=[crit])])
-    contract = compile_graded_test(draft, {}, _rubric_contract())
+    contract = compile_graded_test(draft, _no_ov(), _rubric_contract())
     assert contract.percentage == Decimal("0")
 
 
 def test_gate_collect_all_violations():
     """Gate should report all violations in one raise, not fail-fast."""
     draft = _draft()
-    overrides = {
-        "nonexistent_1": TeacherOverride(points_awarded=Decimal("1")),
-        "nonexistent_2": TeacherOverride(points_awarded=Decimal("2")),
-    }
+    from app.schemas.graded_test_draft import GradedTestOverrides, TeacherOverride
+    overrides = GradedTestOverrides(terminals={
+        "nonexistent_1": [TeacherOverride(check_id="nonexistent_1.k1", verdict="met")],
+        "nonexistent_2": [TeacherOverride(check_id="nonexistent_2.k1", verdict="met")],
+    })
     with pytest.raises(GateError) as exc_info:
         compile_graded_test(draft, overrides, _rubric_contract())
 
@@ -399,7 +435,7 @@ def test_contract_mirrors_checks():
     object.__setattr__(leaf, "checks", checks)
     draft = _draft([_scope(criterion_outcomes=[leaf])])
 
-    contract = compile_graded_test(draft, {}, _rubric_contract())
+    contract = compile_graded_test(draft, _no_ov(), _rubric_contract())
 
     terminal = contract.scope_outcomes[0].terminal_outcomes[0]
     assert terminal.checks is not None, "the contract dropped the checks"

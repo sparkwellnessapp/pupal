@@ -64,7 +64,9 @@ def _minimal_draft_json(rubric_version: str = "test-rubric-v1") -> dict:
                 graded_by="llm",
             )
         ],
-        teacher_overrides={"q1.c0": {"points_awarded": "90", "teacher_comment": "good"}},
+        # [PR-G5] overlay v2: a verdict on a check, under `terminals`
+        teacher_overrides={"terminals": {"q1.c0": [
+            {"check_id": "q1.c0.k1", "verdict": "not_met", "teacher_comment": "good"}]}},
         llm_calls_count=1,
         grading_duration_ms=400,
     )

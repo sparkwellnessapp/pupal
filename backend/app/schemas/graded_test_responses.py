@@ -12,7 +12,7 @@ GET /graded_tests and GET /rubric/{id}/graded_tests return GradedTestListItem.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
+from typing import Dict, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, field_serializer
@@ -57,7 +57,14 @@ class GradedTestDraftResponse(BaseModel):
     percentage: Optional[Decimal] = None
     total_cost_usd: Optional[Decimal] = None
     transcription_id: UUID
-    draft: GradedTestDraft  # deserialized from graded_tests.draft_json
+    draft: GradedTestDraft
+    # [PR-G5] The SERVER's pricing of the overlay just saved. The client
+    # re-derives the same numbers locally for instant feedback; these are
+    # what will actually freeze, so a divergence must be visible BEFORE
+    # approval rather than discovered inside the contract.
+    effective_totals: Optional[Dict[str, Decimal]] = None   # terminal_id -> points
+    effective_total: Optional[Decimal] = None               # the test total
+    pricing_mismatch: bool = False  # deserialized from graded_tests.draft_json
     rubric_contract_stale: bool = False  # S10: computed at query time
     regraded_from_id: Optional[UUID] = None  # S10: revision chain back-pointer
 
