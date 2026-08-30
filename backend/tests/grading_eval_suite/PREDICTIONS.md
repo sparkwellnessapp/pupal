@@ -207,3 +207,58 @@ without pre-registration here.
 - **CONF-1/CONF-3: both k=3 kill-clean boards KILLED at k=5** (nano K4 11.5;
   terra-medium K1 77/80) — k=3 under-samples the kill tails; the SCREENING
   stamp is vindicated as load-bearing.
+
+
+### Owner ruling 2026-08-31 — grader-v6 arms scored, effort lever RETIRED
+
+- **P-V6a (din min-scan cell prices 0 on >=5 of 6 draws): FALSIFIED.** Actual
+  **3 of 6** (Arm A 0/2.00/0 · Arm B 0/1.00/2.00). Direction was real — v5.3
+  sonnet leaked 3/3 — but the bar was missed and the cell leaked in BOTH arms,
+  which fired the item-4 condition. Seven textual data points now stand on this
+  cell (v4 5/5 · v5 5/5 · tb1536 3/3 · v5.3-champion 1/3 · v5.3-sonnet 3/3 ·
+  v6-A 1/3 · v6-B 2/3). **Prompt surface CLOSED — there is no v7.**
+- **P-V6b (GA-5 spread <= 3.0): NOT SCORED — UNTESTED.** Measured 23.25 /
+  24.50, but the metric was captured by a decoding defect, not by verdict
+  behaviour: v6's "omit" instruction spilled into REQUIRED fields, four scopes
+  failed to parse, and a failed scope zeroes its terminals. The four
+  catastrophic draws map 1:1 onto the four parse failures. The torn-rule is
+  recorded **UNTESTED, not falsified** (owner ruling, 2026-08-31).
+- **P-V6c (Arm B <= $0.12/test with GA-2 >= 0.85): FALSIFIED** ($0.1383;
+  GA-2 0.7772).
+
+- **EFFORT-LEVER (Sonnet 5 `effort` as the path under GA-7's $0.15):
+  FALSIFIED, with mechanism.** Provider-reported
+  `output_tokens_details.thinking_tokens` is **zero on every call in both
+  arms** (and on the pre-spend probe): Sonnet 5's adaptive thinking does not
+  engage on this workload — short, highly-structured verification against a
+  check list. `effort` reduces thinking depth, so with no thinking to reduce
+  the lever has nothing to act on. Arm B is only **3.4%** under Arm A
+  ($0.1383 vs $0.1432); both beat v5.3's $0.1562 because v6 is a SHORTER
+  PROMPT, not because effort did work. **Retired by owner ruling 2026-08-31 —
+  no further effort or thinking-budget probes.**
+
+### FILED, UNRUN — cascade screen, post-launch (owner ruling 2026-08-31 item 5)
+
+Registered now, deliberately NOT run: a router threshold fit to three leaks on
+one exam is overfitting by construction.
+
+**Preconditions (all required before a cent is spent):** the first real batches
+have produced **n >= 10 fixtures across >= 2 exams**, with teacher overrides as
+ground truth; and the din PL-9 cell is resolved by the pilot teacher (item 6),
+so it is no longer contested ground.
+
+**Configuration:** v5.3 base + gemini-3.1-pro escalation. The **0.80 router
+threshold is NOT carried over** — it is re-derived from the new corpus's leak
+distribution before the screen runs, and the re-derived value is written here
+before spending.
+
+**Pre-registered prediction:** on the new corpus, the cascade prices the
+invented-credit cells at 0 on **>= 90%** of draws while holding GA-2 >= 0.85,
+at a cost strictly below the champion's single-model $/test.
+
+**Kill criterion:** the cascade is dead if EITHER (a) any invented-credit cell
+survives escalation — the router escalated and the champion still credited it,
+which means escalation is not the fix; or (b) cost >= the single-model
+champion, which removes its only reason to exist. Partial credit for a cascade
+that catches leaks but costs more is NOT available: that configuration loses to
+simply running the champion.

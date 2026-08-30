@@ -382,3 +382,37 @@ FP2: $9.52 of $20 (din-v4 $1.82 · gpt4o $1.23 · tb1536 $3.00 · probe $0.01 ·
 din-v5 $2.36 · R-D gate $1.10) · $10.48 returned. Missions cumulative:
 $59.04 + $9.52 ≈ **$68.6 total spend** across both envelopes, cost_truth-
 reconciled per UTC day.
+
+
+## §10 — din/q2.ב is CONTESTED GROUND TRUTH (owner ruling 2026-08-31)
+
+**The cell `din/q2.ב · q2.ב.c4.s2` is marked CONTESTED and counts as a kill for
+NEITHER model, on either side of the pin decision, until the pilot teacher
+rules on it.**
+
+The paper answers Q2.ב with correct minimum-finding logic aimed at the wrong
+target: it searches `arrShows` for the lowest-rated SHOW and returns its NAME,
+where the question asks for an accumulator array over channels and the CHANNEL
+NUMBER back. The question text says only that not using an accumulator array
+"will incur a deduction" — it does not say how large. **Every din-cell verdict
+this mission measured, on every model, was scored against our reading of that
+sentence, not hers.** That makes it contested ground, not a model defect, and
+PL-9 has been re-litigated four times against an unratified premise.
+
+Consequences, applied:
+- Kill tallies that turn on this cell are reported with it EXCLUDED and
+  the exclusion stated. It is not silently dropped and not silently counted.
+- The seven textual data points on the min-scan cell remain on the record as
+  evidence about the PROMPT SURFACE (they closed it), not as evidence about
+  either model's trustworthiness.
+- The gemini-3.1-pro production pin (plan v3 + grader-v5.1) is unaffected: its
+  kill-clean k=5 record does not depend on this cell.
+- Sonnet 5 on v5.3 remains a non-candidate for launch on its own record — it
+  leaks the cell 0-of-3 — but that leak is likewise held pending her ruling.
+
+**Resolution path (item 6):** a one-page query goes to the pilot teacher —
+her scan of Q2.ב, the question text, no model output, no ground truth, no
+example solution, and one question: what would you write in the margin, and how
+many points out of 29. Her answer becomes the fixture's GT and resolves PL-9.
+The page is deliberately held OUTSIDE the repository: it embeds a real
+student's handwriting and both git remotes are public.

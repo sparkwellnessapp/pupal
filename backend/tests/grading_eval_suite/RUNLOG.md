@@ -1711,3 +1711,65 @@ is the sole remaining path; all v6 leaks sit at confidence 0.50-0.60, below its
 prompt it screens on - v6 currently loses ~2.2% of scopes to a decoding defect
 with a one-line fix, and screening an architecture on that base confounds it.
 LEDGER: +$4.2217 · envelope $7.34 -> **$3.12 remaining**
+
+## OWNER RULING 2026-08-31 — prompt surface CLOSED, envelope HELD
+
+Cascade **not** fired; none of the three options taken. Envelope **$3.12 held,
+not spent**. Nothing further on the eval suite until after launch.
+
+**1. Prompt surface closed. grader-v6 KILLED [SCREENING, k=3] on both arms**
+(Arm A `20260830-143648_sonnet5-v6` $2.1476 · Arm B
+`20260830-144219_sonnet5-v6-medium` $2.0741). K1 47/48 (A) / 46/48 (B); K4
+23.25 / 24.50; K2 passed both (1.36% / 2.04%); GA-2 0.7947 / 0.7772; GA-7
+passed both ($0.1432 / $0.1383).
+- **Mechanism ACCEPTED by the owner:** optionality spillover from "Omit
+  entirely for met" -> dropped `verdict` / `confidence` -> four parse failures
+  -> four scope-zeroings mapping **1:1** onto the four catastrophic draws
+  (A: yonatan r1 −29.50, din r1 −16.25; B: dan r0 −28.00, din r0 −15.00).
+- **The consistency kill is scope-zeroing, not verdict oscillation. The
+  torn-rule is recorded UNTESTED, not falsified.**
+- **Harshness recorded as a separate, real finding:** excluding every
+  parse-failure draw, v6 still grades below v5.3 on four of five papers.
+- **Item-4 has FIRED. No v7.** Seven textual data points stand on the din
+  min-scan cell.
+
+**2. Effort lever RETIRED on the measured fact.** Thinking tokens are ZERO on
+every call in both arms (provider-reported `output_tokens_details.
+thinking_tokens`); Sonnet 5's adaptive thinking does not engage on this
+workload, so `effort` had nothing to reduce. Arm B's 3.4% saving is prompt
+length, not effort. Filed FALSIFIED-with-mechanism in PREDICTIONS.md. **No
+further effort or thinking-budget probes.**
+
+**3. Sonnet prompt pin ROLLED BACK to grader-v5.3.** Every SUT file touched by
+the v6 work restored to its last v5.3 bytes — **restore proof: `sut_hash` is
+`615821fe0f66e724`, EQUAL to the value the confirmed v5.3 record was measured
+under.** v6 is retained as a dated artifact at
+`tests/grading_eval_suite/GRADER_V6_ARTIFACT.md` (outside `_SUT_RELPATHS`, so
+retention costs no provenance drift) and guarded by
+`test_sonnet_prompt_pin_is_v53_and_v6_is_an_artifact_not_a_pin`. The two v6
+configs were removed — with the prompt rolled back they would have named a
+prompt they no longer run. **Kept deliberately:** the anthropic `effort`
+passthrough in `docx_v3/pipeline.py` — outside the SUT, inert for every current
+config, and a repair of a real silent-parameter-drop bug; reverting it would
+knowingly restore a defect. The thinking-token instrumentation WAS reverted, as
+it sits inside the SUT and its retention would have broken the restore proof
+for a measurement now retired.
+
+**4. Production pin UNCHANGED: gemini-3.1-pro, plan v3 + grader-v5.1** — the
+pilot-bridge, the only kill-clean k=5 record; the pin PR-G1 switches production
+to (OD-B1 -> confirmed). **Sonnet 5 on v5.3 is NOT a launch candidate:** it
+leaks the din cell (0 of 3 priced zero) — invented credit, the kill criterion.
+The $0.15 ceiling is a SCALE constraint, not a launch constraint: at founding-
+cohort volume the overage is tens of dollars a month against a catastrophic-
+tail risk.
+
+**5. Cascade DEFERRED to post-launch,** prediction + kill criterion FILED
+UNRUN in PREDICTIONS.md. A router threshold fit to three leaks on one exam is
+overfitting by construction; the 0.80 threshold will be re-derived from the new
+corpus, not carried over.
+
+**6. PL-9 goes to the TEACHER, not to us.** Din's Q2.ב (wrong-target answer,
+correct logic) is CONTESTED ground truth. A one-page artifact goes to the pilot
+teacher — her scan, the question text, no model output, one question. Her
+answer becomes the fixture's GT and resolves PL-9. **Until then the din cell is
+marked CONTESTED in the eval summary and counts as a kill for NEITHER model.**

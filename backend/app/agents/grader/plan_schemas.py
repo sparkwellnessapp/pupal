@@ -102,12 +102,7 @@ class CheckVerdict(BaseModel):
 
     check_id: str
     evidence_quote: str                 # 1st content field: verbatim span; "" only for not_met
-    # [v6] DEFAULTED, not removed: v6 instructs "Omit entirely for met".
-    # A required field would make that instruction a parse failure under
-    # tool-use structured output (Anthropic does not hard-enforce
-    # required). Omission now lands as "" — byte-identical to the v5.1
-    # lean contract. Field set and decode order are UNCHANGED.
-    basis_he: str = ""                  # lean: "" (or omitted) for met; not_met: what was searched
+    basis_he: str                       # v5.1 basis-lean: "" for met; for not_met: what was searched
     verdict: Literal["met", "partially_met", "not_met"]
     confidence: float                   # 0.0–1.0 for THIS check's verdict
 

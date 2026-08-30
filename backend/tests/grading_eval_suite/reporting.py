@@ -201,11 +201,6 @@ def aggregate(trials: List[TrialScore], *, k: int) -> Dict[str, Any]:
         agg["cost_usd"] = {"mean": round(statistics.mean(costs), 4),
                            "max": round(max(costs), 4)}
         agg["run_cost_usd_total"] = round(sum(costs), 4)   # the ledger line [§1.6]
-    thinks = [t.thinking_tokens for t in valid if t.thinking_tokens is not None]
-    if thinks:
-        # [item 2b] adaptive-thinking visibility; a SUBSET of output tokens.
-        agg["thinking_tokens_total"] = sum(thinks)
-        agg["thinking_tokens_per_test"] = round(sum(thinks) / len(thinks), 1)
     if lats:
         agg["latency_s"] = {"median": round(statistics.median(lats), 2),
                             "max": round(max(lats), 2)}

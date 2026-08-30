@@ -207,11 +207,6 @@ class GradedTestDraft(BaseModel):
     total_input_tokens: int = 0             # S8 — Σ scope_outcomes.input_tokens
     total_output_tokens: int = 0            # S8 — Σ scope_outcomes.output_tokens
     total_cached_input_tokens: Optional[int] = None  # Σ cached reads when the provider reports them
-    # [COST_TRUTH, owner item 2b 2026-08-30] Σ provider-reported thinking
-    # tokens. These are a SUBSET of total_output_tokens (billed at the
-    # output rate), surfaced separately so an adaptive-thinking model's
-    # reasoning spend is visible. None when the provider reports none.
-    total_thinking_tokens: Optional[int] = None
     # [COST_TRUTH, cascade] per-tier token split ({model_id: {input, output,
     # cached}}) — a cascade bills two tiers and each must be priced by its own
     # card; None on single-model paths.
