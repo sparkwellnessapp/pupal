@@ -41,6 +41,7 @@ Gate: fixtures diffed · all G1/G5 tests green from red · codegen committed ·
 
 | # | Item | Red-first tests | Status |
 |---|---|---|---|
+| B0.7 | **G0** — parity truth: hobby_tvshow two-step + suite linkage | `hobby-raw-blocks-and-offers-fix`, `hobby-compiles-clean-after-fix`, `corrected-contract-derives-from-raw-plus-proposed-fix` | [x] 3 green (`84cee98`) |
 | B1.1 | **G2** — bounded grading (no schema; unblocked) | `grading-card-has-bounded-exit`, `transient-retry-once-never-on-content`, `all-scopes-failed-marks-row-failed`, `row-budget-bounds-a-hung-grade` | [x] 7 tests green from red; code UNCOMMITTED (mixed files — see below) |
 | B1.2 | **G1(a)** — config-driven grader seam (the owed R-4 PR): `GRADER_MODEL_KEY` + plan/prompt pin, `grading_runner` through `llm_factory` | `production-pin-is-config-driven`, `draft-stamps-all-four-versions` | [!] B0.2 |
 | B1.3 | **G1(b)** — `PricedTerminal` carries per-check rows → `TerminalOutcome.checks[]` + `quote_status` | `draft-persists-v5-checks` | [!] B0.2 |
@@ -126,6 +127,33 @@ Each ends with its `schema_migrations` commit token; each version added to
 `test_graded_test_approval` · one-leaf index tests · `test_sonnet_prompt_pin_is_v53_and_v6_is_an_artifact_not_a_pin`
 · `test_payload_fidelity` · the frontend bidi/copy checks (codegen must not break them).
 
+
+---
+
+## House method — staging a commit out of a mixed working tree
+
+`git add -p` is interactive and unavailable in this environment. When a file
+carries both this PR's work and another workstream's uncommitted work, stage by
+**construction**, not by selection:
+
+1. Establish **separability first**: does this PR's code depend on anything only
+   the other workstream provides? (For G2: `_do_grade` and the test helpers exist
+   at HEAD, `_claim_grading` does not — separable. For G6: `EXPECTED_MIGRATIONS`
+   ends at 014 and migrations 015–017 are theirs — **not** separable.)
+2. For each mixed file, take its **HEAD blob** and re-apply only this PR's edits;
+   write the result to the index with `git hash-object -w` +
+   `git update-index --cacheinfo`. The staged content is this PR's edits *by
+   construction* — nothing is selected out of a diff, so nothing can be
+   mis-selected.
+3. `git add` whole files only when they carry no foreign edits.
+4. **Verify the index, do not trust the selection**: scan `git diff --cached` for
+   the other workstream's markers. Any hit ⇒ `git reset` and stop.
+5. Report both diff stats: what was staged, and what was left.
+
+Ratified as the house method after G2 (`acb3f59`), reviewer verdict on report #2.
+Diff-hunk marker matching was tried first and rejected: it mislabels a change's
+own comment and continuation lines as foreign, and adjacency in a `-U3` hunk is
+not the same thing as entanglement.
 
 ---
 
