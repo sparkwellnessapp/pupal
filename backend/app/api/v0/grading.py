@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import List, Optional, Union
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile, Form
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, Form
 from pydantic import BaseModel
 from sqlalchemy import case, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +29,7 @@ from ...schemas.graded_test_responses import (
 from ...schemas.ontology_types import GradingRubricContract
 from ...services.graded_test_contract_compiler import GateError, compile_graded_test
 from ...services.graded_test_revision import extend_chain
-from ...services.grading_runner import run_grading
+from ...services.cloud_tasks_service import enqueue_grading_task_or_log, verify_task_request
 from .auth import get_current_user
 
 
@@ -764,14 +764,13 @@ class RevisionResponse(BaseModel):
 @router.post("/graded_test/{graded_test_id}/regrade", response_model=RevisionResponse)
 async def regrade_graded_test(
     graded_test_id: UUID,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> RevisionResponse:
     """
     Re-grade against the current rubric contract version (stale rows only).
 
-    Creates a pending successor row and fires run_grading via BackgroundTasks.
+    Creates a pending successor row and enqueues a grading Cloud Task.
     The teacher polls GET /graded_test/{new_id} exactly as in S8.
 
     Preconditions (→ 409 if violated):
@@ -814,9 +813,10 @@ async def regrade_graded_test(
         new_draft_json=None,
     )
 
-    # Fire async grading — runs after response is sent (S8 pattern).
-    # run_grading owns its own DB session; must not capture this one.
-    background_tasks.add_task(run_grading, r2.id)
+    # Cloud Tasks migration: enqueue AFTER extend_chain's commit; the handler
+    # claims the pending row by CAS. Enqueue failure leaves a durable pending
+    # row — the grading dispatch backstop reaps it → this same retry chain.
+    await enqueue_grading_task_or_log(r2.id)
 
     return RevisionResponse(graded_test_id=str(r2.id), status=r2.status)
 
@@ -872,7 +872,6 @@ async def manual_edit_graded_test(
 @router.post("/graded_test/{graded_test_id}/retry", response_model=RevisionResponse)
 async def retry_graded_test(
     graded_test_id: UUID,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> RevisionResponse:
@@ -880,8 +879,8 @@ async def retry_graded_test(
     Re-attempt a failed grade.
 
     Creates a pending successor pinned to the current rubric contract version
-    (naturally picks up any rubric updates since the failure) and fires
-    run_grading via BackgroundTasks.
+    (naturally picks up any rubric updates since the failure) and enqueues a
+    grading Cloud Task.
 
     Preconditions (→ 409 if violated):
       - Source is owned (→ 404 if not).
@@ -913,6 +912,33 @@ async def retry_graded_test(
         new_draft_json=None,
     )
 
-    background_tasks.add_task(run_grading, r2.id)
+    await enqueue_grading_task_or_log(r2.id)
 
     return RevisionResponse(graded_test_id=str(r2.id), status=r2.status)
+
+
+# =============================================================================
+# INTERNAL: grading Cloud Tasks target — NOT behind get_current_user
+# =============================================================================
+
+internal_router = APIRouter(prefix="/internal/grading-jobs", tags=["internal"])
+
+
+@internal_router.post("/{graded_test_id}/run", include_in_schema=False)
+async def run_grading_job_task(graded_test_id: UUID, request: Request) -> dict:
+    """Executes grading INSIDE this request (CPU guaranteed). Idempotent: the
+    runner's first statement is the pending->grading CAS - a duplicate
+    delivery (queue maxAttempts=3) or an advanced/terminal row is a 200
+    no-op. Always 200 on auth success: a non-2xx would redeliver work the
+    row already accounts for."""
+    reason = verify_task_request(request)
+    if reason is not None:
+        logger.warning("internal_grading_run_rejected",
+                       extra={"graded_test_id": str(graded_test_id),
+                              "reason": reason})
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    from ...services.grading_runner import run_grading
+
+    ran = await run_grading(graded_test_id)
+    return {"graded_test_id": str(graded_test_id), "ran": bool(ran)}

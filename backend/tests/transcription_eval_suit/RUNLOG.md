@@ -53,4 +53,297 @@ One line per run. Format: `date | config | diff-vs-prev | gate | worst-valid doc
 2026-07-10 | v1_trust CALIBRATED k=5 (25 rec) -> results/20260710_021723_v1_trust | BURDEN HALVED, COVERAGE UP: warns/doc 37.3->20.0 (false warns ~19->~10, warn prec 0.482), any-tier crit recall 0.902->0.919, OPERATOR CLASS 0 missed in 25 records (100% any-tier, warn-tier by construction), unflagged-crit ~1.4/doc | stable correlated wall down 14->5 spans (3 paren-add + moran line-order [GT check R9] + 1 word-drop); comment-drop class eliminated from labels (R1) | ACC unchanged: moran 4/5 (1 ratio knife-edge), din bimodal 0.64x3 = P1 STILL transcribes crossed-out SchoolHobbies -> P2 routes blob (R8 = dominant accuracy artifact) | cost $0.0936 PASS (leak: 7 reader truncations, all isolated, ~$0.01 -> R7 reader ppc 2) | 0 e2e-invalid reps (R4 worked) | runner now transport-resilient (2 network-storm run-kills before; VENDOR-CAP lesson: reader_max_tokens*ppc must stay under 4o-mini's 16384) | falsified this cycle: gpt-4o reader, rerun-reader x2, flash-silent filter; warn precision info-capped 0.45-0.55 with disagreement-only signals | full analysis: TRUST_Eval_Analysis.md in run dir | R10 trust-gate proposal (op=1.0 + unflagged<=3/doc + warns<=20 + cost<=0.10): THIS RUN PASSES ALL DIMENSIONS
 2026-07-10 | GT FIX (Noam): moran p3 counter declarations — models were RIGHT (two paired lines sum+count per category); raw GT had four lines in transposed order. Fixed in raw_benchmarks. Effect: moran's stable countSportive<->sumNotS missed-critical pair dissolves; correlated wall = 3 paren-adds + 1 word-drop.
 2026-07-10 | P1 PROMPT EXPERIMENT t1.3/t1.3b (crossed-out WHOLE-BLOCK reinforcement, targeting din p1) | probes: din p1_only k=1..2 x3 (~$0.15) | RESULT: KILL CRITERIA FIRED TWICE — t1.3: block omitted 2/3 reps BUT p5 regressed 0.962->0.908 SYSTEMATICALLY (3/3; over-omission — the 'check every block' + 'diagonal/vertical lines' wording matches din p5's margin ruling); t1.3b (guarded wording, explicit never-omit-unstruck): block STILL transcribed (rep A p1=0.619), p5 0.922 | REVERTED to t1.2 VERBATIM (body+version verified with negative assertions) | CONCLUSION: the prompt surface is EXHAUSTED for strike detection (t1.2's rule is the best point); din p1's crossed-out block is a MODEL-level perception limitation — candidate future fixes: CV strike-mask preprocessing, or model escalation (STOP-list, Noam's) | LESSON (instrument): gemini implicit caching returns IDENTICAL completions for identical requests within minutes — rapid-fire k>1 same-input probes are NOT independent samples; space probes or vary input.
+--- MODEL CHANGE (not a run; owner decision, the fired §17.8 escalation trigger's follow-through) ---
+2026-08-07 | P2 segmentor nano -> **gpt-5.6-luna** (registry +gpt-5.6-luna @$0.2/$1.2, AS_OF bumped 2026-08-07; v0.json p2_model_key + p2_max_tokens 16000->24000 per the 2026-06-27 "bundle the max_tokens truncation fix with whichever model config is chosen" intent; prod PROD_CONFIG switched too, engine version two_phase/v3_p2-luna, nano kept as revert target). ⚠ COMPARABILITY: every prior P2/e2e number is nano — first luna runs are a re-baseline, not a delta. v1_trust.json deliberately UNCHANGED (nano) so the trust-layer eval identity is preserved; a luna+trust config is its own decision. Field evidence motivating the test: nano's skip-collapse renumbering (49f9a2e1, segmentation_mismatch shipped same day). Suggested first read: p2_only --repeats 5 (cheap tier) vs the nano baselines, watching coverage, mis-keying, and the new marker-mismatch rate.
+2026-08-11 | addendum (still not a run): PipelineConfig gains **p2_reasoning_effort** (OpenAI reasoning models; plumbed vlm_provider→adapters→run_phase2; P1/readers never carry it; pinned by test_p2_reasoning_effort_reaches_only_the_p2_call). v0.json + PROD_CONFIG set **"medium"** (luna's default is high) — part of the SAME luna re-baseline bundle: the first luna runs are luna@medium+24k. Unset configs (v1_trust/nano) send nothing — baseline behavior unchanged.
+
+2026-08-11 | v0 (P2=**gpt-5.6-luna** effort=medium, 24k tok, temp OMITTED — luna 400s on temp≠1, adapter now omits temperature whenever reasoning_effort is set, pinned by test) | FIRST luna run; diff-vs-prev = the whole P2 model (re-baseline, NOT a delta) | mode=p2_only k=1 all 5 | gate 3/5 PASS (dan 1.0000, moran 1.0000, omer 0.9890; din FAIL st 0.9884, yonatan FAIL st 0.9847) | validity CLEAN (parse_fail 0, cov 1.0 everywhere, 0 missed/extra keys) | **NONE of nano's boundary-failure classes appeared**: no dump (moran 1.0 vs nano's 0.68 era), no refusal, no nested-method duplication (yonatan mc 1.0 — the fired-kill-criterion class), omer's ד.-marker correctly overridden by content | luna's ONE intrinsic defect class: unit-boundary TRIM — drops enclosing class wrapper/final `}` on 3 answers (yonatan Q1.ב+Q2.א wrappers, din 2× trailing brace) vs the draft-GT keep-wrapper convention; inconsistent (kept wrappers on omer/moran) | 3 raw-vs-draft GT disagreements surfaced where luna was faithful-to-input (din q2.ב `new`, yonatan `int string num`, `double int`) -> Noam | routing_notes now carry full auditable plans + correct orphan exclusion | $0.0031/doc, 11-16.5s/call | k=1 CAVEAT: stability unproven; luna runs at pinned default temperature (temp-0 convention inapplicable) | next = k=5 p2_only stability + wrapper-convention decision
+2026-08-11 | v0 (P2=gpt-5.6-luna effort=medium; GT: 3 draft fixes applied toward raw per adjudication) | k=5 STABILITY p2_only all 5 -> results/20260811_130925_v0 | gate 0/5 docs stable (dan 4/5, omer 4/5, din 0/5, moran 0/5, yonatan 0/5; 8/25 records PASS) | validity clean (parse_fail 0) | k=1's moran 1.0000 was a LUCKY DRAW (k=5: st 0.984-0.992 every rep — §17.5 vindicated). TWO luna defect classes, 17 failing records decompose EXACTLY: (A) **key-field corruption 3/25** — junk appended to sub_question_id (dan r0: ALL SIX keys carry anchor-prose 'א…anchor לכותרת…' → cov 0.00; din r4 'איולא', yonatan r2 'אษ' → cov 0.83) — strong attribution: the P2 prompt demands a per-answer `anchor` that P2_SCHEMA (strict) FORBIDS, so the anchor leaks into the only string field available; (B) **boundary trim 14/25** — 1-2 structural chars (enclosing class wrapper / final `}`), st 0.984-0.996, stochastic per rep (moran kept the wrapper at k=1, strips it 5/5 at k=5). op=1.0 AND mc=1.0 on ALL 25 records; ZERO dump/refusal/duplication/marker-following (nano's entire family absent at k=5). GT fixes credited (din best 0.9997, yonatan best 0.9957). $0.0033/doc. NEXT (one variable): legalize `anchor`(+plan) in P2_SCHEMA — metric: class-A records 3/25 -> 0/25; kill: corruption persists ⇒ leak isn't the anchor. Then the wrapper-keeping convention (class B). st-floor calibration (are 1-2 dropped braces ship-blocking?) = Noam's.
+--- P2 CONTRACT REDESIGN (owner-authorized experiment loop; model unchanged = luna@medium) ---
+2026-08-11 | **SPAN CONTRACT** shipped behind PipelineConfig.p2_output_contract="spans" (two_phase/spans.py + P2_SPAN_SYSTEM; text mode = revert path): model emits line-range assignments against a CLOSED target enum; harness slices verbatim + validates the partition (one feedback re-request, then deterministic salvage). Kills k=5 class A (enum = key corruption unrepresentable) and class B (slicing = sub-line trims impossible) BY CONSTRUCTION. Smoke k=1 #1 (results/20260811_144413): 4/5 PASS, din 1.0000 (first ever), yonatan st -1 brace + orphaned preceding comment, moran 97.5s length-truncation draw (retry saved it). Iter-2 prompt extent rules (wrapper-close emphasis + preceding-comment-belongs-to-unit): smoke (results/20260811_144832) yonatan ratio 0.9957->0.9998, all else holds, no truncation.
+2026-08-11 | v0 spans k=5 (results/20260811_145813) | **20/25 PASS; dan 5/5 + din 5/5 + moran 5/5 ALL at ratio 1.0000 every rep; omer 5/5** (0.9890 x5 — the intentional [?]-comment draft-GT asymmetry, stable) | yonatan 0/5: st 0.9962 x4 = EXACTLY the phantom `}` — **draft GT Q1.ב ends `    }\n}` but the class-closing `}` exists NOWHERE in raw pages 1-2** (grep-verified: every bare `}` accounted for; the student never closed schoolHobbies) — slicing cannot fabricate a char ⇒ benchmark UNREACHABLE until Noam adjudicates raw-vs-draft (4th such contradiction; prior 3 all resolved toward raw); rep3 had ONE additional missed char (st 0.9923, per-rep detail not persisted) — post-adjudication k=5 will attribute | moran rep0: 1 length-truncation draw (pf=1, 108.6s, retry PASSED — the known ~1/25 reasoning-token mode) | lat med 10.1s (vs generative ~13s), cost $0.0032/doc | NEXT: effort medium->low k=5 (one variable — truncation + latency-spike lever) in parallel with the GT ruling.
+2026-08-11 | v0 spans, effort medium->**low** k=5 (results/20260811_150358, scored vs PRE-fix GT) | one variable: p2_reasoning_effort | accuracy IDENTICAL to medium (dan/din/moran 5/5 @1.0000, omer 5/5, yonatan 0/5 = phantom brace only, ALL 5 reps) + truncations 1->0, lat med 10.1->6.7s, cost $0.0032->$0.0017 | effort=low RATIFIED. | Noam adjudicated GT #4: draft yonatan Q1.ב phantom `}` REMOVED (student never closed schoolHobbies — 4/4 contradictions resolved toward raw). | (One proof-run attempt killed by a network storm outlasting the retry ladder — the documented 2026-07-09 mode; relaunched.)
+2026-08-11 | **PROOF RUN — P2 BENCHMARK MET** (results/20260811_174036_v0) | v0 = luna + spans + effort=low + 24k + adjudicated GT | p2_only k=5 all fixtures: **25/25 records PASS the conjunctive gate; runner aggregate accuracy_gate_pass_all_docs=True** | dan/din/moran ratio 1.0000 on EVERY rep; omer 0.9890 x5 (the intentional [?]-comment draft-GT asymmetry = the only sub-1.0 ratios); yonatan 0.9959-1.0000 | op/st/mc = 1.0 min on all 25 records | cost $0.0029/doc, lat med 7.5s (generative-nano era: ~10-13s) | residual: ONE recovered length-truncation draw (omer rep, pf=1, 124.6s — the known stochastic reasoning-token mode, rescued by the R4 retry as designed; ~1/25 rate at effort=low) | SCOPE HONESTY: this solves P2 SEGMENTATION (p2_only). The e2e ship gate (check_goal) still carries the P1 perception wall — unchanged by this work. | Span contract ratified -> PROD_CONFIG (engine two_phase/v4_p2-spans); generative "text" contract retained as the config-flag revert path.
+2026-08-15 | p1_g35_flashlite (gemini-3.5-flash-lite NEW, t1.2, dpi200, 3pg/call, 8000tok/pg, folded scorer) | model-candidate probe, registry +gemini-3.5-flash-lite @$0.30/$10.00 (NOT one-field vs any baseline) | mode=p1_only k=2 | gate FAIL (0/5 docs, 0/10 records; validity clean pf=0) | worst dan 0.9024 (mean of 2) | med 55.7s (render 66% of wall; model-time ~16s ≈3x faster than pro) | $0.0134/doc (6.0x) | VERDICT comprehension-rewriter: CW→Console.WriteLine + CR→CRC/R alterations, student-error repair (parce→parse, sumSportive/count copy-bug fixed, u→you), drops ב./ג. markers + Hebrew comments, fabricates (学ぶ, מלך המלכים, invented j-loop); mc 0.75–0.97 under the pro band; ONE strength: din crossed-out SchoolHobbies correctly omitted (p1 0.9936 vs pro ~0.62) → NOT a P1 candidate; full analysis P1_Eval_Analysis.md in run dir | CORRECTION (same day): pricing-page ש"ח cells are literal ILS (owner) — true out price $3.30/Mtok not $10; run costs were computed at $10 ⇒ true cost ∈ [$0.0045, $0.0134]/doc (token split not persisted), headroom ≥6x; registry fixed; verdict unchanged
+2026-08-19 | p1_strike_check_flash (P1 gemini-3.1-pro UNCHANGED + NEW post-P1 strike-check pass: gemini-3.5-flash, sc1.3, votes=1, min_block_lines=2, 2000px) | NEW MECHANISM vs v0_p1_only (checker on/off is the only diff; configs otherwise byte-identical) | mode=p1_only PAIRED k=3 all 5 fixtures (each rep scored BEFORE and AFTER the checker on the SAME P1 output -> zero P1-variance confound) | **15/15 records, ZERO regressions on any metric** | din_ezra crossed-out SchoolHobbies block removed 3/3: ratio 0.9025->0.9807, 0.9021->0.9797, 0.9015->0.9797 (mean +0.0780) with op/st/mc delta EXACTLY 0.000000 | dan/moran/omer/yonatan: no deletions, every metric byte-identical; moran gate PASS->PASS 3/3 preserved | $0.0494/doc (P1 $0.0282 + checker $0.0212, 1.6x headroom; checker = +75% on p1_only) | checker adds median 7.8s critical path (6 concurrent 1-image calls) | KEY NEGATIVE RESULTS: (a) checker resolution reduction FALSIFIED - 0/6 detection at 1000px and 700px, strike strokes are thin lines not coarse features, 2000px required; (b) gemini-3.5-flash-LITE judge rejected - deleted 3 REAL lines on moran p2 (`return true;` + 2 comments) in 2/2 reps even with guard+votes=2; (c) sc1.2 bundled a prompt rule + code guard and regressed din recall 0/1 - separating them showed the CODE guard alone fixes the FP class while the extra prompt caution killed recall (one-variable rule, the hard way) | checker determinism: 6/6 identical ranges {17-37} on fixed input = exactly the struck block, kept Hobby class untouched | PROD UNTOUCHED (PROD_CONFIG sets no strike field -> OFF; adoption = 1 line) | offline gates: suite 130 + engine/endpoint 20 pass | full analysis results/strike_check_2026-08-19/STRIKE_CHECK_REPORT.md
+2026-08-23 | PRODUCTION CHANGE (not an eval run): STRIKE-CHECK PASS ENABLED in PROD_CONFIG | p1_strike_check_model_key=gemini-3.5-flash, votes=1, min_block_lines=2, max_tokens=4000 — the exact params it was gated at (paired k=3, results/strike_check_2026-08-19/) | TWO WIRING BUGS FOUND AND FIXED ON THE WAY IN, either of which would have made the flag a no-op or worse: (1) _shared_infra() built providers only for p1/p2/reader keys, so the strike key resolved to a KeyError — and because _strike_check_pages resolves its model OUTSIDE the per-page try/except, that would have killed the ENTIRE DOCUMENT, not degraded the checker; also had to add gemini-3.5-flash to the production _MODELS map (ILS-corrected card $1.98/$11.88). (2) THE IMPORTANT ONE: production enters via trust.run_with_trust, which does NOT call run_phase1 — it drives _transcribe_pages directly. The hook lived only in run_phase1, so enabling the flag would have changed NOTHING in production while the eval suite (p1_only -> run_phase1) exercised it perfectly. Fixed structurally: perception is now ONE method, Pipeline.perceive (= P1 + strike check), called by both entry points | pinned by 3 new tests: shared_infra covers every PROD_CONFIG model key (credential-free, stubs _make_provider); PROD strike params == the gated params; and test_trust_path_runs_the_strike_check_too, which drives the real run_with_trust — VERIFIED to FAIL when trust.py is reverted to the bare _transcribe_pages call | LIVE production-path proof (din_ezra through run_with_trust + PROD_CONFIG + shared infra): strike_check 5/5 calls parsed, page 1 34->14 lines, the crossed-out SchoolHobbies block GONE, pages 2-5 untouched, 6 answers segmented; wall 52.6s = P1 $0.0259 + strike $0.0217 + P2 $0.0016 | offline gate 433 passed / 1 skipped; 910 collect; import app.main OK. One PRE-EXISTING unrelated failure: test_contract_parity[hobby_tvshow] INV-2 point-sum in a golden RUBRIC fixture (q2 criteria 44 vs declared 60) — rubric domain is unmodified in git, imports nothing I touched | REVERT = set p1_strike_check_model_key to '' (one line) | NOT YET DEPLOYED (working tree only)
+2026-08-23 | v0_p1_only k=3 A/B PDF_RENDERER pymupdf vs poppler | one-field (renderer); HYPOTHESIS TEST: does the new renderer degrade page edges / drop closing brackets | gate FAIL (1/5 pass - moran 3/3) on BOTH arms; pf=0, cov=1.0 on all 30 records | **HYPOTHESIS FALSIFIED 3 independent ways**: (a) MECHANISM - MediaBox==CropBox on every page, identical page dims both backends, content bbox agrees within 1px (that 1px is inside the CamScanner watermark band) => no clipping/edge-resolution mechanism exists for a uniform rasterizer; (b) THIS RUN - structural_recall (the multiset over ';{}()[]' that a dropped brace moves) pymupdf >= poppler on 4/5 docs: dan +.0030, din +.0058, moran 0, omer +.0027, yonatan -.0013 (vs its own historical .9346-.9962 spread); (c) PRIOR k=5 A/B 2026-08-19 - better on ALL five | REAL bracket mode is ADDITION, not loss: struct_precision din .8382 / omer .9686 / yonatan .9556 vs recalls .988/.996/.992 - model INSERTS ';' and '()' the student never wrote (quoted: `new int[tv]`->`new int [tv];`, `getrate`->`getrate()`) = unauthorized-edit FIDELITY failure, prompt target not render target | missed structural tokens = 1-3 per doc out of 219-260 gold (moran zero) | INSTRUMENT: diff-line brace counting is INVALID here (P1 re-indents, so `-    }`/`+}` is the same brace: dan 13 'dropped' vs 12 'added') - use the whitespace-stripped multiset only | worst din 0.8982 driven by the crossed-out block (p1 ratio 0.6158), NOT brackets | render median 25.8s -> 1.0s (now 1.9% of wall; P1 call ~94%); poppler STALLED 2204s on one record (moran rep2), pymupdf max 1.9s | $0.0288/doc (2.8x) | NEXT: enable the strike-check pass (din -> ~0.98, already gated); do NOT revert the renderer | analysis results/20260823_154857_v0_p1_only/P1_Eval_Analysis.md
+2026-08-19 | v0_p1_only + PDF RASTERIZER SWAP (poppler/pdf2image -> PyMuPDF, behind settings.pdf_renderer) | one-field A/B, configs otherwise identical | mode=p1_only INTERLEAVED k=5 both arms (50 records; each (fixture,rep) rendered by BOTH backends and run back-to-back, so arms are matched in time/machine state) | **GATE PASS - no rule violated** | render 35.26s -> 2.00s per doc (17.6x, -33.3s) | ratio: dan +0.0026, din -0.0034 (within 0.005 tol + own spread), moran +0.0042, omer +0.0012, yonatan +0.0001 | ZERO critical-recall floors regressed; FIVE improved (dan mc .875->.906, din st .971->.983, yonatan op .955->.985 st .935->.969 mc .853->.882); moran full-gate passes 2/2 -> 4/5 | VALIDITY FINDING: gate first FAILED on the BASELINE arm - moran truncated (cov=0.50, first chunk lost, MAX_TOKENS) in 3/5 poppler reps vs 0/5 pymupdf. Diagnosed + excluded per P1-playbook step 0; exclusion moves the bar AGAINST the candidate (moran baseline mean 0.7658->0.9809) and gate_eval gained a NEW guard (candidate may not contaminate more records than baseline). No threshold changed | $-neutral (local compute) | prod default flipped to pymupdf; poppler stays installed, revert = 1 env var, no redeploy | also R2: transcribe_one no longer renders the whole PDF at 72 DPI just to COUNT PAGES | full report results/pdf_render_2026-08-19/PDF_RENDER_REPORT.md
+2026-08-19 | v0_p1_only + WIRE FORMAT PNG -> JPEG q90 (PipelineConfig.image_format) | PAIRED A/B (one render per rep, encoded both ways -> only compression differs) | mode=p1_only k=3 x 5 docs x 2 arms (30 records) | **GATE FAIL -> NOT SHIPPED** (dan ratio mean 0.9334 < 0.9385-0.005; yonatan st floor .9962->.9731; yonatan mc floor .8824->.8529) | prize was large and is DECLINED anyway: payload 10.03 -> 2.54 MB/doc (-75%), p1_call 19.2s -> 11.6s (-40%) | CAVEAT: k=3 not k=5 - run hit the gemini-3.1-pro DAILY quota (250 req/day) mid rep-3; a k=5 rerun could clear dan's marginal -0.0051, but a rule violation stops a change and shipping lossy compression on 'k=5 might clear it' inverts the burden of proof | code shipped INERT (image_format defaults to png); adapters now derive mime from payload bytes (vlm_provider.image_mime_for) instead of 3x hardcoded image/png, so a format switch can never mislabel the wire | rerun at k=5 when quota resets is the top follow-up
+2026-08-16 | p1_g35_flash (gemini-3.5-flash NEW frontier-tier @$1.98/$11.88 ILS-corrected, t1.2, dpi200, 3pg/call, 8000tok/pg, folded scorer, timeout 600s) | one-field vs p1_g35_flashlite (model; timeout raised as completion guard only) | mode=p1_only k=2 on din/moran/omer/yonatan + dan DNF + dan ppc=1 probe | gate FAIL (0/5; 0/8 measured records) | **dan DNF: pages[1-3] chunk NEVER returns — 18 call-attempts across timeout 120/300/600s, easy chunk 9-16s every time; ppc=1 probe: all 6 pages 7-20s, doc 81.3s ⇒ 3-page dense-chunk runaway, model-level; prod (240s, ppc=3) would hard-fail** | measured docs BEAT flash-lite everywhere (din .9691 mc .917, moran .9725 mc .973, omer .9817 RATIO PASSES, yonatan .9641) and beat pro ratio on 3/4 (din +.074 — crossed-out block again handled, p1 .9958; first-ever 1.0000 pages moran p1/p3 omer p3) BUT same rewriter fidelity class: CW→C.W (yonatan), student-bug erasure again (sumSportive/count→sumNotSportive/count1), fabricated Hebrew comments, din ב./ג. markers dropped | k=2 caveat: din+omer reps byte-identical (implicit caching — effectively k=1) | $0.0256/doc (3.1x) | NOT adoptable at ppc=3 (DNF); candidate next: ppc=1 k>=2 spaced, kill = any >600s call or abbr on >=2 docs | full analysis P1_Eval_Analysis.md in run dir; prod config verified untouched
 2026-07-10 | v1_trust k=1 RE-BASELINE (fixed moran GT, t1.2 restored, vendor-capped reader tokens) -> results/20260710_155034_v1_trust | cost $0.0833 (0 truncations this rep), parse_fail 0 | TRUST: any-tier crit recall 0.926, warn-tier 0.532 @ 23.2 warns/doc (prec 0.526), missed 7 = 3x paren-add (omer) + 4 wobble ({} x2, another, Getch) | ACC: moran PASSES (0.9827, GT-fix cleared its stable pair), din 24/24 crit coverage (e2e 0.64 this rep — crossed-out block, model-level, documented), others as before | FULL-STACK E2E through real HTTP API same day: signup->rubric save+compile->transcribe 200 in 131s->draft 6 answers all correctly page-attributed (conf 1.0)->9 warnings on omer (== vs != FIRST, GetArrShows drop flagged)->page-image 200. TRANSCRIPTION_ENGINE=two_phase set in backend/.env. UI: staged progress narration, evidence-ordered warnings, summary chip. MVP state: SHIPPED for live teacher testing.
+
+---
+
+## 2026-08-21 — Serving-surface migration: AI Studio → Vertex AI (MISSION_gemini_quota_launch_blocker)
+
+**Variable:** serving surface ONLY. Model `gemini-3.1-pro-preview` and prompt `t1.2`
+byte-identical on both arms. Zero source changes (env-var migration).
+
+| Arm | Run dir | Surface | Mode | k |
+|---|---|---|---|---|
+| A (baseline) | `20260821_115501_v0_p1_only` | AI Studio | p1_only | 5 |
+| V (candidate) | `20260821_122449_v0_p1_only` | Vertex | p1_only | 5 |
+| C (control) | `20260821_130149_v0_p1_only` | **AI Studio again** | p1_only | 5 |
+| T5 baseline | `20260821_134114_v0` | AI Studio | batch-35 | — |
+| T5 candidate | `20260821_141039_v0` | Vertex | batch-35 | — |
+
+**Result.** A-vs-V flagged 5 Q0 regressions. The control arm (A-vs-C, SAME surface,
+no variable changed) flagged **3**, including one on a delta of **0.000011**. Per the
+pre-registered decision rule (`PREREG_vertex_migration_2026-08-20.md`, Addendum),
+`R_AC ≈ R_AV` ⇒ **Q0 at k=5 lacks the resolving power to distinguish serving
+surfaces.** Same-surface noise floor measured at **0.0091** on ratio/recall metrics.
+
+**Root cause of the contested rows on yonatan_basiuk:** a single bistable
+transcription of the abbreviation `CR`, present on BOTH surfaces (altered in 2/5 A,
+2/5 C, 4/5 V runs). `structural_recall` is perfectly correlated with it. On the
+altered branch Vertex scores *higher* (0.9846 vs 0.9692); its worst-of-k improved.
+The 2/5-vs-4/5 rate difference is not resolvable at k=5.
+
+**No `gate_pass()` regression on any fixture.** `moran_aharon` 5/5 before and after.
+`parse_failure_total` = 0 on all three arms. Cost parity: $0.02819 → $0.02867/doc.
+
+**Latency (T5, batch of 35):** Clock 1 363.1s → **237.6s**; Clock 2 1988.7s →
+**1689.7s**. Vertex: 0 timeouts, 0 429s. AI Studio: 3 timeouts. NOTE n=1 per surface;
+`queue_wait` is 1569s of Clock 2's 1690s, so the binding constraint is
+`PROD_MAX_CONCURRENT_PER_MODEL=5`, NOT the serving surface.
+
+**Instrument untouched** (§17.7): scoring.py / critical_tokens.py / check_goal.sh
+unmodified. Any noise band remains a PROPOSAL to the owner, not applied.
+
+
+## 2026-08-23 — models_registry moved to the shared eval home (INSTRUMENT plumbing; no model, prompt, config-value, or scorer change)
+
+**What:** `models_registry.py` is now a re-export SHIM over
+`tests/eval_common/models_registry.py` — ONE registry serving BOTH eval suites
+(this one + rubric_eval_suite), so a model's identity/price/tier is a single
+fact and `model_key` is the cross-suite join key for per-model metrics. Three
+suite-side diffs, none touching resolution of any existing key:
+1. the shim itself (identical idiom to instrument.py/prompts.py; every import
+   path, config, and CallRecord unchanged — pinned by
+   `tests/eval_common/test_models_registry.py::test_transcription_shim_reexports_same_objects`);
+2. `configs/v0_p2_correct_spec.json`: stale `"gpt-5.4-nano"` →
+   `"gpt-5.4-nano-2026-03-17"` (REPAIR, not an experiment change — the old
+   string was not a registry key and would KeyError at use; caught by the new
+   offline dry-resolve test over both suites' configs);
+3. `test_providers_and_scheduler.py::test_models_registry`: the
+   cheap+frontier-per-provider assertion rescoped to the three SEED providers
+   (openai/anthropic/gemini) — it was a v0 seed-set statement, not a registry
+   invariant; the shared registry now also carries xai (grok-4.6, rubric-suite
+   sweep model, single entry).
+
+**Registry content change:** +grok-4.6 (xai, 2.00/6.00, cached-in omitted =
+conservative upper bound). NO existing entry's key, id, price, or capability
+moved; AS_OF unchanged (2026-08-15). Battery 133 passed / 1 skipped,
+baseline-identical, before and after.
+
+**Why:** the rubric suite carried identity+prices in 7 config files (split
+brain) — its cost gate was silently disabled for price-less configs. Ruled in
+`../rubric_eval_suite/PLAN_model_registry_normalization.md` (Noam 2026-08-23;
+run AFTER the Vertex A/B above closed, per its zero-lines-changed protocol).
+
+**For future fixture/trial work — read this once:** adding a SAME-exam fixture
+is unchanged (drop raw/draft/pdf triplet by basename). A NEW-exam fixture is
+blocked in TWO places: the six-key hardcode in test_ground_truth (known) AND
+the runner itself — one `--exam-spec` binds the whole run and `JAVA_BAGRUT` is
+hardcoded at all 4 scoring sites. The ratified lift design is BACKLOG B-30f
+(per-fixture `specs/<doc_id>.json`, basename convention, `--exam-spec` as
+fallback; full proposal in the plan's §9) — an instrument change to this
+§17-governed suite: plan-first, owner-gated, do NOT improvise around it.
+Pointers now live in TRANSCRIPTION_GT_CONVENTIONS.md §1.2 and docs.md §9/§11.
+
+
+## 2026-08-28 — multi-rubric fixtures: per-fixture exam + profile (INSTRUMENT PLUMBING; no model, prompt, config-value, GT, or scorer change)
+
+**What.** The runner no longer binds ONE exam to a run. Each fixture resolves its own
+exam spec and critical-token profile; one run may span several exams and says so.
+
+New: `exam_resolution.py` (per-doc resolution: `fixtures/<doc_id>.json` manifest →
+`exams/<exam_id>.json`, else the run-level `--exam-spec` FALLBACK, else None for p1_only;
+every failure loud), `profiles.py` (name → CriticalProfile; unknown key raises),
+`exams/hobby_tvshow.json` (copy of `draft.json`; both kept). Changed: `runner.py`
+(`resolve_fixtures(plan)` absorbs `load_spec`; `Fixture` carries its `ResolvedExam`; the 4
+scoring sites take `profile=fx.profile` instead of the hardcoded `JAVA_BAGRUT`;
+`RunRecord` + `results["fixtures"]` stamp exam/sha256/profile/selection_groups),
+`report.py` (an `exams:` line always; an **Exam column only on a mixed run**, so every
+single-exam summary keeps its historical shape), `.gitignore` (D2 — `exams/`,
+`fixtures/`, `configs/`, `draft.json` un-ignored; they are the RULER a run was scored
+against, and `check_goal.sh`'s default `--exam-spec` named an UNTRACKED file).
+
+**NOT touched** (§17.7, verified by `git diff --stat`, not assumed): `scoring.py`,
+`critical_tokens.py`, `normalize.py`, `keys.py`, `ground_truth.py`, `check_goal.sh`,
+`check_gt_consistency.py`, `flag_metrics.py`, every GT file, every config VALUE, and all
+production code under `app/`.
+
+**Null-result proof, offline.** All five seed fixtures carry no manifest, so they take the
+fallback — and it reproduces the retired `load_spec` exactly: same `ExamSpec`, same
+**`to_prompt_json()` BYTES** (the actual P2 input, so the model cannot behave differently),
+same `JAVA_BAGRUT` object. Pinned by
+`test_seed_corpus_resolves_exactly_as_the_historical_loader_did`. This is a STRONGER claim
+than the planned before/after `p2_only` k=5 and costs nothing, so no API run was spent on
+a question already settled. Battery **148 passed / 1 skipped** (133 baseline + 15 new);
+`app.main` imports; the sibling grading suite's cross-suite guards still green.
+
+**Owner rulings taken (2026-08-28, Noam)** — full record in
+`PLAN_multi_rubric_fixtures.md`: D1 amend B-30f to the manifest shape; D2 commit the exam
+artifacts; D3 **Option A** — a question the student skipped gets its delimiter with an
+EMPTY body, and the suite must support SELECTION rubrics ("answer 4 of 6"); D4 commit the
+fixtures; D5 exam B is Israeli CS in C# → `JAVA_BAGRUT` unchanged; D6 measure exam B
+diagnostically before admitting it to the STOP-gate partition.
+
+**Why Option A is right under selection, and what it costs.** The span contract emits
+EVERY spec target's key, filling unassigned ones with `""` (spans.py:210-214), so an empty
+gold meets an empty prediction: coverage 1.0, ratio 1.0, critical clauses vacuous — and a
+model that INVENTS an answer for an unanswered question scores 0.0 and raises `is_error`.
+Omitting the key would have hidden exactly that invention in `extra_keys`. Cost, recorded
+not designed around: an unassigned target is a `problem`, so every selection-exam document
+burns the one targeted re-request and lands via deterministic salvage with routing notes.
+Fixing that is D8 — a SEPARATE single-variable experiment (§17.3), not bundled.
+
+**TWO FINDINGS, both due before any exam-B fixture lands:**
+- **D7 — exam B's Q1 is UNROUTABLE, and it is a PRODUCTION gap.** Resolving the real
+  artifact gives 11 keys `(1,א)(1,ב)(2,א)(2,ב)(3,א)(3,ב)(4,א)(4,ב)(5,א)(5,ב)(6,None)`,
+  with rich signatures on Q2–Q6 (IsMirror, ArrangeMirror, DiceStatistics, PrintStatistics,
+  TotalEarnings, TopEarners, IsSimilarWorkshop, HandleNewWorkshop) and **empty context +
+  empty signatures on Q1** — because Q1 nests two levels and
+  `parsing.spec_from_rubric_draft_data` reads depth 1 only. Production builds its spec
+  through the same function, so any nested rubric transcribes blind TODAY. Gated:
+  `test_every_in_use_exam_gives_p2_a_routing_signature` fails the moment a manifest points
+  at such an exam.
+- **D9 — no GT convention exists for TRACE-TABLE answers.** Exam B's Q1.א.1/Q1.ב.1 are
+  trace tables ("17 cells, 0.7 each"); the whole current corpus is pure code. Two hazards:
+  GT and model must agree on a shape, and `[`/`]` are structural tokens gated at recall
+  1.0. Measure with one `p1_only` page first, then the OWNER writes the convention.
+
+**Not done here:** exam-B GT (Phase 3), the D7 production fix, the D8 experiment.
+`exams/bagrut_899371.json` is staged as D7 evidence but is INERT — no manifest points at
+it, so no run resolves it.
+
+
+## 2026-08-29 — D7 resolved (production parser fix) + D9 trace-table convention ruled
+
+**D7 — nested rubrics were routing BLIND in production; fixed.**
+`two_phase/parsing.py::_signature_from_children` (+ `first_str` lifted to module scope):
+a depth-1 sub-question with no `text` of its own now composes its routing signature by
+CONCATENATING its children's text, in document order. Nothing invented; a node with its
+own text is never overridden. Transcription segments to depth 1, so a two-level rubric
+previously handed P2 a bare letter — the omer Q2.ב⇔ג "guess the order" condition, for a
+whole question, silently. PRODUCTION path: `two_phase_engine` builds its spec through this
+same function, so every nested rubric was affected, not just the eval suite.
+Effect on `bagrut_899371`: `Q1.א` → 600 chars naming `Check`, `Q1.ב` → 345 naming `What`,
+BLIND: none, keys unchanged (11). `hobby_tvshow` is BYTE-IDENTICAL (questions,
+identifiers, and `to_prompt_json()` all `==`) — the composer never fires where text exists.
+Pinned by `test_nested_sub_question_composes_its_signature_from_children`. Battery 149/1.
+
+**How we got there — and one correction worth keeping.** The owner directed a fresh
+extraction of `bagrut_899371.docx` through the live pipeline (`3.10.0-fixsource`,
+gpt-5.6-terra/high; 207 s, 2 retries, 59.7k/29.6k tokens) to test whether the blindness was
+a stale artifact. It IS recoverable — the fresh draft carries Q1's text — but the fresh
+draft was NOT landed: it flattens `q1.ב`'s nesting and reads `q1.total_points` as 40.
+Composing from children on the structurally-correct ratified GT gets the same routing with
+no regression, so the parser fix is the answer and re-extraction is not.
+
+**CORRECTION (owner):** the first write-up judged that extraction by "does the raw draft
+compile". That is the wrong bar — a draft is SUPPOSED to carry the teacher's errors, and
+the product is capture → surface → one-click fix → teacher accepts → then it compiles (FC).
+Verified: neither artifact compiles in one pass and each accepted fix opens the next
+level's mismatch — that is the review cascade, not a defect.
+**Compilability of a raw extraction is not an extraction-quality metric.**
+
+**What survived the correction is narrower and sharper.** Rendering the DOCX shows
+`פרק ראשון (40 נקודות)` on line 42 — a CHAPTER header — directly above `שאלה 1` on
+line 44, while the exam header (line 17) states `כל שאלה - 25`. The extractor attached the
+chapter's 40 to Q1. It matters because `total_points` is the grading denominator AND the
+fix machinery cannot recover it: the pipeline warns "Do NOT change Q1.total_points — it is
+set by the document header and is authoritative", so the `point_sum_mismatch` proposals
+then drive the teacher TOWARD 40. Chapter-level point headers are a distinct confusion
+class from question-level ones — a finding for the RUBRIC suite's RUNLOG, not fixed here.
+
+**D9 — trace-table GT convention RULED** (`TRANSCRIPTION_GT_CONVENTIONS.md` §5.2a; full
+measurements in `PLAN_multi_rubric_fixtures.md` D9). Bare, space-padded, fully-bounded pipe
+rows; no `[TABLE]` marker; no `|---|` separator; empty cell written empty, never `||`.
+Measured, not chosen: the marker injects 2 fabricated structural tokens and the separator
+5 fabricated `--` (decrement) OPERATORS, both gated at recall 1.0; `|` itself is in neither
+critical-token vocabulary, so the delimiters are free; a whitespace grid is disqualified
+because the scorer deletes all whitespace. Cross-format gold-vs-pred measured 0.9648 for
+the CLOSEST mismatched pair — under the 0.98 bar — so the GT convention must be exactly
+what P1 emits, which means pinning it in the P1 PROMPT (one variable, own `p1_only` k≥5
+run) rather than documenting it GT-side only.
+
+**D9 caveat (owner) — non-uniform tables, and a LIVE frontend defect.** Sparse trace tables
+(a 4×4 whose last column holds one value) are expressed as EMPTY cells, never MISSING
+cells — the grid stays uniform, the content is sparse. Measured against the real detector:
+written that way it renders exactly right; but if a cell is OMITTED, `buildTable` pads at
+the END, so a table whose sparse column is FIRST (the common shape — `x` written once)
+renders `| 1 | 5 |` as `x=1, i=5` when the ink says `i=1, arr[i]=5`. **Every value in every
+sparse row lands under the wrong header, silently**, on the surface the teacher uses to
+check the transcription against the scan. `detect-pipe-tables.ts` states the right
+principle ("guessing where the missing cell belongs is the silent relocation the product
+exists to refuse") and then end-pads, which is that guess — §3.5a's named failure, a
+degradation that keeps computing. Recommended order, because reversing it regresses the
+live product: (1) pin P1's prompt, (2) measure compliance, (3) then make the renderer
+REFUSE a run with unequal row widths (falling back to the `<pre>` it already uses) instead
+of padding. Not implemented — owner decision on urgency.
+
+
+## 2026-08-29 (b) — exam-prefixed doc_ids + P1 prompt `t1.4-tables` (PROMPT CHANGE: one variable, unmeasured)
+
+**1. doc_id is now `<exam_id>.<student>`.** The five seeds became
+`hobby_tvshow.<student>` across `pdfs/`, `raw_benchmarks/`, `draft_benchmarks/`, and each
+gained a `fixtures/hobby_tvshow.<student>.json` manifest naming `exams/hobby_tvshow.json`.
+A bare student name stopped identifying a fixture the moment the corpus spanned two exams;
+it also made every results table and RUNLOG line ambiguous. `Path.stem` strips only the
+final suffix, so the dot is safe in every lookup (verified: no doc_id is split on `.`
+anywhere in either suite).
+
+Consequence, deliberate: the seeds no longer take the `--exam-spec` fallback — they resolve
+through their own manifests, so `results.json` now stamps `exams/hobby_tvshow.json` instead
+of `draft.json`. The equivalence guard was STRENGTHENED rather than relaxed: it now asserts
+the manifest-resolved spec has the same questions, the same identifiers, and byte-identical
+`to_prompt_json()` as the historical `draft.json` load. `check_goal.sh` is untouched and
+still works (its `--exam-spec` is simply no longer consulted for these five).
+
+Cross-suite: the GRADING suite keeps its own bare doc_ids (its hash pins depend on them);
+the one place that reads sibling GT now maps between the namespaces via `SIBLING_DOC` in
+`test_fixture_tools.py`, and the five fixture manifests' `transcription_source` provenance
+paths were updated. Both suites green: 221 passed / 1 skipped.
+
+**2. P1 prompt `t1.2` -> `t1.4-tables` — the hand-drawn-table shape is PINNED.**
+(t1.3/t1.3b were the burned strike-detection wordings; the number moves past them.) Until
+now the prompt said NOTHING about tables, so the pipe grid a trace table arrives as was the
+model's emergent convention — ragged, mixed edge pipes, no two documents alike. That is
+unusable as a benchmark because the scorer compares FORMAT as well as content: two faithful
+readings of one table in different shapes measured **0.9648** against a 0.98 gate.
+
+The rule: one row per line, `| ` … ` | ` with ` | ` between cells; EVERY row carries the
+same cell count as the widest; a blank cell is written EMPTY, never skipped; `||` never
+occurs; no `|---|` separator; no caption/marker; never reformat ordinary lines or code
+containing `|`. A four-row worked example ships inline. The pre-existing "PLAIN TEXT only:
+no markdown" rule was AMENDED in the same edit to carve the table rows out explicitly —
+two absolute rules that appear to contradict each other is how you get inconsistent output.
+
+Every clause is a measured failure mode, not a preference (PLAN §D9): `|` is in neither
+critical-token vocabulary so pipes cost NOTHING; a `[TABLE n: RxC]` caption injects 2
+fabricated `[`/`]` structural tokens and a `|---|` separator 5 fabricated `--` (DECREMENT)
+operators, both gated at recall 1.0; whitespace alignment is disqualified because the
+scorer deletes all whitespace. The same-cell-count clause is a CORRECTNESS rule, not
+formatting: a trace table's first column is typically written once, so later rows are short
+at the FRONT, and the review surface pads at the END — rendering every value in every
+sparse row under the WRONG header, silently, on the surface the teacher uses to check the
+transcription against the scan.
+
+**Cross-stack pin:** `frontend/src/utils/p1-table-contract.test.ts` reproduces the prompt's
+own example verbatim and asserts the exact 4×4 grid through the real
+`detect-pipe-tables` → `TranscribedAnswerView` path, plus the four negative cases (skipped
+blank shifts a value under the wrong header; caption survives as stray text; unpadded `||`
+refuses to render; `if (a || b)` never becomes a table). 6/6 green. Same idea as the
+segmentation-check.ts ↔ segmentation_check.py fixture pin: the prompt and the renderer
+cannot drift without a red test.
+
+⚠ **UNMEASURED.** This is a prompt change and therefore a MODEL-BEHAVIOUR change (§17.10
+permits it; §17.3/§17.5 govern how it is validated). It has NOT been run against any
+document. Before any table-bearing fixture is authored it needs `--mode p1_only` on the
+exam-B table pages at k≥5, checked for (a) compliance with the shape and (b) NO regression
+on the five seed fixtures, whose pages contain no tables and must be unaffected. The
+renderer's end-padding stays as-is until that measurement lands — tightening it first would
+regress today's ragged-but-rendered output.

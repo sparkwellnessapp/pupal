@@ -64,6 +64,22 @@ class VLMResponse:
     raw_finish_reason: str | None = None   # truncation diagnosis ("length" vs "stop")
 
 
+# Base64 magic-byte prefixes. Sniffing the payload rather than passing a mime
+# parameter down makes a mime/bytes MISMATCH structurally impossible: there is
+# no call site that can declare PNG while sending JPEG. Adapters previously
+# hardcoded "image/png", so switching the pipeline's encoder would have silently
+# mislabelled every image.
+_B64_MAGIC = (("/9j/", "image/jpeg"), ("iVBORw0KGgo", "image/png"))
+
+
+def image_mime_for(b64: str) -> str:
+    """Mime type of a base64-encoded image, from its own bytes. Defaults to PNG."""
+    for prefix, mime in _B64_MAGIC:
+        if b64.startswith(prefix):
+            return mime
+    return "image/png"
+
+
 @runtime_checkable
 class VLMProvider(Protocol):
     """One method, both phases. Adapters are thin translations to vendor SDKs."""
@@ -81,4 +97,5 @@ class VLMProvider(Protocol):
         want_logprobs: bool = False,
         json_schema: dict | None = None,
         timeout_s: float = 90.0,
+        reasoning_effort: str | None = None,  # OpenAI reasoning models only
     ) -> VLMResponse: ...

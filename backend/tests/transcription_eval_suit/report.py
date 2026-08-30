@@ -40,6 +40,22 @@ def _fmt_keys(keys) -> str:
     return ", ".join(_fmt_key(k) for k in keys) if keys else "—"
 
 
+def _exam_of(results: dict) -> dict:
+    """doc_id -> exam-spec ref, from the run's per-fixture provenance.
+    Empty for a pre-multi-exam results.json, which is why every read is a
+    `.get` — old artifacts must stay renderable."""
+    return {
+        doc: (meta or {}).get("exam_spec") or "—"
+        for doc, meta in (results.get("fixtures") or {}).items()
+    }
+
+
+def _exam_label(ref: str) -> str:
+    """'exams/bagrut_899371.json' -> 'bagrut_899371' — the table needs the
+    identity, not the path."""
+    return ref.rsplit("/", 1)[-1].removesuffix(".json") if ref and ref != "—" else "—"
+
+
 def write_summary(out_dir: Path, results: dict, *, cost_ceiling: float) -> None:
     agg = results["aggregates"]
     records = results["records"]
@@ -76,6 +92,37 @@ def write_summary(out_dir: Path, results: dict, *, cost_ceiling: float) -> None:
         cik = scoring.get("case_insensitive_keywords")
         note = " — ⚠ method_call_recall NOT comparable to case-sensitive baselines" if cik else ""
         lines.append(f"- scoring policy: case_insensitive_keywords=`{cik}`{note}")
+
+    # Which exam(s) this run scored. Always stated, because "which ruler" is
+    # not inferable from a doc_id once the corpus spans more than one exam.
+    fixtures_meta = results.get("fixtures") or {}
+    exam_of = _exam_of(results)
+    if exam_of:
+        counts: dict[str, int] = {}
+        for ref in exam_of.values():
+            counts[ref] = counts.get(ref, 0) + 1
+        lines.append("- exams: " + " · ".join(
+            f"`{_exam_label(ref)}` ({n} doc{'s' if n != 1 else ''})"
+            for ref, n in sorted(counts.items())
+        ))
+        # A choose-k-of-N exam expects whole questions to be blank. Say so, or a
+        # reader mistakes a correct empty answer for a segmentation failure.
+        selection = {
+            _exam_label(meta.get("exam_spec") or "—"): meta["selection_groups"]
+            for meta in fixtures_meta.values()
+            if (meta or {}).get("selection_groups")
+        }
+        for exam, groups in sorted(selection.items()):
+            desc = ", ".join(
+                f"choose {g.get('choose_k')} of {len(g.get('of_question_ids') or [])}"
+                for g in groups
+            )
+            lines.append(f"  - `{exam}` is a SELECTION exam ({desc}) — unanswered "
+                         f"questions are expected and score as empty↔empty.")
+        profiles = sorted({(m or {}).get("profile") for m in fixtures_meta.values()} - {None})
+        if len(profiles) > 1:
+            lines.append(f"- ⚠️ MIXED critical-token profiles in one run: {profiles} — "
+                         f"per-doc numbers are NOT comparable across profiles.")
     lines.append("")
 
     lines.append("## Gates")
@@ -119,10 +166,20 @@ def write_summary(out_dir: Path, results: dict, *, cost_ceiling: float) -> None:
     lines.append("")
 
     # --- Per-document table (surface-aware) ---
+    # The Exam column appears ONLY on a mixed-exam run: a single-exam summary is
+    # byte-identical to every artifact in the RUNLOG history, and a mixed one
+    # cannot be misread as one scoreboard.
+    multi_exam = len(set(exam_of.values())) > 1
+    exam_head = " exam |" if multi_exam else ""
+    exam_sep = "---|" if multi_exam else ""
+
+    def exam_cell(doc_id: str) -> str:
+        return f" {_exam_label(exam_of.get(doc_id, '—'))} |" if multi_exam else ""
+
     lines.append("## Per document")
     if has["p1"] and has["e2e"]:
-        lines.append("| doc | P1 ratio | E2E ratio | Δ P1→E2E | E2E cov | P1 gate | E2E gate |")
-        lines.append("|---|---|---|---|---|---|---|")
+        lines.append(f"| doc |{exam_head} P1 ratio | E2E ratio | Δ P1→E2E | E2E cov | P1 gate | E2E gate |")
+        lines.append(f"|---|{exam_sep}---|---|---|---|---|---|")
         for doc_id, recs in by_doc.items():
             p1r, e2r = ratio_mean(recs, "p1"), ratio_mean(recs, "e2e")
             delta = (e2r - p1r) if (p1r is not None and e2r is not None) else None
@@ -131,18 +188,18 @@ def write_summary(out_dir: Path, results: dict, *, cost_ceiling: float) -> None:
             e2g = "✅" if gate_all(recs, "e2e") else "❌"
             worst = " ← **WORST**" if doc_id == agg.get("worst_doc") else ""
             dtxt = f"{delta:+.4f}" if delta is not None else "—"
-            lines.append(f"| {doc_id} | {p1r:.4f} | {e2r:.4f} | {dtxt} | "
+            lines.append(f"| {doc_id} |{exam_cell(doc_id)} {p1r:.4f} | {e2r:.4f} | {dtxt} | "
                          f"{cov:.2f} | {p1g} | {e2g}{worst} |")
     else:
         surface = "e2e" if has["e2e"] else "p1"
         label = "E2E" if has["e2e"] else "P1"
-        lines.append(f"| doc | {label} ratio | {label} cov | gate |")
-        lines.append("|---|---|---|---|")
+        lines.append(f"| doc |{exam_head} {label} ratio | {label} cov | gate |")
+        lines.append(f"|---|{exam_sep}---|---|---|")
         for doc_id, recs in by_doc.items():
             s = first(recs, surface)
             mark = "✅" if gate_all(recs, surface) else "❌"
             worst = " ← **WORST**" if doc_id == agg.get("worst_doc") else ""
-            lines.append(f"| {doc_id} | {ratio_mean(recs, surface):.4f} | "
+            lines.append(f"| {doc_id} |{exam_cell(doc_id)} {ratio_mean(recs, surface):.4f} | "
                          f"{s['coverage']:.2f} | {mark}{worst} |")
     lines.append("")
 

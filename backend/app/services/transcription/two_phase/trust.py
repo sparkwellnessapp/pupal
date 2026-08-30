@@ -64,7 +64,11 @@ async def run_with_trust(
     images = await pipeline.render(pdf_bytes, trace)
 
     # Baseline P1 and all readers read the SAME rendered images, concurrently.
-    base_task = pipeline._transcribe_pages(  # noqa: SLF001 — package-internal
+    # `perceive` = P1 + the post-P1 strike-check pass. It must NOT be inlined
+    # back to `_transcribe_pages`: this is the production path, and calling the
+    # bare transcription here is what silently excluded production from the
+    # strike-check pass while the eval suite (run_phase1) ran it.
+    base_task = pipeline.perceive(  # noqa: SLF001 — package-internal
         images, doc_id, doc_priority, trace)
     readers_task = pipeline.run_readers(
         images, doc_id, doc_priority=doc_priority, trace=trace)

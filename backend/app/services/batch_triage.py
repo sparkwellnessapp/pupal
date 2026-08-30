@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import unicodedata
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Iterable
 
-from ..schemas.transcription import TranscriptionDraft
+from ..schemas.transcription import AnswerSpaceSelectionGroup, TranscriptionDraft
+from .selection_expectation import expected_empty_keys
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +81,8 @@ def match_student(
 class FlagVerdict:
     review_needed: bool
     # Subset of: "unparseable", "grounding_retry", "low_confidence",
-    #            "low_logprob_span", "student_unmatched"
+    #            "low_logprob_span", "code_lint", "missing_answers",
+    #            "segmentation_mismatch", "student_unassigned", "student_unmatched"
     # Deduplicated and ordered for stable display.
     reasons: list[str] = field(default_factory=list)
 
@@ -94,16 +96,31 @@ def compute_flag_verdict(
     draft: TranscriptionDraft,
     student_match: StudentMatchResult,
     confidence_threshold: float = _DEFAULT_CONFIDENCE_THRESHOLD,
+    selection_groups: Iterable[AnswerSpaceSelectionGroup] = (),
 ) -> FlagVerdict:
     """
     Aggregate all transcription-quality signals into a single review-needed verdict.
     A transcription is *clean* iff this returns review_needed=False.
 
-    Signal sources:
-      - draft.annotations: vlm_unparseable, vlm_uncertainty (grounding_retry or
-        low_confidence), vlm_low_logprob → from the adapter
-      - draft.answers[].confidence: belt-and-suspenders per-answer check
-      - student_match.match_confidence: "none" → student must be assigned manually
+    Signal sources (engine-agnostic — must be honest for BOTH engines):
+      - draft.annotations: vlm_unparseable ([?] in an answer — both engines),
+        vlm_uncertainty (grounding_retry or low_confidence — legacy only),
+        vlm_low_logprob (legacy only), code_lint (brace imbalance — two_phase;
+        measured zero-noise on the golden set)
+      - draft.answers[]: empty answer_text → "missing_answers" (a fact, not a
+        confidence guess); NON-EMPTY answer below confidence_threshold →
+        "low_confidence". Under two_phase, confidence is page-attribution
+        similarity, and a legitimately-skipped question is empty with 0.0 —
+        counting those as "low confidence" flagged every two_phase doc
+        (the 2026-08-07 false-red diagnosis), hence the empty-answer split.
+      - student_match.match_confidence: "none" → two distinct facts, two reasons
+        (2026-08-12, owner-ruled): a name WAS captured but matches no existing
+        student → "student_unassigned" (the review surface offers one-click
+        create; labeling this "name not identified" was false); no name
+        captured at all → "student_unmatched". Either way the item needs
+        individual attention (approval requires a student).
+      - reader_disagreement is deliberately NOT a triage signal (retired in
+        production — see two_phase_engine docstring).
 
     Uses dict.fromkeys to deduplicate while preserving first-seen order.
     """
@@ -127,14 +144,36 @@ def compute_flag_verdict(
         elif atype == "vlm_low_logprob":
             reasons.append("low_logprob_span")
 
-    # Belt-and-suspenders: check per-answer confidence in case the adapter missed it
+        elif atype == "code_lint":
+            reasons.append("code_lint")
+
+        elif atype == "segmentation_mismatch":
+            # The student's own marker contradicts the assigned key — grading
+            # would run against the wrong rubric question. Never bulk-accept.
+            reasons.append("segmentation_mismatch")
+
+    # Per-answer signals: empty answers are surfaced as their own fact;
+    # the confidence check applies only to answers that HAVE content.
+    # Selection-aware (2026-08-12): on a "choose k of N" exam, an unchosen
+    # member's empty answers are EXPECTED — flagging them as missing was
+    # false on every selection rubric (see selection_expectation.py).
+    expected_empty = expected_empty_keys(
+        ((a.question_number, a.sub_question_id, a.answer_text) for a in draft.answers),
+        selection_groups,
+    )
     for ans in draft.answers:
-        if ans.confidence < confidence_threshold and "low_confidence" not in reasons:
+        if not ans.answer_text.strip():
+            if (ans.question_number, ans.sub_question_id) not in expected_empty:
+                reasons.append("missing_answers")
+        elif ans.confidence < confidence_threshold:
             reasons.append("low_confidence")
 
-    # Student match signal
+    # Student match signal (see docstring: captured-but-unassigned vs no-name)
     if student_match.match_confidence != "exact":
-        reasons.append("student_unmatched")
+        if (draft.student_name_suggestion or "").strip():
+            reasons.append("student_unassigned")
+        else:
+            reasons.append("student_unmatched")
 
     return FlagVerdict(
         review_needed=bool(reasons),

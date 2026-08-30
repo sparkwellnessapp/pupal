@@ -14,11 +14,13 @@ import base64
 import os
 import time
 
+import httpx
+
 from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types as genai_types
 
-from ..vlm_provider import ErrorKind, Usage, VLMCallError, VLMResponse
+from ..vlm_provider import ErrorKind, Usage, VLMCallError, VLMResponse, image_mime_for
 
 
 def _to_gemini_schema(node):
@@ -88,11 +90,31 @@ class GeminiProvider:
                 kind = ErrorKind.TRANSIENT
             else:
                 kind = ErrorKind.TRANSIENT
-        elif isinstance(exc, TimeoutError):
+        elif isinstance(exc, (TimeoutError, httpx.TimeoutException)):
+            # The SDK surfaces client-side deadlines as httpx.ReadTimeout,
+            # which is NOT a builtin TimeoutError (2026-08-11 storm logs
+            # showed timeouts labeled "transient"). Same retryability,
+            # honest telemetry.
             kind = ErrorKind.TIMEOUT
         else:
             kind = ErrorKind.TRANSIENT
         return VLMCallError(kind, str(exc), provider=self.name)
+
+    @staticmethod
+    def _http_options(timeout_s: float) -> genai_types.HttpOptions:
+        """Per-request transport options: bounded timeout + SDK retries OFF.
+
+        The genai SDK wraps every request in its own tenacity retry loop by
+        default — observed live 2026-08-11, in violation of the locked design
+        ("SDK-internal retries are disabled in every adapter; retry policy
+        lives in the scheduler alone"). attempts=1 = single attempt, so the
+        scheduler's attempt count is globally true again and a hung call
+        costs at most ONE timeout window.
+        """
+        return genai_types.HttpOptions(
+            timeout=int(timeout_s * 1000),
+            retry_options=genai_types.HttpRetryOptions(attempts=1),
+        )
 
     async def complete(
         self,
@@ -105,10 +127,12 @@ class GeminiProvider:
         want_logprobs: bool = False,  # unsupported here; always returns None
         json_schema: dict | None = None,
         timeout_s: float = 90.0,
+        reasoning_effort: str | None = None,  # OpenAI-only knob; Gemini's analog
+                                              # is thinking_level (constructor)
     ) -> VLMResponse:
         parts: list = [
             genai_types.Part.from_bytes(
-                data=base64.b64decode(b64), mime_type="image/png"
+                data=base64.b64decode(b64), mime_type=image_mime_for(b64)
             )
             for b64 in (images_b64 or [])
         ]
@@ -118,7 +142,7 @@ class GeminiProvider:
             system_instruction=system,
             max_output_tokens=max_tokens,
             temperature=temperature,
-            http_options=genai_types.HttpOptions(timeout=int(timeout_s * 1000)),
+            http_options=self._http_options(timeout_s),
             **(
                 {"thinking_config": genai_types.ThinkingConfig(
                     thinking_level=self._thinking_level)}

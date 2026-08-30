@@ -12,6 +12,21 @@ from sqlalchemy.orm import relationship
 from ..database import Base
 
 
+def _as_utc(dt: datetime) -> datetime:
+    """Coerce a datetime to timezone-aware UTC.
+
+    These columns are declared `DateTime` (naive) on the ORM but are TIMESTAMPTZ
+    in the database (migration 001), so the driver hands back AWARE datetimes
+    while anything just built in Python (`datetime.utcnow()`) is NAIVE. Comparing
+    the two raises `TypeError: can't compare offset-naive and offset-aware
+    datetimes` — which is what made `is_subscription_active` explode for every
+    `trial` user, 500ing /auth/login, /auth/me and /auth/refresh *after*
+    authentication had already succeeded. Normalize before comparing; never
+    compare a stored timestamp against a bare `utcnow()`.
+    """
+    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+
+
 class SubscriptionStatus(PyEnum):
     """User subscription status."""
     trial = "trial"
@@ -87,16 +102,16 @@ class User(Base):
     def trial_ends_at(self) -> datetime:
         """Calculate when the trial period ends (14 days from start)."""
         if self.started_trial_at:
-            return self.started_trial_at + timedelta(days=14)
-        return datetime.utcnow()
-    
+            return _as_utc(self.started_trial_at) + timedelta(days=14)
+        return datetime.now(timezone.utc)
+
     @property
     def is_subscription_active(self) -> bool:
         """Check if the user has an active subscription (trial or paid)."""
         if self.subscription_status == SubscriptionStatus.active:
             return True
         if self.subscription_status == SubscriptionStatus.trial:
-            return datetime.utcnow() < self.trial_ends_at
+            return datetime.now(timezone.utc) < self.trial_ends_at
         return False
     
     def __repr__(self):

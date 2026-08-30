@@ -48,13 +48,13 @@ def test_as_dict_and_order():
 
 
 @pytest.mark.skipif(
-    not (DRAFT_BENCHMARKS / "moran_aharon.md").exists(),
+    not (DRAFT_BENCHMARKS / "hobby_tvshow.moran_aharon.md").exists(),
     reason="benchmark fixture not present (real student data lives outside git)",
 )
 def test_moran_aharon_fixture_structure():
     """The real converted fixture parses into the six expected answers."""
-    doc = load_ground_truth(DRAFT_BENCHMARKS / "moran_aharon.md")
-    assert doc.doc_id == "moran_aharon"
+    doc = load_ground_truth(DRAFT_BENCHMARKS / "hobby_tvshow.moran_aharon.md")
+    assert doc.doc_id == "hobby_tvshow.moran_aharon"
     assert doc.keys_in_order() == [
         (1, "א"), (1, "ב"), (1, "ג"),
         (2, "א"), (2, "ב"), (2, "ג"),
@@ -104,7 +104,12 @@ def test_page_parser_requires_delimiters():
         parse_page_ground_truth("plain text", doc_id="t")
 
 
-ALL_FIXTURES = ["moran_aharon", "dan_basiuk", "din_ezra", "omer_gelber", "yonatan_basiuk"]
+ALL_FIXTURES = [
+    # doc_id = "<exam_id>.<student>" — the corpus spans several exams, so a bare
+    # student name no longer identifies a fixture (2026-08-29).
+    "hobby_tvshow.moran_aharon", "hobby_tvshow.dan_basiuk", "hobby_tvshow.din_ezra",
+    "hobby_tvshow.omer_gelber", "hobby_tvshow.yonatan_basiuk",
+]
 
 
 @pytest.mark.skipif(
@@ -129,15 +134,60 @@ def test_all_raw_fixtures_parse():
     or not list((Path(__file__).parent / "draft_benchmarks").glob("*.md")),
     reason="draft benchmark fixtures not present (real student data lives outside git)",
 )
-def test_all_draft_fixtures_parse_with_six_answers():
+def test_all_draft_fixtures_conform_to_their_exam_spec():
+    """Every draft fixture's answer keys are EXACTLY its own exam's keys.
+
+    This replaces a hardcoded six-key list that was true only of the hobby/TvShow
+    corpus and failed a new-exam fixture by construction. It is also strictly
+    stronger: nothing previously checked a fixture's GT against the exam it
+    claims to answer, so a key the spec does not declare — which P2 can never
+    emit, since `spans.spec_targets` builds a closed enum from the spec — used
+    to sit undetected until it showed up as a permanent coverage failure.
+
+    EQUALITY, not subset (D3 ruling, Noam 2026-08-28): a question the student
+    left blank still gets its `=== Q.. ===` block with an empty body. This is
+    load-bearing for SELECTION exams ("answer 4 of 6"), where whole unanswered
+    questions are the norm — the span contract emits every spec target's key
+    regardless (spans.py: absent target -> empty answer), so an empty gold meets
+    an empty prediction and scores 1.0, while a model that INVENTS content for an
+    unanswered question scores 0.0 and is flagged. Omitting the block instead
+    would hide that invention in `extra_keys`."""
+    from .exam_resolution import resolve_exam, spec_keys
+    from .keys import normalize_key
+
     for name in ALL_FIXTURES:
         path = DRAFT_BENCHMARKS / f"{name}.md"
         assert path.exists(), f"missing draft fixture {name}"
         doc = load_ground_truth(path)
-        assert doc.keys_in_order() == [
-            (1, "א"), (1, "ב"), (1, "ג"), (2, "א"), (2, "ב"), (2, "ג"),
-        ], f"{name}: unexpected answer keys {doc.keys_in_order()}"
+
+        exam = resolve_exam(name, fallback_spec_path="draft.json")
+        assert exam is not None, f"{name}: no exam spec resolved"
+        expected = spec_keys(exam.spec)
+        actual = [normalize_key(k) for k in doc.keys_in_order()]
+        assert actual == expected, (
+            f"{name}: draft GT keys {actual} != exam {exam.ref} keys {expected}. "
+            f"Every declared answer gets exactly one block, in spec order; an "
+            f"unanswered question gets an EMPTY body, not a missing block."
+        )
+
         joined = "\n".join(a.answer_text for a in doc.answers)
         assert "[crossed out]" not in joined
         assert "[illegible]" not in joined
         assert "שאלה" not in joined  # headers excluded from answer bodies
+
+
+def test_all_fixtures_list_matches_the_raw_benchmarks_folder():
+    """`raw_benchmarks/` IS the runner's fixture registry — the default eval run
+    globs it (runner.main), so a raw GT landing there joins every run and the
+    /goal STOP gate the moment it is written. Requiring the list and the folder
+    to agree turns a half-landed fixture into a loud `pytest -q` failure instead
+    of a silent change to what the benchmark means."""
+    on_disk = {p.stem for p in RAW_BENCHMARKS.glob("*.md")}
+    if not on_disk:
+        pytest.skip("raw benchmark fixtures not present")
+    assert set(ALL_FIXTURES) == on_disk, (
+        f"ALL_FIXTURES and raw_benchmarks/ disagree — "
+        f"only in list: {sorted(set(ALL_FIXTURES) - on_disk)}; "
+        f"only on disk: {sorted(on_disk - set(ALL_FIXTURES))}. "
+        f"Land a fixture's raw GT, draft GT, PDF and manifest together."
+    )

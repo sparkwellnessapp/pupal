@@ -26,6 +26,8 @@ class FakeCall:
     temperature: float
     want_logprobs: bool
     json_schema: dict | None
+    reasoning_effort: str | None = None
+    images_b64: tuple[str, ...] = ()   # payloads, so tests can assert wire format
 
 
 @dataclass
@@ -57,11 +59,14 @@ class FakeProvider:
         want_logprobs: bool = False,
         json_schema: dict | None = None,
         timeout_s: float = 90.0,
+        reasoning_effort: str | None = None,
     ) -> VLMResponse:
         self.calls.append(FakeCall(
             system=system, user=user, n_images=len(images_b64 or []),
+            images_b64=tuple(images_b64 or ()),
             max_tokens=max_tokens, temperature=temperature,
             want_logprobs=want_logprobs, json_schema=json_schema,
+            reasoning_effort=reasoning_effort,
         ))
         if self.gate is not None:
             await self.gate.wait()

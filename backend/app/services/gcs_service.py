@@ -10,12 +10,24 @@ from typing import List, Optional, Tuple
 from io import BytesIO
 
 from google.cloud import storage
+from google.cloud.storage.retry import DEFAULT_RETRY
 from google.auth import impersonated_credentials
 from PyPDF2 import PdfReader, PdfWriter
 
 from ..config import settings
 
 logger = logging.getLogger(__name__)
+
+# Weak-uplink upload policy (2026-08-12). The SDK defaults (60s per request,
+# 120s total retry budget, whole-body multipart upload) lost a COMPLETED
+# transcription on a congested link: the multi-MB body re-sent from byte 0 on
+# every retry and the 120s budget died mid-body ("RetryError: Timeout of
+# 120.0s exceeded ... The write operation timed out"). Same doctrine as the
+# 240s P1 timeout: patience beats fail-fast when a retry re-pays the transfer.
+_UPLOAD_CHUNK_BYTES = 2 * 1024 * 1024   # resumable upload: a stall retries from the last committed chunk, not byte 0
+_UPLOAD_REQUEST_TIMEOUT_S = 120.0       # per HTTP request (one 2MB chunk needs ≥ ~17KB/s to fit)
+_UPLOAD_RETRY_DEADLINE_S = 300.0        # SDK-internal retry budget across chunk attempts
+_UPLOAD_RETRY = DEFAULT_RETRY.with_timeout(_UPLOAD_RETRY_DEADLINE_S)
 
 
 class GCSService:
@@ -59,19 +71,25 @@ class GCSService:
         logger.info(f"GCS Service initialized with bucket: {self.bucket_name}")
     
     def upload_bytes(
-        self, 
-        data: bytes, 
-        object_path: str, 
+        self,
+        data: bytes,
+        object_path: str,
         content_type: str = "application/pdf"
     ) -> str:
         """
-        Upload bytes to GCS.
-        
+        Upload bytes to GCS (resumable, weak-uplink-patient — see the
+        module-level upload policy constants).
+
         Returns:
             The GCS object path
         """
-        blob = self.bucket.blob(object_path)
-        blob.upload_from_string(data, content_type=content_type)
+        blob = self.bucket.blob(object_path, chunk_size=_UPLOAD_CHUNK_BYTES)
+        blob.upload_from_string(
+            data,
+            content_type=content_type,
+            timeout=_UPLOAD_REQUEST_TIMEOUT_S,
+            retry=_UPLOAD_RETRY,
+        )
         logger.debug(f"Uploaded to gs://{self.bucket_name}/{object_path}")
         return object_path
     

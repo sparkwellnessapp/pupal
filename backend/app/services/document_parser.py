@@ -34,22 +34,22 @@ def get_openai_client() -> OpenAI:
 def pdf_to_images(pdf_bytes: bytes, dpi: int = 150) -> List[Image.Image]:
     """
     Convert PDF bytes to a list of PIL Images.
-    
+
+    Thin delegate to `pdf_render.render_pages` — the ONE rasterizer (2026-08-19).
+    Kept as a named function because it is the import surface of the P1
+    transcription path, the eval suite, and several tests' patch targets.
+
     Args:
         pdf_bytes: PDF file as bytes
         dpi: Resolution for rendering (150 is good balance of quality/size)
-        
+
     Returns:
         List of PIL Image objects, one per page
     """
+    from .pdf_render import render_pages
+
     try:
-        images = convert_from_bytes(
-            pdf_bytes,
-            dpi=dpi,
-            fmt='PNG'
-        )
-        logger.info(f"Converted PDF to {len(images)} images at {dpi} DPI")
-        return images
+        return render_pages(pdf_bytes, dpi)
     except Exception as e:
         logger.error(f"Error converting PDF to images: {e}")
         raise

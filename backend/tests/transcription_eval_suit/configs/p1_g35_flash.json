@@ -1,0 +1,14 @@
+{
+  "p1_model_key": "gemini-3.5-flash",
+  "p1_pages_per_call": 3,
+  "p1_image_packing": "multi_image",
+  "dpi": 200,
+  "image_max_px": 2000,
+  "p1_max_tokens": 8000,
+  "p2_model_key": "",
+  "correction_policy": "off",
+  "p2_max_tokens": 8000,
+  "temperature": 0.0,
+  "use_json_schema": true,
+  "timeout_s": 600.0
+}

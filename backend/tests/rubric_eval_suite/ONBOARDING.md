@@ -22,9 +22,32 @@ It is the rubric analog of the older transcription eval suite, and it inherits t
 suite's disciplines (worst-case over mean, validity before significance, one
 variable per run, k-repeats for non-determinism).
 
-**Status: the mission gate has been MET.** As of the last close-out (run
-`20260711-131057`, prompt `3.3.1-tracehdr`), the suite passes **5/5 fixtures** with
-every gated metric at 1.0 worst-case. The subsequent run (`20260711-140120`)
+> ⚠️ **STATUS 2026-08-24 — the gate is NOT met on the current tree, and the gap is a
+> GT/convention divergence, NOT a product defect.**
+> A same-tree baseline (RUN `20260823-191643_prod_gpt55`, k=3 — the first all-5 gpt-5.5 run
+> since the tree moved to prompt `3.7.0-tabledir` / pipeline `3.6.2`) scores **12/15:
+> hobby_tvshow fails 0/3**, and every gpt-5.6 cell of the 2026-08-23 sweep failed it
+> identically. The cause: on q2.ב the extractor declares **45** (the sum of what it places
+> under ב) where GT expects the teacher's literal **29**, so the rubric comes out internally
+> consistent and the two Tier-A `point_sum_mismatch` shadows + two `rubric_mismatch`
+> annotations GT expects never fire; `point_exactness` lands at 0.9792.
+> **This is the system working.** The extraction still emits `structural_mislabel@q2`, whose
+> explanation names the root cause and whose `suggested_fix` is executable — `move_criterion
+> q2.ב[6] → q2.ג`, `move_text`, `set_points q2.ב value="29" current_value="45"`. The teacher
+> is shown the error and a one-click fix that restores 29: capture → surface → propose →
+> teacher decides. Owner-verified against the live extractor and ruled 2026-08-24.
+> An earlier version of this note called it a "silent repair / live production FC violation."
+> That was wrong — it read `pedagogical_mistakes` as `(kind, target_id)` keys only and never
+> opened the payload. Retracted in RUNLOG `CORRECTION 2026-08-24`.
+> **Open, owner-owned:** if the ruling stands, `benchmarks/hobby_tvshow.json` and
+> `RUBRIC_EVAL_PLAYBOOK.md` §4's worked example are what diverge from shipped behaviour, and
+> the §4 pedagogical-consistency invariant has to be re-derived — not hand-edited. Until then
+> hobby fails the gate uniformly for every model, which makes it a constant, not a
+> discriminator. The paragraph below describes the **2026-07** state and is kept as history.
+
+**Status (HISTORICAL, 2026-07-11): the mission gate had been MET.** As of that
+close-out (run `20260711-131057`, prompt `3.3.1-tracehdr`), the suite passed **5/5
+fixtures** with every gated metric at 1.0 worst-case. The subsequent run (`20260711-140120`)
 verified a pipeline transport change and held 13/13 *valid* trials (2 lost to
 transient connection errors, not accuracy). The loop is currently **closed and
 handed back to Noam**; open items are cost/transport polish, not accuracy gaps.
@@ -64,7 +87,7 @@ rubric_eval_suite/
 ├── fixtures/      *.docx      ← 5 source rubric documents (the inputs)
 ├── benchmarks/    *.json      ← 5 ground-truth ExtractRubricResponse files (type-valid Pydantic)
 ├── markdowns/     *.md        ← cached renders of each fixture (reference)
-├── configs/       *.json      ← experiment configs (model/provider/knobs/prices) — the A/B knob
+├── configs/       *.json      ← experiment configs (model_key/knobs/ceiling — identity+prices are registry-owned: ../eval_common/models_registry.py) — the A/B knob
 ├── results/       <ts>_<cfg>/ ← one dir per run: results.json + summary.md + report_<rubric>.md + predictions/ (+ traces/ when --trace on)
 │
 ├── runner.py                  ← orchestrates render → extract → score → report; modes: extract | score_only
@@ -159,8 +182,20 @@ consistency**. Key semantics:
 simultaneously: `question_recall/precision == 1`, `subquestion_structure_match ==
 1`, `criterion_recall/precision == 1`, `subcriterion_recall/precision == 1`,
 `point_exactness == 1`, `total_points_correct`, `selection_match`,
-`example_solution_fidelity == 1`, `annotation_match`, `pedagogical_match`, `valid`,
-and `cost ≤ ceiling`. Partial improvement that masks a regression must not pass —
+`example_solution_fidelity == 1`, `annotation_match`, `pedagogical_match`,
+`fix_effect_consistent is not False`, `valid`, and `cost ≤ ceiling`.
+
+**`fix_effect_consistent` (added 2026-08-24)** — a proposed `suggested_fix`, once
+applied, must leave the rubric adding up. `pedagogical_match` compares mistakes by
+`(kind, target)` and NEVER reads the payload, so a fix could be wrong or incomplete and
+the fixture still passed — a blind spot that survived a full 9-cell model sweep and was
+found by the owner running a rubric through the LIVE app. The check simulates the steps'
+POINT semantics, mirroring the only real applier (`frontend/src/utils/edit-steps.ts`),
+cross-pinned by `tests/fixtures/edit_step_points_cases.json` which BOTH suites read in
+place. A fix is judged BY WHAT IT CLAIMS (owner ruling, “Option A”): a move-bearing plan
+claims root-cause resolution and is held to its ancestors; a pure `set_points` plan is a
+minimal local correction (Tier A’s “invents nothing” fallback) and is held only to the
+node it targets. `None` = vacuous (no fix proposed) ⇒ criterion skipped. Partial improvement that masks a regression must not pass —
 that is the entire point.
 
 **Validity gate**: a `None` prediction (parse/transport failure) or `finish_reason
@@ -176,21 +211,39 @@ belongs in one place, and each has its own drift-detection.
 
 | Variable | Where it lives | Drift signal |
 |---|---|---|
-| **Model / provider / generation knobs** (model, provider, `max_output_tokens`, `reasoning_effort`, prices, `cost_ceiling`) | `configs/<name>.json` — one file = one (model, provider, prices, knobs) pairing | `model_version` stamped in results.json |
+| **Model / generation knobs** (`model_key`, `max_output_tokens`, `reasoning_effort`, `cost_ceiling`) | `configs/<name>.json` names a `model_key`; identity/price/tier resolve through `tests/eval_common/models_registry.py` (SHARED with the transcription suite — one registry, one key vocabulary) | `model_key` + `model_version` + `registry_as_of` stamped in results.json; a price/registry change also shifts `suite_hash` |
 | **Prompt** | `app/services/docx_v3/pipeline.py` (`EXTRACTION_SYSTEM_PROMPT`); **bump `EXTRACTION_PROMPT_VERSION`** on every edit | `prompt_version` stamped from that constant |
 | **Ground truth** (`benchmarks/*.json`) | authored via rules in `GT_AUDIT.md`; text via `tools/populate_texts.py` | `suite_hash` (covers benchmarks + all `.py`) |
 | **Instrument** (scorer / gate / schema / normalize / reporting) | the suite's `.py` files | `suite_hash` |
 
 `suite_hash` deliberately **excludes** configs (the config is *supposed* to differ
-between runs). Pipeline-code changes are **not** covered by `suite_hash`, so they
-are stamped separately as `pipeline_version` **from the run** (`result.metadata`) —
-that stamp is the only tree-drift signal for pipeline changes.
+between runs) but **includes** the shared model registry (its prices feed cost,
+cost feeds the gate — the registry is part of the instrument). Pipeline-code
+changes are **not** covered by `suite_hash`, so they are stamped separately as
+`pipeline_version` **from the run** (`result.metadata`) — that stamp is the only
+tree-drift signal for pipeline changes.
 
 **Config knobs available** (`configs/`): `default.json` (gpt-4o baseline), plus
-sweep configs `gpt-5.5.json` (openai, effort=medium, 32k tokens — **the production
-pin**), `claude-sonnet-4-6.json` (anthropic), `gemini-3.1-pro-preview.json` (gemini
-— note: undeployable, `langchain_google_genai` not installed). Sweep ceilings are
-loose ($2.00) for pathology detection, not economy.
+sweep configs `gpt-5.5.json` (openai, effort=medium — **the production pin**),
+`claude-sonnet-4-6.json` (anthropic), `gemini-3.1-pro-preview.json` (gemini
+— note: undeployable, `langchain_google_genai` not installed), `grok-4.6.json`
+(xai — DO-NOT-ADOPT verdict 2026-08-15, kept as the experiment record), and the nine
+`gpt-5.6-{luna,terra,sol}[-low|-high].json` cells of the 2026-08-23 latency sweep
+(ALL FALSIFIED — each carries its verdict in its own `notes`; the 3×3 map and the
+three distinct reasons the rows died are in RUNLOG's P-M56 closing entry). Nearest
+miss: `gpt-5.6-terra-high` (−61% $/doc, −24.5% suite latency, but 10/15 at k=3 —
+a spurious criterion at bagrut q1.ב.2 on 2 of 3 draws). A config
+carries ONLY `model_key` + generation knobs + `cost_ceiling` + notes; identity
+and prices live in the registry. Ceilings: gpt-5.5 configs $1.00 (owner ruling
+2026-08-23); non-openai sweeps keep the loose $2.00 pathology-detection ceiling.
+
+**Fixture expansion (2026-08-23):** adding a rubric fixture is registry-independent —
+drop `fixtures/<name>.docx` + `benchmarks/<name>.json` (paired by basename via
+`_discover`); no config, registry, or code change. If the new rubric is also meant to
+serve as the exam spec for TRANSCRIPTION fixtures (student answers to this exam), know
+that the transcription suite currently binds ONE exam per run — the lift design is
+BACKLOG **B-30f** (`PLAN_model_registry_normalization.md` §9, owner-gated); see
+`../transcription_eval_suit/TRANSCRIPTION_GT_CONVENTIONS.md` §1.2 before authoring.
 
 > **Determinism caveat**: the models are NOT deterministic at temp 0. Evaluate every
 > change at `--repeats k` (k≥5 is the mission bar; Noam amended to k=2 late in the
@@ -202,8 +255,10 @@ loose ($2.00) for pathology detection, not economy.
 
 - A result is a function of `(fixtures, config, prompt_version, model_version,
   pipeline_version)` — all five stamped into `results.json`.
-- **Cost division of responsibility**: the PIPELINE measures tokens; the CONFIG owns
-  the price table; the RUNNER multiplies; the GATE judges dollars vs `cost_ceiling`.
+- **Cost division of responsibility** (2026-08-23): the PIPELINE measures tokens;
+  the REGISTRY (`tests/eval_common/models_registry.py`) owns identity and the price
+  card; the RUNNER converts tokens → dollars through the ONE shared `cost_usd`
+  (cached-input aware); the GATE judges dollars vs `cost_ceiling`.
 - **Failure isolation**: one doc's transport error becomes an INVALID record (not a
   lost run) — worst-doc discipline. Per-trial predictions are persisted to
   `results/<run>/predictions/` as they arrive, so a crashed run still leaves
@@ -219,7 +274,13 @@ loose ($2.00) for pathology detection, not economy.
 
 ## 8. Current performance state (headline)
 
-**Mission gate: MET — 5/5 fixtures PASS**, every gated metric 1.0 worst-case, at:
+**CURRENT (2026-08-23, prompt `3.7.0-tabledir` / pipeline `3.6.2`, gpt-5.5 @ medium,
+k=3): 12/15 — 4 fixtures 3/3, hobby_tvshow 0/3** (the q2.ב GT/convention divergence — NOT a
+defect; see the status note in §1). Headline t_doc 183.8s (bagrut), suite sum-of-medians 503.3s,
+$0.217/doc. This is the reference every later comparison is made against.
+
+**HISTORICAL — mission gate: MET — 5/5 fixtures PASS**, every gated metric 1.0
+worst-case, at:
 - prompt `3.3.1-tracehdr`, model `gpt-5.5` @ effort=medium, pipeline `3.1.0`+
   (transport policy `3.3.0` in prod).
 

@@ -112,19 +112,21 @@ def test_6_ownership_not_spoofable(client, headers_a, user_b):
 
 
 # ---------------------------------------------------------------------------
-# Test 7 — Stubbed grading endpoints return 501
+# Test 7 — Grading endpoints are LIVE (updated 2026-08-17, P1 harness chore:
+# this test asserted the S2-era 501 stubs; the endpoints shipped in S6+ and
+# the archaic expectation failed every run. The auth-shape point survives:
+# an authenticated list answers 200; an unknown id is 404, never 5xx.)
 # ---------------------------------------------------------------------------
 
-def test_7_stubbed_grading_endpoints_return_501(client, headers_a):
+def test_7_grading_endpoints_implemented(client, headers_a):
     resp_list = client.get("/api/v0/grading/graded_tests", headers=headers_a)
-    assert resp_list.status_code == 501, (
-        f"Expected 501 from stubbed endpoint, got {resp_list.status_code}"
+    assert resp_list.status_code == 200, (
+        f"Expected 200 from the implemented list endpoint, got {resp_list.status_code}"
     )
 
-    # Use a random UUID for the detail endpoint
+    # Unknown id → 404 (ownership-indistinguishable), never a 5xx.
     from uuid import uuid4
-    fake_id = uuid4()
-    resp_detail = client.get(f"/api/v0/grading/graded_test/{fake_id}", headers=headers_a)
-    assert resp_detail.status_code == 501, (
-        f"Expected 501 from stubbed endpoint, got {resp_detail.status_code}"
+    resp_detail = client.get(f"/api/v0/grading/graded_test/{uuid4()}", headers=headers_a)
+    assert resp_detail.status_code == 404, (
+        f"Expected 404 for an unknown graded_test, got {resp_detail.status_code}"
     )

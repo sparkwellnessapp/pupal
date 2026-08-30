@@ -9,18 +9,24 @@ Covers:
    including the legacy OpenAI token_usage fallback.
 3. The scorer's truncation guard firing on every provider's truncation string
    and NOT firing on every provider's normal-stop string.
-4. runner._config_env_overrides round-trip (full config, minimal config).
+4. runner._config_env_overrides round-trip (registry-sourced identity + knobs).
+5. Sweep configs resolve through the shared registry (2026-08-23 migration):
+   identity/prices are registry-owned; the legacy split-brain keys stay gone;
+   the shared cost formula reproduces the legacy formula on a real record.
 
-Run: PYTHONPATH=. python tests/rubric_eval_suite/tests/test_llm_policy.py
+Run: PYTHONPATH=. python tests/rubric_eval_suite/test_llm_policy.py
 """
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 from app.services.docx_v3.pipeline import _llm_params, _call_meta_from_raw, _is_openai_reasoning
 from tests.rubric_eval_suite.runner import _config_env_overrides
 from tests.rubric_eval_suite.runner import score_only  # noqa: F401 (import sanity)
+
+SUITE_DIR = Path(__file__).resolve().parent
 
 
 def test_param_policy_per_family():
@@ -54,6 +60,11 @@ def test_param_policy_per_family():
     # separate decision, not a PR-2 side effect)
     assert _llm_params("gemini", "gemini-3.1-pro-preview", 16000, None) == {
         "temperature": 0, "max_output_tokens": 16000}
+    # xai (grok, OpenAI-compatible reasoning family): temperature omitted, bounded;
+    # effort passes through only when explicitly set
+    assert _llm_params("xai", "grok-4.6", None, None) == {"max_tokens": 32000, **BOUND}
+    assert _llm_params("xai", "grok-4.6", 16000, "low") == {
+        "max_tokens": 16000, "reasoning_effort": "low", **BOUND}
     # config override wins over family default
     assert _llm_params("openai", "gpt-5.5", 64000, None)["max_tokens"] == 64000
     # PR-2: the timeout is injectable (env-tunable at the caller); max_retries stays 0
@@ -92,10 +103,9 @@ def test_truncation_guard_per_provider():
     provider's normal stop — via score_only's validity path (GT vs GT with the
     finish_reason injected, so any invalidity is attributable to the guard alone)."""
     import json
-    from pathlib import Path
     from app.schemas.ontology_types import ExtractRubricResponse
-    gt_path = sorted(Path("tests/rubric_eval_suite/benchmarks").glob("*.json"))[0]
-    g = ExtractRubricResponse.model_validate_json(gt_path.read_text())
+    gt_path = sorted((SUITE_DIR / "benchmarks").glob("*.json"))[0]
+    g = ExtractRubricResponse.model_validate_json(gt_path.read_text(encoding="utf-8"))
     for fr, should_be_valid in [("length", False), ("MAX_TOKENS", False),
                                 ("max_tokens", False), ("stop", True),
                                 ("end_turn", True), ("STOP", True)]:
@@ -105,16 +115,24 @@ def test_truncation_guard_per_provider():
 
 
 def test_config_env_round_trip():
-    full = _config_env_overrides({"model": "gpt-5.5", "provider": "openai",
-                                  "max_output_tokens": 32000, "reasoning_effort": "high"})
-    assert full == {"EXTRACTION_LLM_MODEL": "gpt-5.5",
+    from tests.eval_common.models_registry import spec
+    # Identity ALWAYS comes from the registry spec — and it is the SDK
+    # model_id, not the registry key (chatgpt-4o-mini -> gpt-4o-mini is the
+    # proving pair: a key/id divergence must send the ID down the wire).
+    s = spec("chatgpt-4o-mini")
+    full = _config_env_overrides({"model_key": "chatgpt-4o-mini",
+                                  "max_output_tokens": 32000,
+                                  "reasoning_effort": "high"}, s)
+    assert full == {"EXTRACTION_LLM_MODEL": "gpt-4o-mini",
                     "EXTRACTION_LLM_PROVIDER": "openai",
                     "EXTRACTION_LLM_MAX_TOKENS": "32000",
                     "EXTRACTION_LLM_REASONING_EFFORT": "high"}
-    # minimal config: absent knobs must NOT appear (never clobber ambient env with 'None')
-    assert _config_env_overrides({"model": "gpt-4o", "reasoning_effort": None}) == {
-        "EXTRACTION_LLM_MODEL": "gpt-4o"}
-    print("  [ok] config→env mapping (full + minimal, no None-clobbering)")
+    # minimal config: absent knobs must NOT appear (never clobber ambient env
+    # with 'None') — but identity is ALWAYS present (F2: no ambient leakage)
+    s2 = spec("gpt-4o")
+    assert _config_env_overrides({"model_key": "gpt-4o", "reasoning_effort": None}, s2) == {
+        "EXTRACTION_LLM_MODEL": "gpt-4o", "EXTRACTION_LLM_PROVIDER": "openai"}
+    print("  [ok] config→env mapping (registry identity incl. key≠id, knobs, no None-clobbering)")
 
 
 # The legal reasoning_effort domain (None = knob absent, for non-reasoning providers).
@@ -123,28 +141,67 @@ def test_config_env_round_trip():
 _LEGAL_EFFORTS = {None, "minimal", "low", "medium", "high"}
 
 
-def test_sweep_configs_load_and_pair_prices():
+def test_sweep_configs_resolve_through_registry():
     import json
-    from pathlib import Path
-    # prices/provider/model ARE pinned — the split-brain guard; they are not sweep
-    # variables. reasoning_effort is NOT pinned: it is a designated sweep variable whose
-    # intent lives in the config diff + results.json provenance (one concept, one place).
-    # Pinning its value here would duplicate that intent and red the battery on every
-    # legitimate sweep, training reflexive test edits that erode the guard. Shape only:
-    # key present, value in the legal set.
-    expected = {"gpt-5.5": ("openai", 5.00, 30.00),
-                "claude-sonnet-4-6": ("anthropic", 3.00, 15.00),
-                "gemini-3.1-pro-preview": ("gemini", 2.00, 12.00)}
-    for name, (prov, pin, pout) in expected.items():
-        cfg = json.loads(Path(f"tests/rubric_eval_suite/configs/{name}.json").read_text())
-        assert cfg["provider"] == prov and cfg["model"] == name
-        assert (cfg["price_per_1m_input"], cfg["price_per_1m_output"]) == (pin, pout)
+    from tests.eval_common.models_registry import spec
+    # Identity/prices are REGISTRY-owned (2026-08-23): the config carries only
+    # the key + knobs + this suite's economics. Pinning provider/prices HERE,
+    # against the registry, keeps the split-brain guard — a price move must
+    # happen in the registry (announced by registry_as_of + suite_hash), never
+    # in a config. reasoning_effort stays NOT pinned: it is a designated sweep
+    # variable whose intent lives in the config diff + results.json provenance
+    # (one concept, one place). Pinning its value here would duplicate that
+    # intent and red the battery on every legitimate sweep, training reflexive
+    # test edits that erode the guard. Shape only: key present, value legal.
+    # Ceilings pinned per config: gpt-5.5 at 1.00 (owner ruling 2026-08-23);
+    # the non-openai sweeps keep the loose 2.00 pathology-detection ceiling.
+    # The gpt-5.6 sweep (2026-08-23) pins its three per-model MEDIUM anchors
+    # here; the -low/-high effort variants stay unpinned for the same reason
+    # gpt-5.5-low is (effort is the designated sweep variable). sol is pinned
+    # at the LIST card (5.00/30.00) — the registry note explains why the
+    # promotional 4.00/20.00 is deliberately not what we cost against.
+    expected = {"gpt-5.5": ("openai", 5.00, 30.00, 1.00),
+                "gpt-5.6-luna": ("openai", 0.20, 1.20, 1.00),
+                "gpt-5.6-terra": ("openai", 2.00, 12.00, 1.00),
+                "gpt-5.6-sol": ("openai", 5.00, 30.00, 1.00),
+                "claude-sonnet-4-6": ("anthropic", 3.00, 15.00, 2.00),
+                "gemini-3.1-pro-preview": ("gemini", 2.00, 12.00, 2.00),
+                "grok-4.6": ("xai", 2.00, 6.00, 2.00)}
+    for name, (prov, pin, pout, ceiling) in expected.items():
+        cfg = json.loads((SUITE_DIR / "configs" / f"{name}.json").read_text(encoding="utf-8"))
+        assert cfg["model_key"] == name
+        # the legacy split-brain keys must be gone AND stay gone (D6/D7)
+        assert not ({"model", "provider", "price_per_1m_input", "price_per_1m_output",
+                     "temperature", "pipeline_version"} & cfg.keys()), name
+        s = spec(cfg["model_key"])
+        assert s.provider == prov
+        assert (s.price.in_per_mtok, s.price.out_per_mtok) == (pin, pout)
+        assert cfg["cost_ceiling"] == ceiling, (name, cfg["cost_ceiling"])
         assert "reasoning_effort" in cfg, f"{name}: reasoning_effort key absent"
         assert cfg["reasoning_effort"] in _LEGAL_EFFORTS, (name, cfg["reasoning_effort"])
-        assert cfg["cost_ceiling"] == 2.00
-        # the model/prices pairing lives in ONE artifact — the split-brain guard
-        _llm_params(prov, cfg["model"], cfg.get("max_output_tokens"), cfg.get("reasoning_effort"))
-    print("  [ok] three sweep configs load; prices/provider/model pinned, effort shape-valid")
+        # the (provider, model_id, knobs) triple constructs cleanly
+        _llm_params(s.provider, s.model_id, cfg.get("max_output_tokens"), cfg.get("reasoning_effort"))
+    print("  [ok] sweep configs resolve through the registry; prices/provider pinned there, effort shape-valid")
+
+
+def test_cost_parity_with_legacy_formula():
+    """Comparability receipt for the 2026-08-23 migration: with cached input
+    absent/zero, the shared cost_usd (two_phase/instrument.py) is algebraically
+    identical to the legacy config-scalar formula. Pinned on a REAL historical
+    record — bagrut_899371 in results/20260726-144104_gpt-5.5 wrote
+    cost_usd=0.50122 for in=18968/out=13546 at 5.00/30.00. The migration must
+    not move a single historical cost number."""
+    from app.services.transcription.two_phase.instrument import cost_usd
+    from app.services.transcription.vlm_provider import Usage
+    from tests.eval_common.models_registry import spec
+    got = cost_usd(Usage(input_tokens=18968, output_tokens=13546,
+                         cached_input_tokens=None), spec("gpt-5.5").price)
+    assert abs(got - 0.50122) < 1e-9, got
+    # and the cached path bills BELOW the uncached path (the F4 fix direction)
+    cached = cost_usd(Usage(input_tokens=18968, output_tokens=13546,
+                            cached_input_tokens=10000), spec("gpt-5.5").price)
+    assert cached < got
+    print("  [ok] shared cost_usd reproduces the legacy formula on a real record; cached path discounts")
 
 
 def test_construction_wiring_all_branches():
@@ -197,6 +254,21 @@ def test_construction_wiring_all_branches():
         _get_llm("openai", "gpt-4o")
         assert captured["ChatOpenAI"]["timeout"] == 120.0
         assert captured["ChatOpenAI"]["max_retries"] == 0, "the hidden SDK layer stays OFF"
+        # xai: same ChatOpenAI client re-pointed at the x.ai endpoint with its own key
+        os.environ.pop("EXTRACTION_LLM_TIMEOUT_S", None)
+        saved_xai = os.environ.get("XAI_API_KEY")
+        os.environ["XAI_API_KEY"] = "xai-test-key"
+        try:
+            _get_llm("xai", "grok-4.6")
+            # streaming=True is LOAD-BEARING for xai (non-streaming hangs — see
+            # pipeline._get_llm); stream_usage keeps token/cost accounting.
+            assert captured["ChatOpenAI"] == {
+                "model": "grok-4.6", "api_key": "xai-test-key",
+                "base_url": "https://api.x.ai/v1", "streaming": True,
+                "stream_usage": True, "max_tokens": 32000, **BOUND}
+        finally:
+            if saved_xai is None: os.environ.pop("XAI_API_KEY", None)
+            else: os.environ["XAI_API_KEY"] = saved_xai
     finally:
         for k, v in saved.items():
             if v is None: os.environ.pop(k, None)
@@ -211,6 +283,7 @@ if __name__ == "__main__":
     test_provenance_shapes_all_providers()
     test_truncation_guard_per_provider()
     test_config_env_round_trip()
-    test_sweep_configs_load_and_pair_prices()
+    test_sweep_configs_resolve_through_registry()
+    test_cost_parity_with_legacy_formula()
     test_construction_wiring_all_branches()
     print("ALL LLM-POLICY SELF-TESTS PASSED")

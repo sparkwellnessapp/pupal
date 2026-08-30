@@ -1,5 +1,5 @@
 """
-FastAPI application entry point for Grader Vision API.
+FastAPI application entry point for Vivi API.
 
 This is the main application file that configures and runs the FastAPI server.
 """
@@ -8,8 +8,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
-from .config import settings
+from .config import settings, is_dev_env
 from .database import init_db, close_db
 from .api.v0 import grading as grading_v0
 from .api.v0 import users as users_v0
@@ -54,7 +55,7 @@ async def lifespan(app: FastAPI):
     Handles startup and shutdown events.
     """
     # Startup
-    logger.info("Starting Grader Vision API...")
+    logger.info("Starting Vivi API...")
     
     # Configure tracing
     setup_tracing()
@@ -70,6 +71,16 @@ async def lifespan(app: FastAPI):
     # is still heartbeating.
     from .services.extraction_job_liveness import sweep_on_startup
     asyncio.create_task(sweep_on_startup())
+    # Same rule for transcription jobs and grading runs (Cloud Tasks
+    # migration): expire active rows orphaned by the previous process.
+    from .services.transcription_job_liveness import (
+        sweep_on_startup as sweep_transcription_jobs,
+    )
+    asyncio.create_task(sweep_transcription_jobs())
+    from .services.grading_job_liveness import (
+        sweep_on_startup as sweep_grading_runs,
+    )
+    asyncio.create_task(sweep_grading_runs())
     logger.info("Database initialization started in background")
     
     # Start temp storage cleanup worker (capture task for cancellation)
@@ -79,7 +90,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    logger.info("Shutting down Grader Vision API...")
+    logger.info("Shutting down Vivi API...")
     
     # Cancel cleanup worker
     if cleanup_task:
@@ -95,7 +106,7 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI application
 app = FastAPI(
-    title="Grader Vision API",
+    title="Vivi API",
     description="""
     Automated test grading API using Vision AI.
     
@@ -112,8 +123,20 @@ app = FastAPI(
     """,
     version="0.1.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # Interactive docs + the raw schema are DEVELOPMENT-ONLY (closeout,
+    # owner-ruled). They are not an auth bypass, but an enumerable schema of
+    # every endpoint is free reconnaissance, and this product handles minors'
+    # handwritten work under Israeli privacy expectations. Closing them costs
+    # one line; the only thing lost is local convenience, which `APP_ENV=development`
+    # restores. Also keeps the known duplicate-operation-id inconsistency
+    # (B-28) off a public surface until it is resolved.
+    #
+    # NOTE: this removes the HTTP ROUTES only. `scripts/dump_openapi.py` calls
+    # `app.openapi()` in-process, so `npm run gen:api` and the api-drift CI
+    # gate are unaffected — verified, not assumed.
+    docs_url="/docs" if is_dev_env() else None,
+    redoc_url="/redoc" if is_dev_env() else None,
+    openapi_url="/openapi.json" if is_dev_env() else None,
 )
 
 # Configure CORS
@@ -128,6 +151,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Response compression (closeout/C1). MEASURED, not assumed:
+#   GET /batches/{id} at 40 real-sized tests (eval-suite student
+#   transcriptions, ~4.4KB per draft, half approved so approved_answers are
+#   present) serializes to 268.5 KB. At the dashboard's 3s poll that is
+#   104.9 MB across a 20-minute session — over the pre-registered 50 MB
+#   budget by 2×, on school wifi and mobile data, for the exact batch size
+#   the product is designed for (N2: 30–40).
+#   With gzip: 17.5 KB on the wire (15.3×), 6.8 MB per session. Comfortably
+#   inside both thresholds, and one line.
+#
+# minimum_size=1024: below that the gzip header costs more than it saves.
+# compresslevel=6, not 9: 9 burns markedly more CPU per poll for a few
+# percent, and this runs on every dashboard tick.
+#
+# The page-image proxy was checked rather than assumed (base64 of an
+# already-compressed PNG is the classic "compresses nothing, burns CPU"
+# case): measured 234.4 KB → 177.6 KB, a 1.32× gain. gzip recovers most of
+# base64's 33% expansion, so it pays for itself there too. Nothing in this
+# service streams a response body (the SSE machinery was deleted in P4/F6),
+# so there is no chunked-stream interaction to worry about.
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 
 # Register API routers
 app.include_router(grading_v0.router)
@@ -145,13 +190,17 @@ app.include_router(rubric_generator_v0.router)
 app.include_router(classroom_v0.router)
 app.include_router(transcription_v0.router)
 app.include_router(batch_grading_v0.router)
+# Cloud Tasks targets (auth: OIDC/shared-secret inside the endpoint, NOT
+# get_current_user): batch transcription jobs + grading runs.
+app.include_router(batch_grading_v0.internal_router)
+app.include_router(grading_v0.internal_router)
 
 
 @app.get("/", tags=["health"])
 async def root():
     """Root endpoint - API information."""
     return {
-        "name": "Grader Vision API",
+        "name": "Vivi API",
         "version": "0.1.0",
         "status": "running",
         "docs": "/docs",

@@ -128,6 +128,20 @@ class RubricScore:
     missing_pedagogical: List[AnnotationCheck] = field(default_factory=list)
     spurious_pedagogical: List[AnnotationCheck] = field(default_factory=list)
 
+    # fix-effect (2026-08-24): does a proposed suggested_fix, once applied, leave
+    # the rubric adding up? A SIBLING of pedagogical_match, deliberately not folded
+    # into it: pedagogical_match is a set-comparison against GT, this is a
+    # self-consistency property of the prediction, and merging them would make a
+    # failure ambiguous about which half broke. None = vacuous (no fix to check).
+    fix_effect_consistent: Optional[bool] = None
+    fix_effect_violations: List[str] = field(default_factory=list)
+    # UNGATED companion (2026-08-24): the same check with the applier's source
+    # auto-repair disabled -- i.e. did the MODEL emit a complete plan, independent
+    # of the app compensating for it? Ungated on purpose: a plan the app fixes is
+    # not a teacher-visible defect, but losing sight of it would blind the sweep to
+    # a real model-quality difference (gpt-5.5 emits the step 6/6, terra 0/7).
+    fix_plan_complete: Optional[bool] = None
+
     # health (NOT gated — the rubric may be legitimately inconsistent)
     point_sum_consistency: bool = True
     consistency_violations: List[str] = field(default_factory=list)
@@ -145,6 +159,14 @@ class RubricScore:
     prompt_version: Optional[str] = None
     repeat_index: int = 0
 
+    # registry identity (2026-08-23) — attached by the RUNNER after scoring
+    # (like the latency instrument below; scoring.py never sets these; absent
+    # on a score_only re-score). model_key is the cross-suite join key shared
+    # with the transcription suite's CallRecords; tier is the registry's
+    # vendor-positioning label (tests/eval_common/models_registry.py).
+    model_key: Optional[str] = None
+    tier: Optional[str] = None
+
     # tracelog correlation (trace.py). None unless the run was launched with --trace;
     # a thin link from a (failing) results.json row to its persisted span tree.
     trace_id: Optional[str] = None
@@ -160,6 +182,10 @@ class RubricScore:
                                                # thread dispatch) — instrument cross-check
     input_tokens: Optional[int] = None         # cumulative across chain steps + retries
     output_tokens: Optional[int] = None        # cumulative decode (incl. reasoning tokens)
+    # token detail (2026-08-23; runner-attached, like the fields above) — the
+    # pipeline always measured these; the legacy cost formula ignored them.
+    cached_tokens: Optional[int] = None        # subset of input served from prompt cache
+    reasoning_tokens: Optional[int] = None     # subset of output that was hidden reasoning
     stage_timings: List[StageTiming] = field(default_factory=list)
 
     # infra warnings/errors (B4) — pipeline warnings, render-annotation-loss audit,

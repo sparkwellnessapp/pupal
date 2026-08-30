@@ -9,7 +9,7 @@ load-bearing invariant guards.
 """
 import io
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -85,9 +85,9 @@ def _patch_transcription_infra(transcription_result=None):
     )
 
     mock_pages = stack.enter_context(
-        patch("app.services.transcribe_one.pdf_to_images")
+        patch("app.services.transcribe_one.pdf_page_count")
     )
-    mock_pages.return_value = [MagicMock()]  # 1 fake PIL Image
+    mock_pages.return_value = 1  # page count is read from the PDF, not rendered
 
     mock_gcs = stack.enter_context(
         patch("app.services.transcribe_one.get_gcs_service")
@@ -147,8 +147,12 @@ def test_9_transcribe_wrong_rubric_owner(client, headers_b, rubric_a):
 # Test 10 — 400 for uncompiled rubric
 # ---------------------------------------------------------------------------
 
-def test_10_uncompiled_rubric_rejected(client, headers_a):
-    """Rubric with contract_json=None → 400."""
+def test_10_uncompiled_rubric_rejected(client, user_a, headers_a):
+    """Rubric with contract_json=None → 400. (2026-08-17, P1 harness chore:
+    user id now comes from the signup fixture — the previous /api/v0/users/me
+    round-trip 401'd on a valid session token, an anomaly in users.py's OWN
+    auth resolution, surfaced in batch_redesign_LOG.md and out of this test's
+    subject.)"""
     import sqlalchemy
     from uuid import uuid4
     from app.config import settings
@@ -156,14 +160,7 @@ def test_10_uncompiled_rubric_rejected(client, headers_a):
     sync_url = settings.database_url.replace("+asyncpg", "+psycopg2")
     engine = sqlalchemy.create_engine(sync_url)
 
-    # Determine user_a's id from headers
-    from app.main import app
-    from fastapi.testclient import TestClient
-
-    # Get user id from /api/v0/users/me
-    me_resp = client.get("/api/v0/users/me", headers=headers_a)
-    assert me_resp.status_code == 200
-    user_id = me_resp.json()["id"]
+    user_id = user_a["user"]["id"]
 
     rubric_id = str(uuid4())
     with engine.connect() as conn:
@@ -250,7 +247,7 @@ def test_12_vlm_failure_returns_502(client, headers_a, rubric_a):
     with patch("app.services.transcribe_one.settings.transcription_engine", "legacy"), \
          patch("app.services.transcribe_one.HandwritingTranscriptionService") as MockSvc, \
          patch("app.services.transcribe_one.get_vlm_provider", return_value=MagicMock()), \
-         patch("app.services.transcribe_one.pdf_to_images", return_value=[MagicMock()]), \
+         patch("app.services.transcribe_one.pdf_page_count", return_value=1), \
          patch("app.services.transcribe_one.get_gcs_service"):
 
         MockSvc.return_value.transcribe_pdf.side_effect = RuntimeError("VLM exploded")
@@ -321,9 +318,10 @@ def test_14_grade_already_approved_returns_409(client, headers_a, student_a, rub
 
     answers = [{"question_number": 1, "sub_question_id": None, "answer_text": "foo"}]
 
-    # First approval succeeds (run_grading mocked — never call OpenAI in tests;
+    # First approval succeeds (grading enqueue mocked — never call OpenAI in tests;
     # TestClient executes BackgroundTasks for real after the response)
-    with patch("app.api.v0.transcription.run_grading"):
+    with patch("app.api.v0.transcription.enqueue_grading_task_or_log",
+               new=AsyncMock()):
         r1 = client.post(
             "/api/v0/transcriptions/grade",
             json={"transcription_id": tx_id, "answers": answers, "student_id": student_a["id"]},
@@ -391,9 +389,10 @@ def test_16_grade_happy_path(client, headers_a, rubric_a, student_a):
     original_draft = t_resp.json()["draft"]
 
     answers = [{"question_number": 1, "sub_question_id": None, "answer_text": "edited answer"}]
-    # run_grading mocked: the row must still be 'pending' when asserted below,
+    # grading enqueue mocked: the row must still be 'pending' when asserted below,
     # and tests never call OpenAI.
-    with patch("app.api.v0.transcription.run_grading"):
+    with patch("app.api.v0.transcription.enqueue_grading_task_or_log",
+               new=AsyncMock()):
         g_resp = client.post(
             "/api/v0/transcriptions/grade",
             json={"transcription_id": tx_id, "answers": answers, "student_id": student_a["id"]},
@@ -465,9 +464,10 @@ def test_17_draft_immutable_after_grade(client, headers_a, rubric_a, student_a):
         ).fetchone()
     draft_before = row_before.draft_json
 
-    # Approve (run_grading mocked — never call OpenAI in tests)
+    # Approve (grading enqueue mocked — never call OpenAI in tests)
     answers = [{"question_number": 1, "sub_question_id": None, "answer_text": "modified by teacher"}]
-    with patch("app.api.v0.transcription.run_grading"):
+    with patch("app.api.v0.transcription.enqueue_grading_task_or_log",
+               new=AsyncMock()):
         g_resp = client.post(
             "/api/v0/transcriptions/grade",
             json={"transcription_id": tx_id, "answers": answers, "student_id": student_a["id"]},

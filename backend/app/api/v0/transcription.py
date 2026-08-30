@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -17,18 +17,21 @@ from starlette.concurrency import run_in_threadpool
 from ...database import get_db
 from .auth import get_current_user
 from ...api.deps import get_owned_or_404
+from ...api.guards import ensure_answer_keys_match_draft
 from ...config import settings
 from ...models.grading import GradedTest, Rubric
 from ...models.student import Student
 from ...models.transcription import Transcription
 from ...models.user import User
 from ...schemas.transcription import (
+    AnswerSpaceSelectionGroup,
     TranscriptionContract,
     TranscriptionContractAnswer,
     TranscriptionDraft,
     TranscriptionReview,
     TranscriptionReviewAnswer,
 )
+from ...services.selection_expectation import answer_space_groups
 from ...services.document_parser import image_to_base64
 from ...services.gcs_service import get_gcs_service
 from ...services.handwriting_transcription_service import (
@@ -38,7 +41,7 @@ from ...services.handwriting_transcription_service import (
     render_pdf_page,
 )
 from ...services.transcription_adapter import build_transcription_draft
-from ...services.grading_runner import run_grading
+from ...services.cloud_tasks_service import enqueue_grading_task_or_log
 from ...services.transcribe_one import transcribe_one
 
 logger = logging.getLogger(__name__)
@@ -55,6 +58,9 @@ router = APIRouter(prefix="/api/v0/transcriptions", tags=["transcriptions"])
 class TranscribeResponse(BaseModel):
     transcription_id: str
     draft: TranscriptionDraft
+    # Rubric selection groups in answer space — the review surface suppresses
+    # expected-empty containers on "choose k of N" exams. [] when selection-free.
+    selection_groups: list[AnswerSpaceSelectionGroup] = []
 
 
 class GradeAnswerInput(BaseModel):
@@ -114,6 +120,17 @@ async def transcribe(
     if not pdf_bytes:
         raise HTTPException(status_code=400, detail="Empty file uploaded")
 
+    # Answer-space selection groups for the review surface (pure; computed
+    # while the rubric row is loaded, before the session is released).
+    selection_groups = answer_space_groups(rubric.contract_json)
+
+    # Release the connection for the 60-90s transcription (transcribe_one owns
+    # its own short-lived sessions): an idle-in-transaction connection here
+    # gets reset by the Supabase pooler and the post-pipeline reload would 502
+    # a transcription that actually succeeded. The db.get below transparently
+    # re-acquires a fresh pooled connection (pool_pre_ping revalidates).
+    await db.close()
+
     try:
         transcription_id = await transcribe_one(
             pdf_bytes=pdf_bytes,
@@ -124,19 +141,24 @@ async def transcribe(
         )
     except Exception as exc:
         logger.error(f"transcribe_one failed: {exc}", exc_info=True)
+        from ...services.net_diag import diagnose_transport_failure
+        await diagnose_transport_failure(f"single-flow transcription of {file.filename}", exc)
         raise HTTPException(status_code=502, detail="שגיאה בתמלול — נסה שנית")
 
     # Reload the row (committed by transcribe_one) to build the response
     transcription = await db.get(Transcription, UUID(transcription_id))
     await db.refresh(transcription)
     draft = TranscriptionDraft.model_validate(transcription.draft_json)
-    return TranscribeResponse(transcription_id=transcription_id, draft=draft)
+    return TranscribeResponse(
+        transcription_id=transcription_id,
+        draft=draft,
+        selection_groups=selection_groups,
+    )
 
 
 @router.post("/grade", response_model=GradeQueuedResponse)
 async def grade(
     body: GradeRequest,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> GradeQueuedResponse:
@@ -196,10 +218,15 @@ async def grade(
 
     await db.commit()
     await db.refresh(graded_test)
+    graded_test_id = graded_test.id
+    # Release the connection before the enqueue round-trip (idempotent;
+    # teardown no-ops — the 2026-08-07 pooler discipline).
+    await db.close()
 
-    # Fire async grading — runs after response is sent (S8).
-    # run_grading owns its own DB session; it must not capture this one.
-    background_tasks.add_task(run_grading, graded_test.id)
+    # Cloud Tasks migration: enqueue AFTER commit; the handler claims the
+    # pending row by CAS. An enqueue failure leaves a durable pending row —
+    # grading_job_liveness's dispatch backstop reaps it → revision-retry.
+    await enqueue_grading_task_or_log(graded_test_id)
 
     logger.info(
         f"Transcription {transcription.id} approved → graded_test {graded_test.id} pending"
@@ -240,14 +267,10 @@ async def save_review(
         )
 
     # 2. Full-snapshot guard: key multiset must equal the draft's exactly.
+    # Shared with accept_one (B2, api/guards.py) — the approval write must
+    # never validate less than this overlay save.
     draft = TranscriptionDraft.model_validate(transcription.draft_json)
-    draft_keys = sorted((a.question_number, a.sub_question_id or "") for a in draft.answers)
-    body_keys = sorted((a.question_number, a.sub_question_id or "") for a in body.answers)
-    if draft_keys != body_keys:
-        raise HTTPException(
-            status_code=422,
-            detail="התשובות שנשלחו אינן תואמות את מבנה התמלול — נדרשת שמירה של כל התשובות",
-        )
+    ensure_answer_keys_match_draft(draft, body.answers)
 
     # 3. Student ownership at write time (Δ16) — same check /grade performs.
     if body.student_id is not None:

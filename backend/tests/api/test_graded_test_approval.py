@@ -124,17 +124,17 @@ async def _insert_draft_row(user_id: str, rubric_id: str, draft_json: dict) -> s
     Inserts stub transcription + student rows as needed to satisfy FKs.
     """
     import uuid
-    from app.database import AsyncSessionLocal
+    from tests.api.test_batch_grading import _fresh_loop_session
     from app.models.grading import GradedTest
     from app.models.transcription import Transcription
     from app.models.student import Student
 
-    async with AsyncSessionLocal() as db:
+    async with _fresh_loop_session() as db:
         student_id = uuid.uuid4()
         student = Student(
             id=student_id,
             user_id=uuid.UUID(user_id),
-            full_name="Test Student S9",
+            full_name=f"Test Student S9 {uuid4().hex[:6]}",
         )
         db.add(student)
         await db.flush()
@@ -178,12 +178,12 @@ async def _insert_draft_row(user_id: str, rubric_id: str, draft_json: dict) -> s
 
 async def _delete_graded_test_row(graded_test_id: str) -> None:
     """Clean up: delete the graded_test row (student/transcription cascade)."""
-    from app.database import AsyncSessionLocal
+    from tests.api.test_batch_grading import _fresh_loop_session
     from app.models.grading import GradedTest
     from sqlalchemy import delete
     import uuid
 
-    async with AsyncSessionLocal() as db:
+    async with _fresh_loop_session() as db:
         await db.execute(
             delete(GradedTest).where(GradedTest.id == uuid.UUID(graded_test_id))
         )
@@ -268,7 +268,11 @@ def test_patch_saves_overrides_ai_outcomes_immutable(client, graded_draft):
     # Verify override persisted
     saved_overrides = data["draft"]["teacher_overrides"]
     assert "q1.c0" in saved_overrides
-    assert saved_overrides["q1.c0"]["points_awarded"] == "3"
+    # Value equality, format-agnostic: the save path quantizes to the rubric's
+    # numeric precision ("3" → "3.00") — asserting the raw string coupled the
+    # test to serialization cosmetics (2026-08-17, P1 harness chore).
+    from decimal import Decimal as _D
+    assert _D(saved_overrides["q1.c0"]["points_awarded"]) == _D("3")
 
     # [CORE-17] AI outcomes MUST be byte-unchanged
     updated_scope = data["draft"]["scope_outcomes"][0]
@@ -299,13 +303,23 @@ def test_approve_happy_path_atomic_freeze(client, graded_draft):
     # Contract is present and has the right shape
     contract = data["contract"]
     assert contract["contract_version"]  # non-empty UUID
-    assert contract["total_score"] == "5"
-    assert contract["total_possible"] == "5"
-    assert float(contract["percentage"]) == 100.0
+    # Value equality, format-agnostic (2026-08-17, P1 harness chore): the
+    # approval pipeline quantizes to the rubric's numeric precision, so the
+    # wire string may carry trailing zeros ("5.0"/"5.00").
+    from decimal import Decimal as _D
+    assert _D(contract["total_score"]) == _D("5")
+    # PR-3 / selection_scoring (updated 2026-08-17, P1 harness chore): the
+    # denominator is the CONTRACT's achievable total — consumers never re-sum
+    # scope points (that re-derivation halved every selection-exam grade).
+    # This fixture's rubric declares 100 while its lone scope carries 5, so
+    # 100/5% is exactly the no-re-sum rule under test; the old "5"/"100%"
+    # asserts encoded the pre-PR-3 re-sum semantics.
+    assert _D(contract["total_possible"]) == _D("100")
+    assert float(contract["percentage"]) == 5.0
 
     # Provenance: teacher override is reflected
     terminal = contract["scope_outcomes"][0]["terminal_outcomes"][0]
-    assert terminal["final_points_awarded"] == "5"
+    assert _D(terminal["final_points_awarded"]) == _D("5")
     assert terminal["ai_points_awarded"] == "4"  # original AI value preserved
     assert terminal["was_overridden"] is True
     assert terminal["teacher_comment"] == "Full marks"
@@ -457,5 +471,7 @@ def test_ai_outcome_immutability_after_patch_and_approve(client, graded_draft):
     terminal = after_approve["contract"]["scope_outcomes"][0]["terminal_outcomes"][0]
     assert terminal["ai_points_awarded"] == orig_ai_points
     assert terminal["ai_reasoning"] == orig_reasoning
-    assert terminal["final_points_awarded"] == "2"
+    # Value equality, format-agnostic (see test_approve_happy_path note).
+    from decimal import Decimal as _D
+    assert _D(terminal["final_points_awarded"]) == _D("2")
     assert terminal["was_overridden"] is True

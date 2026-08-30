@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     Column, String, Text, Integer, DateTime, ForeignKey,
-    Boolean, Float, Numeric,
+    Boolean, Float, Numeric, text,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -81,6 +81,12 @@ class GradingBatch(Base):
     status                  = Column(String(30), nullable=False, default="pending")
     # S11: number of PDFs submitted at creation — used to compute in-flight transcription count.
     test_count              = Column(Integer, nullable=False, default=0)
+    # Durable per-document failure ledger (migration 015): JSONB array of
+    # {filename, error, at, net_verdict} appended ATOMICALLY (jsonb || jsonb)
+    # by the fan-out's containment. transcribing = test_count − rows − failures;
+    # without this, a dead document was indistinguishable from an in-flight one.
+    transcription_failures  = Column(JSONB, nullable=False, default=list,
+                                     server_default=text("'[]'::jsonb"))
     started_at              = Column(DateTime(timezone=True), nullable=True)
     completed_at            = Column(DateTime(timezone=True), nullable=True)
     created_at              = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -91,6 +97,7 @@ class GradingBatch(Base):
     school_class  = relationship("Class")
     graded_tests  = relationship("GradedTest", back_populates="batch", passive_deletes=True)
     transcriptions = relationship("Transcription", back_populates="batch", passive_deletes=True)
+    transcription_jobs = relationship("TranscriptionJob", back_populates="batch", passive_deletes=True)
 
     def __repr__(self):
         return f"<GradingBatch(id={self.id}, status={self.status})>"

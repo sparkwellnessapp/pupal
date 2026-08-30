@@ -95,3 +95,54 @@ def test_doc_report_e2e_shows_coverage_and_routing(tmp_path):
     assert "Coverage 0.83" in text
     assert "missed Q2.ג" in text and "extra Q2 (whole)" in text
     assert "Routing notes" in text and "merged Q2.ג into Q2" in text
+
+
+# --- multi-exam runs must not read as one scoreboard ---------------------------------
+
+def _rec(doc_id, ratio):
+    return {"doc_id": doc_id, "parse_failures": 0, "parse_failure_finish_reasons": [],
+            "stage_ms": {"p2_call": 1.0}, "spec_mismatches": [], "routing_notes": [],
+            "e2e": _e2e(ratio, 1.0, missed=[], extra=[], passed=True)}
+
+
+def test_summary_names_the_exam_and_flags_a_selection_exam(tmp_path):
+    """One exam: the Exam column stays OFF (every historical summary keeps its
+    shape) but the run still states which ruler it used, and a choose-k exam
+    announces itself so an empty answer is not misread as a failure."""
+    results = _results([_rec("dan", 0.99)], worst="dan")
+    results["fixtures"] = {"dan": {
+        "exam_spec": "exams/bagrut_899371.json", "exam_spec_sha256": "a" * 64,
+        "profile": "java_bagrut", "exam_name": "bagrut_899371",
+        "selection_groups": [{"group_id": "sg0", "choose_k": 4,
+                              "of_question_ids": ["q1", "q2", "q3", "q4", "q5", "q6"]}],
+    }}
+    write_summary(tmp_path, results, cost_ceiling=0.08)
+    text = (tmp_path / "summary.md").read_text(encoding="utf-8")
+
+    assert "exams: `bagrut_899371` (1 doc)" in text
+    assert "SELECTION exam (choose 4 of 6)" in text
+    assert "| doc | E2E ratio" in text          # no Exam column on a single-exam run
+
+
+def test_summary_adds_an_exam_column_only_when_the_run_is_mixed(tmp_path):
+    results = _results([_rec("dan", 0.99), _rec("noa", 0.97)], worst="noa")
+    results["fixtures"] = {
+        "dan": {"exam_spec": "exams/hobby_tvshow.json", "profile": "java_bagrut"},
+        "noa": {"exam_spec": "exams/bagrut_899371.json", "profile": "java_bagrut"},
+    }
+    write_summary(tmp_path, results, cost_ceiling=0.08)
+    text = (tmp_path / "summary.md").read_text(encoding="utf-8")
+
+    assert "| doc | exam | E2E ratio" in text
+    assert "| dan | hobby_tvshow |" in text
+    assert "| noa | bagrut_899371 |" in text
+    assert "`hobby_tvshow` (1 doc) · `bagrut_899371` (1 doc)" in text or \
+           "`bagrut_899371` (1 doc) · `hobby_tvshow` (1 doc)" in text
+
+
+def test_summary_renders_a_pre_multi_exam_results_json(tmp_path):
+    """Old artifacts carry no `fixtures` block; they must still render."""
+    write_summary(tmp_path, _results([_rec("dan", 0.99)], worst="dan"), cost_ceiling=0.08)
+    text = (tmp_path / "summary.md").read_text(encoding="utf-8")
+    assert "exams:" not in text
+    assert "| doc | E2E ratio" in text

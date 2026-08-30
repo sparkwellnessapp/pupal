@@ -369,6 +369,319 @@ def _check_consistency(node, scope_id: str, violations: List[str]):
 # TOP-LEVEL SCORER
 # =============================================================================
 
+
+# -----------------------------------------------------------------------------
+# FIX-EFFECT CHECK - "a proposed fix must leave the rubric adding up"
+# -----------------------------------------------------------------------------
+# WHY THIS EXISTS (2026-08-24): pedagogical_match set-compares mistakes by
+# (kind, canonical target) ONLY, so a fix PAYLOAD could be wrong or incomplete and
+# the fixture still passed. That blind spot survived a full 9-cell model sweep and
+# was found by the owner running a rubric through the LIVE app: the model proposed
+# "move the 16-point criterion to sub-question 3" and omitted the source-side
+# set_points, so accepting it left the source declaring 45 against 29 of criteria
+# and the question at 76 against a declared 60. The teacher accepts a proposed fix
+# and lands somewhere WORSE than before she clicked.
+#
+# WHAT IS CHECKED: the EFFECT, never the syntax. Step ORDER legitimately varies
+# between draws of one config, `description` is free prose, and `move_text.text` is
+# a long verbatim quote - none of them are comparable. What IS comparable is the
+# arithmetic: apply the steps' point semantics, then require every touched scope
+# (and its ancestors) to add up.
+#
+# THE SEMANTICS BELOW MIRROR THE ONLY REAL APPLIER, frontend/src/utils/edit-steps.ts:
+#   R1 set_points WITH criterion_index -> set that criterion, then cascade living
+#      sums (leaf = sum of criteria, parent = sum of children).   [applySetPoints]
+#   R2 set_points WITHOUT criterion_index -> set that scope's declared, no cascade.
+#   R3 move_criterion -> remove+append the SAME criterion; NEITHER side's declared
+#      points move. This asymmetry is the whole defect class. [applyMoveCriterion]
+#   R4 post-pass: a target VIVIFIED by this fix (absent from the ORIGINAL tree) that
+#      received criteria and no explicit set_points ends at the sum of what arrived.
+#   R5 set_points scope="rubric" -> the rubric total; contractually the only step.
+#   R6 post-pass (2026-08-24): a move SOURCE that was CONSISTENT before the move,
+#      and is not left empty by it, ends at the sum of what REMAINS -- the
+#      symmetric half of R4. Guards: a source already carrying the teacher's own
+#      discrepancy is left alone (rewriting it would be silent repair), and an
+#      emptied source is left alone (0 is a number she never wrote).
+# They are cross-pinned against that file by tests/fixtures/edit_step_points_cases.json,
+# read IN PLACE by BOTH this suite and frontend/src/utils/edit-steps.test.ts - the
+# selection_expectation_cases.json precedent. If the applier ever starts repairing the
+# SOURCE too (a live proposal), those vectors fail loudly here instead of this check
+# silently demanding a step the app no longer needs.
+
+
+class _FxNode:
+    """Mutable points-only mirror of a question / sub-question."""
+    __slots__ = ("nid", "declared", "criteria", "children", "is_question")
+
+    def __init__(self, nid, declared, criteria, children, is_question=False):
+        self.nid = nid
+        self.declared = declared          # Decimal | None
+        self.criteria = criteria          # List[Decimal]
+        self.children = children          # List[_FxNode]
+        self.is_question = is_question
+
+
+def _fx_dec(v) -> Optional[Decimal]:
+    if v is None:
+        return None
+    try:
+        return Decimal(str(v))
+    except Exception:
+        return None
+
+
+def _fx_build(predicted) -> List["_FxNode"]:
+    def sub(sq) -> "_FxNode":
+        return _FxNode(
+            str(getattr(sq, "sub_question_id", "") or ""),
+            _fx_dec(getattr(sq, "points", None)),
+            [_fx_dec(getattr(c, "points", None)) or Decimal(0)
+             for c in (getattr(sq, "criteria", None) or [])],
+            [sub(k) for k in (getattr(sq, "sub_questions", None) or [])],
+        )
+    return [
+        _FxNode(
+            str(getattr(q, "question_id", "") or ""),
+            _fx_dec(getattr(q, "total_points", None)),
+            [_fx_dec(getattr(c, "points", None)) or Decimal(0)
+             for c in (getattr(q, "criteria", None) or [])],
+            [sub(sq) for sq in (getattr(q, "sub_questions", None) or [])],
+            is_question=True,
+        )
+        for q in (getattr(predicted, "questions", None) or [])
+    ]
+
+
+def _fx_norm_qid(s: str) -> str:
+    return (s or "").strip().lstrip("qQ")
+
+
+def _fx_resolve(roots: List["_FxNode"], scope: str) -> Optional[List["_FxNode"]]:
+    """Return the chain [question, ...subs] for a dotted scope, or None."""
+    parts = [p for p in (scope or "").split(".") if p]
+    if not parts:
+        return None
+    q = next((r for r in roots if _fx_norm_qid(r.nid) == _fx_norm_qid(parts[0])), None)
+    if q is None:
+        return None
+    chain = [q]
+    node = q
+    for seg in parts[1:]:
+        nxt = next((c for c in node.children if c.nid == seg), None)
+        if nxt is None:
+            return None
+        chain.append(nxt)
+        node = nxt
+    return chain
+
+
+def _fx_vivify(roots: List["_FxNode"], scope: str) -> Optional[List["_FxNode"]]:
+    """Mirror resolveOrVivify: create ONLY the last segment, under an existing parent."""
+    got = _fx_resolve(roots, scope)
+    if got:
+        return got
+    parts = [p for p in (scope or "").split(".") if p]
+    if len(parts) < 2:
+        return None                      # a question is never vivified
+    parent = _fx_resolve(roots, ".".join(parts[:-1]))
+    if parent is None:
+        return None
+    fresh = _FxNode(parts[-1], Decimal(0), [], [])
+    parent[-1].children.append(fresh)
+    return parent + [fresh]
+
+
+def _fx_cascade(node: "_FxNode") -> None:
+    """recalculateParentsFromCriteria: leaf = sum criteria, parent = sum children.
+    A QUESTION's declared total is never auto-touched (the codec's standing rule)."""
+    for ch in node.children:
+        _fx_cascade(ch)
+    if node.is_question:
+        return
+    node.declared = (sum((c.declared or Decimal(0)) for c in node.children)
+                     if node.children else sum(node.criteria))
+
+
+def _fx_sum_children(n: "_FxNode") -> Optional[Decimal]:
+    if n.children:
+        if any(c.declared is None for c in n.children):
+            return None
+        return sum(c.declared for c in n.children)
+    return sum(n.criteria) if n.criteria else None
+
+
+def fx_simulate(predicted, steps, *, repair_source: bool = True):
+    """Apply a fix's POINT semantics to a fresh tree and return (roots, touched,
+    rubric_total, problems). THE one implementation of the semantics — both
+    fix_effect_check and its tests observe this rather than re-deriving it, so a
+    test can never accidentally pin a different applier than the check uses.
+
+    repair_source=False disables R6 only, which is how fix_plan_complete asks
+    "would this plan have reconciled WITHOUT the app compensating for it?".
+    """
+    roots = _fx_build(predicted)
+    pristine = _fx_build(predicted)          # the ORIGINAL tree, for before-checks
+    problems: List[str] = []
+    touched, rubric_total, moved_from = set(), None, set()
+    original_scopes = {sc for st in steps
+                       for sc in (getattr(st, "scope", None), getattr(st, "to_scope", None))
+                       if sc and sc != "rubric" and _fx_resolve(roots, sc)}
+
+    for st in steps:
+        op = getattr(st, "op", None)
+        scope = getattr(st, "scope", None)
+        to_scope = getattr(st, "to_scope", None)
+        val = _fx_dec(getattr(st, "value", None))
+        ci = getattr(st, "criterion_index", None)
+
+        if op == "set_points" and scope == "rubric":                       # R5
+            if len(steps) != 1:
+                problems.append("set_points@rubric is not the only step")
+                break
+            rubric_total = val
+            continue
+        if op == "move_text":                                              # no points effect
+            if to_scope:
+                if _fx_vivify(roots, to_scope) is None:
+                    problems.append(f"move_text target {to_scope!r} unresolvable")
+                    break
+                touched.add(to_scope)
+            continue
+
+        chain = _fx_resolve(roots, scope) if scope else None
+        if chain is None:
+            problems.append(f"{op} scope {scope!r} unresolvable")
+            break
+        node = chain[-1]
+        touched.add(scope)
+
+        if op == "set_points":
+            if val is None:
+                problems.append(f"set_points@{scope} has no value")
+                break
+            if ci is not None:                                             # R1
+                if ci >= len(node.criteria):
+                    problems.append(f"set_points@{scope} criterion_index {ci} out of range")
+                    break
+                node.criteria[ci] = val
+                for r in roots:
+                    _fx_cascade(r)
+            else:                                                          # R2
+                node.declared = val
+        elif op == "move_criterion":                                       # R3
+            if ci is None or ci >= len(node.criteria) or not to_scope:
+                problems.append(f"move_criterion@{scope} index {ci} invalid")
+                break
+            dest = _fx_vivify(roots, to_scope)
+            if dest is None:
+                problems.append(f"move_criterion target {to_scope!r} unresolvable")
+                break
+            dest[-1].criteria.append(node.criteria.pop(ci))
+            touched.add(to_scope)
+            moved_from.add(scope)
+        else:
+            problems.append(f"unknown op {op!r}")
+            break
+
+    if problems:
+        return roots, touched, rubric_total, problems
+
+    explicit = {getattr(st, "scope", None) for st in steps
+                if getattr(st, "op", None) == "set_points"
+                and getattr(st, "criterion_index", None) is None}
+
+    for sc in sorted(touched):                                             # R4 vivified TARGET
+        if sc in explicit or sc in original_scopes:
+            continue
+        ch = _fx_resolve(roots, sc)
+        if ch and len(ch) > 1:
+            total = sum(ch[-1].criteria)
+            if total > 0:
+                ch[-1].declared = total
+
+    if repair_source:                                                      # R6 move SOURCE
+        for sc in sorted(moved_from):
+            if sc in explicit:
+                continue
+            before = _fx_resolve(pristine, sc)
+            if not before or len(before) < 2:                # question totals never auto-touched
+                continue
+            bnode = before[-1]
+            if bnode.declared is None or bnode.declared != sum(bnode.criteria):
+                continue                                     # guard 1: her discrepancy stays hers
+            ch = _fx_resolve(roots, sc)
+            if not ch or not ch[-1].criteria:
+                continue                                     # guard 2: emptied => leave alone
+            ch[-1].declared = sum(ch[-1].criteria)
+
+    return roots, touched, rubric_total, problems
+
+
+def fix_effect_check(predicted, *, repair_source: bool = True) -> Tuple[Optional[bool], List[str]]:
+    """(consistent, violations). None = VACUOUS: no mistake carried a suggested_fix,
+    so the criterion is skipped exactly as the cost check is when cost_usd is None."""
+    mistakes = list(getattr(predicted, "pedagogical_mistakes", None) or [])
+    pairs = [(m, getattr(m, "suggested_fix", None)) for m in mistakes]
+    pairs = [(m, f) for m, f in pairs if f is not None and (getattr(f, "steps", None) or [])]
+    if not pairs:
+        return None, []
+
+    violations: List[str] = []
+    for m, fix in pairs:
+        mid = getattr(m, "mistake_id", None) or getattr(m, "kind", "?")
+        mid = getattr(mid, "value", mid)
+        steps = list(getattr(fix, "steps", None) or [])
+        roots, touched, rubric_total, problems = fx_simulate(
+            predicted, steps, repair_source=repair_source)
+        if problems:
+            violations.extend(f"{mid}: {p}" for p in problems)
+            continue
+
+        # OPTION A (owner ruling 2026-08-24) — JUDGE A FIX BY WHAT IT CLAIMS.
+        # A move-bearing plan claims ROOT-CAUSE resolution ("one fix settles all
+        # shadows", Tier-B prompt principle 3): its promise includes the ancestors,
+        # so they are checked. A pure set_points plan is a MINIMAL, LOCAL correction
+        # -- Tier A's deterministic fallback, whose whole contract is that it
+        # "INVENTS NOTHING" (_adjust_points_fix) -- and it never claimed to settle
+        # anything above the node it targets. Holding it to ancestors punishes a
+        # promise it did not make, and would demand it write a number the teacher
+        # never wrote, which is the one thing FC forbids.
+        # Discriminating on the STEPS, not on suggested_fix.operation: that label is
+        # derived from exactly this predicate upstream and is documented as analytics
+        # metadata the client never dispatches on. The steps are what get applied.
+        structural = any(getattr(st, "op", None) in ("move_criterion", "move_text")
+                         for st in steps)
+
+        checked = set()
+        for sc in sorted(touched):
+            chain = _fx_resolve(roots, sc)
+            if not chain:
+                continue
+            # structural => the scope AND its ancestors; local => only the node it targeted
+            for node in (chain if structural else chain[-1:]):
+                key = id(node)
+                if key in checked:
+                    continue
+                checked.add(key)
+                exp = _fx_sum_children(node)
+                if exp is None or node.declared is None:
+                    continue
+                if node.declared != exp:
+                    kind = "question" if node.is_question else "sub-question"
+                    violations.append(
+                        "{}: after the fix, {} {!r} declares {} but its {} sum to {}".format(
+                            mid, kind, node.nid, node.declared,
+                            "children" if node.children else "criteria", exp))
+        if rubric_total is not None:
+            tot = sum((r.declared for r in roots if r.declared is not None), Decimal(0))
+            if rubric_total != tot:
+                violations.append(
+                    "{}: after the fix, rubric declares {} but questions sum to {}".format(
+                        mid, rubric_total, tot))
+
+    return (len(violations) == 0), violations
+
+
 def score_rubric(
     predicted: Optional[ExtractRubricResponse],
     gt: ExtractRubricResponse,
@@ -557,4 +870,12 @@ def score_rubric(
     rs.scopes = acc["scopes"]
     rs.missed_criteria = [r for r in cr + sr if r.status == "missed"]
     rs.spurious_criteria = [r for r in cr + sr if r.status == "spurious"]
+
+    # fix-effect: does a proposed suggested_fix, once applied, still add up?
+    rs.fix_effect_consistent, rs.fix_effect_violations = fix_effect_check(predicted)
+    # UNGATED diagnostic: the app now repairs a move source, so a model that forgets
+    # the source-side set_points can no longer hurt the teacher -- and would no longer
+    # fail the gate above. This records whether the plan would have reconciled WITHOUT
+    # that compensation, so model quality stays VISIBLE after being made harmless.
+    rs.fix_plan_complete, _ = fix_effect_check(predicted, repair_source=False)
     return rs

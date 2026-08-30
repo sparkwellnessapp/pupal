@@ -294,3 +294,72 @@ KILL: ANY gated-metric regression on ANY fixture at k=1 ⇒ effort=low is UNSAFE
 example_solution/subcriterion are the watch metrics. A k=1 PASS is a screening signal only (cannot
 distinguish safe from lucky at temp-0 nondeterminism); the k=3 validation is the confirmation, and
 even k=3 is weaker than the mission's k=8 — an explicit owner budget tradeoff, stated honestly.
+
+
+---
+
+# P-M56 — the gpt-5.6 family sweep (registered 2026-08-23, BEFORE any sweep run; owner-ordered)
+
+**Mission (Noam, 2026-08-23):** find a gpt-5.6-family (luna | terra | sol) x
+reasoning_effort (low | medium | high) pairing with **equal-or-better accuracy AND
+equal-or-better cost** than the gpt-5.5/medium prod pin, at **lower latency**. Stop at
+the first confirmed winner, or after all 9 cells are screened.
+
+**PRE-FLIGHT FINDING (surfaced, not worked around): there is NO same-tree gpt-5.5
+baseline.** The last gpt-5.5 all-5 run is RUN 20260723-162200 (k=3, 15/15) at prompt
+`3.3.1-tracehdr` / pipeline `3.4.0`. The tree has since moved FIVE prompt versions
+(3.4.0-tablemarkers -> 3.5.0-solutiontables -> 3.6.0-scaffoldsplit -> 3.7.0-tabledir),
+three pipeline versions (3.5.0 Step-2c, 3.6.0/3.6.1/3.6.2), TWO GT edits (hobby q2.ב
+faithful completion; foundations), and the registry migration. Comparing a gpt-5.6 run
+against those numbers would repeat EXACTLY the confound the grok entry flagged
+("variable changed vs ref: NOT ONE — model AND tree"). The grok entry pre-registered
+this control and left it unspent. It is therefore RUN ZERO of this sweep:
+`prod_gpt55` k=3 all-5 on the current tree — the reference for accuracy, $/doc AND
+t_doc. Every P-M56 claim below is relative to THAT run, never to 2026-07 numbers.
+
+**Instrument note (registered because it constrains execution, not just analysis):
+trials run STRICTLY SEQUENTIALLY.** t_doc is a primary metric here; parallelizing
+sweeps would let provider-side queueing inflate the very number being compared.
+
+**Search protocol (adaptive, stated before the first run so it cannot be reverse-fit):**
+per model, MEDIUM first (the prod-equivalent knob, best prior odds); if medium PASSES,
+also screen LOW (a further latency/cost win, promoted only if it also passes); if
+medium FAILS, screen HIGH; screen LOW after a failed medium only if HIGH passes.
+Model order luna -> terra -> sol (cheapest/fastest first: the biggest prize is the
+cheapest to test). Screens are k=1 all-5 = NON-PROMOTABLE (the owner's 2026-07-23
+protocol: k=1 screens, then ONE k=3 all-5 validation on the winner).
+
+**P-M56.1 (the effort tripwire generalizes).** effort=low endangers bagrut's
+never-reconcile pair (`annotation_match` + `pedagogical_match`) on ANY model, because
+P-L6-low FALSIFIED exactly there on gpt-5.5: less reasoning -> the model "fixes" the
+teacher's 1.5+0.5-under-3. PREDICTION: at least one gpt-5.6 x low cell reproduces that
+signature. If a low cell passes bagrut cleanly, that is a genuine model-capability
+finding (record it; it does not retro-rehabilitate gpt-5.5-low).
+
+**P-M56.2 (tier vs faithfulness).** luna is the economy tier. PREDICTION: luna's
+failure mode, if it fails, is NOT transport and NOT truncation but the same FC family
+grok-4.6 died on — silent repair of a teacher error and/or dropped low-value
+code-quality criteria (the cry-wolf cascade). Watch `criterion_recall` +
+`annotation_match` + `pedagogical_match` together; they move as a group.
+
+**P-M56.3 (latency mechanism).** t_doc is ~99% decode and t_doc ~ output_tokens / rate.
+PREDICTION: a latency win shows up as EITHER fewer output tokens (less reasoning) OR a
+faster decode rate, and the two are distinguishable in the record (out_tok is stamped).
+A win that is purely "fewer output tokens" on the faithful-error fixtures is a RED FLAG,
+not a win — it is what silent repair looks like in the latency column.
+
+**P-M56.4 (cost).** At LIST prices sol's card == gpt-5.5's card, so a sol cost win must
+come from token volume alone; terra is 2.5x cheaper per token and luna ~25x. PREDICTION:
+terra and luna beat baseline cost trivially; sol is a coin-flip on volume alone.
+
+**KILL CRITERIA (pre-registered).**
+- A cell is FALSIFIED by ANY gated-metric regression on ANY fixture at k=1 (the
+  P-L6-low precedent: one clear multi-metric gate break kills at k=1; confirming
+  safety needs k>=3).
+- A cell that passes 5/5 at k=1 is a CANDIDATE, never a winner. Promotion requires
+  k=3 all-5 = 15/15 AND worst-fixture median t_doc BELOW the baseline's AND mean
+  $/doc <= the baseline's.
+- A candidate that passes accuracy but is SLOWER or MORE EXPENSIVE than baseline is
+  reported as such and does not stop the search.
+- If all 9 cells are screened without a winner: STOP and report (no prompt work, no
+  GT work, no gate work — those are Noam's call and a different mission).

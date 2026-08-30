@@ -187,7 +187,8 @@ the MISSING annotations/pedagogical mistakes (the never-reconcile tripwires, §4
 A rubric PASSES iff ALL hold simultaneously: question recall/precision == 1;
 subquestion_structure_match == 1; criterion recall/precision == 1; subcriterion
 recall/precision == 1; point_exactness == 1; total_points_correct; selection_match;
-example_solution_fidelity == 1; annotation_match; pedagogical_match; valid;
+example_solution_fidelity == 1; annotation_match; pedagogical_match;
+**fix_effect_consistent is not False**; valid;
 cost ≤ ceiling. Partial
 improvement that masks a regression must not pass — that is the point of conjunction.
 
@@ -201,10 +202,12 @@ now the record proves it: the pipeline stamps `input_tokens`/`output_tokens`
 and `llm_model` into `ExtractionMetrics` (via `include_raw=True`, the GraderAgent
 convention).
 
-Division of responsibility (one concept, one place): the PIPELINE measures tokens;
-the CONFIG owns the price table (`price_per_1m_input`/`price_per_1m_output` — prices
-drift, so a stale price is a one-line reviewable config diff, never a code change);
-the RUNNER multiplies; the GATE judges dollars against `cost_ceiling`.
+Division of responsibility (one concept, one place; revised 2026-08-23): the
+PIPELINE measures tokens; the REGISTRY owns identity and the price card
+(`tests/eval_common/models_registry.py` — SHARED with the transcription suite, so
+prices drift in exactly one reviewable place and `model_key` is the cross-suite
+join key); the RUNNER converts tokens → dollars through the ONE shared `cost_usd`
+(cached-input aware); the GATE judges dollars against the config's `cost_ceiling`.
 
 `finish_reason ∈ {length, max_tokens}` ⇒ the record is INVALID (truncation guard,
 live as of this revision) and is excluded from accuracy aggregates — validity before

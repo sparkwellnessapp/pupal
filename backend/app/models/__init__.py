@@ -9,6 +9,7 @@ from .rubric_share import RubricShare, SharePermission
 from .student import Student
 from .classroom import Class, ClassMembership
 from .transcription import Transcription
+from .transcription_job import TranscriptionJob
 
 __all__ = [
     # Grading models
@@ -34,4 +35,5 @@ __all__ = [
     "ClassMembership",
     # Transcription model
     "Transcription",
+    "TranscriptionJob",
 ]

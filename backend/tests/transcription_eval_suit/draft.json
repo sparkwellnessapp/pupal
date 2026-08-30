@@ -1,0 +1,526 @@
+{
+	"name": null,
+	"subject": "computer_science",
+	"metadata": {},
+	"questions": [
+		{
+			"criteria": [],
+			"proposals": null,
+			"question_id": "q1",
+			"requirements": [],
+			"total_points": "40",
+			"trace_tables": null,
+			"question_text": "בביה\"ס החליטו לרכז את התחביבים של התלמידים. לשם כך, הגדירו מחלקה בשם תחביב (Hobby) בעלת התכונות הבאות:\n\nhobbyName - שם התחביב (מטיפוס מחרוזת).\n\nisSportive  - האם תחביב דורש פעילות ספורטיבית (מטיפוס בוליאני)\n\nminutes  - זמן פעילות התחביב בדקות (מספר שלם בין 1 ל- 60(\n\nהניחו כי קיימות פעולות Get / Set לכל תכונות המחלקה.\n\nבנוסף הוגדרו הפעולות הבאות עבור המחלקה Hobby:\n\n[TABLE 1: 2x2]\n| תיאור הפעולה | כותרת הפעולה |\n|---|---|\n| פעולה הבונה תחביב, מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם. הניחו כי הפרמטרים תקינים. | public Hobby (string hobbyName, bool isSportive, int minutes) |\n\nעל מנת לרכז את בחירות התחביבים של התלמידים בביה\"ס הוגדרה מחלקה בשם SchoolHobbies המכילה מערך מסוג  Hobby ואת מספר התחביבים הקיימים בפועל, מטיפוס שלם, שערכו קטן או שווה לגודל המערך.\n\nלהלן כותרת המחלקה , התכונות ופעולה בונה:\n\npublic class SchoolHobbies\n\n{\n\nprivate Hobby [] hobbies; // כל התחביבים של תלמידי בית הספר \n\tprivate int countHobbies ; // מספר התחביבים בפועל (קטן או שווה לגודל המערך\n\n// בנאי\n\npublic SchoolHobbies (int size)\n\n{\n\nhobbies = new Hobby [size];\n\ncountHobbies = 0;\n\n}\n\n}\n\nהניחו כי קיימות פעולות Get לכל תכונות המחלקה.",
+			"question_type": "coding_task",
+			"skill_targets": [],
+			"sub_questions": [
+				{
+					"text": "כתבו כותרת ותכונות המחלקה Hobby, ואת הפעולה הבונה Hobby  כפי שהוגדרה למעלה.",
+					"index": 0,
+					"title": null,
+					"points": "8",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "4",
+							"description": "סעיף א: כותרת ותכונות המחלקה Hobby",
+							"criterion_id": "q1.א.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "4",
+							"description": "סעיף א: פעולה בונה Hobby(string hobbyName, bool isSportive, int minutes)",
+							"criterion_id": "q1.א.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_question_id": "א",
+					"example_solution": null
+				},
+				{
+					"text": "כתבו פעולה פנימית בשם PopulateHobbies. \nהפעולה תבצע קליטת תחביבים מהמשתמש ותוסיף אותם למערך האובייקטים hobbies, בהתאם לכללים הבאים:\n\nאם המערך מלא ולא ניתן להוסיף אפילו תחביב אחד – הפעולה תחזיר false.\n\nכל עוד קיים מקום פנוי במערך, הפעולה תקלוט מהמשתמש את כל הנתונים הדרושים ליצירת תחביב.\n\nעבור כל תחביב שנתוניו נקלטו, ייווצר אובייקט חדש מסוג Hobby, והוא יישמר בתא הפנוי הראשון במערך.\n\nהקליטה תתבצע בתוך לולאה ותימשך עד ייגמר המקום במערך או עד שהמשתמש יענה \"N\" או \"n\" לשאלה:  \"?Do you want to create another hobby\" (קליטת התשובה: תו בודד (char))\n\nאם נוסף לפחות תחביב אחד בהצלחה – הפעולה תחזיר true.\n\nהניחו כי המערך מלא עד המקום הראשון הפנוי - כלומר, אין רווחים עד המקום ה- countHobbies במערך. כל התחביבים מתווספים בסוף המערך.",
+					"index": 1,
+					"title": null,
+					"points": "16",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ב: פעולה פנימית בשם PopulateHobbies (סה\"כ 16) כותרת הפעולה + טיפוס מוחזר bool",
+							"criterion_id": "q1.ב.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף ב בתוך PopulateHobbies: לפני הלולאה - לבדוק אם המערך מלא, להחזיר false",
+							"criterion_id": "q1.ב.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 2,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ב בתוך PopulateHobbies: לולאה עד שאין מקום במערך (כל עוד countHobbies קטן מ-length) או כל עוד המשתמש יענה Y או y לשאלה",
+							"criterion_id": "q1.ב.c2",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 3,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ב בתוך PopulateHobbies: בתוך הלולאה קליטה של 3 נתוני התחביב (name, isSportive, minutes)",
+							"criterion_id": "q1.ב.c3",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 4,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ב בתוך PopulateHobbies: בתוך הלולאה יצירה של עצם חדש מטיפוס Hobby בתא המתאים במערך (hobbies[countHobbies])",
+							"criterion_id": "q1.ב.c4",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 5,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף ב בתוך PopulateHobbies: בתוך הלולאה קידום countHobbies",
+							"criterion_id": "q1.ב.c5",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 6,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ב בתוך PopulateHobbies: בדיקה אם עדיין יש מקום ושאלה למשתמש האם להמשיך + קליטת תשובה אם הציגו את ההודעה בלי לבדוק האם יש עדיין מקום להוריד 1",
+							"criterion_id": "q1.ב.c6",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 7,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף ב בתוך PopulateHobbies: מחוץ ללולאה - להחזיר ערך true",
+							"criterion_id": "q1.ב.c7",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_question_id": "ב",
+					"example_solution": null
+				},
+				{
+					"text": "כתבו פעולה פנימית בשם PrintAverages  במחלקת SchoolHobbies שמחשבת את ממוצע זמן התחביבים הספורטיביים ואת ממוצע זמן התחביבים הלא ספורטיביים ומדפיסה את שניהם.\nיש להשתמש בפעולות הפנימיות של המחלקה הרלוונטית.\n\nאי שימוש בפעולות פנימיות יגרור הורדת ניקוד.",
+					"index": 2,
+					"title": null,
+					"points": "16",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף ג': פעולה פנימית בשם PrintAverages (סה\"כ 16) כותרת הפעולה + void",
+							"criterion_id": "q1.ג.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף ג' בתוך PrintAverages : יצירת 2 מונה לכמות החוגים בספורטיבים והלא ספורטיבים + אתחולם ב-0 (0.5 כ\"א)",
+							"criterion_id": "q1.ג.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 2,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף ג' בתוך PrintAverages : יצירת 2 צוברים לדקות של החוגים הספורטיבים והלא ספורטיבים + אתחולם ב-0 (0.5 כ\"א)",
+							"criterion_id": "q1.ג.c2",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 3,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ג' בתוך PrintAverages : לולאה על מערך התחביבים מ-0 עד countHobbies או לולאה על מערך התחביבים עד hobbies.length ובדיקה בתוך הלולאה אם hobbies[i]!=null אם עשו לולאה עד length ולא בדקו בפנים שהתא שונה מ-null להוריד 1",
+							"criterion_id": "q1.ג.c3",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 4,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ג' בתוך PrintAverages : בתוך הלולאה, בדיקת האם החוג הנוכחי ספורטיבי (1) + צבירה של הדקות שלו (1) + קידום המונה שלו (1 כ\"א)",
+							"criterion_id": "q1.ג.c4",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 5,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ג' בתוך PrintAverages : בתוך הלולאה, אם החוג הנוכחי לא ספורטיבי (else) (1) + צבירה של הדקות שלו (1) + קידום המונה שלו (1)",
+							"criterion_id": "q1.ג.c5",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 6,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ג' בתוך PrintAverages : מחוץ ללולאה, בדיקה האם המונה של התחביבים הספורטיבים שונה מאפס (1) אם לא מנעו חלוקה באפס להוריד 1 חישוב הממוצע והדפסה (1) (אם טעו בחישוב מתמטי להוריד 0.5) אם לא המירו לממשי בחישוב הממוצע להוריד 0.5 (רק פעם אחת)",
+							"criterion_id": "q1.ג.c6",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 7,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ג' בתוך PrintAverages : מחוץ ללולאה, בדיקה האם המונה של התחביבים הלא-הספורטיבים שונה מאפס (1) אם לא מנעו חלוקה באפס להוריד 1 חישוב הממוצע והדפסה (1) (אם טעו בחישוב מתמטי להוריד 0.5) אם לא המירו לממשי בחישוב הממוצע להוריד 0.5 (רק פעם אחת)",
+							"criterion_id": "q1.ג.c7",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_question_id": "ג",
+					"example_solution": null
+				}
+			],
+			"context_tables": null,
+			"example_solution": null,
+			"allow_multiple_valid_forms": false
+		},
+		{
+			"criteria": [],
+			"proposals": null,
+			"question_id": "q2",
+			"requirements": [],
+			"total_points": "60",
+			"trace_tables": null,
+			"question_text": "הוגדרה המחלקה TvShow המייצגת תוכנית טלוויזיה ולמחלקה הוגדרו התכונות הבאות:\n\nname - שם התכנית (מטיפוס מחרוזת)\n\nrate - דירוג התכנית (מטיפוס שלם בין 0-10)\n\nchl - מספר ערוץ בו נצפית התכנית (מטיפוס שלם, בין 1- 100).\n\nisOn – האם משודר כעת (מטיפוס בוליאני).\n\nהניחו כי קיימות פעולות Set / Get עבור תכונות המחלקה.\n\nבנוסף הוגדרו הפעולות הבאות:\n\n[TABLE 3: 3x2]\n| תיאור הפעולה | כותרת הפעולה |\n|---|---|\n| פעולה הבונה תוכנית טלוויזיה ששמה name והיא משודרת בערוץ הטלויזיה channel. הפעולה הבונה קובעת את התכונה rate להיות אפס (0) ואת התכונה isOn להיות אמת (true). | public TvShow (string name, int channel) |\n| פעולה המנהלת את קליטת דירוג הצופים. הפעולה מקבלת את מספר הצופים המדרגים את תוכנית הטלוויזיה הנוכחית. עבור כל צופה הפעולה קולטת ומוסיפה את הדירוג שלו לדירוג הקיים לתכנית הטלוויזיה. הפעולה מעדכנת את התכונה rate להיות סכום הדירוגים שנקלטו אי פעם מכל הצופים המדרגים את התוכנית. | public void UpdateRate (int numViewers) |\n\nלצורך ניהול כל מערכת הרייטינג הוגדרה מחלקה בשם TvRate המנהלת את הדירוגים של כל תוכניות הטלוויזיה. \nלמחלקה זו תכונה אחת בלבד - מערך בשם arrShows מסוג TvShow :\n\npublic class TvRate\n\n{\n\nprivate TvShow [] arrShows; // כל תוכניות הטלויזיה\n\n}\n\nהניחו כי כותרת המחלקה, הגדרת התכונה קיימות וכן קיימות פעולות Set / Get עבור תכונות המחלקה.\n\nכמו כן, הניחו כי המערך arrShows מלא עד המקום הראשון הפנוי - כלומר, אין רווחים.",
+			"question_type": "coding_task",
+			"skill_targets": [],
+			"sub_questions": [
+				{
+					"text": "ממשו את את הפעולה הבונה TvShow  ואת הפעולה הפנימית UpdateRate  כפי שהוגדרו למעלה.  הניחו כי כל הקלטים תקנים.",
+					"index": 0,
+					"title": null,
+					"points": "15",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "5",
+							"description": "סעיף א': פעולה בונה public TvShow (string name, int channel)",
+							"criterion_id": "q2.א.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "10",
+							"description": "סעיף א': פעולה פנימית UpdateRate (סה\"כ לפעולה 10) public TvShow (string name, int channel)",
+							"criterion_id": "q2.א.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_question_id": "א",
+					"example_solution": null
+				},
+				{
+					"text": "כתבו פעולה חיצונית בשם LowestRateChannel  המקבלת אובייקט מטיפוס TvRate ומחזירה את מספר הערוץ בעל הדירוג הנמוך ביותר מבין הערוצים כאשר דירוג של ערוץ (chl) הוא סכום הדירוגים (rate) של כל התוכניות המשודרות בערוץ זה.\nניתן להניח כי קיים ערוץ אחד בלבד בעל דירוג נמוך ביותר.\nלצורך פתרון סעיף זה יש להשתמש במערך צוברים . אי שימוש במערך צוברים יגרור הורדת ניקוד.",
+					"index": 1,
+					"title": null,
+					"points": "29",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ב': פעולה חיצונית LowestRateChannel כותרת הפעולה",
+							"criterion_id": "q2.ב.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ב': בתוך LowestRateChannel : הגדרת מערך צוברים int לכל 100 הערוצים (ערוצים 1-100, המערך אמור להיות בגודל 101)",
+							"criterion_id": "q2.ב.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 2,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ב': בתוך LowestRateChannel : לולאה על מערך הצוברים לאיפוס המערך",
+							"criterion_id": "q2.ב.c2",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 3,
+							"notes": null,
+							"points": "12",
+							"description": "סעיף ב': בתוך LowestRateChannel : לולאה על מערך התוכניות TvShows לצבירת הדירוגים לכל הערוצים - סה\"כ לצבירה 12. פירוט ל-12:",
+							"criterion_id": "q2.ב.c3",
+							"requirements": [],
+							"sub_criteria": [
+								{
+									"index": 0,
+									"points": "3",
+									"description": "הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ- length של מערך ה -TvShows אם התחילו מ-1 במקום מ-0 להוריד 0.5 אם ניגשו למערך TvShows בלי Getter להוריד 1 אם טעו בגבול העליון של הלולאה להוריד 0.5",
+									"sub_criterion_id": "q2.ב.c3.sc0"
+								},
+								{
+									"index": 1,
+									"points": "2",
+									"description": "בתוך הלולאה על TvShows: בדיקה אם התא אינו null",
+									"sub_criterion_id": "q2.ב.c3.sc1"
+								},
+								{
+									"index": 2,
+									"points": "2",
+									"description": "בתוך הלולאה על TvShows: אם התא אינו null , גישה לערוץ GetChl (ולא ע\"י גישה ישירה לתכונה) אם ניגשו ישירות לתכונה chl להוריד 1",
+									"sub_criterion_id": "q2.ב.c3.sc2"
+								},
+								{
+									"index": 3,
+									"points": "5",
+									"description": "בתוך הלולאה על TvShows: אם התא אינו null , צבירה של הדירוג של הערוץ (GetChl) לתוך מערך הצוברים במקום של הערוץ הזה אם ניגשו ישירות לתכונה rate במקום GetRate להוריד 1",
+									"sub_criterion_id": "q2.ב.c3.sc3"
+								}
+							],
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 4,
+							"notes": null,
+							"points": "9",
+							"description": "סעיף ב': בתוך LowestRateChannel : לולאה על מערך הצוברים לחיפוש הערוץ בעל הדירוג המינימלי. סה\"כ לחיפוש מינימום 9 נקודות. פירוט ל-10: אם חיפשו את המקסימום אך הלוגיקה בסדר להוריד 3",
+							"criterion_id": "q2.ב.c4",
+							"requirements": [],
+							"sub_criteria": [
+								{
+									"index": 0,
+									"points": "1",
+									"description": "הגדרת מינימום דירוג + אתחול",
+									"sub_criterion_id": "q2.ב.c4.sc0"
+								},
+								{
+									"index": 1,
+									"points": "1",
+									"description": "הגדרת ערוץ מינימלי +אתחול",
+									"sub_criterion_id": "q2.ב.c4.sc1"
+								},
+								{
+									"index": 2,
+									"points": "2",
+									"description": "הגדרת לולאה על מערך צוברים מ-1 עד 100",
+									"sub_criterion_id": "q2.ב.c4.sc2"
+								},
+								{
+									"index": 3,
+									"points": "3",
+									"description": "בתוך הלולאה על מערך הצוברים: בדיקה האם התא מתאים לערוץ הנוכחי של TvShow בתוך מערך הצוברים גדול מאפס (כלומר יש שימוש בערוץ זה) - לא להוריד, לכתוב הערה והאם סה\"כ הדירוגים קטן מהמינימום - סה\"כ 2 נקודות",
+									"sub_criterion_id": "q2.ב.c4.sc3"
+								},
+								{
+									"index": 4,
+									"points": "1",
+									"description": "בתוך התנאי (בתוך הלולאה) - החלפה של מינימום דירוג",
+									"sub_criterion_id": "q2.ב.c4.sc4"
+								},
+								{
+									"index": 5,
+									"points": "1",
+									"description": "בתוך התנאי (בתוך הלולאה) - החלפת הערוץ המינימלי",
+									"sub_criterion_id": "q2.ב.c4.sc5"
+								}
+							],
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 5,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף ב': בתוך LowestRateChannel : החזרת הערוץ המינימלי",
+							"criterion_id": "q2.ב.c5",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_question_id": "ב",
+					"example_solution": null
+				},
+				{
+					"text": "כתבו פעולה חיצונית PrintLowRatingChannel  המקבלת אובייקט מטיפוס TvRate שמדפיסה את השם של כל התוכניות שמשודרות כעת בערוץ בעל הדירוג הנמוך ביותר.\n\nיש להשתמש בפעולות הפנימיות והחיצוניות המתאימות.\nאי שימוש בפעולות פנימיות וחיצוניות יגרור הורדת ניקוד.",
+					"index": 2,
+					"title": null,
+					"points": "16",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "16",
+							"description": "סעיף ג': פעולה חיצונית PrintLowRatingChannel סה\"כ לכל הפעולה 16 פירוט:",
+							"criterion_id": "q2.ג.c0",
+							"requirements": [],
+							"sub_criteria": [
+								{
+									"index": 0,
+									"points": "2",
+									"description": "כותרת הפעולה PrintLowRatingChannel",
+									"sub_criterion_id": "q2.ג.c0.sc0"
+								},
+								{
+									"index": 1,
+									"points": "3",
+									"description": "מציאת הערוץ בעל דירוג מינימלי ע\"י זימון LowestRateChannel",
+									"sub_criterion_id": "q2.ג.c0.sc1"
+								},
+								{
+									"index": 2,
+									"points": "3",
+									"description": "הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ- length של מערך ה -TvShows אם הגישה למערך בלי getter להוריד 1",
+									"sub_criterion_id": "q2.ג.c0.sc2"
+								},
+								{
+									"index": 3,
+									"points": "8",
+									"description": "בתוך הלולאה על TvShows: בדיקה האם תוכנית מתאימה להדפסה: אינה null ב (2 נקודות) וגם הערוץ שלה תואם את הערוץ המינימלי (ע\"י GetChl והשוואתם (2 נקודות) וגם היא באוויר (ע\"י GetIsOn ב 2 נקודות) הדפסה של השם של התוכנית (ע\"י GetName ב( 2 נקודות)",
+									"sub_criterion_id": "q2.ג.c0.sc3"
+								}
+							],
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_question_id": "ג",
+					"example_solution": null
+				}
+			],
+			"context_tables": null,
+			"example_solution": null,
+			"allow_multiple_valid_forms": false
+		}
+	],
+	"rubric_id": "0b621e6d-5895-45c8-9f6d-0adaae8affa9",
+	"annotations": [],
+	"description": null,
+	"rubric_name": "תשפו כיתה יא' מחצית ב' מבחן 1 - testing",
+	"total_points": "100.0",
+	"schema_version": "2.0",
+	"approach_classes": [],
+	"document_context": null,
+	"extraction_metadata": {},
+	"programming_language": null
+}

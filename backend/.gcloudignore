@@ -1,0 +1,48 @@
+# .gcloudignore — what `gcloud run deploy --source backend` may NOT upload.
+#
+# WHY THIS FILE EXISTS (2026-08-24): without it, gcloud INFERS an ignore set from
+# backend/.gitignore. That inference probably did the right thing, but it is not a
+# guarantee we control — and this directory contains a GCP SERVICE-ACCOUNT PRIVATE
+# KEY and a .env holding OpenAI/Anthropic/xAI/LangSmith keys, DATABASE_URL and
+# SUPABASE_ACCESS_TOKEN. Uploaded source lands in the project's _cloudbuild staging
+# bucket and PERSISTS there as a build artifact. "Probably excluded" is not the
+# standard for a private key (CLAUDE.md §10 names these two filenames explicitly).
+#
+# The runtime image is unaffected by anything here: the Dockerfile copies ONLY
+# `app/` and `requirements.txt`. Verified before writing this file — app/ contains
+# ZERO .json files, and its two .md files are docs/debug output that no code reads
+# (rendered_output.md is write-only, parser_render.py:676).
+
+# ---- secrets: the reason this file exists ----
+.env
+.env.*
+*.pem
+*.key
+gen-lang-client-*.json
+*service-account*.json
+*credentials*.json
+
+# ---- virtualenvs & caches (also: keeps the upload small) ----
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- the eval suites: fixtures, benchmarks, results, traces. Large, and never
+# ---- part of the served app (the Dockerfile does not copy tests/).
+tests/
+scripts/
+
+# ---- docs (owner-requested 2026-08-24): none are read at runtime ----
+*.md
+
+# ---- local run artifacts ----
+logs/
+temp/
+*.log
+.git/
+.gitignore

@@ -13,12 +13,35 @@ scoring surface never changes.
 """
 from __future__ import annotations
 
-TRANSCRIPTION_PROMPT_VERSION = "t1.2"
+TRANSCRIPTION_PROMPT_VERSION = "t1.4-tables"
 # NOTE (2026-07-10): a t1.3/t1.3b crossed-out-WHOLE-BLOCK reinforcement was
 # trialed and REVERTED — both wordings fired their kill criteria (din p1 block
 # omission stayed stochastic AND din p5 regressed 0.96->0.91 from
 # over-omission). The prompt surface is exhausted for strike detection
 # (RUNLOG 2026-07-10); din p1's crossed-out block is a MODEL-level limitation.
+#
+# t1.4-tables (2026-08-29) — PINS THE HAND-DRAWN-TABLE SHAPE. Until now the
+# prompt said nothing about tables, so the pipe grid a trace table arrives as was
+# the model's EMERGENT convention: ragged rows, mixed edge pipes, no two
+# documents alike (recorded in frontend/utils/detect-pipe-tables.ts). That is
+# unusable as a benchmark, because the scorer compares FORMAT as well as content:
+# two faithful readings of one table written in different shapes measured 0.9648
+# against a 0.98 gate — a fixture would fail for reasons unrelated to perception.
+#
+# The pinned shape is chosen by measurement, not taste (PLAN_multi_rubric_fixtures.md
+# D9). `|` is in neither the operator nor the structural critical-token vocabulary,
+# so pipe delimiters cost NOTHING; a `[TABLE n: RxC]` caption would inject two
+# fabricated `[`/`]` structural tokens and a `|---|` separator five fabricated `--`
+# (DECREMENT) operators — all gated at recall 1.0, all tokens the student never
+# wrote. Whitespace alignment is disqualified outright: the scorer deletes all
+# whitespace, so a space-aligned grid loses every column boundary.
+#
+# The same-cell-count rule is the load-bearing one, and it is a CORRECTNESS rule,
+# not a formatting one. A trace table's first column is typically written once
+# (`x` never changes), so later rows are short at the FRONT. The review surface
+# pads short rows at the END, which renders every value in every sparse row under
+# the WRONG header — silently, on the surface the teacher uses to check the
+# transcription against the scan. Writing the blank cell is what prevents that.
 
 # ---------------------------------------------------------------------------
 # Phase 1 — perception
@@ -53,8 +76,24 @@ are never answer content and must not be transcribed. This is distinct from the 
 - Use `[?]` for any character or word you cannot read. Never guess.
 - Preserve line breaks and the general layout of the writing. Hebrew stays \
 Hebrew, exactly as written.
+- A hand-drawn TABLE (a ruled grid — e.g. a trace table) keeps its grid. Write \
+one table row per line: begin the line with `| `, separate cells with ` | `, and \
+end the line with ` |`. EVERY row carries the SAME number of cells as the widest \
+row. A cell the student left blank is written as an EMPTY cell — never skip it. \
+Skipping a blank cell shifts every value after it into the wrong column. Two \
+pipes must never touch: write `|  |`, never `||`. Do NOT add a header-separator \
+line (`|---|`), and do NOT add a caption, a size, or any other marker. Only ink \
+the student actually drew as a grid becomes a table: never reformat ordinary \
+lines into one, and never reformat code that happens to contain `|`.
+  Example — a 4-column trace table whose first column is written only once:
+  | x | i | arr[i] | ret |
+  | 6 | 0 | 8 |  |
+  |  | 1 | 5 |  |
+  |  | 2 | 3 | T |
 - Page text is PLAIN TEXT only: no markdown, no strikethrough syntax, no code \
-fences. A page with no ink (or only crossed-out ink) has text "".
+fences. The table rows above are the ONE exception — they represent a grid the \
+student drew, and are not markdown. A page with no ink (or only crossed-out ink) \
+has text "".
 
 Output JSON only, no prose, in exactly this shape:
 {"pages": [{"page_number": <int>, "text": "<full verbatim page text>"}]}
@@ -291,4 +330,82 @@ def p2_user_prompt(pages: dict[int, str], exam_spec_json: str) -> str:
     return (
         f"EXAM QUESTION STRUCTURE (JSON):\n{exam_spec_json}\n\n"
         f"VERBATIM TRANSCRIPTION:\n{page_blocks}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — SPAN contract (2026-08-11 redesign; see spans.py for why)
+# ---------------------------------------------------------------------------
+# The routing DOCTRINE (content authority, spec-decides, exclusivity,
+# continuations) is shared with _P2_BASE above; wording here is adapted to
+# line references. The text-mode prompt is the revert path — when the span
+# contract is ratified, text mode retires and this becomes the one prompt.
+P2_SPAN_SYSTEM = """\
+You are given (1) the verbatim page-by-page transcription of ONE student's \
+handwritten exam, with every line NUMBERED, and (2) the exam's question \
+structure. Your single job is SEGMENTATION BY REFERENCE: for every target in \
+the structure, name the LINE SPANS that make up its answer. You never write, \
+copy, or edit code text — you only reference line numbers. The harness slices \
+the referenced lines verbatim; your only decisions are where each unit starts, \
+ends, and belongs.
+
+REAL INPUT IS NOISY — THIS IS NORMAL, NOT AN ERROR. Misread characters, \
+missing braces, and half-formed signatures are the ordinary input you handle. \
+You ALWAYS produce a complete assignment map: every target appears exactly \
+once. You NEVER refuse and NEVER leave a target out. Best-effort spans with a \
+note are correct behavior; an incomplete map is the single worst outcome.
+
+SEGMENTATION IS TWO SEPARATE STEPS (do them in order in `plan`, briefly):
+  STEP 1 — BOUNDARIES: walk the pages and list every distinct code UNIT (a
+           complete class, method, or block) by its signature and line range.
+  STEP 2 — LABEL BY CONTENT: assign each unit to the target whose spec names
+           its code.
+
+CONTENT IS THE SOLE LABELING AUTHORITY. A unit's target is decided by which \
+spec entry names its class/method/logic. The student's section marker \
+(`שאלה 1`, `ב.`) is only a HINT with NO authority: on any marker-vs-content \
+conflict, CONTENT WINS, ALWAYS — assign by content and record the conflict in \
+`notes`. Never infer a unit's target from its page position.
+
+THE SPEC'S TARGET LIST IS YOUR BOUNDARY DISAMBIGUATOR: it says how many \
+distinct units to expect. If the spec names two entities and both appear, they \
+are TWO units in TWO assignments — even when the student wrote one INSIDE the \
+other's braces: carve the inner unit's lines out as its own span, and give the \
+outer unit disjoint spans around it. No line ever appears in two targets' \
+spans (a correct segmentation is a PARTITION of the assigned lines).
+
+WHAT A SPAN INCLUDES (extent errors are the #1 failure — check every end):
+- All lines of the unit's code, INCLUDING its enclosing class-wrapper lines: \
+a `class X` opening line (and its `{`) belongs with the FIRST unit inside the \
+wrapper, the wrapper's closing `}` with the LAST unit inside it; when the \
+wrapper encloses a single target's unit(s), both ends belong to that target. \
+A span NEVER ends before the last closing brace that belongs to the unit: \
+ending at the method's `}` while orphaning the wrapper's own `}` on the next \
+line is WRONG — count the braces to the true end.
+- Blank lines and comment lines INSIDE the unit's range: include them. A \
+comment line IMMEDIATELY PRECEDING the unit's first code line (students \
+annotate above their code) belongs to that unit's span too.
+- Section markers (`שאלה 2`, `א.`, `3 (א`), page headers, and margin scribbles \
+that are not answer content: EXCLUDE them from every span (start the span on \
+the first code or preceding-comment line). Orphan content matching no target \
+is simply left unassigned, with a note.
+
+CONTINUATIONS: a unit split across pages (even non-adjacent) is ONE \
+assignment with MULTIPLE spans, listed in logical code order.
+
+SKIPPED QUESTION: a target with no corresponding code anywhere gets \
+`"spans": []` — the ONLY permitted empty assignment. Never empty from \
+uncertainty; uncertainty gets best-effort spans plus a note.
+
+OUTPUT: JSON only, matching the schema exactly — `plan` (brief), \
+`assignments` (every target exactly once, each with its `anchor` naming the \
+spec entity it implements), `notes` (marker conflicts, orphans, doubts).
+"""
+
+
+def p2_span_user_prompt(numbered_pages: str, exam_spec_json: str) -> str:
+    return (
+        f"EXAM QUESTION STRUCTURE (JSON):\n{exam_spec_json}\n\n"
+        f"VERBATIM TRANSCRIPTION (line-numbered — reference these numbers):\n"
+        f"{numbered_pages}"
     )

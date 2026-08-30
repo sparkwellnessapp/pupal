@@ -320,6 +320,16 @@ class StructuredLLM(Protocol):
     def __call__(self, *, system: str, user: str, schema: type) -> BaseModel: ...
 
 
+# Versions the TIER-B ADJUDICATION PROMPT independently of EXTRACTION_PROMPT_VERSION
+# (which versions the extraction prompt) and of PIPELINE_VERSION (the code/tail
+# version). Added 2026-08-24 after a regression in THIS prompt shipped invisibly:
+# the source-side set_points rule was missing, terra omitted the step in 0/7 draws,
+# and nothing in results.json could have told a later reader which Tier-B text
+# produced a given run. Bump on every edit to _TIER_B_SYSTEM.
+#   1.0.0-baseline : everything up to 2026-08-24 (retroactive label, never stamped)
+#   1.1.0-fixsource: + "the source is not updated automatically" rule + closing check
+TIER_B_PROMPT_VERSION = "1.1.0-fixsource"
+
 _TIER_B_SYSTEM = """את מבקרת האיכות של חילוץ מחווני בחינה ב-Vivi, ויועצת התיקונים שלה.
 
 הקשר: המחוון חולץ בנאמנות מלאה למסמך המקור — כולל טעויות של המורה. את מקבלת,
@@ -365,6 +375,14 @@ _TIER_B_SYSTEM = """את מבקרת האיכות של חילוץ מחווני ב
 יעד (to_scope) שאינו קיים ייווצר אוטומטית — כך יוצרים סעיף חסר. סעיף שנוצר כך
 מקבל אוטומטית ניקוד השווה לסכום הקריטריונים שהועברו אליו; הוסיפי set_points
 עבורו רק אם הניקוד הנכון שונה מסכום זה.
+המקור אינו מתעדכן אוטומטית — וזו הטעות הנפוצה: move_criterion אינו משנה את
+הניקוד המוצהר של סעיף המקור. המוצהר נשאר כשהיה, וכעת הוא גבוה מסכום
+הקריטריונים שנותרו בסעיף. לכן אחרי כל move_criterion: חשבי את סכום הקריטריונים
+שנותרו במקור, והוסיפי set_points על סעיף המקור עם הסכום הזה כ-value ועם המוצהר
+הישן כ-current_value. דלגי על שלב זה רק אם הסכום שנותר שווה ממש למוצהר.
+בדיקת סגירה — בצעי אותה לפני שאת מחזירה את התיקון: סכמי את הניקוד המוצהר של כל
+הסעיפים כפי שיהיה אחרי החלת ה-steps, והשוויי לסך המוצהר של השאלה. אם השניים
+אינם שווים, חסר לך step — כמעט תמיד set_points על סעיף המקור.
 criterion_index מפנה לאינדקסים [i] שבמפרט הממוספר.
 
 confidence: ‎0.9 ומעלה — התאמה חד-משמעית (delta מדויק + התאמת תוכן);

@@ -3,7 +3,18 @@ User API endpoints - v0.
 
 Endpoints for user management, subject matters, and rubric sharing.
 
-Currently deprecated! auth.py implements get_current_user().
+Auth: every route here uses the ONE shared dependency, `auth.get_current_user`
+(CLAUDE.md §9). This module used to define its own local `get_current_user` that
+read a `user_id` QUERY PARAMETER and trusted it — no header, no signature, no
+expiry. It failed in both directions at once: valid session tokens were rejected
+(401) while anonymous callers who supplied `?user_id=<victim>` were served, up to
+and including an unauthenticated write. It is deleted, not repaired: two auth
+implementations cannot stay in agreement, which is the whole reason §9 exists.
+`tests/api/test_users_auth.py::test_users_routes_use_canonical_auth` is the
+structural guard that keeps a replacement from coming back.
+
+The profile read that lived here (`GET /users/me`) was a caller-less duplicate of
+`GET /auth/me` and was removed; `auth.py` owns the profile shape.
 """
 import logging
 from typing import Optional, List
@@ -12,16 +23,17 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from ...database import get_db
-from .auth import get_current_user as _get_current_user_auth
+from ..deps import get_owned_or_404
+from .auth import get_current_user
 from ...models.user import User
 from ...models.subject_matter import SubjectMatter
 from ...models.rubric_share import RubricShare, SharePermission
 from ...models.grading import Rubric, GradedTest
 from ...schemas.user import (
-    UserResponse,
     SubjectMatterResponse,
     UpdateSubjectMattersRequest,
     ShareRubricRequest,
@@ -44,7 +56,7 @@ router = APIRouter(prefix="/api/v0/users", tags=["users"])
 @router.get("/subject-matters", response_model=List[SubjectMatterResponse])
 async def get_all_subject_matters(
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(_get_current_user_auth),
+    _current_user: User = Depends(get_current_user),
 ) -> List[SubjectMatterResponse]:
     """
     Get all available subject matters.
@@ -67,62 +79,13 @@ async def get_all_subject_matters(
 
 
 # =============================================================================
-# User Profile Endpoints (requires authentication - placeholder for now)
+# User Profile Endpoints
+#
+# The profile READ lives at GET /api/v0/auth/me and only there. This module
+# carried a byte-identical duplicate whose response was built by hand; it had no
+# caller (the frontend has always used /auth/me) and two hand-maintained copies
+# of one response shape is the truncation risk §0.4 warns about.
 # =============================================================================
-
-async def get_current_user(
-    user_id: Optional[UUID] = Query(None, description="User ID (temporary - will use auth)"),
-    db: AsyncSession = Depends(get_db),
-) -> User:
-    """
-    Get the current authenticated user.
-    
-    TODO: Replace with proper JWT authentication.
-    For now, accepts user_id as query parameter for testing.
-    """
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Authentication required (provide user_id)")
-    
-    query = select(User).where(User.id == user_id).options(selectinload(User.subject_matters))
-    result = await db.execute(query)
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return user
-
-
-@router.get("/me", response_model=UserResponse)
-async def get_current_user_profile(
-    user: User = Depends(get_current_user),
-) -> UserResponse:
-    """
-    Get the current user's profile.
-    
-    Returns user information including subscription status and subject matters.
-    """
-    return UserResponse(
-        id=user.id,
-        email=user.email,
-        full_name=user.full_name,
-        subscription_status=user.subscription_status.value,
-        started_trial_at=user.started_trial_at,
-        started_pro_at=user.started_pro_at,
-        trial_ends_at=user.trial_ends_at,
-        is_subscription_active=user.is_subscription_active,
-        subject_matters=[
-            SubjectMatterResponse(
-                id=sm.id,
-                code=sm.code,
-                name_en=sm.name_en,
-                name_he=sm.name_he,
-            )
-            for sm in user.subject_matters
-        ],
-        created_at=user.created_at,
-    )
-
 
 @router.get("/me/subject-matters", response_model=List[SubjectMatterResponse])
 async def get_user_subject_matters(
@@ -300,25 +263,21 @@ async def share_rubric(
     
     Only the rubric owner can share it.
     """
-    # Verify ownership
-    query = select(Rubric).where(Rubric.id == rubric_id, Rubric.user_id == user.id)
-    result = await db.execute(query)
-    rubric = result.scalar_one_or_none()
-    
-    if not rubric:
-        raise HTTPException(status_code=404, detail="Rubric not found or you don't own it")
-    
+    # Ownership: a rubric the caller does not own is indistinguishable from a
+    # nonexistent one (§9 — 404, never 403).
+    await get_owned_or_404(db, Rubric, rubric_id, user.id)
+
     # Find target user
     query = select(User).where(User.email == request.email)
     result = await db.execute(query)
     target_user = result.scalar_one_or_none()
-    
+
     if not target_user:
         raise HTTPException(status_code=404, detail=f"User with email {request.email} not found")
-    
+
     if target_user.id == user.id:
         raise HTTPException(status_code=400, detail="Cannot share rubric with yourself")
-    
+
     # Check if already shared
     query = select(RubricShare).where(
         RubricShare.rubric_id == rubric_id,
@@ -326,10 +285,10 @@ async def share_rubric(
     )
     result = await db.execute(query)
     existing = result.scalar_one_or_none()
-    
+
     if existing:
         raise HTTPException(status_code=400, detail="Rubric already shared with this user")
-    
+
     # Create share
     share = RubricShare(
         rubric_id=rubric_id,
@@ -338,9 +297,16 @@ async def share_rubric(
         permission=SharePermission(request.permission),
     )
     db.add(share)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # uq_rubric_share (rubric_id, shared_with_user_id) — the check above is
+        # a TOCTOU window, so a concurrent share lands here. §9: 409 after
+        # rollback, never a bare 500.
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Rubric already shared with this user")
     await db.refresh(share)
-    
+
     return RubricShareResponse(
         id=share.id,
         rubric_id=share.rubric_id,
@@ -362,14 +328,9 @@ async def get_rubric_shares(
     
     Only the rubric owner can view shares.
     """
-    # Verify ownership
-    query = select(Rubric).where(Rubric.id == rubric_id, Rubric.user_id == user.id)
-    result = await db.execute(query)
-    rubric = result.scalar_one_or_none()
-    
-    if not rubric:
-        raise HTTPException(status_code=404, detail="Rubric not found or you don't own it")
-    
+    # Ownership: 404 for a rubric the caller does not own (§9).
+    await get_owned_or_404(db, Rubric, rubric_id, user.id)
+
     # Get shares
     query = (
         select(RubricShare)
@@ -408,14 +369,9 @@ async def delete_rubric_share(
     
     Only the rubric owner can remove shares.
     """
-    # Verify ownership
-    query = select(Rubric).where(Rubric.id == rubric_id, Rubric.user_id == user.id)
-    result = await db.execute(query)
-    rubric = result.scalar_one_or_none()
-    
-    if not rubric:
-        raise HTTPException(status_code=404, detail="Rubric not found or you don't own it")
-    
+    # Ownership: 404 for a rubric the caller does not own (§9).
+    await get_owned_or_404(db, Rubric, rubric_id, user.id)
+
     # Find and delete share
     query = select(RubricShare).where(
         RubricShare.id == share_id,

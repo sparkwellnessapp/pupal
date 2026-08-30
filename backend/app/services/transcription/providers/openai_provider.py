@@ -14,7 +14,7 @@ import time
 
 import openai
 
-from ..vlm_provider import ErrorKind, Usage, VLMCallError, VLMResponse
+from ..vlm_provider import ErrorKind, Usage, VLMCallError, VLMResponse, image_mime_for
 
 
 class OpenAIProvider:
@@ -53,13 +53,14 @@ class OpenAIProvider:
         want_logprobs: bool = False,
         json_schema: dict | None = None,
         timeout_s: float = 90.0,
+        reasoning_effort: str | None = None,  # GPT-5.x reasoning models
     ) -> VLMResponse:
         content: list[dict] | str
         if images_b64:
             content = [
                 {
                     "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{b64}",
+                    "image_url": {"url": f"data:{image_mime_for(b64)};base64,{b64}",
                                   "detail": "high"},
                 }
                 for b64 in images_b64
@@ -75,6 +76,15 @@ class OpenAIProvider:
             }
         if want_logprobs:
             kwargs["logprobs"] = True
+        if reasoning_effort:
+            # Caps hidden reasoning tokens (which spend max_completion_tokens
+            # BEFORE the visible answer — the P2 'length'-truncation mode).
+            # Reasoning models also PIN temperature to the default (1) and 400
+            # on any other value (observed live: gpt-5.6-luna, 2026-08-11), so
+            # temperature is omitted — the model runs at its fixed default.
+            kwargs["reasoning_effort"] = reasoning_effort
+        else:
+            kwargs["temperature"] = temperature
 
         t0 = time.monotonic()
         try:
@@ -85,7 +95,6 @@ class OpenAIProvider:
                     {"role": "user", "content": content},
                 ],
                 max_completion_tokens=max_tokens,
-                temperature=temperature,
                 timeout=timeout_s,
                 **kwargs,
             )

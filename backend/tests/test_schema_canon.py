@@ -2,9 +2,12 @@
 Schema-canon guards: create_all must not run outside development, and the
 applied-migration ledger must be checked (loudly) at every boot.
 
-These lock in the two failures that actually fired during the PR-1 deploy:
+These lock in the three failures that actually fired:
   * a NEW ORM model got a BARE create_all table in prod (no CHECKs, no indexes)
   * migration 011 was PARTIALLY applied and nobody noticed for weeks
+  * migration 010's DEFERRABLE attribute silently reverted on dev while the
+    ledger stayed green — the whole revision feature broke with zero alarms
+    (2026-08-17; hence the constraint-ATTRIBUTE pass in verify_schema_head)
 
 No live DDL: the engine is faked so these run anywhere.
 """
@@ -35,13 +38,49 @@ class _FakeResult:
         return [(v,) for v in self._value]
 
 
-class _FakeConn:
-    """Answers the two queries verify_schema_head issues, in order."""
+class _FakeRows:
+    """Raw multi-column rows (the pg_constraint attribute query)."""
 
-    def __init__(self, ledger_exists, applied, raises=False):
+    def __init__(self, rows):
+        self._rows = rows
+
+    def all(self):
+        return self._rows
+
+
+class _FakeConn:
+    """Answers the FOUR queries verify_schema_head issues (ledger-exists,
+    ledger-rows, pg_constraint, pg_indexes). A double that silently returns
+    the wrong SHAPE for an unrecognised query is worse than one that fails:
+    when the partial-index pass was added, the unmatched query fell through
+    to the ledger branch and every caller blew up on `tuple index out of
+    range` — a real signal, but pointing at the double, not the code."""
+
+    def __init__(self, ledger_exists, applied, raises=False, constraint_rows=None,
+                 index_rows=None):
         self._ledger_exists = ledger_exists
         self._applied = applied
         self._raises = raises
+        # Default: healthy — every expected constraint present with the
+        # expected attributes, so ledger-focused tests stay about the ledger.
+        self._constraint_rows = (
+            constraint_rows if constraint_rows is not None
+            else [
+                (name, want_deferrable, want_deferred)
+                for name, (want_deferrable, want_deferred, _m)
+                in database.EXPECTED_CONSTRAINT_ATTRIBUTES.items()
+            ]
+        )
+        # Same idea for the partial-index pass (closeout/A2): healthy by
+        # default, with each index's REAL predicate embedded, so ledger- and
+        # constraint-focused tests stay about their own subject.
+        self._index_rows = (
+            index_rows if index_rows is not None
+            else [
+                (name, f"CREATE UNIQUE INDEX {name} ON public.t USING btree (c) {fragment.upper()}")
+                for name, (fragment, _m) in database.EXPECTED_PARTIAL_INDEXES.items()
+            ]
+        )
         self.create_all_ran = False
 
     async def __aenter__(self):
@@ -56,6 +95,10 @@ class _FakeConn:
         sql = str(stmt)
         if "information_schema.tables" in sql:
             return _FakeResult(self._ledger_exists)
+        if "pg_constraint" in sql:
+            return _FakeRows(self._constraint_rows)
+        if "pg_indexes" in sql:
+            return _FakeRows(self._index_rows)
         return _FakeResult(self._applied)
 
     async def run_sync(self, fn):
@@ -75,9 +118,10 @@ class _FakeEngine:
 
 @pytest.fixture
 def fake_db(monkeypatch):
-    def _install(ledger_exists=True, applied=None, raises=False):
+    def _install(ledger_exists=True, applied=None, raises=False, constraint_rows=None,
+                 index_rows=None):
         applied = list(EXPECTED_MIGRATIONS) if applied is None else applied
-        conn = _FakeConn(ledger_exists, applied, raises)
+        conn = _FakeConn(ledger_exists, applied, raises, constraint_rows, index_rows)
         monkeypatch.setattr(database, "engine", _FakeEngine(conn))
         return conn
     return _install
@@ -159,6 +203,27 @@ async def test_head_ok_when_ledger_matches(monkeypatch, fake_db, caplog):
         assert await verify_schema_head() is True
     assert "SCHEMA OK" in caplog.text
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+
+@pytest.mark.asyncio
+async def test_half_applied_constraint_attribute_is_loud(monkeypatch, fake_db, caplog):
+    """
+    The 010 case, exactly (2026-08-17): the ledger lists the migration, but the
+    constraint's deferrability silently reverted (a create_all-recreated table
+    or a half-applied file). The version check alone stayed green while the
+    whole revision feature was broken — the attribute pass must alarm and
+    name the migration to re-apply.
+    """
+    _set_env(monkeypatch, "production")
+    fake_db(
+        applied=list(EXPECTED_MIGRATIONS),
+        constraint_rows=[("graded_tests_regraded_to_id_fkey", False, False)],
+    )
+    with caplog.at_level(logging.INFO, logger="app.database"):
+        assert await verify_schema_head() is False
+    assert "constraint-attribute" in caplog.text
+    assert "010" in caplog.text
+    assert "SCHEMA OK" not in caplog.text
 
 
 @pytest.mark.asyncio
@@ -294,3 +359,48 @@ def test_every_migration_ends_with_its_commit_token():
         "Every migration must finish with: INSERT INTO public.schema_migrations "
         "(version, note) VALUES ('<version>', '...') ON CONFLICT DO NOTHING;"
     )
+
+
+# ---------------------------------------------------------------------------
+# Partial-index pass inside verify_schema_head (closeout/A2). The ledger and
+# the constraint reader are BOTH blind to these: 017's index is B9's
+# idempotency guarantee and lives in pg_index, not pg_constraint.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_missing_partial_index_fails_the_head_check_loudly(monkeypatch, fake_db, caplog):
+    _set_env(monkeypatch, "production")
+    fake_db(applied=list(EXPECTED_MIGRATIONS), index_rows=[])   # ledger green, index gone
+    with caplog.at_level(logging.ERROR, logger="app.database"):
+        assert await verify_schema_head() is False
+    blob = caplog.text
+    assert "partial-index problem" in blob
+    assert "invisible to BOTH the ledger and the constraint check" in blob
+
+
+@pytest.mark.asyncio
+async def test_index_present_but_predicate_stripped_is_caught(monkeypatch, fake_db, caplog):
+    """The dangerous shape: right name, wrong guarantee. A presence-only check
+    would pass while (batch_id, client_file_id) uniqueness silently covered
+    every row including the pre-017 NULLs the predicate exists to exclude."""
+    _set_env(monkeypatch, "production")
+    stripped = [
+        (name, f"CREATE UNIQUE INDEX {name} ON public.t USING btree (c)")   # no WHERE
+        for name in database.EXPECTED_PARTIAL_INDEXES
+    ]
+    fake_db(applied=list(EXPECTED_MIGRATIONS), index_rows=stripped)
+    with caplog.at_level(logging.ERROR, logger="app.database"):
+        assert await verify_schema_head() is False
+    assert "lacks" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_healthy_schema_logs_its_own_coverage(monkeypatch, fake_db, caplog):
+    """Owner ruling: the checker states what it can and cannot see, so the
+    next blind spot is documented rather than discovered."""
+    _set_env(monkeypatch, "production")
+    fake_db(applied=list(EXPECTED_MIGRATIONS))
+    with caplog.at_level(logging.INFO, logger="app.database"):
+        assert await verify_schema_head() is True
+    assert "partial index(es) verified" in caplog.text
+    assert "NOT covered" in caplog.text

@@ -1,10 +1,10 @@
-# Grader Vision - AI-Powered Test Grading Assistant
+# Vivi - AI-Powered Test Grading Assistant
 
 A web application that helps teachers grade student tests using AI, with a human-in-the-loop validation workflow.
 
 ## Purpose
 
-Grader Vision is designed to **assist** teachers in grading, not replace them. The AI handles the tedious work of:
+Vivi is designed to **assist** teachers in grading, not replace them. The AI handles the tedious work of:
 - Reading and transcribing handwritten/typed student answers
 - Matching answers against rubric criteria
 - Suggesting grades with explanations

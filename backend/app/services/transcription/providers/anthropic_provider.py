@@ -16,7 +16,7 @@ import time
 
 import anthropic
 
-from ..vlm_provider import ErrorKind, Usage, VLMCallError, VLMResponse
+from ..vlm_provider import ErrorKind, Usage, VLMCallError, VLMResponse, image_mime_for
 
 
 class AnthropicProvider:
@@ -55,11 +55,12 @@ class AnthropicProvider:
         want_logprobs: bool = False,  # unsupported; always returns None
         json_schema: dict | None = None,
         timeout_s: float = 90.0,
+        reasoning_effort: str | None = None,  # OpenAI-only knob; accepted, ignored
     ) -> VLMResponse:
         blocks: list[dict] = [
             {
                 "type": "image",
-                "source": {"type": "base64", "media_type": "image/png", "data": b64},
+                "source": {"type": "base64", "media_type": image_mime_for(b64), "data": b64},
             }
             for b64 in (images_b64 or [])
         ]

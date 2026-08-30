@@ -1,7 +1,7 @@
 """
 Phase 1.5 — the page proxy renders ONLY the requested page.
 
-`render_pdf_page` (poppler `first_page`/`last_page` bounding) replaces the
+`render_pdf_page` (single-page bounded render via pdf_render) replaces the
 render-everything-then-index implementation in
 GET /api/v0/transcriptions/{id}/pages/{n}. Ruled tests (plan Δ9):
   * correct page returned for first / middle / last of a multi-page fixture

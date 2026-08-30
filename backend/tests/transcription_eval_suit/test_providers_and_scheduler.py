@@ -255,15 +255,74 @@ def test_real_adapters_import_and_construct():
     assert (o.name, a.name, g.name) == ("openai", "anthropic", "gemini")
 
 
+def test_gemini_adapter_disables_sdk_retries_and_classifies_timeouts():
+    """2026-08-11 storm findings: (a) the genai SDK runs its own tenacity
+    retry loop unless disabled — the scheduler must own the ONLY retry, so
+    per-request HttpRetryOptions(attempts=1); (b) httpx.ReadTimeout is not a
+    builtin TimeoutError and was mislabeled 'transient'."""
+    import httpx as _httpx
+    from app.services.transcription.providers.gemini_provider import GeminiProvider
+    from app.services.transcription.vlm_provider import ErrorKind
+
+    opts = GeminiProvider._http_options(240.0)
+    assert opts.timeout == 240_000
+    assert opts.retry_options.attempts == 1          # SDK retries OFF
+
+    p = GeminiProvider("gemini-test", api_key="k")
+    err = p._classify(_httpx.ReadTimeout("deadline"))
+    assert err.kind == ErrorKind.TIMEOUT and err.retryable
+
+
 def test_models_registry():
     from .models_registry import MODELS, spec
 
     s = spec("claude-haiku-4.5")
     assert s.provider == "anthropic" and s.tier == "cheap"
-    # every provider has a cheap and a frontier entry
+    # Seed-set statement (this suite's v0), NOT a registry invariant: each of
+    # the three seed providers carries both a cheap and a frontier entry. The
+    # registry is shared with the rubric suite and later providers (e.g. xai)
+    # may legitimately have a single entry — inventing a second one to satisfy
+    # this test would mean fabricating a price card.
     by_provider = {}
     for m in MODELS.values():
         by_provider.setdefault(m.provider, set()).add(m.tier)
-    assert all(tiers == {"cheap", "frontier"} for tiers in by_provider.values())
+    for seed in ("openai", "anthropic", "gemini"):
+        assert by_provider[seed] == {"cheap", "frontier"}
     with pytest.raises(KeyError, match="Unknown model key"):
         spec("nope")
+
+
+def test_openai_adapter_omits_temperature_under_reasoning_effort():
+    """Reasoning models pin temperature to the default and 400 on any other
+    value (observed live: gpt-5.6-luna, 2026-08-11) — with reasoning_effort
+    set the adapter must OMIT temperature; without it, temperature is sent
+    (nano-baseline behavior byte-identical)."""
+    import asyncio
+    from types import SimpleNamespace
+
+    from app.services.transcription.providers.openai_provider import OpenAIProvider
+
+    captured: list[dict] = []
+
+    async def fake_create(**kw):
+        captured.append(kw)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(
+                message=SimpleNamespace(content="{}"),
+                logprobs=None, finish_reason="stop")],
+            usage=SimpleNamespace(prompt_tokens=1, completion_tokens=1,
+                                  prompt_tokens_details=None),
+            model="gpt-5.6-luna",
+        )
+
+    p = OpenAIProvider("gpt-5.6-luna", api_key="test-key")
+    p._client.chat.completions.create = fake_create  # noqa: SLF001
+
+    asyncio.run(p.complete(system="s", user="u", max_tokens=10,
+                           temperature=0.0, reasoning_effort="medium"))
+    assert captured[-1]["reasoning_effort"] == "medium"
+    assert "temperature" not in captured[-1]
+
+    asyncio.run(p.complete(system="s", user="u", max_tokens=10, temperature=0.0))
+    assert captured[-1]["temperature"] == 0.0
+    assert "reasoning_effort" not in captured[-1]

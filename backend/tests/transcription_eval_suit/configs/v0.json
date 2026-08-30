@@ -1,0 +1,16 @@
+{
+  "p1_model_key": "gemini-3.1-pro-preview",
+  "p1_pages_per_call": 3,
+  "p1_image_packing": "multi_image",
+  "dpi": 200,
+  "image_max_px": 2000,
+  "p1_max_tokens": 5000,
+  "p2_model_key": "gpt-5.6-luna",
+  "correction_policy": "off",
+  "p2_max_tokens": 24000,
+  "p2_reasoning_effort": "low",
+  "p2_output_contract": "spans",
+  "temperature": 0.0,
+  "use_json_schema": true,
+  "timeout_s": 120.0
+}

@@ -9,6 +9,11 @@ Modes:
             depth-first doc priorities; measures time-to-first/last + p95 (the
             only mode where a p95 is honest — C2).
 
+One run may span SEVERAL EXAMS. Each fixture resolves its own exam spec and
+critical-token profile (exam_resolution.py: `fixtures/<doc_id>.json` manifest,
+else the run-level `--exam-spec` fallback), and every record states which pair
+scored it. The conjunctive gate is per-fixture, so no gate arithmetic changes.
+
 Statistics honesty: per-doc latency reports median/min/max only. Accuracy:
 mean+std over repeats, per doc, plus the WORST doc (the mean is forbidden as
 the only aggregate). temp 0; first record of the run is marked cold.
@@ -38,7 +43,8 @@ from dotenv import load_dotenv
 from app.services.transcription.scheduler import ProviderLimit, ProviderScheduler
 from app.services.transcription.two_phase.trust import run_with_trust
 
-from .critical_tokens import JAVA_BAGRUT
+from .critical_tokens import CriticalProfile
+from .exam_resolution import ResolvedExam, resolve_exam
 from .flag_metrics import score_flags
 from .ground_truth import (
     GoldDocument,
@@ -48,7 +54,8 @@ from .ground_truth import (
 )
 from .instrument import Trace
 from .models_registry import AS_OF, spec as model_spec
-from .parsing import ExamSpec, load_exam_spec, spec_from_rubric_draft
+from .parsing import ExamSpec
+from .profiles import DEFAULT_PROFILE, profile as resolve_profile
 from .pipelines import Pipeline, PipelineConfig, build_pipeline
 from .prompts import TRANSCRIPTION_PROMPT_VERSION
 from .report import write_doc_report, write_summary
@@ -116,6 +123,26 @@ class Fixture:
     pdf_path: Path | None
     raw_gold: GoldPageDocument | None
     draft_gold: GoldDocument | None
+    # The exam this fixture answers and the profile that scores it, resolved
+    # PER FIXTURE (exam_resolution.py) so one run may span several exams. None
+    # only in p1_only, which has no question skeleton to route into.
+    exam: ResolvedExam | None = None
+
+    @property
+    def exam_spec(self) -> ExamSpec | None:
+        return self.exam.spec if self.exam else None
+
+    @property
+    def profile(self) -> CriticalProfile:
+        return self.exam.profile if self.exam else resolve_profile(DEFAULT_PROFILE)
+
+    @property
+    def profile_name(self) -> str:
+        return self.exam.profile_name if self.exam else DEFAULT_PROFILE
+
+    @property
+    def exam_spec_ref(self) -> str | None:
+        return self.exam.ref if self.exam else None
 
 
 @dataclass
@@ -134,6 +161,11 @@ class RunRecord:
     spec_mismatches: list = field(default_factory=list)
     routing_notes: list = field(default_factory=list)   # P2's self-reported re-routing
     trust: dict | None = None        # trust-layer flag metrics (reader configs only)
+    # Which exam/profile produced this record. On a mixed-exam run the per-doc
+    # table alone would read as one scoreboard; these make every record say
+    # what ruler measured it.
+    exam_spec: str | None = None
+    profile: str = DEFAULT_PROFILE
 
 
 # --- fixture resolution -----------------------------------------------------------
@@ -148,16 +180,29 @@ def _find_pdf(doc_id: str) -> Path | None:
     return None
 
 
-def resolve_fixtures(doc_ids: tuple[str, ...], mode: str) -> list[Fixture]:
+def resolve_fixtures(plan: RunPlan) -> list[Fixture]:
+    """Pair each doc_id with its artifacts AND its exam.
+
+    Exam resolution lives here, not in a separate run-level `load_spec`, because
+    `run_plan` resolves fixtures twice (once to run, once to write the per-doc
+    reports) and both call sites must agree about which exam scored which doc."""
+    mode = plan.mode
     fixtures: list[Fixture] = []
-    for doc_id in doc_ids:
+    for doc_id in plan.fixtures:
         raw_p = SUITE_DIR / "raw_benchmarks" / f"{doc_id}.md"
         draft_p = SUITE_DIR / "draft_benchmarks" / f"{doc_id}.md"
+        exam = resolve_exam(doc_id, fallback_spec_path=plan.exam_spec_path)
+        if exam is None and mode != "p1_only":
+            raise ValueError(
+                f"{doc_id}: mode={mode} requires an exam spec — add "
+                f"fixtures/{doc_id}.json naming one, or pass --exam-spec."
+            )
         fx = Fixture(
             doc_id=doc_id,
             pdf_path=_find_pdf(doc_id),
             raw_gold=load_page_ground_truth(raw_p) if raw_p.exists() else None,
             draft_gold=load_ground_truth(draft_p) if draft_p.exists() else None,
+            exam=exam,
         )
         if mode in ("per_doc", "p1_only", "batch") and fx.pdf_path is None:
             raise FileNotFoundError(f"{doc_id}: no PDF in pdfs/ (required for {mode}).")
@@ -169,22 +214,6 @@ def resolve_fixtures(doc_ids: tuple[str, ...], mode: str) -> list[Fixture]:
             raise FileNotFoundError(f"{doc_id}: p2_only needs raw GT as gold input.")
         fixtures.append(fx)
     return fixtures
-
-
-def load_spec(plan: RunPlan) -> ExamSpec | None:
-    if plan.mode == "p1_only" and plan.exam_spec_path is None:
-        return None  # no spec needed; correction secondary metric simply absent
-    if plan.exam_spec_path is None:
-        raise ValueError(f"mode={plan.mode} requires --exam-spec.")
-    p = Path(plan.exam_spec_path)
-    if not p.is_absolute():
-        p = SUITE_DIR / p
-    try:
-        return load_exam_spec(p)
-    except (ValueError, KeyError):
-        # KeyError: a rubric draft_json lacks the canonical "number" key, so the
-        # strict loader trips before the fallback could run. Both shapes drop in.
-        return spec_from_rubric_draft(p)   # tolerate a rubric draft_json drop-in
 
 
 # --- scoring serialization ---------------------------------------------------------
@@ -234,9 +263,10 @@ def _ser_p1(s: PageDocumentScore) -> dict:
 # --- execution ----------------------------------------------------------------------
 
 async def _run_one(
-    pipeline: Pipeline, fx: Fixture, exam_spec: ExamSpec | None,
-    mode: str, doc_priority: int,
+    pipeline: Pipeline, fx: Fixture, mode: str, doc_priority: int,
 ) -> tuple[RunRecord, object | None, object | None, dict]:
+    exam_spec = fx.exam_spec
+    profile = fx.profile
     t0 = time.monotonic()
     p1_score = e2e_score = None
     mismatches: list = []
@@ -250,7 +280,7 @@ async def _run_one(
         )
         trace = run.trace
         scored_answers = run.corrected_answers or run.answers
-        e2e_score = score_document(scored_answers, fx.draft_gold, profile=JAVA_BAGRUT, policy=SCORING_POLICY)
+        e2e_score = score_document(scored_answers, fx.draft_gold, profile=profile, policy=SCORING_POLICY)
         mismatches = [dataclasses.asdict(m) for m in run.spec_mismatches]
         routing_notes = list(run.routing_notes)
         outputs = {"pages": dict(run.pages), "answers": dict(scored_answers)}
@@ -259,7 +289,7 @@ async def _run_one(
         pages, trace = await pipeline.run_phase1(
             fx.pdf_path.read_bytes(), fx.doc_id, doc_priority=doc_priority
         )
-        p1_score = score_page_document(pages, fx.raw_gold, profile=JAVA_BAGRUT, policy=SCORING_POLICY)
+        p1_score = score_page_document(pages, fx.raw_gold, profile=profile, policy=SCORING_POLICY)
         outputs = {"pages": dict(pages), "answers": {}}
     else:  # per_doc / batch
         trust_run = None
@@ -275,8 +305,8 @@ async def _run_one(
             )
         trace = run.trace
         scored_answers = run.corrected_answers or run.answers
-        p1_score = score_page_document(run.pages, fx.raw_gold, profile=JAVA_BAGRUT, policy=SCORING_POLICY)
-        e2e_score = score_document(scored_answers, fx.draft_gold, profile=JAVA_BAGRUT, policy=SCORING_POLICY)
+        p1_score = score_page_document(run.pages, fx.raw_gold, profile=profile, policy=SCORING_POLICY)
+        e2e_score = score_document(scored_answers, fx.draft_gold, profile=profile, policy=SCORING_POLICY)
         mismatches = [dataclasses.asdict(m) for m in run.spec_mismatches]
         routing_notes = list(run.routing_notes)
         outputs = {"pages": dict(run.pages), "answers": dict(scored_answers)}
@@ -301,6 +331,10 @@ async def _run_one(
     stage_ms["p1_call_sum"] = sum(p1_times)
     stage_ms["p1_call_max"] = max(p1_times, default=0.0)  # ~wall (chunks concurrent)
     stage_ms["p2_call"] = sum(c.total_ms for c in trace.calls if c.phase == "p2")
+    sc_times = [c.total_ms for c in trace.calls if c.phase == "strike_check"]
+    if sc_times:
+        stage_ms["strike_call_sum"] = sum(sc_times)
+        stage_ms["strike_call_max"] = max(sc_times)  # ~wall (pages concurrent)
 
     rec = RunRecord(
         doc_id=fx.doc_id, repeat=-1, cold=False,
@@ -317,6 +351,8 @@ async def _run_one(
         spec_mismatches=mismatches,
         routing_notes=routing_notes,
         trust=trust_block,
+        exam_spec=fx.exam_spec_ref,
+        profile=fx.profile_name,
     )
     return rec, p1_score, e2e_score, outputs, corr_scopes
 
@@ -346,7 +382,7 @@ def _correction_scopes(run, draft_gold) -> list:
     return scopes
 
 
-async def _run_one_resilient(pipeline, fx, exam_spec, mode, prio,
+async def _run_one_resilient(pipeline, fx, mode, prio,
                              attempts: int = 3):
     """Doc-level retry for TRANSPORT failures only.
 
@@ -359,7 +395,7 @@ async def _run_one_resilient(pipeline, fx, exam_spec, mode, prio,
     from app.services.transcription.vlm_provider import VLMCallError
     for attempt in range(1, attempts + 1):
         try:
-            return await _run_one(pipeline, fx, exam_spec, mode, prio)
+            return await _run_one(pipeline, fx, mode, prio)
         except VLMCallError as e:
             if not e.retryable or attempt == attempts:
                 raise
@@ -371,8 +407,7 @@ async def _run_one_resilient(pipeline, fx, exam_spec, mode, prio,
 
 
 async def execute(plan: RunPlan, pipeline: Pipeline) -> tuple[dict, dict]:
-    fixtures = resolve_fixtures(plan.fixtures, plan.mode)
-    exam_spec = load_spec(plan)
+    fixtures = resolve_fixtures(plan)
     records: list[RunRecord] = []
     doc_scores: dict[str, list] = {fx.doc_id: [] for fx in fixtures}
     first_outputs: dict[str, dict] = {}
@@ -387,7 +422,7 @@ async def execute(plan: RunPlan, pipeline: Pipeline) -> tuple[dict, dict]:
         completion_times: list[float] = []
 
         async def run_instance(i: int, fx: Fixture):
-            rec, _, e2e, outs, cscopes = await _run_one_resilient(pipeline, fx, exam_spec, "per_doc", i)
+            rec, _, e2e, outs, cscopes = await _run_one_resilient(pipeline, fx, "per_doc", i)
             completion_times.append(time.monotonic() - t_batch)
             rec.repeat = i
             records.append(rec)
@@ -413,7 +448,7 @@ async def execute(plan: RunPlan, pipeline: Pipeline) -> tuple[dict, dict]:
                 log.info("=== %s | repeat %d/%d | mode=%s ===",
                          fx.doc_id, repeat + 1, plan.repeats, plan.mode)
                 t_fx = time.monotonic()
-                rec, p1s, e2es, outs, cscopes = await _run_one_resilient(pipeline, fx, exam_spec, plan.mode, 0)
+                rec, p1s, e2es, outs, cscopes = await _run_one_resilient(pipeline, fx, plan.mode, 0)
                 log.info("=== %s done in %.1fs (cost=$%.4f, parse_failures=%d) ===",
                          fx.doc_id, time.monotonic() - t_fx, rec.cost_usd,
                          rec.parse_failures)
@@ -511,11 +546,22 @@ async def execute(plan: RunPlan, pipeline: Pipeline) -> tuple[dict, dict]:
         "config_name": plan.config_name,
         "config": dataclasses.asdict(plan.config),
         "scoring": dataclasses.asdict(SCORING_POLICY),  # which scorer semantics produced this
+        # Which EXAM and PROFILE scored each fixture. A mixed-exam run must
+        # self-describe: without this the per-doc table reads as one scoreboard
+        # over two different question skeletons. `selection_groups` rides along
+        # so a reader can tell an empty answer that is correct by design
+        # (choose-k-of-N) from a segmentation failure.
+        "fixtures": {
+            fx.doc_id: (fx.exam.as_provenance() if fx.exam
+                        else {"exam_spec": None, "profile": fx.profile_name})
+            for fx in fixtures
+        },
         "mode": plan.mode,
         "repeats": plan.repeats,
         "models": {
             k: {"model_id": model_spec(k).model_id, "tier": model_spec(k).tier}
-            for k in {plan.config.p1_model_key, plan.config.p2_model_key} if k
+            for k in {plan.config.p1_model_key, plan.config.p2_model_key,
+                      plan.config.p1_strike_check_model_key} if k
         },
         "records": [dataclasses.asdict(r) for r in records],
         "aggregates": aggregates,
@@ -540,7 +586,8 @@ def make_default_pipeline(cfg: PipelineConfig) -> Pipeline:
                    "gemini": GeminiProvider}
     providers = {}
     aliased = {}
-    for key in {cfg.p1_model_key, cfg.p2_model_key, *cfg.reader_model_keys}:
+    for key in {cfg.p1_model_key, cfg.p2_model_key,
+                cfg.p1_strike_check_model_key, *cfg.reader_model_keys}:
         if not key:
             continue
         ms = model_spec(key)
@@ -563,7 +610,7 @@ def run_plan(plan: RunPlan, pipeline: Pipeline | None = None) -> Path:
         json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8"
     )
     write_summary(out_dir, results, cost_ceiling=COST_CEILING_USD)
-    fixtures = resolve_fixtures(plan.fixtures, plan.mode)
+    fixtures = resolve_fixtures(plan)
     for fx in fixtures:
         write_doc_report(
             out_dir, fx.doc_id, results,
@@ -589,7 +636,9 @@ def main() -> None:
     ap.add_argument("--fixtures", default="",
                     help="comma-separated doc_ids; default = all in raw_benchmarks/")
     ap.add_argument("--exam-spec", default=None,
-                    help="exam spec JSON (canonical or rubric draft_json), relative to suite dir")
+                    help="FALLBACK exam spec (canonical or rubric draft_json), relative "
+                         "to the suite dir. Used only for fixtures with no "
+                         "fixtures/<doc_id>.json manifest.")
     ap.add_argument("--batch-size", type=int, default=25)
     args = ap.parse_args()
 

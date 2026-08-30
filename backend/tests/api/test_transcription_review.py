@@ -291,7 +291,7 @@ def test_overlay_nulled_at_approval_grade_path(client, headers_a, rubric_a, stud
     assert _patch_review(client, headers_a, tx_id).status_code == 200
     assert _db_row(tx_id).review_json is not None
 
-    with patch("app.api.v0.transcription.run_grading"):   # never grade in tests
+    with patch("app.api.v0.transcription.enqueue_grading_task_or_log"):   # never enqueue grading in tests
         g = client.post(
             "/api/v0/transcriptions/grade",
             json={
@@ -325,7 +325,7 @@ def test_overlay_nulled_at_approval_accept_one(client, user_a, headers_a, rubric
                        "answer_text": "reviewed"}]
         assert _patch_review(client, headers_a, tx_id, answers=one_answer).status_code == 200
 
-        with patch("app.api.v0.batch_grading._grade_with_cap"):
+        with patch("app.api.v0.batch_grading.enqueue_grading_task_or_log"):
             resp = client.post(
                 f"/api/v0/batches/{batch_id}/accept/{tx_id}",
                 json={"student_id": student_a["id"], "answers": one_answer},
@@ -351,7 +351,9 @@ def test_clean_item_edited_then_bulk_accept(client, user_a, headers_a, rubric_a,
     """
     user_id = _user_id(user_a)
     batch_id = _insert_batch_sync(user_id, rubric_a["rubric_id"], test_count=2)
-    draft = _clean_draft().model_dump(mode="json")
+    # B1: the untouched item must be verdict-CLEAN server-side to approve —
+    # its suggestion matches student_a ("תלמיד א"), who is posted for it.
+    draft = _clean_draft(student_name="תלמיד א").model_dump(mode="json")
     tx_edited = _insert_transcription_sync(user_id, rubric_a["rubric_id"], batch_id, draft)
     tx_untouched = _insert_transcription_sync(user_id, rubric_a["rubric_id"], batch_id, draft)
     try:
@@ -359,7 +361,7 @@ def test_clean_item_edited_then_bulk_accept(client, user_a, headers_a, rubric_a,
                        "answer_text": "teacher edit"}]
         assert _patch_review(client, headers_a, tx_edited, answers=one_answer).status_code == 200
 
-        with patch("app.api.v0.batch_grading._grade_with_cap"):
+        with patch("app.api.v0.batch_grading.enqueue_grading_task_or_log"):
             resp = client.post(
                 f"/api/v0/batches/{batch_id}/accept_clean",
                 json={"items": [

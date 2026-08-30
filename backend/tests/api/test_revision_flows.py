@@ -10,7 +10,7 @@ Core invariant tests (the load-bearing ones):
   [CORE-4]  Bidirectional chain links — RGC-2
 
 All tests marked @pytest.mark.integration require a live DATABASE_URL
-and migration 010 applied. Tests mocking run_grading do not require a live
+and migration 010 applied. Tests mocking the grading enqueue do not require a live
 OpenAI key — they only test the endpoint + DB state.
 """
 from __future__ import annotations
@@ -126,17 +126,20 @@ async def _insert_approved_row(
     Insert an approved GradedTest leaf.
     Returns (graded_test_id, transcription_id).
     """
-    from app.database import AsyncSessionLocal
+    from tests.api.test_batch_grading import _fresh_loop_session
     from app.models.grading import GradedTest
     from app.models.student import Student
     from app.models.transcription import Transcription
 
-    async with AsyncSessionLocal() as db:
+    async with _fresh_loop_session() as db:
         student_id = uuid.uuid4()
         student = Student(
             id=student_id,
             user_id=uuid.UUID(user_id),
-            full_name="Test Student S10",
+            # Unique per call — students_unique_name_per_user makes a fixed
+            # name collide from the second fixture insert onward (2026-08-17,
+            # P1 harness chore; previously masked by the cross-loop error).
+            full_name=f"Test Student S10 {uuid.uuid4().hex[:6]}",
         )
         db.add(student)
         await db.flush()
@@ -185,6 +188,25 @@ async def _insert_approved_row(
             regraded_to_id=uuid.UUID(regraded_to_id) if regraded_to_id else None,
         )
         db.add(graded_test)
+        if regraded_to_id is not None:
+            # 2026-08-17 (P1 harness chore): the forward pointer must reference
+            # a REAL row — the migration-010 deferrable FK checks at COMMIT, so
+            # the old fabricated-uuid "non-leaf" shorthand can never insert.
+            # Create the successor exactly the way extend_chain leaves the
+            # chain: same (transcription, rubric) identity, sole leaf.
+            db.add(GradedTest(
+                id=uuid.UUID(regraded_to_id),
+                user_id=uuid.UUID(user_id),
+                rubric_id=uuid.UUID(rubric_id),
+                transcription_id=transcription_id,
+                student_id=student_id,
+                rubric_contract_version=rubric_contract_version,
+                student_name="Test Student S10",
+                filename="stub.pdf",
+                status="draft",
+                draft_json=draft_json,
+                regraded_from_id=graded_test_id,
+            ))
         await db.commit()
         return str(graded_test_id), str(transcription_id)
 
@@ -196,17 +218,17 @@ async def _insert_failed_row(
     regraded_to_id: str | None = None,
 ) -> tuple[str, str]:
     """Insert a failed GradedTest leaf. Returns (graded_test_id, transcription_id)."""
-    from app.database import AsyncSessionLocal
+    from tests.api.test_batch_grading import _fresh_loop_session
     from app.models.grading import GradedTest
     from app.models.student import Student
     from app.models.transcription import Transcription
 
-    async with AsyncSessionLocal() as db:
+    async with _fresh_loop_session() as db:
         student_id = uuid.uuid4()
         student = Student(
             id=student_id,
             user_id=uuid.UUID(user_id),
-            full_name="Test Student S10 Failed",
+            full_name=f"Test Student S10 Failed {uuid.uuid4().hex[:6]}",
         )
         db.add(student)
         await db.flush()
@@ -216,8 +238,12 @@ async def _insert_failed_row(
             id=transcription_id,
             user_id=uuid.UUID(user_id),
             rubric_id=uuid.UUID(rubric_id),
-            student_id=student_id,
-            student_name="Test Student S10 Failed",
+            # transcriptions_approval_consistency: a 'transcribed' row must
+            # carry NO student/contract/approved_at (they arrive at approval).
+            # The old fixture set student_id here and CHECK-violated
+            # (2026-08-17, P1 harness chore; previously masked).
+            student_id=None,
+            student_name=None,
             gcs_uri="gs://stub/stub.pdf",
             gcs_bucket="stub",
             gcs_object_path="stub.pdf",
@@ -244,17 +270,32 @@ async def _insert_failed_row(
             regraded_to_id=uuid.UUID(regraded_to_id) if regraded_to_id else None,
         )
         db.add(graded_test)
+        if regraded_to_id is not None:
+            # See _insert_approved_row: the deferrable FK checks at COMMIT —
+            # the successor must be a real row (extend_chain's shape).
+            db.add(GradedTest(
+                id=uuid.UUID(regraded_to_id),
+                user_id=uuid.UUID(user_id),
+                rubric_id=uuid.UUID(rubric_id),
+                transcription_id=transcription_id,
+                student_id=student_id,
+                rubric_contract_version="failed-version-s10",
+                student_name="Test Student S10 Failed",
+                filename="stub.pdf",
+                status="pending",
+                regraded_from_id=graded_test_id,
+            ))
         await db.commit()
         return str(graded_test_id), str(transcription_id)
 
 
 async def _fetch_row(graded_test_id: str) -> dict:
     """Fetch a GradedTest row and return a plain dict of its key fields."""
-    from app.database import AsyncSessionLocal
+    from tests.api.test_batch_grading import _fresh_loop_session
     from app.models.grading import GradedTest
     import uuid
 
-    async with AsyncSessionLocal() as db:
+    async with _fresh_loop_session() as db:
         row: GradedTest = await db.get(GradedTest, uuid.UUID(graded_test_id))
         if row is None:
             return {}
@@ -272,12 +313,12 @@ async def _fetch_row(graded_test_id: str) -> dict:
 
 async def _delete_row_cascade(graded_test_id: str) -> None:
     """Delete a graded_test row (and its orphaned student/transcription siblings)."""
-    from app.database import AsyncSessionLocal
+    from tests.api.test_batch_grading import _fresh_loop_session
     from app.models.grading import GradedTest
     from sqlalchemy import delete
     import uuid
 
-    async with AsyncSessionLocal() as db:
+    async with _fresh_loop_session() as db:
         await db.execute(delete(GradedTest).where(GradedTest.id == uuid.UUID(graded_test_id)))
         await db.commit()
 
@@ -365,7 +406,7 @@ def test_no_two_leaf_violation_on_regrade(client, stale_approved_leaf):
     """
     gid, headers = stale_approved_leaf
 
-    with patch("app.api.v0.grading.run_grading", new=AsyncMock()):
+    with patch("app.api.v0.grading.enqueue_grading_task_or_log", new=AsyncMock()):
         resp = client.post(f"/api/v0/grading/graded_test/{gid}/regrade", headers=headers)
 
     assert resp.status_code == 200, resp.text
@@ -381,7 +422,7 @@ def test_no_two_leaf_violation_on_manual_edit(client, stale_approved_leaf):
 @pytest.mark.integration
 def test_no_two_leaf_violation_on_retry(client, failed_leaf):
     gid, headers = failed_leaf
-    with patch("app.api.v0.grading.run_grading", new=AsyncMock()):
+    with patch("app.api.v0.grading.enqueue_grading_task_or_log", new=AsyncMock()):
         resp = client.post(f"/api/v0/grading/graded_test/{gid}/retry", headers=headers)
     assert resp.status_code == 200, resp.text
 
@@ -394,7 +435,7 @@ def test_no_two_leaf_violation_on_retry(client, failed_leaf):
 def test_exactly_one_leaf_after_regrade(client, stale_approved_leaf):
     gid, headers = stale_approved_leaf
 
-    with patch("app.api.v0.grading.run_grading", new=AsyncMock()):
+    with patch("app.api.v0.grading.enqueue_grading_task_or_log", new=AsyncMock()):
         resp = client.post(f"/api/v0/grading/graded_test/{gid}/regrade", headers=headers)
     assert resp.status_code == 200
     r2_id = resp.json()["graded_test_id"]
@@ -466,7 +507,7 @@ def test_history_immutable_after_manual_edit(client, stale_approved_leaf):
 def test_bidirectional_links_after_regrade(client, stale_approved_leaf):
     gid, headers = stale_approved_leaf
 
-    with patch("app.api.v0.grading.run_grading", new=AsyncMock()):
+    with patch("app.api.v0.grading.enqueue_grading_task_or_log", new=AsyncMock()):
         resp = client.post(f"/api/v0/grading/graded_test/{gid}/regrade", headers=headers)
     assert resp.status_code == 200
     r2_id = resp.json()["graded_test_id"]
@@ -534,7 +575,7 @@ def test_regrade_409_on_non_leaf(client, user_a, rubric_a, headers_a):
 
 @pytest.mark.integration
 def test_regrade_returns_pending_and_fires_agent(client, stale_approved_leaf):
-    """Regrade response has status='pending' and run_grading is invoked with R2.id."""
+    """Regrade response has status='pending' and the grading enqueue fires with R2.id."""
     gid, headers = stale_approved_leaf
 
     fired_with: list[str] = []
@@ -542,7 +583,8 @@ def test_regrade_returns_pending_and_fires_agent(client, stale_approved_leaf):
     async def capture_run_grading(graded_test_id):
         fired_with.append(str(graded_test_id))
 
-    with patch("app.api.v0.grading.run_grading", side_effect=capture_run_grading):
+    with patch("app.api.v0.grading.enqueue_grading_task_or_log",
+               side_effect=capture_run_grading):
         resp = client.post(f"/api/v0/grading/graded_test/{gid}/regrade", headers=headers)
 
     assert resp.status_code == 200
@@ -561,7 +603,7 @@ def test_regrade_r2_pins_new_rubric_contract_version(client, stale_approved_leaf
     """R2 must pin the rubric's CURRENT contract_version, not the stale one."""
     gid, headers = stale_approved_leaf
 
-    with patch("app.api.v0.grading.run_grading", new=AsyncMock()):
+    with patch("app.api.v0.grading.enqueue_grading_task_or_log", new=AsyncMock()):
         resp = client.post(f"/api/v0/grading/graded_test/{gid}/regrade", headers=headers)
     assert resp.status_code == 200
     r2_id = resp.json()["graded_test_id"]
@@ -642,7 +684,8 @@ def test_manual_edit_carries_draft_json_verbatim(client, stale_approved_leaf):
     async def should_not_fire(graded_test_id):
         fired.append(graded_test_id)
 
-    with patch("app.api.v0.grading.run_grading", side_effect=should_not_fire):
+    with patch("app.api.v0.grading.enqueue_grading_task_or_log",
+               side_effect=should_not_fire):
         resp = client.post(f"/api/v0/grading/graded_test/{gid}/manual_edit", headers=headers)
 
     assert resp.status_code == 200
@@ -713,7 +756,8 @@ def test_retry_fires_agent(client, failed_leaf):
     async def capture(graded_test_id):
         fired_with.append(str(graded_test_id))
 
-    with patch("app.api.v0.grading.run_grading", side_effect=capture):
+    with patch("app.api.v0.grading.enqueue_grading_task_or_log",
+               side_effect=capture):
         resp = client.post(f"/api/v0/grading/graded_test/{gid}/retry", headers=headers)
 
     assert resp.status_code == 200
@@ -721,7 +765,7 @@ def test_retry_fires_agent(client, failed_leaf):
     assert body["status"] == "pending"
     r2_id = body["graded_test_id"]
 
-    assert fired_with == [r2_id], "run_grading should be called with the new row's id"
+    assert fired_with == [r2_id], "the grading enqueue should fire with the new row's id"
 
     asyncio.run(_delete_row_cascade(r2_id))
 

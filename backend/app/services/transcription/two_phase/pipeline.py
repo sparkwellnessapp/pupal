@@ -41,9 +41,11 @@ from .parsing import ExamSpec, parse_model_json
 from .prompts import (
     P1_SCHEMA,
     P2_SCHEMA,
+    P2_SPAN_SYSTEM,
     TRANSCRIPTION_PROMPT_VERSION,
     P1_SYSTEM,
     p1_user_prompt,
+    p2_span_user_prompt,
     p2_system_prompt,
     p2_user_prompt,
 )
@@ -102,7 +104,32 @@ class PipelineConfig:
     p1_image_packing: str = "multi_image"  # multi_image | stitched
     dpi: int = 200
     image_max_px: int = 2000              # longest-edge resize, no enhancement in v0
-    p1_max_tokens: int = 3000             # scaled by pages-per-call at call time
+    p1_max_tokens: int = 4000             # scaled by pages-per-call at call time
+    # Post-P1 crossed-out-ink verification pass (strike_check.py); empty =
+    # disabled. One cheap single-image call per nonempty page asks which
+    # already-transcribed lines are struck through; a deterministic post-pass
+    # DELETES flagged lines (never edits). Fail-safe: checker failure keeps
+    # the page unchanged. P1 itself is untouched (its strike-prompt surface is
+    # exhausted — t1.3/t1.3b kill, prompts.py note).
+    p1_strike_check_model_key: str = ""
+    p1_strike_check_max_tokens: int = 4000
+    # Discard checker ranges spanning fewer lines than this (sc1.2 guard):
+    # the observed false-positive class is single kept lines with an inline
+    # scribbled-out word; the leak class is multi-line blocks. 1 disables.
+    p1_strike_check_min_block_lines: int = 2
+    # Concurrent checker calls per page; deletions are the UNION of the votes'
+    # (guard-filtered) ranges. Single-call block recall measured ~0.8-0.9
+    # (sc1.1: 4/4, sc1.0: 1/2) — union-of-2 squares the miss rate for
+    # +~$0.003/doc and no added wall time. False-union risk is bounded: no
+    # false >=2-line range has fired in any live run; the guard applies per
+    # range regardless of vote count.
+    p1_strike_check_votes: int = 1
+    # Longest-edge resize for the CHECKER's image only; 0 = reuse image_max_px.
+    # Strike marks are coarse, page-scale features (long diagonals across a
+    # block), so the checker does not need P1's character-level resolution —
+    # and the checker's cost is almost entirely image input tokens. Halving
+    # the edge quarters those tokens.
+    p1_strike_check_image_max_px: int = 0
     # Trust layer (cross-reader disagreement flags); empty = disabled
     reader_model_keys: tuple[str, ...] = ()
     reader_image_max_px: int = 2000       # readers may run cheaper/smaller images
@@ -113,6 +140,20 @@ class PipelineConfig:
     p2_model_key: str = ""                # empty => Phase 2 disabled (p1_only runs)
     correction_policy: str = "off"        # off | impossible | spec  (deterministic post-pass)
     p2_max_tokens: int = 8000
+    # OpenAI reasoning-effort for the P2 call ("minimal"|"low"|"medium"|"high");
+    # empty = provider default. Caps hidden reasoning tokens, which spend the
+    # max_completion_tokens budget BEFORE the visible answer (the P2 'length'
+    # truncation mode). Non-OpenAI P2 providers accept and ignore it.
+    p2_reasoning_effort: str = ""
+    # P2 output contract: "text" (legacy generative — model re-emits answer
+    # text) | "spans" (2026-08-11 redesign — model references numbered input
+    # lines; the harness slices text verbatim; see spans.py). "text" is the
+    # revert path while spans is under evaluation.
+    p2_output_contract: str = "text"
+    # Wire encoding for page images. "png" (default, historical) | "jpeg".
+    # Providers sniff the mime from the bytes, so this needs no adapter change.
+    image_format: str = "png"
+    image_jpeg_quality: int = 90
     # Shared
     temperature: float = 0.0
     use_json_schema: bool = True          # the L3 experiment is this single flip
@@ -152,8 +193,25 @@ def _resize(img: Image.Image, max_px: int) -> Image.Image:
 
 
 def _to_b64_png(img: Image.Image) -> str:
+    """PNG encode. Retained as the name several call sites/tests know."""
+    return _to_b64_image(img, "png")
+
+
+def _to_b64_image(img: Image.Image, fmt: str = "png", jpeg_quality: int = 90) -> str:
+    """Encode a page image for the wire.
+
+    PNG is the worst available choice for the photographic scans this pipeline
+    actually receives: measured on a 6-page doc it costs 1269ms to encode and
+    12.65MB of upload, against 92ms / 3.08MB for JPEG q90 — and since the
+    strike-check pass every page is uploaded TWICE. Providers derive the mime
+    type from these bytes (vlm_provider.image_mime_for), so the format is a
+    pipeline decision no adapter has to be told about."""
     buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
+    rgb = img.convert("RGB")
+    if fmt.lower() in ("jpeg", "jpg"):
+        rgb.save(buf, format="JPEG", quality=jpeg_quality)
+    else:
+        rgb.save(buf, format="PNG")
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
@@ -283,10 +341,11 @@ class Pipeline:
                  trace.doc_id, phase, page_numbers, len(images))
         with timer.span("image_encode"):
             resized = [_resize(img, max_px) for img in images]
+            enc = lambda im: _to_b64_image(im, cfg.image_format, cfg.image_jpeg_quality)
             if cfg.p1_image_packing == "stitched" and len(resized) > 1:
-                images_b64 = [_to_b64_png(_stitch(resized))]
+                images_b64 = [enc(_stitch(resized))]
             else:
-                images_b64 = [_to_b64_png(img) for img in resized]
+                images_b64 = [enc(img) for img in resized]
 
         user = p1_user_prompt(page_numbers, cfg.p1_image_packing)
         schema = P1_SCHEMA if (cfg.use_json_schema and ms.supports_json_schema) else None
@@ -372,9 +431,132 @@ class Pipeline:
                  doc_id, self.cfg.dpi, len(pdf_bytes) / 1024)
         images = await self.render(pdf_bytes, trace)
         log.info("[%s] pdf_render done: %d page(s)", doc_id, len(images))
+        pages = await self.perceive(images, doc_id, doc_priority, trace)
+        return pages, trace
+
+    async def perceive(
+        self,
+        images: list[Image.Image],
+        doc_id: str,
+        doc_priority: int,
+        trace: Trace,
+    ) -> dict[int, str]:
+        """THE perception entry point: P1 transcription + the post-P1
+        strike-check pass.
+
+        Both callers go through here — `run_phase1` (eval `p1_only`) and
+        `trust.run_with_trust` (the PRODUCTION path, which calls
+        `_transcribe_pages` directly and does NOT use run_phase1). The
+        strike-check hook originally lived in run_phase1 alone, which meant
+        enabling it in PROD_CONFIG changed nothing in production while working
+        perfectly in the eval suite — a silent eval-vs-prod divergence. Keeping
+        perception in one method is what stops that recurring; pinned by
+        tests/transcription_eval_suit/test_strike_check.py::
+        test_trust_path_runs_the_strike_check_too.
+        """
         pages = await self._transcribe_pages(images, doc_id, doc_priority, trace)
         log.info("[%s] phase1 done: %d page(s) transcribed", doc_id, len(pages))
-        return pages, trace
+        if self.cfg.p1_strike_check_model_key:
+            pages = await self._strike_check_pages(
+                images, pages, doc_id, doc_priority, trace)
+        return pages
+
+    async def _strike_check_pages(
+        self,
+        images: list[Image.Image],
+        pages: dict[int, str],
+        doc_id: str,
+        doc_priority: int,
+        trace: Trace,
+    ) -> dict[int, str]:
+        """Post-P1 verification: per nonempty page, ask the checker model which
+        transcribed lines are crossed out in the ink, then delete exactly those
+        lines (strike_check.py). Concurrent across pages; per-page fail-safe —
+        any failure keeps that page's text unchanged (never a thrown doc)."""
+        from .strike_check import (
+            STRIKE_CHECK_SCHEMA,
+            STRIKE_CHECK_SYSTEM,
+            apply_struck_ranges,
+            strike_check_user_prompt,
+        )
+        cfg = self.cfg
+        key = cfg.p1_strike_check_model_key
+        ms = self._resolve(key)
+        provider = self._providers[ms.provider]
+        schema = (STRIKE_CHECK_SCHEMA
+                  if (cfg.use_json_schema and ms.supports_json_schema) else None)
+        targets = [n for n in sorted(pages) if pages[n].strip()]
+        if not targets:
+            return pages
+        log.info("[%s] strike_check: verifying %d page(s) with %s",
+                 doc_id, len(targets), ms.model_id)
+
+        votes = max(1, cfg.p1_strike_check_votes)
+
+        async def one_vote(n: int, b64: str, user: str, vote: int) -> list:
+            """One checker call; returns its reported ranges ([] on failure)."""
+            try:
+                def make_call():
+                    return provider.complete(
+                        system=STRIKE_CHECK_SYSTEM, user=user, images_b64=[b64],
+                        max_tokens=cfg.p1_strike_check_max_tokens,
+                        temperature=cfg.temperature,
+                        json_schema=schema, timeout_s=cfg.timeout_s,
+                    )
+
+                label = (f"strike_check page={n}" if votes == 1
+                         else f"strike_check page={n} vote={vote}")
+                ok, data = await self._call_parsed(
+                    phase="strike_check", model_key=key,
+                    doc_priority=doc_priority, trace=trace,
+                    required_keys=("struck_line_ranges",), make_call=make_call,
+                    label=label,
+                )
+                ranges = data.get("struck_line_ranges", []) if ok else []
+                return ranges if isinstance(ranges, list) else []
+            except Exception:  # noqa: BLE001 — checker must never sink the doc
+                log.warning("[%s] strike_check page %d vote %d failed; "
+                            "casting no ranges", doc_id, n, vote, exc_info=True)
+                return []
+
+        async def one(n: int) -> tuple[int, str]:
+            text = pages[n]
+            try:
+                timer = StageTimer(trace)
+                with timer.span("strike_encode"):
+                    max_px = (cfg.p1_strike_check_image_max_px
+                              or cfg.image_max_px)
+                    b64 = _to_b64_image(_resize(images[n - 1], max_px),
+                                        cfg.image_format, cfg.image_jpeg_quality)
+                user = strike_check_user_prompt(n, text)
+                vote_ranges = await asyncio.gather(
+                    *(one_vote(n, b64, user, v) for v in range(1, votes + 1)))
+                # UNION of the votes' reports; the min-block guard applies to
+                # every range regardless of which vote cast it.
+                combined = [r for ranges in vote_ranges for r in ranges]
+                new_text, removed = apply_struck_ranges(
+                    text, combined,
+                    min_block_lines=cfg.p1_strike_check_min_block_lines)
+                if removed:
+                    log.info(
+                        "[%s] strike_check page %d: removed %d struck line(s): %s",
+                        doc_id, n, len(removed),
+                        " | ".join(ln.strip()[:60] for ln in removed[:5]))
+                elif combined:
+                    log.info(
+                        "[%s] strike_check page %d: %d range(s) reported, all "
+                        "discarded by validation/min-block guard", doc_id, n,
+                        len(combined))
+                return n, new_text
+            except Exception:  # noqa: BLE001 — checker must never sink the doc
+                log.warning("[%s] strike_check page %d failed; keeping text",
+                            doc_id, n, exc_info=True)
+                return n, text
+
+        results = await asyncio.gather(*(one(n) for n in targets))
+        out = dict(pages)
+        out.update(dict(results))
+        return out
 
     async def run_readers(
         self,
@@ -418,8 +600,23 @@ class Pipeline:
             raise ValueError("Phase 2 requested but p2_model_key is empty (p1_only config).")
         ms = self._resolve(cfg.p2_model_key)
         provider = self._providers[ms.provider]
-        log.info("[%s] phase2 start: %d page(s) -> %s (timeout=%.0fs)",
-                 doc_id, len(pages), ms.model_id, cfg.timeout_s)
+        log.info("[%s] phase2 start: %d page(s) -> %s (contract=%s, timeout=%.0fs)",
+                 doc_id, len(pages), ms.model_id, cfg.p2_output_contract,
+                 cfg.timeout_s)
+
+        if cfg.p2_output_contract == "spans":
+            answers, notes = await self._phase2_spans(
+                pages, exam_spec, doc_priority, trace, ms, provider)
+            corrected_answers, corrections, mismatches = self._apply_corrections(
+                answers, exam_spec, trace
+            )
+            return PipelineRun(
+                pages=pages, answers=answers,
+                spec_mismatches=tuple(mismatches), routing_notes=notes,
+                trace=trace, corrected_answers=corrected_answers,
+                corrections=tuple(corrections),
+            )
+
         system = p2_system_prompt()
         user = p2_user_prompt(pages, exam_spec.to_prompt_json())
         schema = P2_SCHEMA if (cfg.use_json_schema and ms.supports_json_schema) else None
@@ -429,6 +626,7 @@ class Pipeline:
                 system=system, user=user, images_b64=None,
                 max_tokens=cfg.p2_max_tokens, temperature=cfg.temperature,
                 json_schema=schema, timeout_s=cfg.timeout_s,
+                reasoning_effort=cfg.p2_reasoning_effort or None,
             )
 
         ok, data = await self._call_parsed(
@@ -461,6 +659,83 @@ class Pipeline:
             spec_mismatches=tuple(mismatches), routing_notes=notes, trace=trace,
             corrected_answers=corrected_answers, corrections=tuple(corrections),
         )
+
+    async def _phase2_spans(
+        self,
+        pages: dict[int, str],
+        exam_spec: ExamSpec,
+        doc_priority: int,
+        trace: Trace,
+        ms,
+        provider,
+    ) -> tuple[dict[Key, str], tuple[str, ...]]:
+        """The span contract (spans.py): model emits line references; the
+        harness slices text verbatim and VALIDATES the partition.
+
+        A parseable-but-contract-invalid map gets ONE visible re-request (a
+        separate call record — parse_ok stays honest, so the gate's
+        parse_failure validity check is untouched); a second bad map degrades
+        to the deterministic salvage slice with every resolution recorded in
+        routing_notes. Never throws."""
+        from .spans import (
+            build_span_schema, numbered_pages_block, parse_and_slice,
+            spec_targets,
+        )
+        cfg = self.cfg
+        targets = spec_targets(exam_spec)
+        numbered = numbered_pages_block(pages)
+        system = P2_SPAN_SYSTEM
+        user = p2_span_user_prompt(numbered, exam_spec.to_prompt_json())
+        schema = (build_span_schema(targets)
+                  if (cfg.use_json_schema and ms.supports_json_schema) else None)
+
+        def _mk(user_text: str):
+            def make_call():
+                return provider.complete(
+                    system=system, user=user_text, images_b64=None,
+                    max_tokens=cfg.p2_max_tokens, temperature=cfg.temperature,
+                    json_schema=schema, timeout_s=cfg.timeout_s,
+                    reasoning_effort=cfg.p2_reasoning_effort or None,
+                )
+            return make_call
+
+        results = []
+        attempt_user = user
+        for attempt_label in ("p2", "p2-remap"):
+            ok, data = await self._call_parsed(
+                phase="p2", model_key=cfg.p2_model_key,
+                doc_priority=doc_priority, trace=trace,
+                required_keys=("assignments",), make_call=_mk(attempt_user),
+                label=attempt_label,
+            )
+            if not ok:
+                break                       # parse layer already retried once
+            with StageTimer(trace).span("merge"):
+                result = parse_and_slice(data, pages, targets)
+            results.append(result)
+            if result.ok:
+                break
+            log.info("[%s] %s: span map contract-invalid (%d problem(s): %s)",
+                     trace.doc_id, attempt_label, len(result.problems),
+                     "; ".join(result.problems[:4]))
+            # Targeted repair: name the violations, demand a full corrected map.
+            attempt_user = (
+                f"{user}\n\nYOUR PREVIOUS ASSIGNMENT MAP VIOLATED THE CONTRACT:\n"
+                + "\n".join(f"- {p}" for p in result.problems[:12])
+                + "\nRe-emit the FULL corrected assignment map (every target "
+                  "exactly once, spans disjoint and in range)."
+            )
+
+        if not results:
+            # Unparseable twice — degraded empty map; coverage fails loudly.
+            return ({t.key: "" for t in targets},
+                    ("span_contract: no parseable assignment map",))
+
+        best = min(results, key=lambda r: len(r.problems))
+        notes = list(best.notes)
+        for p in best.problems:
+            notes.append(f"span_contract: {p} (salvaged deterministically)")
+        return best.answers, tuple(notes)
 
     def _apply_corrections(self, answers, exam_spec, trace):
         """Run the deterministic corrector over each answer; collect evidence.

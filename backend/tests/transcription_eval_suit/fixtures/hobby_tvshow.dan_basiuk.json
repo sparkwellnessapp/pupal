@@ -1,0 +1,9 @@
+{
+ "exam_spec": "exams/hobby_tvshow.json",
+ "provenance": {
+  "exam": "תשפ\"ו כיתה יא' מחצית ב' מבחן 1 — Hobby / TvShow",
+  "student": "dan_basiuk",
+  "rubric_source": "rubrics.id=0b621e6d-5895-45c8-9f6d-0adaae8affa9 (draft_json export)",
+  "note": "seed fixture; doc_id prefixed with its exam 2026-08-29"
+ }
+}

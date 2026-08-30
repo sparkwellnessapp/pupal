@@ -16,9 +16,11 @@ from uuid import uuid4
 
 import pytest
 
+from contextlib import asynccontextmanager
+
 from app.schemas.gradable import GradableCriterion, GradableScope, GradableTest, UnmatchedAnswer
 from app.schemas.graded_test_draft import GradedTestDraft, ScopeOutcome
-from app.services.grading_runner import _compute_cost, _do_grade
+from app.services.grading_runner import _claim_grading, _compute_cost, _do_grade, run_grading
 
 
 # ---------------------------------------------------------------------------
@@ -169,8 +171,13 @@ MINIMAL_TRANSCRIPTION_CONTRACT_JSON = {
 # ---------------------------------------------------------------------------
 
 async def test_happy_path_pending_to_draft():
+    """_do_grade owns ONLY grading→draft since the Cloud-Tasks CAS migration:
+    the claim (pending→grading + grading_started_at) is commit 1 in
+    _claim_grading; _do_grade fires exactly one commit. (Expectation updated
+    2026-08-17, P1 harness chore — the old '2 commits' asserted the pre-CAS
+    choreography.)"""
     graded_test_id = uuid4()
-    gt_obj = _make_graded_test_obj(graded_test_id, "pending")
+    gt_obj = _make_graded_test_obj(graded_test_id, "grading")   # post-claim state
     db = _make_db_mock(gt_obj, MINIMAL_TRANSCRIPTION_CONTRACT_JSON, MINIMAL_RUBRIC_CONTRACT_JSON)
 
     draft = _make_draft([("q1", "10", "7")])
@@ -182,48 +189,37 @@ async def test_happy_path_pending_to_draft():
 
         await _do_grade(db, graded_test_id)
 
-    # Both commits fired
-    assert db.commit.call_count == 2
+    # Exactly ONE commit: grading → draft.
+    assert db.commit.call_count == 1
 
     # Row advanced to 'draft' with draft_json set
     assert gt_obj.status == "draft"
     assert gt_obj.draft_json is not None
-    assert gt_obj.grading_started_at is not None
     assert gt_obj.draft_created_at is not None
 
 
 # ---------------------------------------------------------------------------
-# Test 2 — Status transition committed: grading_started_at set on first commit
+# Test 2 — The CAS claim IS commit 1 (rewritten 2026-08-17, P1 harness chore:
+# pending→grading + grading_started_at moved from _do_grade into
+# _claim_grading with the Cloud-Tasks migration; the real UPDATE's values are
+# integration-covered by the accept→pending→CAS seam tests).
 # ---------------------------------------------------------------------------
 
-async def test_grading_started_at_set_on_first_commit():
-    graded_test_id = uuid4()
-    gt_obj = _make_graded_test_obj(graded_test_id, "pending")
+async def test_claim_commits_once_and_reports_outcome():
+    db = AsyncMock()
+    won = MagicMock()
+    won.rowcount = 1
+    db.execute = AsyncMock(return_value=won)
+    db.commit = AsyncMock()
+    assert await _claim_grading(db, uuid4()) is True
+    assert db.commit.call_count == 1                  # the claim IS a commit
 
-    first_commit_status = {}
-
-    async def _capture_first_commit():
-        if "first" not in first_commit_status:
-            first_commit_status["first"] = {
-                "status": gt_obj.status,
-                "grading_started_at": gt_obj.grading_started_at,
-            }
-
-    db = _make_db_mock(gt_obj, MINIMAL_TRANSCRIPTION_CONTRACT_JSON, MINIMAL_RUBRIC_CONTRACT_JSON)
-    db.commit = AsyncMock(side_effect=_capture_first_commit)
-
-    draft = _make_draft([("q1", "10", "7")])
-
-    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
-        mock_agent_instance = AsyncMock()
-        mock_agent_instance.grade = AsyncMock(return_value=draft)
-        MockAgent.return_value = mock_agent_instance
-
-        await _do_grade(db, graded_test_id)
-
-    # On first commit, status was 'grading' and grading_started_at was set
-    assert first_commit_status["first"]["status"] == "grading"
-    assert first_commit_status["first"]["grading_started_at"] is not None
+    lost = MagicMock()
+    lost.rowcount = 0
+    db.execute = AsyncMock(return_value=lost)
+    db.commit.reset_mock()
+    assert await _claim_grading(db, uuid4()) is False  # duplicate delivery
+    assert db.commit.call_count == 1                  # idempotent no-op commit
 
 
 # ---------------------------------------------------------------------------
@@ -250,21 +246,29 @@ async def test_failed_path_sets_error_message():
 
 
 # ---------------------------------------------------------------------------
-# Test 4 — Idempotency: row already 'draft' → aborts without re-grading
+# Test 4 — Idempotency (rewritten 2026-08-17, P1 harness chore): the guard
+# moved from a _do_grade status check to run_grading's CAS — a duplicate
+# delivery loses the claim (rowcount 0) and never constructs the agent.
 # ---------------------------------------------------------------------------
 
-async def test_idempotency_already_draft():
-    graded_test_id = uuid4()
-    gt_obj = _make_graded_test_obj(graded_test_id, "draft")
-    gt_obj.draft_json = {"schema_version": "1.0"}  # already has a draft
-    db = _make_db_mock(gt_obj, MINIMAL_TRANSCRIPTION_CONTRACT_JSON, MINIMAL_RUBRIC_CONTRACT_JSON)
+async def test_idempotency_duplicate_delivery_noop():
+    db = AsyncMock()
+    lost = MagicMock()
+    lost.rowcount = 0
+    db.execute = AsyncMock(return_value=lost)
+    db.commit = AsyncMock()
 
-    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
-        await _do_grade(db, graded_test_id)
-        MockAgent.assert_not_called()
+    @asynccontextmanager
+    async def _ctx():
+        yield db
 
-    # No commits fired
-    assert db.commit.call_count == 0
+    with patch("app.services.grading_runner.get_db_context", _ctx), \
+         patch("app.services.grading_runner.GraderAgent") as MockAgent:
+        ran = await run_grading(uuid4())
+
+    assert ran is False
+    MockAgent.assert_not_called()
+    assert db.commit.call_count == 1                  # the CAS's no-op commit only
 
 
 # ---------------------------------------------------------------------------

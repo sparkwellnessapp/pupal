@@ -178,6 +178,41 @@ def spec_from_rubric_draft(path: str | Path) -> ExamSpec:
     return spec_from_rubric_draft_data(data, name=p.stem)
 
 
+def first_str(d: dict, keys: tuple[str, ...]) -> str:
+    """First non-blank string among `keys`. Module-level so the signature
+    composer and the draft adapter share ONE definition of "this field has text"."""
+    for k in keys:
+        v = d.get(k)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    return ""
+
+
+def _signature_from_children(sub_question: dict) -> str:
+    """Compose a text-less sub-question's routing signature from its children.
+
+    WHY: transcription segments to DEPTH 1 — a key is (question, sub-question),
+    and the sub-question's text is what P2 routes by. A rubric that nests two
+    levels puts the prompt on the GRANDCHILDREN and leaves the depth-1 node's
+    own `text` null (bagrut_899371: `q1.א` is null, while `q1.א.1` carries the
+    678-char "לפניכם הפעולה Check…"). Reading depth 1 only handed P2 a bare
+    letter, which is exactly the "guess the order" condition behind the omer
+    Q2.ב↔ג swap — for a whole question, silently.
+
+    The composition is CONCATENATION ONLY: the children's own text in document
+    order, nothing invented. It never overrides a node that has its own text,
+    so every currently-routable rubric is byte-identical. Depth-1 children are
+    enough — the prompt text lives there in practice, and an unbounded walk
+    would bury the discriminating method name past `_SIG_CAP`.
+    """
+    parts = [
+        first_str(child, ("text", "question_text", "description", "name", "title"))
+        for child in sub_question.get("sub_questions") or []
+        if isinstance(child, dict)
+    ]
+    return " ".join(p for p in parts if p).strip()
+
+
 def spec_from_rubric_draft_data(data: dict, *, name: str) -> ExamSpec:
     """Best-effort ExamSpec from a rubric draft_json dict (ExtractRubricResponse-ish).
 
@@ -192,13 +227,6 @@ def spec_from_rubric_draft_data(data: dict, *, name: str) -> ExamSpec:
             f"{name}: expected a top-level 'questions' list in the rubric "
             f"draft_json; found keys {sorted(data) if isinstance(data, dict) else type(data)}."
         )
-
-    def first_str(d: dict, keys: tuple[str, ...]) -> str:
-        for k in keys:
-            v = d.get(k)
-            if isinstance(v, str) and v.strip():
-                return v.strip()
-        return ""
 
     questions: list[ExamQuestion] = []
     for i, q in enumerate(qs, start=1):
@@ -219,6 +247,8 @@ def spec_from_rubric_draft_data(data: dict, *, name: str) -> ExamSpec:
                     # ..."). This is the per-sub-question signal P2 needs to route
                     # `ב` vs `ג` by content instead of guessing order.
                     sig = first_str(sq, ("text", "question_text", "description", "name", "title"))
+                    if not sig:
+                        sig = _signature_from_children(sq)
                     subs.append(ExamSubQuestion(id=label, signature=sig[:_SIG_CAP]))
         context = first_str(q, ("name", "title", "question_text", "description"))[:_CONTEXT_CAP]
         questions.append(ExamQuestion(

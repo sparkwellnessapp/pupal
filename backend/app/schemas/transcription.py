@@ -31,6 +31,7 @@ class TranscriptionAnnotation(BaseModel):
         "vlm_low_logprob",       # S11: logprob span-min below threshold
         "reader_disagreement",   # trust layer: independent readers read this span differently
         "code_lint",             # trust layer: deterministic code check (brace balance)
+        "segmentation_mismatch",  # student's leading marker contradicts the P2-assigned key
     ]
     message: str  # Hebrew, user-facing
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -56,6 +57,22 @@ class TranscriptionDraft(BaseModel):
     annotations: List[TranscriptionAnnotation] = Field(default_factory=list)
     model_version: Optional[str] = None
     transcription_duration_ms: Optional[int] = None
+
+
+# ---------------------------------------------------------------------------
+# Selection expectation (review-surface auxiliary — NOT part of the draft)
+# ---------------------------------------------------------------------------
+
+class AnswerSpaceSelectionGroup(BaseModel):
+    """A rubric SelectionGroup translated into transcription-answer space.
+
+    `of_question_ids` ('q1', 'q2', …) become the `question_number` ints the
+    transcription answers actually carry, so review surfaces and triage can
+    reason about "choose k of N" without knowing the rubric's shape. Derived
+    at read time by `selection_expectation.answer_space_groups` — never
+    persisted (the rubric contract stays the single source)."""
+    choose_k: int
+    question_numbers: List[int]
 
 
 # ---------------------------------------------------------------------------

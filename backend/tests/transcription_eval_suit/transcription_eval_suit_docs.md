@@ -186,9 +186,13 @@ target (never refuse / never all-empty). Output includes a `segmentation_plan`,
 | `report.py` | `write_summary` (the one-screen scoreboard) + `write_doc_report` (per-answer/page gold\|pred diffs). |
 | `instrument.py` | `Trace`, `CallRecord`, `Span`, `cost_usd`, `PriceCard` — timing + cost accounting. |
 | `models_registry.py` | The model registry: key → provider/model_id/`PriceCard`/tier/capabilities. The only file that rots when prices/models change. |
+| `exam_resolution.py` | **Which exam does a fixture answer, and which profile scores it.** Per-doc: `fixtures/<doc_id>.json` manifest → `exams/<exam_id>.json`, else the run-level `--exam-spec` fallback (today's behaviour). Every failure is loud. Also `spec_keys(spec)` — the answer keys an exam declares, which the GT must match. |
+| `profiles.py` | The critical-token profile registry: name → `CriticalProfile` (`java_bagrut`). Separate from `critical_tokens.py` on purpose — that file is §17.7 STOP-listed; a name→object map is plumbing, not measurement. |
 | `configs/*.json` | Named `PipelineConfig` presets (`v0`, `v0_p1_only`, `v0_p2_correct_spec`). |
-| `pdfs/`, `raw_benchmarks/`, `draft_benchmarks/` | The 5 fixtures: source PDF + raw GT + draft GT, one file each, stem = `doc_id`. |
-| `draft.json` | The rubric draft used as the exam spec (`--exam-spec draft.json`). |
+| `pdfs/`, `raw_benchmarks/`, `draft_benchmarks/` | The fixtures: source PDF + raw GT + draft GT, one file each, stem = `doc_id`. |
+| `exams/<exam_id>.json` | The exam artifacts — ONE per exam, shared by all its fixtures (a rubric `draft_json` export, or a canonical harness spec). |
+| `fixtures/<doc_id>.json` | Per-fixture manifest: which exam this fixture answers, and (optionally) which profile scores it. Absent ⇒ the `--exam-spec` fallback. Carries only what the tree cannot state. |
+| `draft.json` | The seed corpus's exam spec, still the `--exam-spec` fallback (`check_goal.sh` default). Copied to `exams/hobby_tvshow.json`; both are kept so every historical invocation stays reproducible. |
 | `results/<ts>_<config>/` | Per-run artifacts (gitignored — they contain student text). |
 | `RUNLOG.md` | One line per run: the append-only history of what changed and what it did. |
 | `p1_eval_playbook.md`, `P2_EVAL_PLAYBOOK.md` | The analysis procedures. |
@@ -374,6 +378,17 @@ e.g. `-preview` suffixes). Cost is computed from provider-reported `Usage` × th
 (`instrument.cost_usd`), honoring cached-input rates. **This is the only file that
 rots when a provider changes prices/models.**
 
+**MOVED 2026-08-23:** the definition now lives at `tests/eval_common/models_registry.py`,
+SHARED with the rubric eval suite (one registry, one `model_key` vocabulary across both
+suites' results artifacts — the cross-suite join key for per-model metrics). This suite's
+`models_registry.py` is a re-export shim (the same idiom as `instrument.py`/`prompts.py`),
+so every historical import path, config, and CallRecord is unchanged. **Edit prices/models
+in `eval_common`, never in the shim**; the shared invariants (self-consistent keys, every
+config key of BOTH suites resolves offline) are pinned by
+`tests/eval_common/test_models_registry.py`. `tier` is vendor positioning, not suite
+economics — this suite's $0.05–$0.08/doc gate lives in its runner constants, the rubric
+suite's ceilings in its configs.
+
 ---
 
 ## 10. Artifacts produced per run
@@ -416,8 +431,10 @@ python -m tests.transcription_eval_suit.runner --config v0_p1_only --mode p1_onl
 # Phase-2 segmentation in isolation (gold pages → P2):
 python -m tests.transcription_eval_suit.runner --config v0 --mode p2_only --exam-spec draft.json
 
-# Full end-to-end SHIP GATE over the 5 fixtures:
+# Full end-to-end SHIP GATE over every fixture:
 python -m tests.transcription_eval_suit.runner --config v0 --mode per_doc --exam-spec draft.json
+#   --exam-spec is a FALLBACK: fixtures carrying a fixtures/<doc_id>.json manifest use
+#   their own exam, so ONE run may span several exams (results.json + summary.md say which).
 
 # Throughput/latency under load (replicate the 5 fixtures to 25, concurrent):
 python -m tests.transcription_eval_suit.runner --config v0 --mode batch --batch-size 25 --exam-spec draft.json
@@ -426,6 +443,14 @@ Flags: `--config` (required), `--mode` (`per_doc`|`p1_only`|`p2_only`|`batch`),
 `--exam-spec` (required for every mode except `p1_only`; `draft.json` is parsed via
 the tolerant rubric-draft loader), `--fixtures` (comma-sep `doc_id`s; default = all),
 `--repeats` (default 1), `--batch-size` (default 25).
+
+⚠️ **One exam per run:** the single `--exam-spec` is applied to EVERY fixture in the
+run, and the `JAVA_BAGRUT` critical-token profile is hardcoded at the scoring sites —
+all fixtures in one run must belong to the same exam. Mixed-exam fixture sets are not
+supported today; the ratified per-fixture-spec design is BACKLOG **B-30f**
+(`../rubric_eval_suite/PLAN_model_registry_normalization.md` §9), plan-first and
+owner-gated. See also `TRANSCRIPTION_GT_CONVENTIONS.md` §1.2 before authoring a
+new-exam fixture.
 
 **Prerequisites:** real provider keys in `backend/.env` — `OPENAI_API_KEY` (P2 nano)
 and the Gemini credential (P1). `make_default_pipeline` constructs a provider for
@@ -481,8 +506,9 @@ Pure parts are tested with **zero mocks**; provider/LLM paths inject fakes (a
 
 5 student exams (`dan_basiuk`, `din_ezra`, `moran_aharon`, `omer_gelber`,
 `yonatan_basiuk`), each: `pdfs/<id>.pdf` + `raw_benchmarks/<id>.md` (raw GT) +
-`draft_benchmarks/<id>.md` (draft GT). One exam, two CS questions, sub-questions
-א/ב/ג. **n=5 is below the `flag_metrics_trustworthy` threshold of 10** — conclusions
+`draft_benchmarks/<id>.md` (draft GT). One exam (hobby/TvShow), two CS questions,
+sub-questions א/ב/ג. Since 2026-08-28 a fixture may declare its OWN exam via
+`fixtures/<doc_id>.json`, so the corpus is no longer single-exam by construction. **n=5 is below the `flag_metrics_trustworthy` threshold of 10** — conclusions
 are provisional and the correction kill-criterion is meaningless until n≥10 *with
 deliberately-included student-spec-errors.* GT bugs are tracked as verification tasks
 for the GT author (Noam), not as model findings.
@@ -491,9 +517,14 @@ for the GT author (Noam), not as model findings.
 
 ## 15. Extending the suite
 
-- **Add a fixture:** drop `pdfs/<id>.pdf`, author `raw_benchmarks/<id>.md` (per-page,
-  `=== PAGE n ===`, all ink verbatim) and `draft_benchmarks/<id>.md` (per-answer,
-  `=== Q1.א ===`, gradeable content only). The parsers enforce contiguity/uniqueness.
+- **Add a fixture (same exam):** drop `pdfs/<id>.pdf`, author `raw_benchmarks/<id>.md`
+  (per-page, `=== PAGE n ===`, all ink verbatim) and `draft_benchmarks/<id>.md`
+  (per-answer, `=== Q1.א ===`, gradeable content only), add `<id>` to `ALL_FIXTURES`.
+  The parsers enforce contiguity/uniqueness.
+- **Add a fixture on a NEW exam:** the above, plus `exams/<exam_id>.json` (once per exam)
+  and `fixtures/<id>.json` naming it. One run may span several exams. Full authoring rules
+  in `TRANSCRIPTION_GT_CONVENTIONS.md` §1.2; design and open decisions in
+  `PLAN_multi_rubric_fixtures.md`.
 - **Add a model:** add a `ModelSpec` to `models_registry.py` (key, provider,
   `model_id`, `PriceCard`, tier, capabilities), then reference the key in a config.
 - **Add a config:** copy a `configs/*.json`, change *one* field (the playbooks demand

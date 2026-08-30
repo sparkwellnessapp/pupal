@@ -34,15 +34,25 @@ class Settings(BaseSettings):
     gmail_token_file: str = "config/token.json"
     teacher_email: Optional[str] = None  # Only needed for email-based grading
     
-    # Application settings
+    # Application settings.
+    # Unset/unknown ⇒ production (fail closed): every consumer of this value
+    # grants something in development that must not be granted in production.
     app_env: str = "production"
     api_host: str = "0.0.0.0"
     api_port: int = 8080
     log_level: str = "INFO"
+    sql_echo: bool = False  # SQL_ECHO=true to log every statement (very noisy)
     
     # CORS settings (comma-separated list of allowed origins)
     # IMPORTANT: CORS origins must be scheme://host:port only - NO paths!
-    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://vivi-assistant.com"
+    #
+    # The DEFAULT is production-safe: no dev origins (closeout, owner-ruled).
+    # A production API that trusts http://localhost:3000 with credentials lets
+    # anything running on a teacher's own machine at that port make
+    # credentialed calls against her session — narrow, but real, and free to
+    # drop. Dev origins belong in the developer's .env (which overrides this),
+    # never in the shipped default.
+    allowed_origins: str = "https://vivi-assistant.com,https://www.vivi-assistant.com"
     
     # Grading settings
     confidence_threshold: float = 0.7
@@ -54,6 +64,14 @@ class Settings(BaseSettings):
     vision_dpi: int = 150  # DPI for PDF to image conversion
     vision_max_image_size: int = 1500  # Max dimension for images sent to VLM
     
+    # PDF rasterizer backend (2026-08-19). "pymupdf" is in-process and ~18x
+    # faster than "poppler" (pdf2image), which spawns a subprocess per call and
+    # pipes every page through PPM/PNG. The backends are NOT pixel-identical, so
+    # pymupdf became the default only after a k=5 transcription-eval
+    # non-inferiority run. Poppler stays installed in the image and reachable
+    # here: reverting production is this one env var, no redeploy.
+    pdf_renderer: str = "pymupdf"
+
     # Parallel transcription settings
     parallel_transcription_enabled: bool = True  # Feature flag for async parallel processing
     max_parallel_pages: int = 3  # Max concurrent VLM calls (reduced to avoid overwhelming API)
@@ -68,15 +86,18 @@ class Settings(BaseSettings):
 
     # Transcription engine selector.
     #   "legacy"    — HandwritingTranscriptionService (S4 architecture; default)
-    #   "two_phase" — P1 perception + P2 segmentation + cross-reader trust layer
-    #                 (the eval-suite-validated pipeline; see
-    #                 app/services/transcription/two_phase/ + two_phase_engine.py).
-    #                 Requires GEMINI_API_KEY + ANTHROPIC_API_KEY + OPENAI_API_KEY.
+    #   "two_phase" — P1 perception + P2 segmentation (the eval-suite-validated
+    #                 pipeline; see app/services/transcription/two_phase/ +
+    #                 two_phase_engine.py). Cross-reader trust layer retired in
+    #                 production 2026-08-07 (see two_phase_engine docstring).
+    #                 Requires GEMINI_API_KEY + OPENAI_API_KEY.
     transcription_engine: str = "legacy"
 
-    # S11: Batch concurrency cap.
-    # batch_cap(5) × grader_scope_cap(5) = 25 worst-case concurrent LLM calls.
-    batch_max_concurrent_tests: int = 5
+    # S11 batch concurrency: since the Cloud Tasks migration the in-process
+    # semaphore is GONE — batch-wide concurrency is governed by the queues'
+    # maxConcurrentDispatches (see the deploy checklist: 5 per queue) plus the
+    # per-process provider scheduler cap. No dead knob left behind
+    # (batch_max_concurrent_tests was removed with the semaphore).
 
     # S11: Logprob span-min thresholds for vlm_low_logprob flagging.
     # logprob scale: 0.0 = certain, -∞ = impossible. -2.0 ≈ 13.5% token probability.
@@ -118,16 +139,64 @@ class Settings(BaseSettings):
     internal_task_token: Optional[str] = None
     # Max accepted rubric DOCX upload size.
     extraction_max_upload_mb: int = 15
+    # Max accepted per-file batch scan size (B9 intake v2 — per-file appends;
+    # 20MB covers the largest observed scan ~10.2MB with headroom while
+    # staying far under Cloud Run's 32MB request ceiling).
+    batch_max_upload_file_mb: int = 20
+
+    # Cloud Tasks migration — batch transcription + grading job kinds.
+    # Execution mode for the NEW kinds; None ⇒ falls back to
+    # extraction_execution_mode, so existing dev (.env inline) and prod
+    # (cloud_tasks) environments need ZERO new configuration.
+    jobs_execution_mode: Optional[str] = None
+    # Separate queues per kind — rate/concurrency tune independently.
+    # Owner-ratified deviation from the extraction ADR: these queues run
+    # maxAttempts=3 (the DB CAS claim makes duplicate delivery a no-op;
+    # redelivery heals dispatch-level failures under batch backlog).
+    cloud_tasks_transcription_queue: str = "transcription-jobs"
+    cloud_tasks_grading_queue: str = "grading-jobs"
+    # Transcription-job liveness (LIV-1 arms):
+    #   running — heartbeat sidecar touches updated_at every ~60s; 5 min of
+    #   silence is PROVABLY dead, not slow.
+    transcription_job_heartbeat_ttl_minutes: int = 5
+    #   queued — under batch backlog a doc legitimately waits behind
+    #   maxConcurrentDispatches, and Cloud Tasks' own redelivery (maxAttempts=3)
+    #   covers dispatch flakes — so this is a generous absolute backstop, not
+    #   the extraction-style 5-minute dispatch window.
+    transcription_job_dispatch_ttl_minutes: int = 90
+    # Grading liveness over graded_tests rows (no in-run heartbeat; updated_at
+    # is written at the pending→grading claim): TTL must exceed the task's
+    # 900s dispatch deadline, after which a killed worker can write nothing.
+    grading_job_running_ttl_minutes: int = 30
+    grading_job_dispatch_ttl_minutes: int = 90
 
     # Extraction LLM pin for the docx_v3 pipeline. Read from env/.env (Pydantic maps
     # EXTRACTION_LLM_MODEL etc. case-insensitively); default = the eval-validated
-    # production pin (D-2) — gpt-5.5, NOT the pipeline's gpt-4o code default. These are
+    # production pin (D-2), NOT the pipeline's gpt-4o code default. These are
     # bridged into os.environ after Settings() below, because the pipeline reads
     # os.environ directly (so the eval runner can override them per-run).
+    #
+    # D-2 FLIPPED 2026-08-24 (owner-ordered): gpt-5.5/medium -> gpt-5.6-terra/high.
+    # Evidence (RUNLOG "VERDICT 2026-08-24"): same prompt (3.9.0-blockend), same
+    # pipeline (3.6.2), same instrument (suite_hash 19607f69e6bc3432), k=3 all-5 —
+    # IDENTICAL gate result 12/15 with identical pass sets, every terra draw clean
+    # (0 spurious, 0 missed, example_solution 1.000, 0 retries), while headline
+    # t_doc -17.4%, suite -18.7%, and $/doc -63.9%.
+    # ⚠ THE MODEL AND THE PROMPT ARE A PACKAGE. terra-high scores 12/15 on prompt
+    # 3.9.0 but only 10/15 on 3.7.0 (phantom point-label criteria -> false
+    # rubric_mismatch alarms). NEVER ship this pin onto an image built before
+    # EXTRACTION_PROMPT_VERSION 3.9.0-blockend. gpt-5.5 is unaffected by the prompt
+    # (12/15 on both), which is what makes the model half a safe one-line rollback.
+    # ROLLBACK: set these three back to openai / gpt-5.5 / medium (and, in prod, the
+    # Cloud Run env vars of the same name, which OVERRIDE these defaults).
     extraction_llm_provider: str = "openai"
-    extraction_llm_model: str = "gpt-5.5"
-    extraction_llm_reasoning_effort: Optional[str] = "medium"
-    extraction_llm_max_tokens: int = 38000
+    extraction_llm_model: str = "gpt-5.6-terra"
+    extraction_llm_reasoning_effort: Optional[str] = "high"
+    # 32000 aligns this default with BOTH the deployed Cloud Run value and the
+    # eval config the pin was validated at (was 38000 — a latent 3-way drift that
+    # only surfaced if the env var were ever removed). Non-binding either way:
+    # the largest single-call output observed on any fixture is ~18k.
+    extraction_llm_max_tokens: int = 32000
 
     # PR-2: the extraction task's total wall budget, in seconds.
     # 840 = Cloud Run request timeout (900) − 60s reserve. The runner measures its
@@ -180,6 +249,18 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+# --- ONE definition of "is this a development environment" -------------------
+# Promoted here (closeout) so main.py's docs gate and database.py's create_all
+# guard cannot drift apart about what "dev" means — two answers to that
+# question is the two-auth-resolvers disease in a smaller organ. Unknown or
+# unset ⇒ NOT dev (fail closed): every caller GRANTS something under dev.
+DEV_ENVS = frozenset({"development", "dev", "local", "test", "testing"})
+
+
+def is_dev_env() -> bool:
+    return settings.app_env.strip().lower() in DEV_ENVS
 
 # --- Extraction LLM pin → os.environ bridge --------------------------------------
 # The docx_v3 extraction pipeline reads model / provider / reasoning_effort /

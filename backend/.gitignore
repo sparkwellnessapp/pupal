@@ -178,6 +178,15 @@ gen-lang-client-*.json
 !tests/grading_eval_suite/benchmarks/**/*.json
 # ...except the F0 staging area (superseded by the ratified snapshot):
 tests/grading_eval_suite/benchmarks/contracts/_proposed/
+# Transcription eval suite (same precedent): the EXAM SPECS, per-fixture
+# manifests and pipeline configs are SOURCE — they are the ruler a run was
+# scored against, and results.json pins them by sha256. Without these a fresh
+# clone cannot reproduce any run, and check_goal.sh's default --exam-spec
+# names a file that does not exist. NOT eval output.
+!tests/transcription_eval_suit/exams/*.json
+!tests/transcription_eval_suit/fixtures/*.json
+!tests/transcription_eval_suit/configs/*.json
+!tests/transcription_eval_suit/draft.json
 # eval RUN OUTPUTS are regenerable artifacts — never commit them (repo bloat).
 tests/*/results/
 annotated-docx*

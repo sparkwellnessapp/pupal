@@ -513,30 +513,28 @@ def get_vlm_provider(provider_name: str = "openai", **kwargs) -> VLMProvider:
 # =============================================================================
 
 def pdf_to_images(pdf_bytes: bytes, dpi: int = 200) -> List[Image.Image]:
-    """Convert PDF bytes to PIL Images."""
-    images = convert_from_bytes(pdf_bytes, dpi=dpi, fmt='PNG')
-    logger.info(f"Converted PDF to {len(images)} images at {dpi} DPI")
-    return images
+    """Convert PDF bytes to PIL Images. Delegates to the ONE rasterizer."""
+    from .pdf_render import render_pages
+
+    return render_pages(pdf_bytes, dpi)
 
 
 def render_pdf_page(pdf_bytes: bytes, page_number: int, dpi: int = 200) -> Image.Image:
     """Render ONLY the requested page (1-based) — the same rasterizer as
-    pdf_to_images, bounded to a single page via poppler's first/last_page.
+    pdf_to_images, bounded to a single page.
 
     Exists for the page-image proxy: rendering the whole PDF per page request
     made a full review of an N-page test cost N² page renders (batch-review
     plan, Phase 1.5).
 
-    Raises ValueError when page_number is beyond the PDF's last page (poppler
-    returns an empty list) — callers map that to 404.
+    Raises ValueError when page_number is beyond the PDF's last page — callers
+    map that to 404. Byte-equality with `pdf_to_images(...)[n-1]` is now
+    structural (both go through pdf_render), not a coincidence of two call
+    sites happening to pass the same flags.
     """
-    images = convert_from_bytes(
-        pdf_bytes, dpi=dpi, fmt='PNG',
-        first_page=page_number, last_page=page_number,
-    )
-    if not images:
-        raise ValueError(f"Page {page_number} out of range")
-    return images[0]
+    from .pdf_render import render_page
+
+    return render_page(pdf_bytes, page_number, dpi)
 
 
 def pdf_path_to_images(pdf_path: str, dpi: int = 200) -> List[Image.Image]:

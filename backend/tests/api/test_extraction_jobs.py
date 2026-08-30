@@ -233,13 +233,22 @@ def test_status_and_cross_tenant_404(jobs_table, client, user_a, headers_a, head
 
 
 @pytest.mark.integration
-def test_stale_extracting_is_reported(jobs_table, client, user_a, headers_a):
+def test_stale_extracting_is_reaped_terminal_on_read(jobs_table, client, user_a, headers_a):
+    """LIV-1: expiry is TERMINAL on read. This test originally asserted
+    `stale is True` on a live 'extracting' response — behavior that predates
+    reap-on-read (`_reap_if_stale`), under which the read itself converts the
+    orphan to a durable, retryable 'failed' with the heartbeat-lapse reason.
+    (Predated == permanently red; updated 2026-08-13 during the Cloud Tasks
+    migration's Phase-0 liveness refactor, which proved the red pre-existing.)"""
     job_id = asyncio.run(_insert_job(user_a["user"]["id"], status="extracting"))
     try:
         asyncio.run(_set_updated_at(job_id, datetime.now(timezone.utc) - timedelta(hours=1)))
         resp = client.get(f"{JOBS_URL}/{job_id}", headers=headers_a)
         assert resp.status_code == 200
-        assert resp.json()["stale"] is True
+        body = resp.json()
+        assert body["status"] == "failed"          # reaped, not left dangling
+        assert body["stale"] is False              # a terminal row is not stale
+        assert "orphaned" in (body["error_message"] or "")
     finally:
         asyncio.run(_delete_job(job_id))
 
