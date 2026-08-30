@@ -261,8 +261,16 @@ class GradedTestDraft(BaseModel):
             return self
         missing = []
         for scope in self.scope_outcomes:
-            if scope.graded_by in ("failed", "skipped_no_answer"):
-                continue          # no verdicts were produced; nothing to carry
+            # The rule is "the LLM produced verdicts", not a list of exclusions.
+            # graded_by has FOUR states, and `excluded_by_selection` is applied
+            # AFTER grading by grading_runner's model_copy — it OVERWRITES the
+            # previous value, so a scope the student left blank that also misses
+            # the best-k cut arrives here as excluded_by_selection with no
+            # checks. On a choose-k exam that is the common case (the questions
+            # a student skips are exactly the ones excluded), and enumerating
+            # exclusions would make the draft unreadable on every GET.
+            if scope.graded_by != "llm":
+                continue
             for crit in scope.criterion_outcomes:
                 leaves = crit.sub_criterion_outcomes or [crit]
                 for leaf in leaves:

@@ -63,6 +63,11 @@ def _row_budget_s(scope_count: int) -> float:
     return settings.grader_llm_timeout_s * waves + settings.grader_row_grace_s
 
 
+class AllScopesFailed(Exception):
+    """Every scope failed to grade. Not a budget overrun — a distinct class, so
+    the row's error_message says what actually happened to whoever reads it."""
+
+
 class GradingBudgetExceeded(Exception):
     """The whole-task wall fired. Distinct from a per-scope expiry: the row
     has no exit of its own otherwise, and would sit in `grading` until the
@@ -143,7 +148,8 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
         # [PR-G1(a)] the config seam — dark and default-off, so this is
         # the historical v3 construction until the pin is deliberately set.
         agent = build_grader(str(graded_test.rubric_id),
-                             rubric_contract.numeric_policy)
+                             rubric_contract.numeric_policy,
+                             gradable_test=gradable_test)
         budget = _row_budget_s(len(gradable_test.scopes))
         try:
             draft = await asyncio.wait_for(agent.grade(gradable_test), timeout=budget)
@@ -157,7 +163,7 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
         # indistinguishable from a genuine zero — review-first, not guess.
         if draft.scope_outcomes and all(
                 so.graded_by == "failed" for so in draft.scope_outcomes):
-            raise GradingBudgetExceeded(
+            raise AllScopesFailed(
                 f"all {len(draft.scope_outcomes)} scope(s) failed to grade; "
                 f"row is terminal — the chain continues via retry")
 

@@ -133,3 +133,69 @@ def test_checks_required_under_v5_pin():
     with pytest.raises(Exception) as ei:
         GradedTestDraft(**common, plan_version="hobby_tvshow/v3")
     assert "check" in str(ei.value).lower()
+
+
+# ---------------------------------------------------------------------------
+# Code-review findings (2026-08-31) — both are defects in PR-G1 as landed
+# ---------------------------------------------------------------------------
+
+def test_checks_validator_tolerates_a_scope_that_was_skipped_then_excluded():
+    """BUG: the validator skipped only `failed` and `skipped_no_answer`, but
+    graded_by has FOUR states. `excluded_by_selection` is applied AFTER grading
+    by grading_runner's model_copy, and it OVERWRITES the previous value — so a
+    scope the student left blank that also misses the best-k cut ends up
+    `excluded_by_selection` with checks=None.
+
+    On a choose-k exam that is the common case, not a corner: the questions a
+    student skips are exactly the ones excluded. The draft would be written
+    fine and then fail to re-parse on every GET / draft / approve.
+
+    The precise rule is 'the LLM produced verdicts', i.e. graded_by == 'llm'.
+    """
+    from app.schemas.graded_test_draft import CriterionOutcome, GradedTestDraft, ScopeOutcome
+
+    leaf = CriterionOutcome(
+        criterion_id="q1.c0", description="d", points_possible=Decimal("4"),
+        points_awarded=Decimal("0"), reasoning="", confidence=0.0,
+        sub_criterion_outcomes=None, checks=None,
+    )
+    scope = ScopeOutcome(
+        scope_kind="direct", question_id="q1", points_possible=Decimal("4"),
+        points_awarded=Decimal("0"), min_confidence=0.0,
+        criterion_outcomes=[leaf], graded_by="excluded_by_selection",
+        input_tokens=0, output_tokens=0,
+    )
+    GradedTestDraft(
+        rubric_contract_version="rc", transcription_contract_version="tc",
+        model_version="m", prompt_version="p", plan_version="hobby_tvshow/v3",
+        scope_outcomes=[scope], llm_calls_count=0, grading_duration_ms=1,
+        total_input_tokens=0, total_output_tokens=0,
+    )
+
+
+def test_check_keeps_the_span_the_model_cited_even_when_it_is_not_found():
+    """BUG: `quote` was dropped whenever the span failed validation, so an
+    invented-credit case reached the teacher as `quote=None,
+    quote_status="not_found"` — she could see THAT a citation failed but not
+    WHAT was cited, which is the one thing needed to judge it.
+
+    §1.1: quote is 'the verbatim span the model cited (None when not_met with
+    no evidence)'. Not-found is evidence of a problem, not absence of evidence.
+    """
+    plan = TerminalPlan(
+        terminal_id="q1.c0", points_possible=Decimal("3"),
+        checks=[PlanCheck(check_id="q1.c0.k1", description_he="הצהרה",
+                          kind="required", points=Decimal("3"))])
+    verdicts = {"q1.c0.k1": AssessedVerdict(
+        check_id="q1.c0.k1", verdict="met", confidence=0.9, basis_he="",
+        quote_text="int[] invented = new int[9];",
+        quote_status=QuoteValidationStatus.NOT_FOUND)}
+
+    priced = price_scope([plan], verdicts, PRECISION)["q1.c0"]
+    check = priced.checks[0]
+
+    assert check.quote_status == "not_found"
+    assert check.quote == "int[] invented = new int[9];", (
+        "the cited span was dropped — the teacher cannot see what was claimed")
+    # and no credit was given for it
+    assert priced.points_awarded == Decimal("0")

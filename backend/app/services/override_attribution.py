@@ -34,9 +34,15 @@ _WS = re.compile(r"\s+")
 
 def normalize_school_name(name: str) -> str:
     """The normalized-exact key: trimmed, internal whitespace collapsed,
-    case-folded. Mirrors migration 018's unique index expression exactly — if
-    one changes the other must, or the DB and the app disagree about identity."""
-    return _WS.sub(" ", (name or "").strip()).casefold()
+    lower-cased. Mirrors migration 018's unique index expression exactly —
+    lower(regexp_replace(btrim(name), '\s+', ' ', 'g')) — if one changes the
+    other must, or the DB and the app disagree about identity.
+
+    `.lower()` and NOT `.casefold()`: casefold maps German ß to "ss" and SQL
+    lower() does not, so the two would disagree on a name containing it. The
+    app would then treat two schools as one (or fail an insert the DB would
+    have allowed) while this docstring claimed they matched."""
+    return _WS.sub(" ", (name or "").strip()).lower()
 
 
 def override_attribution_query() -> Select:

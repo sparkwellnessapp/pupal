@@ -130,7 +130,10 @@ def price_scope(terminal_plans: List[TerminalPlan],
             The terminal's UNVERIFIED_CHECK flag carries the fact that no
             verdict arrived; conflating the two into a fourth verdict value
             would expand the wire vocabulary without a ruling."""
-            verified = av is not None and _evidence_verified(av)
+            # The span the model CITED is kept even when it does not validate:
+            # `quote_status` says whether it was found, and an invented-credit
+            # case is exactly where the teacher needs to see WHAT was claimed.
+            # §1.1: quote is None only when there is no evidence at all.
             checks.append(Check(
                 check_id=check.check_id,
                 text=check.description_he,
@@ -139,7 +142,7 @@ def price_scope(terminal_plans: List[TerminalPlan],
                 tariff=check.tariff_amount,
                 partial_fraction=check.partial_fraction,
                 verdict=(av.verdict if av is not None else "not_met"),
-                quote=(av.quote_text or None) if (av is not None and verified) else None,
+                quote=(av.quote_text or None) if av is not None else None,
                 quote_status=(av.quote_status.value
                               if av is not None and av.quote_status is not None else None),
                 basis_he=(av.basis_he if av is not None

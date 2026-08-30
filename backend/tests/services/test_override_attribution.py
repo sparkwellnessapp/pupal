@@ -62,3 +62,14 @@ def test_school_match_is_normalized_exact_never_fuzzy():
     assert normalize_school_name("Kfar HaNoar") == normalize_school_name("kfar  hanoar")
     # near-misses must NOT collide
     assert normalize_school_name("מוסינזון") != normalize_school_name("מוסינזון ב")
+
+
+def test_normalization_matches_sql_lower_not_casefold():
+    """Migration 018 enforces uniqueness with SQL lower(). Python casefold()
+    is NOT the same function — it maps ß to "ss" — so using it here would let
+    the app and the database disagree about which two names are one school."""
+    from app.services.override_attribution import normalize_school_name
+
+    name = "Straße Gymnasium"
+    assert normalize_school_name(name) == name.strip().lower()
+    assert normalize_school_name(name) != name.strip().casefold()

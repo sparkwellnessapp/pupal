@@ -69,7 +69,37 @@ def grader_kind_for(rubric_id: Optional[str]) -> GraderKind:
     return "v5"
 
 
-def build_grader(rubric_id: Optional[str], numeric_policy):
+def _validate_plan_against(plan, gradable_test, precision) -> None:
+    """Refuse a plan that does not fit the test it is about to grade.
+
+    The eval runner refuses BEFORE spend for exactly this reason. Without it a
+    mismatched plan surfaces as a KeyError inside each scope — loud, but only
+    after every scope has been paid for, and reported as a grading failure
+    rather than as the configuration error it is.
+    """
+    from app.agents.grader.plan_validator import validate_plan
+
+    points, scopes = {}, {}
+    for scope in gradable_test.scopes:
+        key = (scope.question_id if scope.sub_question_id is None
+               else f"{scope.question_id}.{scope.sub_question_id}")
+        for criterion in scope.criteria:
+            terminals = ([(sc.sub_criterion_id, sc.points) for sc in criterion.sub_criteria]
+                         if criterion.sub_criteria
+                         else [(criterion.criterion_id, criterion.points)])
+            for tid, pts in terminals:
+                points[tid] = pts
+                scopes[tid] = key
+
+    errors = validate_plan(plan, contract_terminal_points=points,
+                           terminal_scopes=scopes, precision=precision)
+    if errors:
+        raise ValueError(
+            f"plan {plan.plan_version!r} does not fit this test: "
+            + "; ".join(errors[:5]))
+
+
+def build_grader(rubric_id: Optional[str], numeric_policy, gradable_test=None):
     """Construct the grader this rubric gets. The ONLY place production decides.
 
     The v5 branch is lazy on purpose: importing the plan schemas and the model
@@ -88,6 +118,8 @@ def build_grader(rubric_id: Optional[str], numeric_policy):
     plan = GradingPlan.model_validate_json(
         Path(settings.grader_plan_path).read_text(encoding="utf-8"))
     llm = build_chat_model(settings.grader_model_provider, settings.grader_model_key)
+    if gradable_test is not None:
+        _validate_plan_against(plan, gradable_test, numeric_policy.precision)
     logger.info("grader_v5_selected",
                 extra={"rubric_id": str(rubric_id),
                        "model": settings.grader_model_key,
