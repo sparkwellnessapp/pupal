@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from enum import Enum as PyEnum
 
-from sqlalchemy import Column, String, DateTime, Enum
+from sqlalchemy import Column, ForeignKey, String, DateTime, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -52,6 +52,12 @@ class User(Base):
     password_hash = Column(String(255), nullable=True)  # Null if Google auth
     google_id = Column(String(255), unique=True, nullable=True, index=True)
     full_name = Column(String(255), nullable=False)
+    # [PR-G6] NULLABLE by design: the onboarding prompt is one field and
+    # skippable. A teacher who skips it must still be attributable on the
+    # other four override keys — NOT NULL here would either block signup or
+    # force us to invent a school.
+    school_id = Column(UUID(as_uuid=True), ForeignKey('schools.id'), nullable=True)
+    school = relationship('School', back_populates='users')
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

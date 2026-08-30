@@ -25,14 +25,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
+from pydantic import BaseModel
 
 from ...database import get_db
 from ..deps import get_owned_or_404
 from .auth import get_current_user
 from ...models.user import User
+from ...models.school import School
 from ...models.subject_matter import SubjectMatter
 from ...models.rubric_share import RubricShare, SharePermission
 from ...models.grading import Rubric, GradedTest
+from ...services.override_attribution import normalize_school_name
 from ...schemas.user import (
     SubjectMatterResponse,
     UpdateSubjectMattersRequest,
@@ -387,3 +390,91 @@ async def delete_rubric_share(
     await db.commit()
     
     return {"message": "Share removed successfully"}
+
+
+# ---------------------------------------------------------------------------
+# PR-G6 — the teacher's school (the fifth override-attribution key)
+# ---------------------------------------------------------------------------
+
+class UpdateMeRequest(BaseModel):
+    """Exactly one of the two is meaningful per call. `school_id` picks an
+    existing school; `school_name` is the one-field onboarding answer and is
+    create-or-pick. Sending neither is a no-op, not an error — the prompt is
+    skippable by design."""
+    school_id: Optional[UUID] = None
+    school_name: Optional[str] = None
+    school_city: Optional[str] = None
+
+
+class UpdateMeResponse(BaseModel):
+    id: UUID
+    school_id: Optional[UUID] = None
+    school_name: Optional[str] = None
+
+
+@router.patch("/me/school", response_model=UpdateMeResponse)
+async def update_me(
+    body: UpdateMeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UpdateMeResponse:
+    """Set the teacher's school. The owning user is ALWAYS current_user
+    (CLAUDE.md §9) — there is no user_id in the body or the query string.
+
+    PATH NOTE (open decision, owner): the spec's PR-G6 text says
+    `PATCH /users/me`. Mounting ANY method at that exact path turns
+    `GET /api/v0/users/me` from 404 into 405 and fires
+    `test_duplicate_users_me_is_gone` — the guard left behind by the worst bug
+    this codebase shipped (two auth resolvers; a duplicate profile route).
+    The guard's intent is intact either way, but it is written as `== 404` and
+    weakening a guard of that provenance to accommodate a new endpoint is not a
+    call to make in passing. `/me/school` follows the existing sibling
+    (`PUT /me/subject-matters`), says what it does, and leaves the guard
+    untouched. One line to move it if the owner prefers the spec's path.
+
+    Matching is NORMALIZED-EXACT, never fuzzy: trimmed, internal whitespace
+    collapsed, case-folded, mirroring migration 018's unique index. Two schools
+    differing by one character are two schools; a fuzzy match would merge real
+    institutions with no way back.
+    """
+    school: Optional[School] = None
+
+    if body.school_id is not None:
+        school = await db.get(School, body.school_id)
+        if school is None:
+            # 404, not 403/422: a school id the caller cannot see and one that
+            # does not exist are the same answer (§9 — existence is not leaked).
+            raise HTTPException(status_code=404, detail="בית הספר לא נמצא")
+
+    elif body.school_name and body.school_name.strip():
+        key = normalize_school_name(body.school_name)
+        rows = await db.execute(select(School))
+        school = next((sc for sc in rows.scalars()
+                       if normalize_school_name(sc.name) == key), None)
+        if school is None:
+            school = School(name=body.school_name.strip(),
+                            city=(body.school_city or None))
+            db.add(school)
+            try:
+                await db.flush()
+            except IntegrityError:
+                # The unique index caught a concurrent create of the same
+                # normalized name — re-read and use the winner rather than
+                # failing the teacher's onboarding on a race.
+                await db.rollback()
+                rows = await db.execute(select(School))
+                school = next((sc for sc in rows.scalars()
+                               if normalize_school_name(sc.name) == key), None)
+                if school is None:
+                    raise HTTPException(status_code=409,
+                                        detail="בית ספר בשם הזה כבר קיים")
+
+    if school is not None:
+        current_user.school_id = school.id
+        await db.commit()
+
+    return UpdateMeResponse(
+        id=current_user.id,
+        school_id=current_user.school_id,
+        school_name=school.name if school is not None else None,
+    )

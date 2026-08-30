@@ -37,3 +37,4 @@ __all__ = [
     "Transcription",
     "TranscriptionJob",
 ]
+from app.models.school import School  # noqa: F401,E402  [PR-G6]
