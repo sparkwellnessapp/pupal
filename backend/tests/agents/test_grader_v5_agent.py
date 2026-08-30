@@ -107,7 +107,7 @@ async def test_grade_path_prices_from_verdicts():
         _verdict("c1.k2", "not_met", quote="", basis="חיפשתי בדיקת null — אין")])
     draft = await _agent(_basic_plan(), [resp]).grade(_gradable([_scope()]))
 
-    assert draft.prompt_version == VERIFIER_PROMPT_VERSION == "grader-v5.3"
+    assert draft.prompt_version == VERIFIER_PROMPT_VERSION == "grader-v6"
     assert draft.plan_version == "test-plan/v1"
     assert draft.model_version == "fake-model"
     co = draft.scope_outcomes[0].criterion_outcomes[0]
@@ -211,7 +211,7 @@ def test_check_verdict_decode_order_is_evidence_first():
     want = ["check_id", "evidence_quote", "basis_he", "verdict", "confidence"]
     assert list(CheckVerdict.model_fields) == want
     assert list(CheckVerdict.model_json_schema()["properties"]) == want
-    fmt = VERIFIER_SYSTEM_PROMPT[VERIFIER_SYSTEM_PROMPT.index("OUTPUT FORMAT"):]
+    fmt = VERIFIER_SYSTEM_PROMPT[VERIFIER_SYSTEM_PROMPT.index("<output>"):]
     # anchor on the field-listing lines ("  <name> ") — a bare substring match
     # would hit "verdict" inside the word "verdicts"
     positions = [fmt.index(f"\n  {f} ") for f in want]
@@ -219,20 +219,40 @@ def test_check_verdict_decode_order_is_evidence_first():
 
 
 def test_verifier_prompt_is_point_blind_and_carries_the_two_proven_clauses():
-    assert "SURFACE FORM IS NEVER A DEFECT" in VERIFIER_SYSTEM_PROMPT
+    """v6 (owner-authored, 2026-08-30) re-expresses every ratified clause in
+    English prose. This pin tracks the CLAUSES, not their old wording — each
+    assertion names the ruling it descends from."""
+    # E-series proven clause 1: form-vs-behaviour (handwriting is not a defect)
+    assert "handwriting, not defects" in VERIFIER_SYSTEM_PROMPT
+    # E-series proven clause 2: example-solution-as-authority
     assert "is the authority on naming and form" in VERIFIER_SYSTEM_PROMPT
-    # v5.1 ruling 2: the PL-9 wrong-target clause, owner text verbatim
-    assert "דמיון מבני לחישוב אחר אינו נוכחות חלקית" in VERIFIER_SYSTEM_PROMPT
-    # v5.3 ruling R-D: the C-1 object-literalism principle, owner verbatim
-    assert "מדרגים את הדיו, לא את הכוונה" in VERIFIER_SYSTEM_PROMPT
-    # v5.1 ruling 3: the basis-lean contract
-    assert "basis_he is LEAN" in VERIFIER_SYSTEM_PROMPT
+    # R-D / C-1: object-literalism, now in English
+    assert "grade the ink, not the" in VERIFIER_SYSTEM_PROMPT
+    assert "intent." in VERIFIER_SYSTEM_PROMPT
+    # R-A: credit-once (one span cannot satisfy two differently-named checks)
+    assert "does not additionally satisfy" in VERIFIER_SYSTEM_PROMPT
+    # PL-9: partial presence requires the check's OWN named component
+    assert "a proper subset of the check's named components" in VERIFIER_SYSTEM_PROMPT
+    # rule 4: the absence audit must be stated
+    assert "State in basis_he what you searched for" in VERIFIER_SYSTEM_PROMPT
+    # basis-lean output contract
+    assert "Omit entirely for met" in VERIFIER_SYSTEM_PROMPT
+    # v6's torn-rule: uncertainty resolves DOWN, and lives in confidence
+    assert "choose the LOWER one" in VERIFIER_SYSTEM_PROMPT
+    # NOT CARRIED (owner-surfaced, deliberate): the R-1 PL-9 BOUNDARY sentence
+    # — v6 states the opposite polarity, so wrong-target machinery is no longer
+    # "present and charged once". Recorded here so a future reader sees the
+    # gap as a ruling consequence rather than an omission to "restore".
+    assert "charged once" not in VERIFIER_SYSTEM_PROMPT
     # the killed magnitude language must not resurface
     assert "DEDUCTION SIZE" not in VERIFIER_SYSTEM_PROMPT
     assert "points_awarded" not in VERIFIER_SYSTEM_PROMPT
-    # rendering shows no numeric point values for the checks
+    # the verifier still never awards points
+    assert "You never award points" in VERIFIER_SYSTEM_PROMPT
+    # rendering shows no numeric point values for the checks, and the section
+    # name v6 REFERENCES ("GRADE THESE") is the one the render emits
     msg = build_verifier_message(_scope(), _basic_plan().terminals)
-    assert "VERIFY THESE" in msg and "c1.k1, c1.k2" in msg
+    assert "GRADE THESE" in msg and "c1.k1, c1.k2" in msg
     assert "(3" not in msg and "pts" not in msg
 
 

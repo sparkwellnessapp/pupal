@@ -913,9 +913,16 @@ def _llm_params(
         # model", req_011CeVWAnCj55zLZezwwRNGm) — the same knob-drop the OpenAI
         # reasoning family made above; omission is the only valid setting.
         # 4.x models (haiku-4.5, sonnet-4.x, opus-4.x) keep temperature=0.
+        # `effort` (output_config.effort on the wire) is the 5-family's thinking-
+        # depth knob and ChatAnthropic 1.4.0 exposes it as a native field. Passed
+        # through ONLY when explicitly configured, exactly like the openai
+        # reasoning branch below — models without effort support are untouched.
         if model.startswith(("claude-sonnet-5", "claude-opus-5",
                              "claude-haiku-5", "claude-fable", "claude-mythos")):
-            return {"max_tokens": max_output_tokens or 16000, **bounded}
+            params: Dict[str, Any] = {"max_tokens": max_output_tokens or 16000, **bounded}
+            if reasoning_effort:
+                params["effort"] = reasoning_effort
+            return params
         return {"temperature": 0, "max_tokens": max_output_tokens or 16000, **bounded}
     if provider == "gemini":
         return {"temperature": 0, "max_output_tokens": max_output_tokens or 16000}

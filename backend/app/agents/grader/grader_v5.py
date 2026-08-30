@@ -119,6 +119,7 @@ class PlanVerifyGrader:
         self._policy = numeric_policy or NumericPolicy()
         self._model_version = model_version or settings.openai_model
         self._served_models: set = set()   # [COST_TRUTH] provider-reported ids
+        self._thinking_tokens = 0          # [COST_TRUTH] adaptive-thinking spend
         self._sc_n = sc_n
         base = llm if llm is not None else build_chat_model(
             "openai", settings.openai_model)
@@ -138,6 +139,13 @@ class PlanVerifyGrader:
         _capture_served_model(result.get("raw"), self._served_models)
         usage = (result["raw"].usage_metadata or {}) if result.get("raw") else {}
         cached = (usage.get("input_token_details") or {}).get("cache_read")
+        # [COST_TRUTH, item 2b] thinking tokens ride the RAW provider usage —
+        # LangChain's normalized usage_metadata drops output_tokens_details.
+        # They are already inside output_tokens; this only makes them visible.
+        raw_meta = getattr(result.get("raw"), "response_metadata", None) or {}
+        self._thinking_tokens += int(
+            ((raw_meta.get("usage") or {}).get("output_tokens_details") or {})
+            .get("thinking_tokens") or 0)
         return (result["parsed"], usage.get("input_tokens", 0),
                 usage.get("output_tokens", 0), cached)
 
@@ -370,4 +378,5 @@ class PlanVerifyGrader:
             total_input_tokens=sum(so.input_tokens for so in scope_outcomes),
             total_output_tokens=sum(so.output_tokens for so in scope_outcomes),
             total_cached_input_tokens=sum(cached_vals) if cached_vals else None,
+            total_thinking_tokens=self._thinking_tokens or None,
         )

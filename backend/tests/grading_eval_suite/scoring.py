@@ -142,6 +142,7 @@ def score_trial(draft: GradedTestDraft,
                     cost_usd=cost_usd_value, latency_s=latency_s,
                     input_tokens=draft.total_input_tokens,
                     output_tokens=draft.total_output_tokens,
+                    thinking_tokens=getattr(draft, 'total_thinking_tokens', None),
                     per_scope_cost_usd=dict(per_scope_cost or {}))
 
     tier1: List[str] = []

@@ -1599,3 +1599,115 @@ FP2 cascade, which would have escalated all three scopes to the champion. The
 cascade's case is no longer cost-only; it now has a kill-cell it demonstrably
 addresses. Still unscreened.
 LEDGER: +$2.3425 (owner-directed, post-FP2) - PF total $3.1350
+
+## grader-v6 (2026-08-30) — owner-authored prompt rewrite, applied verbatim
+
+**WHICH FILE CHANGED (owner asked this explicitly):** `app/agents/grader/
+verifier_prompt.py` — the v5 VERIFIER prompt, NOT the stale `prompt.py`
+(grader-v3, points-based) the owner reviewed against. The stale-file artifact
+is visible in v6's own text: it references a section called **GRADE THESE**,
+which is `prompt.py`'s section name; the v5 verifier rendered **VERIFY THESE**.
+Resolved by renaming the render section to GRADE THESE so the owner's verbatim
+prompt resolves against a section that exists. v6 applied byte-verbatim.
+
+**Clause carriage (v6 re-expresses the ratified rulings in English):** C-1
+object-literalism -> step 1 ("grade the ink, not the intent"); R-A credit-once
+-> step 1 final sentence; rule 5 form-clause + example-solution authority ->
+step 2; PL-9 named-component -> the partially_met definition; rule 4
+absence-audit -> not_met; basis-lean -> the output contract. **NOT CARRIED:
+the R-1 PL-9 BOUNDARY sentence** (wrong-target machinery is present and
+charged once, at the absent-machinery checks). v6 states the opposite polarity
+throughout, so that owner ruling has no home in v6. SURFACED, not silently
+absorbed — and it is plausibly the mechanism behind P-V6a, since R-1's
+boundary is what licensed din's wrong-target credit in the first place.
+
+**Three code changes were REQUIRED before the arms could mean anything:**
+1. **`effort` never reached Anthropic.** `_llm_params`' anthropic branch
+   ignored `reasoning_effort` — only the openai/xai branches passed it. Arm B
+   as specified would have been BYTE-IDENTICAL to Arm A, and the run would
+   have reported a cost lever that was never applied. ChatAnthropic 1.4.0 has
+   a native `effort` field; now passed through when explicitly configured
+   (4.x models untouched). Live-probed: accepted, no 400, output tokens
+   149 -> 118 on an identical trivial call.
+2. **`basis_he` was a REQUIRED field** while v6 instructs "Omit entirely for
+   met". Under tool-use structured output Anthropic does not hard-enforce
+   required, so a literal-obedience omission would have been a parse failure.
+   Defaulted to "" — omission now lands byte-identical to the v5.1 lean
+   contract. Field set and decode order UNCHANGED.
+3. **Thinking tokens are not in LangChain's normalized usage.** Probe-
+   established: they ride `response_metadata.usage.output_tokens_details.
+   thinking_tokens`. Plumbed to `GradedTestDraft.total_thinking_tokens` and a
+   suite aggregate. They are a SUBSET of output tokens (billed at the output
+   rate) — this is a visibility split, never an addition to the bill.
+
+**Owner sanity checks 2(a)/2(b), both CONFIRMED:** (a) no temperature/top_p/
+top_k reaches Sonnet 5 — the 5-family branch omits temperature and the
+codebase never sets top_p/top_k anywhere; `thinking_budget` additionally
+raises for non-gemini providers, so `budget_tokens` (removed on Sonnet 5,
+400) cannot be sent. (b) Sonnet 5 runs adaptive thinking when `thinking` is
+omitted, which is what this path does; thinking tokens now logged separately.
+
+**ENVELOPE BEFORE ARM A (owner item 5):** FP2 returned pool $10.48 − post-FP2
+owner-directed spend ($0.7925 aborted + $2.3425 completed + ~$0.01 probe) =
+**$7.34 remaining**. Above the ~$6 threshold ⇒ BOTH arms run.
+
+**V6 HYPOTHESIZE — two k=3 screens, kills first (~$4.5):**
+Arm A `sonnet5-v6` @ default effort — the prompt-shape hypothesis.
+Arm B `sonnet5-v6-medium` @ effort=medium — the doc-endorsed cost lever.
+Registered predictions to score:
+- **P-V6a**: the din min-scan cell (`din/q2.ב.c4.s2`) prices 0 on ≥5 of 6
+  draws across both arms — the hedge now resolves down by contract.
+- **P-V6b**: GA-5 spread ≤ 3.0 (v5.3's worst was dan at 4.75, verdict
+  oscillation on judgment cells; the torn-rule is aimed at it).
+- **P-V6c**: Arm B lands ≤ $0.12/test with GA-2 ≥ 0.85 held.
+Standing: if the din cell leaks in BOTH arms, the prompt surface is declared
+exhausted with SEVEN textual data points — no v7 — and the cascade k=3 (built,
+never run; its 0.80 router provably catches all three v5.3 leaks at conf
+0.40/0.50/0.60) fires immediately within the envelope.
+
+**V6 RESULT - both arms KILLED, all three predictions FAILED ($4.2217; Arm A
+20260830-143648 $2.1476, Arm B 20260830-144219 $2.0741; 15/15 valid each).**
+K1 47/48 (A) / 46/48 (B) - improved from v5.3's 45/48 but still killed, all
+leaks at din/q2.ב.c4.s2. K2 PASSES both (1.36% / 2.04%, worse than v5.3's
+0.00%). **K4 EXPLODES: 23.25 / 24.50 vs v5.3's 4.75.** GA-2 0.7947 / 0.7772
+(v5.3: 0.8596). GA-7 PASSES both ($0.1432 / $0.1383).
+
+**CENTRAL FINDING - v6's output contract breaks the decoder.** "Omit entirely
+for met" (aimed at basis_he) generalised: the model began omitting REQUIRED
+fields - `verdicts.N.verdict`, `verdicts.N.confidence` (x2), plus one
+JSON-as-string. Four parse failures (2.2% of scopes per arm). A parse failure
+fails the WHOLE SCOPE, zeroing its terminals - and the four catastrophic draws
+map ONE-TO-ONE onto the four failures (A: yonatan r1 -29.50, din r1 -16.25;
+B: dan r0 -28.00, din r0 -15.00). **K4's explosion is scope-zeroing, not
+verdict oscillation**, so P-V6b's target never got a fair test; the same defect
+drives most of the GA-2 drop and the FULL->ZERO jump (4 -> 17/18). I had
+pre-defaulted basis_he before the run, which is why no failure names that
+field; the spillover to verdict/confidence is what got through. One-line fix
+available (declare every field except basis_he mandatory).
+
+**PREDICTIONS SCORED:** P-V6a FAILED - din cell prices 0 on **3 of 6** draws
+(A: 0/2.00/0 · B: 0/1.00/2.00), bar was >=5/6. Direction real (v5.3 sonnet was
+0/3) but the bar is missed and the cell leaks in BOTH arms. P-V6b FAILED
+(23.25/24.50 vs <=3.0) but for a reason the prediction did not contemplate.
+P-V6c FAILED on both halves ($0.1383 vs <=$0.12; GA-2 0.7772 vs >=0.85).
+
+**MEASURED MECHANISM - why effort barely moved cost: thinking tokens are ZERO
+across both arms** (provider-reported output_tokens_details.thinking_tokens = 0
+on every call, and on the pre-spend probe). Sonnet 5's adaptive thinking does
+not engage on this workload. `effort` reduces thinking depth; with no thinking
+to reduce it has nothing to act on - Arm B is only 3.4% under Arm A. Both beat
+v5.3 because v6 is a SHORTER PROMPT, not because effort worked. This retires
+the "effort is the path under $0.15" hypothesis without another run.
+
+**HARSHNESS IS REAL AND SEPARATE:** excluding every parse-failure draw, v6 still
+grades lower than v5.3 on four of five papers. Object-literalism + resolve-DOWN
+make a stingier grader; K1 improves and K2 still passes, but GA-2 falls anyway.
+
+**ITEM-4 CONDITION FIRED** - din leaks in both arms ⇒ prompt surface declared
+exhausted with SEVEN textual data points (v4 5/5 · v5 5/5 · tb1536 3/3 ·
+v5.3-champion 1/3 · v5.3-sonnet 3/3 · v6-A 1/3 · v6-B 2/3). No v7. The cascade
+is the sole remaining path; all v6 leaks sit at confidence 0.50-0.60, below its
+0.80 router. **HELD FOR ONE OWNER DECISION before the cascade spends:** which
+prompt it screens on - v6 currently loses ~2.2% of scopes to a decoding defect
+with a one-line fix, and screening an architecture on that base confounds it.
+LEDGER: +$4.2217 · envelope $7.34 -> **$3.12 remaining**

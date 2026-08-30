@@ -152,6 +152,7 @@ class TrialScore:
     input_tokens: int = 0
     output_tokens: int = 0
     cached_input_tokens: Optional[int] = None   # [mission §1.3] provider cache reads
+    thinking_tokens: Optional[int] = None      # [item 2b] subset of output_tokens
     cost_usd: Optional[float] = None
     latency_s: Optional[float] = None
     per_scope_cost_usd: Dict[str, float] = field(default_factory=dict)
