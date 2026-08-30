@@ -33,6 +33,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agents.grader.grader import (
     MAX_CONCURRENT_SCOPES,
+    bounded_invoke,
     RETRY_BACKOFF_MAX,
     RETRY_BACKOFF_MIN,
     _ScopeResult,
@@ -78,6 +79,7 @@ logger = logging.getLogger(__name__)
 # semantics: transport blips retried once in-agent (the factory already
 # disabled the SDKs' hidden retry layers), content failures never.
 V5_TRANSIENT_EXCEPTIONS = (
+    asyncio.TimeoutError,                     # [PR-G2] the per-scope wall
     openai.APITimeoutError,
     openai.RateLimitError,
     openai.APIConnectionError,
@@ -128,7 +130,7 @@ class PlanVerifyGrader:
     # ── one verifier call ────────────────────────────────────────────────────
     async def _invoke_once(self, user_msg: str
                            ) -> Tuple[ScopeVerificationResponse, int, int, Optional[int]]:
-        result: Dict[str, Any] = await self._structured_llm.ainvoke([
+        result: Dict[str, Any] = await bounded_invoke(self._structured_llm, [
             SystemMessage(content=VERIFIER_SYSTEM_PROMPT),
             HumanMessage(content=user_msg),
         ])

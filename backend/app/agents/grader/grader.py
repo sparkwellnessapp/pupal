@@ -45,13 +45,32 @@ from app.agents.grader.validator import ValidatedTerminalGrade, validate_scope_g
 logger = logging.getLogger(__name__)
 
 MAX_CONCURRENT_SCOPES = 5
+
+# [PR-G2] The per-scope wall. Module-level and read at CALL time by
+# bounded_invoke below, so moving it (config, test) needs no re-import.
+GRADER_SCOPE_TIMEOUT_S = settings.grader_llm_timeout_s
 RETRY_BACKOFF_MIN = 0.5   # seconds
 RETRY_BACKOFF_MAX = 2.0   # seconds — jitter prevents rate-limit re-collision
+
+async def bounded_invoke(runner, payload):
+    """[PR-G2] One LLM attempt under the per-scope wall — the single place
+    either agent waits on a provider. Raises asyncio.TimeoutError on expiry,
+    which both agents' TRANSIENT tuples treat as a transport blip: GA-3's one
+    retry applies, and a second expiry becomes a flagged `failed` outcome
+    (per-scope isolation, CLAUDE.md §3.6) rather than a hung task.
+
+    GRADER_SCOPE_TIMEOUT_S is read HERE, at call time, on purpose.
+    """
+    return await asyncio.wait_for(runner.ainvoke(payload),
+                                  timeout=GRADER_SCOPE_TIMEOUT_S)
 
 # Transient transport failures — same input retried once will likely succeed.
 # Non-transient (schema parse failures, auth errors, ValueError from parsing_error)
 # are NOT retried per GA-3.
 TRANSIENT_EXCEPTIONS = (
+    # [PR-G2] the wall's own expiry. Note openai.APITimeoutError was a DEAD
+    # branch until this PR: with no client timeout, nothing could ever raise it.
+    asyncio.TimeoutError,
     openai.APITimeoutError,
     openai.RateLimitError,
     openai.APIConnectionError,
@@ -297,11 +316,20 @@ class GraderAgent:
         self._policy = numeric_policy or NumericPolicy()
         self._model_version = model_version or settings.openai_model
         self._served_models: set = set()   # [COST_TRUTH] provider-reported ids
+        # [PR-G2] The default path is what PRODUCTION runs, and it was the
+        # unbounded one: no timeout (LangChain then sends timeout=None, which
+        # overrides the SDK default -> no bound) and the SDK's hidden
+        # max_retries=2 stacked under GA-3's retry = 6 unbounded calls/scope.
+        # Both are closed here; `timeout` is the alias ChatOpenAI maps to
+        # request_timeout, and max_retries=0 moves ALL retrying to the one
+        # layer we own.
         self._llm = llm if llm is not None else ChatOpenAI(
             model=settings.openai_model,
             temperature=0.0,
             max_tokens=8192,
             api_key=settings.openai_api_key,
+            timeout=settings.grader_llm_timeout_s,
+            max_retries=0,
         )
         # include_raw=True: result is {"raw": AIMessage, "parsed": Model|None, "parsing_error": ...}
         # This surfaces usage_metadata for token/cost capture (S8).
@@ -330,7 +358,7 @@ class GraderAgent:
             Raises transport exceptions for transient failures (retried once).
             """
             user_msg = build_user_message(scope)
-            result: Dict[str, Any] = await self._structured_llm.ainvoke([
+            result: Dict[str, Any] = await bounded_invoke(self._structured_llm, [
                 SystemMessage(content=SYSTEM_PROMPT),
                 HumanMessage(content=user_msg),
             ])

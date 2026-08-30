@@ -13,11 +13,14 @@ Design constraints:
   - model_dump(mode="json") is mandatory before JSONB writes: Decimal → str.
   - Idempotency: aborts silently if row is not 'pending'.
 """
+import asyncio
 import logging
+import math
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
+from app.config import settings
 from app.database import get_db_context
 from app.models.grading import GradedTest
 from app.models.transcription import Transcription
@@ -26,9 +29,32 @@ from app.schemas.transcription import TranscriptionContract
 from app.schemas.ontology_types import GradingRubricContract
 from app.services.gradable_compiler import compile as compile_gradable_test
 from app.services.selection_scoring import ScopeScore, score_with_selection
-from app.agents.grader.grader import GraderAgent
+from app.agents.grader.grader import MAX_CONCURRENT_SCOPES, GraderAgent
 
 logger = logging.getLogger(__name__)
+
+
+# [PR-G2] Row-level budget. None means DERIVED per test from its own scope
+# count, which is the only honest shape: a 3-scope test and a 15-scope test
+# are one wave and three waves of the same per-scope wall. A float here is a
+# flat override (tests; an operator capping a runaway).
+GRADING_ROW_BUDGET_S = None
+
+
+def _row_budget_s(scope_count: int) -> float:
+    """timeout x waves + grace (spec PR-G2). The grace covers compile,
+    assembly, and one GA-3 retry landing inside the last wave - the per-scope
+    wall can legitimately spend 2x on a retried scope."""
+    if GRADING_ROW_BUDGET_S is not None:
+        return float(GRADING_ROW_BUDGET_S)
+    waves = math.ceil(max(scope_count, 1) / MAX_CONCURRENT_SCOPES)
+    return settings.grader_llm_timeout_s * waves + settings.grader_row_grace_s
+
+
+class GradingBudgetExceeded(Exception):
+    """The whole-task wall fired. Distinct from a per-scope expiry: the row
+    has no exit of its own otherwise, and would sit in `grading` until the
+    30-minute liveness reaper noticed."""
 
 # gpt-4o pricing (per 1 000 tokens) — update when model changes
 _INPUT_COST_PER_1K  = Decimal("0.005")
@@ -94,7 +120,22 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
 
         # ── 5. Grade (S7) ─────────────────────────────────────────────────────
         agent = GraderAgent(numeric_policy=rubric_contract.numeric_policy)
-        draft = await agent.grade(gradable_test)
+        budget = _row_budget_s(len(gradable_test.scopes))
+        try:
+            draft = await asyncio.wait_for(agent.grade(gradable_test), timeout=budget)
+        except asyncio.TimeoutError as exc:
+            raise GradingBudgetExceeded(
+                f"grading exceeded its row budget of {budget:.0f}s for "
+                f"{len(gradable_test.scopes)} scope(s)") from exc
+
+        # [PR-G2] Every scope failed => this is a failed RUN, not a grade of zero.
+        # Landing it as `draft` would offer the teacher an all-zero review screen
+        # indistinguishable from a genuine zero - review-first, not guess.
+        if draft.scope_outcomes and all(
+                so.graded_by == "failed" for so in draft.scope_outcomes):
+            raise GradingBudgetExceeded(
+                f"all {len(draft.scope_outcomes)} scope(s) failed to grade; "
+                f"row is terminal - the chain continues via retry")
 
         # ── 6. Compute row-level aggregates (all Decimal, guard divide-by-zero) ──
         # PR-3: SELECTION-AWARE, via the one shared helper. The denominator is the

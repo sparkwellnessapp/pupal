@@ -12,6 +12,17 @@ class Settings(BaseSettings):
     # OpenAI settings
     openai_api_key: str
     openai_model: str = "gpt-4o"  # For text grading
+
+    # [PR-G2] Per-scope wall for a grading LLM attempt. The production
+    # GraderAgent used to construct ChatOpenAI with NO timeout, which makes
+    # LangChain pass timeout=None explicitly -> httpx Timeout(None) -> no
+    # bound at all, and a `grading` row with no exit. Matches
+    # llm_factory.GRADER_LLM_TIMEOUT_S so the seam-constructed and default
+    # paths are bounded alike.
+    grader_llm_timeout_s: float = 240.0
+    # Slack added to the row-level budget on top of timeout x waves, to
+    # cover compile + assembly + one GA-3 retry landing in the last wave.
+    grader_row_grace_s: float = 120.0
     openai_vision_model: str = "gpt-4o"  # For vision/transcription tasks
     
     # Google Cloud settings

@@ -10,6 +10,7 @@ Critical tests:
 """
 from decimal import Decimal
 from typing import List
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -352,3 +353,76 @@ def test_compute_cost():
 
     # Zero tokens → zero cost
     assert _compute_cost(0, 0) == Decimal("0")
+
+
+# ---------------------------------------------------------------------------
+# PR-G2 — the row-level exit (spec §2 PR-G2)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_all_scopes_failed_marks_row_failed():
+    """A draft in which EVERY scope failed is not a grade — it is a failed run
+    wearing a draft's clothes. The row must land `failed` (terminal for the row;
+    the chain continues via `retry`), never `draft`, or the teacher is offered a
+    review screen of all-zeros with no way to tell it apart from a real zero."""
+    graded_test_id = uuid4()
+    gt_obj = _make_graded_test_obj(graded_test_id, "grading")
+    db = _make_db_mock(gt_obj, MINIMAL_TRANSCRIPTION_CONTRACT_JSON, MINIMAL_RUBRIC_CONTRACT_JSON)
+
+    draft = _make_draft([("q1", "10", "0"), ("q2", "10", "0")])
+    for so in draft.scope_outcomes:
+        object.__setattr__(so, "graded_by", "failed")
+
+    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
+        inst = AsyncMock()
+        inst.grade = AsyncMock(return_value=draft)
+        MockAgent.return_value = inst
+        await _do_grade(db, graded_test_id)
+
+    assert gt_obj.status == "failed"
+    assert gt_obj.error_message                      # the CHECK requires it
+
+
+@pytest.mark.asyncio
+async def test_partial_scope_failure_still_lands_a_draft():
+    """The converse, so the rule above cannot be over-applied: per-scope
+    isolation (CLAUDE.md §3.6) means SOME failures are a reviewable grade."""
+    graded_test_id = uuid4()
+    gt_obj = _make_graded_test_obj(graded_test_id, "grading")
+    db = _make_db_mock(gt_obj, MINIMAL_TRANSCRIPTION_CONTRACT_JSON, MINIMAL_RUBRIC_CONTRACT_JSON)
+
+    draft = _make_draft([("q1", "10", "7"), ("q2", "10", "0")])
+    object.__setattr__(draft.scope_outcomes[1], "graded_by", "failed")
+
+    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
+        inst = AsyncMock()
+        inst.grade = AsyncMock(return_value=draft)
+        MockAgent.return_value = inst
+        await _do_grade(db, graded_test_id)
+
+    assert gt_obj.status == "draft"
+
+
+@pytest.mark.asyncio
+async def test_row_budget_bounds_a_hung_grade(monkeypatch):
+    """A grade that hangs anywhere — not only in the LLM call — must still give
+    the row an exit. Without this a `grading` row waits for the liveness reaper
+    (30 min) instead of failing at its own budget."""
+    import app.services.grading_runner as runner_mod
+    monkeypatch.setattr(runner_mod, "GRADING_ROW_BUDGET_S", 0.3, raising=True)
+
+    graded_test_id = uuid4()
+    gt_obj = _make_graded_test_obj(graded_test_id, "grading")
+    db = _make_db_mock(gt_obj, MINIMAL_TRANSCRIPTION_CONTRACT_JSON, MINIMAL_RUBRIC_CONTRACT_JSON)
+
+    async def _hang(*_a, **_kw):
+        await asyncio.sleep(30)
+
+    with patch("app.services.grading_runner.GraderAgent") as MockAgent:
+        inst = AsyncMock()
+        inst.grade = _hang
+        MockAgent.return_value = inst
+        await asyncio.wait_for(_do_grade(db, graded_test_id), timeout=6.0)
+
+    assert gt_obj.status == "failed"
+    assert "budget" in (gt_obj.error_message or "").lower()
