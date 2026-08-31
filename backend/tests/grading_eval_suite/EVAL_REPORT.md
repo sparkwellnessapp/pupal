@@ -9,6 +9,12 @@ its results dir. **Amended 2026-08-29:** §6b folds in the gemini-3.1-pro
 thinking sweep and the $0.15-ceiling recommendation. **FINAL (2026-08-29,
 §8):** the three H-2-review rulings were executed and the final phase ran to
 completion — gemini-3.1-pro is the mission's confirmed, kill-clean champion;
+> **⚠ SUPERSEDED AS THE PRODUCTION PIN (owner verdict 2026-08-31): production
+> now runs `claude-sonnet-5`.** gemini-3.1-pro failed T1-COST on 10/10 trials
+> at $0.3823 (2.5x the $0.15 ceiling) and graded 3.4x slower. Sonnet-5 fails
+> K1 at 45/48 on one carried cell, and the verdict accepts that explicitly —
+> no bar was moved. This report's champion finding stands as an EVAL result;
+> it is no longer the deployment. See RUNLOG «OWNER VERDICT 2026-08-31».
 the deferred GA-7 ceiling ruling is now live. Mission spend $59.04 of $60.
 
 ---

@@ -2066,3 +2066,77 @@ rather than a disqualification.
 kill (45/48, all three firings the single `din/q2.ב.c4.s2` cell the champion
 also leaks 1/3 on). This run measured LATENCY and COST, not the kills, and
 nothing here retires that finding.
+
+
+---
+
+# OWNER VERDICT 2026-08-31 — THE PRODUCTION GRADER IS SONNET-5
+
+Supersedes the gemini-3.1-pro pin ratified 2026-08-29. Recorded by the owner
+after the PR-G3(b) measurement; this entry is the decision, not a proposal.
+
+## What it replaces
+
+| | gemini-3.1-pro | **claude-sonnet-5** |
+|---|---|---|
+| $/trial | $0.3823 — **T1-COST failed 10/10** | **$0.1569** (misses the $0.15 bar by 6%) |
+| latency p50 | 79.32 s | **23.01 s** (3.4x faster) |
+| within-precision | 0.895 | 0.861 |
+| terminal MAE | 0.111 | 0.116 |
+| K1 | kill-clean | **45/48 — FAILS** |
+
+Both measured 2026-08-31, k=2 x 5 fixtures, same corpus, same suite_hash.
+
+## The verdict accepts a known kill, and says so
+
+Sonnet-5 **fails K1**. All three firings are the same cell — `din/q2.ב.c4.s2` —
+which the gemini champion also leaks on 1/3 of draws under the same
+grader-v5.3, and which this log has already attributed to the plan/prompt
+surface rather than to the vendor (seven textual data points, item-4 condition
+fired 2026-08-30). The cell is carried to fixture expansion.
+
+**No bar moved.** The K1 threshold is untouched and Sonnet-5 still fails it. The
+verdict is that a 2.5x cost overrun and a 3.4x latency penalty are the larger
+risks to a product that has to serve 100 teachers an evening, and that the one
+failing cell is a known, attributed, tracked defect rather than an unknown. That
+is a judgement the owner is entitled to make; it is recorded here so that
+nobody later reads a green suite and concludes K1 was passing.
+
+**What would reopen this:** the FP2 cascade, whose $3.12 envelope is unspent and
+which was designed for exactly this cell — every leaking draw sits at confidence
+0.40–0.60, below its 0.80 router threshold.
+
+## What shipped with the verdict
+
+* `grader_model_key = "claude-sonnet-5"`, `grader_model_provider = "anthropic"`.
+* Prompt half unchanged and still guarded: `VERIFIER_PROMPT_VERSION =
+  "grader-v5.3"`. **Model and prompt are a package** — v6 stays a dated
+  artifact.
+* **A deployment defect fixed as part of the pin.** The ratified plan lived only
+  under `tests/`, and the Dockerfile is `COPY app/ ./app/` and nothing else — so
+  in production `Path(grader_plan_path).is_file()` was always False,
+  `grader_kind_for` would log `grader_pin_incomplete` and fall back to v3, and
+  the fallback looks exactly like a working system. The plan now ships at
+  `app/agents/grader/plans/hobby_tvshow.plan.json`, byte-compared against the
+  suite's copy by `test_the_shipped_plan_is_byte_identical_to_the_one_the_gate_measures`.
+
+## ⚠ THE PIN IS NOT YET LIVE, and that is deliberate
+
+`grader_architecture` stays `"v3"` and `grader_plan_rubric_id` stays `None`,
+because **no production rubric has a ratified plan**. Checked against production
+2026-08-31: 6 rubrics, none is this plan's exam, `graded_tests = 0`.
+
+Setting v5 without the binding does not grade anything with Sonnet — it makes
+`grader_kind_for` emit `grader_pin_incomplete` on every grade and fall back to
+v3 regardless. A warning that always fires is the INV-6 mistake this codebase
+has already paid for once.
+
+**Activation is two values, once the pilot rubric exists:**
+
+    GRADER_PLAN_RUBRIC_ID=<the pilot rubric's uuid>
+    GRADER_ARCHITECTURE=v5
+
+`tests/agents/test_grader_pin.py::test_the_pin_is_still_dark_until_a_rubric_is_bound`
+fails the day someone sets one without the other. `graded_tests = 0` means the
+flip still precedes any real grading in production — the PR-G1 condition (iii)
+holds.

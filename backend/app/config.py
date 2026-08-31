@@ -49,10 +49,41 @@ class Settings(BaseSettings):
     # production behaviour — flipping them does, deliberately.
     # The ratified pin (EVAL_REPORT §9.3, k=5 confirmed, k=2 re-verified
     # 2026-08-31): gemini-3.1-pro + plan hobby_tvshow/v3 + grader-v5.1.
-    grader_architecture: str = "v3"                    # v3 | v5
-    grader_model_key: Optional[str] = None             # registry key
-    grader_model_provider: str = "openai"               # openai | anthropic | gemini
-    grader_plan_path: Optional[str] = None             # ratified GradingPlan JSON
+    # ─── OWNER VERDICT 2026-08-31: the production grader is SONNET-5. ───────
+    # Supersedes the gemini-3.1-pro pin. Measured basis (RUNLOG 2026-08-31):
+    #   · gemini-3.1-pro failed T1-COST on 10/10 trials at $0.3823 — 2.5x the
+    #     $0.15 ceiling — and graded at p50 79.3 s.
+    #   · claude-sonnet-5 grades the same corpus 3.4x faster (p50 23.0 s at
+    #     16-wide) for 42% of the cost ($0.1569), accuracy comparable
+    #     (within-precision 0.861 vs 0.895, MAE 0.116 vs 0.111).
+    #
+    # THE VERDICT ACCEPTS A KNOWN KILL, deliberately and on the record: Sonnet-5
+    # fails K1 at 45/48. All three firings are the SAME cell —
+    # din/q2.ב.c4.s2 — which the gemini champion also leaks on 1/3 of draws
+    # under the same grader-v5.3, and which the RUNLOG attributes to the
+    # plan/prompt surface rather than to the vendor. It is carried to fixture
+    # expansion. The bar was NOT moved to accommodate this; the failure is
+    # accepted with its name attached.
+    #
+    # The prompt half of the pin is in code, not here: VERIFIER_PROMPT_VERSION
+    # = "grader-v5.3", guarded by
+    # test_sonnet_prompt_pin_is_v53_and_v6_is_an_artifact_not_a_pin.
+    #
+    # ⚠ STILL DARK. `grader_architecture` stays "v3" and
+    # `grader_plan_rubric_id` stays None because NO PRODUCTION RUBRIC HAS A
+    # RATIFIED PLAN yet (checked 2026-08-31: 6 rubrics, none is the plan's
+    # exam; graded_tests = 0). Setting v5 without the binding would make
+    # grader_kind_for log `grader_pin_incomplete` on every grade and fall back
+    # to v3 anyway — a warning that always fires, which is the INV-6 mistake.
+    # ACTIVATION IS TWO VALUES, once the pilot rubric exists:
+    #     GRADER_PLAN_RUBRIC_ID=<that rubric's uuid>
+    #     GRADER_ARCHITECTURE=v5
+    grader_architecture: str = "v3"                    # v3 | v5 — see above
+    grader_model_key: Optional[str] = "claude-sonnet-5"
+    grader_model_provider: str = "anthropic"            # openai | anthropic | gemini
+    # Ships inside the image (app/, per the Dockerfile). A tests/ path resolves
+    # to nothing in production.
+    grader_plan_path: Optional[str] = "app/agents/grader/plans/hobby_tvshow.plan.json"
     # The ONE rubric this plan is ratified for. See grader_selection's
     # module docstring (OD-G1.4): the plan's own sha256 pin is over contract
     # FILE bytes, which do not exist for a JSONB-stored production contract.
