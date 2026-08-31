@@ -1,274 +1,328 @@
 # Generatable grading plans — design + implementation plan
 
-**Status: DESIGN, awaiting owner rulings. Nothing implemented.**
-Author: agent, 2026-08-31. Blocking questions in §5.
+**Rev 2, 2026-08-31.** Rev 1 reviewed by the owner; all eight change requests
+and all eight OD verdicts are incorporated below. **Status: awaiting final
+approval. Nothing implemented.**
+
+Two findings from verifying the review are new and change the plan:
+
+- **P-0 (blocking, §6).** Criterion IDs are **positional** —
+  `criterion_id = f"{qid}.{sid}.c{i}"` over `enumerate(...)`. Inserting one
+  criterion shifts every later ID, so a durable ruling keyed to `q1.א.c2`
+  silently re-attaches to a different criterion. The review predicted this; it
+  is confirmed, and it blocks the ruling ledger (not the experiment).
+- **Good news (§4, Phase 0).** `tests/grading_eval_suite/plan_expressibility.py`
+  **already exists**, with exactly the semantics the review describes, already
+  wired as a standing pytest *and* as the runner's pre-spend refusal. The
+  cheapest, most decisive Phase-0 test is a reuse, not a build.
 
 ---
 
-## 1. The problem, precisely
+## 1. The problem
 
-The v5 grader does not read a rubric and decide what to check. It is *handed* a
-checklist — a `GradingPlan` — and only rules "met / partially met / not met" per
-item. A deterministic pricer turns those verdicts into points.
+The v5 grader is handed a checklist — a `GradingPlan` — and rules met / partly /
+not per item; a deterministic pricer turns verdicts into points. Exactly one
+plan exists, hand-authored for one exam by a 448-line one-off script. **No code
+in `app/` can produce a plan for any other rubric**, so v5 — and with it the
+Sonnet-5 pin and the whole review module — works for one exam and no other.
 
-Today exactly one plan exists: `hobby_tvshow.plan.json`, **hand-authored** by
-`tests/grading_eval_suite/tools/build_hobby_plan.py`, a 448-line one-off script
-for one exam. Its shape:
+## 2. What makes it tractable
 
-| | |
-|---|---|
-| terminals | 38 (mirrors the contract exactly — validator rule V6) |
-| checks | 80 — avg 2.1 per terminal, range 1–5 |
-| kinds | 65 `required`, 14 `tariff`, 1 `note_only` |
-| `equivalence_note` | 11 |
-| `charge_group` | 2 |
+**The terminal set is derived, never generated** (validator V6 forces
+`plan.terminals == contract.terminals`). The generator only decomposes each
+terminal into checks such that `Σ required.points == points_possible` exactly —
+an arithmetic constraint, which is where LLMs are worst and the existing
+`plan_validator` (V1–V8, pure and total) is perfect. Generate → verify → bounded
+repair, with the validator's already-human-readable tagged errors fed back
+verbatim.
 
-**There is no code in `app/` that can produce a plan for any other rubric.** So
-v5 — and with it the Sonnet-5 pin, check-level review, and the whole PR-G1…G9
-review module — works for one exam and no other. Every other teacher falls back
-to v3/gpt-4o.
-
-That is the gap this spec closes.
+Reference shape (the hand-authored plan): 38 terminals, 80 checks, avg 2.1 per
+terminal (range 1–5), 65 `required` / 14 `tariff` / 1 `note_only`, 11
+`equivalence_note`, 2 `charge_group`.
 
 ---
 
-## 2. What makes this tractable
+## 3. Architecture — two layers, one frozen artifact
 
-**The terminal set is not generated — it is derived.** Validator rule V6 forces
-`plan.terminals == contract.terminals` exactly, with `points_possible` matching
-per terminal. So the generator never invents structure; it only decomposes each
-terminal into checks.
+Rev 1's single mistake was treating the constitution as a static module the
+generator "may attach." It is not static: **most of a rubric's rulings do not
+exist at generation time.** They surface later, from grading disagreements and
+teacher overrides, and none of them are derivable from rubric text. Under rev 1,
+regenerate-on-edit would have discarded every accumulated ruling along with the
+decomposition it was attached to.
 
-Per terminal the task is bounded: given the rubric text, the point value `P`,
-the teacher's guidance, the example solution, and the numeric precision, emit
-checks such that `Σ required.points == P` **exactly**.
-
-That last constraint is arithmetic — the thing LLMs are worst at and validators
-are perfect at. `plan_validator.validate_plan` already enforces all of it, pure
-and total:
-
-- **V1** Σ required.points == points_possible exactly
-- **V2** every points / tariff_amount on the precision grid
-- **V3** kind shape (required ⇒ points>0, no tariff; tariff ⇒ points==0, 0 < amount ≤ possible; note_only ⇒ no points)
-- **V4** points × partial_fraction on the grid
-- **V5** ids unique · **V6** totality vs contract · **V7** charge_group never spans scopes · **V8** 0 < partial_fraction < 1
-
-This is the ideal generate-then-verify shape: a stochastic proposer inside a
-deterministic, already-written, exhaustively-testable gate.
-
-**Inputs available per terminal** (all already on the compiled contract):
-`criterion.description`, `.points`, `.evaluation_guidance`, `.notes`,
-`sub_criteria[].description/.points`, and from the parent scope
-`example_solution`, `question_text` / sub-question `text`, plus
-`contract.numeric_policy.precision`, `.programming_language`, `.subject`.
-
-The example solution is where `equivalence_note` comes from — the hand-authored
-plan's notes are literally of the form "names matching the example solution
-(e.g. `durationInMinutes`) are valid".
-
----
-
-## 3. Design
-
-### 3.1 It is a Draft → Contract domain (§3.4), like everything else
-
-| | |
-|---|---|
-| **Draft** | `PlanDraft` — mutable, may be invalid, carries per-terminal diagnostics and the model's rationale |
-| **Contract** | `GradingPlan` — already exists, `frozen=True` |
-| **Compiler** | `plan_compiler.py` — runs `validate_plan`; the only path Draft → Plan |
-
-No new architectural pattern. The existing validator becomes the compiler's
-invariant set.
-
-### 3.2 Generation unit: the SCOPE, not the terminal
-
-One LLM call per scope (a direct-criteria question or one sub-question), not per
-terminal. Three reasons:
-
-1. **V7 falls out for free.** A `charge_group` may never span scopes. Generating
-   per scope makes that structurally impossible rather than a rule to remember.
-2. Criteria inside a scope interact — "deduct once across this question" is a
-   scope-level statement, and the model needs the siblings in view to write it.
-3. Cost and latency: hobby_tvshow is 6 scopes, not 38 terminals.
-
-### 3.3 The loop
+**The decomposition is volatile. The rulings are the asset.**
 
 ```
-compiled GradingRubricContract
-        │
-        ├─ derive terminal set + points  (pure, from the contract — never the LLM)
-        │
-        ▼
-  per scope:  propose checks  ──►  validate_plan (pure)
-        │                              │
-        │                        errors│  (bounded repair: ≤2 attempts,
-        │                              ▼   errors fed back verbatim)
-        │                          re-propose
-        ▼
-  assemble PlanDraft ──► plan_compiler ──► GradingPlan (frozen)
+     LAYER 1 — RULING LEDGER (durable, append-only, survives regeneration)
+     keyed to (rubric lineage, STABLE terminal identity)
+     sources: owner constitution · teacher overrides · audit
+                     │
+                     │  merged at compile
+                     ▼
+     LAYER 2 — DECOMPOSITION (volatile, per scope, regenerable)
+     generated from the contract; replaced wholesale for CHANGED scopes only
+                     │
+                     ▼
+        plan_compiler  ──►  GradingPlan (frozen)  ──►  stored APPEND-ONLY by plan_version
 ```
 
-Repair is per scope, so one bad scope never re-runs the other five. Errors are
-fed back verbatim — they are already written as human-readable, tagged strings
-(`"V1: q1.א.c0 required sum 3 != points_possible 4"`).
+### 3.1 Layer 1 — the ruling ledger
 
-### 3.4 The constitution — general rulings, separate from exam content
+Two ruling kinds, because the review's OD-1 loop needs both:
 
-The hand-authored plan has owner rulings appended into check text: PL-10
-(assignment to an undeclared target is a material defect → partially_met), PL-9
-(a component valid in its own terms still counts; credit once, as charge is
-once), R-β (the penalty applies at every access site).
+| kind | what it carries | who creates it |
+|---|---|---|
+| `policy` | a clause appended to the check text (PL-10, R-β …) | owner constitution; audit |
+| `decomposition` | a **pinned check set** for one terminal, overriding generation | the teacher, via OD-1's lazy ratification |
 
-These are **general grading policy**, not facts about the Hobby exam. They
-accumulated from eval iterations. Design: a versioned `PLAN_CONSTITUTION`
-module holding them as reusable clauses the generator may attach, with the
-constitution version stamped into `plan_version`. This keeps them auditable and
-stops them being re-derived per exam.
+`decomposition` is what makes "her override becomes a durable ruling" real: once
+she edits the 1.5 + 1.5 split, that terminal is **pinned** and regeneration must
+never re-roll it.
 
-**Which rulings are general vs exam-specific is an owner call — see OD-5.**
+**RL-1 (RulingAnchorResolves) — a new named invariant.** Every ruling's anchor
+must resolve to exactly one live terminal (and, for check-scoped policy, exactly
+one check) at compile. An unresolvable anchor is a **loud compile failure**,
+never a silent drop. This mirrors CW-3 ("every override key is a real terminal")
+and exists because the alternative — quietly dropping a ratified ruling during a
+routine rubric edit — is the confidently-wrong class §3.5a is about.
 
-### 3.5 Where it runs, and where it is stored
+### 3.2 Layer 2 — the decomposition
 
-Generation is a **Cloud Tasks job** (`JobKind.plan_generation`), fired after a
-rubric compiles — the established substrate, and the only one that guarantees
-CPU outside a request. The teacher never waits: by the time she uploads tests,
-the plan is ready.
+One LLM call **per scope** (not per terminal): V7 (`charge_group` never spans
+scopes) becomes structurally impossible rather than a rule to remember, siblings
+stay in view for charge-once statements, and hobby_tvshow is 6 calls not 38.
 
-Storage: `rubrics.plan_json` JSONB + the plan's own `rubric_contract_version`
-inside the JSONB, mirroring exactly how `contract_version` lives inside
-`contract_json` (no parallel column — CLAUDE.md §4).
+**Regeneration is per scope, diffed against the previous contract** (review
+item 6). A rubric edit touching one criterion must not re-roll the other five
+scopes: stochastic regeneration would silently change grading behaviour on
+criteria the teacher never touched, mid-semester. Unchanged scopes are carried
+**byte-identically**. Terminals with a `decomposition` ruling are never
+regenerated at all.
 
-### 3.6 The binding bug this must fix
+### 3.3 Storage — append-only (review item 2)
 
-`GradingPlan.rubric_contract_sha256` pins to contract **file bytes**. Production
-contracts live in a JSONB column; those bytes do not exist, which is why
-`grader_plan_rubric_id` exists as a manual stand-in (OD-G1.4).
+A `plan_json` column overwritten on regeneration destroys the audit trail. Every
+graded draft pins `plan_version`, and appeal-defensibility requires that exact
+artifact to still exist — "applied identically to all N students under the
+ruling set of *date*" is not a claim you can make from a plan that was
+overwritten.
 
-A generated plan should bind to `contract_version` — the UUID already minted per
-compile and already the pinning mechanism everywhere else (VER-2). That makes
-staleness derivable rather than configured, and retires the manual binding.
+- `grading_plans` table, append-only, keyed by `plan_version`
+- `rubrics.current_plan_version` points at the live one
+- ruling ledger is its own table, also append-only (a ruling is retired by a
+  superseding entry, never by deletion)
 
+### 3.4 Two new validator rules (review item 5)
+
+- **V9 — rubric-quote grounding.** Every check's `rubric_quote` must be a
+  verbatim span of its terminal's criterion text (or its parent scope's
+  `example_solution`). The plan-level analogue of evidence-quote validation: a
+  hallucinated check becomes structurally impossible, and it is what makes
+  OD-1's "this came from your text, here" display honest rather than decorative.
+- **V10 — point-blindness.** `description_he` may not contain point values. The
+  verifier is point-blind by design; leaking the number into the check text
+  hands it the answer.
+
+Both pure, both cheap, both in the same validator as V1–V8.
+
+### 3.5 Binding (OD-4)
+
+`GradingPlan` gains `rubric_contract_version` (the UUID already minted per
+compile, the mechanism VER-2 uses for grades) and `constitution_version`.
 `rubric_contract_sha256` stays optional for the eval suite's file-based flow.
-**This edits a frozen contract type — OD-4.**
+Staleness becomes derivable, and `grader_plan_rubric_id` — the manual stand-in
+blocking the Sonnet pin — retires.
+
+### 3.6 Generation model (review item 7)
+
+**The plan is the quality ceiling**, and it is a one-time amortised cost: six
+scopes at ~$2 per rubric version against a whole class's grading. Generation
+runs on the strongest available tier (Opus 5 or gemini-pro at default thinking),
+**not** the grading pin. Sonnet-5 rates are the wrong optimisation target here.
+
+### 3.7 Subject modularity (review item 8a)
+
+The generator's core prompt is subject-agnostic (§3.3 of CLAUDE.md). CS-flavoured
+authoring heuristics and subject-scoped clauses (PL-2's `cw`/`CR` shorthand)
+attach **by `contract.subject`**, never in the core. Litmus: a new subject is a
+new clause pack and new prompt fragments, with no change to the generator, the
+validator, or the ledger.
 
 ---
 
-## 4. Implementation plan
+## 4. Phase 0 — the experiment (gates everything)
 
-### Phase 0 — THE EXPERIMENT (gates everything else)
+Generate a plan for `hobby_tvshow` **from its own compiled contract** and
+compare against the hand-authored plan on ground truth we already own.
 
-Before any production wiring: generate a plan for `hobby_tvshow` **from its own
-compiled contract**, and run the existing grading eval with it, against the same
-GT, at the same k, on the pinned model. Compare to the hand-authored plan.
+**Order matters — the free test runs first.**
 
-This is the whole bet, and it is cheap and decisive because the GT already
-exists. If a generated plan cannot approach the hand-authored one on a corpus we
-have fully characterised, no amount of production wiring helps.
+**0a. Expressibility, before a single dollar of grading.** Reuse
+`plan_expressibility.expressibility_errors`: for every one of the 190 ratified
+GT awards (38 terminals × 5 students), is there *any* verdict assignment the
+plan algebra can produce it with? The hand plan scores 190/190. A plan that
+cannot express the teacher's award can never reproduce it on any model, at any k.
 
-Deliverables: `app/agents/plan_gen/` (schemas, prompt, generator, repair),
-`tools/gen_plan.py`, and a RUNLOG entry with a **pre-registered** prediction and
-kill criterion (OD-2 sets the bar).
+Misses partition cleanly, and the partition is the measurement:
+- **decomposition-class miss** — the split itself is wrong. A failure.
+- **ruling-class miss** — an exam-specific judgement the generator could not
+  have known. Expected, and a **direct measurement of what layer 1 is worth**.
 
-Named tests: `generated-plan-passes-the-validator`, `generated-plan-terminals-match-contract-exactly`, `repair-loop-is-bounded`, `generation-never-invents-a-terminal`.
+**0b. Two variants, because rev 1's A/B was contaminated** (review item 4). If
+the generator attaches PL-9/PL-10/R-β — rulings *derived from this exam's GT* —
+the comparison says nothing about generalisation.
 
-### Phase 1 — Draft → Contract plumbing
-`PlanDraft`, `plan_compiler.py`, `rubrics.plan_json` (migration 022), plan
-staleness derived from `contract_version`.
-Tests: `plan-compiles-only-when-valid`, `plan-is-stale-when-contract-version-moves`, `compiler-is-the-only-path`.
+| variant | attaches | measures |
+|---|---|---|
+| **V-rubric** | nothing but the rubric | pure decomposition quality |
+| **V-const** | + the general constitution (OD-5 classes 1–3) | the general-clause delta |
+| hand plan | everything incl. exam-specific | the residual = exam-specific ruling value |
 
-### Phase 2 — the job
-`JobKind.plan_generation`, `/internal/plan-jobs/{id}/run`, enqueue after compile,
-`LivenessRule` instance, retry endpoint. Mirrors extraction exactly.
-Tests: `plan-job-cas-claim-is-idempotent`, `plan-job-expiry-is-terminal-on-read`.
+**0c. Grading A/B** on the pinned model at k≥3, scored against OD-2's bar.
 
-### Phase 3 — the seam
-`grader_kind_for` consults the stored plan instead of `grader_plan_rubric_id`;
-the manual binding is retired. Fallback per OD-6.
-Tests: `v5-selected-when-a-fresh-plan-exists`, `stale-plan-never-grades`, `manual-binding-is-gone`.
+**0d. Report** (review item 8b): equivalence-note count against
+`example_solution` presence, per scope. Equivalence notes come from the model
+solution; a rubric without one will produce harsher plans on alternative student
+designs, which makes solution-image ingestion a **prerequisite for plan
+quality**, not a nice-to-have.
 
-### Phase 4 — widen the evidence
-Generate plans for the other production rubrics; hand-score a sample. Phase 0
-proves it on one exam; this is the first evidence it generalises — and the honest
-limit of what we can claim until then.
+Named tests: `generated-plan-passes-the-validator`,
+`generated-plan-terminals-match-contract-exactly`,
+`generated-plan-is-expressible-over-gt`, `repair-loop-is-bounded`,
+`generation-never-invents-a-terminal`, `checks-carry-no-point-values` (V10),
+`rubric-quote-is-a-verbatim-span` (V9).
 
----
-
-## 5. OPEN DECISIONS — owner rulings needed before Phase 0
-
-**OD-1 (product/UX, the big one). Does the teacher review the generated plan?**
-The plan decides how a 4-point criterion splits — 1+3 or 2+2 — and that is a
-pedagogical choice she never made. But it is also an internal artifact she never
-asked for, and 80 checks is a lot of screen for someone whose north-star metric
-is *less* after-school work.
-*Options:* (a) no gate — validated arithmetically, and her authority is exercised
-at the existing grading gate where she reviews the actual awards; (b) a review
-surface for the plan; (c) no gate, but every check carries its `rubric_quote` so
-the grading review can show "this came from your text here".
-*Recommendation:* (c). It preserves "Vivi proposes, the teacher decides" at the
-moment she is already reviewing, without inventing a second gate for an artifact
-she did not author.
-
-**OD-2. What is the acceptance bar for a generated plan?**
-The validator proves arithmetic, never intent. A plan can be perfectly valid and
-pedagogically wrong.
-*Recommendation:* generated-vs-hand-authored A/B on hobby_tvshow at k≥3, and the
-generated plan must not lose more than a named margin on the existing gates
-(K1/K2/K4, GA-2). **The owner sets the margin — I will not pick a number that
-decides whether my own work passes.**
-
-**OD-3. When does generation run?**
-*Recommendation:* async Cloud Tasks job after compile (§3.5). Alternatives:
-lazily at first grade (the first student waits ~1–2 min) or synchronously at
-compile (the teacher waits at save).
-
-**OD-4. May the frozen `GradingPlan` gain `rubric_contract_version`?**
-Required to bind plans to production contracts (§3.6). Additive and optional, but
-it edits a frozen contract type and retires `grader_plan_rubric_id`.
-
-**OD-5. Which accumulated rulings are GENERAL policy?**
-PL-9, PL-10, R-β were owner rulings from eval iterations on one exam. Promoting
-the wrong one to the constitution bakes an exam-specific decision into every
-future plan; omitting a general one loses hard-won correctness.
-*This is owner judgement — I can propose a split, but I should not make it.*
-
-**OD-6. Fallback when no valid plan exists.**
-*Options:* (a) fall back to v3 (grading proceeds, quality silently differs);
-(b) refuse to grade and surface it (review-first, not guess).
-*Recommendation:* (b) once v5 is the default — a silent quality switch is exactly
-the confidently-wrong-output class §3.5a warns about. (a) is right only while v5
-is still a pilot.
-
-**OD-7. Regeneration on rubric edit.** Every edit mints a new `contract_version`,
-staling the plan. Auto-regenerate (cost per edit, ~$0.20) or on demand?
-*Recommendation:* auto, on the same job — the cost is trivial and a stale plan
-blocks grading under OD-6(b).
-
-**OD-8. Does this retire v3?** If every rubric can have a plan, the v3 grader
-becomes dead code — a real simplification (one grading path, one prompt surface,
-one eval target). Or v3 stays as the fallback forever.
-*Recommendation:* decide after Phase 4, not now; but flagged because it changes
-how much of the old path is worth maintaining meanwhile.
+**Phase 0 does not need P-0.** It operates on one frozen contract; stable
+identity only matters once contracts change. The experiment is unblocked today.
 
 ---
 
-## 6. Cost, latency, risk
+## 5. Phases 1–4
 
-**Cost:** ~6 calls per rubric (one per scope) + bounded repairs. At Sonnet-5
-rates and hobby-sized scopes, **~$0.20 per rubric version** — once per rubric,
-amortised over an entire class. Negligible against the $0.15/test grading cost.
+**Phase 1 — the two layers.** Ruling ledger (schema, RL-1, append-only),
+`PlanDraft` → `plan_compiler` → `GradingPlan`, append-only `grading_plans`,
+`rubrics.current_plan_version`. **Requires P-0.**
+Tests: `ruling-survives-regeneration`, `pinned-decomposition-is-never-re-rolled`,
+`unresolvable-ruling-anchor-fails-loudly`, `plan-history-is-append-only`,
+`compiler-is-the-only-path`.
 
-**Latency:** ~1–2 min per rubric, off the teacher's critical path as a job.
+**Phase 2 — the job.** `JobKind.plan_generation`, `/internal/plan-jobs/{id}/run`,
+enqueue after compile, `LivenessRule` instance, retry endpoint, **contract-diff
+per-scope regeneration**.
+Tests: `plan-job-cas-claim-is-idempotent`, `plan-job-expiry-is-terminal-on-read`,
+`unchanged-scopes-are-carried-byte-identically`.
+
+**Phase 3 — the seam.** `grader_kind_for` consults the stored plan; the manual
+binding retires; OD-6 fallback.
+Tests: `v5-selected-when-a-fresh-plan-exists`, `stale-plan-never-grades`,
+`manual-binding-is-gone`, `refusal-enqueues-a-retry-and-never-shows-an-error`.
+
+**Phase 4 — generalisation, named honestly** (review item 8c). This *is* the
+fixture-expansion mission wearing a different hat: it means **authoring ground
+truth on a second exam**. It is the prerequisite for any claim that generation
+generalises, and until it lands, every Phase-0 result is quoted with "proven on
+one exam."
+
+---
+
+## 6. P-0 — stable criterion identity (PREREQUISITE, resolve once)
+
+**Confirmed defect.** `docx_v3/pipeline.py`:
+
+```python
+criterion_id     = f"{qid}.{sid}.c{i}"   # for i, c in enumerate(sq.criteria)
+sub_criterion_id = f"{cid}.sc{i}"
+```
+
+IDs are **positional**. Insert a criterion at position 0 and every later ID
+shifts by one. Consequences, all silent:
+
+- a layer-1 ruling re-attaches to a **different criterion**;
+- `TeacherOverride.check_id` (CW-3) and the audit key
+  `(rubric_id, question_id, criterion_id, check_id, plan_version)` have the same
+  exposure — this is one root cause behind several features.
+
+**Recommendation: mint a stable `uid` per criterion / sub-criterion at
+extraction, carried verbatim through every edit.** The frontend codec already
+has the mechanism — every wire field is either modeled or carried through the
+typed `_carry` bag (CLAUDE.md §11), so a carried `uid` survives an untouched
+open→save as a structural identity, a reorder preserves it, and only a genuinely
+new criterion mints a new one.
+
+Rejected alternatives: content-hash identity (breaks exactly when she edits the
+text, which is when she is most likely also ratifying a ruling); fuzzy re-anchor
+with a surfaced mismatch (adds a new judgement call to every edit).
+
+`criterion_id` stays the display/path identity — nothing about `q1.א.c2` as an
+anchor for humans changes. `uid` is the machine identity for durable references.
+
+**This is an ontology change and therefore an owner decision.** It blocks
+Phase 1, not Phase 0.
+
+---
+
+## 7. Open decisions — owner verdicts (2026-08-31), as ruled
+
+**OD-1 — no upfront gate; lazy ratification at the point of disagreement.**
+When she overrides a 1.5-of-3 award, the review shows the split
+(1.5 יצירה + 1.5 תא נכון) and editing it *there* is the ratification: her edit
+becomes a durable `decomposition` ruling in layer 1. The plan becomes
+teacher-owned without ever becoming teacher homework. V9 is what makes the
+display honest.
+
+**OD-2 — the bar measures decomposition, not accumulated rulings.**
+- Expressibility **≥ 180/190**, and **every miss attributable to an owner ruling
+  not derivable from rubric text**. A decomposition-class miss fails outright.
+- **K1 = 80/80 — inviolable, no margin.**
+- K2 ≤ hand + 1 cell · K4 ≤ hand + 1.0 · GA-2 ≥ hand − 0.05.
+- **Tariff recall 14/14, note_only recall 1/1** — named deductions are literal
+  text extraction and must not miss.
+
+**OD-3 — async after compile**, plus **recompile (not regenerate) on ruling
+ratification**, plus on-demand retry.
+
+**OD-4 — yes**, additive and optional; add `constitution_version`; keep
+`rubric_contract_sha256` for the eval flow. Prerequisite P-0 (§6).
+
+**OD-5 — the ruling split, as authored:**
+
+| class | rulings | attached by |
+|---|---|---|
+| **General** | PL-1, PL-3, PL-10, R-α (solution is naming authority), R-β (a named tariff applies at every access site), A-6 (a tariff never compounds on a demoted verdict), charge-once / credit-once, and the authoring rule behind P-A (criterion text naming N components → N checks) | generator |
+| **General-default, teacher-overridable** | PL-9 — a genuine pedagogical stance on structural credit that most Bagrut graders share and some will not | generator, overridable via layer 1 |
+| **Subject-scoped (CS-Israel)** | PL-2 (`cw`/`CR` shorthand) | generator, by `contract.subject` |
+| **Exam-specific — never promoted** | PL-8 (an instance of PL-3 the equivalence notes already capture), Q-1, din's credit-side note, P-B's tariff | layer 1 only |
+
+**OD-6 — (b) refuse once v5 is default; (a) v3 fallback during the pilot.**
+A refusal **auto-enqueues a regeneration retry and surfaces to ops**; the
+teacher sees "grading is being prepared", never an error.
+
+**OD-7 — auto, per-scope, ruling-preserving**, triggered on **compile** (already
+the deliberate save gate), so editing sessions do not thrash.
+
+**OD-8 — sunset criterion set now, decision after Phase 4.** v3 retires once
+**10 production rubrics** have graded under v5 with kill parity and **no OD-6
+refusals for a month**. One grading path, one prompt surface, one eval target —
+with a date attached rather than an open question.
+
+---
+
+## 8. Cost, latency, risk
+
+**Cost.** ~6 calls per rubric version on a top-tier model ≈ **$2**, once,
+amortised over a class. Regeneration is per changed scope, so a one-criterion
+edit costs a fraction of that.
+
+**Latency.** ~1–2 min per rubric, off the teacher's critical path as a job.
 
 **Risks, honestly:**
-- *Points split differently than a human would.* Totals can match while
-  partial-credit behaviour differs. Phase 0's A/B is what surfaces this.
-- *Tariffs missed.* 14 of 80 checks are named deductions read out of the
-  teacher's own guidance text. A missed tariff silently stops applying a
-  deduction she wrote down. Worth its own metric in Phase 0.
-- *Over- or under-decomposition.* One check per terminal makes grading
-  all-or-nothing and destroys partial credit; too many makes it brittle. The
-  hand-authored distribution (1–5, avg 2.1) is the reference.
-- *We have exactly one exam's ground truth.* Phase 0 can prove generation works
-  *there*. Claiming it generalises needs Phase 4, and until then that limit
-  should be stated wherever the result is quoted.
+- *Decomposition differs from a human's.* Totals match while partial-credit
+  behaviour differs. 0a catches this mechanically, before spend.
+- *Tariffs missed.* 14 of 80 checks are named deductions read out of her own
+  guidance text; a miss silently stops applying a deduction she wrote down.
+  Hence OD-2's 14/14, separate from any aggregate.
+- *No example solution.* Harsher plans on alternative designs. Measured in 0d;
+  solution ingestion is a prerequisite for plan quality.
+- *One exam's ground truth.* Phase 0 proves it there. Generalisation needs
+  Phase 4, and the limit is quoted with every result until then.
