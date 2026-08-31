@@ -11,11 +11,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import unicodedata
+import zipfile
 from datetime import datetime, timezone
+from io import BytesIO
 from typing import Optional
+from urllib.parse import quote
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,6 +53,8 @@ from ...schemas.batch import (
     BatchTranscriptionItem,
     FlagVerdictResponse,
     GradeAnswerInputItem,
+    ReturnedExamManifest,
+    ReturnedExamManifestItem,
     TranscriptionFailureItem,
 )
 from ...schemas.transcription import (
@@ -65,7 +72,18 @@ from ...services.cloud_tasks_service import (
     verify_task_request,
 )
 from ...services.grading_job_liveness import reap_expired as reap_expired_grading
+from ...schemas.graded_test_contract import GradedTestContract
+from ...schemas.graded_test_draft import StampPosition
 from ...services.gcs_service import get_gcs_service
+from ...services.returned_exam import (
+    ExamRow,
+    apply_stamp_default_to_draft,
+    current_cache_key,
+    effective_stamp_position,
+    gcs_object_path,
+    manifest_partition,
+    unique_zip_entry_names,
+)
 from ...services.transcription_job_liveness import expired_condition as job_expired_condition
 from ...services.transcription_job_liveness import reap_expired as reap_expired_jobs
 from .auth import get_current_user
@@ -640,19 +658,186 @@ async def rename_batch(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> BatchRenameResponse:
-    """Rename a batch (B5). Strip → reject blank → last-write-wins. Touches
-    ONLY name + updated_at; no uniqueness constraint exists or is invented."""
+    """Rename a batch (B5) and set its returned-exam options (PR-G9).
+
+    Only the fields PRESENT in the body are written, so the rename call and the
+    settings call share an endpoint without either clobbering the other.
+
+    Both returned-exam settings feed the render cache key, so changing either
+    invalidates every cached PDF in the batch. We CLEAR those keys and report
+    the count rather than leaving them: a stale PDF is not a slightly-old page,
+    it is a document showing points or a stamp the teacher has since changed,
+    and it looks entirely correct. Serving it silently is the one outcome this
+    feature cannot have (§3.5a).
+    """
     batch = await get_owned_or_404(db, GradingBatch, batch_id, current_user.id)
-    name = body.name.strip()
-    if not name:
-        raise HTTPException(status_code=422, detail="שם המקבץ לא יכול להיות ריק")
-    if len(name) > 255:
-        raise HTTPException(status_code=422, detail="שם המקבץ ארוך מדי (עד 255 תווים)")
-    batch.name = name
+
+    if body.name is not None:
+        name = body.name.strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="שם המקבץ לא יכול להיות ריק")
+        if len(name) > 255:
+            raise HTTPException(status_code=422, detail="שם המקבץ ארוך מדי (עד 255 תווים)")
+        batch.name = name
+
+    settings_changed = False
+    stamp_applied = 0
+
+    if (body.appendix_include_criteria is not None
+            and bool(batch.appendix_include_criteria) != body.appendix_include_criteria):
+        batch.appendix_include_criteria = body.appendix_include_criteria
+        settings_changed = True
+
+    if body.stamp_position_default is not None:
+        new_default = body.stamp_position_default.model_dump(mode="json")
+        if batch.stamp_position_default != new_default:
+            batch.stamp_position_default = new_default
+            settings_changed = True
+        # «Apply to all»: clear the picker's guesses so they inherit the new
+        # default, and leave every position the teacher placed herself.
+        rows = (await db.execute(select(GradedTest).where(
+            GradedTest.batch_id == batch_id,
+            GradedTest.user_id == current_user.id))).scalars().all()
+        for row in rows:
+            if not row.draft_json:
+                continue
+            updated, changed = apply_stamp_default_to_draft(row.draft_json)
+            if changed:
+                row.draft_json = updated
+                stamp_applied += 1
+        settings_changed = settings_changed or stamp_applied > 0
+
+    invalidated = 0
+    if settings_changed:
+        invalidated = (await db.execute(
+            update(GradedTest)
+            .where(GradedTest.batch_id == batch_id,
+                   GradedTest.user_id == current_user.id,
+                   GradedTest.returned_exam_key.isnot(None))
+            .values(returned_exam_key=None)
+        )).rowcount or 0
+
     batch.updated_at = datetime.now(timezone.utc)
     await db.commit()
-    logger.info("batch_renamed", extra={"batch_id": str(batch_id)})
-    return BatchRenameResponse(batch_id=str(batch.id), name=name)
+    logger.info("batch_patched", extra={"batch_id": str(batch_id),
+                                        "invalidated": invalidated,
+                                        "stamp_applied": stamp_applied})
+    return BatchRenameResponse(
+        batch_id=str(batch.id), name=batch.name,
+        appendix_include_criteria=bool(batch.appendix_include_criteria),
+        stamp_position_default=(StampPosition.model_validate(batch.stamp_position_default)
+                                if batch.stamp_position_default else None),
+        invalidated_count=invalidated, stamp_applied_count=stamp_applied)
+
+
+# ---------------------------------------------------------------------------
+# PR-G9 — returned exams: manifest + approved-only ZIP
+# ---------------------------------------------------------------------------
+
+async def _exam_rows(db, batch_id, user_id):
+    """Every live test in the batch, paired with the key its cached PDF needs."""
+    batch = await get_owned_or_404(db, GradingBatch, batch_id, user_id)
+    rows = (await db.execute(select(GradedTest).where(
+        GradedTest.batch_id == batch_id,
+        GradedTest.user_id == user_id,
+        GradedTest.regraded_to_id.is_(None),      # leaves only — the live grade
+    ))).scalars().all()
+
+    exam_rows, by_id = [], {}
+    for row in rows:
+        current = None
+        if row.status == "approved" and row.contract_json:
+            try:
+                contract = GradedTestContract.model_validate(row.contract_json)
+                stamp = effective_stamp_position(
+                    (row.draft_json or {}).get("overrides", {}).get("stamp_position"),
+                    batch.stamp_position_default)
+                current = current_cache_key(
+                    contract, stamp, bool(batch.appendix_include_criteria))
+            except Exception:                       # noqa: BLE001
+                # An unreadable contract is a real problem, but it must not blank
+                # the manifest. `current` stays None, so the row lands in
+                # `excluded_stale` — honest: we cannot prove this PDF is current,
+                # so we do not ship it.
+                logger.warning("returned_exam_key_uncomputable",
+                               extra={"graded_test_id": str(row.id)})
+        exam_rows.append(ExamRow(graded_test_id=str(row.id),
+                                 student_name=row.student_name,
+                                 status=row.status,
+                                 cached_key=row.returned_exam_key,
+                                 current_key=current))
+        by_id[str(row.id)] = row
+    return batch, exam_rows, by_id
+
+
+@router.get("/{batch_id}/returned-exams/manifest", response_model=ReturnedExamManifest)
+async def returned_exams_manifest(
+    batch_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ReturnedExamManifest:
+    """What the ZIP will contain, and what it will not — with the reason."""
+    _batch, exam_rows, _by_id = await _exam_rows(db, batch_id, current_user.id)
+    part = manifest_partition(exam_rows)
+
+    def items(key):
+        return [ReturnedExamManifestItem(graded_test_id=UUID(r.graded_test_id),
+                                         student_name=r.student_name)
+                for r in part[key]]
+
+    return ReturnedExamManifest(
+        included=items("included"),
+        excluded_not_approved=items("excluded_not_approved"),
+        excluded_stale=items("excluded_stale"))
+
+
+@router.get("/{batch_id}/returned-exams.zip")
+async def returned_exams_zip(
+    batch_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Approved, current exams only — the same partition the manifest reports.
+
+    An excluded test is never substituted with a draft render or an older PDF.
+    A class set with a stated hole in it is recoverable; a class set with a
+    wrong document silently inside it is not.
+    """
+    batch, exam_rows, by_id = await _exam_rows(db, batch_id, current_user.id)
+    included = manifest_partition(exam_rows)["included"]
+    if not included:
+        raise HTTPException(status_code=404,
+                            detail="אין מבחנים מוכנים להורדה עדיין")
+
+    gcs = get_gcs_service()
+    # Names minted for the WHOLE set at once: uniqueness is a property of the
+    # archive, not of one entry, so it cannot be decided one student at a time.
+    entry_names = unique_zip_entry_names(batch.name,
+                                         [e.student_name for e in included])
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        for entry, entry_name in zip(included, entry_names):
+            row = by_id[entry.graded_test_id]
+            path = gcs_object_path(row.id, entry.cached_key)
+            try:
+                pdf = await run_in_threadpool(gcs.download_bytes, path)
+            except Exception:                       # noqa: BLE001
+                # The key said this render exists and it does not. Omit it — the
+                # manifest is the contract for what is inside, and one missing
+                # object is not a reason to fail the other twenty-nine.
+                logger.warning("returned_exam_object_missing",
+                               extra={"graded_test_id": entry.graded_test_id,
+                                      "path": path})
+                continue
+            archive.writestr(entry_name, pdf)
+
+    buffer.seek(0)
+    stem = unicodedata.normalize("NFC", (batch.name or "מקבץ").strip())
+    filename = f"{stem}_מוחזרים.zip"
+    return StreamingResponse(
+        buffer, media_type="application/zip",
+        headers={"Content-Disposition":
+                 "attachment; filename*=UTF-8''" + quote(filename)})
 
 
 # ---------------------------------------------------------------------------

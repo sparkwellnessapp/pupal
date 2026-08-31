@@ -7,10 +7,10 @@ mirroring the pattern in graded_test_responses.py.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, Field, field_serializer
 
 from .transcription import (
     AnswerSpaceSelectionGroup,
@@ -255,14 +255,52 @@ class AcceptCleanResponse(BaseModel):
 # Request bodies
 # ---------------------------------------------------------------------------
 
+from app.schemas.graded_test_draft import StampPosition   # [PR-G9]
+
+
 class BatchRenameRequest(BaseModel):
-    """B5: rename a batch. Stripped server-side; blank-after-strip → 422."""
-    name: str
+    """PATCH /batches/{id} — rename (B5) and the returned-exam settings (PR-G9).
+
+    Every field is optional and only the ones PRESENT are written, so the
+    rename call and the settings call are the same endpoint without either
+    clobbering the other's state. `name` still rejects blank-after-strip.
+    """
+    name: Optional[str] = None
+    # [PR-G9] both feed the render cache key
+    appendix_include_criteria: Optional[bool] = None
+    # Setting this IS «apply to all»: it writes the batch default and clears
+    # the per-test positions the picker chose, never the ones she dragged.
+    stamp_position_default: Optional[StampPosition] = None
 
 
 class BatchRenameResponse(BaseModel):
     batch_id: str
-    name: str
+    name: Optional[str] = None
+    appendix_include_criteria: bool = False
+    stamp_position_default: Optional[StampPosition] = None
+    # [PR-G9] how many cached returned exams this change invalidated. Reported
+    # rather than silently dropped: the teacher is told the PDFs will re-render,
+    # instead of wondering why a download she just made is different.
+    invalidated_count: int = 0
+    # how many per-test positions «apply to all» actually cleared
+    stamp_applied_count: int = 0
+
+
+class ReturnedExamManifestItem(BaseModel):
+    graded_test_id: UUID
+    student_name: Optional[str] = None
+
+
+class ReturnedExamManifest(BaseModel):
+    """What the download will and will not contain, and why.
+
+    Exclusions are ENUMERATED, never silently dropped: a teacher who downloads
+    24 of 30 exams must be able to see which six are missing and for which of
+    the two reasons, or she hands back a class set with holes in it.
+    """
+    included: List[ReturnedExamManifestItem] = Field(default_factory=list)
+    excluded_not_approved: List[ReturnedExamManifestItem] = Field(default_factory=list)
+    excluded_stale: List[ReturnedExamManifestItem] = Field(default_factory=list)
 
 
 class AcceptCleanItem(BaseModel):

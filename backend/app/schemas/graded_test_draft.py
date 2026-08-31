@@ -35,6 +35,11 @@ class StampPosition(BaseModel):
     corner: Optional[Literal["tl", "tr", "bl", "br"]] = None
     x: Optional[float] = None
     y: Optional[float] = None
+    # [PR-G9] WHO chose this. "auto" = the corner picker's guess, which «apply
+    # to all» may replace; "manual" = the teacher dragged it, which it may not.
+    # Absent on positions written before this field existed — those predate the
+    # manual affordance entirely, so they are all picker output and read as auto.
+    source: Literal["auto", "manual"] = "auto"
 
 
 class TeacherOverride(BaseModel):

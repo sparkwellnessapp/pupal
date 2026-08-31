@@ -97,11 +97,11 @@ Gate: golden render diff · ZIP manifest tests · cache invalidation count corre
 
 | # | Item | Red-first tests | Status |
 |---|---|---|---|
-| B4.1 | `stamp_corner_picker` (pure) | `stamp-auto-corner-picks-min-ink` | [ ] |
-| B4.2 | `render_returned_exam` — stamp + appendix (PyMuPDF per census E) | render golden-image diff, `appendix-paginates-long-feedback` | [ ] |
-| B4.3 | Cache key + GCS object + `returned_exam_state` (migration 022) | `returned-exam-cache-key-covers-all-inputs` | [ ] |
-| B4.4 | Manifest + approved-only ZIP | `zip-approved-only-with-manifest` | [ ] |
-| B4.5 | `PATCH /batches/{id}` toggle/default + invalidation | `appendix-toggle-per-batch`, `stamp-apply-to-batch-writes-default-not-manual-overrides` | [ ] |
+| B4.1 | `stamp_corner_picker` (pure) | `stamp-auto-corner-picks-min-ink` (×4 corners + tie) | [x] |
+| B4.2 | `render_returned_exam` — stamp + appendix (PyMuPDF per census E) | render golden-image diff, `appendix-paginates-long-feedback`, `appendix-has-no-notdef-glyphs`, bidi glyph-order ×4 | [x] |
+| B4.3 | Cache key + GCS object + `returned_exam_key` (migration **021**, not 022 — see below) | `returned-exam-cache-key-covers-all-inputs`, dict-order stability | [x] |
+| B4.4 | Manifest + approved-only ZIP | `zip-approved-only-with-manifest` (pure partition + API), NFC/path-safe/unique entry names | [x] |
+| B4.5 | `PATCH /batches/{id}` toggle/default + invalidation | `appendix-toggle-per-batch`, `stamp-apply-to-batch-writes-default-not-manual-overrides` (pure + API), owner-scoping | [x] |
 
 ---
 
@@ -111,9 +111,9 @@ Gate: golden render diff · ZIP manifest tests · cache invalidation count corre
 |---|---|---|
 | 018 | `018_schools.sql` — `schools` + `users.school_id` | G6 |
 | 019 | `019_graded_tests_opened_at.sql` | G8 |
-| 020 | `020_grading_batches_appendix.sql` (audit cols DROPPED — R-1) | G9 |
+| 020 | `020_batch_returned_exam_settings.sql` (audit cols DROPPED — R-1) | G9 |
 | ~~021~~ | ~~`audit_deltas`~~ — struck by R-1 | — |
-| 022 | `022_graded_tests_returned_exam_key.sql` | G9 |
+| 021 | `021_graded_tests_returned_exam_key.sql` — **took 021, not the planned 022**: R-1 struck the `audit_deltas` that held 021, and it was never written or applied anywhere, so this is the next free number rather than a renumber over a hole. Both applied to the TEST db; production is an owner-gated deploy step. | G9 |
 | ~~—~~ | ~~overlay JSON data migration~~ — struck: R-2 count is **0** | G5 |
 
 Each ends with its `schema_migrations` commit token; each version added to
@@ -172,3 +172,58 @@ workstream first. `CENSUS_B0_…` and `TRACKER_…` are pure docs and are commit
 **Pre-existing failure, not ours:** `test_contract_parity.py::
 test_golden_drafts_compile_clean_in_one_round_trip[hobby_tvshow]` fails with
 G2 stashed as well as applied — the known golden-parity drift.
+
+
+---
+
+## PR-G9 — landed 2026-08-31
+
+**Delivered.** `app/services/returned_exam.py` (pure: corner picker, cache key,
+manifest partition, entry names, «apply to all»; impure: render + GCS cache),
+migrations 020/021, `StampPosition.source`, `PATCH /batches/{id}` extended,
+`GET /batches/{id}/returned-exams/manifest`, `GET /batches/{id}/returned-exams.zip`,
+`GET /graded_test/{id}/returned-exam`.
+
+**Evidence.** 23 pure tests + 5 API tests, all red-first. Regression:
+`test_batch_grading.py` + `test_graded_test_approval.py` 62 passed, exit 0.
+Sanity gate: `import app.main` OK, `--collect-only` 1164 collected.
+
+**Three findings that came from MEASUREMENT, not review-by-reading** — each was
+invisible until something was rendered and looked at:
+
+1. **`pymupdf-fonts` has no Hebrew face**, so the wheel the census suggested
+   would not have helped. Vendored `Assistant-Regular.ttf` (OFL) instead,
+   instanced to weight 400 because PyMuPDF ignores CSS `font-weight` on a
+   variable font and embeds ExtraLight. Without an embedded face PyMuPDF falls
+   back to a machine font: perfect locally, tofu on Cloud Run.
+2. **PyMuPDF's Story does half the bidi algorithm** — correct inside a
+   directional run, logical-order left-to-right BETWEEN runs. Pure Hebrew is one
+   run and renders perfectly, which is why this hides; one code token makes the
+   sentence read backwards, and CS feedback is full of them. Fixed by composing
+   `python-bidi` with a flip-back. Three alternatives were falsified against a
+   render and are recorded in the code so nobody re-derives them.
+3. **`helv` renders «נבדק» as «????»** — the same tofu class, one layer down, in
+   the stamp. Found by the self-review, red-tested, fixed with the vendored face.
+
+**Self-review also fixed:** an unbounded `while more:` pagination loop
+(measured: `place` returns "more" forever when a line cannot fit — an infinite
+loop in a request handler), `stamp_corner_picker` never being called in
+production (a hardcoded top-left fallback made it dead code), and ZIP entry-name
+collisions between students whose names truncate alike (zipfile accepts
+duplicates silently; unzip keeps the last, so one student gets another's exam).
+
+**Deviations from the spec, stated:**
+- `stamp_corner_picker` takes a **PIL grayscale image**, not an `ndarray`
+  (§2 PR-G9(a)): numpy is not a dependency and Pillow already ships.
+- `GET …/returned-exam` renders **synchronously on a cache miss** rather than
+  returning `202 + rendering`. A render is a few hundred ms plus one GCS read;
+  the async path would need a fourth `JobKind` for no benefit the teacher can
+  perceive. Re-open if a measured p95 says otherwise.
+- The golden-image diff is **tolerance-based** (2% of sampled pixels, >8 levels):
+  rasterisation differs slightly across platforms and PyMuPDF builds. The
+  vendored font keeps glyph shapes stable, so a real layout regression moves far
+  more than the tolerance; on failure the actual render is written beside the
+  golden.
+
+**Not built (out of PR-G9's scope, named rather than silently skipped):** async
+render-on-approval, and a frontend surface for any of these endpoints.

@@ -10,6 +10,8 @@ from typing import Dict, List, Optional, Union
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, Form
+from fastapi.responses import Response
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy import case, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...api.deps import get_owned_or_404
 from ...config import settings
 from ...database import get_db
-from ...models.grading import GradedTest, Rubric
+from ...models.grading import GradedTest, GradingBatch, Rubric
+from ...models.transcription import Transcription
 from ...models.user import User
 from ...schemas.graded_test_contract import GradedTestContract
 from ...schemas.graded_test_draft import GradedTestDraft, GradedTestOverrides
@@ -30,7 +33,16 @@ from ...schemas.graded_test_responses import (
 )
 from ...schemas.ontology_types import GradingRubricContract
 from ...services.graded_test_contract_compiler import GateError, compile_graded_test
+from ...services.gcs_service import get_gcs_service
 from ...services.graded_test_revision import extend_chain
+from ...services.returned_exam import (
+    current_cache_key,
+    effective_stamp_position,
+    gcs_object_path,
+    render_returned_exam,
+    scopes_for_render,
+    summary_for_render,
+)
 from ...services.cloud_tasks_service import enqueue_grading_task_or_log, verify_task_request
 from .auth import get_current_user
 
@@ -825,6 +837,80 @@ class RevisionResponse(BaseModel):
     """Returned by all three S10 revision endpoints."""
     graded_test_id: str
     status: str  # 'pending' (regrade/retry) or 'draft' (manual_edit)
+
+
+# =============================================================================
+# PR-G9 — the returned exam (what the STUDENT receives)
+# =============================================================================
+
+@router.get("/graded_test/{graded_test_id}/returned-exam")
+async def get_returned_exam(
+    graded_test_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Her student's exam back: the original pages, stamped, plus the feedback.
+
+    APPROVED ONLY. A draft is a proposal the teacher has not accepted; handing
+    one to a student would make Vivi the grader, which is the one thing it
+    never is.
+
+    Rendered from the CONTRACT, never the draft — what she froze is what the
+    student receives. Cached in GCS under a key covering every input that can
+    change a pixel; a mismatch re-renders rather than serving the old page.
+    """
+    row: GradedTest = await get_owned_or_404(db, GradedTest, graded_test_id,
+                                             current_user.id)
+    if row.status != "approved" or not row.contract_json:
+        raise HTTPException(
+            status_code=409,
+            detail="אפשר להחזיר לתלמיד רק מבחן שאושר")
+
+    contract = GradedTestContract.model_validate(row.contract_json)
+
+    batch = await db.get(GradingBatch, row.batch_id) if row.batch_id else None
+    include_criteria = bool(getattr(batch, "appendix_include_criteria", False))
+    stamp = effective_stamp_position(
+        (row.draft_json or {}).get("overrides", {}).get("stamp_position"),
+        getattr(batch, "stamp_position_default", None))
+
+    key = current_cache_key(contract, stamp, include_criteria)
+    path = gcs_object_path(row.id, key)
+    gcs = get_gcs_service()
+
+    if row.returned_exam_key == key:
+        try:
+            cached = await run_in_threadpool(gcs.download_bytes, path)
+            return Response(content=cached, media_type="application/pdf")
+        except Exception:                            # noqa: BLE001
+            # The row claims a render that is not in the bucket. Fall through and
+            # rebuild it — the key is a claim about the object, and the object is
+            # the truth.
+            logger.warning("returned_exam_cache_miss",
+                           extra={"graded_test_id": str(row.id), "path": path})
+
+    transcription = await db.get(Transcription, row.transcription_id)
+    if transcription is None:
+        raise HTTPException(status_code=404, detail="לא נמצאה הסריקה המקורית")
+    source_pdf = await run_in_threadpool(gcs.download_bytes,
+                                         transcription.gcs_object_path)
+
+    pdf = await run_in_threadpool(
+        render_returned_exam,
+        source_pdf,
+        row.student_name,
+        scopes_for_render(contract, include_criteria),
+        summary_for_render(contract),
+        stamp,
+        include_criteria,
+    )
+    await run_in_threadpool(gcs.upload_bytes, pdf, path, "application/pdf")
+
+    row.returned_exam_key = key
+    await db.commit()
+    logger.info("returned_exam_rendered",
+                extra={"graded_test_id": str(row.id), "bytes": len(pdf)})
+    return Response(content=pdf, media_type="application/pdf")
 
 
 @router.post("/graded_test/{graded_test_id}/regrade", response_model=RevisionResponse)

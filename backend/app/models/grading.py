@@ -87,6 +87,11 @@ class GradingBatch(Base):
     # without this, a dead document was indistinguishable from an in-flight one.
     transcription_failures  = Column(JSONB, nullable=False, default=list,
                                      server_default=text("'[]'::jsonb"))
+    # [PR-G9, migration 020] returned-exam settings. Both feed the render cache
+    # key, so a change here invalidates every cached PDF in the batch.
+    appendix_include_criteria = Column(Boolean, nullable=False, default=False,
+                                       server_default=text("false"))
+    stamp_position_default  = Column(JSONB, nullable=True)
     started_at              = Column(DateTime(timezone=True), nullable=True)
     completed_at            = Column(DateTime(timezone=True), nullable=True)
     created_at              = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -126,6 +131,10 @@ class GradedTest(Base):
     # by a background job, never re-stamped: this is 'when she first saw
     # it', not a last-access time.
     opened_at        = Column(DateTime(timezone=True), nullable=True)
+    # [PR-G9, migration 021] the key the cached returned exam was rendered under.
+    # NULL = never rendered; a mismatch against the freshly computed key IS the
+    # definition of stale.
+    returned_exam_key = Column(String(64), nullable=True)
     contract_json           = Column(JSONB(none_as_null=True), nullable=True)
     approved_at             = Column(DateTime(timezone=True), nullable=True)
     regraded_from_id        = Column(UUID(as_uuid=True), ForeignKey("graded_tests.id", ondelete="SET NULL"), nullable=True)
