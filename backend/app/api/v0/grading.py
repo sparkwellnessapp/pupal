@@ -31,7 +31,7 @@ from ...schemas.graded_test_responses import (
     GradedTestListItem,
     GradedTestStatusResponse,
 )
-from ...schemas.ontology_types import GradingRubricContract
+from ...schemas.ontology_types import GradingRubricContract, NumericPolicy
 from ...services.graded_test_contract_compiler import GateError, compile_graded_test
 from ...services.gcs_service import get_gcs_service
 from ...services.graded_test_revision import extend_chain
@@ -560,8 +560,19 @@ async def get_single_graded_test(
     # S10: compute rubric_contract_stale for draft and approved responses
     rubric_contract_stale = False
     rubric = await db.get(Rubric, row.rubric_id)
+    numeric_policy = None
     if rubric is not None:
         rubric_contract_stale = (row.rubric_contract_version != rubric.contract_version)
+        # [OD-F8] the rounding rule the client re-prices with. Omitted rather
+        # than defaulted when the contract will not parse: a guessed grid is
+        # how the screen and the frozen contract come to disagree.
+        try:
+            if rubric.contract_json:
+                numeric_policy = NumericPolicy.model_validate(
+                    rubric.contract_json.get("numeric_policy") or {})
+        except Exception:                            # noqa: BLE001
+            logger.warning("numeric_policy_unavailable",
+                           extra={"rubric_id": str(row.rubric_id)})
 
     if row.status == "draft":
         draft = GradedTestDraft.model_validate(row.draft_json)
@@ -576,6 +587,7 @@ async def get_single_graded_test(
             total_cost_usd=row.total_cost_usd,
             transcription_id=row.transcription_id,
             opened_at=row.opened_at,          # [PR-G8]
+            numeric_policy=numeric_policy,    # [OD-F8]
             draft=draft,
             rubric_contract_stale=rubric_contract_stale,
             regraded_from_id=row.regraded_from_id,
@@ -595,6 +607,7 @@ async def get_single_graded_test(
         total_cost_usd=row.total_cost_usd,
         transcription_id=row.transcription_id,
         opened_at=row.opened_at,
+        numeric_policy=numeric_policy,        # [OD-F8]
         draft=draft,
         contract=contract,
         approved_at=row.approved_at.isoformat(),

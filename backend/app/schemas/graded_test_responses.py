@@ -68,6 +68,19 @@ class GradedTestDraftResponse(BaseModel):
     pricing_mismatch: bool = False
     # [PR-G8] first teacher open (column, not draft JSON)
     opened_at: Optional[datetime] = None  # deserialized from graded_tests.draft_json
+    # [OD-F8] The rounding rule the client must re-price with. Without it the
+    # browser guesses, and a client rounding differently from the server shows
+    # the teacher one score while a DIFFERENT one freezes into the contract —
+    # the exact failure `selection_scoring.py` exists to end.
+    #
+    # All three fields, not just `precision`: half_up vs half_even disagree on
+    # every exact .5, which is where a 0.25 grid puts its boundaries.
+    #
+    # Sourced from the rubric's CURRENT contract. When `rubric_contract_stale`
+    # is true that may differ from the policy this draft was priced under — but
+    # a stale contract means the test needs re-grading, not re-pricing, and the
+    # client already surfaces that.
+    numeric_policy: Optional[NumericPolicy] = None
     rubric_contract_stale: bool = False  # S10: computed at query time
     regraded_from_id: Optional[UUID] = None  # S10: revision chain back-pointer
 
@@ -87,6 +100,9 @@ class GradedTestApprovedResponse(BaseModel):
     percentage: Optional[Decimal] = None
     total_cost_usd: Optional[Decimal] = None
     transcription_id: UUID
+    # [OD-F8] the rounding rule the client re-prices with; see the draft
+    # response above for why all three fields travel, not just precision.
+    numeric_policy: Optional[NumericPolicy] = None
     draft: GradedTestDraft
     contract: GradedTestContract
     approved_at: str  # ISO-8601 string
