@@ -122,6 +122,10 @@ class GradedTest(Base):
     # jsonb 'null'). Same pattern as Transcription.contract_json.
     draft_json              = Column(JSONB(none_as_null=True), nullable=True)
     draft_created_at        = Column(DateTime(timezone=True), nullable=True)
+    # [PR-G8] first teacher open. Set ONCE by the owner's own GET — never
+    # by a background job, never re-stamped: this is 'when she first saw
+    # it', not a last-access time.
+    opened_at        = Column(DateTime(timezone=True), nullable=True)
     contract_json           = Column(JSONB(none_as_null=True), nullable=True)
     approved_at             = Column(DateTime(timezone=True), nullable=True)
     regraded_from_id        = Column(UUID(as_uuid=True), ForeignKey("graded_tests.id", ondelete="SET NULL"), nullable=True)

@@ -527,6 +527,14 @@ async def get_single_graded_test(
     """
     row: GradedTest = await get_owned_or_404(db, GradedTest, graded_test_id, current_user.id)
 
+    # [PR-G8] First open, stamped ONCE. get_owned_or_404 already proved this is
+    # the owner, so no other reader can set it — and it is never re-stamped,
+    # because "when she first saw it" is not a last-access time. Only a landed
+    # grade can be seen: a pending row shows a spinner, not a review.
+    if row.opened_at is None and row.status in ("draft", "approved", "failed"):
+        row.opened_at = datetime.now(timezone.utc)
+        await db.commit()
+
     if row.status in ("pending", "grading"):
         return GradedTestStatusResponse(
             id=row.id, status=row.status, student_name=row.student_name
@@ -555,6 +563,7 @@ async def get_single_graded_test(
             percentage=row.percentage,
             total_cost_usd=row.total_cost_usd,
             transcription_id=row.transcription_id,
+            opened_at=row.opened_at,          # [PR-G8]
             draft=draft,
             rubric_contract_stale=rubric_contract_stale,
             regraded_from_id=row.regraded_from_id,
@@ -573,6 +582,7 @@ async def get_single_graded_test(
         percentage=row.percentage,
         total_cost_usd=row.total_cost_usd,
         transcription_id=row.transcription_id,
+        opened_at=row.opened_at,
         draft=draft,
         contract=contract,
         approved_at=row.approved_at.isoformat(),
@@ -679,6 +689,14 @@ async def save_draft_overrides(
     # Write only teacher_overrides — AI outcomes untouched
     updated_draft = draft.model_copy(update={"teacher_overrides": rounded_overrides})
     row.draft_json = updated_draft.model_dump(mode="json")
+    # [PR-G8] §1.5 calls the card's number "effective (overlay-priced)". The row
+    # aggregate is what the batch feed reads, so it must follow her decisions —
+    # otherwise every card shows the AI's total until approval, and the pencil
+    # number silently disagrees with the review screen she is looking at.
+    row.total_score = effective_total
+    if row.total_possible:
+        row.percentage = (effective_total / row.total_possible * 100
+                          ).quantize(Decimal("0.01"))
     await db.commit()
 
     return GradedTestDraftResponse(
@@ -691,6 +709,7 @@ async def save_draft_overrides(
         percentage=row.percentage,
         total_cost_usd=row.total_cost_usd,
         transcription_id=row.transcription_id,
+        opened_at=row.opened_at,
         draft=updated_draft,
         effective_totals=effective_totals,
         effective_total=effective_total,
@@ -791,6 +810,7 @@ async def approve_graded_test(
         percentage=row.percentage,
         total_cost_usd=row.total_cost_usd,
         transcription_id=row.transcription_id,
+        opened_at=row.opened_at,
         draft=updated_draft,
         contract=contract,
         approved_at=row.approved_at.isoformat(),

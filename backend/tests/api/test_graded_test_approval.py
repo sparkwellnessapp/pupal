@@ -537,3 +537,35 @@ def test_approve_without_a_client_total_still_works(client, graded_draft):
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["status"] == "approved"
+
+
+# ---------------------------------------------------------------------------
+# PR-G8 — opened-at-set-once-by-owner-only
+# ---------------------------------------------------------------------------
+
+def test_opened_at_is_set_once_by_the_owner_and_never_restamped(client, graded_draft, headers_b):
+    """`opened_at` means "when she first saw it", so it is stamped once, by the
+    owner's own GET, and never moved.
+
+    It is load-bearing beyond the card: the deferred consistency applier keys on
+    it — a delta may be applied silently to a draft she has never opened, but
+    must be MARKED once she has. A last-access timestamp would make every
+    silent apply look like a marked one.
+    """
+    gid, headers = graded_draft
+
+    first = client.get(f"/api/v0/grading/graded_test/{gid}", headers=headers)
+    assert first.status_code == 200
+
+    # a cross-tenant reader gets 404 and cannot stamp anything
+    assert client.get(f"/api/v0/grading/graded_test/{gid}",
+                      headers=headers_b).status_code == 404
+
+    import time as _t
+    _t.sleep(1.1)
+    second = client.get(f"/api/v0/grading/graded_test/{gid}", headers=headers)
+
+    stamp_1 = first.json().get("opened_at")
+    stamp_2 = second.json().get("opened_at")
+    assert stamp_1, "the owner's first GET did not stamp opened_at"
+    assert stamp_2 == stamp_1, "opened_at was re-stamped — it is not a last-access time"

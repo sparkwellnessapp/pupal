@@ -1651,6 +1651,17 @@ export interface components {
              * @default []
              */
             active_jobs: components["schemas"]["ActiveJobItem"][];
+            /**
+             * Appendix Include Criteria
+             * @default false
+             */
+            appendix_include_criteria: boolean;
+            /**
+             * Audit Status
+             * @default disabled
+             * @enum {string}
+             */
+            audit_status: "disabled" | "pending" | "running" | "done" | "failed";
             /** Class Id */
             class_id?: string | null;
             /** Class Name */
@@ -1659,6 +1670,17 @@ export interface components {
             completed_at?: string | null;
             /** Created At */
             created_at: string;
+            /**
+             * @default {
+             *       "kind": "unknown"
+             *     }
+             */
+            eta: components["schemas"]["BatchEta"];
+            /**
+             * Graded Tests
+             * @default []
+             */
+            graded_tests: components["schemas"]["BatchGradedItem"][];
             /**
              * Id
              * Format: uuid
@@ -1679,6 +1701,10 @@ export interface components {
              * @default []
              */
             selection_groups: components["schemas"]["AnswerSpaceSelectionGroup"][];
+            /** Stamp Position Default */
+            stamp_position_default?: {
+                [key: string]: unknown;
+            } | null;
             /** Started At */
             started_at?: string | null;
             /** Status */
@@ -1692,6 +1718,24 @@ export interface components {
             transcriptions: components["schemas"]["BatchTranscriptionItem"][];
         };
         /**
+         * BatchEta
+         * @description How long until she can start reviewing.
+         *
+         *     `kind` is as honest as the inputs allow: `unknown` when no latency profile
+         *     exists for the model, and the client says «עוד רגע» rather than a figure.
+         *     Publishing a number we cannot support would be a confident guess about the
+         *     one thing she is waiting on.
+         */
+        BatchEta: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "first_landing" | "remaining" | "unknown";
+            /** Seconds */
+            seconds?: number | null;
+        };
+        /**
          * BatchFileAppendResponse
          * @description One appended file (B9). Idempotent: a retried append that already
          *     committed returns the EXISTING job with the same body.
@@ -1703,6 +1747,48 @@ export interface components {
             job_id: string;
             /** Test Count */
             test_count: number;
+        };
+        /**
+         * BatchGradedItem
+         * @description One graded test on the batch feed (spec §1.5).
+         */
+        BatchGradedItem: {
+            /**
+             * Audit Touched
+             * @default none
+             * @enum {string}
+             */
+            audit_touched: "none" | "updated" | "reapprove";
+            /**
+             * Graded Test Id
+             * Format: uuid
+             */
+            graded_test_id: string;
+            /** Landed At */
+            landed_at?: string | null;
+            /** Look Count */
+            look_count?: number | null;
+            /** Opened At */
+            opened_at?: string | null;
+            /**
+             * Returned Exam State
+             * @default none
+             * @enum {string}
+             */
+            returned_exam_state: "none" | "rendering" | "ready" | "stale";
+            /** Status */
+            status: string;
+            /** Student Id */
+            student_id?: string | null;
+            /** Student Name */
+            student_name?: string | null;
+            /** Total Awarded */
+            total_awarded?: string | null;
+            /**
+             * Version
+             * @default 1
+             */
+            version: number;
         };
         /** BatchListItem */
         BatchListItem: {
@@ -2781,6 +2867,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Opened At */
+            opened_at?: string | null;
             /** Percentage */
             percentage?: string | null;
             /**

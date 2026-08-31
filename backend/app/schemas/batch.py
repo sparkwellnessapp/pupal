@@ -6,10 +6,11 @@ mirroring the pattern in graded_test_responses.py.
 """
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 
 from .transcription import (
     AnswerSpaceSelectionGroup,
@@ -117,6 +118,45 @@ class ActiveJobItem(BaseModel):
     attempt_count: int
 
 
+class BatchEta(BaseModel):
+    """How long until she can start reviewing.
+
+    `kind` is as honest as the inputs allow: `unknown` when no latency profile
+    exists for the model, and the client says «עוד רגע» rather than a figure.
+    Publishing a number we cannot support would be a confident guess about the
+    one thing she is waiting on.
+    """
+    kind: Literal["first_landing", "remaining", "unknown"]
+    seconds: Optional[int] = None
+
+
+class BatchGradedItem(BaseModel):
+    """One graded test on the batch feed (spec §1.5)."""
+    graded_test_id: UUID
+    student_id: Optional[UUID] = None
+    student_name: Optional[str] = None
+    status: str                       # pending | grading | draft | approved | failed
+    version: int = 1                  # position in the revision chain
+    landed_at: Optional[str] = None   # when the draft appeared
+    opened_at: Optional[str] = None   # when she first looked
+    # EFFECTIVE (overlay-priced) total — the pencil number on the card
+    total_awarded: Optional[Decimal] = None
+    # Deterministic markers needing her eye (services/look_count.py).
+    # OPTIONAL BY DESIGN: None = "not computable for this test" — a draft that
+    # will not parse gets no number rather than a reassuring 0, which would be
+    # wrong in the dangerous direction (§3.5a, the needs_eyes precedent).
+    look_count: Optional[int] = None
+    # [R-1] the consistency audit is DEFERRED. The literal "none" ships so the
+    # wire shape is complete and the frontend suppresses every audit string.
+    audit_touched: Literal["none", "updated", "reapprove"] = "none"
+    # [G9] no returned exam is rendered yet
+    returned_exam_state: Literal["none", "rendering", "ready", "stale"] = "none"
+
+    @field_serializer("total_awarded")
+    def _sd(self, v):
+        return None if v is None else str(v)
+
+
 class BatchDetailResponse(BaseModel):
     id: UUID
     name: Optional[str] = None
@@ -142,6 +182,18 @@ class BatchDetailResponse(BaseModel):
     # Durable per-document failure records (migration 015) — the dashboard
     # renders these as failed cards instead of an eternal spinner.
     transcription_failures: list[TranscriptionFailureItem] = []
+
+    # ── [PR-G8] the grading half of the feed (spec §1.5) ──────────────────
+    graded_tests: list[BatchGradedItem] = []
+    eta: BatchEta = BatchEta(kind="unknown")
+    # [R-1] The consistency audit is DEFERRED to its own PR. It ships as the
+    # literal "disabled" — which is in the §1.5 enum — so the frontend renders
+    # two steps and suppresses every audit-related string. NOT a dark feature:
+    # there is no audit table, no applier and no producer behind it.
+    audit_status: Literal["disabled", "pending", "running", "done", "failed"] = "disabled"
+    # [G9] rendered-exam settings; defaults until PR-G9 lands their column
+    appendix_include_criteria: bool = False
+    stamp_position_default: Optional[dict] = None
 
 
 class BatchListItem(BaseModel):

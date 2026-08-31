@@ -793,6 +793,16 @@ async def get_batch(
 
     rollup = _build_rollup(batch, list(transcriptions), list(graded_tests), jobs,
                            needs_eyes=needs_eyes_count)
+    # [PR-G8] the grading half of the feed. Scope count comes from the rubric
+    # contract when it parses; the ETA degrades to `unknown` rather than
+    # guessing a wave count from nothing.
+    scope_count = 0
+    try:
+        if rubric is not None and rubric.contract_json:
+            scope_count = _count_leaf_scopes(rubric.contract_json)
+    except Exception:                                # noqa: BLE001
+        scope_count = 0
+    graded_feed, graded_eta = _build_graded_feed(list(graded_tests), scope_count)
     return BatchDetailResponse(
         selection_groups=selection_groups,
         transcription_failures=failure_items,
@@ -809,7 +819,75 @@ async def get_batch(
         created_at=batch.created_at.isoformat(),
         rollup=rollup,
         transcriptions=test_items,
+        graded_tests=graded_feed,
+        eta=graded_eta,
     )
+
+
+def _count_leaf_scopes(contract_json: dict) -> int:
+    """Scopes as the gradable compiler counts them: LEAVES at any depth (PR-3).
+
+    A sub-question that has children contributes NO scope of its own, so a
+    naive `len(sub_questions)` over-counts every nested rubric and would quote
+    the teacher a wave count — and therefore an ETA — for waves that never run.
+    """
+    def leaves(node) -> int:
+        children = node.get("sub_questions") or []
+        if not children:
+            return 1
+        return sum(leaves(child) for child in children)
+
+    return sum(leaves(q) for q in (contract_json.get("questions") or []))
+
+
+def _build_graded_feed(graded_tests, rubric_contract_scope_count: int):
+    """[PR-G8, §1.5] The grading half of the batch feed, plus the ETA.
+
+    `total_awarded` is the EFFECTIVE (overlay-priced) figure — the pencil number
+    on the card — read from the row aggregate the pricer already wrote, never
+    re-summed here (§5: no consumer re-derives the total).
+
+    The ETA's second stage uses THIS batch's own landings; the first stage falls
+    back to the model's measured p50, and to `unknown` when there is no profile.
+    """
+    from app.schemas.batch import BatchEta, BatchGradedItem
+    from app.services.eta import estimate_eta
+    from app.services.look_count import look_count
+    from app.schemas.graded_test_draft import GradedTestDraft
+
+    items, landed = [], []
+    for gt in graded_tests:
+        looks = None
+        if gt.draft_json:
+            try:
+                looks = look_count(GradedTestDraft.model_validate(gt.draft_json))
+            except Exception:                       # noqa: BLE001
+                # DEGRADE BY OMISSION, never by guessing (§3.5a). Reporting 0
+                # here would say "nothing to look at" — a confident wrong
+                # answer in the dangerous direction, since it is precisely the
+                # unparseable drafts that most need her eye. `null` lets the
+                # client render "unknown" instead of a reassuring zero.
+                logger.warning("look_count_unavailable",
+                               extra={"graded_test_id": str(gt.id)})
+        if gt.draft_created_at and gt.grading_started_at:
+            landed.append((gt.draft_created_at - gt.grading_started_at).total_seconds())
+
+        items.append(BatchGradedItem(
+            graded_test_id=gt.id,
+            student_id=gt.student_id,
+            student_name=gt.student_name,
+            status=gt.status,
+            landed_at=gt.draft_created_at.isoformat() if gt.draft_created_at else None,
+            opened_at=gt.opened_at.isoformat() if gt.opened_at else None,
+            total_awarded=gt.total_score,
+            look_count=looks,
+        ))
+
+    profile = (settings.latency_profile or {}).get(settings.grader_model_key or "")
+    eta = estimate_eta(profile_p50=profile,
+                       scope_count=rubric_contract_scope_count,
+                       landed_durations=landed)
+    return items, BatchEta(**eta)
 
 
 def _accept_clean_halt_message(filename: str | None) -> str:

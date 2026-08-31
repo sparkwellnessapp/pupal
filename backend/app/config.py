@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # feedback generated, which is a state the wire and the UI both carry.
     feedback_model_provider: str = "openai"
     feedback_model_key: Optional[str] = None
+
+    # [PR-G8] measured p50 seconds per TEST, per model key, from the eval
+    # table. Absent model ⇒ the ETA reports `unknown` and the client says
+    # «עוד רגע» rather than a number nothing supports.
+    latency_profile: dict = {}
     openai_vision_model: str = "gpt-4o"  # For vision/transcription tasks
     
     # Google Cloud settings

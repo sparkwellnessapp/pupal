@@ -311,7 +311,17 @@ async def get_transcription_page(
     if not (1 <= page_number <= page_count):
         raise HTTPException(status_code=404, detail="Page not found")
 
-    # 3. Fetch PDF from GCS (backend-to-backend; no CORS issue)
+    # 3. [PR-G8] Serve from the bounded page cache when we have already
+    # rendered this page. Ownership was proved above, so the cache is never
+    # what decides who may see a page. Page content is immutable once
+    # uploaded, so there is nothing to invalidate.
+    from ...services import page_cache
+    cached = page_cache.get(transcription_id, page_number, PAGE_RENDER_DPI)
+    if cached is not None:
+        return TranscriptionPageResponse(page_number=page_number,
+                                         thumbnail_base64=cached)
+
+    # 4. Fetch PDF from GCS (backend-to-backend; no CORS issue)
     gcs = get_gcs_service()
     try:
         pdf_bytes = await run_in_threadpool(gcs.download_bytes, transcription.gcs_object_path)
@@ -335,4 +345,5 @@ async def get_transcription_page(
         logger.error(f"PDF render failed page={page_number}: {exc}", exc_info=True)
         raise HTTPException(status_code=502, detail="שגיאה בעיבוד הדף")
 
+    page_cache.put(transcription_id, page_number, PAGE_RENDER_DPI, thumbnail_base64)
     return TranscriptionPageResponse(page_number=page_number, thumbnail_base64=thumbnail_base64)

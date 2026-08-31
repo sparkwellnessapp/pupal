@@ -159,3 +159,42 @@ def test_page_proxy_renderer_range_guard(client, headers_a, transcription_3p):
     the renderer raises ValueError, and the proxy still answers 404."""
     resp = _get_page(client, headers_a, transcription_3p, 4)
     assert resp.status_code == 404, resp.text
+
+
+# ---------------------------------------------------------------------------
+# PR-G8 — page1-thumb-rendered-once-then-served-from-cache
+# ---------------------------------------------------------------------------
+
+def test_page1_thumb_downloaded_once_then_served_from_cache(
+        client, headers_a, transcription_3p):
+    """§1.5 puts a page-1 thumbnail on every batch card. Before this cache, each
+    request downloaded the ENTIRE PDF from GCS and re-rendered it — so one
+    dashboard load of thirty tests was thirty full-PDF downloads, on a school
+    connection, and it would have surfaced during the pilot.
+
+    Pins the thing that matters: GCS download count == 1 across 30 loads.
+    """
+    from app.services import page_cache
+    page_cache.clear()
+
+    downloads = {"n": 0}
+
+    def _counting_download(_path):
+        downloads["n"] += 1
+        return THREE_PAGE_PDF
+
+    with _patch_gcs() as mock_gcs:
+        mock_gcs.return_value.download_bytes.side_effect = _counting_download
+        first = client.get(
+            f"/api/v0/transcriptions/{transcription_3p}/pages/1", headers=headers_a)
+        assert first.status_code == 200
+        thumb = first.json()["thumbnail_base64"]
+
+        for _ in range(29):
+            resp = client.get(
+                f"/api/v0/transcriptions/{transcription_3p}/pages/1", headers=headers_a)
+            assert resp.status_code == 200
+            assert resp.json()["thumbnail_base64"] == thumb
+
+    assert downloads["n"] == 1, (
+        f"expected ONE GCS download across 30 card loads, got {downloads['n']}")

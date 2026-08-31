@@ -11,6 +11,7 @@ GET /graded_tests and GET /rubric/{id}/graded_tests return GradedTestListItem.
 """
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Optional
 from uuid import UUID
@@ -64,7 +65,9 @@ class GradedTestDraftResponse(BaseModel):
     # approval rather than discovered inside the contract.
     effective_totals: Optional[Dict[str, Decimal]] = None   # terminal_id -> points
     effective_total: Optional[Decimal] = None               # the test total
-    pricing_mismatch: bool = False  # deserialized from graded_tests.draft_json
+    pricing_mismatch: bool = False
+    # [PR-G8] first teacher open (column, not draft JSON)
+    opened_at: Optional[datetime] = None  # deserialized from graded_tests.draft_json
     rubric_contract_stale: bool = False  # S10: computed at query time
     regraded_from_id: Optional[UUID] = None  # S10: revision chain back-pointer
 
