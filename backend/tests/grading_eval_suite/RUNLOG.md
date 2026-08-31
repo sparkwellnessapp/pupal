@@ -1886,3 +1886,64 @@ UNOBTAINABLE from this cohort at any k: it needs a scope with no student
 answer, and all five students answered every question. Spec §1.7 names din Q2.ב
 for it — but din answered Q2.ב (her scan was read during the PL-9 work). That
 is a spec bug, not a fixture gap.
+
+## PR-G1 CANARY + PR-G4 FEEDBACK TRIAL (2026-08-31, owner-directed)
+
+**CANARY (R-9 condition ii) — the production path works under the pin. 5/5,
+$2.8070.** Real `graded_tests` rows through `_do_grade` against the TEST
+database, gemini-3.1-pro, plan `hobby_tvshow/v5` + `grader-v5.3`, feedback on.
+
+| student | status | score/100 | checks | feedback scopes | $ | s |
+|---|---|---|---|---|---|---|
+| dan_basiuk | draft | 83.25 | 38/38 | 6 | 0.6292 | 134 |
+| din_ezra | draft | 44.75 | 38/38 | 6 | 0.6024 | 109 |
+| moran_aharon | draft | 90.00 | 38/38 | 6 | 0.4792 | 139 |
+| omer_gelber | draft | 86.50 | 38/38 | 6 | 0.5238 | 126 |
+| yonatan_basiuk | draft | 92.00 | 38/38 | 6 | 0.5724 | 127 |
+
+What it proves that no unit test could: the config pin actually selects the v5
+agent inside `grading_runner` (and v3 for every other rubric — asserted in the
+run), the plan validates against a real compiled test BEFORE spend, the
+per-check record survives the DB round trip intact (38/38 on every test), and
+feedback attaches after pricing. **This is the PATH, not the ratified version
+pin** — the tree carries plan v5 + grader-v5.3, not the confirmed
+{v3 + grader-v5.1}. Deltas vs GT (dan −0.75 · din −10.75 · moran −2.00 ·
+omer −2.50 · yonatan −0.50) are observed at k=1 on a different bundle and are
+NOT a comparison to the k=5 champion record.
+
+**COST, flagged: $0.48–0.63 per test — 4× the $0.15 GA-7 ceiling.** Grading is
+~$0.36 and the feedback call roughly DOUBLES per-test cost on gemini-3.1-pro.
+Direct input to OD-B3 ("cheapest tier that passes the lint"): the lint now
+passes cleanly, so a cheaper feedback tier is worth measuring before the dial
+is fixed.
+
+**FEEDBACK TRIAL (R-9, k=2 × 5 fixtures, gemini-3.1-pro, 418s): the model's
+output is CLEAN; MY LINT WAS BROKEN.** The first run reported 8 gendered-address
+violations across 10 draws. Every one was a FALSE POSITIVE — Hebrew imperatives
+are homographs of much commoner words:
+- `שני` ×3 — the numeral "two" ("שני דפוסים"), which the prompt ITSELF asks for;
+- `המשך` ×4 — the noun "continuation" ("תנאי המשך");
+- `השתמש` ×1 — 3rd-person past "used" ("החישוב השתמש במשתנים").
+
+That is the INV-6 failure mode reproduced in new code, at 80% of draws, in a
+lint whose own docstring warned about it. Rewritten to unambiguous forms only
+(pronouns; `-י` feminine imperatives; masculine imperatives ONLY as phrases
+where the next word disambiguates). **Re-lint of the SAME 10 stored draws: 0
+violations.** The three real sentences are now regression guards.
+
+Quality, read by hand: every scope follows C2 (credited → missing → one
+pointer) with the student's own code quoted; summaries give two cross-cutting
+patterns plus one pointer, never a per-scope recap. **0 score/points leakage**
+in 10/10 draws; address form clean in 10/10; scope keys identical across draws
+on all five fixtures (din and moran byte-identical). din correctly carries 5
+scopes, not 6 — it skips the fixture's FAILED scope instead of inventing
+feedback for an ungraded one.
+
+**OD-G1.4 SETTLED — two independent guards.** The rubric-id binding says WHICH
+rubric a plan was ratified for; it cannot say whether the plan still FITS that
+rubric's current contract, because a recompiled rubric keeps its id. So the plan
+is also validated against the compiled test. Writing that test exposed an
+ordering flaw: the model client was built BEFORE validation, so a plan mismatch
+surfaced as "No API key was provided" — a configuration bug reported as a
+credentials error. Validation now runs first: free, and it names the cause.
+LEDGER: canary $2.8070 + feedback trial (gemini, 10 draws) · post-FP2 total.

@@ -492,3 +492,48 @@ def test_ai_outcome_immutability_after_patch_and_approve(client, graded_draft):
     # derived from her not_met verdict, not a typed number
     assert _D(terminal["final_points_awarded"]) == _D("0")
     assert terminal["was_overridden"] is True
+
+
+# ---------------------------------------------------------------------------
+# PR-G5 — approve-rejects-pricing-mismatch
+# ---------------------------------------------------------------------------
+
+def test_approve_rejects_a_pricing_mismatch(client, graded_draft):
+    """The teacher approves a NUMBER she saw. If the server prices the same
+    overlay differently, freezing the server's answer silently is the §5
+    catastrophe in miniature — she reviews one total and another becomes
+    immutable. The approval is refused, with an ERROR annotation naming both
+    numbers, and the row stays a draft."""
+    gid, headers = graded_draft
+    overlay = {"terminals": {"q1.c0": [
+        {"check_id": "q1.c0.k1", "verdict": "not_met"}]}}
+
+    resp = client.post(
+        f"/api/v0/grading/graded_test/{gid}/approve",
+        json={"overrides": overlay, "client_total": "99"},   # she never saw 99
+        headers=headers,
+    )
+    assert resp.status_code == 422, resp.text
+    detail = resp.json()["detail"]
+    assert detail["pricing_mismatch"] is True
+    assert detail["client_total"] == "99"
+    assert detail["server_total"] == "0"          # her not_met verdict prices 0
+    assert detail["annotation"]["severity"] == "ERROR"
+    assert detail["annotation"]["annotation_type"] == "pricing_mismatch"
+
+    # and nothing froze
+    after = client.get(f"/api/v0/grading/graded_test/{gid}", headers=headers)
+    assert after.json()["status"] == "draft"
+
+
+def test_approve_without_a_client_total_still_works(client, graded_draft):
+    """The check is opt-in: an older client that does not send its total is not
+    blocked — it simply gets no mismatch signal."""
+    gid, headers = graded_draft
+    resp = client.post(
+        f"/api/v0/grading/graded_test/{gid}/approve",
+        json={"overrides": {"terminals": {}}},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "approved"

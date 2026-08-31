@@ -66,3 +66,63 @@ def test_v5_requires_every_part_of_the_pin(monkeypatch, tmp_path):
     _cfg(monkeypatch, grader_architecture="v5", grader_model_key="gemini-3.1-pro-preview",
          grader_plan_path=str(tmp_path / "missing.json"), grader_plan_rubric_id=PILOT)
     assert grader_kind_for(rubric_id=PILOT) == "v3", "absent plan file ⇒ not a v5 run"
+
+
+# ---------------------------------------------------------------------------
+# OD-G1.4 — the binding has TWO independent guards
+# ---------------------------------------------------------------------------
+
+def test_a_plan_that_does_not_fit_the_test_is_refused_before_any_spend(monkeypatch, tmp_path):
+    """The rubric-id binding says WHICH rubric the plan was ratified for. It
+    cannot say whether the plan still FITS that rubric's current contract — a
+    recompiled rubric keeps its id.
+
+    So there is a second, independent guard: the plan is validated against the
+    compiled test at construction. Without it a mismatched plan surfaces as a
+    KeyError inside every scope — loud, but only after paying for all of them,
+    and reported as a grading failure rather than the configuration error it is.
+    """
+    from decimal import Decimal
+
+    from app.agents.grader.plan_schemas import GradingPlan, PlanCheck, TerminalPlan
+    from app.schemas.gradable import (
+        GradableCriterion, GradableScope, GradableTest)
+    from app.schemas.ontology_types import NumericPolicy
+    from app.services.grader_selection import build_grader
+
+    # a plan whose terminal does not exist in the test it is asked to grade
+    plan = GradingPlan(
+        exam_id="wrong-exam",
+        plan_version="wrong/v1",
+        rubric_contract_sha256="0" * 64,
+        terminals=[TerminalPlan(
+            terminal_id="NOT_IN_THIS_TEST", points_possible=Decimal("5"),
+            checks=[PlanCheck(check_id="NOT_IN_THIS_TEST.k1",
+                              description_he="x", kind="required",
+                              points=Decimal("5"))])],
+    )
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(plan.model_dump_json(), encoding="utf-8")
+
+    rubric_id = str(PILOT)
+    import app.services.grader_selection as mod
+    for k, v in {"grader_architecture": "v5",
+                 "grader_model_key": "gemini-3.1-pro-preview",
+                 "grader_model_provider": "gemini",
+                 "grader_plan_path": str(plan_file),
+                 "grader_plan_rubric_id": rubric_id}.items():
+        monkeypatch.setattr(mod.settings, k, v, raising=False)
+
+    scope = GradableScope(
+        scope_kind="direct", question_id="q1", sub_question_id=None,
+        criteria=[GradableCriterion(criterion_id="q1.c0", description="d",
+                                    points=Decimal("5"), sub_criteria=None)],
+        points=Decimal("5"), student_answer_text="answer", alignment="matched")
+    test = GradableTest(
+        rubric_contract_version="rc", transcription_contract_version="tc",
+        scopes=[scope], unmatched_transcription_answers=[],
+        total_points=Decimal("5"))
+
+    with pytest.raises(ValueError) as ei:
+        build_grader(rubric_id, NumericPolicy(), gradable_test=test)
+    assert "does not fit" in str(ei.value)

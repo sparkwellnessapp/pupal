@@ -117,9 +117,14 @@ def build_grader(rubric_id: Optional[str], numeric_policy, gradable_test=None):
 
     plan = GradingPlan.model_validate_json(
         Path(settings.grader_plan_path).read_text(encoding="utf-8"))
-    llm = build_chat_model(settings.grader_model_provider, settings.grader_model_key)
+    # Validate BEFORE constructing the client: the plan check is free and its
+    # failure names the real cause. Building the model first made a plan
+    # mismatch surface as whatever the provider complained about — an API-key
+    # error for a configuration bug that has nothing to do with the key.
     if gradable_test is not None:
         _validate_plan_against(plan, gradable_test, numeric_policy.precision)
+
+    llm = build_chat_model(settings.grader_model_provider, settings.grader_model_key)
     logger.info("grader_v5_selected",
                 extra={"rubric_id": str(rubric_id),
                        "model": settings.grader_model_key,

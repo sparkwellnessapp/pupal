@@ -83,6 +83,27 @@ def test_gender_neutral_lint_flags_gendered_address_and_passes_neutral_prose():
     assert gender_neutral_violations("בדוק את התנאי")
 
 
+def test_lint_does_not_flag_homographs_that_are_not_address():
+    """REGRESSION, from a measured failure: the first lint fired on 8 of 10 real
+    draws and every hit was a false positive. These are the exact sentences,
+    verbatim from that run.
+
+    Hebrew imperatives are homographs of much commoner words, and a check that
+    fires on correct output trains the click-through reflex that swallows the
+    next real warning (the INV-6 lesson)."""
+    from app.agents.feedback.lint import gender_neutral_violations
+
+    # "שני" is the numeral "two" — and the prompt ASKS for "שני דפוסים"
+    assert gender_neutral_violations(
+        "עם זאת, חוזרים שני דפוסים: חסרות בדיקות null בעת סריקת מערכי עצמים.") == []
+    # "המשך" is the noun "continuation", in construct state
+    assert gender_neutral_violations(
+        "יצרת את לולאת הקליטה עם תנאי המשך המשלב את רצון המשתמש.") == []
+    # "השתמש" here is 3rd-person past "used", not the imperative "use!"
+    assert gender_neutral_violations(
+        "חישוב הממוצע לחוגים הלא-ספורטיביים השתמש במשתנים של החוגים הספורטיביים.") == []
+
+
 def test_lint_does_not_flag_the_accusative_particle():
     """`את` is both a feminine pronoun and the accusative particle, and the
     particle is unavoidable in ordinary Hebrew. Flagging it would make the lint
@@ -143,7 +164,9 @@ async def test_feedback_runs_once_per_test_on_already_priced_verdicts(monkeypatc
                 summary="שני דפוסים חוזרים.")
 
     class _LLM:
-        def with_structured_output(self, _schema):
+        # include_raw=True is the real call shape (the gemini adapter asserts it)
+        def with_structured_output(self, _schema, include_raw=False):
+            assert include_raw, "the agent must ask for raw — that is where usage lives"
             return _Runner()
 
     monkeypatch.setattr(runner_mod.settings, "feedback_model_key", "fake-model",

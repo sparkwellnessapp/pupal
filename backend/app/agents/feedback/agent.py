@@ -44,9 +44,12 @@ class FeedbackAgent:
     def __init__(self, llm, model_version: str) -> None:
         self._model_version = model_version
         # A raw runner (the test fake) is used as-is; a real chat model gets the
-        # structured-output wrapper. One seam, no branch at the call site.
-        self._runner = (llm.with_structured_output(FeedbackResponse)
+        # structured-output wrapper. include_raw=True is REQUIRED — the gemini
+        # adapter asserts it, and it is also how the usage metadata arrives, so
+        # the feedback call can be costed inside the per-test ceiling (G4(e)).
+        self._runner = (llm.with_structured_output(FeedbackResponse, include_raw=True)
                         if hasattr(llm, "with_structured_output") else llm)
+        self.last_usage = {"input_tokens": 0, "output_tokens": 0}
 
     async def generate(
         self,
@@ -68,6 +71,24 @@ class FeedbackAgent:
                 message="לא נוצר משוב לתלמיד/ה עבור מבחן זה. הציון והנימוקים אינם מושפעים.",
                 metadata={"exception_class": type(exc).__name__},
             )]
+
+        # include_raw yields {"raw", "parsed", "parsing_error"}; a bare fake
+        # returns the parsed object directly.
+        if isinstance(parsed, dict):
+            if parsed.get("parsing_error"):
+                logger.warning("feedback_parse_failed")
+                return None, [GradingAnnotation(
+                    severity=AnnotationSeverity.INFO,
+                    target_id="",
+                    annotation_type="feedback_unavailable",
+                    message="לא נוצר משוב לתלמיד/ה עבור מבחן זה. הציון והנימוקים אינם מושפעים.",
+                    metadata={"exception_class": "ParseError"},
+                )]
+            raw = parsed.get("raw")
+            usage = (getattr(raw, "usage_metadata", None) or {}) if raw else {}
+            self.last_usage = {"input_tokens": usage.get("input_tokens", 0),
+                               "output_tokens": usage.get("output_tokens", 0)}
+            parsed = parsed["parsed"]
 
         by_scope = {s.scope_id: s.text for s in (parsed.scopes or [])}
         return FeedbackBlock(
