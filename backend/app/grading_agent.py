@@ -163,7 +163,7 @@ class GradingAgent:
         self.llm = ChatOpenAI(
             model=model_name,
             temperature=0.2,
-            api_key=settings.openai_api_key,
+            api_key=settings.openai_api_key.get_secret_value(),
             model_kwargs={"response_format": {"type": "json_object"}}
         )
         

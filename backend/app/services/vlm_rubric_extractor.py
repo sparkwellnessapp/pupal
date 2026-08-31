@@ -335,7 +335,7 @@ class VLMRubricExtractor:
         """Get or create OpenAI client."""
         if self._client is None:
             from ..config import settings
-            self._client = OpenAI(api_key=settings.openai_api_key)
+            self._client = OpenAI(api_key=settings.openai_api_key.get_secret_value())
         return self._client
     
     @trace_if_enabled(

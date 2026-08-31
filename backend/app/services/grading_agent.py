@@ -157,7 +157,7 @@ class GradingAgent:
             model=model_name,
             temperature=0.15,  # Lower for more deterministic grading
             max_tokens=14384,
-            api_key=settings.openai_api_key,
+            api_key=settings.openai_api_key.get_secret_value(),
             model_kwargs={"response_format": {"type": "json_object"}}
         )
         

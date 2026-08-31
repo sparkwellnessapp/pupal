@@ -27,7 +27,7 @@ def get_openai_client() -> OpenAI:
     """Get or create OpenAI client singleton."""
     global _client
     if _client is None:
-        _client = OpenAI(api_key=settings.openai_api_key)
+        _client = OpenAI(api_key=settings.openai_api_key.get_secret_value())
     return _client
 
 

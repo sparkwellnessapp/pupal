@@ -39,7 +39,7 @@ def setup_tracing():
         os.environ["LANGCHAIN_TRACING_V2"] = "true"
         os.environ["LANGCHAIN_ENDPOINT"] = settings.langchain_endpoint
         if settings.langchain_api_key:
-            os.environ["LANGCHAIN_API_KEY"] = settings.langchain_api_key
+            os.environ["LANGCHAIN_API_KEY"] = settings.langchain_api_key.get_secret_value()
         if settings.langchain_project:
             os.environ["LANGCHAIN_PROJECT"] = settings.langchain_project
         logger.info(f"LangSmith project: {os.environ.get('LANGCHAIN_PROJECT')}")

@@ -213,8 +213,13 @@ def verify_task_request(request: Request) -> Optional[str]:
 
     # 1. Shared-secret fallback (inline/dev)
     provided = request.headers.get("X-Internal-Token")
-    if provided is not None and settings.internal_task_token:
-        if hmac.compare_digest(provided, settings.internal_task_token):
+    # .get_secret_value() on BOTH halves: SecretStr is truthy even when it
+    # wraps "", so the guard would pass an empty secret through to
+    # compare_digest, and compare_digest rejects a non-str outright.
+    expected = (settings.internal_task_token.get_secret_value()
+                if settings.internal_task_token else "")
+    if provided is not None and expected:
+        if hmac.compare_digest(provided, expected):
             return None
         return "bad shared secret"
 

@@ -2,15 +2,27 @@
 Configuration settings for Test Grader AI.
 Loads settings from environment variables and .env file.
 """
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
 from typing import Optional
+
+
+_SECRET_NAME_PARTS = ("api_key", "secret", "token", "password",
+                      "credentials_json", "database_url", "service_account")
+
+
+def _is_secret_name(name: str) -> bool:
+    """Secret-shaped by NAME. `*_file` is excluded — those are paths."""
+    if name.endswith("_file"):
+        return False
+    return any(part in name for part in _SECRET_NAME_PARTS)
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     
     # OpenAI settings
-    openai_api_key: str
+    openai_api_key: SecretStr
     openai_model: str = "gpt-4o"  # For text grading
 
     # [PR-G2] Per-scope wall for a grading LLM attempt. The production
@@ -187,7 +199,7 @@ class Settings(BaseSettings):
     service_base_url: Optional[str] = None
     # Shared-secret fallback auth for /internal/extraction-jobs/{id}/run
     # (inline/dev mode, where no OIDC token exists).
-    internal_task_token: Optional[str] = None
+    internal_task_token: Optional[SecretStr] = None
     # Max accepted rubric DOCX upload size.
     extraction_max_upload_mb: int = 15
     # Max accepted per-file batch scan size (B9 intake v2 — per-file appends;
@@ -261,11 +273,28 @@ class Settings(BaseSettings):
     # LangSmith settings
     langchain_tracing_v2: Optional[str] = "false"
     langchain_endpoint: Optional[str] = "https://api.smith.langchain.com"
-    langchain_api_key: Optional[str] = None
+    langchain_api_key: Optional[SecretStr] = None
+
+    # DECLARED, not swallowed. These five arrived through `extra = "allow"`,
+    # which types them as plain strings and puts them in the model repr — which
+    # is exactly how an AttributeError printed every key in this file to the
+    # test log. Declaring them is the fix; the __repr_args__ net below covers
+    # whatever `extra` swallows next.
+    anthropic_api_key: Optional[SecretStr] = None
+    xai_api_key: Optional[SecretStr] = None
+    supabase_access_token: Optional[SecretStr] = None
+    gmail_service_account_json: Optional[SecretStr] = None
     langchain_project: Optional[str] = "Test-Grader-AI"
     
     # Database settings (Supabase/PostgreSQL)
-    database_url: str = "postgresql+asyncpg://user:password@localhost:5432/grader"
+    # Carries the production password. Stays `str` because 14 call sites do
+    # string operations on it (`.replace("+asyncpg", "+psycopg2")`), where
+    # `.get_secret_value()` would buy nothing this policy does not already
+    # guarantee — but it NEVER renders.
+    database_url: str = Field(
+        default="postgresql+asyncpg://user:password@localhost:5432/grader",
+        repr=False)
+    test_database_url: Optional[str] = Field(default=None, repr=False)
     
     # Google Cloud Storage settings
     gcs_bucket_name: str = "grader-vision-pdfs"
@@ -297,6 +326,23 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = False
         extra = "allow"
+
+    # THE NET. `extra = "allow"` means .env can introduce fields this class
+    # never declared, and pydantic renders them. Declaring the credentials we
+    # know about (above) does not protect the next one someone adds, so the
+    # repr itself refuses to print anything secret-shaped.
+    #
+    # Name-matched, because that is what a new secret has in common with the
+    # old ones. `*_file` is excluded: those are PATHS (`config/token.json`),
+    # and redacting them would hide useful diagnostics for no gain.
+    def __repr_args__(self):
+        for name, value in super().__repr_args__():
+            if name and _is_secret_name(name):
+                if value is None or value == "":
+                    continue
+                yield name, "**********"
+            else:
+                yield name, value
 
 
 settings = Settings()

@@ -341,7 +341,7 @@ class GraderAgent:
             model=settings.openai_model,
             temperature=0.0,
             max_tokens=8192,
-            api_key=settings.openai_api_key,
+            api_key=settings.openai_api_key.get_secret_value(),
             timeout=settings.grader_llm_timeout_s,
             max_retries=0,
         )

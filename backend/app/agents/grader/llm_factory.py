@@ -88,10 +88,11 @@ def build_chat_model(provider: str, model_id: str, *,
         # into `feedback_unavailable` — so the symptom was silently feedbackless
         # exams, not an error anyone would see (OD-B3, 2026-08-31).
         return ChatAnthropic(model=model_id,
-                             api_key=settings.anthropic_api_key, **params)
+                             api_key=settings.anthropic_api_key.get_secret_value()
+                             if settings.anthropic_api_key else None, **params)
 
     from langchain_openai import ChatOpenAI
-    return ChatOpenAI(model=model_id, api_key=settings.openai_api_key, **params)
+    return ChatOpenAI(model=model_id, api_key=settings.openai_api_key.get_secret_value(), **params)
 
 
 # ---------------------------------------------------------------------------

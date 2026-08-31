@@ -14,6 +14,7 @@ from typing import Any, Dict, List
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from pydantic import SecretStr
 
 from app.services.docx_v3.pipeline import (
     CriterionExtraction,
@@ -172,7 +173,9 @@ def test_verify_shared_secret_accepts_match():
     from app.services.cloud_tasks_service import verify_task_request
 
     with patch("app.services.cloud_tasks_service.settings") as s:
-        s.internal_task_token = "sekrit"
+        # SecretStr, because that is the type the field now has — a plain
+        # str here would test a shape production never sees.
+        s.internal_task_token = SecretStr("sekrit")
         assert verify_task_request(_FakeRequest({"X-Internal-Token": "sekrit"})) is None
 
 
@@ -180,7 +183,9 @@ def test_verify_shared_secret_rejects_mismatch():
     from app.services.cloud_tasks_service import verify_task_request
 
     with patch("app.services.cloud_tasks_service.settings") as s:
-        s.internal_task_token = "sekrit"
+        # SecretStr, because that is the type the field now has — a plain
+        # str here would test a shape production never sees.
+        s.internal_task_token = SecretStr("sekrit")
         assert verify_task_request(_FakeRequest({"X-Internal-Token": "wrong"})) == "bad shared secret"
 
 
