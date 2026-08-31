@@ -60,7 +60,7 @@ batch-feed fixtures match.
 
 | # | Item | Red-first tests | Status |
 |---|---|---|---|
-| B2.1 | **G3** — `MAX_CONCURRENT_SCOPES = min(scope_count, 16)` behind a flag; measured; `latency_profile[model]` into config | `scope-concurrency-caps-at-scope-count` + RUNLOG evidence | [ ] |
+| B2.1 | **G3** — `GRADER_MAX_CONCURRENT_SCOPES` dial (default 16); measured k=2 x 5 x 3 runs; `latency_profile` into config | `scope-concurrency-caps-at-scope-count` +6, `test_llm_factory_credentials` | [x] dial kept at 16; **primary prediction FALSIFIED (8.4%, not >=40%)** — the semaphore is a sliding window, not a barrier. Kill criterion did NOT fire. RUNLOG 2026-08-31 |
 | B2.2 | **G4** — `app/agents/feedback/`, `FeedbackBlock`, regenerate endpoint, contract effective text | `feedback-call-runs-after-pricing-once-per-test`, `feedback-contract-carries-effective-text`, `feedback-stale-derived-from-basis-hash`, `feedback-failure-does-not-block-draft`, `feedback-gender-neutral-lint` | [!] B0.3 |
 | B2.3 | **G8** — batch feed §1.5, `opened_at` (migration 019), `look_count.py`, two-stage ETA | `eta-two-stage`, `eta-never-constant`, `look-count-includes-met-with-notfound`, `opened-at-set-once-by-owner-only`, `batch-feed-fixtures-match` | [ ] |
 | B2.4 | Page-1 image cache (census E finding — recommend scoping here, owner's call) | — | [STOP] owner |

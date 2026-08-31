@@ -1998,3 +1998,71 @@ until now the dial was unset and `attach_feedback` returned the draft untouched.
 **Not measured here:** the grader pin. OD-B3 is the feedback dial only; the
 grader remains gemini-3.1-pro + plan v3 + grader-v5.1. See the G3(b) entry and
 the capacity note for why that pin now needs its own decision.
+
+
+---
+
+## PR-G3(b) — scope concurrency MEASURED (2026-08-31). Primary prediction FALSIFIED.
+
+Three runs, k=2 x 5 fixtures each. LEDGER: +$3.8228 (gemini) +$1.5959 +$1.5687
+(sonnet) = **$6.99**.
+
+| run | dial | p50 | p90 | $/trial | valid |
+|---|---|---|---|---|---|
+| `20260831-152354_gemini31pro-v5` | 5 | **79.32 s** | 94.73 s | $0.3823 | 10/10 |
+| `20260831-153958_sonnet5-v5` | 5 | **25.11 s** | 29.69 s | $0.1596 | 10/10 |
+| `20260831-154421_sonnet5-v5` | 16 | **23.01 s** | 28.75 s | $0.1569 | 10/10 |
+
+### Scorecard against the pre-registered predictions
+
+1. **PRIMARY — "p50 drops >= 40%" -> FALSIFIED. Measured 8.4%** (25.11 -> 23.01).
+2. **KILL — "zero rate-limit failures" -> PASSED.** `re-runs (transport/wall,
+   D7): 0` and `parse_failure_rate: 0.0` in BOTH arms. The one 429 in the logs
+   is **LangSmith's monthly trace quota** — telemetry ingest, not a provider
+   refusal. The kill criterion is about the provider; it did not fire, so 16
+   stands.
+3. **INVARIANT — "quality unchanged" -> PASSED.** within-precision
+   0.8553 -> 0.8605, terminal MAE 0.1224 -> 0.1164, $/trial $0.1596 -> $0.1569.
+   Tier-1 taxonomy moved (STITCHED 3 -> 5, one trial passing) but that is k=2
+   noise on a stochastic emitter, not a concurrency effect.
+
+### WHY the primary failed — the wave model is wrong, and it is wrong everywhere
+
+`asyncio.Semaphore` is a **sliding window, not a barrier.** With 6 scopes at
+5-wide the 6th task starts the moment ANY of the first five finishes, so the
+run is one window plus a short tail — not `ceil(6/5) = 2` sequential waves. The
+prediction assumed a barrier, and a barrier is not what the code does.
+
+That misconception is not confined to the prediction. **`eta.py` and
+`grading_runner._row_budget_s` both compute `ceil(scopes / concurrency)` waves**,
+so both systematically OVERESTIMATE. Direction matters and both err safe:
+the ETA quotes the teacher longer than reality, and the row budget reaps a hung
+grade later than strictly necessary. Neither is a defect to fix today — but
+nobody should "tighten" either one without re-measuring, because the model they
+share is already known to be pessimistic.
+
+**The ">= 40% at 12+ scopes" clause remains UNTESTED**, exactly as the
+pre-registration warned: every fixture is 6-scope, where 5-wide already fits
+almost the whole test in one window. A 12+-scope rubric is the only thing that
+would test it, and we do not have one.
+
+### Ruling on the dial: KEEP 16
+
+It costs nothing (zero rate-limit events, quality flat, cost flat), it buys a
+real if modest 8.4%, and the gain grows with scope count. Reverting to 5 would
+give up a measured improvement to honour a prediction that was wrong about the
+mechanism, not about the direction.
+
+### The provider comparison this bought, unasked
+
+Sonnet 5 grades the same corpus **3.4x faster** (25.1 s vs 79.3 s p50) at
+**42% of the cost** ($0.1596 vs $0.3823) with comparable accuracy
+(within-precision 0.855 vs 0.895, MAE 0.122 vs 0.111). gemini-3.1-pro failed
+T1-COST on **10/10** trials at 2.5x the $0.15 ceiling. Sonnet's $0.1596 misses
+the same bar by 6% — close enough that it is a bar-vs-budget conversation
+rather than a disqualification.
+
+**Still open, and not decided here:** the grader pin. Sonnet-5 remains a K1
+kill (45/48, all three firings the single `din/q2.ב.c4.s2` cell the champion
+also leaks 1/3 on). This run measured LATENCY and COST, not the kills, and
+nothing here retires that finding.

@@ -85,7 +85,18 @@ class Settings(BaseSettings):
     # [PR-G8] measured p50 seconds per TEST, per model key, from the eval
     # table. Absent model ⇒ the ETA reports `unknown` and the client says
     # «עוד רגע» rather than a number nothing supports.
-    latency_profile: dict = {}
+    # MEASURED 2026-08-31 (PR-G3(b)). Seconds per TEST as the batch feed counts
+    # them: `draft_created_at - grading_started_at`, which spans grading AND
+    # feedback, because attach_feedback runs inside the grading run before the
+    # draft lands. Composed from two separately-measured halves:
+    #   grading  p50 23.0 s  (sonnet5-v5, 16-wide, k=2 x 5 fixtures)
+    # + feedback p50 44.8 s  (claude-sonnet-5, k=2 x 5 fixtures, OD-B3)
+    #   = ~68 s
+    # PROVISIONAL: measured on a laptop with no queue depth, on 6-scope
+    # fixtures. The moment one test lands, the ETA switches to this batch's own
+    # observed p90 and stops using this number at all — which bounds the damage
+    # to the first card of a batch.
+    latency_profile: dict = {"claude-sonnet-5": 68.0}
     openai_vision_model: str = "gpt-4o"  # For vision/transcription tasks
     
     # Google Cloud settings

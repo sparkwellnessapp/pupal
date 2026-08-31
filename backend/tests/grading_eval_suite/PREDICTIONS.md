@@ -307,3 +307,20 @@ the concurrency it was measured under** — moving the dial later invalidates it
 
 **Cost.** 5 fixtures × k=2 × 2 arms = 20 test-grades at the pin's measured
 ~$0.36/test ≈ **$7.20**. Owner-approved 2026-08-31 as G3(b).
+
+
+### PR-G3(b) — RESULT (2026-08-31), scored against the registration above
+
+| # | prediction | outcome |
+|---|---|---|
+| 1 | p50 drops >= 40% | **FALSIFIED — 8.4%** (25.11 s -> 23.01 s) |
+| 2 | zero rate-limit failures at 16-wide | **PASSED** (0 re-runs, 0 parse failures; the only 429 was LangSmith telemetry) |
+| 3 | quality unchanged | **PASSED** (within-precision 0.8553 -> 0.8605, MAE 0.1224 -> 0.1164) |
+
+The registered falsification note said a sub-40% gain with zero 429s should be
+read as "the provider throttles softly". **That reading was also wrong.** The
+real cause is that `asyncio.Semaphore` is a sliding window, not a barrier: at 6
+scopes, 5-wide already fits nearly the whole test in one window, so there was
+never 40% on the table for this corpus. The prediction was mis-specified for the
+fixtures it was run on, and the corpus caveat registered up front is what makes
+that visible instead of looking like a provider result.
