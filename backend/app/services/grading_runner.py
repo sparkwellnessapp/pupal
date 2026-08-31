@@ -41,7 +41,7 @@ from app.schemas.transcription import TranscriptionContract
 from app.schemas.ontology_types import GradingRubricContract
 from app.services.gradable_compiler import compile as compile_gradable_test
 from app.services.selection_scoring import ScopeScore, score_with_selection
-from app.agents.grader.grader import MAX_CONCURRENT_SCOPES
+from app.agents.grader.grader import effective_scope_concurrency
 from app.services.grader_selection import build_grader
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,11 @@ def _row_budget_s(scope_count: int) -> float:
     wall can legitimately spend 2× on a retried scope."""
     if GRADING_ROW_BUDGET_S is not None:
         return float(GRADING_ROW_BUDGET_S)
-    waves = math.ceil(max(scope_count, 1) / MAX_CONCURRENT_SCOPES)
+    # [PR-G3] the budget follows the DIAL. Computing it at a fixed 5 while
+    # the grader runs narrower would make the budget too tight and kill
+    # healthy grades — the dangerous direction, so this is not optional.
+    scope_count = max(scope_count, 1)
+    waves = math.ceil(scope_count / effective_scope_concurrency(scope_count))
     return settings.grader_llm_timeout_s * waves + settings.grader_row_grace_s
 
 

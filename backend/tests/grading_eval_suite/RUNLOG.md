@@ -1947,3 +1947,54 @@ ordering flaw: the model client was built BEFORE validation, so a plan mismatch
 surfaced as "No API key was provided" — a configuration bug reported as a
 credentials error. Validation now runs first: free, and it names the cause.
 LEDGER: canary $2.8070 + feedback trial (gemini, 10 draws) · post-FP2 total.
+
+
+---
+
+## OD-B3 CLOSED — feedback model = Sonnet 5 (2026-08-31, owner ruling + measurement)
+
+**Ruling (owner).** gemini-3.1-pro is both too expensive and too rate-limited;
+the feedback pin is Sonnet 5. Measured here against the ratified acceptance bar
+before being written into config.
+
+**Run.** `claude-sonnet-5`, five fixtures, k=2 (the emitter is stochastic — one
+clean draw is a lucky draw), real Anthropic calls.
+
+| metric | result | bar |
+|---|---|---|
+| gender-neutral lint | **10/10 clean draws, 0 violations** | must pass |
+| $/test (mean of 5) | **$0.0564** (in 9,305 / out 1,898) | $0.15 (OD10) |
+| wall latency | p50 **44.8 s**, max 51.2 s | — |
+
+Against gemini-3.1-pro's measured $0.48–0.63/test this is a **~9× cost
+reduction** and lands at 38% of the ceiling rather than 3–4× over it. OD-B3's
+ratified wording — "cheapest tier that passes the gender-neutral lint, inside
+the $0.15 ceiling" — is satisfied on the measurement, not on the ruling alone.
+
+**Manual quality read (dan_basiuk, draw 1).** The C2 contract holds: 2nd-person
+past tense and nominal forms only, credited → missing → one pointer, no total
+restated. Grounded in specifics rather than generic praise — it names the actual
+defect ("שם הפרמטר minutes בחתימה לבין שם התכונה durationInMinutes", so
+`this.minutes` assigns to a field never declared) instead of saying the
+constructor was wrong. Closing pointers are forward-looking ("שווה לעקוב אחר
+האופן שבו הפעולה יודעת שיש עוד מקום פנוי"), not scolding.
+
+**BUG FOUND AND FIXED en route — the pin would not have worked in production.**
+`llm_factory.build_chat_model` passed `api_key=settings.openai_api_key` on the
+openai branch but passed **nothing** on the anthropic branch, leaving the SDK to
+fall back to `os.environ["ANTHROPIC_API_KEY"]`. The key lives in `.env` →
+`settings`, which never exports it, so every call raised "Could not resolve
+authentication method". `attach_feedback` catches everything and degrades to
+`feedback_unavailable`, so the symptom was **ten silently feedback-less tests
+and a WARNING** — a config error wearing the costume of a product state. The
+first ten draws of this trial failed exactly that way. Fixed by taking the key
+from settings, like openai; pinned by
+`tests/agents/test_llm_factory_credentials.py` over BOTH providers.
+
+**Config written:** `feedback_model_provider="anthropic"`,
+`feedback_model_key="claude-sonnet-5"`. This turns feedback ON by default —
+until now the dial was unset and `attach_feedback` returned the draft untouched.
+
+**Not measured here:** the grader pin. OD-B3 is the feedback dial only; the
+grader remains gemini-3.1-pro + plan v3 + grader-v5.1. See the G3(b) entry and
+the capacity note for why that pin now needs its own decision.

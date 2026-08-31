@@ -44,7 +44,21 @@ from app.agents.grader.validator import ValidatedTerminalGrade, validate_scope_g
 
 logger = logging.getLogger(__name__)
 
-MAX_CONCURRENT_SCOPES = 5
+def effective_scope_concurrency(scope_count: int) -> int:
+    """How many of THIS test's scopes may run at once (PR-G3).
+
+    Two caps, both load-bearing:
+      * the configured ceiling — the dial, read at call time so the kill
+        criterion's «revert to 5» is an env change on a running service; and
+      * the scope count itself — a 3-scope test opening 16 slots is not wrong,
+        but three consumers divide by this number to compute WAVES (the ETA,
+        the row budget), and an inflated value makes all three lie.
+
+    Never zero: `asyncio.Semaphore(0)` waits forever, so a degenerate rubric
+    would hang a worker until the liveness reaper notices it 30 minutes later.
+    """
+    ceiling = max(1, int(settings.grader_max_concurrent_scopes))
+    return max(1, min(int(scope_count or 0), ceiling))
 
 # [PR-G2] The per-scope wall. Module-level and read at CALL time by
 # bounded_invoke below, so moving it (config, test) needs no re-import.
@@ -481,7 +495,8 @@ class GraderAgent:
         No persistence. Returns the in-memory artifact; S8 persists it.
         """
         t0 = time.monotonic()
-        sem = asyncio.Semaphore(MAX_CONCURRENT_SCOPES)
+        sem = asyncio.Semaphore(
+            effective_scope_concurrency(len(gradable_test.scopes)))
 
         async def _bounded(scope: GradableScope) -> _ScopeResult:
             async with sem:

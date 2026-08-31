@@ -50,8 +50,25 @@ class Settings(BaseSettings):
     # Feedback is prose and cheaper; tying it to the grading pin would make
     # every grading-model decision a feedback decision too. Unset = no
     # feedback generated, which is a state the wire and the UI both carry.
-    feedback_model_provider: str = "openai"
-    feedback_model_key: Optional[str] = None
+    # OD-B3 CLOSED by measurement + owner ruling (2026-08-31): Sonnet 5.
+    # gemini-3.1-pro was both too expensive and too rate-limited. Measured on
+    # the five fixtures, k=2: gender-neutral lint 10/10 clean, $0.0564/test
+    # (vs gemini-3.1-pro's $0.48-0.63 and the $0.15 OD10 ceiling), p50 44.8s.
+    feedback_model_provider: str = "anthropic"
+    feedback_model_key: Optional[str] = "claude-sonnet-5"
+
+    # [PR-G3] How many scopes of ONE test may be in flight at once. Was a
+    # hardcoded 5, which made a 15-scope test three serial waves with no dial.
+    #
+    # THE KILL CRITERION IS AN ENV CHANGE: any rate-limit failure under this
+    # value → set it back to 5 and record. That is why it lives here and is
+    # read at CALL time, never frozen into a module constant at import.
+    #
+    # It is bounded by the PROVIDER's request rate, not by our appetite: a
+    # provider at 25 RPM cannot absorb 16 concurrent calls from a single test,
+    # let alone twenty tests dispatching at once. Raising this without checking
+    # the pinned provider's quota buys 429s, not speed.
+    grader_max_concurrent_scopes: int = 16
 
     # [PR-G8] measured p50 seconds per TEST, per model key, from the eval
     # table. Absent model ⇒ the ETA reports `unknown` and the client says

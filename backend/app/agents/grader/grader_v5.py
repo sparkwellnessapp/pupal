@@ -32,7 +32,7 @@ from google.genai import errors as genai_errors
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agents.grader.grader import (
-    MAX_CONCURRENT_SCOPES,
+    effective_scope_concurrency,
     bounded_invoke,
     RETRY_BACKOFF_MAX,
     RETRY_BACKOFF_MIN,
@@ -328,7 +328,8 @@ class PlanVerifyGrader:
     # ── the whole test ───────────────────────────────────────────────────────
     async def grade(self, gradable_test: GradableTest) -> GradedTestDraft:
         t0 = time.monotonic()
-        sem = asyncio.Semaphore(MAX_CONCURRENT_SCOPES)
+        sem = asyncio.Semaphore(
+            effective_scope_concurrency(len(gradable_test.scopes)))
 
         async def _bounded(scope: GradableScope) -> _ScopeResult:
             async with sem:

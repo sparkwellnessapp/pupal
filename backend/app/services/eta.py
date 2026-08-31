@@ -9,9 +9,15 @@ confident as its inputs:
     the single thing she is waiting on.
   * **first_landing** — nothing has landed yet, so the estimate comes from the
     model's measured p50 scaled by WAVE COUNT. The profile was measured on
-    6-scope fixtures, which is two waves at MAX_CONCURRENT_SCOPES=5, so it is
-    normalised by that: a 15-scope test is three waves and must not be quoted
-    the same number as a 6-scope one.
+    6-scope fixtures, so it is normalised by however many waves THAT is at
+    the current concurrency: a 15-scope test is more waves than a 6-scope one
+    and must not be quoted the same number.
+
+    [PR-G3] Both halves read the concurrency dial at CALL time. This assumes
+    the profile was measured at the dial's current value — so **re-measure
+    the profile whenever the dial moves**, which is exactly what G3(b) does.
+    A profile measured 5-wide and divided 16-wide would quote a number
+    describing a system that no longer exists.
   * **remaining** — once tests start landing, THIS batch's observed durations
     beat any profile: same provider, same evening, same queue depth. p90, not
     the mean, because the number should cover the slow tail she actually waits
@@ -22,10 +28,10 @@ from __future__ import annotations
 import math
 from typing import Dict, List, Optional
 
-from app.agents.grader.grader import MAX_CONCURRENT_SCOPES
+from app.agents.grader.grader import effective_scope_concurrency
 
-# The fixture cohort the latency profile is measured on: 6 scopes = 2 waves.
-_PROFILE_WAVES = math.ceil(6 / MAX_CONCURRENT_SCOPES)
+# The fixture cohort the latency profile is measured on.
+_PROFILE_SCOPES = 6
 
 
 def _p90(values: List[float]) -> float:
@@ -44,6 +50,9 @@ def estimate_eta(profile_p50: Optional[float],
     if not profile_p50:
         return {"kind": "unknown", "seconds": None}
 
-    waves = math.ceil(max(scope_count, 1) / MAX_CONCURRENT_SCOPES)
+    scopes = max(scope_count, 1)
+    waves = math.ceil(scopes / effective_scope_concurrency(scopes))
+    profile_waves = math.ceil(
+        _PROFILE_SCOPES / effective_scope_concurrency(_PROFILE_SCOPES))
     return {"kind": "first_landing",
-            "seconds": int(round(profile_p50 * waves / _PROFILE_WAVES))}
+            "seconds": int(round(profile_p50 * waves / profile_waves))}

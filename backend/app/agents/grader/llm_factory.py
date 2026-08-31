@@ -82,7 +82,13 @@ def build_chat_model(provider: str, model_id: str, *,
 
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
-        return ChatAnthropic(model=model_id, **params)
+        # The key comes from SETTINGS, like the openai branch below. Relying on
+        # the SDK's os.environ fallback made this branch depend on a variable
+        # that `.env` never exports, and `attach_feedback` swallows the failure
+        # into `feedback_unavailable` — so the symptom was silently feedbackless
+        # exams, not an error anyone would see (OD-B3, 2026-08-31).
+        return ChatAnthropic(model=model_id,
+                             api_key=settings.anthropic_api_key, **params)
 
     from langchain_openai import ChatOpenAI
     return ChatOpenAI(model=model_id, api_key=settings.openai_api_key, **params)

@@ -262,3 +262,48 @@ which means escalation is not the fix; or (b) cost >= the single-model
 champion, which removes its only reason to exist. Partial credit for a cascade
 that catches leaks but costs more is NOT available: that configuration loses to
 simply running the champion.
+
+
+---
+
+## PR-G3(b) — scope concurrency, pre-registered 2026-08-31 BEFORE the run
+
+**The lever.** `GRADER_MAX_CONCURRENT_SCOPES`, previously the hardcoded 5.
+Arm A = 5 (the historical value). Arm B = 16 (the spec's value). Everything else
+identical: config `gemini31pro-v5` (the ratified pin), the same five fixtures,
+k=2, same machine, same evening.
+
+**Corpus caveat, stated up front.** The spec words the prediction as "≥40% at
+12+ scopes". Every fixture we have is **6-scope**, so what this run actually
+tests is the 2-wave → 1-wave transition (ceil(6/5)=2 vs ceil(6/16)=1). That is
+the same lever and the same arithmetic, but the 12+-scope clause is NOT tested
+here and must not be reported as if it were. A 12+-scope rubric would need a new
+fixture.
+
+**Prediction (pass/fail, registered before any call):**
+
+1. **PRIMARY — p50 grading wall-time per test drops ≥ 40% in Arm B.** Two waves
+   become one; the floor is one call's latency, so the ceiling on the gain is
+   ~50%. Predicting ≥40% says the wave model dominates and per-call latency does
+   not inflate under 6-way concurrency.
+2. **KILL — zero rate-limit failures in Arm B.** Any 429 / RESOURCE_EXHAUSTED
+   kills the value 16 outright: revert to 5, record, and the profile is measured
+   at 5. This is the spec's kill criterion, unmodified.
+3. **INVARIANT — grading quality is unchanged.** Concurrency must not move a
+   verdict. Same kills, same GA-2, within the noise the k=2 sample allows. If
+   quality moves, the finding is that something is order-dependent, which is a
+   bug, not a speed result.
+
+**What would falsify (1) without killing the lever:** per-call latency rising
+under concurrency — 6 simultaneous calls each slower than 1 of 5. That shows up
+as Arm B improving by <40% with zero 429s, and the honest reading is "the
+provider throttles softly", not "the change did nothing".
+
+**Also produced:** `latency_profile["gemini-3.1-pro-preview"] = {p50, p90}`
+measured in the winning arm, which is what PR-G8's batch ETA reads. Until this
+lands the ETA reports `unknown` on every card. **The profile is only valid at
+the concurrency it was measured under** — moving the dial later invalidates it
+(`eta.py` divides by the dial at call time).
+
+**Cost.** 5 fixtures × k=2 × 2 arms = 20 test-grades at the pin's measured
+~$0.36/test ≈ **$7.20**. Owner-approved 2026-08-31 as G3(b).

@@ -101,13 +101,21 @@ def test_eta_is_unknown_without_a_latency_profile():
     assert got["kind"] == "unknown" and got["seconds"] is None
 
 
-def test_eta_first_stage_scales_with_WAVES_not_a_constant():
+def test_eta_first_stage_scales_with_WAVES_not_a_constant(monkeypatch):
     """Before anything lands, the estimate comes from the model's p50 scaled by
-    WAVE COUNT — the fixtures are 6-scope (two waves at MAX_CONCURRENT_SCOPES=5),
-    so the profile is normalised by that. A 15-scope test is three waves and
-    must not be told the same number as a 6-scope one."""
+    WAVE COUNT — the fixtures are 6-scope, so the profile is normalised by
+    however many waves that is. A 15-scope test is more waves and must not be
+    told the same number as a 6-scope one.
+
+    [PR-G3] The concurrency is PINNED here rather than inherited from the
+    config default. This test is about the wave arithmetic; leaving it to read
+    a tunable would make it fail every time someone turns the dial, for a
+    reason that has nothing to do with what it checks.
+    """
+    from app.config import settings
     from app.services.eta import estimate_eta
 
+    monkeypatch.setattr(settings, "grader_max_concurrent_scopes", 5)
     six = estimate_eta(profile_p50=120.0, scope_count=6, landed_durations=[])
     fifteen = estimate_eta(profile_p50=120.0, scope_count=15, landed_durations=[])
 
