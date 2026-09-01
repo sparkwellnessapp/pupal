@@ -108,7 +108,7 @@ def test_v9_exempts_ruling_sourced_checks():
                                             checks=[ruling])]),
         contract_terminal_points={"t": Decimal("1")},
         terminal_scopes={"t": "q1"}, precision=Decimal("0.25"),
-        contract_corpus="nothing resembling that quote")
+        scope_corpora={"q1": "nothing resembling that quote"})
     assert not [e for e in errs if e.startswith("V9")], errs
 
 
