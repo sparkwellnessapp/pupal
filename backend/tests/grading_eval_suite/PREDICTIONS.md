@@ -324,3 +324,78 @@ scopes, 5-wide already fits nearly the whole test in one window, so there was
 never 40% on the table for this corpus. The prediction was mis-specified for the
 fixtures it was run on, and the corpus caveat registered up front is what makes
 that visible instead of looking like a provider result.
+
+
+---
+
+## PLAN-GENERATION PHASE 0 — pre-registered 2026-09-01, BEFORE any generation
+
+Owner-approved (spec rev 2, ruling 2026-09-01). Envelope $15: generation ~$2,
+A/B ~$7.
+
+### Run header (all three arms, stated so parity is never ambiguous)
+
+| | |
+|---|---|
+| grading model | `claude-sonnet-5` (`anthropic`) — the production pin as of 2026-08-31 |
+| verifier prompt | **`grader-v5.3`** — v6 remains KILLED and an artifact |
+| k | 3 |
+| corpus | the five hobby_tvshow fixtures, frozen contract, 38 terminals × 5 = **190 GT awards** |
+| generation model | top tier (`claude-opus-5`), NOT the grading pin — the plan is the quality ceiling |
+
+### The three arms
+
+| arm | decomposition from | rulings attached |
+|---|---|---|
+| **V-rubric** | rubric text only | none |
+| **V-const** | rubric text + general constitution | OD-5 classes 1–3 |
+| **hand** | the ratified `hobby_tvshow.plan.json` | everything, incl. exam-specific |
+
+### A mechanical prediction, registered because it is falsifiable
+
+**Expressibility is a function of the ALGEBRA — check `points`,
+`partial_fraction`, `tariff_amount` — not of clause TEXT.** Policy clauses
+(PL-10, R-β …) append prose to `description_he` and move no number, so they
+cannot change the reachable-award set.
+
+Therefore **V-rubric and V-const should differ in expressibility ONLY where the
+constitution changes DECOMPOSITION** — which is exactly one clause: the
+authoring rule behind P-A ("criterion text naming N components → N checks").
+
+If the two arms score identically on 0a, P-A did not bind on this rubric. If
+V-const scores *lower*, P-A over-splits and that is a finding against the rule
+itself, not against generation.
+
+### Predictions (pass/fail, before any call)
+
+1. **PRIMARY — V-const expressibility ≥ 180/190, every miss ruling-attributable.**
+   This is OD-2's bar. Expressibility is driven almost entirely by decomposition
+   GRANULARITY: a generator that emits one check per terminal makes every award
+   binary `{0, 0.5P, P}` and would miss most GT awards. The hand plan's
+   distribution is 1–5 checks (avg 2.1), and the prediction is that a top-tier
+   model reading the same criterion text reproduces that granularity.
+2. **Tariff recall 14/14 and note_only 1/1.** Named deductions are literal text
+   extraction from the teacher's own guidance. A miss here is not a judgement
+   call, it is a reading failure.
+3. **K1 cell-level parity** (ruling 2026-09-01): the generated plan introduces
+   **no K1 cell absent under the hand plan**, same model, same k, same verifier.
+   Shared cells attribute to the model; new ones are plan defects.
+4. **K2 ≤ hand + 1 cell · K4 ≤ hand + 1.0 · GA-2 ≥ hand − 0.05.**
+
+### KILL — pre-spend, and it is the point of running 0a first
+
+**If V-const expressibility < 180/190 with any DECOMPOSITION-class miss, stop
+before the A/B.** A plan that cannot express the teacher's award will not
+reproduce it on any model at any k, so the $7 would buy a measurement of
+something already known to be broken.
+
+Ruling-class misses do not kill: they are the direct measurement of what layer 1
+(the ruling ledger) is worth, which is a Phase-0 deliverable in its own right.
+
+### What is NOT being claimed
+
+**GA-1 remains absolute 80/80 for production adoption** — unchanged by this run,
+and stated in the report so cell-level K1 parity is never read as a relaxation
+of the gate. Phase 0 measures whether a GENERATED plan matches a HAND plan on
+one exam. It says nothing about generalisation; that is Phase 4, and it requires
+authoring ground truth on a second exam.
