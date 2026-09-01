@@ -2327,3 +2327,117 @@ Small but not empty — and that is exactly the scale the two-layer architecture
 exists to capture. Neither figure is reachable by any generator reading only the
 teacher's rubric, which is the whole reason the ledger is durable and the
 decomposition is not.
+
+
+---
+
+# PHASE 0 CONCLUSION — plan-gen/v2 (2026-09-01). BAR MISSED on expressibility.
+
+**H-3: stopping. No falsification arm, no Phase 1.** The one-shot fence does NOT
+fire — it is scoped to the tariff clause, which v2 fixed. A different clause
+broke.
+
+Ledger: **$14.17 of $15.** ($5.73 v1 · $4.05 v2 V-rubric · $4.39 v2 V-const.)
+
+## Run header
+
+`claude-opus-5` generation · `claude-sonnet-5` grading pin · verifier
+`grader-v5.3` · hobby_tvshow frozen contract · 38 terminals · 190 GT awards ·
+reference `hobby_tvshow/v5.1-source`.
+
+## What v2 fixed — the mechanism change worked
+
+| | v1 | **v2** |
+|---|---|---|
+| tariff recall, derivable (**the corrected bar**) | 11/12 | **12/12** ✅ |
+| P-G2b — `q2.ב.c4.s3` | anchored `s1` @ 1 | **`s3` @ 3** ✅ |
+| `not_a_deduction` (watched) | — | **0** |
+| tariffs present | 15 | 14, matching the reference |
+
+The diagnosis held: once the phrase, its number and the candidate list are
+supplied deterministically, the residual judgement is reliable. Per the narrowed
+P-G2b′ that is ALL it establishes — the detector found the phrase, not the model.
+
+**P-A is confirmed working.** V-rubric (no constitution) split `q1.א.c1` as
+1.5+2.5 and lost the ratified 3.5; V-const split it **1+1+1+1, matching the hand
+plan exactly**, and reaches it. The clause "criterion text naming N components →
+N checks" does what it was written to do.
+
+## What broke — expressibility, on BOTH arms
+
+| arm | expressibility | misses |
+|---|---|---|
+| v1 V-rubric | 189/190 | 1 ruling-class |
+| **v2 V-rubric** | **187/190** | 2 **decomposition**-class + … |
+| **v2 V-const** | **188/190** | 1 **decomposition**-class + 1 ruling-class |
+
+Attributed, not asserted:
+
+| terminal | hand split | v2 split | GT award | reachable |
+|---|---|---|---|---|
+| `q1.א.c1` (V-rubric) | 1+1+1+1 | 1.5+2.5 | 3.5 | ❌ |
+| `q2.א.c0` (V-const) | 1+2+2 | 1.25×4 | 4 | ❌ |
+
+`q2.א.c0` is the clean statement of the failure mode: **an even split where the
+teacher's text implies uneven components.** Four 1.25s can never sum to 4.
+
+OD-2's expressibility clause requires every miss to be ruling-attributable; a
+decomposition-class miss fails. **Both arms carry one. The clause is missed.**
+
+## The trade v2 made, stated plainly
+
+v1: expressibility 189/190, tariffs 11/12.
+v2: expressibility 187–188/190, tariffs 12/12.
+
+Adding V11's completeness pressure bought the tariff clause and cost
+decomposition accuracy elsewhere. The repair loop now **exhausts its cap on 3–4
+of 6 scopes** (14–15 calls vs v1's 7), and one of the two decomposition misses
+sits on a scope that consumed repairs. That is the architectural signal worth
+carrying forward: under a bounded repair budget the generator trades between
+constraints, and V11 is the expensive one.
+
+This is not an invitation to a v3 prompt. It is evidence that per-terminal
+point-splitting needs a deterministic assist of its own — the same move that
+worked for deductions — rather than more prompt pressure.
+
+## Predictions scored
+
+| | outcome |
+|---|---|
+| **P-G2a′** (12/12 derivable) | **PASS** |
+| **P-G2b′** (anchor + amount) | **PASS** — anchoring only, as narrowed |
+| **P-G2c** (equivalence notes ≤20 on V-const) | **MISS — 23** (v1: 30; hand: 11). Direction right, threshold not met |
+| **P-G2d** (same-arm control) | **UNRULED — control unfunded** |
+
+## What remains unmeasured, and owed
+
+- **P-G2d / the policy-leak stop condition stays OPEN.** The mandatory same-arm
+  control was not run: v2 costs ~$4/variant, not the ~$2 the envelope assumed,
+  and the 4-variant run was stopped after V-rubric rather than overrun silently.
+- **V-nosol under v2 is unmeasured.** v1 showed no material degradation without
+  the example solution; that finding is v1-only and does not carry to v2.
+- **Grading-quality parity is unmeasured and is owed to the second exam.**
+  P-G2c's 23 keeps the leniency hypothesis live (item 11's >20 branch), but the
+  bar is missed and the envelope holds $0.83 against a ~$2.36 arm, so it is not
+  run.
+
+## Layer 1's worth — measured twice, unchanged by v2
+
+| measurement | layer-1 share |
+|---|---|
+| expressibility | 1 award of 190 |
+| named deductions | 2 tariffs of 14 |
+
+## RECOMMENDATION — the binding constraint is second-exam ground truth
+
+Not spend. **Authoring GT on a second exam is the next investment**, and it
+unblocks four things at once: the plan A/B's generalisation claim (deferred to
+it by ruling), fixture expansion (n≥10, ≥2 exams — standing), rule-6-vs-PL-9 on
+fresh paper, and R-D's credit-once convention. `employee_course_select1` is the
+natural candidate.
+
+The economics favour it now: the precedent ledger PL-1…PL-10 is mature, so
+per-student authoring runs materially faster than the first exam's did.
+
+Phase 0 has answered what one exam can answer. **Everything still open needs a
+second exam, not another dollar on this one.**
