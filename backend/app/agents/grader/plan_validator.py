@@ -20,13 +20,52 @@ Rules:
   V7  a charge_group never spans scopes (verdicts arrive per scope; a cross-
       scope group could not be deduped deterministically).
   V8  partial_fraction strictly inside (0, 1).
+  V9  rubric-quote grounding: a GENERATED check's rubric_quote must appear in
+      the rubric contract's own text. Runs only when the corpus is supplied
+      (the plan compiler always supplies it; the eval flow may not).
+  V10 point-blindness: description_he may not state point values — the verifier
+      is point-blind by design, and a number in the check text hands it the
+      answer.
 """
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Dict, List
+from typing import Dict, List, Optional
+
+import re
+import unicodedata
 
 from app.agents.grader.plan_schemas import GradingPlan
+
+# V9 — CALIBRATED against the ratified hand plan (2026-09-01), not invented.
+# A first-principles "verbatim span of the criterion text" rejected 46 of its 80
+# checks. Three properties of real authoring had to be honoured:
+#   · quotes are ELIDED   ("יצירת 2 מונה … + אתחולם")  → split on … and dashes
+#   · the source has TYPOS ("countHobbiesאו", no space) → compare whitespace-free
+#   · the corpus is the WHOLE contract, not one criterion — authors cite the
+#     question spec and the example solution, which is where most of the
+#     decomposition actually comes from
+# At that calibration the hand plan grounds 73/80, and the ungrounded remainder
+# is dominated by its `ruling`-sourced checks — which V9 exempts by design.
+_QUOTE_SPLIT = re.compile(r"…|\.\.\.|—|–")
+_MIN_FRAGMENT = 8          # shorter fragments match accidentally
+
+# V10 — point-DENOTING text, never bare digits. "אתחול ב-0" (initialise to zero)
+# is legitimate code talk; "להוריד 2 נקודות" is the answer key. A bare-digit
+# rule flagged 24 of the hand plan's 80 checks, all false positives.
+_POINT_TEXT = re.compile(r"(\d+(?:\.\d+)?\s*(?:נק|נקוד)|(?:נק|נקוד)\S*\s*\d|להוריד\s+\d)")
+
+
+def _tight(text: str) -> str:
+    """NFC, whitespace removed — so a missing space in the teacher's source
+    cannot make an honest citation look hallucinated."""
+    return re.sub(r"\s+", "", unicodedata.normalize("NFC", text or ""))
+
+
+def quote_is_grounded(quote: str, corpus_tight: str) -> bool:
+    fragments = [_tight(f) for f in _QUOTE_SPLIT.split(quote or "")]
+    fragments = [f for f in fragments if len(f) >= _MIN_FRAGMENT]
+    return bool(fragments) and all(f in corpus_tight for f in fragments)
 
 
 def _on_grid(v: Decimal, precision: Decimal) -> bool:
@@ -37,8 +76,13 @@ def validate_plan(plan: GradingPlan,
                   *,
                   contract_terminal_points: Dict[str, Decimal],
                   terminal_scopes: Dict[str, str],
-                  precision: Decimal) -> List[str]:
+                  precision: Decimal,
+                  contract_corpus: Optional[str] = None) -> List[str]:
     errs: List[str] = []
+    # V9 runs only with a corpus. Not a silent skip: the plan compiler always
+    # passes one, and the eval suite's file flow does not need it because its
+    # plan is owner-ratified rather than generated.
+    corpus_tight = _tight(contract_corpus) if contract_corpus else None
 
     # V5 — uniqueness first (later rules assume addressability)
     seen_terminals: set = set()
@@ -71,6 +115,18 @@ def validate_plan(plan: GradingPlan,
 
         required_sum = Decimal("0")
         for c in tp.checks:
+            # V10 — point-blindness (applies to every check, both layers)
+            if _POINT_TEXT.search(c.description_he or ""):
+                errs.append(f"V10: {c.check_id} description_he states a point "
+                            f"value; the verifier is point-blind by design")
+            # V9 — grounding, GENERATED checks only. A `ruling` check cites a
+            # ruling, not rubric text, so grounding it is not merely wrong but
+            # impossible.
+            if corpus_tight is not None and c.source == "generated":
+                if not quote_is_grounded(c.rubric_quote or "", corpus_tight):
+                    errs.append(f"V9: {c.check_id} rubric_quote is not grounded "
+                                f"in the rubric text — a generated check must "
+                                f"cite the teacher, or be marked source='ruling'")
             # V2 — grid
             if not _on_grid(c.points, precision):
                 errs.append(f"V2: {c.check_id} points {c.points} off the "

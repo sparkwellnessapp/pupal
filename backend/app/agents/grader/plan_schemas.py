@@ -43,6 +43,15 @@ class PlanCheck(BaseModel):
 
     check_id: str                       # globally unique; convention "<terminal_id>.k<N>"
     description_he: str                 # requirement-phrased, faithful to the rubric wording
+    # [plan-gen] WHERE this check came from, and therefore whether V9 binds.
+    # "generated" — decomposed from rubric text; its rubric_quote MUST ground in
+    #   the contract (V9). This is the volatile layer, re-rollable on edit.
+    # "ruling"    — an owner/teacher ruling. It cites a RULING, not rubric text,
+    #   so V9 cannot apply; measured against the ratified plan, exactly the two
+    #   checks carrying "Owner-ruled …" and "[A-2 owner tariff]" fall here.
+    #   This is the durable layer and regeneration must never touch it.
+    # Default "generated" so every existing plan re-parses unchanged.
+    source: Literal["generated", "ruling"] = "generated"
     kind: CheckKind
     points: Decimal = Decimal("0")      # required: > 0; tariff/note_only: 0
     tariff_amount: Optional[Decimal] = None   # tariff only; > 0, on the precision grid
