@@ -399,3 +399,67 @@ and stated in the report so cell-level K1 parity is never read as a relaxation
 of the gate. Phase 0 measures whether a GENERATED plan matches a HAND plan on
 one exam. It says nothing about generalisation; that is Phase 4, and it requires
 authoring ground truth on a second exam.
+
+
+---
+
+## PLAN-GEN v2 — pre-registered 2026-09-01, BEFORE generating
+
+Owner-authored prompt (`plan-gen/v2`), applied verbatim. One mechanism change:
+deduction detection moved from the model's noticing into deterministic code
+(`detect_deductions`), with V11 forcing the model to dispose of every detected
+marker. Not a re-roll of v1.
+
+### Detector calibration (done before generating, free)
+
+Against the ratified plan: **12/12 generated-source tariffs detected**, the
+single note_only detected at `polarity="no_deduct"`, and the Phase-0 miss
+`q2.ב.c4.s3 @ 3` detected at amount 3 with `s3` among its candidates.
+Precision 14/14 — the one apparent false positive proved to be a real deduction
+(`...להוריד 1`) that the reference also carries. **No pattern was extended**;
+the target was met as authored.
+
+### ⚠ P-G2a's premise is FALSE, established before spending
+
+P-G2a expects 14/14 "(12 generated + the 2 ruling-source ones now surfaced as
+detected markers)". Measured: **neither ruling-source tariff is detected, and
+neither can be.** Their `rubric_quote`s are `"Owner-ruled −1 (GT note, dan)…"`
+and `"…[A-2 owner tariff]"` — a GT note and an owner tag, not deduction phrases
+in the teacher's text. No detector reading the rubric can find them; they exist
+because the owner ruled them. They ARE layer 1.
+
+**So 14/14 is unreachable by construction; the reachable maximum is 12/12.**
+
+This is recorded BEFORE any candidate runs, which is what distinguishes it from
+relaxing a gate under pressure: no candidate has failed, and the fact comes from
+the reference artefact's own `source` annotation — ratified in RULING 2, which
+post-dates OD-2. OD-2's expressibility clause already carries exactly this
+carve-out; the tariff clause did not, because when it was written we did not yet
+know two of the fourteen were rulings. **The owner rules on which reading
+governs. This run reports BOTH.**
+
+### Predictions
+
+- **P-G2a** — tariff recall. Reported two ways: **/14 (literal, known
+  unreachable) and **/12 (derivable). Predicted **12/12 derivable**.
+- **P-G2b** — `q2.ב.c4.s3 @ 3` anchored to `s3` at amount `3`. The detector now
+  hands the model the amount and the candidate list, so this is a bounded choice
+  among named siblings rather than a reading task.
+- **P-G2c** — equivalence notes fall toward the hand plan's 11. Predicted **≤20
+  on V-const** (v1 was 30). Step 3 of the v2 prompt requires citing the
+  licensing text.
+- **P-G2d** — the same-arm control (`const2`, byte-identical inputs to `const`)
+  shows algebra divergence **≥** the cross-arm `rubric`/`const` divergence on
+  terminals no clause touches. If so, v1's `(2,2,3,3)→(2,2.5,2.5,3)` was
+  stochasticity and the stop condition clears; if cross-arm is materially
+  larger, policy is leaking and it stays open.
+
+Note the constitution fix lands in this run: `R-beta`, `A-6` and `charge-once`
+are reclassified `policy → authoring` (owner-ratified, from the Phase-0
+finding). Some of v1's cross-arm divergence was therefore my own
+misclassification, which P-G2d now measures against a real control.
+
+### One-shot fence
+
+If 0a still misses the tariff clause under v2 on the DERIVABLE set, that is
+evidence about the architecture, not an invitation to v3. Stop and surface.

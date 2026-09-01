@@ -48,21 +48,23 @@ GENERAL: List[Clause] = [
            "שדה שלא אותחל, כלומר פגם מהותי, ולא החלקה בזיהוי."),
     Clause("R-alpha", "policy",
            "הפתרון לדוגמה הוא סמכות השמות: שם התואם את הפתרון תקף תמיד."),
-    Clause("R-beta", "policy",
+    Clause("R-beta", "authoring",
            "קנס נקוב חל בכל אתר גישה; שימוש נכון במקום אחר אינו מרפא גישה "
            "ישירה באתר הנבדק."),
-    Clause("A-6", "policy",
+    Clause("A-6", "authoring",
            "קנס אינו מצטבר על פסיקה שכבר הופחתה — אין לחייב פעמיים על אותו פגם."),
-    Clause("charge-once", "policy",
+    Clause("charge-once", "authoring",
            "פגם שהרובריקה מורה לחייב «רק פעם אחת» מקבל charge_group משותף, "
            "והחיוב נגבה פעם אחת בלבד בתוך הסעיף."),
     Clause("credit-once", "policy",
            "רכיב שכבר זוּכה בבדיקה אחרת אינו נחשב קיים פעם נוספת — הזיכוי "
            "חד-פעמי, כשם שהחיוב חד-פעמי."),
-    # THE ONLY clause here that changes decomposition, and therefore the only
-    # one that can move expressibility between V-rubric and V-const. If the two
-    # variants differ ANYWHERE this clause does not touch, policy is leaking
-    # into decomposition — a pre-registered finding, not noise.
+    # RECLASSIFIED 2026-09-01 (owner, from my own Phase 0 finding): R-beta,
+    # A-6 and charge-once were `policy` and are `authoring`. Their text
+    # changes STRUCTURE — «gets a shared charge_group», «a tariff applies at
+    # every access site» — which is what authoring means. Phase 0 measured
+    # them moving the algebra on 5 of 38 terminals while P-A did not bind.
+    # P-A remains the clearest example of the kind.
     Clause("P-A", "authoring",
            "כאשר טקסט הקריטריון מונה N רכיבים נבדלים, פרקו אותו ל-N בדיקות "
            "נפרדות, אחת לכל רכיב, וחלקו את הניקוד ביניהן."),

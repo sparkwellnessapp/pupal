@@ -21,9 +21,11 @@ from typing import Dict, List, Optional, Tuple
 from app.agents.grader.plan_schemas import GradingPlan, PlanCheck, TerminalPlan
 from app.agents.grader.plan_validator import validate_plan
 from app.agents.plan_gen.constitution import CONSTITUTION_VERSION, clauses_for
+from app.agents.plan_gen.dispositions import (
+    escape_hatch_count, validate_dispositions)
 from app.agents.plan_gen.prompt import (
     PLAN_GEN_PROMPT_VERSION, SYSTEM_PROMPT, build_generation_message,
-    repair_message, scope_corpus,
+    detect_deductions, repair_message, scope_corpus,
 )
 from app.agents.plan_gen.schemas import ScopeDecomposition
 
@@ -121,6 +123,8 @@ class PlanGenerator:
         self._plan_version = plan_version
         self.usage = {"input_tokens": 0, "output_tokens": 0, "calls": 0}
         self.repairs: Dict[str, int] = {}
+        self.markers: Dict[str, int] = {}
+        self.escape_hatch: Dict[str, int] = {}
 
     async def _propose(self, messages) -> ScopeDecomposition:
         from langchain_core.messages import HumanMessage, SystemMessage
@@ -148,13 +152,18 @@ class PlanGenerator:
 
         corpus = scope_corpus(question, sub,
                               include_solution=self._include_solution)
+        # DETERMINISTIC: the model disposes of this list, it never has to find it
+        markers = detect_deductions(question, sub,
+                                    include_solution=self._include_solution)
+        self.markers[_scope_label(key)] = len(markers)
         message = build_generation_message(
             key, corpus, [(t, str(p)) for t, p in derived],
             precision=str(contract.numeric_policy.precision),
             clauses=clauses_for(contract.subject,
                                 include_constitution=self._include_constitution),
             subject=contract.subject,
-            programming_language=contract.programming_language)
+            programming_language=contract.programming_language,
+            deductions=markers)
 
         history = [message]
         points = {t: p for t, p in derived}
@@ -177,6 +186,13 @@ class PlanGenerator:
                 contract_terminal_points=points, terminal_scopes=scopes,
                 precision=contract.numeric_policy.precision,
                 scope_corpora={_scope_label(key): corpus})
+            # V11 rides the same loop: its errors are tagged strings like the
+            # rest, so a dropped marker or a substituted amount comes back to
+            # the model in the same breath as an arithmetic failure.
+            errors += validate_dispositions(
+                markers, getattr(decomposition, "dispositions", []), terminals)
+            self.escape_hatch[_scope_label(key)] = escape_hatch_count(
+                getattr(decomposition, "dispositions", []))
             if not errors:
                 return terminals
             self.repairs[_scope_label(key)] = attempt + 1
@@ -207,6 +223,8 @@ class PlanGenerator:
         return plan, {
             "usage": dict(self.usage),
             "repairs": dict(self.repairs),
+            "markers_detected": dict(self.markers),
+            "not_a_deduction": dict(self.escape_hatch),
             "scope_corpora": corpora,
             "constitution_version": (CONSTITUTION_VERSION
                                      if self._include_constitution else None),

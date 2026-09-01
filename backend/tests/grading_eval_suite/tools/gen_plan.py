@@ -45,6 +45,11 @@ VARIANTS = {
     "rubric": dict(include_constitution=False, include_solution=True),
     "const":  dict(include_constitution=True,  include_solution=True),
     "nosol":  dict(include_constitution=True,  include_solution=False),
+    # SAME-ARM CONTROL (mandatory, owner 2026-09-01): byte-identical
+    # inputs to `const`. The only way to separate clause-leak from
+    # run-to-run stochasticity — the stop condition cannot be ruled
+    # on without it.
+    "const2": dict(include_constitution=True,  include_solution=True),
 }
 
 

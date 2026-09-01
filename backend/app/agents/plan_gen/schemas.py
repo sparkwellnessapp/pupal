@@ -69,10 +69,34 @@ class GeneratedTerminal(BaseModel):
     checks: List[GeneratedCheck]
 
 
+class Disposition(BaseModel):
+    """What the model did with ONE detected deduction marker (V11).
+
+    Draft-only. Dispositions describe the ACT of generation, not the plan, and
+    they never reach the frozen `GradingPlan` — the plan carries the tariff
+    check itself, which is the durable artefact. Same additive class as
+    `PlanCheck.source`.
+    """
+
+    marker_id: str
+    disposition: Literal["tariff", "note_only", "not_a_deduction"]
+    check_id: Optional[str] = Field(
+        default=None,
+        description="The check that honours this marker. Required unless the "
+                    "disposition is not_a_deduction.")
+    reason: str = Field(
+        default="",
+        description="Why. Required for not_a_deduction; for a tariff with "
+                    "several candidate terminals, say why THIS one.")
+
+
 class ScopeDecomposition(BaseModel):
     """The LLM's structured output for one scope."""
 
     terminals: List[GeneratedTerminal]
+    dispositions: List[Disposition] = Field(
+        default_factory=list,
+        description="Exactly one per entry in DEDUCTIONS DETECTED.")
 
 
 class SelfLabelledCheckError(ValueError):
