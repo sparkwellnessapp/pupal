@@ -1,12 +1,31 @@
 {
  "usage": {
-  "input_tokens": 32384,
-  "output_tokens": 15947,
-  "calls": 7
+  "input_tokens": 88971,
+  "output_tokens": 36248,
+  "calls": 14
  },
  "repairs": {
-  "q2.ב": 1
+  "q1.ב": 3,
+  "q1.ג": 3,
+  "q2.ב": 3,
+  "q2.ג": 3
+ },
+ "markers_detected": {
+  "q1.א": 0,
+  "q1.ב": 1,
+  "q1.ג": 6,
+  "q2.א": 0,
+  "q2.ב": 7,
+  "q2.ג": 1
+ },
+ "not_a_deduction": {
+  "q1.א": 0,
+  "q1.ב": 0,
+  "q1.ג": 0,
+  "q2.א": 0,
+  "q2.ב": 0,
+  "q2.ג": 0
  },
  "constitution_version": null,
- "prompt_version": "plan-gen/v1"
+ "prompt_version": "plan-gen/v2"
 }

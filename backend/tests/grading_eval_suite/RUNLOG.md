@@ -2275,3 +2275,55 @@ this evidence*, not yet cleared either.
 - **The three-arm A/B ($7).** The bar is missed; spending it would measure a
   plan already known to fail a ratified clause.
 - **Phase 1.** Pre-authorised on the bar being met. It is not met.
+
+
+---
+
+## OD-2 TARIFF CLAUSE CORRECTED (owner ruling, 2026-09-01)
+
+**The clause now reads: tariff recall = 12/12 of the reference plan's
+`source: generated` tariffs. The 2 `source: ruling` tariffs are excluded** —
+they are layer-1 content no detector reading the rubric can reach.
+
+The rationale is unchanged and unweakened: a named deduction is text extraction,
+not judgement, and the generator must miss none of them. **Only the clause's
+domain is corrected**, to match the layer split ratified under RULING 2.
+
+### Why this is a CORRECTION, not a relaxation — on the record
+
+Recorded here so it can never be cited as precedent for touching a kill bar.
+
+1. **No candidate had run when the flaw was found.** The measurement that
+   exposed it was the detector calibration against the ratified plan, before any
+   generation. Nothing failed and was then reinterpreted.
+2. **The sibling clause already carries the identical carve-out.** OD-2's
+   expressibility clause reads "every miss attributable to a ruling not
+   derivable from rubric text". The tariff clause lacked it only because, when
+   OD-2 was written, we did not yet know that two of the fourteen were rulings —
+   that came from RULING 2's annotation, which post-dates it.
+3. **The flaw was in the bar's own premise.** P-G2a asserted the two
+   ruling-source tariffs would "surface as detected markers the generator
+   anchors". That is factually impossible: their quotes are
+   `"Owner-ruled −1 (GT note, dan)…"` and `"…[A-2 owner tariff]"` — a GT note
+   and an owner tag, not deduction phrases in the teacher's text.
+
+**Same class as V9/V10** (see the PLAYBOOK calibration entry): a new,
+unvalidated bar corrected against the ratified reference artefact. The artefact
+is the standard; a new rule that contradicts it is defective. Relaxing an
+ESTABLISHED gate because a candidate fails it remains forbidden — K1–K4 and the
+GA set are untouched.
+
+### Layer 1's worth, measured twice on this corpus
+
+Two independent measurements of what the ruling ledger holds that generation
+cannot reach:
+
+| measurement | layer-1 share |
+|---|---|
+| expressibility | **1 award of 190** |
+| named deductions | **2 tariffs of 14** |
+
+Small but not empty — and that is exactly the scale the two-layer architecture
+exists to capture. Neither figure is reachable by any generator reading only the
+teacher's rubric, which is the whole reason the ledger is durable and the
+decomposition is not.

@@ -290,3 +290,28 @@ which is why it is not allowed.
 
 **This note does not license touching K1–K4 or the GA set.** Those are
 established gates. No bar moves to accommodate any model or any plan, ever.
+
+
+### Worked example of legitimate calibration (owner-accepted, 2026-09-01)
+
+The deduction detector (`plan-gen/v2`) is the cleanest case on record.
+
+Calibrated against the ratified plan **before generating anything**, and it hit
+its target *as authored*:
+
+- **12/12** `source: generated` tariffs detected from their own source text,
+  with the owning terminal among the candidates;
+- the single `note_only` detected at `polarity="no_deduct"`;
+- the Phase-0 miss detected at the right amount with the right candidate;
+- **precision 14/14** — the one apparent false positive proved to be a genuine
+  deduction the reference plan also carries;
+- **no pattern was extended.**
+
+That last point is what makes it exemplary. The permission is to extend patterns
+until the ratified artefact is matched — and the permission went unused. A
+calibration that needs no adjustment is evidence the rule was right, not that
+the standard was accommodating.
+
+Contrast with the forbidden move: extending patterns until a CANDIDATE plan
+passes. Same code, opposite epistemics — the standard would then be the thing
+being fitted.

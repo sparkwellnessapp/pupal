@@ -463,3 +463,33 @@ misclassification, which P-G2d now measures against a real control.
 
 If 0a still misses the tariff clause under v2 on the DERIVABLE set, that is
 evidence about the architecture, not an invitation to v3. Stop and surface.
+
+
+### PLAN-GEN v2 — predictions amended 2026-09-01, BEFORE generation completed
+
+**P-G2a is SUPERSEDED, not edited.** The original text stands above for the
+record. It required 14/14 "(12 generated + the 2 ruling-source ones now surfaced
+as detected markers)" — a premise measured false before any candidate ran.
+
+> **P-G2a′ (supersedes P-G2a):** tariff recall **12/12 on the reference plan's
+> `source: generated` tariffs**. The 2 `source: ruling` tariffs are out of scope
+> by construction. Reported alongside the raw count vs the reference's 14, with
+> the two rulings named, so the layer split stays visible rather than becoming
+> invisible arithmetic.
+
+> **P-G2b′ (narrowed):** with the phrase supplied and `s3` among its candidates,
+> this tests **anchoring and amount-copying only — not detection**. A pass
+> establishes that the residual judgement is reliable once the deterministic
+> layer has done its part. **A pass is NOT evidence the model could have found
+> the phrase**; the detector found it.
+
+> **P-G2d′ (bounded):** reclassifying `charge-once` / `R-beta` / `A-6` to
+> `authoring` removed one of the two possible causes of v1's cross-arm
+> divergence. A clean control therefore supports only: *"policy does not leak
+> into decomposition beyond run-to-run stochasticity, **under the corrected
+> classification**."* It cannot support "policy never leaks." Any future clause
+> added as `policy` re-opens the question for that clause.
+
+**P-G2c unchanged**, and now load-bearing for spend: it gates the conditional
+falsification arm (item 11) — ≤15 equivalence notes on V-const defuses the
+leniency hypothesis structurally and costs nothing; >20 buys one arm.
