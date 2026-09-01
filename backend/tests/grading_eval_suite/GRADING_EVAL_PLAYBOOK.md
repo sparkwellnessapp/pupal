@@ -263,3 +263,30 @@ falsifiable prediction, registered in `PREDICTIONS.md` before any run that tests
 
 **The analysis is not done without §R.** A report that cites only aggregates is incomplete regardless
 of how many aggregates it cites.
+
+
+---
+
+## Calibrating a NEW rule vs relaxing an ESTABLISHED gate (owner note, 2026-09-01)
+
+Two operations look alike and are opposites. This entry exists so the first is
+never cited to justify the second.
+
+**Legitimate — calibrating a new, unvalidated rule against the ratified
+reference artifact.** The artifact is the standard. A newly proposed rule that
+rejects it is *defective*, and fixing the rule is the only correct response.
+V9 and V10 are this class: as first specced they rejected 46 and 24 of the hand
+plan's 80 checks respectively, and both were wrong about how real authoring
+works, not about the plan.
+
+**Forbidden — relaxing an established gate because a candidate fails it.**
+That is motivated measurement. Precedents on the record: rejected Policy 1, and
+the 0.85 stitched-quote bar.
+
+The distinction is *which artifact is on trial*. Calibrating a new rule puts the
+RULE on trial against a ratified standard. Relaxing a gate puts the GATE on
+trial against an unratified candidate — and the candidate always wins that,
+which is why it is not allowed.
+
+**This note does not license touching K1–K4 or the GA set.** Those are
+established gates. No bar moves to accommodate any model or any plan, ever.

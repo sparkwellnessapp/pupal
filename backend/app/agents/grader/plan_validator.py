@@ -21,8 +21,12 @@ Rules:
       scope group could not be deduped deterministically).
   V8  partial_fraction strictly inside (0, 1).
   V9  rubric-quote grounding: a GENERATED check's rubric_quote must appear in
-      the rubric contract's own text. Runs only when the corpus is supplied
-      (the plan compiler always supplies it; the eval flow may not).
+      ITS OWN SCOPE's text — exactly the generator's input for that scope
+      (RULING 3, 2026-09-01). Cross-scope grounding fails: a check that can only
+      be justified from another question is not derived from the criterion it
+      prices. Measured on the ratified plan, scope-scoping costs NOTHING
+      (73/80 either way, 0 cross-scope dependent), so the tightening is free.
+      Runs only when scope corpora are supplied.
   V10 point-blindness: description_he may not state point values — the verifier
       is point-blind by design, and a number in the check text hands it the
       answer.
@@ -48,7 +52,8 @@ from app.agents.grader.plan_schemas import GradingPlan
 # At that calibration the hand plan grounds 73/80, and the ungrounded remainder
 # is dominated by its `ruling`-sourced checks — which V9 exempts by design.
 _QUOTE_SPLIT = re.compile(r"…|\.\.\.|—|–")
-_MIN_FRAGMENT = 8          # shorter fragments match accidentally
+_MIN_FRAGMENT = 10         # RULING 3 anti-triviality: a two-token "citation"
+                           # into a long solution block is evidence of nothing
 
 # V10 — point-DENOTING text, never bare digits. "אתחול ב-0" (initialise to zero)
 # is legitimate code talk; "להוריד 2 נקודות" is the answer key. A bare-digit
@@ -77,12 +82,14 @@ def validate_plan(plan: GradingPlan,
                   contract_terminal_points: Dict[str, Decimal],
                   terminal_scopes: Dict[str, str],
                   precision: Decimal,
-                  contract_corpus: Optional[str] = None) -> List[str]:
+                  scope_corpora: Optional[Dict[str, str]] = None) -> List[str]:
     errs: List[str] = []
-    # V9 runs only with a corpus. Not a silent skip: the plan compiler always
-    # passes one, and the eval suite's file flow does not need it because its
-    # plan is owner-ratified rather than generated.
-    corpus_tight = _tight(contract_corpus) if contract_corpus else None
+    # V9 runs only with scope corpora, keyed exactly as `terminal_scopes` values.
+    # Not a silent skip: the plan compiler always passes them, and the eval
+    # suite's file flow does not need them because its plan is owner-ratified
+    # rather than generated.
+    corpora_tight = ({k: _tight(v) for k, v in scope_corpora.items()}
+                     if scope_corpora else None)
 
     # V5 — uniqueness first (later rules assume addressability)
     seen_terminals: set = set()
@@ -122,11 +129,13 @@ def validate_plan(plan: GradingPlan,
             # V9 — grounding, GENERATED checks only. A `ruling` check cites a
             # ruling, not rubric text, so grounding it is not merely wrong but
             # impossible.
-            if corpus_tight is not None and c.source == "generated":
-                if not quote_is_grounded(c.rubric_quote or "", corpus_tight):
+            if corpora_tight is not None and c.source == "generated":
+                scope_key = terminal_scopes.get(tid)
+                scope_text = corpora_tight.get(scope_key, "")
+                if not quote_is_grounded(c.rubric_quote or "", scope_text):
                     errs.append(f"V9: {c.check_id} rubric_quote is not grounded "
-                                f"in the rubric text — a generated check must "
-                                f"cite the teacher, or be marked source='ruling'")
+                                f"in scope {scope_key!r}'s own text — a generated "
+                                f"check must cite the teacher, or be a ruling")
             # V2 — grid
             if not _on_grid(c.points, precision):
                 errs.append(f"V2: {c.check_id} points {c.points} off the "
