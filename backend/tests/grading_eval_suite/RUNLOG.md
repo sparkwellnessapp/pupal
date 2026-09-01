@@ -2140,3 +2140,138 @@ has already paid for once.
 fails the day someone sets one without the other. `graded_tests = 0` means the
 flip still precedes any real grading in production — the PR-G1 condition (iii)
 holds.
+
+
+---
+
+# PLAN GENERATION — PHASE 0 RESULT (2026-09-01)
+
+**0a complete on all three variants. The OD-2 bar is MISSED on the tariff
+clause, so the A/B was NOT run and Phase 1 has NOT started.** Stopping and
+surfacing, per the 2026-09-01 instruction that a bar missed on any clause is
+H-3, not a judgement call.
+
+Envelope: **$5.73 of $15** spent (generation only). The $7 A/B is unspent —
+withheld deliberately, which is what 0a-before-spend exists to do.
+
+## Run header
+
+| | |
+|---|---|
+| generation model | `claude-opus-5` (anthropic) |
+| grading model | `claude-sonnet-5` — **A/B not run** |
+| verifier prompt | `grader-v5.3` |
+| contract | hobby_tvshow, frozen · 6 scopes · 38 terminals · 190 GT awards |
+| reference | `hobby_tvshow/v5.1-source` (RULING 2 amended) |
+
+## 0a — the three variants
+
+| | hand | V-rubric | V-const | V-nosol |
+|---|---|---|---|---|
+| checks | 80 | 85 | 85 | 82 |
+| avg / terminal | 2.1 | 2.2 | 2.2 | 2.2 |
+| required | 65 | 68 | 68 | 67 |
+| tariff | 14 | 15 | 16 | 13 |
+| note_only | 1 | 2 | 1 | 2 |
+| equivalence notes | 11 | 16 | 30 | 24 |
+| charge groups | 2 | 3 | 5 | 4 |
+| **validator (V1–V10)** | 5 × V9 † | **0** | **0** | **0** |
+| **expressibility** | 190/190 | **189/190** | **189/190** | **189/190** |
+| cost | — | $1.68 | $1.93 | $2.12 |
+| repairs | — | 1 | 1 | 2 |
+
+† the hand plan's five V9 failures are its authorial normalisations of the
+teacher's text — expected, documented under RULING 2, and not a defect.
+
+## OD-2 scorecard (0a clauses only)
+
+| clause | result | |
+|---|---|---|
+| expressibility ≥ 180/190, every miss ruling-attributable | **189/190, PASS** | ✅ |
+| tariff recall 14/14 | **11/14** | ❌ **FAIL** |
+| note_only recall 1/1 | 1/1, all three | ✅ |
+| validator clean | 0 errors, all three | ✅ |
+| K1 parity · K2 · K4 · GA-2 | not measured — A/B withheld | — |
+
+### The expressibility miss is ruling-class, verified not asserted
+
+All three variants miss exactly one award: `yonatan_basiuk / q2.ב.c4.s2`, GT
+1.5, reachable `{0, 1.00, 2.00}`.
+
+**Strip the hand plan's own `ruling`-sourced checks and its reachable set for
+that terminal collapses to `{0, 1.00, 2.00}` — identical.** The decomposition is
+equivalent; the entire gap is one owner tariff (A-2). That is a direct
+measurement of what layer 1 is worth on this corpus: **1 award in 190.**
+
+### Why the tariff clause fails
+
+The hand plan's 14 tariffs are **12 generated-source + 2 ruling-source**. Of the
+three every variant missed:
+
+| missed | hand `source` | verdict |
+|---|---|---|
+| `q2.א.c1 @ 1` | **ruling** | not derivable — the generator cannot know it |
+| `q2.ב.c4.s2 @ 0.5` | **ruling** | not derivable |
+| `q2.ב.c4.s3 @ 3` | **generated** | **a genuine miss** |
+
+So even on the fairest re-basing — derivable tariffs only — recall is **11/12,
+not 12/12.** The missed one is literal rubric text: «אם חיפשו את המקסימום אך
+הלוגיקה בסדר להוריד 3». OD-2's rationale for demanding 14/14 was precisely that
+named deductions are text extraction rather than judgement, and this one was
+extractable.
+
+Near-miss worth recording: V-const *did* find the max/min concept — it emitted a
+tariff with `charge_group="max_instead_of_min"` — but attached it to
+`q2.ב.c4.s1` instead of `s3`, at amount 1 instead of 3. The concept was read;
+the anchoring and the amount were not.
+
+## SECOND STOP CONDITION — policy in the decomposition
+
+**Pre-registered:** V-rubric and V-const may differ only where P-A changes
+decomposition. Measured:
+
+- **P-A did NOT bind** — required-check counts identical, 68 = 68.
+- Yet the two differ in **ALGEBRA on 5 of 38 terminals**:
+
+| terminal | V-rubric | V-const |
+|---|---|---|
+| `q1.ב.c6` | no charge group | `no_space_check_before_prompt` |
+| `q1.ג.c6` / `q1.ג.c7` | group `no_real_conversion` | group `no_real_cast_average` |
+| `q2.א.c1` | required `(2, 2, 3, 3)` | required `(2, 2.5, 2.5, 3)` |
+| `q2.ב.c4.s1` | no tariff | tariff 1 + group `max_instead_of_min` |
+
+**Honest attribution, with its limit stated.** The charge-group differences
+trace to a real defect in MY constitution: `charge-once` is classified
+`kind="policy"` but its text is an authoring instruction — "gets a shared
+`charge_group`" changes structure, not verdict guidance. `R-beta` and `A-6` are
+arguably the same. That is a misclassification to fix, not evidence that policy
+prose leaks.
+
+But `q2.א.c1`'s `(2,2,3,3)` → `(2,2.5,2.5,3)` matches no clause. **The two arms
+are independent generations, so some of this spread is run-to-run
+stochasticity — and I cannot separate clause-leak from noise without a
+same-arm control run, which I have not spent.** Any ruling on this condition
+should probably be preceded by that control (~$2).
+
+## V-nosol — no material degradation, and that matters for rollout
+
+None of the six production rubrics carries an embedded example solution, so
+V-nosol is the "can v5 ship to a real teacher today" number.
+
+Expressibility **identical** (189/190, same ruling-class miss). Tariff recall
+**identical** (11/14). note_only 1/1. Validator clean. Fewer equivalence notes
+(24 vs 30) but still more than the hand plan's 11, and one extra repair.
+
+**On the 0a metrics, stripping the example solution did not degrade the plan.**
+That is the opposite of what the earlier finding predicted, and it means
+solution ingestion is **not** established as a hard rollout prerequisite. The
+caveat is real, though: 0a measures reachability and structure, not grading
+quality, and equivalence notes are exactly the surface that protects alternative
+student designs — which only the A/B would expose. So: not a prerequisite *on
+this evidence*, not yet cleared either.
+
+## What was NOT done, and why
+
+- **The three-arm A/B ($7).** The bar is missed; spending it would measure a
+  plan already known to fail a ratified clause.
+- **Phase 1.** Pre-authorised on the bar being met. It is not met.

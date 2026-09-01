@@ -1,0 +1,1255 @@
+{
+ "plan_version": "generated-const/v1",
+ "exam_id": "hobby_tvshow",
+ "rubric_contract_sha256": "",
+ "terminals": [
+  {
+   "terminal_id": "q1.א.c0",
+   "points_possible": "4",
+   "checks": [
+    {
+     "check_id": "q1.א.c0.k1",
+     "description_he": "מוגדרת כותרת מחלקה בשם Hobby.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "מקובל גם public class Hobby או internal class Hobby — הרשאת הגישה אינה מהותית.",
+     "charge_group": null,
+     "rubric_quote": "internal class Hobby"
+    },
+    {
+     "check_id": "q1.א.c0.k2",
+     "description_he": "מוצהרת תכונה hobbyName מטיפוס מחרוזת (string) כתכונה פרטית של המחלקה.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "שם שקול תקף כל עוד הטיפוס מחרוזת; שם התואם את הפתרון לדוגמה תקף תמיד.",
+     "charge_group": null,
+     "rubric_quote": "private string hobbyName;        // שם התחביב"
+    },
+    {
+     "check_id": "q1.א.c0.k3",
+     "description_he": "מוצהרת תכונה isSportive מטיפוס בוליאני (bool) כתכונה פרטית של המחלקה.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "שם שקול תקף כל עוד הטיפוס בוליאני; שם התואם את הפתרון לדוגמה תקף תמיד.",
+     "charge_group": null,
+     "rubric_quote": "private bool isSportive;         // האם התחביב ספורטיבי"
+    },
+    {
+     "check_id": "q1.א.c0.k4",
+     "description_he": "מוצהרת תכונה למשך הפעילות בדקות מטיפוס שלם (int) כתכונה פרטית של המחלקה.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "השם minutes או durationInMinutes או שם שקול אחר — הכול תקף, כל עוד הטיפוס שלם.",
+     "charge_group": null,
+     "rubric_quote": "private int durationInMinutes;   // משך הפעילות בדקות (1-60)"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.א.c1",
+   "points_possible": "4",
+   "checks": [
+    {
+     "check_id": "q1.א.c1.k1",
+     "description_he": "נכתבת כותרת פעולה בונה בשם Hobby המקבלת שלושה פרמטרים: מחרוזת, בוליאני ושלם, בהתאם לכותרת שהוגדרה.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "public Hobby (string hobbyName, bool isSportive, int minutes)"
+    },
+    {
+     "check_id": "q1.א.c1.k2",
+     "description_he": "בפעולה הבונה מבוצעת השמה של הפרמטר של שם התחביב לתכונת שם התחביב של האובייקט.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "כל צורת השמה שקולה לתכונה המוצהרת תקפה; השמה ליעד שאינו מוצהר באף הצהרה אינה נחשבת.",
+     "charge_group": null,
+     "rubric_quote": "this.hobbyName = hobbyName;"
+    },
+    {
+     "check_id": "q1.א.c1.k3",
+     "description_he": "בפעולה הבונה מבוצעת השמה של הפרמטר הבוליאני לתכונת isSportive של האובייקט.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "כל צורת השמה שקולה לתכונה המוצהרת תקפה; השמה ליעד שאינו מוצהר באף הצהרה אינה נחשבת.",
+     "charge_group": null,
+     "rubric_quote": "this.isSportive = isSportive;"
+    },
+    {
+     "check_id": "q1.א.c1.k4",
+     "description_he": "בפעולה הבונה מבוצעת השמה של הפרמטר minutes לתכונת משך הפעילות בדקות של האובייקט.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "בדיקת טווח הדקות אינה נדרשת — השמה ללא בדיקת טווח תקפה במלואה, וכך גם השמה בתוך בדיקת טווח.",
+     "charge_group": null,
+     "rubric_quote": "this.durationInMinutes = minutes;\n        // אם לא בדקתם טווח 0-60 גם בסדר"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.c0",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q1.ב.c0.k1",
+     "description_he": "כותרת הפעולה מוגדרת כפעולה פנימית בשם PopulateHobbies ללא פרמטרים.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "כל צורת הצהרה שקולה תקפה, כולל public bool PopulateHobbies() כבפתרון לדוגמה.",
+     "charge_group": null,
+     "rubric_quote": "כותרת הפעולה + טיפוס מוחזר bool"
+    },
+    {
+     "check_id": "q1.ב.c0.k2",
+     "description_he": "טיפוס הערך המוחזר של הפעולה הוא bool.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "כותרת הפעולה + טיפוס מוחזר bool"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.c1",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q1.ב.c1.k1",
+     "description_he": "לפני הלולאה מתבצעת בדיקה האם המערך מלא מראש (countHobbies שווה לאורך המערך) ובמקרה זה מוחזר false.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "כל ניסוח שקול של תנאי המערך המלא ושל החזרת false תקף.",
+     "charge_group": null,
+     "rubric_quote": "לפני הלולאה - לבדוק אם המערך מלא, להחזיר false"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.c2",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q1.ב.c2.k1",
+     "description_he": "קיימת לולאה שתנאי המשך שלה כולל שעדיין יש מקום פנוי במערך (countHobbies קטן מאורך המערך).",
+     "source": "generated",
+     "kind": "required",
+     "points": "1.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "לולאה עד שאין מקום במערך (כל עוד countHobbies קטן מ-length)"
+    },
+    {
+     "check_id": "q1.ב.c2.k2",
+     "description_he": "תנאי הלולאה כולל גם המשך כל עוד תשובת המשתמש אינה N או n (כלומר המשתמש מבקש להמשיך).",
+     "source": "generated",
+     "kind": "required",
+     "points": "1.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "בדיקת התשובה כתו בודד (char) או כמחרוזת, וכן בדיקה של המשך בעזרת Y/y או של עצירה בעזרת N/n — כולן תקפות.",
+     "charge_group": null,
+     "rubric_quote": "או כל עוד המשתמש יענה Y או y לשאלה"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.c3",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q1.ב.c3.k1",
+     "description_he": "בתוך הלולאה נקלט מהמשתמש שם התחביב (name).",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתוך הלולאה קליטה של 3 נתוני התחביב (name, isSportive, minutes)"
+    },
+    {
+     "check_id": "q1.ב.c3.k2",
+     "description_he": "בתוך הלולאה נקלט מהמשתמש הנתון הבוליאני isSportive.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתוך הלולאה קליטה של 3 נתוני התחביב (name, isSportive, minutes)"
+    },
+    {
+     "check_id": "q1.ב.c3.k3",
+     "description_he": "בתוך הלולאה נקלט מהמשתמש הנתון השלם minutes.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתוך הלולאה קליטה של 3 נתוני התחביב (name, isSportive, minutes)"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.c4",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q1.ב.c4.k1",
+     "description_he": "בתוך הלולאה נוצר עצם חדש מטיפוס Hobby באמצעות הבנאי, עם שלושת הנתונים שנקלטו.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתוך הלולאה יצירה של עצם חדש מטיפוס Hobby"
+    },
+    {
+     "check_id": "q1.ב.c4.k2",
+     "description_he": "העצם החדש נשמר בתא הפנוי הראשון במערך hobbies, כלומר בתא שאינדקסו countHobbies.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתא המתאים במערך (hobbies[countHobbies])"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.c5",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q1.ב.c5.k1",
+     "description_he": "בתוך הלולאה, לאחר ההוספה, מקודם המונה countHobbies באחד.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתוך הלולאה קידום countHobbies"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.c6",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q1.ב.c6.k1",
+     "description_he": "לפני הצגת השאלה למשתמש מתבצעת בדיקה שעדיין יש מקום פנוי במערך.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בדיקה אם עדיין יש מקום ושאלה למשתמש האם להמשיך + קליטת תשובה"
+    },
+    {
+     "check_id": "q1.ב.c6.k2",
+     "description_he": "מוצגת למשתמש השאלה האם ליצור תחביב נוסף ונקלטת תשובתו לתוך המשתנה הנבדק בתנאי הלולאה.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "שאלה למשתמש האם להמשיך + קליטת תשובה"
+    },
+    {
+     "check_id": "q1.ב.c6.t1",
+     "description_he": "ההודעה למשתמש מוצגת רק לאחר בדיקה שיש עדיין מקום במערך.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": "no_space_check_before_prompt",
+     "rubric_quote": "אם הציגו את ההודעה בלי לבדוק האם יש עדיין מקום להוריד 1"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.c7",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q1.ב.c7.k1",
+     "description_he": "מחוץ ללולאה מוחזר true כאשר נוסף לפחות תחביב אחד בהצלחה.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "החזרת true ישירות או באמצעות משתנה דגל כמו addedAtLeastOne — שתיהן תקפות.",
+     "charge_group": null,
+     "rubric_quote": "מחוץ ללולאה - להחזיר ערך true"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ג.c0",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q1.ג.c0.k1",
+     "description_he": "קיימת כותרת פעולה פנימית (public) בשם PrintAverages ללא פרמטרים במחלקה SchoolHobbies, המוגדרת כ-void.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "שם תואם לפתרון לדוגמה תקף תמיד; שינויים זניחים בסדר המילים בכותרת אינם פוסלים.",
+     "charge_group": null,
+     "rubric_quote": "סעיף ג': פעולה פנימית בשם PrintAverages (סה\"כ 16)כותרת הפעולה + void"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ג.c1",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q1.ג.c1.k1",
+     "description_he": "הוגדר מונה לכמות התחביבים הספורטיביים ואותחל ב-0.",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "יצירת 2 מונה לכמות החוגים בספורטיבים והלא ספורטיבים + אתחולם ב-0 (0.5 כ\"א)"
+    },
+    {
+     "check_id": "q1.ג.c1.k2",
+     "description_he": "הוגדר מונה לכמות התחביבים הלא ספורטיביים ואותחל ב-0.",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "יצירת 2 מונה לכמות החוגים בספורטיבים והלא ספורטיבים + אתחולם ב-0 (0.5 כ\"א)"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ג.c2",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q1.ג.c2.k1",
+     "description_he": "הוגדר צובר לסכום הדקות של התחביבים הספורטיביים ואותחל ב-0.",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "יצירת 2 צוברים לדקות של החוגים הספורטיבים והלא ספורטיבים + אתחולם ב-0 (0.5 כ\"א)"
+    },
+    {
+     "check_id": "q1.ג.c2.k2",
+     "description_he": "הוגדר צובר לסכום הדקות של התחביבים הלא ספורטיביים ואותחל ב-0.",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "יצירת 2 צוברים לדקות של החוגים הספורטיבים והלא ספורטיבים + אתחולם ב-0 (0.5 כ\"א)"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ג.c3",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q1.ג.c3.k1",
+     "description_he": "קיימת לולאה העוברת על מערך התחביבים מאינדקס 0 עד countHobbies (או עד אורך המערך תוך בדיקה בתוך הלולאה שהתא שונה מ-null).",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "מעבר עד hobbies.Length עם בדיקת hobbies[i]!=null בתוך הלולאה תקף כשווה-ערך.",
+     "charge_group": null,
+     "rubric_quote": "לולאה על מערך התחביבים מ-0 עד countHobbiesאו לולאה על מערך התחביבים עד hobbies.length ובדיקה בתוך הלולאה אם hobbies[i]!=null"
+    },
+    {
+     "check_id": "q1.ג.c3.t1",
+     "description_he": "אם הלולאה רצה עד אורך המערך ללא בדיקת שונה מ-null בתוך הלולאה — יש לחייב את הקנס הנקוב.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם עשו לולאה עד length ולא בדקו בפנים שהתא שונה מ-null להוריד 1"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ג.c4",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q1.ג.c4.k1",
+     "description_he": "בתוך הלולאה מתבצעת בדיקה האם התחביב הנוכחי ספורטיבי, באמצעות פעולת Get של המחלקה Hobby.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "כל שם פעולת Get התואם את הפתרון לדוגמה (GetIsSportive) תקף.",
+     "charge_group": null,
+     "rubric_quote": "בתוך הלולאה, בדיקת האם החוג הנוכחי ספורטיבי (1)"
+    },
+    {
+     "check_id": "q1.ג.c4.k2",
+     "description_he": "עבור תחביב ספורטיבי נצברות דקות הפעילות שלו לצובר הספורטיבי, באמצעות פעולת Get של המחלקה Hobby.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "שם פעולת Get התואם את הפתרון לדוגמה (GetDurationInMinutes / GetMinutes) תקף.",
+     "charge_group": null,
+     "rubric_quote": "צבירה של הדקות שלו (1)"
+    },
+    {
+     "check_id": "q1.ג.c4.k3",
+     "description_he": "עבור תחביב ספורטיבי מקודם המונה של התחביבים הספורטיביים.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "קידום המונה שלו (1 כ\"א)"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ג.c5",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q1.ג.c5.k1",
+     "description_he": "בתוך הלולאה קיים טיפול נפרד (else או תנאי שקול) במקרה שהתחביב הנוכחי אינו ספורטיבי.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "תנאי מפורש שקול (למשל בדיקה שהתחביב אינו ספורטיבי) תקף במקום else.",
+     "charge_group": null,
+     "rubric_quote": "בתוך הלולאה, אם החוג הנוכחי לא ספורטיבי (else) (1)"
+    },
+    {
+     "check_id": "q1.ג.c5.k2",
+     "description_he": "עבור תחביב לא ספורטיבי נצברות דקות הפעילות שלו לצובר הלא ספורטיבי, באמצעות פעולת Get של המחלקה Hobby.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "צבירה של הדקות שלו (1)"
+    },
+    {
+     "check_id": "q1.ג.c5.k3",
+     "description_he": "עבור תחביב לא ספורטיבי מקודם המונה של התחביבים הלא ספורטיביים.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "קידום המונה שלו (1)"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ג.c6",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q1.ג.c6.k1",
+     "description_he": "מחוץ ללולאה מתבצעת בדיקה שהמונה של התחביבים הספורטיביים שונה מאפס לפני חישוב הממוצע.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "מחוץ ללולאה, בדיקה האם המונה של התחביבים הספורטיבים שונה מאפס (1)"
+    },
+    {
+     "check_id": "q1.ג.c6.k2",
+     "description_he": "מחושב ממוצע דקות התחביבים הספורטיביים (צובר חלקי מונה) ומודפס.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "חישוב הממוצע והדפסה (1)"
+    },
+    {
+     "check_id": "q1.ג.c6.t1",
+     "description_he": "נמנעה חלוקה באפס בחישוב ממוצע התחביבים הספורטיביים; אחרת יש לחייב את הקנס הנקוב.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם לא מנעו חלוקה באפס להוריד 1"
+    },
+    {
+     "check_id": "q1.ג.c6.t2",
+     "description_he": "אם נפלה טעות בחישוב המתמטי של ממוצע התחביבים הספורטיביים — יש לחייב את הקנס הנקוב.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "0.5",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "(אם טעו בחישוב מתמטי להוריד 0.5)"
+    },
+    {
+     "check_id": "q1.ג.c6.t3",
+     "description_he": "אם לא בוצעה המרה לטיפוס ממשי בחישוב הממוצע — יש לחייב את הקנס הנקוב, פעם אחת בלבד בסעיף.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "0.5",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": "no_real_cast_average",
+     "rubric_quote": "אם לא המירו לממשי בחישוב הממוצע להוריד 0.5 (רק פעם אחת)"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ג.c7",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q1.ג.c7.k1",
+     "description_he": "מחוץ ללולאה מתבצעת בדיקה שהמונה של התחביבים הלא ספורטיביים שונה מאפס לפני חישוב הממוצע.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "מחוץ ללולאה,בדיקה האם המונה של התחביבים הלא-הספורטיבים שונה מאפס (1)"
+    },
+    {
+     "check_id": "q1.ג.c7.k2",
+     "description_he": "מחושב ממוצע דקות התחביבים הלא ספורטיביים (צובר חלקי מונה) ומודפס.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "חישוב הממוצע והדפסה (1)"
+    },
+    {
+     "check_id": "q1.ג.c7.t1",
+     "description_he": "נמנעה חלוקה באפס בחישוב ממוצע התחביבים הלא ספורטיביים; אחרת יש לחייב את הקנס הנקוב.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם לא מנעו חלוקה באפס להוריד 1"
+    },
+    {
+     "check_id": "q1.ג.c7.t2",
+     "description_he": "אם נפלה טעות בחישוב המתמטי של ממוצע התחביבים הלא ספורטיביים — יש לחייב את הקנס הנקוב.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "0.5",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "(אם טעו בחישוב מתמטי להוריד 0.5)"
+    },
+    {
+     "check_id": "q1.ג.c7.t3",
+     "description_he": "אם לא בוצעה המרה לטיפוס ממשי בחישוב הממוצע — יש לחייב את הקנס הנקוב, פעם אחת בלבד בסעיף.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "0.5",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": "no_real_cast_average",
+     "rubric_quote": "אם לא המירו לממשי בחישוב הממוצע להוריד 0.5 (רק פעם אחת)"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c0",
+   "points_possible": "5",
+   "checks": [
+    {
+     "check_id": "q2.א.c0.k1",
+     "description_he": "כותרת הפעולה הבונה מוגדרת נכון: בונה ציבורי בשם TvShow המקבל פרמטר מחרוזת לשם ופרמטר שלם למספר הערוץ.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "שמות פרמטרים שונים תקפים כל עוד הטיפוסים והסדר תואמים לפתרון לדוגמה [PL-3][R-alpha].",
+     "charge_group": null,
+     "rubric_quote": "public TvShow (string name, int channel)"
+    },
+    {
+     "check_id": "q2.א.c0.k2",
+     "description_he": "התכונה name של האובייקט מקבלת את ערך הפרמטר שהתקבל (למשל this.name = name;).",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "השמה באמצעות פעולת Set מתאימה תקפה [PL-3].",
+     "charge_group": null,
+     "rubric_quote": "פעולה הבונה תוכנית טלוויזיה ששמה name"
+    },
+    {
+     "check_id": "q2.א.c0.k3",
+     "description_he": "התכונה chl מקבלת את ערך הפרמטר של מספר הערוץ (למשל this.chl = channel;).",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "השמה באמצעות פעולת Set מתאימה תקפה [PL-3]. ההשמה חייבת להיות לשדה מוכרז של המחלקה [PL-10].",
+     "charge_group": null,
+     "rubric_quote": "והיא משודרת בערוץ הטלויזיה channel"
+    },
+    {
+     "check_id": "q2.א.c0.k4",
+     "description_he": "התכונה rate מאותחלת לאפס בפעולה הבונה.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "הפעולה הבונה קובעת את התכונה rate להיות אפס (0)"
+    },
+    {
+     "check_id": "q2.א.c0.k5",
+     "description_he": "התכונה isOn מאותחלת לערך אמת (true) בפעולה הבונה.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "ואת התכונה isOn להיות אמת (true)"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c1",
+   "points_possible": "10",
+   "checks": [
+    {
+     "check_id": "q2.א.c1.k1",
+     "description_he": "כותרת הפעולה הפנימית מוגדרת נכון: פעולה ציבורית ללא ערך מוחזר בשם UpdateRate המקבלת פרמטר שלם למספר הצופים.",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "שם פרמטר שונה תקף כל עוד הטיפוס תואם [PL-3][R-alpha].",
+     "charge_group": null,
+     "rubric_quote": "public void UpdateRate (int numViewers)"
+    },
+    {
+     "check_id": "q2.א.c1.k2",
+     "description_he": "קיימת לולאה החוזרת בדיוק כמספר הצופים שהתקבל בפרמטר.",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "כל סוג לולאה (for / while) עם מספר חזרות נכון תקף [PL-3].",
+     "charge_group": null,
+     "rubric_quote": "הפעולה מקבלת את מספר הצופים המדרגים את תוכנית הטלוויזיה הנוכחית"
+    },
+    {
+     "check_id": "q2.א.c1.k3",
+     "description_he": "בתוך הלולאה נקלט הדירוג של הצופה הנוכחי למשתנה מוכרז (קלט מהמשתמש).",
+     "source": "generated",
+     "kind": "required",
+     "points": "2.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "כל צורת קלט מקובלת בכיתה תקפה, כולל קיצורים מקובלים כגון CR [PL-2][PL-3]. המשתנה חייב להיות מוכרז [PL-10].",
+     "charge_group": null,
+     "rubric_quote": "עבור כל צופה הפעולה קולטת ומוסיפה את הדירוג שלו"
+    },
+    {
+     "check_id": "q2.א.c1.k4",
+     "description_he": "הדירוג שנקלט מתווסף לערך הקיים של התכונה rate (צבירה ולא דריסה), כך שבסיום rate הוא סכום כל הדירוגים שנקלטו אי פעם.",
+     "source": "generated",
+     "kind": "required",
+     "points": "2.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "צבירה באמצעות rate += viewerRate או באמצעות Set/Get מתאימים תקפה [PL-3].",
+     "charge_group": null,
+     "rubric_quote": "הפעולה מעדכנת את התכונה rate להיות סכום הדירוגים שנקלטו אי פעם מכל הצופים המדרגים את התוכנית"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c0",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q2.ב.c0.k1",
+     "description_he": "נכתבה כותרת פעולה חיצונית (static) בשם LowestRateChannel המקבלת פרמטר מטיפוס TvRate ומחזירה ערך מטיפוס int.",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "שמות פרמטרים חלופיים תקפים; כל צורה שקולה של הכותרת (למשל public static int LowestRateChannel(TvRate tr)) תקפה.",
+     "charge_group": null,
+     "rubric_quote": "סעיף ב': פעולה חיצונית LowestRateChannel כותרת הפעולה"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c1",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q2.ב.c1.k1",
+     "description_he": "הוגדר בתוך הפעולה מערך צוברים מטיפוס int עבור כל 100 הערוצים, בגודל 101 (מתאים לערוצים 1-100).",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "שם המערך חופשי (למשל sumRates); גם מערך בגודל 100 עם התאמת אינדקסים עקבית תקף.",
+     "charge_group": null,
+     "rubric_quote": "בתוך LowestRateChannel : הגדרת מערך צוברים int לכל 100 הערוצים (ערוצים 1-100, המערך אמור להיות בגודל 101)"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c2",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q2.ב.c2.k1",
+     "description_he": "נכתבה לולאה העוברת על מערך הצוברים ומאפסת את כל תאיו.",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "בהתאם ל-C#, אתחול אוטומטי לאפס בעת יצירת המערך מקובל כצורה שקולה.",
+     "charge_group": null,
+     "rubric_quote": "בתוך LowestRateChannel : לולאה על מערך הצוברים לאיפוס המערך"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c3.s0",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q2.ב.c3.s0.k1",
+     "description_he": "הוגדרה לולאה העוברת על מערך התוכניות מאינדקס 0 ועד קטן ממש מאורך מערך התוכניות.",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ- length של מערך ה -TvShows"
+    },
+    {
+     "check_id": "q2.ב.c3.s0.t1",
+     "description_he": "הלולאה על מערך התוכניות מתחילה מאינדקס 0.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "0.5",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם התחילו מ-1 במקום מ-0 להוריד 0.5"
+    },
+    {
+     "check_id": "q2.ב.c3.s0.t2",
+     "description_he": "הגישה למערך התוכניות נעשית באמצעות פעולת Get (Getter) ולא בגישה ישירה לתכונה.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם ניגשו למערך TvShows בלי Getter להוריד 1"
+    },
+    {
+     "check_id": "q2.ב.c3.s0.t3",
+     "description_he": "הגבול העליון של הלולאה על מערך התוכניות נכון (קטן ממש מאורך המערך).",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "0.5",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם טעו בגבול העליון של הלולאה להוריד 0.5"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c3.s1",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q2.ב.c3.s1.k1",
+     "description_he": "בתוך הלולאה על מערך התוכניות נבדק שהתא אינו null.",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתוך הלולאה על TvShows: בדיקה אם התא אינו null"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c3.s2",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q2.ב.c3.s2.k1",
+     "description_he": "בתוך הלולאה, עבור תא שאינו null, מספר הערוץ מתקבל באמצעות הפעולה GetChl ולא בגישה ישירה לתכונה.",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתוך הלולאה על TvShows: אם התא אינו null , גישה לערוץ GetChl (ולא ע\"י גישה ישירה לתכונה)"
+    },
+    {
+     "check_id": "q2.ב.c3.s2.t1",
+     "description_he": "הגישה לתכונה chl נעשית באמצעות GetChl ולא בגישה ישירה לתכונה.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם ניגשו ישירות לתכונה chl להוריד 1"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c3.s3",
+   "points_possible": "5",
+   "checks": [
+    {
+     "check_id": "q2.ב.c3.s3.k1",
+     "description_he": "בתוך הלולאה, עבור תא שאינו null, דירוג התוכנית נצבר לתוך תא מערך הצוברים המתאים למספר הערוץ של אותה תוכנית.",
+     "source": "generated",
+     "kind": "required",
+     "points": "5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתוך הלולאה על TvShows: אם התא אינו null , צבירה של הדירוג של הערוץ (GetChl) לתוך מערך הצוברים במקום של הערוץ הזה"
+    },
+    {
+     "check_id": "q2.ב.c3.s3.t1",
+     "description_he": "הדירוג מתקבל באמצעות הפעולה GetRate ולא בגישה ישירה לתכונה rate.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם ניגשו ישירות לתכונה rate במקום GetRate להוריד 1"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c4.s0",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q2.ב.c4.s0.k1",
+     "description_he": "הוגדר משתנה לשמירת הדירוג המינימלי ואותחל בערך מתאים.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "אתחול ל-int.MaxValue או לערך גדול אחר, או לדירוג הצבור הראשון — כולם תקפים.",
+     "charge_group": null,
+     "rubric_quote": "הגדרת מינימום דירוג + אתחול"
+    },
+    {
+     "check_id": "q2.ב.c4.s0.t1",
+     "description_he": "החיפוש הוא אחר הדירוג המינימלי ולא אחר המקסימלי.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": "max_instead_of_min",
+     "rubric_quote": "אם חיפשו את המקסימום אך הלוגיקה בסדר להוריד 3"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c4.s1",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q2.ב.c4.s1.k1",
+     "description_he": "הוגדר משתנה לשמירת מספר הערוץ בעל הדירוג המינימלי ואותחל בערך מתאים.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "הגדרת ערוץ מינימלי +אתחול"
+    },
+    {
+     "check_id": "q2.ב.c4.s1.t1",
+     "description_he": "משתנה הערוץ הנשמר מתייחס לערוץ בעל הדירוג המינימלי ולא המקסימלי.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": "max_instead_of_min",
+     "rubric_quote": "אם חיפשו את המקסימום אך הלוגיקה בסדר להוריד 3"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c4.s2",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q2.ב.c4.s2.k1",
+     "description_he": "הוגדרה לולאה העוברת על מערך הצוברים מאינדקס 1 ועד 100 (כולל).",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "הגדרת לולאה על מערך צוברים מ-1 עד 100"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c4.s3",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q2.ב.c4.s3.n1",
+     "description_he": "בתוך הלולאה על מערך הצוברים נבדק שהתא של הערוץ הנוכחי גדול מאפס, כלומר שיש שימוש בערוץ זה.",
+     "source": "generated",
+     "kind": "note_only",
+     "points": "0",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתוך הלולאה על מערך הצוברים: בדיקה האם התא מתאים לערוץ הנוכחי של TvShow בתוך מערך הצוברים גדול מאפס (כלומר יש שימוש בערוץ זה) - לא להוריד, לכתוב הערה"
+    },
+    {
+     "check_id": "q2.ב.c4.s3.k1",
+     "description_he": "בתוך הלולאה על מערך הצוברים נבדק האם סכום הדירוגים של הערוץ הנוכחי קטן מהמינימום שנשמר עד כה.",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "והאם סה\"כ הדירוגים קטן מהמינימום - סה\"כ 2 נקודות"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c4.s4",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q2.ב.c4.s4.k1",
+     "description_he": "בתוך התנאי שבתוך הלולאה מתבצע עדכון של משתנה הדירוג המינימלי לערך הצבור של הערוץ הנוכחי.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתוך התנאי (בתוך הלולאה) - החלפה של מינימום דירוג"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c4.s5",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q2.ב.c4.s5.k1",
+     "description_he": "בתוך התנאי שבתוך הלולאה מתבצע עדכון של משתנה הערוץ המינימלי למספר הערוץ הנוכחי.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתוך התנאי (בתוך הלולאה) - החלפת הערוץ המינימלי"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c5",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q2.ב.c5.k1",
+     "description_he": "הפעולה מחזירה את מספר הערוץ בעל הדירוג המינימלי.",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בתוך LowestRateChannel : החזרת הערוץ המינימלי"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ג.c0.s0",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q2.ג.c0.s0.k1",
+     "description_he": "כותרת הפעולה נכתבה כפעולה חיצונית סטטית בשם PrintLowRatingChannel המקבלת פרמטר מטיפוס TvRate ואינה מחזירה ערך (void).",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "שם הפרמטר חופשי (בפתרון לדוגמה tr); כל שם תקף כל עוד הטיפוס TvRate.",
+     "charge_group": null,
+     "rubric_quote": "כותרת הפעולה PrintLowRatingChannel"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ג.c0.s1",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q2.ג.c0.s1.k1",
+     "description_he": "הפעולה מוצאת את הערוץ בעל הדירוג המינימלי על ידי זימון הפעולה החיצונית LowestRateChannel עם האובייקט שהתקבל, ושומרת את התוצאה למשתנה לשימוש בהמשך.",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "שם המשתנה חופשי (בפתרון לדוגמה lowChannel); זימון שקול של הפעולה החיצונית שנכתבה בסעיף הקודם תקף.",
+     "charge_group": null,
+     "rubric_quote": "מציאת הערוץ בעל דירוג מינימלי ע\"י זימון LowestRateChannel"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ג.c0.s2",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q2.ג.c0.s2.k1",
+     "description_he": "מוגדרת לולאה העוברת על מערך התוכניות מאינדקס 0 עד קטן ממש מאורך המערך (Length).",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": "כל צורת מעבר שקולה על כל איברי המערך (למשל foreach) תקפה.",
+     "charge_group": null,
+     "rubric_quote": "הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ- length של מערך ה -TvShows"
+    },
+    {
+     "check_id": "q2.ג.c0.s2.t1",
+     "description_he": "הגישה למערך arrShows נעשית באמצעות פעולת ה-Get המתאימה (GetArrShows) ולא באופן ישיר לתכונה.",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם הגישה למערך בלי getter להוריד 1"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ג.c0.s3",
+   "points_possible": "8",
+   "checks": [
+    {
+     "check_id": "q2.ג.c0.s3.k1",
+     "description_he": "בתוך הלולאה נבדק שאיבר המערך הנוכחי אינו null.",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בדיקה האם תוכנית מתאימה להדפסה:אינה null ב (2 נקודות)"
+    },
+    {
+     "check_id": "q2.ג.c0.s3.k2",
+     "description_he": "בתוך הלולאה נבדק שמספר הערוץ של התוכנית, המתקבל באמצעות GetChl, שווה לערוץ בעל הדירוג המינימלי.",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "וגם הערוץ שלה תואם את הערוץ המינימלי (ע\"י GetChl והשוואתם (2 נקודות)"
+    },
+    {
+     "check_id": "q2.ג.c0.s3.k3",
+     "description_he": "בתוך הלולאה נבדק שהתוכנית משודרת כעת באמצעות GetIsOn.",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "וגם היא באוויר (ע\"י GetIsOn ב 2 נקודות)"
+    },
+    {
+     "check_id": "q2.ג.c0.s3.k4",
+     "description_he": "עבור תוכנית שעמדה בכל התנאים מודפס שם התוכנית באמצעות GetName.",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "הדפסה של השם של התוכנית (ע\"י GetName ב( 2 נקודות)"
+    }
+   ]
+  }
+ ]
+}

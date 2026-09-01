@@ -1,0 +1,12 @@
+{
+ "usage": {
+  "input_tokens": 38515,
+  "output_tokens": 18000,
+  "calls": 7
+ },
+ "repairs": {
+  "q2.ב": 1
+ },
+ "constitution_version": "constitution/v1",
+ "prompt_version": "plan-gen/v1"
+}
