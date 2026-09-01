@@ -385,3 +385,95 @@ change — a carried field is already invisible to it by design.
 live surfaces with their own migrations; P-0 establishes the identity, and those
 cut over in their own PRs. Naming that here so the exposure is not mistaken for
 closed.
+
+
+---
+
+## 10. The point-split assist — SPEC ONLY (owner item 2, 2026-09-01)
+
+Phase 0's remaining failure is decomposition: `q2.א.c0` split `1.25 × 4` where
+the hand plan splits `1+2+2`, and four 1.25s can never sum to the GT's 4. The
+owner's sharpening is right — **that is not a judgement failure, it is what a
+model emits when it is satisfying V1's arithmetic with nothing else to go on.**
+
+### Signal survey against the ratified plan (zero spend, done)
+
+Over the reference plan's **17 multi-check terminals** (21 more are single-check
+and need no split):
+
+| signal | n | hand split |
+|---|---|---|
+| **A** — per-component «(1 כ"א)» | 3 | EVEN |
+| **B** — inline per-part points «(1)» | 3 | EVEN |
+| **C** — declared sub-criteria points | 0 here (the tree uses them as terminals) | — |
+| **D** — enumerated components, counted | 4 | EVEN |
+| **E** — no signal | 4 | EVEN |
+| **E** — no signal | **3** | **UNEVEN** |
+
+### What the assist would do, measured
+
+**Split deterministically when A/B/C/D fires; DECLINE when nothing does.**
+
+- **10 of 17 correct** — every A/B/D terminal's hand split is EVEN, so an even
+  split across the counted components matches the ratified plan exactly.
+- **0 wrong** — the assist never fires on an uneven case, because uneven cases
+  carry no signal.
+- **7 declined** — 4 that happen to be even (the model would likely land them)
+  and **3 genuinely uneven**, which are precisely the hard ones:
+  `q1.א.c0` (1+3), `q2.א.c0` (1+2+2), `q2.א.c1` (2+3+2+3).
+
+**The decline set is where the model earns its keep**, exactly as the ruling
+frames it. An assist that declines cleanly beats one that guesses.
+
+### It would have fixed one of v2's two failures
+
+- `q1.א.c1` — criterion text is
+  `"פעולה בונה Hobby(string hobbyName, bool isSportive, int minutes)"`: a
+  signature naming three parameters. Signal D counts four components
+  (signature + 3), splits `1+1+1+1`, **matching the hand plan** and reaching
+  the ratified 3.5. **V-rubric's failure is fixed deterministically.**
+- `q2.א.c0` — signal E, uneven. The assist **declines**, and the model still has
+  to produce `1+2+2`. **V-const's failure is not fixed**, and the spec says so
+  rather than claiming it.
+
+That asymmetry is the honest scope of the assist: it removes the arithmetic-
+shaped half of the problem and leaves the judgement-shaped half where it belongs.
+
+### Not built
+
+No prompt change, no generation, no calibration against any candidate — the
+survey above is against the ratified artefact only. **The assist is not
+implemented until exam-2 GT exists to test it against**, because a rule tuned to
+17 terminals of one exam is a rule fitted to one exam.
+
+---
+
+## 11. Owed — the three unmeasured items (owner item 3)
+
+| item | state | what closes it |
+|---|---|---|
+| **P-G2d — policy leak** | **OPEN, unruled** | The mandatory same-arm control (`const2`, byte-identical inputs to `const`). Unfunded: v2 costs ~$4/variant against the ~$2 the envelope assumed. Until it runs, "policy does not leak beyond stochasticity" is unsupported — and the constitution reclassification means a clean control would support only that claim *under the corrected classification*. |
+| **P-G2c — leniency** | **MISSED at 23** (predicted ≤20; v1 30, hand 11) | Direction right, threshold not met, so item 11's hypothesis stays live: V-const's surplus equivalence notes are pure credit-granting surface and would show as **K2** movement, not GA-2. Closes with one arm — V-const × k=3 against the existing hand record at the same model and verifier. Not run: bar missed, and $0.83 remains against a ~$2.36 arm. |
+| **V-nosol under v2** | **UNMEASURED** | v1 showed no material degradation without the example solution; **that finding does not carry to v2**. This is the arm that decides whether v5 can ship to the six production rubrics, none of which has an embedded solution. Closes with one generation run. |
+
+**Grading-quality parity is unmeasured and is owed to the second exam.** Nothing
+in Phase 0 measured whether a generated plan grades like a hand-authored one;
+0a measures reachability and structure only.
+
+---
+
+## 12. Two-exam harness prep (owner item 4)
+
+So exam 2 is a data drop, not a refactor:
+
+- **Fixture registry** — `gen_plan.EXAMS` maps exam → fixture list; `FIXTURES`
+  is derived, not literal. `--exam` selects.
+- **Per-exam plan resolution** — `hand_plan_for(exam)` and
+  `generated_plan_for(exam, variant)`; the default exam keeps its current
+  paths, so nothing existing moves.
+- **Already multi-exam** — the fixture manifests are prefixed
+  `hobby_tvshow.<student>` (2026-08-29), so the loader needs no change.
+- **Still single-exam, and deliberately left alone** —
+  `tools/build_hobby_plan.py` and `tools/f0_hobby_correction.py` are exam-1
+  artefacts by design; `test_plan_expressibility.py` pins the reference plan by
+  name, which is correct for a reference.

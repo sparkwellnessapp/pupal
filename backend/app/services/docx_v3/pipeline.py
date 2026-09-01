@@ -1801,11 +1801,13 @@ async def _extract_with_retry(
 # =============================================================================
 
 def _build_criterion(cid: str, idx: int, ext: CriterionExtraction) -> Criterion:
+    from app.services.criterion_identity import new_uid
     pts = Decimal(str(ext.points))
     sub_criteria = (
         [
             SubCriterion(
                 sub_criterion_id=f"{cid}.sc{i}",
+                uid=new_uid(),          # [P-0] stable identity, minted here
                 index=i,
                 description=sc.description,
                 points=Decimal(str(sc.points)),
@@ -1816,6 +1818,7 @@ def _build_criterion(cid: str, idx: int, ext: CriterionExtraction) -> Criterion:
     )
     return Criterion(
         criterion_id=cid,
+        uid=new_uid(),                  # [P-0] stable identity, minted here
         index=idx,
         description=ext.description,
         points=pts,

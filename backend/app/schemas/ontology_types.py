@@ -295,7 +295,20 @@ class SubCriterion(BaseModel):
     """
     model_config = {"frozen": False}
 
-    sub_criterion_id: str = Field(..., description="Stable ID, e.g. 'q1.c1.sc0'")
+    sub_criterion_id: str = Field(..., description="Positional ID, e.g. 'q1.c1.sc0'")
+    # [P-0, 2026-09-01] STABLE identity. `criterion_id` above is POSITIONAL
+    # (`...c{i}` over enumerate), so inserting a criterion shifts every later
+    # id and any durable reference — a ruling anchor, TeacherOverride.check_id
+    # under CW-3, the audit key — silently re-attaches to a DIFFERENT
+    # criterion. `uid` survives inserts, reorders and edits.
+    #
+    # Server-minted (services/criterion_identity.py); the client never mints,
+    # it CARRIES. Optional so every stored rubric re-parses unchanged and is
+    # backfilled on its next compile.
+    uid: Optional[str] = Field(
+        default=None,
+        description="Stable server-minted UUID4. Durable references use this; "
+                    "criterion_id remains the display/path identity.")
     index: int = Field(..., ge=0)
     description: str
     points: Decimal = Field(..., ge=Decimal("0"))
@@ -412,6 +425,19 @@ class Criterion(BaseModel):
     If sub_criteria is None/empty, the criterion is graded as an atomic unit.
     """
     criterion_id: str
+    # [P-0, 2026-09-01] STABLE identity. `criterion_id` above is POSITIONAL
+    # (`...c{i}` over enumerate), so inserting a criterion shifts every later
+    # id and any durable reference — a ruling anchor, TeacherOverride.check_id
+    # under CW-3, the audit key — silently re-attaches to a DIFFERENT
+    # criterion. `uid` survives inserts, reorders and edits.
+    #
+    # Server-minted (services/criterion_identity.py); the client never mints,
+    # it CARRIES. Optional so every stored rubric re-parses unchanged and is
+    # backfilled on its next compile.
+    uid: Optional[str] = Field(
+        default=None,
+        description="Stable server-minted UUID4. Durable references use this; "
+                    "criterion_id remains the display/path identity.")
     index: int = Field(..., ge=0)
     description: str = Field(..., min_length=1)
     points: Decimal = Field(..., gt=Decimal("0"))

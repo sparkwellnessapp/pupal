@@ -80,10 +80,27 @@ async def _run(on_progress=None):
 
 
 def _dump_without_generated_ids(response) -> dict:
-    """model_dump minus the per-run uuid4 rubric_id — everything else must be
-    byte-identical across runs."""
+    """model_dump minus every per-run uuid4 — everything else must be
+    byte-identical across runs.
+
+    [P-0] `uid` joined that set: a stable criterion identity is minted fresh per
+    extraction, so two independent runs of the same document legitimately
+    differ there. Stripping it keeps this test measuring what it is for — that
+    the progress callback changes nothing about the RESULT.
+    """
     d = response.model_dump(mode="json")
     d.pop("rubric_id", None)
+
+    def strip_uids(node):
+        if isinstance(node, dict):
+            node.pop("uid", None)
+            for value in node.values():
+                strip_uids(value)
+        elif isinstance(node, list):
+            for value in node:
+                strip_uids(value)
+
+    strip_uids(d)
     return d
 
 

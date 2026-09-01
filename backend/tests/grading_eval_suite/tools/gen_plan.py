@@ -35,11 +35,27 @@ from tests.grading_eval_suite.fixtures import load_bundle       # noqa: E402
 from tests.grading_eval_suite.plan_expressibility import (      # noqa: E402
     expressibility_errors)
 
-FIXTURES = ["dan_basiuk", "din_ezra", "moran_aharon", "omer_gelber",
-            "yonatan_basiuk"]
+# [two-exam prep] The corpus is a REGISTRY, not a literal. Exam 2 is a data
+# drop: add its entry, and every consumer below resolves plans, corpora and
+# GT per exam without a refactor.
+EXAMS = {
+    "hobby_tvshow": ["dan_basiuk", "din_ezra", "moran_aharon",
+                     "omer_gelber", "yonatan_basiuk"],
+}
+DEFAULT_EXAM = "hobby_tvshow"
+FIXTURES = EXAMS[DEFAULT_EXAM]
 OUT = SUITE / "plans" / "generated"
 GEN_MODEL = ("anthropic", "claude-opus-5")      # top tier — the plan is the ceiling
-HAND = SUITE / "plans" / "hobby_tvshow.plan.json"
+def hand_plan_for(exam: str):
+    return SUITE / "plans" / f"{exam}.plan.json"
+
+
+def generated_plan_for(exam: str, variant: str):
+    return OUT / (f"{variant}.plan.json" if exam == DEFAULT_EXAM
+                  else f"{exam}.{variant}.plan.json")
+
+
+HAND = hand_plan_for(DEFAULT_EXAM)
 
 VARIANTS = {
     "rubric": dict(include_constitution=False, include_solution=True),
@@ -142,6 +158,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--variant", choices=sorted(VARIANTS))
     ap.add_argument("--score-only", action="store_true")
+    ap.add_argument("--exam", default=DEFAULT_EXAM, choices=sorted(EXAMS))
     args = ap.parse_args()
 
     if args.variant and not args.score_only:

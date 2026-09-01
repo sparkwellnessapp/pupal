@@ -25,6 +25,7 @@ Design Principle:
 - Compiler DOES NOT mutate its input
 - Validation results are collected and raised, not appended
 """
+import logging
 from decimal import Decimal
 from typing import List, Optional
 from uuid import uuid4
@@ -71,6 +72,8 @@ def _invariant_error(
     )
 
 
+logger = logging.getLogger(__name__)
+
 class ContractCompiler:
     """
     Compiles ExtractRubricResponse to GradingRubricContract.
@@ -103,6 +106,23 @@ class ContractCompiler:
             CompilationError: If validation errors or error-severity annotations exist
             WarningsRequireAcknowledgment: If unacknowledged warnings exist
         """
+        # [P-0] Idempotent backfill. A rubric extracted before uids existed —
+        # all six in production — gets them here, on its next compile, with no
+        # data migration. Minting on the DRAFT objects means the identity is
+        # already in place when this same tree is frozen below.
+        from app.services.criterion_identity import duplicate_uids, ensure_uids
+
+        minted = ensure_uids(response.questions)
+        if minted:
+            logger.info("criterion_uids_backfilled", extra={"minted": minted})
+        dupes = duplicate_uids(response.questions)
+        if dupes:
+            # Ambiguous is worse than absent: a duplicate RESOLVES, to the
+            # wrong criterion. Loud, never repaired silently.
+            raise ValueError(
+                f"duplicate criterion uid(s) {dupes} — a durable reference "
+                f"would resolve to the wrong criterion")
+
         policy = policy or NumericPolicy()
         acknowledged_warnings = acknowledged_warnings or []
         
