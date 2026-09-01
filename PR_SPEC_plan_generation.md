@@ -326,3 +326,62 @@ edit costs a fraction of that.
   solution ingestion is a prerequisite for plan quality.
 - *One exam's ground truth.* Phase 0 proves it there. Generalisation needs
   Phase 4, and the limit is quoted with every result until then.
+
+---
+
+## 9. P-0 implementation plan (posted before code, per the 2026-09-01 ruling)
+
+Stable identity for criteria and sub-criteria. Ruled 2026-09-01; blocks Phase 1.
+
+### 9.1 The change
+
+`Criterion` and `SubCriterion` gain `uid: Optional[str]` — a **server-minted
+UUID4**, distinct from `criterion_id`, which stays exactly what it is today: a
+positional display/path identity (`q1.ב.c4`). Nothing about how a human refers
+to a criterion changes.
+
+| | `criterion_id` | `uid` |
+|---|---|---|
+| shape | `q1.ב.c4` — positional | UUID4 |
+| stable across insert/reorder | **no** | **yes** |
+| used for | display, paths, `data-scope-id`, annotations | durable references: ruling anchors, overrides, audit keys |
+
+### 9.2 Where it is minted (server only)
+
+1. **Extraction** (`docx_v3/pipeline.py::_build_criterion`) mints on first build.
+2. **Save / compile** backfills: any criterion arriving without one is minted a
+   `uid` at that moment. Idempotent, and it is what covers the six existing
+   production rubrics on their next compile without a data migration.
+3. **The client never mints.** A client-minted id is a client-controlled
+   database key, and the frontend already carries unmodelled wire fields
+   verbatim through the `_carry` bag (CLAUDE.md §11) — so a carried `uid`
+   survives an untouched open→save as structural identity with no editor change.
+
+### 9.3 Invariants and named tests
+
+- `uid` unique within a rubric — validator rule, loud.
+- **`uid-survives-open-save-compile`** — byte-for-byte across a round trip.
+- **`uid-survives-reorder`** — moving a criterion preserves it; `criterion_id`
+  changes and that is correct.
+- **`uid-minted-for-a-new-criterion`** — insert mints exactly one new uid.
+- **`delete-and-recreate-mints-a-new-uid`** — re-adding "the same" criterion is
+  a NEW criterion; silently re-attaching old rulings to it would be the
+  positional bug wearing a different hat.
+- **`backfill-is-idempotent`** — compiling twice mints nothing the second time.
+- **`contract-carries-uid`** — `ContractCompiler` copies it into the frozen
+  contract. Without this the plan compiler cannot resolve a ruling anchor
+  against the artefact it actually compiles.
+
+### 9.4 Blast radius, stated
+
+Same OD-4 class (additive, optional, defaulted) across: `ontology_types`
+(`Criterion`, `SubCriterion`), the V3 pipeline's builders, `ContractCompiler`,
+`rubric_management` save/compile, the generated TS wire types (`npm run
+gen:api`), and the frontend codec's carry manifest. The editor family needs no
+change — a carried field is already invisible to it by design.
+
+**Not in P-0:** re-keying `TeacherOverride.check_id` or the audit key onto
+`uid`. Both have the same positional exposure and both should move, but they are
+live surfaces with their own migrations; P-0 establishes the identity, and those
+cut over in their own PRs. Naming that here so the exposure is not mistaken for
+closed.
