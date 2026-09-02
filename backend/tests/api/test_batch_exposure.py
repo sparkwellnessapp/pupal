@@ -208,8 +208,23 @@ def test_rename_batch_ok(client, user_a, headers_a, rubric_a):
             headers=headers_a,
         )
         assert resp.status_code == 200, resp.text
+        # EXACT equality on purpose: this endpoint is the batch's settings
+        # patch, and a field appearing here without anyone noticing is how a
+        # response starts carrying something the client never agreed to.
+        #
+        # The four fields beyond {batch_id, name} are PR-G9's: the same PATCH
+        # now also sets the appendix and stamp-position defaults, and it REPORTS
+        # what that cost — `invalidated_count` returned exams whose cache it
+        # dropped, `stamp_applied_count` per-test positions it cleared. Both are
+        # reported rather than silently done, so the teacher is told her PDFs
+        # will re-render instead of wondering why a download she just made looks
+        # different. A rename alone changes neither, hence the zeros.
         assert resp.json() == {
             "batch_id": batch_id, "name": "מקבץ כיתה ט׳ · תרגול לולאות",
+            "appendix_include_criteria": False,
+            "stamp_position_default": None,
+            "invalidated_count": 0,
+            "stamp_applied_count": 0,
         }
         detail = client.get(f"/api/v0/batches/{batch_id}", headers=headers_a).json()
         assert detail["name"] == "מקבץ כיתה ט׳ · תרגול לולאות"

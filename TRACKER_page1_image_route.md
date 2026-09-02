@@ -263,3 +263,36 @@ dashboard and every card 502s.
 Owner may still want the one-liner when Docker is up:
 
     docker run --rm python:3.11-slim sh -c       "pip install --no-cache-dir -q Pillow==12.1.0 &&        python -c 'import PIL.features; print(PIL.features.check(\"webp\"))'"
+
+### F-11 (full-suite gate) — a G9 regression I shipped and did not catch · FIXED
+
+The full backend suite came back **1 failed, 1268 passed, 2 skipped**:
+`test_batch_exposure.py::test_rename_batch_ok`.
+
+Not caused by this plan — but **not someone else's either**. `git log -S` puts
+the cause in `bb0e775`, my own PR-G9 commit: G9 turned `PATCH /batches/{id}` from
+a rename into the batch's SETTINGS patch (appendix + stamp default) that reports
+what it cost — `invalidated_count` returned exams whose cache it dropped,
+`stamp_applied_count` per-test positions it cleared. The response gained four
+fields; the test asserted exact dict equality against the pre-G9 shape. **I did
+not run `test_batch_exposure.py` when landing G9**, so it stayed red until the
+first full-suite run after it.
+
+The ENDPOINT is right and the test was stale, so the test changed. Exact equality
+is KEPT rather than loosened to a subset match — a field appearing in a response
+without anyone noticing is how a client ends up carrying something nobody agreed
+to, which is the whole reason this file exists — with the four fields spelled out
+and their zeros explained (a rename alone invalidates nothing).
+
+Lesson worth keeping: a phase gate scoped to "the files I touched" cannot catch a
+response-shape regression, because the test that fails lives with the CLIENT of
+the shape, not with the shape. The full suite is what found it, one PR late.
+
+### Final verification
+
+* full backend suite, invocation 1 (`--ignore=tests/transcription_eval_suit`):
+  **1268 passed**, the single failure above now fixed (`test_batch_exposure.py`
+  10 passed)
+* invocation 2 (`tests/transcription_eval_suit`): see the commit trailer
+* frontend: `tsc --noEmit` clean · **981 passed / 69 files** · `check:copy` PASS
+* `import app.main` clean · `pytest --collect-only` **1423**
