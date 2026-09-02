@@ -4,7 +4,7 @@ Loads settings from environment variables and .env file.
 """
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import List, Optional
 
 
 _SECRET_NAME_PARTS = ("api_key", "secret", "token", "password",
@@ -177,6 +177,33 @@ class Settings(BaseSettings):
     # here: reverting production is this one env var, no redeploy.
     pdf_renderer: str = "pymupdf"
 
+    # --- Page-1 thumbnail (PR-G8, PLAN_page1_image_route) --------------------
+    # MEASURED on the six real bagrut scans, p50 of 3 runs each: the JSON page
+    # proxy's PNG-base64 is 1168 KB / 1227 ms; this variant is 33.6 KB / 259 ms
+    # — ~35x fewer bytes, ~4.7x less render. render_dpi > the output width is
+    # SUPERSAMPLING for sharpness, not resolution: rendering at 110 and LANCZOS
+    # -ing down to 600 beats rendering at 72 directly for ~2 KB and ~36 ms.
+    #
+    # ⚠ These three ARE the cache identity. The URL the feed mints carries them
+    # as a variant token (`600x72@110`), so changing any one of them mints a NEW
+    # resource rather than serving stale bytes under a year-long `immutable`
+    # header. That is the whole point — do not "simplify" the token away.
+    page_thumb_width_px: int = 600
+    page_thumb_quality: int = 72
+    page_thumb_render_dpi: int = 110
+    # Retired variants to keep serving deliberately (e.g. through a deploy
+    # window). Empty by default: a token not in the allow-set is a 404, which is
+    # what stops `?v=20000x100@600` being a render-bomb.
+    page_thumb_legacy_variants: List[str] = []
+
+    # Page-render cache budget, in BYTES. It used to be an entry count (256) on
+    # the strength of a docstring claiming "a rendered page is tens of KB";
+    # measured, a review page is 1168 KB p50 / 1870 KB max, so that cap was
+    # ~300 MB (worst case ~480 MB) in a 2 GiB container whose concurrency was
+    # already cut 5->4 on an OOM measurement. Entries were never the memory
+    # bound; bytes are.
+    page_cache_max_bytes: int = 64 * 1024 * 1024
+
     # Parallel transcription settings
     parallel_transcription_enabled: bool = True  # Feature flag for async parallel processing
     max_parallel_pages: int = 3  # Max concurrent VLM calls (reduced to avoid overwhelming API)
@@ -338,6 +365,26 @@ class Settings(BaseSettings):
         repr=False)
     test_database_url: Optional[str] = Field(default=None, repr=False)
     
+    # Sign in with Google (auth PR). The SAME value the browser holds as
+    # NEXT_PUBLIC_GOOGLE_CLIENT_ID — a client ID is public by design; it is not
+    # a secret and is deliberately NOT a SecretStr.
+    #
+    # The backend needs it to check the `aud` claim: without that check, an ID
+    # token minted by Google for a DIFFERENT application is still a
+    # perfectly-valid Google token, and accepting one would let any other app's
+    # user sign in here. Empty ⇒ the endpoint refuses every request (503)
+    # rather than verifying against nothing.
+    #
+    # No client SECRET: the ID-token flow (owner ruling A2) does not use one,
+    # and declaring it would invite someone to start depending on it.
+    google_oauth_client_id: Optional[str] = None
+
+    # Email delivery. `console` by default so an unconfigured environment — and
+    # every test process is one — cannot send real mail. See email_service.
+    email_provider: str = "console"
+    resend_api_key: Optional[SecretStr] = None
+    email_from: str = "Vivi <noreply@vivi-assistant.com>"
+
     # Google Cloud Storage settings
     gcs_bucket_name: str = "grader-vision-pdfs"
     gcs_credentials_file: Optional[str] = None  # Uses default credentials if not set

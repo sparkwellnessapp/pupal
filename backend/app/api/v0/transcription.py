@@ -7,9 +7,10 @@ POST /api/v0/transcriptions/grade       — approve + create pending graded_test
 import logging
 import time
 from datetime import datetime, timezone
+from typing import Optional
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -40,13 +41,20 @@ from ...services.handwriting_transcription_service import (
     pdf_to_images,
     render_pdf_page,
 )
+from ...services import thumbnail
 from ...services.transcription_adapter import build_transcription_draft
 from ...services.cloud_tasks_service import enqueue_grading_task_or_log
 from ...services.transcribe_one import transcribe_one
 
 logger = logging.getLogger(__name__)
 
-PAGE_RENDER_DPI = 150  # DPI for per-page thumbnail rendering
+PAGE_RENDER_DPI = 150  # DPI for per-page review-image rendering
+
+#: Cache namespace for the JSON proxy's base64 PNG. The card thumbnail uses
+#: `ThumbVariant.cache_variant` ("webp@600x72@110"); they are DIFFERENT
+#: resources at ~35x different sizes, and a shared namespace would let one
+#: answer for the other.
+REVIEW_PAGE_VARIANT = f"png-b64@{PAGE_RENDER_DPI}"
 
 router = APIRouter(prefix="/api/v0/transcriptions", tags=["transcriptions"])
 
@@ -316,7 +324,7 @@ async def get_transcription_page(
     # what decides who may see a page. Page content is immutable once
     # uploaded, so there is nothing to invalidate.
     from ...services import page_cache
-    cached = page_cache.get(transcription_id, page_number, PAGE_RENDER_DPI)
+    cached = page_cache.get(transcription_id, page_number, REVIEW_PAGE_VARIANT)
     if cached is not None:
         return TranscriptionPageResponse(page_number=page_number,
                                          thumbnail_base64=cached)
@@ -345,5 +353,91 @@ async def get_transcription_page(
         logger.error(f"PDF render failed page={page_number}: {exc}", exc_info=True)
         raise HTTPException(status_code=502, detail="שגיאה בעיבוד הדף")
 
-    page_cache.put(transcription_id, page_number, PAGE_RENDER_DPI, thumbnail_base64)
+    page_cache.put(transcription_id, page_number, REVIEW_PAGE_VARIANT, thumbnail_base64)
     return TranscriptionPageResponse(page_number=page_number, thumbnail_base64=thumbnail_base64)
+
+
+# ---------------------------------------------------------------------------
+# GET /{id}/pages/{n}/image — the §1.5 card thumbnail, as BYTES
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/{transcription_id}/pages/{page_number}/image",
+    response_class=Response,
+    responses={200: {"content": {thumbnail.MEDIA_TYPE: {}},
+                     "description": "Page rendered as WebP"}},
+)
+async def get_transcription_page_image(
+    transcription_id: UUID,
+    page_number: int,
+    v: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    """A page as a small WebP resource — the representation §1.5's Pile cards use.
+
+    A SEPARATE RESOURCE from the JSON proxy above, not a reformatting of it.
+    Measured on the six real bagrut scans: that path is 1168 KB / 1227 ms per
+    page, this one is 33.6 KB / 259 ms, so a thirty-card dashboard goes from
+    ~34 MB and ~37 s of render to ~1.0 MB. The two are cached under different
+    variants precisely so neither can ever answer for the other.
+
+    `?v=` pins the render settings AND the cache key (see `thumbnail`): the
+    answer only claims `immutable` when the URL actually pins the bytes, and an
+    unrecognised token is a 404 rather than a client-controlled rasterizer.
+
+    ⚠ NOT reachable from a bare `<img src>`: auth here is `Authorization:
+    Bearer`, which a browser image request does not send. The client fetches it
+    through the seam and renders an object URL (PLAN §3, ruling B1).
+    """
+    # 1. Ownership guard — before anything else, exactly as the JSON proxy.
+    transcription = await get_owned_or_404(db, Transcription, transcription_id, current_user.id)
+
+    # 2. Variant, before any work: an unknown token names no resource.
+    variant, pinned = thumbnail.resolve_variant(v)
+    if variant is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+
+    # 3. Range check against draft_json page_count (fast path — no GCS needed).
+    page_count = (transcription.draft_json or {}).get("page_count", 0)
+    if not (1 <= page_number <= page_count):
+        raise HTTPException(status_code=404, detail="Page not found")
+
+    def _answer(payload: bytes) -> Response:
+        # The header is a PROMISE about the bytes. It is only honest when the
+        # URL named the variant that produced them (PLAN ⟨C1⟩).
+        cache_control = (
+            f"private, max-age={thumbnail.IMMUTABLE_MAX_AGE}, immutable" if pinned
+            else f"private, max-age={thumbnail.UNPINNED_MAX_AGE}"
+        )
+        return Response(content=payload, media_type=thumbnail.MEDIA_TYPE,
+                        headers={"Cache-Control": cache_control})
+
+    from ...services import page_cache
+    cached = page_cache.get(transcription_id, page_number, variant.cache_variant)
+    if isinstance(cached, bytes):
+        return _answer(cached)
+
+    # 4. Fetch PDF from GCS (backend-to-backend; no CORS issue).
+    gcs = get_gcs_service()
+    try:
+        pdf_bytes = await run_in_threadpool(gcs.download_bytes, transcription.gcs_object_path)
+    except Exception as exc:
+        logger.error(f"GCS download failed for {transcription.gcs_object_path}: {exc}",
+                     exc_info=True)
+        raise HTTPException(status_code=502, detail="שגיאה בטעינת הקובץ")
+
+    try:
+        payload = await run_in_threadpool(
+            thumbnail.render_variant, pdf_bytes, page_number, variant
+        )
+    except ValueError:
+        # draft page_count can exceed the actual PDF — the same guard the JSON
+        # proxy has, answering with the same 404.
+        raise HTTPException(status_code=404, detail="Page not found")
+    except Exception as exc:
+        logger.error(f"Thumbnail render failed page={page_number}: {exc}", exc_info=True)
+        raise HTTPException(status_code=502, detail="שגיאה בעיבוד הדף")
+
+    page_cache.put(transcription_id, page_number, variant.cache_variant, payload)
+    return _answer(payload)

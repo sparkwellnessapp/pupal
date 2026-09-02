@@ -198,3 +198,198 @@ def test_page1_thumb_downloaded_once_then_served_from_cache(
 
     assert downloads["n"] == 1, (
         f"expected ONE GCS download across 30 card loads, got {downloads['n']}")
+
+
+# ---------------------------------------------------------------------------
+# PLAN_page1_image_route phase 1a — the WebP card thumbnail as BYTES
+#
+# A SEPARATE RESOURCE from the JSON proxy above, not a reformatting of it.
+# Measured on the six real bagrut scans: the JSON path is 1168 KB / 1227 ms per
+# page, this one 33.6 KB / 259 ms, so a thirty-card dashboard goes from ~34 MB
+# and ~37 s of render to ~1.0 MB. Everything below pins one half of that claim
+# or one of the two guards that keep the resources apart.
+# ---------------------------------------------------------------------------
+
+from app.services import thumbnail  # noqa: E402
+
+
+def _image_url(tx_id, page=1, variant="current"):
+    token = thumbnail.current_variant().token if variant == "current" else variant
+    suffix = "" if token is None else f"?v={token}"
+    return f"/api/v0/transcriptions/{tx_id}/pages/{page}/image{suffix}"
+
+
+def _get_image(client, headers, tx_id, page=1, variant="current"):
+    with _patch_gcs() as mock_gcs:
+        mock_gcs.return_value.download_bytes.return_value = THREE_PAGE_PDF
+        return client.get(_image_url(tx_id, page, variant), headers=headers)
+
+
+def test_page_image_returns_webp_bytes_not_json(client, headers_a, transcription_3p):
+    resp = _get_image(client, headers_a, transcription_3p)
+    assert resp.status_code == 200, resp.text
+    assert resp.headers["content-type"] == "image/webp"
+    body = resp.content
+    assert body[:4] == b"RIFF" and body[8:12] == b"WEBP", (
+        f"not a WebP payload: {body[:16]!r}")
+
+
+def test_page_image_sets_immutable_cache_headers_only_with_a_variant(
+        client, headers_a, transcription_3p):
+    """[C1] the header is a PROMISE about the bytes, and it is only honest when
+    the URL named the variant that produced them. Without ?v the same URL would
+    return different bytes after a settings change, so it must not claim a year
+    of immutability."""
+    from app.services import page_cache
+    page_cache.clear()
+
+    pinned = _get_image(client, headers_a, transcription_3p)
+    assert pinned.status_code == 200
+    cc = pinned.headers["cache-control"]
+    assert "immutable" in cc and f"max-age={thumbnail.IMMUTABLE_MAX_AGE}" in cc, cc
+
+    page_cache.clear()
+    unpinned = _get_image(client, headers_a, transcription_3p, variant=None)
+    assert unpinned.status_code == 200
+    cc = unpinned.headers["cache-control"]
+    assert "immutable" not in cc, f"an unpinned URL claimed immutability: {cc}"
+    assert f"max-age={thumbnail.UNPINNED_MAX_AGE}" in cc, cc
+
+
+def test_page_image_refuses_an_unknown_variant_token(
+        client, headers_a, transcription_3p):
+    """[C1] the token resolves render settings, so an unvalidated one would be a
+    client-controlled rasterizer. ?v=20000x100@600 is a render-bomb."""
+    for bad in ("20000x100@600", "600x72@111", "not-a-token", "600x72", "0x0@0"):
+        resp = _get_image(client, headers_a, transcription_3p, variant=bad)
+        assert resp.status_code == 404, f"{bad}: {resp.status_code} {resp.text[:120]}"
+
+
+def test_page_image_requires_auth(client, transcription_3p):
+    resp = client.get(_image_url(transcription_3p))
+    assert resp.status_code in (401, 403), resp.status_code
+
+
+def test_page_image_refuses_another_tenants_transcription(
+        client, headers_b, transcription_3p):
+    """404, never 403 — 403 leaks existence (section 9)."""
+    resp = _get_image(client, headers_b, transcription_3p)
+    assert resp.status_code == 404, resp.status_code
+
+
+def test_page_image_bounds_and_renderer_guards_match_the_json_proxy(
+        client, headers_a, transcription_3p):
+    """Same two 404 paths as the JSON proxy: 0 and page_count+1 fail the draft
+    range check; page 4 passes it and the renderer raises."""
+    for bad in (0, 5, 4):
+        resp = _get_image(client, headers_a, transcription_3p, page=bad)
+        assert resp.status_code == 404, f"page {bad}: {resp.status_code}"
+
+
+def test_thirty_cards_cost_one_pdf_download(client, headers_a, transcription_3p):
+    """The census-E pin for the card thumbnail: one dashboard load of thirty
+    tests must not be thirty full-PDF downloads."""
+    from app.services import page_cache
+    page_cache.clear()
+
+    downloads = {"n": 0}
+
+    def _counting_download(_path):
+        downloads["n"] += 1
+        return THREE_PAGE_PDF
+
+    with _patch_gcs() as mock_gcs:
+        mock_gcs.return_value.download_bytes.side_effect = _counting_download
+        first = client.get(_image_url(transcription_3p), headers=headers_a)
+        assert first.status_code == 200
+        payload = first.content
+        for _ in range(29):
+            resp = client.get(_image_url(transcription_3p), headers=headers_a)
+            assert resp.status_code == 200
+            assert resp.content == payload
+
+    assert downloads["n"] == 1, (
+        f"expected ONE GCS download across 30 card loads, got {downloads['n']}")
+
+
+def test_the_webp_thumbnail_is_far_smaller_than_the_review_png(
+        client, headers_a, transcription_3p):
+    """The reason this resource exists at all. On the synthetic 3-page fixture
+    the ratio is smaller than on real scans (1168 KB -> 33.6 KB there), but the
+    direction is the whole claim and must hold."""
+    from app.services import page_cache
+    page_cache.clear()
+    webp = _get_image(client, headers_a, transcription_3p).content
+    png_b64 = _get_page(client, headers_a, transcription_3p, 1).json()["thumbnail_base64"]
+    assert len(webp) < len(png_b64), (
+        f"thumbnail {len(webp)} B is not smaller than the review image "
+        f"{len(png_b64)} B — the resource has no reason to exist")
+
+
+def test_json_page_proxy_bytes_are_unchanged(client, headers_a, transcription_3p):
+    """The variant-key change must not move the JSON proxy's payload by a byte."""
+    from app.services import page_cache
+    page_cache.clear()
+    expected = [image_to_base64(img) for img in pdf_to_images(THREE_PAGE_PDF, 150)]
+    for page_number in (1, 2, 3):
+        resp = _get_page(client, headers_a, transcription_3p, page_number)
+        assert resp.status_code == 200
+        assert resp.json()["thumbnail_base64"] == expected[page_number - 1]
+
+
+def test_the_two_resources_do_not_answer_for_each_other(
+        client, headers_a, transcription_3p):
+    """Cache-namespace isolation, end to end: warming one must not populate the
+    other, and neither may return the other's bytes."""
+    from app.services import page_cache
+    page_cache.clear()
+    _get_image(client, headers_a, transcription_3p)          # warm webp only
+
+    with _patch_gcs() as mock_gcs:
+        mock_gcs.return_value.download_bytes.return_value = THREE_PAGE_PDF
+        json_resp = client.get(
+            f"/api/v0/transcriptions/{transcription_3p}/pages/1", headers=headers_a)
+    assert json_resp.status_code == 200
+    body = json_resp.json()["thumbnail_base64"]
+    assert base64.b64decode(body)[:4] == b"\x89PNG", (
+        "the JSON proxy answered with the WebP thumbnail's bytes")
+
+
+# --- the variant value type, unit ------------------------------------------
+
+def test_variant_token_round_trips_and_rejects_junk():
+    v = thumbnail.current_variant()
+    assert thumbnail.ThumbVariant.parse(v.token) == v
+    assert v.cache_variant.startswith("webp@")
+    for bad in ("", "600x72", "600x72@", "x@", "600x200@110", "600x72@110extra",
+                "999999x72@110", "600x0@110"):
+        assert thumbnail.ThumbVariant.parse(bad) is None, bad
+
+
+def test_resolve_variant_separates_pinned_from_unpinned_from_unknown():
+    current = thumbnail.current_variant()
+    assert thumbnail.resolve_variant(current.token) == (current, True)
+    assert thumbnail.resolve_variant(None) == (current, False)
+    assert thumbnail.resolve_variant("") == (current, False)
+    assert thumbnail.resolve_variant("601x72@110") == (None, False)
+
+
+def test_an_unparseable_legacy_variant_is_dropped_not_fatal():
+    """A config typo must not take the route down; it is logged and skipped,
+    and the current variant is always present and can never be excluded."""
+    from app.config import settings as s
+    original = s.page_thumb_legacy_variants
+    try:
+        s.page_thumb_legacy_variants = ["not-a-token", "300x72@72"]
+        allowed = thumbnail.allowed_variants()
+        assert thumbnail.current_variant() in allowed
+        assert thumbnail.ThumbVariant(300, 72, 72) in allowed
+        assert len(allowed) == 2
+    finally:
+        s.page_thumb_legacy_variants = original
+
+
+def test_page_image_path_is_relative_and_carries_the_live_variant():
+    path = thumbnail.page_image_path("abc-123")
+    assert path.startswith("/api/v0/transcriptions/abc-123/pages/1/image?v=")
+    assert path.endswith(thumbnail.current_variant().token)
