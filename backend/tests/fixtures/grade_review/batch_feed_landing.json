@@ -37,7 +37,8 @@
       "total_awarded": null,
       "look_count": null,
       "audit_touched": "none",
-      "returned_exam_state": "none"
+      "returned_exam_state": "none",
+      "page1_image_url": "/api/v0/transcriptions/55555555-5555-4555-8555-000000000000/pages/1/image?v=600x72@110"
     },
     {
       "graded_test_id": "44444444-4444-4444-8444-000000000001",
@@ -50,7 +51,8 @@
       "total_awarded": null,
       "look_count": null,
       "audit_touched": "none",
-      "returned_exam_state": "none"
+      "returned_exam_state": "none",
+      "page1_image_url": "/api/v0/transcriptions/55555555-5555-4555-8555-000000000001/pages/1/image?v=600x72@110"
     },
     {
       "graded_test_id": "44444444-4444-4444-8444-000000000002",
@@ -63,7 +65,8 @@
       "total_awarded": null,
       "look_count": null,
       "audit_touched": "none",
-      "returned_exam_state": "none"
+      "returned_exam_state": "none",
+      "page1_image_url": "/api/v0/transcriptions/55555555-5555-4555-8555-000000000002/pages/1/image?v=600x72@110"
     },
     {
       "graded_test_id": "44444444-4444-4444-8444-000000000003",
@@ -76,7 +79,8 @@
       "total_awarded": null,
       "look_count": null,
       "audit_touched": "none",
-      "returned_exam_state": "none"
+      "returned_exam_state": "none",
+      "page1_image_url": "/api/v0/transcriptions/55555555-5555-4555-8555-000000000003/pages/1/image?v=600x72@110"
     },
     {
       "graded_test_id": "44444444-4444-4444-8444-000000000004",
@@ -89,7 +93,8 @@
       "total_awarded": null,
       "look_count": null,
       "audit_touched": "none",
-      "returned_exam_state": "none"
+      "returned_exam_state": "none",
+      "page1_image_url": null
     }
   ],
   "eta": {

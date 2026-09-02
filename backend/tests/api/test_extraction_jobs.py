@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from pydantic import SecretStr
 from sqlalchemy import delete, text
 
 from app.models.rubric_extraction_job import RubricExtractionJob
@@ -168,7 +169,7 @@ def test_internal_run_rejected_without_credentials(client):
 
 def test_internal_run_rejected_with_bad_shared_secret(client):
     with patch("app.services.cloud_tasks_service.settings") as s:
-        s.internal_task_token = "right-token"
+        s.internal_task_token = SecretStr("right-token")
         resp = client.post(
             f"/internal/extraction-jobs/{uuid4()}/run",
             headers={"X-Internal-Token": "wrong-token"},

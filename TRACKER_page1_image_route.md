@@ -24,10 +24,10 @@ Legend: ☐ todo · ◐ in progress · ☑ done+verified · ⊘ deliberately not
 
 | # | Item | §6 | State |
 |---|---|---|---|
-| 1b.1 | `app/schemas/batch.py` — `page1_image_url: Optional[str] = None` + ⟨N1⟩⟨N2⟩ docstring | 1 | ☐ |
-| 1b.2 | `app/api/v0/batch_grading.py` — `_build_graded_feed` gains `page_counts`; mints the URL | 2 | ☐ |
-| 1b.3 | `scripts/gen_batch_feed_fixtures.py` — `_item()` emits the field | 7 | ☐ |
-| 1b.4 | `tests/fixtures/grade_review/batch_feed_*.json` — regenerated (4 files) | 8 | ☐ |
+| 1b.1 | `app/schemas/batch.py` — `page1_image_url: Optional[str] = None` + ⟨N1⟩⟨N2⟩ docstring | 1 | ☑ |
+| 1b.2 | `app/api/v0/batch_grading.py` — `_build_graded_feed` gains `page_counts`; mints the URL | 2 | ☑ |
+| 1b.3 | `scripts/gen_batch_feed_fixtures.py` — `_item()` emits the field | 7 | ☑ |
+| 1b.4 | `tests/fixtures/grade_review/batch_feed_*.json` — regenerated (4 files) | 8 | ☑ |
 
 **Gate 1b:** feed tests · fixture byte-identity · regenerate-is-a-no-op · **code review**.
 
@@ -60,9 +60,9 @@ not phase 1. The seam (1c.2) is what F1 consumes.
 
 | Test | Phase | State |
 |---|---|---|
-| `page1-image-url-present-on-every-graded-item` | 1b | ☐ |
-| `page1-image-url-omitted-when-there-is-no-page-1` | 1b | ☐ |
-| `page1-image-url-carries-the-live-variant-token` | 1b | ☐ |
+| `page1-image-url-present-on-every-graded-item` | 1b | ☑ |
+| `page1-image-url-omitted-when-there-is-no-page-1` | 1b | ☑ |
+| `page1-image-url-carries-the-live-variant-token` | 1b | ☑ |
 | `page-image-returns-webp-bytes-not-json` | 1a | ☑ |
 | `page-image-sets-immutable-cache-headers-only-with-a-variant` | 1a | ☑ |
 | `page-image-refuses-an-unknown-variant-token` | 1a | ☑ |
@@ -80,8 +80,8 @@ not phase 1. The seam (1c.2) is what F1 consumes.
 | # | Gate | State |
 |---|---|---|
 | 1 | `import app.main` + `pytest --collect-only` clean | ☑ 1a |
-| 2 | the four backend test files green | ☐ |
-| 3 | fixture regeneration is a no-op | ☐ |
+| 2 | the four backend test files green | ☑ 1a+1b (67+13+6+44) |
+| 3 | fixture regeneration is a no-op | ☑ 1b (hash-compared) |
 | 4 | `npm run gen:api` committed · `tsc --noEmit` · `vitest run` | ☐ |
 | 5 | `PIL.features.check("webp")` **inside the built image** | ☐ |
 | 6 | one thumbnail eyeballed at the pinned settings | ☑ done pre-plan (§4.3) |
@@ -120,3 +120,26 @@ anywhere; `PAGE_RENDER_DPI == 150` is still asserted by
 `test_transcription_endpoints.py` and still true. OpenAPI re-dumped: the new
 route emits `content: {"image/webp": {}}` with a unique operationId, `v` as an
 optional query param, and both page paths coexisting.
+
+### F-4 (phase 1b gate) — PRE-EXISTING red tests, OUT OF PLAN SCOPE · fixed
+
+`pytest tests/api/test_batch_grading.py` was already failing two tests before any
+of this work — **verified by stashing every backend change and reproducing**. Not
+caused by phase 1a or 1b, and not predicted by the plan.
+
+Cause: `settings.internal_task_token` is declared `Optional[SecretStr]` and
+`cloud_tasks_service.verify_task_request` correctly calls `.get_secret_value()`,
+but **three test sites assigned a bare `str`** to it (fallout from the earlier
+SecretStr pass), so the `/internal` auth path raised
+`AttributeError: 'str' object has no attribute 'get_secret_value'`.
+
+**The production code is right and the tests were lying about the type**, so the
+tests are what changed (`SecretStr("sekret")`). The tempting alternative —
+`getattr(x, "get_secret_value", lambda: x)()` in `verify_task_request` — is
+precisely the "defensive `getattr` at a type boundary converts a loud failure
+into a quiet lie" anti-pattern CLAUDE.md §6 names, and in the `/internal` auth
+path of all places.
+
+Fixed rather than filed because a red suite makes every later phase gate
+meaningless. Scope kept to the three assignments; nothing in `app/` changed.
+`tests/api/test_batch_grading.py` + `test_extraction_jobs.py`: **67 passed**.

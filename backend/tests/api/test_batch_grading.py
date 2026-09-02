@@ -22,6 +22,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 from app.main import app
 from app.schemas.transcription import TranscriptionDraft, TranscriptionDraftAnswer, TranscriptionAnnotation
@@ -1240,7 +1241,7 @@ def test_internal_transcription_run_auth_and_dispatch(client):
     assert resp.status_code == 403
 
     runner_mock = AsyncMock(return_value=True)
-    with patch.object(app_settings, "internal_task_token", "sekret"), \
+    with patch.object(app_settings, "internal_task_token", SecretStr("sekret")), \
          patch("app.services.transcription_job_runner.run_transcription_job",
                runner_mock):
         resp = client.post(f"/internal/transcription-jobs/{job_id}/run",
@@ -1325,7 +1326,7 @@ def test_internal_grading_run_auth_and_dispatch(client):
     assert resp.status_code == 403
 
     runner_mock = _AsyncMock(return_value=True)
-    with patch.object(app_settings, "internal_task_token", "sekret"),          patch("app.services.grading_runner.run_grading", runner_mock):
+    with patch.object(app_settings, "internal_task_token", SecretStr("sekret")),          patch("app.services.grading_runner.run_grading", runner_mock):
         resp = client.post(f"/internal/grading-jobs/{gt_id}/run",
                            headers={"X-Internal-Token": "sekret"})
     assert resp.status_code == 200

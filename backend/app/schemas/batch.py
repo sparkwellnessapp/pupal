@@ -151,6 +151,27 @@ class BatchGradedItem(BaseModel):
     audit_touched: Literal["none", "updated", "reapprove"] = "none"
     # [G9] no returned exam is rendered yet
     returned_exam_state: Literal["none", "rendering", "ready", "stale"] = "none"
+    # [PR-G8] The card's page-1 thumbnail. Three things about this value:
+    #
+    # 1. It is a RELATIVE PATH, and the name says `url` — spec §1.5's name,
+    #    kept so the wire keeps matching the ratified spec rather than renamed
+    #    into disagreement with it. `apiFetchRaw` prefixes NEXT_PUBLIC_API_URL;
+    #    an absolute URL here would bake the environment into the payload.
+    # 2. ⚠ Usable ONLY through the client seam. Dropped into a bare `<img src>`
+    #    it resolves against the FRONTEND origin and 404s from Next — NOT a 401
+    #    from the API — which sends whoever is debugging it to the wrong
+    #    service. Auth here is `Authorization: Bearer`, which a browser image
+    #    request does not send (PLAN §3, ruling B1: the client fetches through
+    #    the seam and renders an object URL).
+    # 3. It carries a variant token (`?v=600x72@110`) that pins the render
+    #    settings, because the route answers with a year-long `immutable`. A
+    #    settings change mints a NEW url rather than leaving browsers holding
+    #    stale bytes for a year with no way to bust them.
+    #
+    # None when the test's transcription has no page 1 — degrade by OMISSION
+    # (§3.5a). A url known to 404 renders a broken-image glyph, which reads as
+    # "this test is damaged" rather than "we have no preview".
+    page1_image_url: Optional[str] = None
 
     @field_serializer("total_awarded")
     def _sd(self, v):

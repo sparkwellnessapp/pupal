@@ -987,7 +987,16 @@ async def get_batch(
             scope_count = _count_leaf_scopes(rubric.contract_json)
     except Exception:                                # noqa: BLE001
         scope_count = 0
-    graded_feed, graded_eta = _build_graded_feed(list(graded_tests), scope_count)
+    # [PR-G8] Page-1 thumbnail addressing. Costs NO query: these rows are the
+    # ones already loaded above, and `page_count` is the same figure the page
+    # routes range-check against — so the feed cannot offer a url the route
+    # would 404.
+    page_counts = {
+        str(t.id): int((t.draft_json or {}).get("page_count") or 0)
+        for t in transcriptions
+    }
+    graded_feed, graded_eta = _build_graded_feed(
+        list(graded_tests), scope_count, page_counts)
     return BatchDetailResponse(
         selection_groups=selection_groups,
         transcription_failures=failure_items,
@@ -1025,7 +1034,8 @@ def _count_leaf_scopes(contract_json: dict) -> int:
     return sum(leaves(q) for q in (contract_json.get("questions") or []))
 
 
-def _build_graded_feed(graded_tests, rubric_contract_scope_count: int):
+def _build_graded_feed(graded_tests, rubric_contract_scope_count: int,
+                       page_counts: dict[str, int] | None = None):
     """[PR-G8, §1.5] The grading half of the batch feed, plus the ETA.
 
     `total_awarded` is the EFFECTIVE (overlay-priced) figure — the pencil number
@@ -1038,8 +1048,10 @@ def _build_graded_feed(graded_tests, rubric_contract_scope_count: int):
     from app.schemas.batch import BatchEta, BatchGradedItem
     from app.services.eta import estimate_eta
     from app.services.look_count import look_count
+    from app.services.thumbnail import page_image_path
     from app.schemas.graded_test_draft import GradedTestDraft
 
+    page_counts = page_counts or {}
     items, landed = [], []
     for gt in graded_tests:
         looks = None
@@ -1066,6 +1078,13 @@ def _build_graded_feed(graded_tests, rubric_contract_scope_count: int):
             opened_at=gt.opened_at.isoformat() if gt.opened_at else None,
             total_awarded=gt.total_score,
             look_count=looks,
+            # Omitted — not guessed — when this test's transcription has no
+            # page 1 (§3.5a). Offering a url the route would 404 renders a
+            # broken-image glyph, which reads as "this test is damaged".
+            page1_image_url=(
+                page_image_path(gt.transcription_id, 1)
+                if page_counts.get(str(gt.transcription_id), 0) >= 1 else None
+            ),
         ))
 
     profile = (settings.latency_profile or {}).get(settings.grader_model_key or "")

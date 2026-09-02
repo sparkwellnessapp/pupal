@@ -32,6 +32,7 @@ sys.path.insert(0, str(ROOT))
 from app.schemas.batch import (  # noqa: E402
     BatchDetailResponse, BatchEta, BatchGradedItem, BatchRollup,
 )
+from app.services.thumbnail import page_image_path  # noqa: E402
 
 OUT = ROOT / "tests" / "fixtures" / "grade_review"
 
@@ -43,16 +44,28 @@ STUDENTS = [
     for i, name in enumerate(
         ["דן בסיוק", "דין עזרא", "מורן אהרון", "עומר גלבר", "יונתן בסיוק"])
 ]
+# The transcription each graded test came from — what the page-1 thumbnail url
+# addresses. Distinct from the graded_test_id: a regrade extends the chain with
+# a NEW graded test over the SAME transcription, so conflating them would put
+# the wrong id in the url the day the fixtures cover a revision.
+TRANSCRIPTIONS = [UUID("55555555-5555-4555-8555-00000000000%d" % i)
+                  for i in range(5)]
 
 
-def _item(idx, status, *, awarded=None, looks=None, landed=None, opened=None):
+def _item(idx, status, *, awarded=None, looks=None, landed=None, opened=None,
+          page1=True):
     sid, name = STUDENTS[idx]
+    # [PR-G8] The url is MINTED, not spelled out, so the fixture carries the
+    # live variant token and a settings change shows up here as a diff rather
+    # than as a fixture quietly describing a url the backend stopped issuing.
+    tid = TRANSCRIPTIONS[idx]
     return BatchGradedItem(
         graded_test_id=UUID("44444444-4444-4444-8444-00000000000%d" % idx),
         student_id=sid, student_name=name, status=status, version=1,
         landed_at=landed, opened_at=opened,
         total_awarded=None if awarded is None else Decimal(str(awarded)),
-        look_count=looks)
+        look_count=looks,
+        page1_image_url=page_image_path(tid, 1) if page1 else None)
 
 
 def _detail(name, *, items, eta, status):
@@ -77,7 +90,12 @@ STATES = {
     # the model's measured p50 — never a constant.
     "landing": _detail(
         "מבחן מחצית ב'",
-        items=[_item(i, "grading") for i in range(5)],
+        # The last item carries page1_image_url = null: the transcription has no
+        # page 1, so the feed OMITS the url rather than offering one the route
+        # would 404 (§3.5a). It is on a `grading` item on purpose — the omission
+        # is INDEPENDENT of status, and putting it on the `failed` item would
+        # teach the client a correlation that does not exist.
+        items=[_item(i, "grading", page1=i < 4) for i in range(5)],
         eta=BatchEta(kind="first_landing", seconds=204),
         status="grading"),
 
