@@ -1,6 +1,8 @@
 # PLAN — `page1_image_url`: a real WebP page-image route
 
-**Status:** **APPROVED to build** — owner verdict 2026-09-02 ("strong plan, ship it"), with three
+**Status:** **BUILT** (2026-09-02) — phases 1a/1b/1c/2 complete; see
+`TRACKER_page1_image_route.md` for the per-row state and findings F-1..F-10.
+APPROVED to build — owner verdict 2026-09-02 ("strong plan, ship it"), with three
 corrections and four smaller notes applied below. **Owner directive 2026-09-02:** option (b) —
 "a real `page1_image_url` image route returning `image/webp` bytes with immutable cache headers,
 and putting its path in the field."

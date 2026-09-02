@@ -132,3 +132,30 @@ def test_byte_accounting_does_not_drift_under_concurrent_use():
     assert page_cache.total_bytes() == truth, (
         f"accounting drifted: reported {page_cache.total_bytes()}, actual {truth}")
     assert page_cache.total_bytes() <= settings.page_cache_max_bytes
+
+
+def test_the_boot_check_reports_webp_availability(caplog):
+    """§8 gate 5 could not be run inside the image in this session (no Docker),
+    so it became a RUNTIME guarantee instead of a one-time check — which is
+    strictly better: it re-verifies on every boot of every revision.
+
+    Pillow's WebP support is a compile-time option, so the wheel on a laptop can
+    have it while the one in the image does not, and the failure is silent until
+    a teacher loads a dashboard and every card 502s. Same shape as PR-G9's
+    vendored Hebrew font: perfect locally, tofu on Cloud Run.
+    """
+    import logging
+    from app.services import thumbnail
+
+    with caplog.at_level(logging.INFO, logger="app.services.thumbnail"):
+        assert thumbnail.log_capability_on_boot() is True, (
+            "this environment cannot encode WebP — every thumbnail would 502")
+    assert "THUMBNAIL OK" in caplog.text
+
+    # and it SAYS SO when the encoder is missing, rather than failing silently
+    caplog.clear()
+    import unittest.mock as mock
+    with mock.patch.object(thumbnail, "webp_available", return_value=False):
+        with caplog.at_level(logging.ERROR, logger="app.services.thumbnail"):
+            assert thumbnail.log_capability_on_boot() is False
+    assert "THUMBNAIL UNAVAILABLE" in caplog.text

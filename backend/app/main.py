@@ -82,6 +82,15 @@ async def lifespan(app: FastAPI):
     )
     asyncio.create_task(sweep_grading_runs())
     logger.info("Database initialization started in background")
+
+    # Pillow's WebP support is a COMPILE-TIME option, so the wheel on a laptop
+    # can have it while the one in the image does not — and the failure is
+    # silent until a teacher loads a dashboard and every card 502s. Same lesson
+    # as PR-G9's vendored Hebrew font: perfect locally, tofu on Cloud Run. Logs
+    # like verify_schema_head and never crashes; a thumbnail is not a reason to
+    # refuse to serve grading.
+    from .services.thumbnail import log_capability_on_boot
+    log_capability_on_boot()
     
     # Start temp storage cleanup worker (capture task for cancellation)
     cleanup_task = start_cleanup_worker()

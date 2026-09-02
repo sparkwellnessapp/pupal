@@ -150,6 +150,40 @@ def resolve_variant(token: Optional[str]) -> Tuple[Optional[ThumbVariant], bool]
     return variant, True
 
 
+def webp_available() -> bool:
+    """Can this interpreter actually encode WebP?
+
+    NOT a formality. Pillow's WebP support is a COMPILE-TIME option: the wheel
+    on a developer's laptop can have it while the one installed into the image
+    does not, and the failure mode is silent until a teacher loads a dashboard
+    and every card 502s. The vendored-Hebrew-font lesson exactly (PR-G9: perfect
+    on a laptop, tofu on Cloud Run), so it is checked where it matters — in the
+    running process — rather than trusted from a local check.
+    """
+    try:
+        from PIL import features
+        return bool(features.check("webp"))
+    except Exception:                                  # pragma: no cover
+        return False
+
+
+def log_capability_on_boot() -> bool:
+    """Say so, loudly, at startup. Follows `verify_schema_head`'s discipline: it
+    LOGS and never crashes, because a degraded thumbnail is not a reason to
+    refuse to serve grading."""
+    ok = webp_available()
+    if ok:
+        logger.info("THUMBNAIL OK: WebP encoder available (%s)",
+                    current_variant().token)
+    else:
+        logger.error(
+            "THUMBNAIL UNAVAILABLE: this Pillow build cannot encode WebP, so "
+            "every page-1 card thumbnail will fail. Check the Pillow wheel in "
+            "the image (PIL.features.check('webp'))."
+        )
+    return ok
+
+
 def render_page_thumbnail(
     pdf_bytes: bytes,
     page_number: int,

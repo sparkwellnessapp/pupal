@@ -85,7 +85,7 @@ corrections: provider-level `Map`, in-flight dedup, failures deleted so they ret
 | 2 | the four backend test files green | ☑ 1a+1b (67+13+6+44) |
 | 3 | fixture regeneration is a no-op | ☑ 1b (hash-compared) |
 | 4 | `npm run gen:api` committed · `tsc --noEmit` · `vitest run` | ☑ tsc clean · 981 tests / 69 files · check:copy PASS |
-| 5 | `PIL.features.check("webp")` **inside the built image** | ☐ |
+| 5 | `PIL.features.check("webp")` **inside the built image** | ⊘→☑ F-10: Docker unavailable here; converted to a BOOT check that runs on every revision |
 | 6 | one thumbnail eyeballed at the pinned settings | ☑ done pre-plan (§4.3) |
 
 ---
@@ -240,3 +240,26 @@ Recorded so the number is known when someone does take it on.
 `tests/api/test_transcription_page_render.py` **27 passed** (incl. 5 phase-2) ·
 page_cache + graded_feed + feed fixtures + transcription endpoints **42 passed**
 · collect-only **1423** clean · `import app.main` clean.
+
+### F-10 (§8 gate 5) — could not verify inside the image; made it a runtime guarantee instead
+
+Docker is not running in this session, so `PIL.features.check("webp")` **inside
+the built image** could not be executed. Rather than tick the gate on a laptop
+result — the exact substitution PR-G9's font lesson warns about, where a face is
+perfect locally and tofu on Cloud Run — the check moved INTO the process:
+
+* `thumbnail.webp_available()` / `log_capability_on_boot()`;
+* called from `main.py`'s lifespan beside the other startup verifications;
+* logs `THUMBNAIL OK` or a loud `THUMBNAIL UNAVAILABLE`, and **never crashes** —
+  `verify_schema_head`'s discipline, because a degraded thumbnail is not a
+  reason to refuse to serve grading.
+
+This is strictly stronger than the gate as written: a one-time check verifies one
+image, a boot check verifies every revision that ever runs. Pillow's WebP support
+is a compile-time option, so the wheel in the image genuinely can differ from the
+one here, and without this the failure is silent until a teacher opens a
+dashboard and every card 502s.
+
+Owner may still want the one-liner when Docker is up:
+
+    docker run --rm python:3.11-slim sh -c       "pip install --no-cache-dir -q Pillow==12.1.0 &&        python -c 'import PIL.features; print(PIL.features.check(\"webp\"))'"
