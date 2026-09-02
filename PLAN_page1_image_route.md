@@ -1,8 +1,16 @@
 # PLAN — `page1_image_url`: a real WebP page-image route
 
-**Status:** proposed, awaiting one owner ruling (§3). **Owner directive 2026-09-02:** option (b) —
+**Status:** **APPROVED to build** — owner verdict 2026-09-02 ("strong plan, ship it"), with three
+corrections and four smaller notes applied below. **Owner directive 2026-09-02:** option (b) —
 "a real `page1_image_url` image route returning `image/webp` bytes with immutable cache headers,
 and putting its path in the field."
+
+> **Corrections applied (owner verdict, 2026-09-02).** They are marked ⟨C1⟩⟨C2⟩⟨C3⟩⟨N1..N4⟩ where
+> they land, so a later reader sees a ruling rather than an inconsistency to "clean up".
+> **C1 was a real bug in rev 1**: `immutable` on a URL that carried no variant, while the render
+> settings were config-tunable and §8 expected them to move — a year-long stale-bytes trap with no
+> bust short of changing the URL. **C3 is a deliberate owner amendment** to the `registry.ts`
+> refuse-a-missing-fixture rule; the reasoning is recorded at §6 item 16 rather than left implicit.
 **Closes:** the last unimplemented half of PR-G8's §1.5 deliverable, and the frontend agent's
 blocker #1 on `PR_SPEC_frontend_grade_review.md` (`Pile`/`PileCard`).
 
@@ -63,9 +71,7 @@ the new thing fit" move §0.5 forbids.
 
 ---
 
-## 3. THE OPEN DECISION — how the browser authenticates the image GET
-
-**This blocks nothing else in the plan, but it must be ruled before the frontend half is written.**
+## 3. ~~THE OPEN DECISION~~ — RULED: B1 (owner, 2026-09-02)
 
 Every domain endpoint in this codebase authenticates with `Authorization: Bearer <jwt>` via
 `HTTPBearer` (§9). There is no cookie auth anywhere. **A browser `<img src="/api/v0/…">` sends no
@@ -80,16 +86,21 @@ other byte-serving route and its client half is not built yet.
 | **B2 — signed capability URL** | feed mints `…/image?sig=<HMAC(tid,page,uid)>`; route accepts the signature instead of a session | yes | yes (URL is stable) | **new bearer-capability surface**: anyone holding the URL sees a student's exam page, with no revocation |
 | **B3 — GCS signed URL** | field carries a signed GCS URL; browser talks to GCS directly | yes | **no** — the signature rotates every 5 s poll, so the `src` changes and the browser re-downloads every time | exposes bucket + object naming; time-bounded |
 
-**Recommendation: B1.** It is the only one that leaves §9 literally true, it keeps the immutable
-cache header doing real work, and the ~15 lines of client code it needs (one hook, `revokeObjectURL`
-on unmount) are the same pattern D8/D9's ZIP download will need anyway — so it is a seam the
-frontend owes itself regardless. B3 is actively counter-productive here: it defeats the caching
-that is the whole point. B2 is the only one that makes a bare `<img src>` work, and it buys that by
-creating an unrevocable capability URL for a page of a named student's exam — which is the category
-`CLAUDE.md` §2 says does not ship without an explicit ruling.
+**RULED: B1.** It is the only one that leaves §9 literally true and keeps the immutable cache header
+doing real work, and the client pattern it needs is one D8/D9's ZIP download will need anyway.
+B3 is counter-productive: it defeats the caching that is the whole point.
 
-**The plan below assumes B1** and is written so that switching to B2 later changes only the URL
-built in `_build_graded_feed` plus one dependency on the route — no schema, no client-shape change.
+**Why B2 is not close (owner, 2026-09-02 — this is stronger than rev 1 stated).** The cost is not
+merely "an unrevocable capability URL". A URL that *is* the credential for a named student's exam
+page lands in **browser history, `Referer` headers, corporate/school proxy logs, and any screenshot
+of devtools** — and a school network is precisely the environment where all four are retained. §2:
+a feature that risks student privacy does not exist. There is no version of B2 that survives that.
+
+**⟨C1⟩ B1's own cost, named:** you lose `<img loading="lazy">`, because the `src` is a blob URL the
+client already had to fetch. Thirty cards therefore fetch **eagerly** — ~1.0 MB, fine on bytes, but
+thirty requests on a school connection for a grid that is mostly below the fold. **Gate the fetch on
+an `IntersectionObserver`** (~10 lines, reuses the same provider cache from ⟨C2⟩). **F1 work, not a
+phase-1 blocker** — the plan records it so it is not rediscovered as a surprise.
 
 ---
 
@@ -98,9 +109,32 @@ built in `_build_graded_feed` plus one dependency on the route — no schema, no
 ### 4.1 The route
 
 ```
-GET /api/v0/transcriptions/{transcription_id}/pages/{page_number}/image
+GET /api/v0/transcriptions/{transcription_id}/pages/{page_number}/image?v=600x72@110
     → 200 image/webp  ·  Cache-Control: private, max-age=31536000, immutable
 ```
+
+**⟨C1⟩ The variant token `v` is load-bearing, and rev 1 was wrong without it.** `immutable` on a URL
+that named no variant, while §4.3 pins width/quality/dpi as *config tunables* and §8's own gate 6
+expects to eyeball a thumb "before the numbers are frozen", is a year-long trap: change
+`page_thumb_width_px` 600→800 and every browser that already cached a thumb keeps the old bytes for
+a year — with `immutable` instructing it not even to revalidate. There is no bust short of changing
+the URL. So the URL carries the variant:
+
+* Token grammar `{width}x{quality}@{dpi}`, minted **server-side** in `_build_graded_feed` from the
+  live settings. The client never constructs one, so the server stays in control of the resource
+  space and a settings change simply mints a new resource while the old one ages out harmlessly.
+* The route resolves **both** the render settings **and** the cache key from the token, so the URL
+  and the cache key cannot disagree.
+* **The token is not a free parameter.** It must be in the allow-set — current settings ∪
+  `page_thumb_legacy_variants` (empty by default, populated only to keep serving a retired variant
+  deliberately). An unrecognised or malformed token is **404**, the same vocabulary the route
+  already uses for "no such resource"; this closes the obvious injection (`?v=20000x100@600` is a
+  render-bomb, not a cache key). A teacher holding a payload minted seconds before a deploy can see
+  one broken tick; the next 5 s poll heals it.
+* **Invariant: `immutable` is sent only when the URL pins the bytes.** A request with **no** `v`
+  renders at current settings and answers `Cache-Control: private, max-age=60` — no `immutable` —
+  because that URL makes no promise about which variant it returns. Keeps a bare URL usable for
+  debugging without letting it lie.
 
 **Path shape is deliberate.** A `.webp` *suffix* on the existing route (`…/pages/1.webp`) would be a
 trap: `page_number` is typed `int`, so `1.webp` fails validation with **422 and does not fall
@@ -122,11 +156,19 @@ without a schema entry — so codegen is a no-op beyond the new `BatchGradedItem
 ### 4.2 Cache
 
 `page_cache` generalises from `(tid, page, dpi) → str` to `(tid, page, variant) → bytes | str`,
-where `variant` is `"png-b64@150"` (the review path, unchanged behaviour) or `"webp@600"`.
+where `variant` is `"png-b64@150"` (the review path, unchanged behaviour) or the ⟨C1⟩ token
+(`"webp@600x72@110"`) — so the cache key, the URL, and the bytes are one fact in three places
+rather than three that can drift.
 
 Bound becomes **`MAX_BYTES` (default 64 MiB)**, evicting LRU until under budget, with `len()` of the
 value as the charge. `MAX_ENTRIES` is removed, not merely lowered: the entry count was never the
 memory bound and pretending otherwise is what hid §2.
+
+**⟨N3⟩ One shared budget has a concrete bad case, and it is accepted.** Review pages are ~1.1 MB
+each, so **≈58 of them — about ten tests reviewed back to back — evict every thumb**, and the next
+dashboard load re-renders thirty at 259 ms ≈ **7.8 s**. Separate per-variant budgets would fix it
+and are deliberately NOT taken: phase 2 makes it moot (the thumb comes from GCS, not from a render),
+and two budgets is two numbers to keep true for a window that closes.
 
 ### 4.3 Rendering
 
@@ -158,8 +200,18 @@ verification step re-checks inside the image rather than assuming.
 page1_image_url: Optional[str] = None
 ```
 
-A **relative path** (`/api/v0/transcriptions/{tid}/pages/1/image`), because `apiFetchRaw` already
-prefixes `NEXT_PUBLIC_API_URL`; an absolute URL here would hard-code the environment into a payload.
+A **relative path** (`/api/v0/transcriptions/{tid}/pages/1/image?v=600x72@110`), because
+`apiFetchRaw` already prefixes `NEXT_PUBLIC_API_URL`; an absolute URL here would hard-code the
+environment into a payload.
+
+Two things go in the field's docstring, because both will otherwise be rediscovered the hard way:
+
+* **⟨N1⟩ Usable ONLY through the seam.** Dropped into a bare `<img src>` this resolves against the
+  **frontend** origin, so it 404s from Next — *not* a 401 from the API. Someone debugging that would
+  reasonably conclude the route is broken or unregistered, and go looking in the wrong service.
+* **⟨N2⟩ The name says `url` and the value is a path.** That is spec §1.5's name and it stays, so
+  the wire keeps matching the ratified spec; the docstring is where the disagreement gets resolved
+  rather than by a rename that would put the payload and the spec out of step.
 
 `None` when the test's transcription has no page 1 — **degrade by omission (§3.5a)**: a URL that is
 known to 404 produces a broken-image glyph, which reads as "this test is damaged" rather than "we
@@ -198,7 +250,7 @@ Phase 2 is separable and **should not gate the frontend**. It touches only step 
 | 3 | `app/api/v0/transcription.py` | new route; existing route's two `page_cache` calls take the new variant key | **the existing route's bytes must not change** — pinned by the byte-equality test |
 | 4 | `app/services/page_cache.py` | variant key; `MAX_BYTES` replaces `MAX_ENTRIES`; value `bytes \| str` | §2 — this is the memory fix |
 | 5 | `app/services/thumbnail.py` **(new)** | `render_page_thumbnail` | pure |
-| 6 | `app/config.py` | `page_thumb_width_px=600`, `page_thumb_quality=72`, `page_thumb_render_dpi=110`, `page_cache_max_bytes=67108864` | defaults only; no Cloud Run env change needed |
+| 6 | `app/config.py` | `page_thumb_width_px=600`, `page_thumb_quality=72`, `page_thumb_render_dpi=110`, `page_cache_max_bytes=67108864`, ⟨C1⟩ `page_thumb_legacy_variants: list[str] = []` | defaults only; no Cloud Run env change needed. **Changing any of the first three mints a new URL** — that is ⟨C1⟩ working |
 | 7 | `scripts/gen_batch_feed_fixtures.py` | `_item()` emits `page1_image_url` | fixtures regenerate |
 | 8 | `tests/fixtures/grade_review/batch_feed_{landing,running,done,complete}.json` | **regenerated** — `test_fixture_is_byte_identical_to_a_fresh_generation` fails until they are | the diff *is* the frontend's breaking-change notice |
 | 9 | Phase 2 only: `app/services/thumbnail.py` + the route | GCS get/put around the render | `gcs_service.upload_bytes`/`download_bytes` already exist — **no `gcs_service.py` change** |
@@ -217,9 +269,40 @@ Phase 2 is separable and **should not gate the frontend**. It touches only step 
 |---|---|---|---|
 | 13 | `src/lib/api-types.ts` | **REGENERATED** via `npm run gen:api`. Never hand-edited | `.github/workflows/api-types-drift.yml` fails until committed |
 | 14 | `src/lib/api.ts` | `fetchPageImageObjectUrl(path)` on the seam (B1) — `apiFetchRaw` → `blob()` → `createObjectURL`; **no auto-retry** | must not go through `apiFetch<T>` (that JSON-parses the body) |
-| 15 | `src/components/grade-review/Pile*` | consume the field; revoke the object URL on unmount; Hebrew `alt` | F-phase work, the frontend agent's |
-| 16 | `src/mocks/grade_review/handlers.ts` | a handler for the image path. The fixtures carry **no image bytes**, so it must **refuse explicitly** (`notPublished`), never invent a placeholder — `registry.ts`'s stated rule | inventing bytes here is the "adapting to a backend gap" the spec forbids |
-| 17 | `e2e/gradeReviewFixtures.ts` | route mock for the image path |
+| 15 | grade-review **provider** + `Pile*` | ⟨C2⟩ **provider-level** `Map<url, Promise<objectUrl>>`, NOT a per-card hook; `IntersectionObserver` gate ⟨C1⟩; Hebrew `alt` | see ⟨C2⟩ below — the naive shape churns 30 blobs every 5 s |
+| 16 | `src/mocks/grade_review/handlers.ts` | ⟨C3⟩ serve a **visibly synthetic** generated-handwriting image, clearly labelled — **not** a refusal | owner amendment to the `registry.ts` rule; reasoning below |
+| 17 | `e2e/gradeReviewFixtures.ts` | route mock for the image path (same synthetic image as 16) |
+
+#### ⟨C2⟩ The client cache is provider-level, and the shape already exists
+
+Rev 1 said "a hook, `revokeObjectURL` on unmount". **That is wrong at this poll rate.** The
+dashboard polls every 5 s; each poll replaces the payload and re-renders all thirty cards, so a
+per-card hook re-creates **thirty object URLs every five seconds**. The HTTP cache spares the
+*network*, but the churn — thirty blob allocations and thirty new `src` values per tick — is real
+and the browser does the work anyway.
+
+The correct shape is already in this repo:
+[`BatchReviewContext.getPage`](frontend/src/components/batch-review/BatchReviewContext.tsx#L106-L197)
+— `useRef(new Map<string, Promise<string>>())`, deduped **in flight**, with
+`inflight.catch(() => cache.delete(key))` so a failed fetch retries next time instead of caching its
+own failure, living for the life of the route entry. Mirror it, keyed by the full image URL (which
+already carries the ⟨C1⟩ variant, so a settings change invalidates the client map for free), and
+`URL.revokeObjectURL` on **provider** unmount rather than per card.
+
+#### ⟨C3⟩ The mock serves a synthetic image — a deliberate amendment to the `registry.ts` rule
+
+Rev 1 cited `registry.ts`'s refuse-a-missing-fixture rule here. **Owner ruling: misapplied.** That
+rule is about **wire shapes** — never let a surface be built against a payload nobody agreed to. An
+image is **content, not shape**, and the shape here is fully specified: WebP bytes at this path.
+
+Two things follow. Refusing would mean F1's Pile can never be screenshotted with images, defeating
+the visual gate that is now standing policy. And the fixtures *cannot* carry real bytes regardless —
+they would be named students' exam scans.
+
+So the mock draws a **generated pseudo-handwriting SVG**, the same device the mockup already uses:
+[`sqSvg(seed)`](vivi-grade-review-mockup-v2.html#L380) — seeded, deterministic, grey strokes on
+nothing, unmistakable for a scan at any zoom. **Clearly labelled**, so a screenshot review cannot
+pass on a fake believing it saw real output.
 
 ### Not changed — and why
 
@@ -241,11 +324,13 @@ Phase 2 is separable and **should not gate the frontend**. It touches only step 
 | `page1-image-url-present-on-every-graded-item` | the field is populated for every feed item whose transcription has a page 1 |
 | `page1-image-url-omitted-when-there-is-no-page-1` | `None`, not a URL that 404s (§3.5a) |
 | `page-image-returns-webp-bytes-not-json` | `content-type: image/webp`, body starts `RIFF`…`WEBP` |
-| `page-image-sets-immutable-cache-headers` | `private`, a year, `immutable` |
+| `page-image-sets-immutable-cache-headers-only-with-a-variant` | ⟨C1⟩ `?v=` → `private, max-age=31536000, immutable`; **no** `v` → `max-age=60`, no `immutable` |
+| `page1-image-url-carries-the-live-variant-token` | ⟨C1⟩ the minted URL matches current settings, so a config change mints a different one |
+| `page-image-refuses-an-unknown-variant-token` | ⟨C1⟩ `?v=20000x100@600` → 404, not a render |
 | `page-image-requires-auth` | no header → 401 |
 | `page-image-refuses-another-tenants-transcription` | 404, never 403 (§9) |
 | `page-image-bounds-and-renderer-guards-match-the-json-proxy` | 0 / `page_count+1` / claimed-but-absent page all 404 |
-| `thirty-cards-cost-one-gcs-download` | the census-E pin, webp variant (mirrors the existing PNG one) |
+| `thirty-cards-cost-one-pdf-download` | ⟨N4⟩ **phase 1** — the in-process cache (mirrors the existing PNG pin). Renamed: rev 1 called this `…-one-gcs-download`, a phase-2 name on a phase-1 test |
 | `webp-variant-does-not-evict-or-answer-for-the-review-png` | variant isolation — the review pane never receives a 600 px thumb |
 | `page-cache-is-bounded-by-bytes-not-entries` | §2: 300 large entries must not exceed the byte budget |
 | `json-page-proxy-bytes-are-unchanged` | the existing byte-equality baseline still holds after the key change |
@@ -273,4 +358,8 @@ stay live and unreferenced. Phase 2 reverts by skipping the GCS get/put and rend
 - The `{page_number}` **JSON** proxy keeps its shape and its consumers (review pane, page strip).
   Migrating those to bytes is a separate, larger change with its own measurement.
 - Pre-warming thumbs at transcription completion (phase 2 does first-miss only).
-- Any `<img src>`-direct scheme (B2/B3) unless §3 is ruled that way.
+- **Any `<img src>`-direct scheme (B2/B3) — CLOSED, not deferred.** §3 is ruled; B2 in particular
+  does not come back, because the objection is what a credential-bearing URL for a named student's
+  exam page does in history, referrers, and school-proxy logs, and no implementation changes that.
+- The ⟨C1⟩ `IntersectionObserver` gate and the ⟨C2⟩ provider cache are **F1 frontend work**, not
+  phase-1 backend work. Listed here so the boundary is explicit, not because they are optional.
