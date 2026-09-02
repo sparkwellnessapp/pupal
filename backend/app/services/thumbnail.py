@@ -191,6 +191,21 @@ def render_variant(pdf_bytes: bytes, page_number: int, variant: ThumbVariant) ->
     )
 
 
+def gcs_object_path(transcription_id, page_number: int, variant: ThumbVariant) -> str:
+    """Where a rendered thumbnail is kept (phase 2).
+
+    ⚠ THE VARIANT IS IN THE OBJECT PATH, and it has to be. The PR-G8 spec line
+    named `thumbs/{transcription_id}/p1.webp`, from before the variant existed;
+    keeping that would rebuild the exact bug ⟨C1⟩ fixed for the browser, one
+    layer down — change `page_thumb_width_px` and every teacher is served the
+    old bytes from GCS forever, with no expiry to age them out and no request
+    that can ever miss. A variant-keyed path makes a settings change a new
+    object, and the old one is garbage rather than a lie.
+    """
+    return (f"thumbs/{transcription_id}/p{int(page_number)}"
+            f"_{variant.token.replace('@', '-')}.webp")
+
+
 def page_image_path(transcription_id, page_number: int = 1,
                     variant: Optional[ThumbVariant] = None) -> str:
     """The value that goes on the wire as `BatchGradedItem.page1_image_url`.

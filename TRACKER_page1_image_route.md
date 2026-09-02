@@ -51,8 +51,8 @@ corrections: provider-level `Map`, in-flight dedup, failures deleted so they ret
 
 | # | Item | §6 | State |
 |---|---|---|---|
-| 2.1 | thumb GCS get/put around the render (step 4 of §4.1) | 9 | ☐ |
-| 2.2 | `thumb-rendered-once-then-read-from-gcs` | §7 | ☐ |
+| 2.1 | thumb GCS get/put around the render (step 4 of §4.1) | 9 | ☑ |
+| 2.2 | `thumb-rendered-once-then-read-from-gcs` | §7 | ☑ |
 
 **Gate 2:** as 1a + the phase-2 test · **code review**.
 
@@ -75,7 +75,7 @@ corrections: provider-level `Map`, in-flight dedup, failures deleted so they ret
 | `webp-variant-does-not-evict-or-answer-for-the-review-png` | 1a | ☑ |
 | `page-cache-is-bounded-by-bytes-not-entries` | 1a | ☑ |
 | `json-page-proxy-bytes-are-unchanged` | 1a | ☑ |
-| `thumb-rendered-once-then-read-from-gcs` | 2 | ☐ |
+| `thumb-rendered-once-then-read-from-gcs` | 2 | ☑ |
 
 ## §8 verification gates
 
@@ -197,3 +197,46 @@ edited by another agent.
 ⚠ Their entire grade-review tree (`src/components/grade-review/`, `src/mocks/`)
 is **untracked**, so none of it is committed here — this phase commits only
 `api-types.ts`, which is mine.
+
+### F-7 (phase 2) — the stored thumb path had to carry the variant too
+
+The PR-G8 spec line named `thumbs/{transcription_id}/p1.webp`, written before
+the variant existed. Keeping it would have rebuilt ⟨C1⟩'s bug one layer down and
+WORSE: change `page_thumb_width_px` and every teacher is served the old bytes
+from GCS forever — no expiry to age them out, and no request that can ever miss,
+because the object is right there. The path is
+`thumbs/{id}/p{n}_{width}x{quality}-{dpi}.webp` (`@` → `-`, since `@` in an
+object path is asking for trouble). Pinned by
+`test_the_stored_thumb_path_carries_the_variant`.
+
+### F-8 (phase 2 review) — a miss and an outage must not look alike · FIXED
+
+Both degrade to a render, so an undifferentiated `except Exception` would make a
+broken bucket present as "everything works, just slow" — the worst diagnostic
+shape there is, because nothing ever asks why. `NotFound` is now silent (the
+normal first-ever request) and anything else logs `page_thumb_read_failed`.
+
+Found a second defect while pinning it: the test fake raised `FileNotFoundError`
+for a missing object, not the `google.api_core.exceptions.NotFound` that
+google-cloud-storage actually raises — so **every cold render took the outage
+branch and the test would have passed while pinning the wrong behaviour.** The
+fake now raises the real type.
+
+### F-9 (phase 2) — thumbs join an EXISTING GCS leak · SURFACED, out of scope
+
+`gcs_service.delete_folder` exists and is called from **nowhere in `app/`**, so
+no GCS object is ever deleted — a transcription's multi-MB source PDF already
+outlives its row. Thumbs add ~34 KB per page-1 to that, i.e. roughly 3% of what
+is already leaking, and they are variant-keyed so a settings change orphans the
+old ones too.
+
+Not fixed here: object lifecycle is its own decision (a bucket lifecycle rule is
+probably the right answer, not application deletes), and inventing a delete path
+for thumbs alone while PDFs leak beside them would be tidying the smaller half.
+Recorded so the number is known when someone does take it on.
+
+### Phase-2 verification
+
+`tests/api/test_transcription_page_render.py` **27 passed** (incl. 5 phase-2) ·
+page_cache + graded_feed + feed fixtures + transcription endpoints **42 passed**
+· collect-only **1423** clean · `import app.main` clean.

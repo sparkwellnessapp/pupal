@@ -11,6 +11,7 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from google.api_core.exceptions import NotFound
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -418,8 +419,35 @@ async def get_transcription_page_image(
     if isinstance(cached, bytes):
         return _answer(cached)
 
-    # 4. Fetch PDF from GCS (backend-to-backend; no CORS issue).
     gcs = get_gcs_service()
+    thumb_path = thumbnail.gcs_object_path(transcription_id, page_number, variant)
+
+    # 4. [phase 2] The stored thumbnail — ~34 KB instead of a multi-MB PDF
+    # download plus a 259 ms render. This is what makes the in-process cache a
+    # LATENCY optimisation rather than the only thing between the pilot and
+    # thirty full-PDF downloads per dashboard load: Cloud Run runs up to 60
+    # instances, so a process-local cache has a poor hit rate by construction.
+    #
+    # A miss here is the NORMAL first-ever request, not an error — the object
+    # simply does not exist yet — so this never raises past the render below.
+    #
+    # But a miss and an OUTAGE must not look alike in the logs. Both degrade to
+    # a render, so a broken bucket would present as "everything works, just
+    # slow" — the worst diagnostic shape there is, because nothing ever asks why.
+    try:
+        payload = await run_in_threadpool(gcs.download_bytes, thumb_path)
+    except NotFound:
+        payload = None                                   # expected: not rendered yet
+    except Exception as exc:                             # noqa: BLE001
+        payload = None
+        logger.warning("page_thumb_read_failed",
+                       extra={"path": thumb_path,
+                              "exception_class": type(exc).__name__})
+    if payload:
+        page_cache.put(transcription_id, page_number, variant.cache_variant, payload)
+        return _answer(payload)
+
+    # 5. Cold: fetch the PDF (backend-to-backend; no CORS issue) and render.
     try:
         pdf_bytes = await run_in_threadpool(gcs.download_bytes, transcription.gcs_object_path)
     except Exception as exc:
@@ -438,6 +466,20 @@ async def get_transcription_page_image(
     except Exception as exc:
         logger.error(f"Thumbnail render failed page={page_number}: {exc}", exc_info=True)
         raise HTTPException(status_code=502, detail="שגיאה בעיבוד הדף")
+
+    # 6. Persist for every other instance. AWAITED, not fired-and-forgotten:
+    # prod Cloud Run throttles CPU after the response, which is the whole reason
+    # BackgroundTasks is extinct in this codebase — a post-response upload would
+    # be lost exactly when the instance is busiest. It costs ~34 KB on the cold
+    # path only, and a failure is NON-FATAL: the teacher gets her image either
+    # way and the next request simply renders again.
+    try:
+        await run_in_threadpool(gcs.upload_bytes, payload, thumb_path,
+                                thumbnail.MEDIA_TYPE)
+    except Exception as exc:                             # noqa: BLE001
+        logger.warning("page_thumb_persist_failed",
+                       extra={"path": thumb_path,
+                              "exception_class": type(exc).__name__})
 
     page_cache.put(transcription_id, page_number, variant.cache_variant, payload)
     return _answer(payload)

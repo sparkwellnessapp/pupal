@@ -219,10 +219,71 @@ def _image_url(tx_id, page=1, variant="current"):
     return f"/api/v0/transcriptions/{tx_id}/pages/{page}/image{suffix}"
 
 
-def _get_image(client, headers, tx_id, page=1, variant="current"):
-    with _patch_gcs() as mock_gcs:
-        mock_gcs.return_value.download_bytes.return_value = THREE_PAGE_PDF
+class _FakeGcs:
+    """A bucket that behaves like one: an object store plus call records.
+
+    Phase 2 made the route read TWO different objects — the stored thumbnail
+    first, the source PDF only on a miss — so a mock that returns the same bytes
+    for every path would hand the route a PDF and let it answer with it. This
+    stands in for the bucket properly: a missing object raises, an upload lands,
+    and the paths are recorded so a test can say WHICH object was fetched.
+    """
+
+    def __init__(self, pdf_path="p.pdf", pdf_bytes=None):
+        self.objects = {pdf_path: pdf_bytes if pdf_bytes is not None else THREE_PAGE_PDF}
+        self.pdf_path = pdf_path
+        self.downloads = []
+        self.uploads = []
+        self.fail_thumb_read = False
+        self.fail_upload = False
+
+    # -- the two methods the route uses ------------------------------------
+    def download_bytes(self, object_path):
+        self.downloads.append(object_path)
+        if self.fail_thumb_read and object_path.startswith("thumbs/"):
+            raise RuntimeError("thumb read unavailable")
+        if object_path not in self.objects:
+            # The REAL type google-cloud-storage raises. Using FileNotFoundError
+            # here would make every cold render take the route's outage branch,
+            # so the test would pass while pinning the wrong behaviour.
+            from google.api_core.exceptions import NotFound
+            raise NotFound(object_path)
+        return self.objects[object_path]
+
+    def upload_bytes(self, data, object_path, content_type="application/pdf"):
+        if self.fail_upload:
+            raise RuntimeError("thumb write unavailable")
+        self.uploads.append((object_path, content_type, len(data)))
+        self.objects[object_path] = data
+        return object_path
+
+    # -- what the tests ask it ---------------------------------------------
+    @property
+    def pdf_downloads(self):
+        return [p for p in self.downloads if p == self.pdf_path]
+
+    @property
+    def thumb_downloads(self):
+        return [p for p in self.downloads if p.startswith("thumbs/")]
+
+
+def _patch_fake_gcs(fake):
+    m = patch("app.api.v0.transcription.get_gcs_service")
+    started = m.start()
+    started.return_value = fake
+    return m
+
+
+def _get_image(client, headers, tx_id, page=1, variant="current", fake=None):
+    own = fake is None
+    fake = fake or _FakeGcs()
+    m = _patch_fake_gcs(fake)
+    try:
         return client.get(_image_url(tx_id, page, variant), headers=headers)
+    finally:
+        m.stop()
+        if own:
+            pass
 
 
 def test_page_image_returns_webp_bytes_not_json(client, headers_a, transcription_3p):
@@ -292,14 +353,9 @@ def test_thirty_cards_cost_one_pdf_download(client, headers_a, transcription_3p)
     from app.services import page_cache
     page_cache.clear()
 
-    downloads = {"n": 0}
-
-    def _counting_download(_path):
-        downloads["n"] += 1
-        return THREE_PAGE_PDF
-
-    with _patch_gcs() as mock_gcs:
-        mock_gcs.return_value.download_bytes.side_effect = _counting_download
+    fake = _FakeGcs()
+    m = _patch_fake_gcs(fake)
+    try:
         first = client.get(_image_url(transcription_3p), headers=headers_a)
         assert first.status_code == 200
         payload = first.content
@@ -307,9 +363,12 @@ def test_thirty_cards_cost_one_pdf_download(client, headers_a, transcription_3p)
             resp = client.get(_image_url(transcription_3p), headers=headers_a)
             assert resp.status_code == 200
             assert resp.content == payload
+    finally:
+        m.stop()
 
-    assert downloads["n"] == 1, (
-        f"expected ONE GCS download across 30 card loads, got {downloads['n']}")
+    assert len(fake.pdf_downloads) == 1, (
+        f"expected ONE source-PDF download across 30 card loads, "
+        f"got {len(fake.pdf_downloads)}")
 
 
 def test_the_webp_thumbnail_is_far_smaller_than_the_review_png(
@@ -393,3 +452,161 @@ def test_page_image_path_is_relative_and_carries_the_live_variant():
     path = thumbnail.page_image_path("abc-123")
     assert path.startswith("/api/v0/transcriptions/abc-123/pages/1/image?v=")
     assert path.endswith(thumbnail.current_variant().token)
+
+
+# ---------------------------------------------------------------------------
+# PLAN_page1_image_route phase 2 — the GCS thumb store
+#
+# Cloud Run runs up to 60 instances, so the in-process cache has a poor hit rate
+# by construction: without a stored thumbnail it is the ONLY thing between the
+# pilot and thirty full-PDF downloads per dashboard load, on a school
+# connection. These pin that the store is consulted, written, keyed correctly,
+# and never able to fail the request.
+# ---------------------------------------------------------------------------
+
+
+def test_thumb_rendered_once_then_read_from_gcs(
+        client, headers_a, transcription_3p):
+    """The phase-2 claim. The FIRST request renders and persists; a request from
+    a cold instance (in-process cache cleared, which is what a different Cloud
+    Run instance looks like) reads the ~34 KB object and never touches the PDF."""
+    from app.services import page_cache
+    page_cache.clear()
+
+    fake = _FakeGcs()
+    m = _patch_fake_gcs(fake)
+    try:
+        first = client.get(_image_url(transcription_3p), headers=headers_a)
+        assert first.status_code == 200
+        assert len(fake.pdf_downloads) == 1, "the cold request did not render"
+        assert len(fake.uploads) == 1, "the render was not persisted"
+        path, content_type, size = fake.uploads[0]
+        assert path.startswith("thumbs/") and path.endswith(".webp")
+        assert content_type == "image/webp"
+        assert size == len(first.content)
+
+        # A DIFFERENT instance: no in-process cache, same bucket.
+        page_cache.clear()
+        second = client.get(_image_url(transcription_3p), headers=headers_a)
+        assert second.status_code == 200
+        assert second.content == first.content
+    finally:
+        m.stop()
+
+    assert len(fake.pdf_downloads) == 1, (
+        f"the second instance re-downloaded the source PDF "
+        f"({len(fake.pdf_downloads)} downloads) instead of reading the thumb")
+    assert len(fake.uploads) == 1, "the thumbnail was written twice"
+    assert len(fake.thumb_downloads) == 2, (
+        "the store was not consulted before rendering")
+
+
+def test_the_stored_thumb_path_carries_the_variant():
+    """⟨C1⟩ one layer down. The PR-G8 spec line said `thumbs/{id}/p1.webp`, from
+    before the variant existed — keeping that would rebuild the exact bug the
+    variant fixed for the browser: change a render setting and every teacher is
+    served the old bytes from GCS forever, with no expiry to age them out and no
+    request that can ever miss."""
+    from app.services.thumbnail import ThumbVariant, gcs_object_path
+
+    a = gcs_object_path("tx-1", 1, ThumbVariant(600, 72, 110))
+    b = gcs_object_path("tx-1", 1, ThumbVariant(800, 72, 110))
+    assert a != b, "a settings change reuses the same GCS object"
+    assert "600" in a and "800" in b
+    assert a.startswith("thumbs/tx-1/") and a.endswith(".webp")
+    assert "@" not in a, "'@' in an object path is asking for trouble"
+
+
+def test_a_thumb_store_read_failure_degrades_to_rendering(
+        client, headers_a, transcription_3p):
+    """The store is an optimisation, never a dependency. If GCS cannot answer
+    for the thumb, the teacher still gets her image."""
+    from app.services import page_cache
+    page_cache.clear()
+
+    fake = _FakeGcs()
+    fake.fail_thumb_read = True
+    m = _patch_fake_gcs(fake)
+    try:
+        resp = client.get(_image_url(transcription_3p), headers=headers_a)
+    finally:
+        m.stop()
+
+    assert resp.status_code == 200, resp.text
+    assert resp.content[:4] == b"RIFF"
+    assert len(fake.pdf_downloads) == 1, "it did not fall through to a render"
+
+
+def test_a_thumb_store_write_failure_is_not_fatal(
+        client, headers_a, transcription_3p):
+    """Persisting is for the NEXT request. Failing this one because the write
+    failed would trade a working image for a broken card."""
+    from app.services import page_cache
+    page_cache.clear()
+
+    fake = _FakeGcs()
+    fake.fail_upload = True
+    m = _patch_fake_gcs(fake)
+    try:
+        resp = client.get(_image_url(transcription_3p), headers=headers_a)
+    finally:
+        m.stop()
+
+    assert resp.status_code == 200, resp.text
+    assert resp.content[:4] == b"RIFF"
+    assert fake.uploads == []
+
+
+def test_the_store_is_not_consulted_before_ownership_and_variant_checks(
+        client, headers_b, transcription_3p):
+    """Ownership first, always (§9) — and an unknown variant names no resource,
+    so neither may reach GCS at all."""
+    from app.services import page_cache
+    page_cache.clear()
+
+    fake = _FakeGcs()
+    m = _patch_fake_gcs(fake)
+    try:
+        cross = client.get(_image_url(transcription_3p), headers=headers_b)
+        assert cross.status_code == 404
+        assert fake.downloads == [], "a cross-tenant request reached the bucket"
+    finally:
+        m.stop()
+
+
+def test_a_missing_thumb_is_silent_but_an_outage_is_logged(
+        client, headers_a, transcription_3p, caplog):
+    """A miss and an outage both degrade to a render, so if they look alike in
+    the logs a broken bucket presents as "everything works, just slow" — the
+    worst diagnostic shape there is, because nothing ever asks why."""
+    import logging
+    from app.services import page_cache
+
+    # (a) the normal cold path: nothing stored yet
+    page_cache.clear()
+    caplog.clear()
+    fake = _FakeGcs()
+    m = _patch_fake_gcs(fake)
+    try:
+        with caplog.at_level(logging.WARNING, logger="app.api.v0.transcription"):
+            assert client.get(_image_url(transcription_3p),
+                              headers=headers_a).status_code == 200
+    finally:
+        m.stop()
+    assert "page_thumb_read_failed" not in caplog.text, (
+        "a first-ever request logged an outage")
+
+    # (b) the bucket is broken
+    page_cache.clear()
+    caplog.clear()
+    fake = _FakeGcs()
+    fake.fail_thumb_read = True
+    m = _patch_fake_gcs(fake)
+    try:
+        with caplog.at_level(logging.WARNING, logger="app.api.v0.transcription"):
+            assert client.get(_image_url(transcription_3p),
+                              headers=headers_a).status_code == 200
+    finally:
+        m.stop()
+    assert "page_thumb_read_failed" in caplog.text, (
+        "a GCS outage degraded silently")
