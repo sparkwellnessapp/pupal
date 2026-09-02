@@ -35,15 +35,17 @@ Legend: ☐ todo · ◐ in progress · ☑ done+verified · ⊘ deliberately not
 
 | # | Item | §6 | State |
 |---|---|---|---|
-| 1c.1 | `src/lib/api-types.ts` — REGENERATED (`npm run gen:api`), never hand-edited | 13 | ☐ |
-| 1c.2 | `src/lib/api.ts` — `fetchPageImageObjectUrl` on the seam, no auto-retry | 14 | ☐ |
-| 1c.3 | `src/mocks/grade_review/handlers.ts` — ⟨C3⟩ visibly synthetic image, clearly labelled | 16 | ☐ |
-| 1c.4 | `e2e/gradeReviewFixtures.ts` — route mock | 17 | ☐ |
+| 1c.1 | `src/lib/api-types.ts` — REGENERATED (`npm run gen:api`), never hand-edited | 13 | ☑ |
+| 1c.2 | `src/lib/api.ts` — `fetchPageImageObjectUrl` on the seam, no auto-retry | 14 | ⊘ F-6: the frontend agent shipped a BETTER one first; mine deleted |
+| 1c.3 | `src/mocks/grade_review/handlers.ts` — ⟨C3⟩ visibly synthetic image, clearly labelled | 16 | ☑ (mine; left in their UNTRACKED tree, see F-6) |
+| 1c.4 | `e2e/gradeReviewFixtures.ts` — route mock | 17 | ⊘ F-6: already done by the frontend agent |
 
 **Gate 1c:** `npx tsc --noEmit` · `npx vitest run` · **code review**.
 
 ⊘ §6 item 15 (provider cache + `IntersectionObserver` + `Pile*`) — **F1 frontend work by plan §10**,
-not phase 1. The seam (1c.2) is what F1 consumes.
+not phase 1. **Already built** by the frontend agent (`usePageThumbnails`), and built to the
+corrections: provider-level `Map`, in-flight dedup, failures deleted so they retry, revoke-on-unmount
+⟨C2⟩, and an `IntersectionObserver` with 300 px of runway ⟨C1⟩.
 
 ## Phase 2 — GCS thumb store
 
@@ -82,7 +84,7 @@ not phase 1. The seam (1c.2) is what F1 consumes.
 | 1 | `import app.main` + `pytest --collect-only` clean | ☑ 1a |
 | 2 | the four backend test files green | ☑ 1a+1b (67+13+6+44) |
 | 3 | fixture regeneration is a no-op | ☑ 1b (hash-compared) |
-| 4 | `npm run gen:api` committed · `tsc --noEmit` · `vitest run` | ☐ |
+| 4 | `npm run gen:api` committed · `tsc --noEmit` · `vitest run` | ☑ tsc clean · 981 tests / 69 files · check:copy PASS |
 | 5 | `PIL.features.check("webp")` **inside the built image** | ☐ |
 | 6 | one thumbnail eyeballed at the pinned settings | ☑ done pre-plan (§4.3) |
 
@@ -143,3 +145,55 @@ path of all places.
 Fixed rather than filed because a red suite makes every later phase gate
 meaningless. Scope kept to the three assignments; nothing in `app/` changed.
 `tests/api/test_batch_grading.py` + `test_extraction_jobs.py`: **67 passed**.
+
+### F-5 (phase 1c) — the codegen drift gate has not been running · SURFACED, out of scope
+
+`npm run gen:api` produced **874 insertions**, not the one field this plan adds.
+The extra surface is all legitimate accumulated backend work that shipped
+without a codegen run: G9 (`ReturnedExamManifest`/`Item`), migrations 022/023
+onboarding (`SchoolInput`, `SchoolResponse`, `UpdateProfileRequest`,
+`UpdateSchoolsRequest`), migration 024 auth (`GoogleAuthRequest`,
+`GoogleNonceResponse`, `VerifyEmailRequest`, `ResendCodeRequest`,
+`SignupPendingResponse`) and OD-F8's `NumericPolicy`.
+
+`.github/workflows/api-types-drift.yml` exists to catch exactly this, but per
+CLAUDE.md §10 it only runs if the monorepo structure is committed to `main` —
+which it is not. **So the wire-contract drift gate is currently decorative.**
+The frontend has been building against types several PRs stale.
+
+Not fixed here: it is the §12.5 repo-layout question, not a page-image question.
+Surfaced because a gate everyone believes is running and is not is worse than no
+gate — the same failure shape as INV-6.
+
+### F-6 (phase 1c) — the frontend agent had already built most of phase 1c · CONVERGED, no fork
+
+The agent on `PR_SPEC_frontend_grade_review.md` had already implemented, in an
+UNTRACKED working tree:
+
+* `fetchPageImageObjectUrl` in `src/lib/api.ts` — and **theirs is better than
+  mine**: `apiFetchRaw` + `throwIfAuthError` + an explicit Hebrew `ApiError`,
+  where mine went through `apiFetchChecked` and would have run the JSON error
+  normaliser over a binary route's body. **My duplicate is deleted** (two exports
+  of one name is a compile error anyway); theirs stands.
+* `usePageThumbnails` — ⟨C2⟩ and ⟨C1⟩ implemented exactly as ruled, independently.
+* `Pile.tsx` consuming `page1_image_url`.
+* An `e2e/gradeReviewFixtures.ts` route for `/pages/*/image` returning its own
+  inline `SYNTHETIC_PAGE_SVG` — i.e. they reached the ⟨C3⟩ conclusion on their
+  own, which is corroboration of the owner's amendment.
+
+**What I added and what remains open.** They had no *msw* handler for the image
+(msw serves the dev-fixtures/browser path; Playwright route mocks are separate),
+so `src/mocks/grade_review/syntheticPage.ts` + its handler fills a real gap. But
+the SVG generator now exists **twice** — once there, once inline in their e2e
+file. I did NOT edit their in-flight file: their screenshots are passing against
+that exact SVG and a change would churn every diff. Copy is aligned in the
+meantime («דוגמה סינתטית» in both).
+
+**Owed, one line, theirs to make:** `e2e/gradeReviewFixtures.ts` imports
+`syntheticPageSvg` from `src/mocks/grade_review/syntheticPage.ts` and drops its
+inline copy (§0.4). Flagged rather than done, because the file is actively being
+edited by another agent.
+
+⚠ Their entire grade-review tree (`src/components/grade-review/`, `src/mocks/`)
+is **untracked**, so none of it is committed here — this phase commits only
+`api-types.ts`, which is mine.

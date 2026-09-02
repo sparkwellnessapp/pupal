@@ -24,6 +24,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/auth/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Google Sign In
+         * @description Sign in (or sign up) with a Google ID token.
+         *
+         *     The order below is deliberate: the nonce is spent FIRST, so a replayed
+         *     credential is refused before we spend a network round-trip verifying a token
+         *     we already know we will not accept.
+         */
+        post: operations["google_sign_in_api_v0_auth_google_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/auth/google/nonce": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Google Nonce
+         * @description Mint the one-shot nonce the Sign in with Google button must embed.
+         *
+         *     Public by necessity — it is fetched before anyone is signed in — and
+         *     harmless: a nonce authorizes nothing on its own. It is only ever meaningful
+         *     inside a token Google signed.
+         */
+        get: operations["google_nonce_api_v0_auth_google_nonce_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v0/auth/login": {
         parameters: {
             query?: never;
@@ -109,6 +157,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/auth/resend-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Code
+         * @description Send the pending code again.
+         *
+         *     ALWAYS answers 202 with the same body — for an unknown address, an already
+         *     verified one, a cooldown, or a success. Anything else makes this endpoint a
+         *     way to ask "does this teacher have a Vivi account?", and the honest answer
+         *     to that question is none of the caller's business.
+         */
+        post: operations["resend_code_api_v0_auth_resend_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v0/auth/signup": {
         parameters: {
             query?: never;
@@ -120,11 +193,37 @@ export interface paths {
         put?: never;
         /**
          * Signup
-         * @description Create a new user account.
+         * @description Create an account and email a verification code.
          *
-         *     Returns JWT access token and user info.
+         *     ⚠️ [024] THIS NO LONGER RETURNS A SESSION (owner ruling A4). The account
+         *     exists but is unusable until `/verify-email` redeems the code, because an
+         *     account nobody proved is exactly what makes the Google linking rule
+         *     dangerous: an attacker who can pre-register victim@school.org and be
+         *     treated as its owner is the pre-account-hijacking hole (nOAuth, 2023).
+         *
+         *     Any client reading `access_token` from this response is out of date.
          */
         post: operations["signup_api_v0_auth_signup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Email
+         * @description Redeem a verification code. THIS is where a signup gets its session.
+         */
+        post: operations["verify_email_api_v0_auth_verify_email_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -180,8 +279,17 @@ export interface paths {
         head?: never;
         /**
          * Rename Batch
-         * @description Rename a batch (B5). Strip → reject blank → last-write-wins. Touches
-         *     ONLY name + updated_at; no uniqueness constraint exists or is invented.
+         * @description Rename a batch (B5) and set its returned-exam options (PR-G9).
+         *
+         *     Only the fields PRESENT in the body are written, so the rename call and the
+         *     settings call share an endpoint without either clobbering the other.
+         *
+         *     Both returned-exam settings feed the render cache key, so changing either
+         *     invalidates every cached PDF in the batch. We CLEAR those keys and report
+         *     the count rather than leaving them: a stale PDF is not a slightly-old page,
+         *     it is a document showing points or a stamp the teacher has since changed,
+         *     and it looks entirely correct. Serving it silently is the one outcome this
+         *     feature cannot have (§3.5a).
          */
         patch: operations["rename_batch_api_v0_batches__batch_id__patch"];
         trace?: never;
@@ -284,6 +392,50 @@ export interface paths {
          *     claims, and increments again at the next claim).
          */
         post: operations["retry_transcription_job_api_v0_batches__batch_id__jobs__job_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/returned-exams.zip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returned Exams Zip
+         * @description Approved, current exams only — the same partition the manifest reports.
+         *
+         *     An excluded test is never substituted with a draft render or an older PDF.
+         *     A class set with a stated hole in it is recoverable; a class set with a
+         *     wrong document silently inside it is not.
+         */
+        get: operations["returned_exams_zip_api_v0_batches__batch_id__returned_exams_zip_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/returned-exams/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returned Exams Manifest
+         * @description What the ZIP will contain, and what it will not — with the reason.
+         */
+        get: operations["returned_exams_manifest_api_v0_batches__batch_id__returned_exams_manifest_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -654,6 +806,34 @@ export interface paths {
          *       - Source is the leaf (regraded_to_id IS NULL).
          */
         post: operations["retry_graded_test_api_v0_grading_graded_test__graded_test_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/grading/graded_test/{graded_test_id}/returned-exam": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Returned Exam
+         * @description Her student's exam back: the original pages, stamped, plus the feedback.
+         *
+         *     APPROVED ONLY. A draft is a proposal the teacher has not accepted; handing
+         *     one to a student would make Vivi the grader, which is the one thing it
+         *     never is.
+         *
+         *     Rendered from the CONTRACT, never the draft — what she froze is what the
+         *     student receives. Cached in GCS under a key covering every input that can
+         *     change a pixel; a mismatch re-renders rather than serving the old page.
+         */
+        get: operations["get_returned_exam_api_v0_grading_graded_test__graded_test_id__returned_exam_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1084,6 +1264,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/transcriptions/{transcription_id}/pages/{page_number}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Transcription Page Image
+         * @description A page as a small WebP resource — the representation §1.5's Pile cards use.
+         *
+         *     A SEPARATE RESOURCE from the JSON proxy above, not a reformatting of it.
+         *     Measured on the six real bagrut scans: that path is 1168 KB / 1227 ms per
+         *     page, this one is 33.6 KB / 259 ms, so a thirty-card dashboard goes from
+         *     ~34 MB and ~37 s of render to ~1.0 MB. The two are cached under different
+         *     variants precisely so neither can ever answer for the other.
+         *
+         *     `?v=` pins the render settings AND the cache key (see `thumbnail`): the
+         *     answer only claims `immutable` when the URL actually pins the bytes, and an
+         *     unrecognised token is a 404 rather than a client-controlled rasterizer.
+         *
+         *     ⚠ NOT reachable from a bare `<img src>`: auth here is `Authorization:
+         *     Bearer`, which a browser image request does not send. The client fetches it
+         *     through the seam and renders an object URL (PLAN §3, ruling B1).
+         */
+        get: operations["get_transcription_page_image_api_v0_transcriptions__transcription_id__pages__page_number__image_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v0/transcriptions/{transcription_id}/review": {
         parameters: {
             query?: never;
@@ -1137,6 +1351,58 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v0/users/me/onboarding/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Onboarding
+         * @description Stamp onboarding as finished. IDEMPOTENT: an already-stamped user keeps
+         *     the original timestamp and gets a 200, so a double-click, a retry, or a
+         *     re-entry can never re-stamp and never 409s.
+         *
+         *     A POST rather than a PATCH with a boolean, deliberately: the client does not
+         *     get to UNSET this. Re-running onboarding is an operator action.
+         */
+        post: operations["complete_onboarding_api_v0_users_me_onboarding_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/users/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update User Profile
+         * @description Update the teacher's own name and/or gender.
+         *
+         *     Until now NOTHING could write `full_name` — the profile screen's save button
+         *     called no endpoint at all — so a typo at signup was permanent.
+         *
+         *     Answers with the ONE profile shape (`build_user_response`, owned by
+         *     auth.py). A second hand-built copy of that response is the truncation risk
+         *     §6 documents; there is no second copy here.
+         */
+        patch: operations["update_user_profile_api_v0_users_me_profile_patch"];
         trace?: never;
     };
     "/api/v0/users/me/rubrics": {
@@ -1196,6 +1462,37 @@ export interface paths {
          *     institutions with no way back.
          */
         patch: operations["update_me_api_v0_users_me_school_patch"];
+        trace?: never;
+    };
+    "/api/v0/users/me/schools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update User Schools
+         * @description Replace the teacher's school list.
+         *
+         *     THE PR-G6 RULE, in one place: `users.school_id` remains the single
+         *     override-attribution key and is set to the FIRST school in the submitted
+         *     list. The junction (`user_schools`) is the full truth; the column is the key
+         *     drawn from it. Reordering the list moves the attribution key — that is
+         *     intended, and is the only way a single-column key can follow a multi-valued
+         *     answer. `override_attribution.py` is unchanged and keeps reading one column.
+         *
+         *     Duplicates in the request collapse under the SAME normalized-exact rule the
+         *     resolver uses, so "Blich, Ramat Gan" twice is one school, and the first
+         *     occurrence keeps its position (which matters — position 0 is the key).
+         */
+        put: operations["update_user_schools_api_v0_users_me_schools_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v0/users/me/subject-matters": {
@@ -1770,6 +2067,8 @@ export interface components {
             look_count?: number | null;
             /** Opened At */
             opened_at?: string | null;
+            /** Page1 Image Url */
+            page1_image_url?: string | null;
             /**
              * Returned Exam State
              * @default none
@@ -1818,18 +2117,41 @@ export interface components {
         };
         /**
          * BatchRenameRequest
-         * @description B5: rename a batch. Stripped server-side; blank-after-strip → 422.
+         * @description PATCH /batches/{id} — rename (B5) and the returned-exam settings (PR-G9).
+         *
+         *     Every field is optional and only the ones PRESENT are written, so the
+         *     rename call and the settings call are the same endpoint without either
+         *     clobbering the other's state. `name` still rejects blank-after-strip.
          */
         BatchRenameRequest: {
+            /** Appendix Include Criteria */
+            appendix_include_criteria?: boolean | null;
             /** Name */
-            name: string;
+            name?: string | null;
+            stamp_position_default?: components["schemas"]["StampPosition"] | null;
         };
         /** BatchRenameResponse */
         BatchRenameResponse: {
+            /**
+             * Appendix Include Criteria
+             * @default false
+             */
+            appendix_include_criteria: boolean;
             /** Batch Id */
             batch_id: string;
+            /**
+             * Invalidated Count
+             * @default 0
+             */
+            invalidated_count: number;
             /** Name */
-            name: string;
+            name?: string | null;
+            /**
+             * Stamp Applied Count
+             * @default 0
+             */
+            stamp_applied_count: number;
+            stamp_position_default?: components["schemas"]["StampPosition"] | null;
         };
         /**
          * BatchRollup
@@ -2405,6 +2727,11 @@ export interface components {
              * @description Optional breakdown of this criterion into graded sub-parts. When non-empty, INV-3 requires Σ sub_criteria.points == criterion.points. Null when the criterion is graded as an atomic unit.
              */
             sub_criteria?: components["schemas"]["SubCriterion"][] | null;
+            /**
+             * Uid
+             * @description Stable server-minted UUID4. Durable references use this; criterion_id remains the display/path identity.
+             */
+            uid?: string | null;
         };
         /**
          * CriterionOutcome
@@ -2670,6 +2997,24 @@ export interface components {
             /** Rule Id */
             rule_id?: string | null;
         };
+        /**
+         * GoogleAuthRequest
+         * @description `credential` is the ID token the GIS button hands the browser.
+         */
+        GoogleAuthRequest: {
+            /** Credential */
+            credential: string;
+            /** Nonce */
+            nonce: string;
+        };
+        /**
+         * GoogleNonceResponse
+         * @description A one-shot nonce for the Sign in with Google button.
+         */
+        GoogleNonceResponse: {
+            /** Nonce */
+            nonce: string;
+        };
         /** GradeAnswerInput */
         GradeAnswerInput: {
             /** Answer Text */
@@ -2732,6 +3077,7 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            numeric_policy?: components["schemas"]["NumericPolicy"] | null;
             /** Percentage */
             percentage?: string | null;
             /** Regraded From Id */
@@ -2867,6 +3213,7 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            numeric_policy?: components["schemas"]["NumericPolicy"] | null;
             /** Opened At */
             opened_at?: string | null;
             /** Percentage */
@@ -3105,6 +3452,31 @@ export interface components {
         MessageResponse: {
             /** Message */
             message: string;
+        };
+        /**
+         * NumericPolicy
+         * @description Contract-level numeric handling configuration.
+         *
+         *     Inherited by all point calculations within a rubric.
+         *     Used for invariant validation (sum tolerance) and display (rounding).
+         */
+        NumericPolicy: {
+            /**
+             * Precision
+             * @description Smallest point increment (quarter-point granularity)
+             */
+            precision?: string;
+            /**
+             * Rounding Mode
+             * @description Python decimal rounding mode
+             * @default half_up
+             */
+            rounding_mode: string;
+            /**
+             * Sum Tolerance
+             * @description Maximum allowed deviation in point sum validation
+             */
+            sum_tolerance?: string;
         };
         /**
          * NumericPolicySchema
@@ -3407,6 +3779,14 @@ export interface components {
              */
             promoted: boolean;
         };
+        /** ResendCodeRequest */
+        ResendCodeRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
         /** RetryJobResponse */
         RetryJobResponse: {
             /**
@@ -3416,6 +3796,32 @@ export interface components {
             job_id: string;
             /** Status */
             status: string;
+        };
+        /**
+         * ReturnedExamManifest
+         * @description What the download will and will not contain, and why.
+         *
+         *     Exclusions are ENUMERATED, never silently dropped: a teacher who downloads
+         *     24 of 30 exams must be able to see which six are missing and for which of
+         *     the two reasons, or she hands back a class set with holes in it.
+         */
+        ReturnedExamManifest: {
+            /** Excluded Not Approved */
+            excluded_not_approved?: components["schemas"]["ReturnedExamManifestItem"][];
+            /** Excluded Stale */
+            excluded_stale?: components["schemas"]["ReturnedExamManifestItem"][];
+            /** Included */
+            included?: components["schemas"]["ReturnedExamManifestItem"][];
+        };
+        /** ReturnedExamManifestItem */
+        ReturnedExamManifestItem: {
+            /**
+             * Graded Test Id
+             * Format: uuid
+             */
+            graded_test_id: string;
+            /** Student Name */
+            student_name?: string | null;
         };
         /**
          * ReviewSaveRequest
@@ -3759,6 +4165,46 @@ export interface components {
             warnings?: components["schemas"]["AnnotationSchema"][];
         };
         /**
+         * SchoolInput
+         * @description One school as the teacher picked it.
+         *
+         *     `ministry_symbol` (סמל מוסד) is present when she chose from the list and
+         *     ABSENT when she typed a school the list lacks. It — not the name — is the
+         *     identity when present (023): the real export has 82 normalized names shared
+         *     by 213 institutions, two of them in the same city.
+         *
+         *     Validated as a numeric string rather than as exactly six digits: every symbol
+         *     in today's export is 6 digits, but hard-coding that length would break
+         *     onboarding for a teacher whose school the Ministry numbers differently, and
+         *     the format is not ours to fix. Non-numeric input is junk and is refused,
+         *     because this value becomes an IDENTITY.
+         */
+        SchoolInput: {
+            /** City */
+            city?: string | null;
+            /** Ministry Symbol */
+            ministry_symbol?: string | null;
+            /** Name */
+            name: string;
+        };
+        /**
+         * SchoolResponse
+         * @description One school on the teacher's list (migration 022).
+         */
+        SchoolResponse: {
+            /** City */
+            city?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Ministry Symbol */
+            ministry_symbol?: string | null;
+            /** Name */
+            name: string;
+        };
+        /**
          * ScopeOutcome
          * @description Grading result for one GradableScope (1:1 with GradableTest.scopes input).
          *
@@ -3884,6 +4330,32 @@ export interface components {
             permission: "view" | "edit";
         };
         /**
+         * SignupPendingResponse
+         * @description [024] What signup returns now: NOT a session.
+         *
+         *     Owner ruling A4 — an address nobody proved gets no session. The teacher
+         *     holds this while she fetches the code; `/verify-email` is what issues the
+         *     JWT. `verification_required` is always True and is there so a client can
+         *     branch on the SHAPE rather than on the absence of a field.
+         */
+        SignupPendingResponse: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /**
+             * Resend Available In Seconds
+             * @default 0
+             */
+            resend_available_in_seconds: number;
+            /**
+             * Verification Required
+             * @default true
+             */
+            verification_required: boolean;
+        };
+        /**
          * SignupRequest
          * @description Signup request body.
          */
@@ -3951,6 +4423,12 @@ export interface components {
         StampPosition: {
             /** Corner */
             corner?: ("tl" | "tr" | "bl" | "br") | null;
+            /**
+             * Source
+             * @default auto
+             * @enum {string}
+             */
+            source: "auto" | "manual";
             /** X */
             x?: number | null;
             /** Y */
@@ -4019,9 +4497,14 @@ export interface components {
             points: string;
             /**
              * Sub Criterion Id
-             * @description Stable ID, e.g. 'q1.c1.sc0'
+             * @description Positional ID, e.g. 'q1.c1.sc0'
              */
             sub_criterion_id: string;
+            /**
+             * Uid
+             * @description Stable server-minted UUID4. Durable references use this; criterion_id remains the display/path identity.
+             */
+            uid?: string | null;
         };
         /**
          * SubCriterionOutcome
@@ -4435,6 +4918,32 @@ export interface components {
             /** School Name */
             school_name?: string | null;
         };
+        /**
+         * UpdateProfileRequest
+         * @description Both fields optional; sending neither is a no-op, not an error.
+         *
+         *     `gender` is a closed set including an explicit 'unspecified' — "prefer not
+         *     to say" is an ANSWER and is stored as one. It is collected for future
+         *     address forms; nothing outside onboarding reads it yet (owner ruling D4:
+         *     the product's Hebrew copy is NOT re-gendered by this change).
+         */
+        UpdateProfileRequest: {
+            /** Full Name */
+            full_name?: string | null;
+            /** Gender */
+            gender?: ("female" | "male" | "unspecified") | null;
+        };
+        /**
+         * UpdateSchoolsRequest
+         * @description FULL REPLACEMENT, like `PUT /me/subject-matters` beside it. There are no
+         *     merge semantics anywhere in this codebase and this is not the place to
+         *     invent them. An empty list is a legitimate answer — the schools step is the
+         *     skippable one — and it clears both the junction and the attribution key.
+         */
+        UpdateSchoolsRequest: {
+            /** Schools */
+            schools?: components["schemas"]["SchoolInput"][];
+        };
         /** UpdateStudentRequest */
         UpdateStudentRequest: {
             /** Full Name */
@@ -4456,6 +4965,10 @@ export interface components {
         /**
          * UserResponse
          * @description Response schema for user profile.
+         *
+         *     THE profile shape — `auth.build_user_response` is its only builder. A second
+         *     hand-built copy is what silently truncated the annotation payload (§6); do
+         *     not add one.
          */
         UserResponse: {
             /**
@@ -4467,6 +4980,8 @@ export interface components {
             email: string;
             /** Full Name */
             full_name: string;
+            /** Gender */
+            gender?: string | null;
             /**
              * Id
              * Format: uuid
@@ -4474,6 +4989,12 @@ export interface components {
             id: string;
             /** Is Subscription Active */
             is_subscription_active: boolean;
+            /** Onboarding Completed At */
+            onboarding_completed_at?: string | null;
+            /** Primary School Id */
+            primary_school_id?: string | null;
+            /** Schools */
+            schools?: components["schemas"]["SchoolResponse"][];
             /** Started Pro At */
             started_pro_at?: string | null;
             /** Started Trial At */
@@ -4546,6 +5067,16 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /** VerifyEmailRequest */
+        VerifyEmailRequest: {
+            /** Code */
+            code: string;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -4571,6 +5102,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    google_sign_in_api_v0_auth_google_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleAuthRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    google_nonce_api_v0_auth_google_nonce_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleNonceResponse"];
                 };
             };
         };
@@ -4668,6 +5252,39 @@ export interface operations {
             };
         };
     };
+    resend_code_api_v0_auth_resend_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResendCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     signup_api_v0_auth_signup_post: {
         parameters: {
             query?: never;
@@ -4678,6 +5295,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SignupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupPendingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_email_api_v0_auth_verify_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyEmailRequest"];
             };
         };
         responses: {
@@ -4947,6 +5597,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    returned_exams_zip_api_v0_batches__batch_id__returned_exams_zip_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    returned_exams_manifest_api_v0_batches__batch_id__returned_exams_manifest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnedExamManifest"];
                 };
             };
             /** @description Validation Error */
@@ -5675,6 +6387,37 @@ export interface operations {
             };
         };
     };
+    get_returned_exam_api_v0_grading_graded_test__graded_test_id__returned_exam_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                graded_test_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_graded_tests_api_v0_grading_graded_tests_get: {
         parameters: {
             query?: never;
@@ -6359,6 +7102,40 @@ export interface operations {
             };
         };
     };
+    get_transcription_page_image_api_v0_transcriptions__transcription_id__pages__page_number__image_get: {
+        parameters: {
+            query?: {
+                v?: string | null;
+            };
+            header?: never;
+            path: {
+                transcription_id: string;
+                page_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page rendered as WebP */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     save_review_api_v0_transcriptions__transcription_id__review_patch: {
         parameters: {
             query?: never;
@@ -6428,6 +7205,59 @@ export interface operations {
             };
         };
     };
+    complete_onboarding_api_v0_users_me_onboarding_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+        };
+    };
+    update_user_profile_api_v0_users_me_profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_user_rubrics_api_v0_users_me_rubrics_get: {
         parameters: {
             query?: {
@@ -6482,6 +7312,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UpdateMeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_user_schools_api_v0_users_me_schools_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSchoolsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolResponse"][];
                 };
             };
             /** @description Validation Error */
