@@ -293,6 +293,6 @@ the shape, not with the shape. The full suite is what found it, one PR late.
 * full backend suite, invocation 1 (`--ignore=tests/transcription_eval_suit`):
   **1268 passed**, the single failure above now fixed (`test_batch_exposure.py`
   10 passed)
-* invocation 2 (`tests/transcription_eval_suit`): see the commit trailer
+* invocation 2 (`tests/transcription_eval_suit`): **152 passed**, 1 skipped
 * frontend: `tsc --noEmit` clean · **981 passed / 69 files** · `check:copy` PASS
 * `import app.main` clean · `pytest --collect-only` **1423**
