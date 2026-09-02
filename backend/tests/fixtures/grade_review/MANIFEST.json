@@ -7,13 +7,25 @@
   "not_found": [],
   "skipped_no_answer": [],
   "terminals_with_checks": 176,
-  "terminals_without_checks": 14
+  "terminals_without_checks": 14,
+  "with_feedback": [
+   "dan_basiuk",
+   "din_ezra",
+   "moran_aharon",
+   "omer_gelber",
+   "yonatan_basiuk"
+  ],
+  "without_feedback": []
  },
  "coverage_gap": {
   "fuzzy": "absent — same",
   "how_covered": "synthetic shapes via --with-synthetic; generated for the test run and deleted afterwards so the published set stays observed-only (owner instruction)",
   "not_found": "absent — this run quoted exactly on all 336 verified spans",
   "skipped_no_answer": "UNOBTAINABLE from this cohort: all five students answered every question. Spec §1.7 names din Q2.ב, but din answered Q2.ב — that is a spec bug."
+ },
+ "feedback_provenance": {
+  "model_version": "claude-sonnet-5",
+  "prompt_version": "feedback-v1"
  },
  "generated_from_run": "20260830-205954_sonnet5-v5",
  "generator": "scripts/gen_grade_review_fixtures.py",

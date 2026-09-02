@@ -54,6 +54,29 @@ def _load_drafts(run_dir: Path) -> dict:
     return drafts
 
 
+def _merge_feedback(run_dir: Path, drafts: dict) -> list:
+    """Fold `<run>/feedback/<student>.json` into each draft, when present.
+
+    Feedback is a provider call, so it is NOT made here (see the module
+    docstring): `scripts/attach_fixture_feedback.py` spends the money once and
+    persists the block beside the drafts it describes. This step is free and
+    deterministic, which is what keeps `--check` meaningful.
+
+    Absent sidecar ⇒ the draft keeps `feedback: null`. That is a real wire state
+    (PR-G4: a failed call lands the grade with no feedback), and the review
+    surface has to render it, so it is deliberately still represented in the
+    published set rather than backfilled everywhere.
+    """
+    fdir = run_dir / "feedback"
+    merged = []
+    for student, draft in drafts.items():
+        path = fdir / f"{student}.json"
+        if path.is_file():
+            draft["feedback"] = json.loads(path.read_text(encoding="utf-8"))
+            merged.append(student)
+    return merged
+
+
 def _coverage(drafts: dict) -> dict:
     """§1.7 requires the set to CONTAIN certain shapes. Report them rather than
     assume: a fixture set that silently lost its not_found quote stops testing
@@ -177,7 +200,10 @@ def main() -> None:
     if not run_dir.is_absolute():
         run_dir = BACKEND / run_dir
     drafts = _load_drafts(run_dir)
+    with_feedback = _merge_feedback(run_dir, drafts)
     cov = _coverage(drafts)
+    cov["with_feedback"] = sorted(with_feedback)
+    cov["without_feedback"] = sorted(set(STUDENTS) - set(with_feedback))
 
     if cov["terminals_with_checks"] == 0:
         raise SystemExit(
@@ -194,6 +220,14 @@ def main() -> None:
         "generator": "scripts/gen_grade_review_fixtures.py",
         "provenance": {k: drafts[STUDENTS[0]].get(k)
                        for k in ("model_version", "prompt_version", "plan_version")},
+        # [PR-G4] the feedback pin is SEPARATE from the grading pin (OD10/OD-B3):
+        # feedback is prose and cheaper, and tying the two would make every
+        # grading-model decision also a feedback decision. Recorded from the
+        # block itself, so it describes what was actually called.
+        "feedback_provenance": (
+            {k: (drafts[with_feedback[0]].get("feedback") or {}).get(k)
+             for k in ("model_version", "prompt_version")}
+            if with_feedback else None),
         "coverage": cov,
         "pending": {
             "overlay_examples.json": "PR-G5 — needs the verdict-level overlay model",
