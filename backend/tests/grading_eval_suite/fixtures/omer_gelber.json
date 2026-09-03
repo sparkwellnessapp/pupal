@@ -1,4 +1,5 @@
 {
+ "exam_id": "hobby_tvshow",
  "rubric_contract": "benchmarks/contracts/hobby_tvshow_corrected.contract.json",
  "transcription_contract": "benchmarks/transcriptions/omer_gelber.contract.json",
  "gt": "benchmarks/gt/omer_gelber.gt.json",

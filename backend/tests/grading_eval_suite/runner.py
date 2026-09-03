@@ -78,6 +78,16 @@ _LEGACY_CONFIG_KEYS = ("model", "provider", "price_per_1m_input", "price_per_1m_
 def _load_config(name: str, *, suite_dir: Path = SUITE_DIR) -> dict:
     p = suite_dir / "configs" / f"{name}.json"
     config = json.loads(p.read_text(encoding="utf-8"))
+    _validate_config(name, config)
+    return config
+
+
+def _validate_config(name: str, config: dict) -> None:
+    """The config rules, PURE — so they can be tested without writing a file.
+
+    A config is an experiment record [P14], so every rule here refuses rather
+    than repairs: a run that silently corrected its own config would produce a
+    record of something that did not happen."""
     legacy = [k for k in _LEGACY_CONFIG_KEYS if k in config]
     if legacy:
         raise SystemExit(
@@ -89,17 +99,28 @@ def _load_config(name: str, *, suite_dir: Path = SUITE_DIR) -> dict:
     arch = config.get("architecture", "v3")
     if arch not in ("v3", "v5"):
         raise SystemExit(f"config '{name}': architecture must be v3|v5, got {arch!r}.")
-    if arch == "v5" and not config.get("plan"):
-        raise SystemExit(f"config '{name}': architecture v5 requires 'plan'.")
-    if arch != "v5" and (config.get("plan") or config.get("sc_n")):
-        raise SystemExit(f"config '{name}': 'plan'/'sc_n' are v5-only keys.")
+    # [two-exam harness] v5 needs a plan; it may name ONE ('plan', the legacy
+    # single-exam key) or a MAP ('plans', exam_id -> path). Both, and neither,
+    # are refused: two ways to answer one question is how a run silently grades
+    # under the plan nobody meant (§0.4).
+    if arch == "v5" and not (config.get("plan") or config.get("plans")):
+        raise SystemExit(
+            f"config '{name}': architecture v5 requires 'plan' (single exam) "
+            f"or 'plans' (a map of exam_id -> plan path).")
+    if config.get("plan") and config.get("plans"):
+        raise SystemExit(
+            f"config '{name}': names BOTH 'plan' and 'plans'. Pick one — with "
+            f"both, which plan grades a fixture depends on resolution order "
+            f"rather than on intent.")
+    if arch != "v5" and (config.get("plan") or config.get("plans")
+                         or config.get("sc_n")):
+        raise SystemExit(f"config '{name}': 'plan'/'plans'/'sc_n' are v5-only keys.")
     casc = config.get("cascade")
     if casc is not None:
         if arch != "v5":
             raise SystemExit(f"config '{name}': cascade requires architecture v5.")
         if not casc.get("base_model_key"):
             raise SystemExit(f"config '{name}': cascade.base_model_key required.")
-    return config
 
 
 def _assert_draft_stamp(draft: Optional[GradedTestDraft], spec: ModelSpec) -> None:
@@ -154,7 +175,45 @@ def _hashed_paths() -> List[Path]:
             paths += sorted(p for p in d.rglob("*") if p.is_file())
     registry = SUITE_DIR.parents[0] / "eval_common" / "models_registry.py"
     paths.append(registry)
-    return paths
+    # [two-exam harness] Every artifact a fixture manifest REFERENCES, wherever
+    # it lives. The globs above assume exam 1's layout (benchmarks/…); exam 2
+    # landed its contract and transcriptions at the suite root, so they were
+    # outside the instrument hash entirely — the exam-2 contract could change
+    # and suite_hash would not move, which is the one thing it exists to
+    # prevent, failing silently.
+    #
+    # Resolved from the manifests rather than by adding another glob, so this is
+    # the CLASS fix: a third exam dropping files somewhere new is covered by
+    # construction, and layout goes back to being a matter of taste.
+    paths += _manifest_referenced_paths()
+    return sorted(set(paths))
+
+
+_MANIFEST_ARTIFACT_KEYS = ("rubric_contract", "transcription_contract", "gt")
+
+
+def _manifest_referenced_paths() -> List[Path]:
+    """Files named by any `fixtures/*.json`. Missing ones are SKIPPED, not
+    fatal: a manifest legitimately points at a GT the owner has not authored
+    yet, and hashing the instrument is not the place to enforce R1."""
+    out: List[Path] = []
+    manifest_dir = SUITE_DIR / "fixtures"
+    if not manifest_dir.exists():
+        return out
+    for manifest_path in sorted(manifest_dir.glob("*.json")):
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        for key in _MANIFEST_ARTIFACT_KEYS:
+            ref = data.get(key)
+            if isinstance(ref, str) and ref.strip():
+                candidate = SUITE_DIR / ref.strip()
+                if candidate.is_file():
+                    out.append(candidate)
+    return out
 
 
 # [sut_hash, owner ruling 2026-08-27] suite_hash pins the INSTRUMENT; this pins
@@ -255,7 +314,11 @@ def _provenance(config_name: str, config: dict, spec: ModelSpec, *,
     prov["params"] = config.get("params") or {}
     if config.get("architecture") == "v5":
         prov["sc_n"] = int(config.get("sc_n", 1))
+        # The config as written. `prov["plans"]` (added after the fixtures are
+        # known) is what says which plan actually graded which exam.
         prov["plan"] = config.get("plan")
+        if config.get("plans"):
+            prov["plan_map"] = config["plans"]
     if k == 1:
         prov["PROVISIONAL"] = "k=1 — provisional in every artifact it touches"
     elif k < 5:
@@ -272,10 +335,24 @@ def _load_plan(config: dict, bundle: FixtureBundle, suite_dir: Path):
     """Load + validate the v5 GradingPlan for this bundle. Refuses (loud, before
     any spend) on: validator errors, or a plan pinned to different contract
     bytes than the fixture's snapshot [D5 discipline extended to plans].
-    Returns (plan, plan_sha256)."""
+
+    [two-exam harness] The plan is resolved BY THE FIXTURE'S exam_id, not from a
+    single run-level key. The contract-hash pin below is what made a two-exam run
+    impossible rather than wrong before this — a hobby plan meeting a bagrut
+    fixture stopped the run loudly. This lifts that correct refusal into a
+    correct resolution; the refusal stays exactly where it was.
+
+    Returns (plan, plan_sha256, resolved)."""
     from app.agents.grader.plan_schemas import GradingPlan
     from app.agents.grader.plan_validator import validate_plan
-    plan_path = suite_dir / config["plan"]
+    from .exam_resolution import ExamResolutionError, resolve_plan
+    resolved = resolve_plan(bundle.exam_id, config,
+                            fixture=bundle.name, suite_dir=suite_dir)
+    if resolved is None:
+        raise SystemExit(
+            f"{bundle.name}: architecture v5 requires a plan, and the config "
+            f"names neither 'plans' (by exam_id) nor 'plan'.")
+    plan_path = resolved.path
     plan = GradingPlan.model_validate_json(plan_path.read_text(encoding="utf-8"))
     if bundle.rubric_contract_hash and             plan.rubric_contract_sha256 != bundle.rubric_contract_hash:
         raise SystemExit(
@@ -305,7 +382,29 @@ def _load_plan(config: dict, bundle: FixtureBundle, suite_dir: Path):
             raise SystemExit(
                 f"plan {plan.plan_version!r} cannot express {bundle.name!r}'s "
                 f"GT:\n  " + "\n  ".join(errs))
-    return plan, hashlib.sha256(plan_path.read_bytes()).hexdigest()
+    return plan, resolved.sha256, resolved
+
+
+def _plans_provenance(config: dict, bundles: List[FixtureBundle],
+                      suite_dir: Path) -> Dict[str, Any]:
+    """One entry per DISTINCT exam actually graded in this run, keyed by exam_id.
+
+    Keyed by exam rather than by fixture because the plan is a property of the
+    exam: five fixtures on one exam produce one entry, not five copies of it.
+    The legacy single-plan path has no exam_id, so it keys as "<unscoped>" —
+    named rather than blank, so a reader can tell "one exam, unlabelled" from
+    "the field was never populated"."""
+    out: Dict[str, Any] = {}
+    for bundle in bundles:
+        plan, plan_sha, resolved = _load_plan(config, bundle, suite_dir)
+        key = resolved.exam_id or "<unscoped>"
+        entry = {"plan": resolved.ref, "plan_version": plan.plan_version,
+                 "plan_sha256": plan_sha,
+                 "fixtures": []}
+        out.setdefault(key, entry)["fixtures"].append(bundle.name)
+    for entry in out.values():
+        entry["fixtures"].sort()
+    return out
 
 
 def build_agent(bundle: FixtureBundle, agent_factory=None, *,
@@ -330,7 +429,7 @@ def build_agent(bundle: FixtureBundle, agent_factory=None, *,
                            max_output_tokens=params.get("max_output_tokens"),
                            thinking_budget=params.get("thinking_budget"))
     if config.get("architecture", "v3") == "v5":
-        plan, _sha = _load_plan(config, bundle, suite_dir)
+        plan, _sha, _resolved = _load_plan(config, bundle, suite_dir)
         casc = config.get("cascade")
         if casc:
             from app.agents.grader.grader_cascade import CascadeGrader   # lazy
@@ -480,6 +579,19 @@ def run_grade(config_name: str, fixture_names: List[str], *, k: int,
     drafts_dir = out_dir / "drafts"
     drafts_dir.mkdir(parents=True, exist_ok=True)
 
+    # [two-exam harness] PRE-SPEND GATE. Resolve and validate EVERY fixture's
+    # plan before the first API call — plan pin, validator, and the
+    # expressibility guard, for all exams.
+    #
+    # This ordering is load-bearing and the second exam is what made it so. With
+    # one exam, "pre-spend" was true for free: the only plan was validated
+    # before the only fixture graded. With two, resolving inside the loop means
+    # a missing or unroutable exam-2 plan is discovered only when exam 2's turn
+    # comes — after every exam-1 fixture has already been paid for. Same guard,
+    # same words in the docstring, silently worth less.
+    plans_prov = (_plans_provenance(config, bundles, suite_dir)
+                  if config.get("architecture") == "v5" and bundles else None)
+
     trials: List[TrialScore] = []
     drafts_by_fixture: Dict[str, Dict[int, GradedTestDraft]] = {}
     for bundle in bundles:
@@ -511,10 +623,18 @@ def run_grade(config_name: str, fixture_names: List[str], *, k: int,
                          for d in by_r.values() for m in (d.served_models or [])})
     # [COST_TRUTH] absence is surfaced, never silently equated with the request
     prov["served_models"] = served_all or ["<unreported-by-provider>"]
-    if config.get("architecture") == "v5" and bundles:
-        plan, plan_sha = _load_plan(config, bundles[0], suite_dir)
-        prov["plan_version"] = plan.plan_version
-        prov["plan_sha256"] = plan_sha
+    if plans_prov is not None:
+        # Recorded for EVERY exam in the run. This used to read bundles[0],
+        # which on a two-exam corpus records one plan and silently implies it
+        # graded all of them — provenance that is wrong is worse than provenance
+        # that is absent, because it is quotable.
+        prov["plans"] = plans_prov
+        # The single-exam keys keep their exact former values when one plan
+        # resolved, so a hobby run's provenance is unchanged.
+        if len(prov["plans"]) == 1:
+            only = next(iter(prov["plans"].values()))
+            prov["plan_version"] = only["plan_version"]
+            prov["plan_sha256"] = only["plan_sha256"]
     suite = SuiteResult(provenance=prov, trials=trials)
     suite.aggregates = reporting.aggregate(trials, k=k)
     reporting.write_results(suite, out_dir)

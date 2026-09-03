@@ -30,6 +30,11 @@ from app.schemas.ontology_types import GradingRubricContract
 from app.schemas.transcription import TranscriptionContract
 from app.services.gradable_compiler import compile as compile_gradable
 
+from .exam_resolution import (
+    ExamResolutionError,
+    assert_gt_exam_id_agrees,
+    manifest_exam_id,
+)
 from .schemas import FixtureGT
 
 SUITE_DIR = Path(__file__).resolve().parent
@@ -98,6 +103,11 @@ class FixtureBundle:
     rubric_contract_hash: Optional[str] = None
     transcription_contract_hash: Optional[str] = None
     manifest: Dict[str, Any] = field(default_factory=dict)
+    # [two-exam harness] Which exam this fixture answers, from its manifest.
+    # THE routing fact — the runner resolves this fixture's plan by it. None on
+    # a legacy manifest that predates the key, which resolves via the run-level
+    # `config["plan"]` exactly as before.
+    exam_id: Optional[str] = None
 
     @property
     def scope_keys(self) -> List[ScopeKey]:
@@ -186,13 +196,17 @@ def assemble_bundle(name: str,
                     *,
                     rubric_hash: Optional[str] = None,
                     transcription_hash: Optional[str] = None,
-                    manifest: Optional[Dict[str, Any]] = None) -> FixtureBundle:
+                    manifest: Optional[Dict[str, Any]] = None,
+                    exam_id: Optional[str] = None) -> FixtureBundle:
     """Object-level assembly (tests + tools). Compiles the REAL GradableTest and
     validates the GT against it when present."""
     gradable = compile_gradable(rubric_contract, transcription_contract)
     infos = terminal_universe(gradable)
     scope_keys = [(s.question_id, s.sub_question_id) for s in gradable.scopes]
     if gt is not None:
+        # The manifest routes; a GT that names its own exam must AGREE (§0.4 —
+        # two sources of one fact are only safe when a disagreement is loud).
+        assert_gt_exam_id_agrees(name, exam_id, getattr(gt, "exam_id", None))
         _validate_gt(gt, name, infos, scope_keys,
                      rubric_contract.numeric_policy.precision,
                      rubric_hash, transcription_hash)
@@ -202,7 +216,8 @@ def assemble_bundle(name: str,
         gradable_test=gradable, terminal_infos=infos, gt=gt,
         rubric_contract_hash=rubric_hash,
         transcription_contract_hash=transcription_hash,
-        manifest=manifest or {})
+        manifest=manifest or {},
+        exam_id=exam_id)
 
 
 _MANIFEST_REQUIRED = ("rubric_contract", "transcription_contract", "gt")
@@ -240,7 +255,8 @@ def load_bundle(name: str, *, suite_dir: Path = SUITE_DIR,
         name, rubric_contract, transcription_contract, gt,
         rubric_hash=sha256_file(rc_path),
         transcription_hash=sha256_file(tc_path),
-        manifest=manifest)
+        manifest=manifest,
+        exam_id=manifest_exam_id(name, suite_dir=suite_dir))
 
 
 # ---------------------------------------------------------------------------

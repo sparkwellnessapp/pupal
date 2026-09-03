@@ -1,0 +1,12 @@
+{
+ "exam_id": "bagrut_899371",
+ "rubric_contract": "compiled_rubric_bagrut.json",
+ "transcription_contract": "compiled_transcriptions_bagrut/raz_cohen.json",
+ "gt": "benchmarks/gt/bagrut_899371/raz_cohen.gt.json",
+ "provenance": {
+  "exam": "bagrut_899371 (מתכונת, choose 4 of 6)",
+  "student": "raz_cohen",
+  "built_by": "tools/build_bagrut_fixtures.py",
+  "gt_status": "AWAITING OWNER AUTHORING — load_bundle refuses until the file exists (R1)"
+ }
+}

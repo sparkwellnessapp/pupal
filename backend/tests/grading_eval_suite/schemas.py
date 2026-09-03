@@ -48,6 +48,12 @@ class ScopeUngradable(BaseModel):
 class FixtureGT(BaseModel):
     """The blind-authored teacher grade for one fixture [R1][R3]."""
     fixture: str
+    # [two-exam harness] Which exam this GT was authored against. OPTIONAL, and
+    # deliberately NOT the routing fact — the fixture manifest routes, and this
+    # is CROSS-CHECKED against it (exam_resolution.assert_gt_exam_id_agrees).
+    # It earns its place by making a GT file self-describing when read alone;
+    # the cross-check is what stops the two copies drifting (§0.4).
+    exam_id: Optional[str] = None
     rubric_contract_hash: str             # sha256 of the snapshot file bytes [D5]
     transcription_contract_hash: str      # sha256 of the snapshot file bytes [D5]
     # [M1, owner-ratified 2026-08-25] three provenance classes. v0 GATES on the
