@@ -41,11 +41,22 @@ from tests.grading_eval_suite.plan_expressibility import (      # noqa: E402
 EXAMS = {
     "hobby_tvshow": ["dan_basiuk", "din_ezra", "moran_aharon",
                      "omer_gelber", "yonatan_basiuk"],
+    # [exam 2] Fixture names are EXAM-NAMESPACED because din_ezra sat both
+    # papers and the hobby fixture already owns the bare name and a ratified GT.
+    "bagrut_899371": [f"bagrut_899371.{s}" for s in
+                      ["din_ezra", "itay_kraft", "noam_breinshtein", "raz_cohen",
+                       "roni_ben_ezra", "yael_kogan", "yahli_cohen"]],
 }
 DEFAULT_EXAM = "hobby_tvshow"
 FIXTURES = EXAMS[DEFAULT_EXAM]
 OUT = SUITE / "plans" / "generated"
 GEN_MODEL = ("anthropic", "claude-opus-5")      # top tier — the plan is the ceiling
+# A plan-gen call is NOT a grading call. build_chat_model defaults to
+# GRADER_LLM_TIMEOUT_S (240s), which is sized for one scope of one student's
+# answers; a generation call carries the whole scope corpus plus the
+# constitution and reasons over it. A 13-scope exam hit that ceiling and the
+# APITimeoutError discarded the entire run — every completed scope with it.
+GEN_TIMEOUT_S = 900.0
 def hand_plan_for(exam: str):
     return SUITE / "plans" / f"{exam}.plan.json"
 
@@ -69,22 +80,53 @@ VARIANTS = {
 }
 
 
-async def generate(variant: str) -> None:
+async def generate(variant: str, exam: str = DEFAULT_EXAM) -> None:
     from app.agents.grader.llm_factory import build_chat_model
 
     cfg = VARIANTS[variant]
-    bundle = load_bundle(FIXTURES[0])
-    llm = build_chat_model(*GEN_MODEL).with_structured_output(
+    # GT is not needed to GENERATE — the plan is a function of the contract
+    # alone. Requiring it would block exam 2 on an authoring session that this
+    # step exists to unblock.
+    bundle = load_bundle(EXAMS[exam][0], require_gt=False)
+    llm = build_chat_model(*GEN_MODEL, timeout_s=GEN_TIMEOUT_S).with_structured_output(
         ScopeDecomposition, include_raw=True)
 
+    # PER-SCOPE CACHE. A sequential 13-scope run that assembles only at the end
+    # is all-or-nothing, and one timeout already threw away a paid-for run. Each
+    # scope is written as it lands; a retry resumes and pays only for the gap.
+    cache_path = OUT / f"{exam}.{variant}.scopes.json"
+    cache: dict = {}
+    if cache_path.exists():
+        raw = json.loads(cache_path.read_text(encoding="utf-8"))
+        from app.agents.grader.plan_schemas import TerminalPlan
+        cache = {k: [TerminalPlan.model_validate(t) for t in v]
+                 for k, v in raw.items()}
+        print(f"[resume] {len(cache)} scope(s) cached — not re-generating them")
+
+    def _persist(label, terminals):
+        cache[label] = terminals
+        OUT.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps(
+            {k: [json.loads(t.model_dump_json()) for t in v]
+             for k, v in cache.items()}, ensure_ascii=False, indent=1),
+            encoding="utf-8")
+        print(f"[scope] {label}: {len(terminals)} terminal(s) cached")
+
     gen = PlanGenerator(llm, plan_version=f"generated-{variant}/v1", **cfg)
-    plan, meta = await gen.generate(bundle.rubric_contract,
-                                    exam_id="hobby_tvshow")
+    plan, meta = await gen.generate(bundle.rubric_contract, exam_id=exam,
+                                    resume=cache, on_scope=_persist)
+
+    # The plan the runner will hash-pin must carry the contract it was built
+    # from, or _load_plan refuses it (D5). Stamped here, from the bundle's own
+    # snapshot, so it can never name a contract nobody generated against.
+    plan = plan.model_copy(
+        update={"rubric_contract_sha256": bundle.rubric_contract_hash or ""})
 
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / f"{variant}.plan.json").write_text(
+    generated_plan_for(exam, variant).write_text(
         plan.model_dump_json(indent=1), encoding="utf-8")
-    (OUT / f"{variant}.meta.json").write_text(
+    meta_name = generated_plan_for(exam, variant).name.replace(".plan.json", ".meta.json")
+    (OUT / meta_name).write_text(
         json.dumps({k: v for k, v in meta.items() if k != "scope_corpora"},
                    ensure_ascii=False, indent=1), encoding="utf-8")
     u = meta["usage"]
@@ -97,10 +139,11 @@ def _tight(t: str) -> str:
     return re.sub(r"\s+", "", unicodedata.normalize("NFC", t or ""))
 
 
-def score(path: Path, label: str) -> dict:
+def score(path: Path, label: str, exam: str = DEFAULT_EXAM) -> dict:
     """0a — validation + expressibility, plus the structural comparison."""
     plan = GradingPlan.model_validate_json(path.read_text(encoding="utf-8"))
-    bundle = load_bundle(FIXTURES[0])
+    fixtures = EXAMS[exam]
+    bundle = load_bundle(fixtures[0], require_gt=False)
     contract = bundle.rubric_contract
 
     from app.agents.plan_gen.generator import contract_scopes, terminals_of
@@ -121,8 +164,12 @@ def score(path: Path, label: str) -> dict:
 
     total = expr_bad = 0
     misses = []
-    for name in FIXTURES:
-        b = load_bundle(name)
+    for name in fixtures:
+        try:
+            b = load_bundle(name)
+        except Exception as exc:            # GT not authored yet
+            print(f"  [expressibility] {name}: SKIPPED — {type(exc).__name__}")
+            continue
         total += len(b.gt.terminals)
         errs = expressibility_errors(plan, b.gt, b.terminal_infos,
                                      contract.numeric_policy.precision)
@@ -162,16 +209,19 @@ def main() -> None:
     args = ap.parse_args()
 
     if args.variant and not args.score_only:
-        asyncio.run(generate(args.variant))
-        score(OUT / f"{args.variant}.plan.json", args.variant)
+        asyncio.run(generate(args.variant, args.exam))
+        score(generated_plan_for(args.exam, args.variant), args.variant, args.exam)
         return
 
     OUT.mkdir(parents=True, exist_ok=True)
-    rows = [score(HAND, "hand (reference)")]
+    rows = []
+    hand = hand_plan_for(args.exam)
+    if hand.exists():
+        rows.append(score(hand, "hand (reference)", args.exam))
     for v in sorted(VARIANTS):
-        p = OUT / f"{v}.plan.json"
+        p = generated_plan_for(args.exam, v)
         if p.exists():
-            rows.append(score(p, v))
+            rows.append(score(p, v, args.exam))
     (OUT / "0a_summary.json").write_text(
         json.dumps([{k: v for k, v in r.items() if k != "misses"} for r in rows],
                    ensure_ascii=False, indent=1), encoding="utf-8")

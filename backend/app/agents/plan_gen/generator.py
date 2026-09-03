@@ -207,12 +207,35 @@ class PlanGenerator:
         logger.warning("plan_gen_unrepaired", extra={"scope": _scope_label(key)})
         return terminals
 
-    async def generate(self, contract, *, exam_id: str) -> Tuple[GradingPlan, Dict]:
+    async def generate(self, contract, *, exam_id: str,
+                       resume: Optional[Dict[str, List[TerminalPlan]]] = None,
+                       on_scope=None) -> Tuple[GradingPlan, Dict]:
+        """`resume` / `on_scope` make a long run RESUMABLE, and they exist
+        because a run died and took its own spend with it.
+
+        The scope loop is sequential and the plan is only assembled at the end,
+        so a transport failure on scope 11 of 13 discards eleven scopes that
+        were already generated and paid for. `on_scope(label, terminals)` is
+        called as each scope lands, and `resume` supplies scopes a previous
+        attempt already produced — so a retry pays only for what is missing.
+
+        Both default to off: with neither, this is the original loop exactly.
+        """
+        resume = resume or {}
         terminals: List[TerminalPlan] = []
         corpora: Dict[str, str] = {}
         for key, question, sub in contract_scopes(contract):
-            terminals.extend(await self._scope(contract, key, question, sub))
-            corpora[_scope_label(key)] = scope_corpus(
+            label = _scope_label(key)
+            done = resume.get(label)
+            if done is not None:
+                logger.info("plan_gen_resumed", extra={"scope": label})
+                terminals.extend(done)
+            else:
+                produced = await self._scope(contract, key, question, sub)
+                terminals.extend(produced)
+                if on_scope is not None:
+                    on_scope(label, produced)
+            corpora[label] = scope_corpus(
                 question, sub, include_solution=self._include_solution)
 
         plan = GradingPlan(

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -36,6 +37,8 @@ from .exam_resolution import (
     manifest_exam_id,
 )
 from .schemas import FixtureGT
+
+logger = logging.getLogger(__name__)
 
 SUITE_DIR = Path(__file__).resolve().parent
 
@@ -223,9 +226,34 @@ def assemble_bundle(name: str,
 _MANIFEST_REQUIRED = ("rubric_contract", "transcription_contract", "gt")
 
 
+def _authoring_progress(gt_path: Path) -> Optional[str]:
+    """How far along a half-authored GT is, if that is why it failed to parse."""
+    try:
+        raw = json.loads(gt_path.read_text(encoding="utf-8"))
+        terminals = raw.get("terminals") or []
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return None
+    if not terminals:
+        return None
+    unfilled = [t.get("terminal_id") for t in terminals
+                if isinstance(t, dict) and t.get("awarded") is None]
+    if not unfilled:
+        return None
+    placeholder = str(raw.get("authored_at") or "").startswith("FILL")
+    return (f"GT is still being authored — {len(terminals) - len(unfilled)}"
+            f"/{len(terminals)} terminals have an award; "
+            f"{len(unfilled)} still null (first: {unfilled[0]})"
+            + ("; authored_at is still the placeholder" if placeholder else ""))
+
+
 def load_bundle(name: str, *, suite_dir: Path = SUITE_DIR,
                 require_gt: bool = True) -> FixtureBundle:
-    """File-level assembly from `fixtures/<name>.json` [F3]."""
+    """File-level assembly from `fixtures/<name>.json` [F3].
+
+    `require_gt=False` means STRUCTURE ONLY: a GT that is absent, or present but
+    not yet finished, yields `gt=None` rather than an exception. That is what
+    lets a tool or a structural test work on a fixture while its GT is being
+    authored — the state exam 2 is in for as long as the authoring takes."""
     manifest_path = suite_dir / "fixtures" / f"{name}.json"
     if not manifest_path.exists():
         raise GTValidationError(f"{name}: no fixture manifest at {manifest_path}.")
@@ -244,7 +272,20 @@ def load_bundle(name: str, *, suite_dir: Path = SUITE_DIR,
 
     gt: Optional[FixtureGT] = None
     if gt_path.exists():
-        gt = FixtureGT.model_validate_json(gt_path.read_text(encoding="utf-8"))
+        try:
+            gt = FixtureGT.model_validate_json(gt_path.read_text(encoding="utf-8"))
+        except Exception as exc:                              # noqa: BLE001
+            # A GT skeleton is filled in over a long authoring session, so
+            # "present but not finished" is a NORMAL state, not a corrupt file.
+            # Pydantic answers it with one error per unfilled field — 30+ lines
+            # that bury the one fact the author needs, which is how many
+            # terminals are left. The skeleton's own _instructions promise "the
+            # loader refuses partial files — that is the completion check", so
+            # this is that check finally saying something useful.
+            detail = _authoring_progress(gt_path) or str(exc)[:200]
+            if require_gt:
+                raise GTValidationError(f"{name}: {detail}") from None
+            logger.warning("gt_not_ready", extra={"fixture": name, "detail": detail})
     elif require_gt:
         # [R1] no grade-mode run on a fixture until its GT file is committed.
         raise GTValidationError(
