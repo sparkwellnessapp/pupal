@@ -35,6 +35,19 @@ def format_points(value: Pointish) -> str:
     """`"7.50"` -> `"7.5"`, `"4.00"` -> `"4"`, `"0.75"` -> `"0.75"`."""
     if value is None:
         return ""
+    if isinstance(value, Decimal):
+        # PLAIN notation, always. `str(Decimal("100").normalize())` is `"1E+2"`,
+        # and the pass-through below would hand that straight to the page — a
+        # student receiving «1E+2» as their grade. Not reachable from today's
+        # pricer (its totals are quantized sums, which stay plain), so this is a
+        # latent hazard closed at the boundary rather than a live bug.
+        #
+        # ⚠ This is the ONE place this mirror deliberately diverges from
+        # `points-display.ts`, which receives an already-serialised string and
+        # cannot know it was a Decimal. In the reachable domain the two agree
+        # exactly; outside it, the PDF is right and the preview is wrong, which
+        # is the better way round for the artefact the student keeps.
+        value = format(value, "f")
     text = str(value).strip()
     if text == "":
         return ""

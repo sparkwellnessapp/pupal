@@ -691,3 +691,80 @@ def test_renderer_version_bump_invalidates_every_cached_render():
     assert (returned_exam_cache_key(**args, renderer_version="returned-exam-v1")
             != returned_exam_cache_key(**args, renderer_version=RENDERER_VERSION)), (
         "the renderer version does not participate in the cache key")
+
+
+# ---------------------------------------------------------------------------
+# Phase C/D code review — three defects the first pass missed
+# ---------------------------------------------------------------------------
+
+def test_the_stamp_never_silently_loses_the_grade():
+    """[review F-7] `insert_textbox` does not raise when the string is too wide
+    — it returns a negative number and inserts NOTHING. Unchecked, that is a
+    stamp with no grade in it, on the page the student looks at first, failing
+    silently.
+
+    `100.25` already fills ~90% of the disc at the nominal size, so the headroom
+    was one character, not a margin. Every plausible score, and some
+    implausible ones, must land ON the page.
+    """
+    import fitz
+    from app.services.returned_exam import draw_stamp
+
+    for score in ("8", "87.5", "100", "87.75", "100.25", "1000.75", "99.999"):
+        doc = fitz.open()
+        doc.new_page(width=595, height=842)
+        page = doc[0]
+        draw_stamp(page, {"corner": "tl"}, score)
+        assert score in page.get_text(), (
+            f"the stamp rendered NOTHING for score {score!r} — the student's "
+            f"grade vanished from the page and nothing raised")
+
+
+def test_a_long_score_is_shrunk_to_fit_the_disc():
+    """The shrink is real, not decorative: an over-wide score must come out
+    SMALLER rather than absent."""
+    import fitz
+    from app.services.returned_exam import _STAMP_FRACTION, draw_stamp
+
+    def width_of(score):
+        doc = fitz.open()
+        doc.new_page(width=595, height=842)
+        draw_stamp(doc[0], {"corner": "tl"}, score)
+        words = doc[0].get_text("words")
+        assert words, f"{score} did not render"
+        return fitz.Rect(words[0][:4]).width
+
+    disc = 595.0 * _STAMP_FRACTION
+    for score in ("100.25", "1000.75", "99.999"):
+        assert width_of(score) <= disc, (
+            f"{score} rendered wider than the disc ({width_of(score):.1f} > "
+            f"{disc:.1f}) — it spills outside the stamp")
+
+
+def test_a_total_with_no_denominator_still_shows_the_grade():
+    """[review F-9] The total line used to require BOTH figures, so a `possible`
+    of None dropped the whole line — leaving the appendix with no total while
+    the stamp on page 1 carried one. The student would see two different answers
+    to «what did I get»."""
+    from app.services.returned_exam import render_appendix_pdf
+
+    text = _appendix_text(render_appendix_pdf(
+        "דן", [], None, False, total="87.5", possible=None))
+    assert "87.5" in text, "the appendix dropped the grade because it had no denominator"
+
+
+def test_points_never_render_in_exponent_notation():
+    """[review F-8] `str(Decimal("100").normalize())` is `"1E+2"`, and the
+    pass-through would hand that straight to the page — a student receiving
+    «1E+2» as their grade. Not reachable from today's pricer, so it is closed at
+    the boundary rather than argued about."""
+    from decimal import Decimal
+
+    from app.services.points_display import format_points
+
+    assert format_points(Decimal("1E+2")) == "100"
+    assert format_points(Decimal("100").normalize()) == "100"
+    assert format_points(Decimal("1E-2")) == "0.01"
+    # the reachable domain is unchanged — the mirror still holds there
+    for raw in ("7.50", "4.00", "0.75", "0", "8"):
+        assert format_points(Decimal(raw)) == format_points(raw), raw

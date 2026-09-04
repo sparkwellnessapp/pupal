@@ -246,13 +246,17 @@ def render_appendix_pdf(student_name: str,
     """
     parts = [f"<h1>{_escape(student_name)}</h1>",
              '<p class="meta">' + _escape("משוב על המבחן") + '</p>']
-    if total is not None and possible is not None:
+    if total is not None:
         # The grade, in the red a teacher's pen would use. Digits are LTR, so
         # the pair is assembled and escaped as ONE line — reordering «87.5» and
         # «100» separately would place two correct numbers the wrong way round.
-        parts.append('<p class="total">'
-                     + _escape(format_points_pair(total, possible), base_dir="L")
-                     + '</p>')
+        # A grade with no denominator still shows the grade. Dropping the whole
+        # line because `possible` is missing would leave the appendix with no
+        # total while the stamp on page 1 carries one — the student would see
+        # two different answers to "what did I get".
+        shown = (format_points_pair(total, possible) if possible is not None
+                 else format_points(total))
+        parts.append('<p class="total">' + _escape(shown, base_dir="L") + '</p>')
     for scope in scopes:
         # The TITLE is prose — «שאלה 1, סעיף א» — so it takes an RTL base, unlike
         # the raw scope id it replaced. An id is an identifier and had to read
@@ -363,13 +367,31 @@ def draw_stamp(page, corner_or_point, score: Optional[str] = None) -> None:
     else:
         text = get_display(_STAMP_FALLBACK_WORD, base_dir="R")
         size = h * 0.30
+
+    # SHRINK TO FIT, because `insert_textbox` does not raise when the string is
+    # too wide — it returns a negative number and inserts NOTHING. Unchecked,
+    # that is a stamp with no grade in it, on the one page the student looks at
+    # first, failing silently. `100.25` already fills 90% of the disc at the
+    # nominal size, so the headroom is one character, not a comfortable margin.
+    font = fitz.Font(fontfile=str(FONT_DIR / FONT_FILE))
+    usable = w * 0.82            # a chord across the disc, not its diameter
+    width = font.text_length(text, fontsize=size)
+    if width > usable:
+        size *= usable / width
+
     # vertically centred in the disc: insert_textbox anchors at the box top, so
     # a full-height box would sit the glyphs against the upper rim.
     band = fitz.Rect(oval.x0, cy - size * 0.72, oval.x1, cy + size * 0.9)
-    page.insert_textbox(band, text,
-                        fontname=FONT_FAMILY, fontfile=str(FONT_DIR / FONT_FILE),
-                        fontsize=size, color=red,
-                        align=fitz.TEXT_ALIGN_CENTER, morph=morph)
+    written = page.insert_textbox(
+        band, text, fontname=FONT_FAMILY, fontfile=str(FONT_DIR / FONT_FILE),
+        fontsize=size, color=red,
+        align=fitz.TEXT_ALIGN_CENTER, morph=morph)
+    if written < 0:
+        # Should be unreachable after the shrink. If it ever happens the stamp
+        # is blank, so say so loudly rather than hand back a page that looks
+        # finished and carries no grade.
+        logger.error("stamp_text_did_not_fit",
+                     extra={"text": text, "fontsize": size, "shortfall": written})
 
 
 def auto_stamp_position(page) -> dict:

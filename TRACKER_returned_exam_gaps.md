@@ -157,3 +157,38 @@ metrics — and this is the module CLAUDE.md §8 explicitly warns against
 re-deriving from first principles ("three alternatives were falsified against a
 real render"). It needs its own decision, and it blocks the pilot as squarely as
 the two gaps this task named.
+
+### Phase C/D code review (2026-09-04) — three more defects, all fixed
+
+Probed rather than re-read. One was a genuine silent-data-loss bug on the page
+the student looks at first.
+
+**F-7 · REAL BUG · fixed, mutation-tested.** `insert_textbox` does not raise
+when a string is too wide — it returns a negative number and inserts NOTHING,
+and the return was unchecked. `100.25` already fills ~90% of the disc at the
+nominal size, so the headroom was one character. Measured: score `1000.75`
+rendered **an empty stamp** — the student's grade vanished and nothing raised.
+Now the text is measured with the real font and shrunk to a chord of the disc,
+with a loud ERROR log if it still would not fit. **Removing the shrink fails the
+new test**, and the visual confirms the long score now sits inside the circle.
+
+**F-8 · LATENT · fixed at the boundary.** `str(Decimal("100").normalize())` is
+`"1E+2"`, and `format_points`' deliberate pass-through would hand that straight
+to the page — a student receiving «1E+2» as their grade. Not reachable from
+today's pricer (its totals are quantized sums, which stay plain), so this is
+closed where the Decimal enters rather than argued about. It is the ONE place
+the mirror deliberately diverges from `points-display.ts`, which receives an
+already-serialised string: in the reachable domain the two agree exactly;
+outside it the PDF is right and the preview is wrong, which is the better way
+round for the artefact the student keeps.
+
+**F-9 · INCONSISTENCY · fixed.** The total line required BOTH figures, so a
+`possible` of None dropped the whole line — leaving the appendix with no total
+while the stamp on page 1 carried one. The student would have had two different
+answers to «what did I get». A grade with no denominator now still shows the
+grade.
+
+**Checked and deliberately NOT changed:** `scope_title_of("")` yields «שאלה »
+with a trailing space. Contract scope ids are never empty — guarding it would be
+defending against a state the compiler forbids, and the §0.5 rule is that a
+firing guard usually means the logic is wrong, not that a tolerance is missing.
