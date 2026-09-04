@@ -36,6 +36,7 @@ from ...services.graded_test_contract_compiler import GateError, compile_graded_
 from ...services.gcs_service import get_gcs_service
 from ...services.graded_test_revision import extend_chain
 from ...services.returned_exam import (
+    OVERLAY_KEY,
     current_cache_key,
     effective_stamp_position,
     gcs_object_path,
@@ -884,7 +885,7 @@ async def get_returned_exam(
     batch = await db.get(GradingBatch, row.batch_id) if row.batch_id else None
     include_criteria = bool(getattr(batch, "appendix_include_criteria", False))
     stamp = effective_stamp_position(
-        (row.draft_json or {}).get("overrides", {}).get("stamp_position"),
+        (row.draft_json or {}).get(OVERLAY_KEY, {}).get("stamp_position"),
         getattr(batch, "stamp_position_default", None))
 
     key = current_cache_key(contract, stamp, include_criteria)

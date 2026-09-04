@@ -1,8 +1,14 @@
 # PLAN — the two pilot-blocking gaps in the returned exam (PR-G9)
 
-**Status: PLAN, awaiting approval on OD-1 and OD-2.** Per the task's own terms and CLAUDE.md
-§0.1/§0.2, no code is written on the endpoint-shape question or the stamp-content question until
-those are ruled.
+**Status: APPROVED BY NOAM, 2026-09-04.** Both open decisions ruled — see §3 and §4.
+
+> **OD-1 RULED — adopt as proposed.** A dedicated `PATCH /graded_test/{id}/stamp_position`
+> accepting `approved` and `draft` rows, not extending the chain, invalidating
+> `returned_exam_key`. (Implementation carries the §3 amendment: the server sets
+> `source="manual"`.)
+>
+> **OD-2 RULED — Option A.** The PDF stamp becomes **round and score-bearing**, matching the
+> spec, the mockup and the shipped frontend. The «נבדק» ellipse goes.
 
 Every claim in the task was checked against source on `perf/rubric-extraction-latency`. **All of
 them hold.** Two corrections and three additional findings are recorded below — the corrections
@@ -99,7 +105,7 @@ difference is not cosmetic.
 
 ---
 
-## 3. OD-1 — how an approved row's stamp gets written · **RECOMMENDATION: adopt, as proposed**
+## 3. OD-1 — how an approved row's stamp gets written · **RULED: ADOPT (Noam, 2026-09-04)**
 
 **Proposal (the task's):** a dedicated `PATCH /graded_test/{id}/stamp_position` accepting `approved`
 and `draft` rows, not extending the chain, invalidating `returned_exam_key`.
@@ -129,11 +135,11 @@ already has a home).
 `{"stamp_position": StampPosition | null}` (null clears), response `{"stamp_position": …,
 "returned_exam_state": "stale"}`. Regenerating `api-types.ts` is part of the work.
 
-## 4. OD-2 — the stamp draws «נבדק»; the preview draws the SCORE · needs a ruling
+## 4. OD-2 — the stamp draws «נבדק»; the preview draws the SCORE · **RULED: OPTION A (Noam, 2026-09-04)**
 
-**This is a product decision and I will not make it.** The divergence is real and already
-documented on the frontend as reported-not-resolved (`AppendixPage.tsx` carries the same note for
-the appendix).
+The PDF becomes round and score-bearing. The divergence was real and had been documented on the
+frontend as reported-not-resolved (`AppendixPage.tsx` carries the same note for the appendix); it
+is now resolved in the PDF's favour of the spec.
 
 | | Option A — PDF becomes round + score-bearing | Option B — preview becomes «נבדק» ellipse |
 |---|---|---|
@@ -143,14 +149,18 @@ the appendix).
 | Side effect | `stampBox`'s corner arithmetic converges with `draw_stamp` exactly; the pinned divergence test in `returned-exam.test.ts` becomes removable | the divergence test stays forever |
 | Risk | the score must render in the vendored Hebrew face at stamp size — a new render to verify | none |
 
-**Recommendation: Option A.** Three of the four artefacts that describe this feature (spec, mockup,
-shipped frontend) already say round-and-score-bearing; the PDF is the outlier. It also collapses a
-pinned divergence rather than entrenching it. But it changes what the *student* receives, which is
-your call, not mine.
+**Ruled A.** Three of the four artefacts that describe this feature (spec, mockup, shipped
+frontend) already said round-and-score-bearing; the PDF was the outlier.
 
-**If A is ruled**, note the geometry consequence: the ellipse's height is `w * 0.5` while the
-frontend assumes a square box of side `w`. Corner placement currently differs by `w/4` vertically —
-that is precisely what the pinned divergence test measures, and it disappears with A.
+**Geometry consequence, now in scope:** the ellipse's height is `w * 0.5` while the frontend
+assumes a square box of side `w`, so corner placement differs by `w/4` vertically. That is exactly
+what the pinned divergence test in `returned-exam.test.ts` measures — with A the two renderers'
+corner arithmetic converges and that test becomes removable. **Removing it is part of this work**,
+and its removal is the proof the divergence closed rather than moved.
+
+**What the stamp must now carry:** the score, formatted by the same trimmed-never-rounded rule as
+the appendix, in the vendored Hebrew face at stamp size — `helv` cannot render it and the face is
+already vendored for the appendix. `_STAMP_WORD` («נבדק») is retired.
 
 ---
 

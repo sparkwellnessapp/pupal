@@ -197,37 +197,59 @@ def test_zip_names_are_nfc_and_path_safe():
 # stamp-apply-to-batch-writes-default-not-manual-overrides
 # ---------------------------------------------------------------------------
 
+def _draft_with_stamp(position):
+    """A draft overlay built the way PRODUCTION builds it.
+
+    ⚠ These tests used to hand-write `{"overrides": {...}}`. That key is not
+    what anything writes — the overlay persists under `teacher_overrides` — so
+    the tests passed against a shape production never produces while every
+    stamp reader in the codebase was reading a key that did not exist. A fixture
+    the test constructs rather than the code under test validates nothing.
+    Everything below now goes through `GradedTestOverrides` and `OVERLAY_KEY`.
+    """
+    import json as _json
+    from app.schemas.graded_test_draft import GradedTestOverrides
+    from app.services.returned_exam import OVERLAY_KEY
+
+    overlay = GradedTestOverrides(stamp_position=position)
+    return {OVERLAY_KEY: _json.loads(overlay.model_dump_json())}
+
+
 def test_apply_batch_default_clears_auto_positions_but_never_manual():
     """«Apply to all» is a convenience, not an eraser. A position the teacher
     dragged herself is a decision; one the picker chose is a guess. Clearing her
     decision silently would be the product doing something she did not ask for
     and cannot see."""
-    from app.services.returned_exam import apply_stamp_default_to_draft
+    from app.schemas.graded_test_draft import StampPosition
+    from app.services.returned_exam import OVERLAY_KEY, apply_stamp_default_to_draft
 
-    auto = {"overrides": {"stamp_position": {"corner": "tl", "source": "auto"}}}
-    manual = {"overrides": {"stamp_position": {"corner": "br", "source": "manual"}}}
-    none_yet = {"overrides": {}}
-
-    after_auto, changed_auto = apply_stamp_default_to_draft(auto)
+    after_auto, changed_auto = apply_stamp_default_to_draft(
+        _draft_with_stamp(StampPosition(corner="tl", source="auto")))
     assert changed_auto is True
-    assert after_auto["overrides"].get("stamp_position") is None
+    assert after_auto[OVERLAY_KEY].get("stamp_position") is None
 
-    after_manual, changed_manual = apply_stamp_default_to_draft(manual)
+    after_manual, changed_manual = apply_stamp_default_to_draft(
+        _draft_with_stamp(StampPosition(corner="br", source="manual")))
     assert changed_manual is False
-    assert after_manual["overrides"]["stamp_position"]["corner"] == "br", (
+    assert after_manual[OVERLAY_KEY]["stamp_position"]["corner"] == "br", (
         "the teacher's own placement was overwritten by «apply to all»")
 
-    _, changed_none = apply_stamp_default_to_draft(none_yet)
+    _, changed_none = apply_stamp_default_to_draft(_draft_with_stamp(None))
     assert changed_none is False, "nothing to clear must not count as a change"
 
 
 def test_apply_batch_default_treats_a_sourceless_position_as_auto():
     """Positions written before `source` existed carry none. They were all
-    picker output — there was no manual affordance yet — so they clear."""
-    from app.services.returned_exam import apply_stamp_default_to_draft
-    legacy = {"overrides": {"stamp_position": {"corner": "tl"}}}
+    picker output — there was no manual affordance yet — so they clear.
+
+    Built by hand at the POSITION level only (the schema defaults `source` to
+    "auto", so a sourceless payload cannot be produced through it) — the overlay
+    envelope still goes through the real key."""
+    from app.services.returned_exam import OVERLAY_KEY, apply_stamp_default_to_draft
+
+    legacy = {OVERLAY_KEY: {"stamp_position": {"corner": "tl"}}}
     after, changed = apply_stamp_default_to_draft(legacy)
-    assert changed is True and after["overrides"].get("stamp_position") is None
+    assert changed is True and after[OVERLAY_KEY].get("stamp_position") is None
 
 
 # ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ the endpoints are wired to that logic, under real auth and real ownership.
 """
 from __future__ import annotations
 
+import json
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -76,16 +77,24 @@ async def _insert_graded_test(user_id, rubric_id, batch_id, student_id, *,
     """
     from app.models.grading import GradedTest
 
+    # The overlay goes through the REAL schema and the REAL key. It used to be
+    # hand-written under "overrides" — a key nothing writes — so this suite
+    # passed while every stamp reader in production looked somewhere else. A
+    # fixture the test constructs rather than the code under test validates
+    # nothing, and that is exactly how the dead key shipped.
+    from app.schemas.graded_test_draft import GradedTestOverrides, StampPosition
+    from app.services.returned_exam import OVERLAY_KEY
+
+    overlay = GradedTestOverrides(
+        stamp_position=(None if stamp_source is None
+                        else StampPosition(corner="tl", source=stamp_source)))
     draft = {
         "rubric_contract_version": "rc", "transcription_contract_version": "tc",
         "model_version": "m", "prompt_version": "p", "plan_version": None,
         "scope_outcomes": [], "llm_calls_count": 1, "grading_duration_ms": 1,
         "total_input_tokens": 1, "total_output_tokens": 1,
-        "overrides": {"terminals": {}, "feedback": {}},
+        OVERLAY_KEY: json.loads(overlay.model_dump_json()),
     }
-    if stamp_source is not None:
-        draft["overrides"]["stamp_position"] = {"corner": "tl",
-                                                "source": stamp_source}
     contract = None
     approved_at = None
     if status == "approved":
@@ -194,8 +203,9 @@ def test_apply_stamp_to_batch_clears_auto_positions_but_not_manual(
             out = {}
             for gid in (auto_id, manual_id):
                 row = await db.get(GradedTest, uuid.UUID(gid))
+                from app.services.returned_exam import OVERLAY_KEY
                 out[gid] = (row.draft_json or {}).get(
-                    "overrides", {}).get("stamp_position")
+                    OVERLAY_KEY, {}).get("stamp_position")
             return out
 
     positions = asyncio.run(_positions())

@@ -76,6 +76,7 @@ from ...schemas.graded_test_contract import GradedTestContract
 from ...schemas.graded_test_draft import StampPosition
 from ...services.gcs_service import get_gcs_service
 from ...services.returned_exam import (
+    OVERLAY_KEY,
     ExamRow,
     apply_stamp_default_to_draft,
     current_cache_key,
@@ -750,7 +751,7 @@ async def _exam_rows(db, batch_id, user_id):
             try:
                 contract = GradedTestContract.model_validate(row.contract_json)
                 stamp = effective_stamp_position(
-                    (row.draft_json or {}).get("overrides", {}).get("stamp_position"),
+                    (row.draft_json or {}).get(OVERLAY_KEY, {}).get("stamp_position"),
                     batch.stamp_position_default)
                 current = current_cache_key(
                     contract, stamp, bool(batch.appendix_include_criteria))

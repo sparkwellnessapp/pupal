@@ -405,6 +405,16 @@ def zip_entry_name(batch_name: Optional[str], student_name: Optional[str]) -> st
     return f"{clean(batch_name, 'מקבץ')}_{clean(student_name, 'ללא שם')}_מוחזר.pdf"
 
 
+#: The overlay's ONE key. `GradedTestOverrides` is persisted under
+#: `draft_json["teacher_overrides"]` (grading.py's two writers, and
+#: `override_attribution` reads it correctly). Every stamp READER used
+#: `"overrides"` — a key nothing has ever written — so a dragged stamp could
+#: never reach the student's PDF and «apply to all» could never clear anything.
+#: Both failures were silent. Named once here so the writer and the four
+#: readers cannot drift apart again.
+OVERLAY_KEY = "teacher_overrides"
+
+
 def apply_stamp_default_to_draft(draft_json: dict) -> Tuple[dict, bool]:
     """«Apply to all»: clear the picker's guesses, keep the teacher's decisions.
 
@@ -417,13 +427,13 @@ def apply_stamp_default_to_draft(draft_json: dict) -> Tuple[dict, bool]:
     Returns the draft and whether anything actually changed, because the
     endpoint reports a COUNT and that count must be true.
     """
-    overrides = (draft_json or {}).get("overrides") or {}
+    overrides = (draft_json or {}).get(OVERLAY_KEY) or {}
     position = overrides.get("stamp_position")
     if not position or position.get("source") == "manual":
         return draft_json, False
 
     new_overrides = {**overrides, "stamp_position": None}
-    return {**draft_json, "overrides": new_overrides}, True
+    return {**draft_json, OVERLAY_KEY: new_overrides}, True
 
 
 # ---------------------------------------------------------------------------
