@@ -6,7 +6,7 @@ Endpoints for rubric extraction (DOCX) and graded test retrieval.
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, Form
@@ -23,7 +23,9 @@ from ...models.grading import GradedTest, GradingBatch, Rubric
 from ...models.transcription import Transcription
 from ...models.user import User
 from ...schemas.graded_test_contract import GradedTestContract
-from ...schemas.graded_test_draft import GradedTestDraft, GradedTestOverrides
+from ...schemas.graded_test_draft import (
+    GradedTestDraft, GradedTestOverrides, StampPosition,
+)
 from ...schemas.graded_test_responses import (
     GradedTestApprovedResponse,
     GradedTestDraftResponse,
@@ -57,6 +59,22 @@ class SaveDraftRequest(BaseModel):
     # [PR-G5] What the CLIENT priced from the same overlay. Optional: an older
     # client simply does not send it and gets no mismatch signal.
     client_totals: Optional[Dict[str, Decimal]] = None
+
+
+class SaveStampPositionRequest(BaseModel):
+    """[OD-1] `null` clears the position, so the test falls back to the batch
+    default (or the auto corner). `source` on the way in is IGNORED — the server
+    sets "manual"; see the endpoint's docstring."""
+    stamp_position: Optional[StampPosition] = None
+
+
+class StampPositionResponse(BaseModel):
+    id: UUID
+    status: str
+    stamp_position: Optional[StampPosition] = None
+    # Always "stale" on a successful move: the render cached under the old
+    # position is no longer what she would sign.
+    returned_exam_state: Literal["none", "rendering", "ready", "stale"] = "stale"
 
 
 class ApproveRequest(BaseModel):
@@ -925,6 +943,85 @@ async def get_returned_exam(
     logger.info("returned_exam_rendered",
                 extra={"graded_test_id": str(row.id), "bytes": len(pdf)})
     return Response(content=pdf, media_type="application/pdf")
+
+
+@router.patch("/graded_test/{graded_test_id}/stamp_position",
+              response_model=StampPositionResponse)
+async def save_stamp_position(
+    graded_test_id: UUID,
+    body: SaveStampPositionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> StampPositionResponse:
+    """Move the stamp on an already-signed exam. [OD-1, owner-ruled 2026-09-04]
+
+    WHY THIS ENDPOINT EXISTS AT ALL. §4.3 P3 lets the teacher drag the stamp on
+    the returned-exam preview, and that preview renders APPROVED tests only
+    (`get_returned_exam` 409s on anything else). But the only endpoint that
+    wrote `stamp_position` was `PATCH …/draft`, which 409s on anything that is
+    NOT a draft. The two guards are disjoint, so the drag she performs had
+    literally nowhere to go.
+
+    WHY IT DOES NOT VIOLATE LCY-2, and why that is not a stretch:
+      * What LCY-2 freezes is the GRADING DECISION, and that lives in
+        `contract_json`, which contains no stamp. Moving it changes no points,
+        no verdicts, and no contract.
+      * The codebase ALREADY writes `draft_json` on approved rows for exactly
+        this purpose: `rename_batch`'s «apply to all» selects the batch's graded
+        tests with no status filter and rewrites their stamp. So this does not
+        add an exception — it gives the per-test case the write path the batch
+        case has had all along.
+
+    WHY NOT JUST RELAX `PATCH …/draft` — the tempting answer, named so it is not
+    chosen later: that endpoint also writes `terminals` and `feedback`, i.e. the
+    grading decision. Relaxing it would let a legitimate stamp move carry an
+    illegitimate re-grade on the same request. A separate endpoint is what keeps
+    the narrow exception narrow.
+
+    IT MUST NOT EXTEND THE CHAIN. Routing this through `manual_edit` would mint
+    a new version and un-sign the exam for a cosmetic change — the teacher would
+    have to re-approve because she moved a stamp.
+
+    THE SERVER SETS `source="manual"`. `source` decides whether «apply to all»
+    may clear the position, so a client that sent "auto" could make the
+    teacher's own placement erasable by a later batch-default change. Nothing
+    persists "auto" anyway — the corner picker runs at render time
+    (`auto_stamp_position`) and its result never reaches the overlay — so a
+    position that arrives here is, by construction, one she placed.
+    """
+    row: GradedTest = await get_owned_or_404(db, GradedTest, graded_test_id,
+                                             current_user.id)
+    if row.status not in ("draft", "approved"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot move the stamp: graded test is '{row.status}'.")
+    if not row.draft_json:
+        raise HTTPException(status_code=409,
+                            detail="Cannot move the stamp: no draft on this row.")
+
+    draft = GradedTestDraft.model_validate(row.draft_json)
+    overlay = draft.teacher_overrides or GradedTestOverrides()
+    position = body.stamp_position
+    if position is not None:
+        position = position.model_copy(update={"source": "manual"})
+
+    updated = draft.model_copy(update={
+        "teacher_overrides": overlay.model_copy(update={"stamp_position": position})})
+    row.draft_json = updated.model_dump(mode="json")
+
+    # The stamp is IN the cache key, so a cached render is now a render of a
+    # position she has moved away from. Dropping the key is what makes the next
+    # fetch re-render; leaving it would serve a page that looks entirely correct
+    # and is wrong (§3.5a — the one failure this feature cannot have).
+    row.returned_exam_key = None
+    await db.commit()
+
+    return StampPositionResponse(
+        id=row.id,
+        status=row.status,
+        stamp_position=position,
+        returned_exam_state="stale",
+    )
 
 
 @router.post("/graded_test/{graded_test_id}/regrade", response_model=RevisionResponse)

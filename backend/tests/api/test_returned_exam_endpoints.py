@@ -328,3 +328,141 @@ def test_returned_exam_endpoints_are_owner_scoped(
     assert client.patch(f"/api/v0/batches/{batch_id}",
                         json={"appendix_include_criteria": True},
                         headers=headers_b).status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# OD-1 (owner-ruled 2026-09-04) — PATCH …/stamp_position
+#
+# The gap these close: §4.3 P3 lets the teacher drag the stamp on the
+# returned-exam preview, which renders APPROVED tests only; the only endpoint
+# that wrote stamp_position refused anything that was not a draft. The two
+# status guards were disjoint, so the drag had nowhere to go.
+#
+# Every overlay below is written by the REAL ENDPOINT, never hand-built — the
+# hand-built overlay is what let the dead key ship.
+# ---------------------------------------------------------------------------
+
+def _patch_stamp(client, headers, gid, payload):
+    return client.patch(
+        f"/api/v0/grading/graded_test/{gid}/stamp_position",
+        json=payload, headers=headers)
+
+
+def _stored_stamp(gid):
+    """Read the position back out of the row, through the production key."""
+    import asyncio as _asyncio
+    from app.models.grading import GradedTest
+    from app.services.returned_exam import OVERLAY_KEY
+
+    async def _read():
+        async with _session() as db:
+            row = await db.get(GradedTest, uuid.UUID(gid))
+            return ((row.draft_json or {}).get(OVERLAY_KEY, {}).get("stamp_position"),
+                    row.returned_exam_key)
+
+    return _asyncio.run(_read())
+
+
+def _approved_test(user_a, rubric_a, student_a, *, status="approved",
+                   returned_exam_key=None):
+    import asyncio
+    user_id, rubric_id = user_a["user"]["id"], rubric_a["rubric_id"]
+    batch_id = asyncio.run(_insert_batch(user_id, rubric_id))
+    gid = asyncio.run(_insert_graded_test(
+        user_id, rubric_id, batch_id, student_a["id"],
+        status=status, student_name="דן בסיוק",
+        returned_exam_key=returned_exam_key))
+    return batch_id, gid
+
+
+@pytest.mark.integration
+def test_stamp_set_on_an_approved_exam_reaches_the_pdf(
+        client, headers_a, user_a, rubric_a, student_a):
+    """THE definition of done: a position the teacher sets on an APPROVED exam
+    round-trips into the render, through the real endpoint."""
+    _batch, gid = _approved_test(user_a, rubric_a, student_a,
+                                 returned_exam_key="stale-key-from-an-earlier-render")
+
+    resp = _patch_stamp(client, headers_a, gid,
+                        {"stamp_position": {"corner": "br", "source": "auto"}})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["stamp_position"]["corner"] == "br"
+    # the SERVER decides `source` — a client-sent "auto" would make her own
+    # placement erasable by a later «apply to all»
+    assert body["stamp_position"]["source"] == "manual", (
+        "the server trusted the client's `source`")
+    assert body["returned_exam_state"] == "stale"
+
+    stored, cache_key = _stored_stamp(gid)
+    assert stored is not None and stored["corner"] == "br", (
+        "the position did not persist under the key production reads")
+    assert stored["source"] == "manual"
+    assert cache_key is None, (
+        "the cached render survived a stamp move — the next fetch would serve "
+        "a page showing a position she moved away from")
+
+
+@pytest.mark.integration
+def test_the_stamp_endpoint_accepts_a_draft_row_too(
+        client, headers_a, user_a, rubric_a, student_a):
+    """A draft is the other legal state — she may place the stamp before
+    signing, and P3 is reachable from the review screen as well."""
+    _batch, gid = _approved_test(user_a, rubric_a, student_a, status="draft")
+    resp = _patch_stamp(client, headers_a, gid,
+                        {"stamp_position": {"corner": "tl"}})
+    assert resp.status_code == 200, resp.text
+
+
+@pytest.mark.integration
+def test_a_null_position_clears_it_back_to_the_batch_default(
+        client, headers_a, user_a, rubric_a, student_a):
+    """Clearing is a real operation: it is how she undoes a drag and lets the
+    test inherit whatever the batch default becomes."""
+    _batch, gid = _approved_test(user_a, rubric_a, student_a)
+    assert _patch_stamp(client, headers_a, gid,
+                        {"stamp_position": {"corner": "br"}}).status_code == 200
+
+    resp = _patch_stamp(client, headers_a, gid, {"stamp_position": None})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["stamp_position"] is None
+    assert _stored_stamp(gid)[0] is None
+
+
+@pytest.mark.integration
+def test_the_stamp_endpoint_does_not_extend_the_revision_chain(
+        client, headers_a, user_a, rubric_a, student_a):
+    """Moving a stamp must not mint a version. Routing this through
+    `manual_edit` would un-sign the exam for a cosmetic change — she would have
+    to re-approve because she nudged a stamp."""
+    import asyncio
+    from app.models.grading import GradedTest
+
+    _batch, gid = _approved_test(user_a, rubric_a, student_a)
+    _patch_stamp(client, headers_a, gid, {"stamp_position": {"corner": "tr"}})
+
+    async def _row():
+        async with _session() as db:
+            row = await db.get(GradedTest, uuid.UUID(gid))
+            return row.status, row.regraded_to_id
+
+    status, regraded_to = asyncio.run(_row())
+    assert status == "approved", "the exam was un-signed by a stamp move"
+    assert regraded_to is None, "a stamp move extended the chain"
+
+
+@pytest.mark.integration
+def test_the_stamp_endpoint_is_owner_scoped(
+        client, headers_b, user_a, rubric_a, student_a):
+    """404, never 403 — 403 leaks existence (§9)."""
+    _batch, gid = _approved_test(user_a, rubric_a, student_a)
+    resp = _patch_stamp(client, headers_b, gid,
+                        {"stamp_position": {"corner": "tl"}})
+    assert resp.status_code == 404, resp.status_code
+
+
+# NOTE — there is deliberately NO test that a `failed` row is refused. The
+# CHECK constraint `graded_tests_status_consistency` forbids a failed row from
+# carrying draft_json at all, so such a row cannot be constructed to test
+# against. The database is the guard there, and the endpoint's own
+# `if not row.draft_json` covers the shape that reaches it.

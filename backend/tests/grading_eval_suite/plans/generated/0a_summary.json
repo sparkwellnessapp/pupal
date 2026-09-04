@@ -1,0 +1,62 @@
+[
+ {
+  "label": "hand (reference)",
+  "checks": 80,
+  "kinds": {
+   "required": 65,
+   "tariff": 14,
+   "note_only": 1
+  },
+  "validator_errors": 5,
+  "expressible": 190,
+  "gt_total": 190,
+  "tariffs": 14,
+  "note_only": 1,
+  "equivalence_notes": 11
+ },
+ {
+  "label": "const",
+  "checks": 83,
+  "kinds": {
+   "required": 68,
+   "tariff": 14,
+   "note_only": 1
+  },
+  "validator_errors": 0,
+  "expressible": 188,
+  "gt_total": 190,
+  "tariffs": 14,
+  "note_only": 1,
+  "equivalence_notes": 23
+ },
+ {
+  "label": "nosol",
+  "checks": 82,
+  "kinds": {
+   "required": 67,
+   "tariff": 14,
+   "note_only": 1
+  },
+  "validator_errors": 0,
+  "expressible": 189,
+  "gt_total": 190,
+  "tariffs": 14,
+  "note_only": 1,
+  "equivalence_notes": 17
+ },
+ {
+  "label": "rubric",
+  "checks": 76,
+  "kinds": {
+   "required": 61,
+   "tariff": 14,
+   "note_only": 1
+  },
+  "validator_errors": 0,
+  "expressible": 187,
+  "gt_total": 190,
+  "tariffs": 14,
+  "note_only": 1,
+  "equivalence_notes": 8
+ }
+]
