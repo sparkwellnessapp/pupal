@@ -28,6 +28,7 @@ from app.models.grading import GradedTest
 from app.models.school import School
 from app.models.transcription import Transcription
 from app.models.user import User
+from ..schemas.graded_test_draft import OVERLAY_KEY
 
 _WS = re.compile(r"\s+")
 
@@ -57,7 +58,7 @@ def override_attribution_query() -> Select:
     honest missing data, not a defect to coalesce away.
     """
     overrides = func.jsonb_each(
-        GradedTest.draft_json["teacher_overrides"]
+        GradedTest.draft_json[OVERLAY_KEY]
     ).table_valued("key", "value").render_derived(name="ov", with_types=True).lateral()
 
     terminal_id = literal_column("ov.key")

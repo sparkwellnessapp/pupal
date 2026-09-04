@@ -61,8 +61,8 @@ Legend: ☐ todo · ◐ in progress · ☑ done+verified · ⊘ deliberately not
 |---|---|---|
 | `overlay-writer-and-readers-agree-on-one-key` | A | ☑ |
 | `stamp-set-on-an-approved-exam-reaches-the-pdf` | B | ☑ |
-| `stamp-set-on-an-approved-exam-reaches-the-batch-zip` | B | ☐ |
-| `apply-to-all-reports-a-count-that-is-true` | A/B | ☐ |
+| `stamp-set-on-an-approved-exam-reaches-the-batch-zip` | B | ☑ |
+| `apply-to-all-reports-a-count-that-is-true` | A/B | ☑ |
 | `no-test-hand-builds-a-draft-overlay` | E | ☑ |
 | `appendix-carries-the-total-and-per-scope-points` | D | ☐ |
 | `appendix-titles-are-hebrew-prose-not-raw-ids` | D | ☐ |
@@ -84,3 +84,41 @@ Legend: ☐ todo · ◐ in progress · ☑ done+verified · ⊘ deliberately not
 ## Findings log
 
 Anything the plan did not predict, with its disposition.
+
+### Phase A/B code review (2026-09-04) — four findings, all fixed
+
+Reviewed by probing what was most likely wrong, not by re-reading the diff
+approvingly. Two of the four were real defects; one concern was closed by
+measurement rather than argument.
+
+**F-1 · REAL BUG · fixed.** `PATCH …/stamp_position` answered
+`returned_exam_state: "stale"` unconditionally. On an exam nobody has rendered
+that is a lie, and not a harmless one — the frontend drives P8's re-sign banner
+off this state, so it would have asked her to re-sign something that was never
+rendered. Now derived from whether a key existed to invalidate.
+**Mutation-tested:** restoring the unconditional "stale" fails the new test.
+
+**F-2 · MISSING COVERAGE · fixed.** The DoD requires the stamp to reach the PDF
+**and the batch ZIP**; the first pass only covered the row. The ZIP is the OTHER
+reader that was on the dead key, so it was the half more likely to still be
+broken. The new test drives the real endpoint and asserts the archive addresses
+the object keyed for HER position. **Mutation-tested:** reverting
+`batch_grading.py` to the dead key fails it.
+
+**F-3 · MISSING COVERAGE · fixed.** Finding B's second half was untested:
+`stamp_applied_count` feeds `settings_changed`, which is what drops
+`returned_exam_key`. While the key was dead, «apply to all» not only reported 0
+— it never invalidated a single cached render. Now asserted on both halves.
+
+**F-4 · LAYERING · fixed.** `OVERLAY_KEY` was defined in `returned_exam.py`, a
+RENDERING service, though it states where a SCHEMA field is persisted. Moved to
+`graded_test_draft.py` beside the model that declares it and re-exported;
+`override_attribution.py` — a fifth site, and the one that always had the key
+RIGHT — now uses the constant instead of its own literal.
+
+**Closed by measurement, not a defect:** the endpoint round-trips
+`draft_json` through `GradedTestDraft.model_validate(...).model_dump(...)`, and
+pydantic's default `extra='ignore'` would silently drop unknown keys. Checked
+against a real published draft: **zero keys dropped, zero added.** No data loss.
+
+52 green across the endpoints, service, overlay-key and approval suites.

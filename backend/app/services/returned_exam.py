@@ -28,6 +28,10 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import fitz
 from bidi.algorithm import get_display
 
+# Re-exported so the render path and the API layer name the overlay the same
+# way; DEFINED in the schema that declares the field (§0.4).
+from ..schemas.graded_test_draft import OVERLAY_KEY  # noqa: F401
+
 logger = logging.getLogger(__name__)
 
 # Bump when a change alters the rendered PIXELS. It is part of the cache key, so
@@ -405,14 +409,6 @@ def zip_entry_name(batch_name: Optional[str], student_name: Optional[str]) -> st
     return f"{clean(batch_name, 'מקבץ')}_{clean(student_name, 'ללא שם')}_מוחזר.pdf"
 
 
-#: The overlay's ONE key. `GradedTestOverrides` is persisted under
-#: `draft_json["teacher_overrides"]` (grading.py's two writers, and
-#: `override_attribution` reads it correctly). Every stamp READER used
-#: `"overrides"` — a key nothing has ever written — so a dragged stamp could
-#: never reach the student's PDF and «apply to all» could never clear anything.
-#: Both failures were silent. Named once here so the writer and the four
-#: readers cannot drift apart again.
-OVERLAY_KEY = "teacher_overrides"
 
 
 def apply_stamp_default_to_draft(draft_json: dict) -> Tuple[dict, bool]:

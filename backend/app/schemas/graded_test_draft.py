@@ -286,6 +286,17 @@ class FeedbackBlock(BaseModel):
     prompt_version: str
 
 
+#: WHERE THE TEACHER'S OVERLAY LIVES INSIDE `draft_json`.
+#:
+#: Named here, in the schema that declares it, because that is what it is a
+#: fact about. Every stamp reader in the codebase used the literal
+#: `"overrides"` — a key nothing writes — so a dragged stamp never reached the
+#: student's PDF and «apply to all» never cleared anything, both silently. One
+#: name, one place, so the writer and the readers cannot drift apart again.
+#: `tests/services/test_overlay_key.py` asserts this matches a real field.
+OVERLAY_KEY = "teacher_overrides"
+
+
 class GradedTestDraft(BaseModel):
     """
     Complete in-memory output of GraderAgent.grade().

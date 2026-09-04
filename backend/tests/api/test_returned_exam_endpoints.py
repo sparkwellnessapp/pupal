@@ -466,3 +466,143 @@ def test_the_stamp_endpoint_is_owner_scoped(
 # carrying draft_json at all, so such a row cannot be constructed to test
 # against. The database is the guard there, and the endpoint's own
 # `if not row.draft_json` covers the shape that reaches it.
+
+
+# ---------------------------------------------------------------------------
+# Phase A/B code review — the three things the first pass missed
+# ---------------------------------------------------------------------------
+
+@pytest.mark.integration
+def test_stamp_state_is_none_when_there_was_no_render_to_invalidate(
+        client, headers_a, user_a, rubric_a, student_a):
+    """[review F-1] The endpoint used to answer "stale" unconditionally.
+
+    On an exam nobody has rendered, that is a lie — and not a harmless one: the
+    frontend drives P8's re-sign banner off this state, so it would ask her to
+    re-sign something that was never rendered. `stale` means "a render exists
+    and no longer matches"; with no key there is no render.
+    """
+    _batch, never = _approved_test(user_a, rubric_a, student_a,
+                                   returned_exam_key=None)
+    resp = _patch_stamp(client, headers_a, never,
+                        {"stamp_position": {"corner": "tl"}})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["returned_exam_state"] == "none", (
+        "an exam with no cached render was reported stale")
+
+    _batch2, rendered = _approved_test(user_a, rubric_a, student_a,
+                                       returned_exam_key="a-real-earlier-render")
+    resp = _patch_stamp(client, headers_a, rendered,
+                        {"stamp_position": {"corner": "tl"}})
+    assert resp.json()["returned_exam_state"] == "stale", (
+        "a cached render was invalidated without saying so")
+
+
+@pytest.mark.integration
+def test_stamp_set_on_an_approved_exam_reaches_the_batch_zip(
+        client, headers_a, user_a, rubric_a, student_a):
+    """[review F-2] The DoD's second half, which the first pass did not cover.
+
+    The ZIP is the OTHER reader of the stamp (`batch_grading.py`), and it was
+    reading the same dead key. This drives the real endpoint and then asserts
+    the archive addresses the object keyed for HER position — if the ZIP still
+    read `None`, it would ask GCS for a different path and the student would
+    receive an exam stamped somewhere she did not put it.
+    """
+    import asyncio
+    import zipfile
+    from io import BytesIO
+
+    from app.schemas.graded_test_contract import GradedTestContract
+    from app.schemas.graded_test_draft import StampPosition
+    from app.services import returned_exam as rex
+
+    _batch, gid = _approved_test(user_a, rubric_a, student_a)
+    batch_id = _batch
+
+    # she drags the stamp — through the REAL endpoint
+    assert _patch_stamp(client, headers_a, gid,
+                        {"stamp_position": {"corner": "br"}}).status_code == 200
+
+    # the key the ZIP must now compute: the contract PLUS her position
+    async def _key_and_mark():
+        from app.models.grading import GradedTest
+        async with _session() as db:
+            row = await db.get(GradedTest, uuid.UUID(gid))
+            contract = GradedTestContract.model_validate(row.contract_json)
+            stamped = rex.current_cache_key(
+                contract,
+                StampPosition(corner="br", source="manual").model_dump(mode="json"),
+                False)
+            unstamped = rex.current_cache_key(contract, None, False)
+            row.returned_exam_key = stamped          # as a fresh render would
+            await db.commit()
+            return stamped, unstamped
+
+    stamped_key, unstamped_key = asyncio.run(_key_and_mark())
+    assert stamped_key != unstamped_key, (
+        "the stamp is not in the cache key — this test proves nothing")
+
+    import app.api.v0.batch_grading as bg
+
+    asked = []
+
+    class _FakeGCS:
+        def download_bytes(self, path):
+            asked.append(path)
+            return b"%PDF-1.4 fake"
+
+    bg_original = bg.get_gcs_service
+    bg.get_gcs_service = lambda: _FakeGCS()
+    try:
+        r = client.get(f"/api/v0/batches/{batch_id}/returned-exams.zip", headers=headers_a)
+        assert r.status_code == 200, r.text
+        names = zipfile.ZipFile(BytesIO(r.content)).namelist()
+        assert names, "the stamped exam was excluded from the archive"
+    finally:
+        bg.get_gcs_service = bg_original
+
+    assert asked, "the ZIP fetched nothing"
+    assert any(stamped_key in p for p in asked), (
+        f"the ZIP addressed {asked} — none carries the key for HER stamp "
+        f"({stamped_key}). The archive is reading a stamp position she did not set.")
+
+
+@pytest.mark.integration
+def test_apply_to_all_reports_a_count_that_is_true(
+        client, headers_a, user_a, rubric_a, student_a):
+    """[review F-3] Finding B's SECOND half, which nothing covered.
+
+    `stamp_applied_count` is not just a number on a response: `rename_batch`
+    feeds it into `settings_changed`, which is what drops `returned_exam_key`.
+    So while the key was dead the count was 0 AND «apply to all» never
+    invalidated a single cached render — a batch-default change could leave
+    already-rendered exams serving the old stamp forever.
+    """
+    import asyncio
+
+    batch_id = asyncio.run(_insert_batch(user_a["user"]["id"], rubric_a["rubric_id"]))
+    auto_id = asyncio.run(_insert_graded_test(
+        user_a["user"]["id"], rubric_a["rubric_id"], batch_id, student_a["id"],
+        status="approved", student_name="אוטומטי", stamp_source="auto",
+        returned_exam_key="rendered-under-the-old-stamp"))
+
+    r = client.patch(
+        f"/api/v0/batches/{batch_id}",
+        json={"stamp_position_default": {"corner": "br", "source": "manual"}},
+        headers=headers_a)
+    assert r.status_code == 200, r.text
+    assert r.json()["stamp_applied_count"] == 1, (
+        "the count is back to reporting 0 — the overlay key is dead again")
+    assert r.json()["invalidated_count"] >= 1, (
+        "«apply to all» cleared a position but left the render cached under it")
+
+    async def _key():
+        from app.models.grading import GradedTest
+        async with _session() as db:
+            row = await db.get(GradedTest, uuid.UUID(auto_id))
+            return row.returned_exam_key
+
+    assert asyncio.run(_key()) is None, (
+        "the exam still addresses a render made under the stamp that was just "
+        "cleared — it would be served, and it would look entirely correct")

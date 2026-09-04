@@ -1013,6 +1013,13 @@ async def save_stamp_position(
     # position she has moved away from. Dropping the key is what makes the next
     # fetch re-render; leaving it would serve a page that looks entirely correct
     # and is wrong (§3.5a — the one failure this feature cannot have).
+    #
+    # `stale` only if there WAS a render to invalidate. Saying "stale"
+    # unconditionally would be a lie on an exam nobody has rendered yet, and not
+    # a harmless one: the frontend drives P8's re-sign banner off this state
+    # («ערכת את הבדיקה אחרי החתימה…»), so it would ask her to re-sign something
+    # that was never rendered in the first place.
+    had_render = row.returned_exam_key is not None
     row.returned_exam_key = None
     await db.commit()
 
@@ -1020,7 +1027,7 @@ async def save_stamp_position(
         id=row.id,
         status=row.status,
         stamp_position=position,
-        returned_exam_state="stale",
+        returned_exam_state="stale" if had_render else "none",
     )
 
 
