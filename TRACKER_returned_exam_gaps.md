@@ -20,30 +20,30 @@ Legend: ☐ todo · ◐ in progress · ☑ done+verified · ⊘ deliberately not
 
 | # | Item | State |
 |---|---|---|
-| B.1 | `PATCH /graded_test/{id}/stamp_position` — approved+draft, server sets `source="manual"` | ☐ ☑ |
-| B.2 | invalidates `returned_exam_key` | ☐ ☑ |
-| B.3 | response shape in `graded_test_responses.py` | ☐ ☑ |
+| B.1 | `PATCH /graded_test/{id}/stamp_position` — approved+draft, server sets `source="manual"` | ☑ |
+| B.2 | invalidates `returned_exam_key` | ☑ |
+| B.3 | response shape in `graded_test_responses.py` | ☑ |
 | B.4 | `api-types.ts` REGENERATED | ☐ |
 
 ## Phase C — the stamp (OD-2, Option A)
 
 | # | Item | State |
 |---|---|---|
-| C.1 | `draw_stamp` → round, score-bearing; `_STAMP_WORD` retired | ☐ |
-| C.2 | score in the vendored face, trimmed-never-rounded | ☐ |
-| C.3 | corner arithmetic converges with `stampBox` | ☐ |
-| C.4 | frontend divergence test REMOVED (the proof it closed) | ☐ |
+| C.1 | `draw_stamp` → round, score-bearing; `_STAMP_WORD` retired | ☑ |
+| C.2 | score in the vendored face, trimmed-never-rounded | ☑ |
+| C.3 | corner arithmetic converges with `stampBox` | ☑ |
+| C.4 | frontend divergence test REMOVED (the proof it closed) | ☐ frontend, next |
 
 ## Phase D — the appendix (Finding 2)
 
 | # | Item | State |
 |---|---|---|
-| D.1 | `AppendixScope` record replaces the widening tuple | ☐ |
-| D.2 | total (from the contract, never re-summed) | ☐ |
-| D.3 | per-scope points | ☐ |
-| D.4 | Hebrew scope titles, RTL base | ☐ |
-| D.5 | `scopes_for_render` docstring becomes true | ☐ |
-| D.6 | `RENDERER_VERSION` bumped | ☐ |
+| D.1 | `AppendixScope` record replaces the widening tuple | ☑ |
+| D.2 | total (from the contract, never re-summed) | ☑ |
+| D.3 | per-scope points | ☑ |
+| D.4 | Hebrew scope titles, RTL base | ☑ |
+| D.5 | `scopes_for_render` docstring becomes true | ☑ |
+| D.6 | `RENDERER_VERSION` bumped | ☑ |
 
 ## Phase E — tests rebuilt through the real types
 
@@ -64,13 +64,13 @@ Legend: ☐ todo · ◐ in progress · ☑ done+verified · ⊘ deliberately not
 | `stamp-set-on-an-approved-exam-reaches-the-batch-zip` | B | ☑ |
 | `apply-to-all-reports-a-count-that-is-true` | A/B | ☑ |
 | `no-test-hand-builds-a-draft-overlay` | E | ☑ |
-| `appendix-carries-the-total-and-per-scope-points` | D | ☐ |
-| `appendix-titles-are-hebrew-prose-not-raw-ids` | D | ☐ |
-| `appendix-total-comes-from-the-contract-not-a-resum` | D | ☐ |
-| `appendix-hebrew-title-with-a-digit-renders-in-order` | D | ☐ |
-| `points-render-trimmed-never-rounded` | C/D | ☐ |
-| `renderer-version-bump-invalidates-every-cached-render` | D | ☐ |
-| `stamp-is-round-and-carries-the-score` | C | ☐ |
+| `appendix-carries-the-total-and-per-scope-points` | D | ☑ |
+| `appendix-titles-are-hebrew-prose-not-raw-ids` | D | ☑ |
+| `appendix-total-comes-from-the-contract-not-a-resum` | D | ☑ |
+| `appendix-hebrew-title-with-a-digit-renders-in-order` | D | ☑ |
+| `points-render-trimmed-never-rounded` | C/D | ☑ |
+| `renderer-version-bump-invalidates-every-cached-render` | D | ☑ |
+| `stamp-is-round-and-carries-the-score` | C | ☑ |
 
 ## Gates
 
@@ -122,3 +122,38 @@ pydantic's default `extra='ignore'` would silently drop unknown keys. Checked
 against a real published draft: **zero keys dropped, zero added.** No data loss.
 
 52 green across the endpoints, service, overlay-key and approval suites.
+
+### Phase C/D findings
+
+**F-5 · the golden "layout guard" could not fire · FIXED.** It tolerated 2% of
+ALL sampled pixels on a page that is **0.40% ink** — five times more slack than
+there is ink to move. It duly passed through this very rewrite, which changed
+every heading and added a points line to every scope (1.04% of pixels moved).
+A guard calibrated against the background is decorative. Now measured against
+the golden's INK: the same change registers **262%**, and the tolerance is 25%.
+Golden regenerated, since the content changed by ruling.
+
+**F-6 · A PRE-EXISTING BIDI DEFECT IN WRAPPED FEEDBACK · SURFACED, NOT FIXED.**
+Found while eyeballing the rendered appendix (§8 gate 4 earning its place).
+
+`_bidi_for_pymupdf` reorders a WHOLE paragraph into one visual line — its END is
+the logical START. That is correct for a line, and the Story then WRAPS it
+left-to-right, so the tail of the visual string (the logical beginning) lands on
+the LAST line. Measured:
+
+    logical:  "המחלקה Hobby הוגדרה נכון עם … durationInMinutes."
+    visual  :  ".durationInM…"                     ← starts here
+    visual  :  "… Hobby המחלקה"                    ← the FIRST word, at the end
+
+Short paragraphs fit one line and render perfectly, which is why it hid. **Every
+paragraph that wraps reads with its first line last** — and feedback prose
+almost always wraps. It affects the feedback and summary text only; the header,
+total, titles, points and breakdown are single-line and correct.
+
+NOT caused by this work (`<p>{feedback}</p>` and `_bidi_for_pymupdf` are
+untouched) and NOT fixed here, deliberately: correct bidi under wrapping means
+line-breaking BEFORE reordering, i.e. owning the line breaks with the font
+metrics — and this is the module CLAUDE.md §8 explicitly warns against
+re-deriving from first principles ("three alternatives were falsified against a
+real render"). It needs its own decision, and it blocks the pilot as squarely as
+the two gaps this task named.

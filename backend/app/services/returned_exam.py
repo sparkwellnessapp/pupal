@@ -31,12 +31,18 @@ from bidi.algorithm import get_display
 # Re-exported so the render path and the API layer name the overlay the same
 # way; DEFINED in the schema that declares the field (§0.4).
 from ..schemas.graded_test_draft import OVERLAY_KEY  # noqa: F401
+from .points_display import format_points, format_points_pair
 
 logger = logging.getLogger(__name__)
 
 # Bump when a change alters the rendered PIXELS. It is part of the cache key, so
 # a bump re-renders every exam rather than serving one drawn by older code.
-RENDERER_VERSION = "returned-exam-v1"
+# [OD-2 + gap 2, 2026-09-04] BUMPED. The stamp became round and score-bearing
+# and the appendix gained the total, per-scope points and Hebrew titles. Without
+# this bump every already-rendered exam keeps serving the old page — the
+# staleness failure the cache key exists to prevent, and the one that looks
+# entirely correct to everyone who receives it (§3.5a).
+RENDERER_VERSION = "returned-exam-v2"
 
 FONT_DIR = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 FONT_FILE = "Assistant-Regular.ttf"
@@ -57,9 +63,19 @@ MAX_APPENDIX_PAGES = 40
 # stamp placement
 # ---------------------------------------------------------------------------
 
-_STAMP_WORD = "נבדק"
+# [OD-2, owner-ruled 2026-09-04 — Option A] The stamp carries the SCORE, not a
+# word. It used to draw «נבדק» in a 2:1 ellipse while the spec, the mockup and
+# the shipped frontend all showed a ROUND stamp bearing the grade — so the
+# teacher previewed one stamp and the student received a different one, which
+# is the exact property the preview exists to guarantee.
+#
+# The geometry consequence is the point: a round stamp makes `draw_stamp`'s
+# corner arithmetic identical to the frontend's `stampBox`, which had to assume
+# a square box of side `w`. The two renderers now agree by construction rather
+# than by a pinned divergence test.
 _STAMP_ROTATION_DEG = 7
 CORNERS = ("tl", "tr", "bl", "br")
+_STAMP_FALLBACK_WORD = "נבדק"   # only when no score is available
 _STAMP_FRACTION = 0.16      # stamp ≈ 16% of page width (spec §2 PR-G9(a))
 _INSET = 0.03               # inset 3%
 
@@ -134,6 +150,8 @@ h1 {{ font-size: 17px; margin: 0 0 4px; }}
 h2 {{ font-size: 13px; margin: 14px 0 4px; }}
 p  {{ margin: 0 0 6px; line-height: 1.6; }}
 .meta {{ color: #5a6068; font-size: 10px; margin-bottom: 12px; }}
+.total {{ color: #C8102E; font-size: 30px; margin: 2px 0 14px; }}
+.pts {{ color: #16181d; font-size: 11px; margin: 0 0 4px; }}
 .crit {{ color: #5a6068; font-size: 10px; margin: 2px 0 0 0; }}
 .foot {{ color: #5a6068; font-size: 9px; margin-top: 18px; }}
 """
@@ -205,14 +223,22 @@ def _escape(text: str, base_dir: str = "R") -> str:
 
 
 def render_appendix_pdf(student_name: str,
-                        scopes: Sequence[Tuple[str, str, Optional[List[tuple]]]],
+                        scopes: Sequence["AppendixScope"],
                         summary: Optional[str],
-                        include_criteria: bool) -> bytes:
+                        include_criteria: bool,
+                        total: Optional[str] = None,
+                        possible: Optional[str] = None) -> bytes:
     """The feedback pages, paginated.
 
-    `scopes` is [(scope_id, feedback_text, criteria)] where criteria is an
-    optional [(description, awarded, possible)] breakdown, rendered only when
-    the teacher turned it on for the batch.
+    CONTENT AND ORDER mirror `AppendixPage.tsx` — header, red total, then per
+    scope its Hebrew title, its points, the optional breakdown and the feedback,
+    then «סיכום» and the footer. Until 2026-09-04 this page carried NO total and
+    NO per-scope points and titled every question with the raw internal id
+    («q1.א»): a student received a graded exam with no grade on it.
+
+    `total`/`possible` come from the CONTRACT and are never re-summed from
+    `scopes` — the rendered scopes deliberately EXCLUDE the not-counted ones, so
+    re-summing them would under-report on every «choose k of N» exam.
 
     Uses Story + DocumentWriter rather than a single insert_htmlbox: feedback is
     unbounded prose, and a fixed box silently TRUNCATES — dropping the pointer
@@ -220,13 +246,27 @@ def render_appendix_pdf(student_name: str,
     """
     parts = [f"<h1>{_escape(student_name)}</h1>",
              '<p class="meta">' + _escape("משוב על המבחן") + '</p>']
-    for scope_id, text, criteria in scopes:
-        # A scope id is an IDENTIFIER, not prose. Under an RTL base `q1.א`
-        # resolves to `א.q1` — correct by the algorithm, and different from how
-        # the same id reads in the app. An identifier must be the same string
-        # everywhere the teacher and the student see it, so it gets an LTR base.
-        parts.append('<h2>' + _escape(scope_id, base_dir="L") + '</h2>')
-        parts.append(f"<p>{_escape(text)}</p>")
+    if total is not None and possible is not None:
+        # The grade, in the red a teacher's pen would use. Digits are LTR, so
+        # the pair is assembled and escaped as ONE line — reordering «87.5» and
+        # «100» separately would place two correct numbers the wrong way round.
+        parts.append('<p class="total">'
+                     + _escape(format_points_pair(total, possible), base_dir="L")
+                     + '</p>')
+    for scope in scopes:
+        # The TITLE is prose — «שאלה 1, סעיף א» — so it takes an RTL base, unlike
+        # the raw scope id it replaced. An id is an identifier and had to read
+        # identically everywhere; a sentence must read as a sentence. The digit
+        # next to Hebrew is exactly the shape that exposed the half-bidi defect,
+        # so this is pinned by a per-character render assertion, not an eyeball.
+        parts.append('<h2>' + _escape(scope.title, base_dir="R") + '</h2>')
+        parts.append('<p class="pts">'
+                     + _escape(format_points_pair(scope.awarded, scope.possible),
+                               base_dir="L")
+                     + '</p>')
+        if scope.feedback:
+            parts.append(f"<p>{_escape(scope.feedback)}</p>")
+        criteria = scope.criteria
         if include_criteria and criteria:
             for description, awarded, possible in criteria:
                 # one _escape over the ASSEMBLED line: reordering the parts
@@ -267,16 +307,22 @@ def render_appendix_pdf(student_name: str,
 # the whole artefact
 # ---------------------------------------------------------------------------
 
-def draw_stamp(page, corner_or_point) -> None:
+def draw_stamp(page, corner_or_point, score: Optional[str] = None) -> None:
     """A vector stamp on page 1 — drawn, never rasterised, so it stays crisp.
 
-    Double-stroke ellipse at a slight rotation, in the red a teacher's pen
-    would use. Vector because the original page is the student's own scan: a
-    raster overlay would soften their handwriting underneath it.
+    [OD-2] ROUND, and it carries the SCORE. Vector because the original page is
+    the student's own scan: a raster overlay would soften their handwriting
+    underneath it.
+
+    `score` is already display-formatted (`format_points`) — trimmed, never
+    rounded. `None` falls back to the historical «נבדק» word, which is what a
+    caller with no contract to read can honestly say.
     """
     rect = page.rect
     w = rect.width * _STAMP_FRACTION
-    h = w * 0.5
+    # ROUND: h == w. The old 2:1 ellipse is what made the corner arithmetic
+    # differ from the frontend's by w/4 vertically.
+    h = w
     dx, dy = rect.width * _INSET, rect.height * _INSET
 
     if isinstance(corner_or_point, dict) and corner_or_point.get("corner") is None \
@@ -302,12 +348,27 @@ def draw_stamp(page, corner_or_point) -> None:
     shape.commit()
 
     # THE VENDORED FACE, not `helv`. PyMuPDF's built-in Helvetica has no Hebrew
-    # glyphs and renders «נבדק» as «????» — measured, on every exam, as the
-    # first thing the student sees. And `insert_textbox` does NO bidi of its
-    # own (unlike Story), so it takes the VISUAL string.
-    page.insert_textbox(oval, get_display(_STAMP_WORD, base_dir="R"),
+    # glyphs and rendered «נבדק» as «????» — measured, on every exam, as the
+    # first thing the student sees. The face stays even now the stamp usually
+    # carries digits, because the fallback word is still Hebrew and because one
+    # face for one stamp is one thing to get right.
+    #
+    # `insert_textbox` does NO bidi of its own (unlike Story), so it takes the
+    # VISUAL string. A SCORE is digits — LTR — so it needs no reordering at all;
+    # running it through get_display with an RTL base would be the bug this
+    # comment exists to prevent.
+    if score:
+        text = score
+        size = h * 0.34          # digits fill more of the disc than a word
+    else:
+        text = get_display(_STAMP_FALLBACK_WORD, base_dir="R")
+        size = h * 0.30
+    # vertically centred in the disc: insert_textbox anchors at the box top, so
+    # a full-height box would sit the glyphs against the upper rim.
+    band = fitz.Rect(oval.x0, cy - size * 0.72, oval.x1, cy + size * 0.9)
+    page.insert_textbox(band, text,
                         fontname=FONT_FAMILY, fontfile=str(FONT_DIR / FONT_FILE),
-                        fontsize=h * 0.42, color=red,
+                        fontsize=size, color=red,
                         align=fitz.TEXT_ALIGN_CENTER, morph=morph)
 
 
@@ -335,15 +396,18 @@ def render_returned_exam(original_pdf: bytes,
                          scopes: Sequence[Tuple[str, str, Optional[List[tuple]]]],
                          summary: Optional[str],
                          stamp_position: Optional[dict],
-                         include_criteria: bool) -> bytes:
+                         include_criteria: bool,
+                         score: Optional[str] = None,
+                         possible: Optional[str] = None) -> bytes:
     """Original pages + stamp on page 1 + appendix pages, as ONE PDF."""
     doc = fitz.open(stream=original_pdf, filetype="pdf")
     if doc.page_count:
         position = stamp_position or auto_stamp_position(doc[0])
-        draw_stamp(doc[0], position)
+        draw_stamp(doc[0], position, score)
 
     appendix = fitz.open(stream=render_appendix_pdf(
-        student_name, scopes, summary, include_criteria), filetype="pdf")
+        student_name, scopes, summary, include_criteria,
+        total=score, possible=possible), filetype="pdf")
     doc.insert_pdf(appendix)
 
     out = io.BytesIO()
@@ -461,7 +525,40 @@ def feedback_hash(contract) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
 
 
-def scopes_for_render(contract, include_criteria: bool):
+@dataclass(frozen=True)
+class AppendixScope:
+    """One question on the student's feedback page.
+
+    A RECORD rather than a widening tuple (§0.4). The parameter used to be
+    `[(scope_id, feedback, criteria)]`; adding the title and the two point
+    figures would have made it a five-slot positional in which a caller can
+    silently swap two strings and produce a page that is wrong and looks fine.
+
+    Mirrors `frontend/src/utils/returned-exam.ts::AppendixScope` field for
+    field — the preview and the render are two views of ONE content model, and
+    that is the property the preview exists to guarantee.
+    """
+    scope_id: str
+    title: str                    # «שאלה 1, סעיף א» — prose, not an identifier
+    awarded: str                  # display-formatted (trimmed, never rounded)
+    possible: str
+    feedback: str
+    criteria: Optional[List[tuple]] = None
+
+
+def scope_title_of(scope_id: str) -> str:
+    """`q1.א` -> «שאלה 1, סעיף א». Mirrors the frontend's `scopeTitleOf`.
+
+    The appendix used to print the RAW id. `q1.א` is our internal key: it means
+    nothing to a student, and it is the wrong thing to put on a document they
+    keep. This is the same string the teacher sees on her own screen.
+    """
+    question, _, sub = scope_id.partition(".")
+    number = question[1:] if question[:1].lower() == "q" else question
+    return f"שאלה {number}, סעיף {sub}" if sub else f"שאלה {number}"
+
+
+def scopes_for_render(contract, include_criteria: bool) -> List[AppendixScope]:
     """[(scope_id, feedback_text, criteria_or_None)] from the CONTRACT.
 
     Excluded-by-selection scopes are omitted entirely: on a «choose k of N» the
@@ -470,20 +567,30 @@ def scopes_for_render(contract, include_criteria: bool):
 
     A scope with no feedback still appears — with its points — because silence
     about a question she graded reads as an omission, not as «nothing to say».
+    (That sentence was in this docstring while the function returned no points
+    at all. The behaviour was changed to match the promise, not the other way
+    round.)
     """
     block = getattr(contract, "feedback", None)
     texts = {k: v.text for k, v in ((block.scopes if block else {}) or {}).items()}
 
-    out = []
+    out: List[AppendixScope] = []
     for scope in contract.scope_outcomes:
         if not getattr(scope, "counted_in_total", True):
             continue
         sid = scope_id_of(scope)
         criteria = None
         if include_criteria:
-            criteria = [(t.description, str(t.final_points_awarded),
-                         str(t.points_possible)) for t in scope.terminal_outcomes]
-        out.append((sid, texts.get(sid, ""), criteria))
+            criteria = [(t.description, format_points(t.final_points_awarded),
+                         format_points(t.points_possible))
+                        for t in scope.terminal_outcomes]
+        out.append(AppendixScope(
+            scope_id=sid,
+            title=scope_title_of(sid),
+            awarded=format_points(scope.final_points_awarded),
+            possible=format_points(scope.points_possible),
+            feedback=texts.get(sid, ""),
+            criteria=criteria))
     return out
 
 

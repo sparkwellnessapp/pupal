@@ -37,6 +37,7 @@ from ...schemas.ontology_types import GradingRubricContract, NumericPolicy
 from ...services.graded_test_contract_compiler import GateError, compile_graded_test
 from ...services.gcs_service import get_gcs_service
 from ...services.graded_test_revision import extend_chain
+from ...services.points_display import format_points
 from ...services.returned_exam import (
     OVERLAY_KEY,
     current_cache_key,
@@ -935,6 +936,10 @@ async def get_returned_exam(
         summary_for_render(contract),
         stamp,
         include_criteria,
+        # [OD-2] the stamp carries her grade. From the CONTRACT — the frozen
+        # number she signed — never re-summed from the rendered scopes.
+        format_points(contract.total_score),
+        format_points(contract.total_possible),
     )
     await run_in_threadpool(gcs.upload_bytes, pdf, path, "application/pdf")
 
