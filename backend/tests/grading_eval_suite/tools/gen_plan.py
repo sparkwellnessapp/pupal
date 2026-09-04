@@ -51,12 +51,20 @@ DEFAULT_EXAM = "hobby_tvshow"
 FIXTURES = EXAMS[DEFAULT_EXAM]
 OUT = SUITE / "plans" / "generated"
 GEN_MODEL = ("anthropic", "claude-opus-5")      # top tier — the plan is the ceiling
-# A plan-gen call is NOT a grading call. build_chat_model defaults to
-# GRADER_LLM_TIMEOUT_S (240s), which is sized for one scope of one student's
-# answers; a generation call carries the whole scope corpus plus the
-# constitution and reasons over it. A 13-scope exam hit that ceiling and the
-# APITimeoutError discarded the entire run — every completed scope with it.
-GEN_TIMEOUT_S = 900.0
+# WHY THERE IS NO TIMEOUT OVERRIDE HERE, after one was added and removed:
+# a 13-scope run died on APITimeoutError and the first diagnosis was "240s is
+# too short for plan-gen". MEASURED, that is not supported — hobby's const run
+# is 15 calls for 37.6K output tokens, i.e. ~2.5K output per call, comfortably
+# under a minute on opus-5. Raising the ceiling to 900s treated a symptom nobody
+# measured and made the bound WORSE: a genuinely hung call would then sit for
+# fifteen minutes (PR-2 watched one unbounded attempt run 1736s).
+#
+# The real defect is that plan-gen inherits HALF of PR-2's discipline. Its
+# factory sets max_retries=0 — deliberately, so the SDK cannot hide retries —
+# but nothing supplies the one owned retry layer PR-2 pairs that with. So a
+# single dropped connection is fatal, and with no per-scope persistence it was
+# fatal to twelve other scopes that had already been paid for.
+MAX_RUN_ATTEMPTS = 3            # transient transport only; resumes from cache
 def hand_plan_for(exam: str):
     return SUITE / "plans" / f"{exam}.plan.json"
 
@@ -88,7 +96,7 @@ async def generate(variant: str, exam: str = DEFAULT_EXAM) -> None:
     # alone. Requiring it would block exam 2 on an authoring session that this
     # step exists to unblock.
     bundle = load_bundle(EXAMS[exam][0], require_gt=False)
-    llm = build_chat_model(*GEN_MODEL, timeout_s=GEN_TIMEOUT_S).with_structured_output(
+    llm = build_chat_model(*GEN_MODEL).with_structured_output(
         ScopeDecomposition, include_raw=True)
 
     # PER-SCOPE CACHE. A sequential 13-scope run that assembles only at the end
@@ -113,8 +121,22 @@ async def generate(variant: str, exam: str = DEFAULT_EXAM) -> None:
         print(f"[scope] {label}: {len(terminals)} terminal(s) cached")
 
     gen = PlanGenerator(llm, plan_version=f"generated-{variant}/v1", **cfg)
-    plan, meta = await gen.generate(bundle.rubric_contract, exam_id=exam,
-                                    resume=cache, on_scope=_persist)
+
+    # The retry lives HERE, not inside PlanGenerator, and it is bounded. Because
+    # `resume` reads the cache each attempt, a transient failure costs ONE
+    # scope's re-attempt rather than the whole run — which is the actual
+    # protection; the retry just saves a manual re-invocation.
+    for attempt in range(1, MAX_RUN_ATTEMPTS + 1):
+        try:
+            plan, meta = await gen.generate(bundle.rubric_contract, exam_id=exam,
+                                            resume=cache, on_scope=_persist)
+            break
+        except Exception as exc:                       # noqa: BLE001
+            if attempt == MAX_RUN_ATTEMPTS:
+                raise
+            print(f"[retry {attempt}/{MAX_RUN_ATTEMPTS - 1}] "
+                  f"{type(exc).__name__}: {str(exc)[:120]} — "
+                  f"{len(cache)} scope(s) already cached, resuming")
 
     # The plan the runner will hash-pin must carry the contract it was built
     # from, or _load_plan refuses it (D5). Stamped here, from the bundle's own
