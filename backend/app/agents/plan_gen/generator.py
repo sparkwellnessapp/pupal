@@ -38,9 +38,28 @@ _KIND_TAG = {"required": "k", "tariff": "t", "note_only": "n"}
 ScopeKey = Tuple[str, Optional[str]]
 
 
-def _scope_of(question, sub_question) -> ScopeKey:
-    return (question.question_id,
-            sub_question.sub_question_id if sub_question else None)
+def _scope_of(question, sub_question, path: Optional[List[str]] = None) -> ScopeKey:
+    """(question_id, FULL PATH to the leaf) — the PR-3 convention.
+
+    ⚠ THIS USED TO CARRY THE LEAF'S OWN ID, AND IT COLLIDED. `bagrut_899371`'s
+    q1 has two sub-questions (א, ב) whose children are BOTH named `1` and `2`,
+    so four distinct leaves produced two labels: `q1.1` and `q1.2`, each twice.
+
+    The damage was silent and landed on VALIDATION, not generation. `gen_plan`
+    builds `corpora[label]`, so the second write won and q1.א's checks were
+    grounded against q1.ב's text — 11 spurious V9 failures on a plan whose
+    quotes were verbatim. Generation itself was unaffected (it validates each
+    scope against a fresh single-entry dict), which is exactly why the defect
+    presented as "the model fabricated quotes".
+
+    INV-2's `target_id`, `gradable_compiler`'s scope ids and the terminal ids
+    themselves all use the full path (`q1.א.2`); this was the one place that did
+    not. Depth-1 exams cannot expose it, which is why hobby never did.
+    """
+    if sub_question is None:
+        return (question.question_id, None)
+    full = ".".join((path or []) + [sub_question.sub_question_id])
+    return (question.question_id, full)
 
 
 def _scope_label(key: ScopeKey) -> str:
@@ -56,17 +75,17 @@ def contract_scopes(contract) -> List[Tuple[ScopeKey, object, object]]:
     """
     out: List[Tuple[ScopeKey, object, object]] = []
 
-    def walk_sub(question, sub) -> None:
+    def walk_sub(question, sub, path: List[str]) -> None:
         if getattr(sub, "sub_questions", None):
             for child in sub.sub_questions:
-                walk_sub(question, child)
+                walk_sub(question, child, path + [sub.sub_question_id])
         else:
-            out.append((_scope_of(question, sub), question, sub))
+            out.append((_scope_of(question, sub, path), question, sub))
 
     for question in contract.questions:
         if question.sub_questions:
             for sub in question.sub_questions:
-                walk_sub(question, sub)
+                walk_sub(question, sub, [])
         else:
             out.append((_scope_of(question, None), question, None))
     return out

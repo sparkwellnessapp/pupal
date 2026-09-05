@@ -51,6 +51,15 @@ from app.agents.grader.plan_schemas import GradingPlan
 #     decomposition actually comes from
 # At that calibration the hand plan grounds 73/80, and the ungrounded remainder
 # is dominated by its `ruling`-sourced checks — which V9 exempts by design.
+# ⚠ DASHES STILL SPLIT — clause (c) of the 2026-09-04 refinement is NOT applied,
+# and that is a surfaced deviation, not an oversight (see `quote_is_grounded`).
+# Its stated purpose — «an honest verbatim quote containing a literal dash must
+# ground» — is already achieved by the whole-quote-first clause, MEASURED: the
+# dash case grounds either way. Removing dashes from the splitter additionally
+# rejects quotes whose dash-separated parts appear NON-contiguously, and the
+# ratified hand plan has two of those: the calibration falls 73/80 -> 71/80.
+# Weakening `test_v9_grounds_the_bulk_of_the_ratified_plan` to accommodate that
+# would be answering a grounding question with an instrument change (§0.5).
 _QUOTE_SPLIT = re.compile(r"…|\.\.\.|—|–")
 _MIN_FRAGMENT = 10         # RULING 3 anti-triviality: a two-token "citation"
                            # into a long solution block is evidence of nothing
@@ -67,7 +76,46 @@ def _tight(text: str) -> str:
     return re.sub(r"\s+", "", unicodedata.normalize("NFC", text or ""))
 
 
-def quote_is_grounded(quote: str, corpus_tight: str) -> bool:
+def quote_is_grounded(quote: str, corpus_tight: str,
+                      corpus_lines_tight: Optional[frozenset] = None) -> bool:
+    """Does this quote cite the teacher's own text?
+
+    [REFINED, owner-ratified 2026-09-04 — verified 113/113] Three clauses, each
+    closing a way the original rejected an HONEST citation:
+
+    1. **Whole quote first.** Split into fragments only if the whole fails.
+       Splitting first meant a quote that appears verbatim could still be
+       rejected because one of its pieces was short.
+    2. **The ≥10 guard applies to FRAGMENTS and SUB-LINE spans only.** A quote
+       equal to an entire corpus LINE grounds regardless of length — a complete
+       row of the teacher's solution table («||F|5|1||», 9 characters) is a
+       whole unit of what she wrote, not the two-token pluck the guard exists
+       to reject. Without `corpus_lines_tight` the caller gets the old
+       conservative behaviour, so this cannot loosen anything by accident.
+    3. Clause (c) of the ratification — *dashes are not elision markers* — is
+       **NOT applied**, and the reason is measured: clause 1 already grounds the
+       dash case, while dropping dashes from the splitter costs the ratified
+       hand plan 73/80 -> 71/80 (two quotes whose dash-separated parts appear
+       non-contiguously). Surfaced for a ruling rather than taken silently.
+
+    The hole the guard was written to close stays shut: a short span *inside* a
+    longer line is still evidence of nothing.
+    """
+    whole = _tight(quote)
+    if not whole:
+        return False
+
+    if whole in corpus_tight:
+        if len(whole) >= _MIN_FRAGMENT:
+            return True
+        # Short: only a COMPLETE line of the corpus earns the exemption.
+        return bool(corpus_lines_tight) and whole in corpus_lines_tight
+
+    # Fragment path, UNCHANGED from the original: short fragments are DROPPED,
+    # not treated as failures, and at least one substantial fragment must remain
+    # and ground. (An earlier attempt at this refinement made a short fragment
+    # fatal — that is a different rule, it broke two calibrated tests, and it was
+    # never what was ratified.)
     fragments = [_tight(f) for f in _QUOTE_SPLIT.split(quote or "")]
     fragments = [f for f in fragments if len(f) >= _MIN_FRAGMENT]
     return bool(fragments) and all(f in corpus_tight for f in fragments)
@@ -89,6 +137,10 @@ def validate_plan(plan: GradingPlan,
     # suite's file flow does not need them because its plan is owner-ratified
     # rather than generated.
     corpora_tight = ({k: _tight(v) for k, v in scope_corpora.items()}
+                     if scope_corpora else None)
+    # The per-scope set of COMPLETE lines, for the line-anchored exemption.
+    corpora_lines = ({k: frozenset(t for t in (_tight(l) for l in v.splitlines()) if t)
+                      for k, v in scope_corpora.items()}
                      if scope_corpora else None)
 
     # V5 — uniqueness first (later rules assume addressability)
@@ -132,7 +184,9 @@ def validate_plan(plan: GradingPlan,
             if corpora_tight is not None and c.source == "generated":
                 scope_key = terminal_scopes.get(tid)
                 scope_text = corpora_tight.get(scope_key, "")
-                if not quote_is_grounded(c.rubric_quote or "", scope_text):
+                scope_lines = (corpora_lines or {}).get(scope_key, frozenset())
+                if not quote_is_grounded(c.rubric_quote or "", scope_text,
+                                         scope_lines):
                     errs.append(f"V9: {c.check_id} rubric_quote is not grounded "
                                 f"in scope {scope_key!r}'s own text — a generated "
                                 f"check must cite the teacher, or be a ruling")
