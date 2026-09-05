@@ -1,0 +1,149 @@
+{
+ "exam": "hobby_tvshow",
+ "fixtures": [
+  "dan_basiuk",
+  "din_ezra",
+  "moran_aharon",
+  "omer_gelber",
+  "yonatan_basiuk"
+ ],
+ "contract_sha256": "480c15cff2face1ee4a2eb9536f3d2b9907a124ae9c6e86654b3100abd314007",
+ "precision": "0.25",
+ "compiler_version": "plan-compiler/v2.0",
+ "plan_version": "hobby_tvshow/compiled-e112cbf52b0d",
+ "terminals": 38,
+ "slots": 69,
+ "kinds": {
+  "required": 56,
+  "tariff": 12,
+  "note_only": 1
+ },
+ "validator_errors": [],
+ "expressible": 184,
+ "gt_total": 190,
+ "routed_judgments": 25,
+ "bar": 189,
+ "miss_classes": {
+  "routed": 5,
+  "ruling": 1
+ },
+ "per_fixture": {
+  "dan_basiuk": [
+   36,
+   38
+  ],
+  "din_ezra": [
+   35,
+   38
+  ],
+  "moran_aharon": [
+   38,
+   38
+  ],
+  "omer_gelber": [
+   38,
+   38
+  ],
+  "yonatan_basiuk": [
+   37,
+   38
+  ]
+ },
+ "routed": [
+  "q1.א.c0",
+  "q1.א.c1",
+  "q2.א.c0",
+  "q2.א.c1",
+  "q2.ב.c3.s3"
+ ],
+ "counterfactual": {
+  "route_min_points": "3",
+  "miss_classes": {
+   "routed": 5,
+   "ruling": 1
+  },
+  "routed": [
+   "q1.א.c0",
+   "q1.א.c1",
+   "q1.ב.c2",
+   "q1.ב.c4",
+   "q1.ג.c3",
+   "q2.א.c0",
+   "q2.א.c1",
+   "q2.ב.c2",
+   "q2.ב.c3.s0",
+   "q2.ב.c3.s3",
+   "q2.ב.c4.s3",
+   "q2.ג.c0.s1",
+   "q2.ג.c0.s2"
+  ]
+ },
+ "misses": [
+  {
+   "fixture": "dan_basiuk",
+   "terminal": "q1.א.c1",
+   "award": "3.5",
+   "cls": "routed",
+   "reachable": [
+    "0",
+    "2.00",
+    "4.00"
+   ]
+  },
+  {
+   "fixture": "dan_basiuk",
+   "terminal": "q2.א.c1",
+   "award": "9",
+   "cls": "routed",
+   "reachable": [
+    "0",
+    "10.0",
+    "5.0"
+   ]
+  },
+  {
+   "fixture": "din_ezra",
+   "terminal": "q1.א.c1",
+   "award": "3",
+   "cls": "routed",
+   "reachable": [
+    "0",
+    "2.00",
+    "4.00"
+   ]
+  },
+  {
+   "fixture": "din_ezra",
+   "terminal": "q2.א.c0",
+   "award": "4",
+   "cls": "routed",
+   "reachable": [
+    "0",
+    "2.5",
+    "5.0"
+   ]
+  },
+  {
+   "fixture": "din_ezra",
+   "terminal": "q2.א.c1",
+   "award": "8",
+   "cls": "routed",
+   "reachable": [
+    "0",
+    "10.0",
+    "5.0"
+   ]
+  },
+  {
+   "fixture": "yonatan_basiuk",
+   "terminal": "q2.ב.c4.s2",
+   "award": "1.5",
+   "cls": "ruling",
+   "reachable": [
+    "0",
+    "1.00",
+    "2.00"
+   ]
+  }
+ ]
+}

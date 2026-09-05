@@ -1,5 +1,7 @@
 """
-plan-gen/v2 — deduction detection (deterministic) and V11 (completeness).
+plan-gen/v2 — deduction detection (deterministic). V11 (disposition
+completeness) retired with the Opus decomposer (PLAN COMPILER v2, R-4): the
+compiler makes every detected deduction a slot BY CONSTRUCTION.
 
 Phase 0 measured why this moved into code. The generator READ the missed
 deduction's concept — it emitted charge_group="max_instead_of_min" — and still
@@ -18,12 +20,9 @@ from decimal import Decimal
 
 import pytest
 
-from app.agents.grader.plan_schemas import GradingPlan, PlanCheck, TerminalPlan
-from app.agents.plan_gen.dispositions import (
-    escape_hatch_count, validate_dispositions)
-from app.agents.plan_gen.generator import contract_scopes
-from app.agents.plan_gen.prompt import DetectedDeduction, detect_deductions
-from app.agents.plan_gen.schemas import Disposition
+from app.agents.grader.plan_schemas import GradingPlan
+from app.agents.plan_compiler.stage0 import contract_scopes
+from app.agents.plan_gen.prompt import detect_deductions
 
 PLAN = "tests/grading_eval_suite/plans/hobby_tvshow.plan.json"
 
@@ -114,91 +113,3 @@ def test_negation_is_never_read_as_deduction(text, polarity):
     hits = _scan(text)
     assert hits, f"nothing detected in {text!r}"
     assert hits[0][2] == polarity, hits
-
-
-# ---------------------------------------------------------------------------
-# V11
-# ---------------------------------------------------------------------------
-
-def _marker(mid="d1", amount="1", polarity="deduct", cands=("t",)):
-    return DetectedDeduction(
-        marker_id=mid, quote="marker clause",
-        amount=None if polarity == "no_deduct" else Decimal(amount),
-        polarity=polarity, source_field="t.description",
-        candidate_terminal_ids=cands)
-
-
-def _terminal(amount="1"):
-    return [TerminalPlan(terminal_id="t", points_possible=Decimal("2"), checks=[
-        PlanCheck(check_id="t.k1", description_he="req", kind="required",
-                  points=Decimal("2"), rubric_quote="q" * 20),
-        PlanCheck(check_id="t.t1", description_he="tar", kind="tariff",
-                  points=Decimal("0"), tariff_amount=Decimal(amount),
-                  rubric_quote="q" * 20)])]
-
-
-def test_v11_rejects_a_dropped_marker():
-    """The whole point: a detected deduction the model simply ignored."""
-    errs = validate_dispositions([_marker()], [], _terminal())
-    assert any("NO disposition" in e for e in errs), errs
-
-
-def test_v11_rejects_a_substituted_amount():
-    """v1's actual failure — the concept read, the number invented. The teacher
-    wrote 3; a plan that deducts 1 is not a rounding difference, it is a
-    different rule."""
-    errs = validate_dispositions(
-        [_marker(amount="3")],
-        [Disposition(marker_id="d1", disposition="tariff", check_id="t.t1")],
-        _terminal(amount="1"))
-    assert any("copy the number the teacher wrote" in e for e in errs), errs
-
-
-def test_v11_rejects_a_no_deduct_marker_disposed_as_tariff():
-    errs = validate_dispositions(
-        [_marker(polarity="no_deduct")],
-        [Disposition(marker_id="d1", disposition="tariff", check_id="t.t1")],
-        _terminal())
-    assert any("may not be disposed as a tariff" in e for e in errs), errs
-
-
-def test_v11_rejects_an_anchor_outside_the_candidates():
-    errs = validate_dispositions(
-        [_marker(cands=("other",))],
-        [Disposition(marker_id="d1", disposition="tariff", check_id="t.t1")],
-        _terminal())
-    assert any("not among its candidates" in e for e in errs), errs
-
-
-def test_v11_requires_a_reason_for_the_escape_hatch():
-    errs = validate_dispositions(
-        [_marker()],
-        [Disposition(marker_id="d1", disposition="not_a_deduction")],
-        _terminal())
-    assert any("no reason" in e for e in errs), errs
-
-    clean = validate_dispositions(
-        [_marker()],
-        [Disposition(marker_id="d1", disposition="not_a_deduction",
-                     reason="describes a past score, not a grading rule")],
-        _terminal())
-    assert not clean, clean
-
-
-def test_v11_accepts_a_faithful_disposition():
-    errs = validate_dispositions(
-        [_marker(amount="1")],
-        [Disposition(marker_id="d1", disposition="tariff", check_id="t.t1",
-                     reason="modifies the loop definition")],
-        _terminal(amount="1"))
-    assert not errs, errs
-
-
-def test_escape_hatch_is_counted_not_gated():
-    """`not_a_deduction` is legitimate but is the only way out of V11, so
-    inflation is the signal it is being used as one. Counted every run."""
-    assert escape_hatch_count([
-        Disposition(marker_id="d1", disposition="tariff", check_id="t.t1"),
-        Disposition(marker_id="d2", disposition="not_a_deduction", reason="x"),
-        Disposition(marker_id="d3", disposition="not_a_deduction", reason="y"),
-    ]) == 2

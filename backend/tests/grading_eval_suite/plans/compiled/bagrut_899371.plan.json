@@ -1,0 +1,1625 @@
+{
+ "plan_version": "bagrut_899371/compiled-918b9f5babae",
+ "exam_id": "bagrut_899371",
+ "rubric_contract_sha256": "5d58b7eab86bca2993ee17a56614cef3f79efbcf24d874a229168393f1b23b0e",
+ "terminals": [
+  {
+   "terminal_id": "q1.א.1.c0",
+   "points_possible": "12",
+   "checks": [
+    {
+     "check_id": "q1.א.1.c0.k1",
+     "description_he": "ניקוד טבלת מעקב סה\"כ ודות: 17 תאים 0.7 כל תא",
+     "source": "generated",
+     "kind": "counted",
+     "points": "12",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "17 תאים  0.7 כל תא",
+     "unit_count": 17
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.א.2.c0",
+   "points_possible": "1.5",
+   "checks": [
+    {
+     "check_id": "q1.א.2.c0.k1",
+     "description_he": "הבנת הבדיקה של \"מחלק ללא שארית\"",
+     "source": "generated",
+     "kind": "required",
+     "points": "1.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "הבנת הבדיקה של \"מחלק ללא שארית\"~  1.5 נק'",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.א.2.c1",
+   "points_possible": "1.5",
+   "checks": [
+    {
+     "check_id": "q1.א.2.c1.k1",
+     "description_he": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו  0.5 נק'",
+     "unit_count": null
+    },
+    {
+     "check_id": "q1.א.2.c1.k2",
+     "description_he": "שאר הדרישה שבסעיף",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו  0.5 נק'",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.1.c0",
+   "points_possible": "6",
+   "checks": [
+    {
+     "check_id": "q1.ב.1.c0.k1",
+     "description_he": "ניקוד",
+     "source": "generated",
+     "kind": "required",
+     "points": "6",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "ניקוד: 6 נקודות",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.2.c0",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q1.ב.2.c0.k1",
+     "description_he": "זיהוי שמדובר בפעולת סכימה של איברי המערך",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "זיהוי שמדובר בפעולת סכימה של איברי המערך – 2 נק'",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.2.c1",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q1.ב.2.c1.k1",
+     "description_he": "הגדרה נכונה של תנאי הסכימה (איברים שיש להם מחלק אחר במערך)",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "הגדרה נכונה של תנאי הסכימה (איברים שיש להם מחלק אחר במערך) 2  נק'",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c0",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q2.א.c0.k1",
+     "description_he": "סעיף א: חתימת הפעולה public static bool IsMirror(int[] arr)",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: חתימת הפעולה public static bool IsMirror(int[] arr)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c1",
+   "points_possible": "0.5",
+   "checks": [
+    {
+     "check_id": "q2.א.c1.k1",
+     "description_he": "שמות משתנים משמעותיים וקוד קריא",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "שמות משתנים משמעותיים וקוד קריא",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c2",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q2.א.c2.k1",
+     "description_he": "סעיף א: בדיקה האם המערך לא באורך זוגי, להחזיר false (if",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: בדיקה האם המערך לא באורך זוגי, להחזיר false (if נק' 1",
+     "unit_count": null
+    },
+    {
+     "check_id": "q2.א.c2.k2",
+     "description_he": "החזרת false",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": ", החזרת false נקודה 1",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c3",
+   "points_possible": "1.5",
+   "checks": [
+    {
+     "check_id": "q2.א.c3.k1",
+     "description_he": "סעיף א: לולאה על המערך",
+     "source": "generated",
+     "kind": "required",
+     "points": "1.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: לולאה על המערך",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c4",
+   "points_possible": "4",
+   "checks": [
+    {
+     "check_id": "q2.א.c4.k1",
+     "description_he": "סעיף א: בתוך הלולאה: חיפוש אחר המספר הנגדי של",
+     "source": "generated",
+     "kind": "required",
+     "points": "4",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: בתוך הלולאה: חיפוש אחר המספר הנגדי של",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c5",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q2.א.c5.k1",
+     "description_he": "סעיף א: מחוץ ללואה אם לא מצאנו את המספר הנגדי",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: מחוץ ללואה אם לא מצאנו את המספר הנגדי (1 נקודה)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q2.א.c5.k2",
+     "description_he": "להחזיר false",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "להחזיר false (1 נקודה)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c6",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q2.א.c6.k1",
+     "description_he": "סעיף א: שורה אחרונה: להחזיר true",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: שורה אחרונה: להחזיר true",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c0",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q2.ב.c0.k1",
+     "description_he": "סעיף ב: חתימת הפעולה public static void ArrangeMirror(int[] arr)",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: חתימת הפעולה public static void ArrangeMirror(int[] arr)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c1",
+   "points_possible": "0.5",
+   "checks": [
+    {
+     "check_id": "q2.ב.c1.k1",
+     "description_he": "סעיף ב: שמות משתנים משמעותיים וקוד קריא",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: שמות משתנים משמעותיים וקוד קריא",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c2",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q2.ב.c2.k1",
+     "description_he": "סעיף ב: יצירת מערך עזר באותו גודל של הפרמטר",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: יצירת מערך עזר באותו גודל של הפרמטר",
+     "unit_count": null
+    },
+    {
+     "check_id": "q2.ב.c2.k2",
+     "description_he": "משתנה למציין של מערך העזר",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "משתנה למציין של מערך העזר",
+     "unit_count": null
+    },
+    {
+     "check_id": "q2.ב.c2.k3",
+     "description_he": "אתחול ל",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: יצירת מערך עזר באותו גודל של הפרמטר + משתנה למציין של מערך העזר + אתחול ל-0 int[] temp = new int[arr.Length]; // הקצאת מערך עזר באותו הגודל int tempIndex = 0;",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c3",
+   "points_possible": "4.5",
+   "checks": [
+    {
+     "check_id": "q2.ב.c3.k1",
+     "description_he": "סעיף ב: סריקת המערך הפרמטר ומציאת המספרים החיוביים והעתקם למערך הזמני פלוס קידום האנדקס לולאה על המערך הפרמטר",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: סריקת המערך הפרמטר ומציאת המספרים החיוביים והעתקם למערך הזמני פלוס קידום האנדקס לולאה על המערך הפרמטר 0.5",
+     "unit_count": null
+    },
+    {
+     "check_id": "q2.ב.c3.k2",
+     "description_he": "אם המספר הנוכחי במערך הפרמטר חיובי",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם המספר הנוכחי במערך הפרמטר חיובי 2",
+     "unit_count": null
+    },
+    {
+     "check_id": "q2.ב.c3.k3",
+     "description_he": "העתק המספר החיובי למערך העזר",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "העתק המספר החיובי למערך העזר 1",
+     "unit_count": null
+    },
+    {
+     "check_id": "q2.ב.c3.k4",
+     "description_he": "קידום האנדקס",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "קידום האנדקס 1",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c4",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q2.ב.c4.k1",
+     "description_he": "סעיף ב: בתוך הלולאה: אופציה 1: מניחים שהמערך פרמטר הוא מערך מראה (כפי שכתוב בשאלה) ופשוט מבצעים",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: בתוך הלולאה: אופציה 1: מניחים שהמערך פרמטר הוא מערך מראה (כפי שכתוב בשאלה) ופשוט מבצעים",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c5",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q2.ב.c5.k1",
+     "description_he": "סעיף ב: העתקה מסודרת של כל איברי מערך העזר חזרה למערך המקורי שנתקבל כפרמטר",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: העתקה מסודרת של כל איברי מערך העזר חזרה למערך המקורי שנתקבל כפרמטר",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.א.c0",
+   "points_possible": "0.5",
+   "checks": [
+    {
+     "check_id": "q3.א.c0.k1",
+     "description_he": "סעיף א: חתימת הפעולה public static int[] DiceStatistics(int[] arr)",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: חתימת הפעולה public static int[] DiceStatistics(int[] arr)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.א.c1",
+   "points_possible": "0.5",
+   "checks": [
+    {
+     "check_id": "q3.א.c1.k1",
+     "description_he": "סעיף א: משתנים משמעותיים + קוד קריא",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: משתנים משמעותיים + קוד קריא",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.א.c2",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q3.א.c2.k1",
+     "description_he": "סעיף א: הגדרה והקצאה נכונה של מערך המונים בגודל 21",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: הגדרה והקצאה נכונה של מערך המונים בגודל 21",
+     "unit_count": null
+    },
+    {
+     "check_id": "q3.א.c2.k2",
+     "description_he": "איפוס מערך מונים",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "איפוס מערך מונים",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.א.c3",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q3.א.c3.k1",
+     "description_he": "סעיף א: לולאה הסורקת את מערך הקלט",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: לולאה הסורקת את מערך הקלט",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.א.c4",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q3.א.c4.k1",
+     "description_he": "סעיף א: בתוך הלולאה, קידום תקין של המונה המתאים",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: בתוך הלולאה, קידום תקין של המונה המתאים",
+     "unit_count": null
+    },
+    {
+     "check_id": "q3.א.c4.n1",
+     "description_he": "לא להוריד כלום (לא ביקשנו פתרון עם מערך מונים)",
+     "source": "generated",
+     "kind": "note_only",
+     "points": "0",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "לא להוריד כלום (לא ביקשנו פתרון עם מערך מונים)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.א.c5",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q3.א.c5.k1",
+     "description_he": "סעיף א: אחרי הלולאה:החזרת מערך המונים המלא",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: אחרי הלולאה:החזרת מערך המונים המלא",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.ב.c0",
+   "points_possible": "0.5",
+   "checks": [
+    {
+     "check_id": "q3.ב.c0.k1",
+     "description_he": "סעיף ב: חתימת הפעולה public static void PrintStatistics(int[] arr)",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: חתימת הפעולה public static void PrintStatistics(int[] arr)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.ב.c1",
+   "points_possible": "0.5",
+   "checks": [
+    {
+     "check_id": "q3.ב.c1.k1",
+     "description_he": "סעיף ב: משתנים משמעותיים + קוד קריא",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: משתנים משמעותיים + קוד קריא",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.ב.c2",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q3.ב.c2.k1",
+     "description_he": "סעיף ב: קריאה נכונה לפעולה DiceStatistics(arr) ושמירת המערך המוחזר אם יצרו מערך מונים חדש ו/או הריצו את הפעולה DiceStatistics בתוך לולאה תוך העתקה של כל תא",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: קריאה נכונה לפעולה DiceStatistics(arr) ושמירת המערך המוחזר אם יצרו מערך מונים חדש ו/או הריצו את הפעולה DiceStatistics בתוך לולאה תוך העתקה של כל תא , לא להוריד כלום (חוסר יעילות)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q3.ב.c2.n1",
+     "description_he": "לא להוריד כלום (חוסר יעילות)",
+     "source": "generated",
+     "kind": "note_only",
+     "points": "0",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "לא להוריד כלום (חוסר יעילות)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.ב.c3",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q3.ב.c3.k1",
+     "description_he": "סעיף ב: הגדרת משתנה שלם לשמירת הערך המקסימלי maxCount",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: הגדרת משתנה שלם לשמירת הערך המקסימלי maxCount",
+     "unit_count": null
+    },
+    {
+     "check_id": "q3.ב.c3.k2",
+     "description_he": "אתחול לתא הראשון או לערך מאוד נמוך)",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אתחול לתא הראשון או לערך מאוד נמוך) (אתחול 1 נקודות)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.ב.c4",
+   "points_possible": "4",
+   "checks": [
+    {
+     "check_id": "q3.ב.c4.k1",
+     "description_he": "סעיף ב: אלגוריתם נכון למציאת הערך המקסימלי (השכיחות הגבוהה ביותר) מתוך מערך המונים (ריצה מאינדקס 1 עד 20).",
+     "source": "generated",
+     "kind": "required",
+     "points": "4",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: אלגוריתם נכון למציאת הערך המקסימלי (השכיחות הגבוהה ביותר) מתוך מערך המונים (ריצה מאינדקס 1 עד 20).",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.ב.c5",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q3.ב.c5.k1",
+     "description_he": "סעיף ב: לולאה נפרדת הסורקת ומדפיסה את כל האינדקסים שערכם שווה ל-maxCount (תמיכה בריבוי שכיחים) (ריצה מאינדקס 1 עד 20).",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: לולאה נפרדת הסורקת ומדפיסה את כל האינדקסים שערכם שווה ל-maxCount (תמיכה בריבוי שכיחים) (ריצה מאינדקס 1 עד 20).",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.ב.c6",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q3.ב.c6.k1",
+     "description_he": "סעיף ב: לולאה הסורקת ומדפיסה את האינדקסים שבהם המונה שווה ל-0 (ערכים שלא הופיעו) (ריצה מאינדקס 1 עד 20).",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: לולאה הסורקת ומדפיסה את האינדקסים שבהם המונה שווה ל-0 (ערכים שלא הופיעו) (ריצה מאינדקס 1 עד 20).",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.א.c0",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q4.א.c0.k1",
+     "description_he": "סעיף א: חתימת הפעולה (ללא מילה static!) public double TotalEarnings()",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: חתימת הפעולה (ללא מילה static!) public double TotalEarnings()",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.א.c1",
+   "points_possible": "4",
+   "checks": [
+    {
+     "check_id": "q4.א.c1.k1",
+     "description_he": "סעיף א: החזרת החישוב",
+     "source": "generated",
+     "kind": "required",
+     "points": "4",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: החזרת החישוב",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c0",
+   "points_possible": "0.5",
+   "checks": [
+    {
+     "check_id": "q4.ב.c0.k1",
+     "description_he": "סעיף ב: חתימת הפעולה (static!!) public static string[] TopEarners(BasketballPlayer[] arr, double amount)",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: חתימת הפעולה (static!!) public static string[] TopEarners(BasketballPlayer[] arr, double amount)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c1",
+   "points_possible": "0.5",
+   "checks": [
+    {
+     "check_id": "q4.ב.c1.k1",
+     "description_he": "סעיף ב: משתנים משמעותיים + קוד קריא",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: משתנים משמעותיים + קוד קריא",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c2",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q4.ב.c2.k1",
+     "description_he": "סעיף ב: משתנה למניית השחקניות שמקיימות את התנאי",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: משתנה למניית השחקניות שמקיימות את התנאי",
+     "unit_count": null
+    },
+    {
+     "check_id": "q4.ב.c2.k2",
+     "description_he": "איפוס",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: משתנה למניית השחקניות שמקיימות את התנאי + איפוס",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c3",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q4.ב.c3.k1",
+     "description_he": "סעיף ב: לולאה (A) על מערך השחקניות (לספירה נכונה וקידום מונה תקין)",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: לולאה (A) על מערך השחקניות (לספירה נכונה וקידום מונה תקין)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c4",
+   "points_possible": "5",
+   "checks": [
+    {
+     "check_id": "q4.ב.c4.k1",
+     "description_he": "סעיף ב:בתוך הלולאה (A) : בדיקה אם המערך במקום ה- i שונה מ- null",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב:בתוך הלולאה (A) : בדיקה אם המערך במקום ה- i שונה מ- null (1 נקודות)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q4.ב.c4.k2",
+     "description_he": "זימון של פעולה פנימית TotalEarnings עבור המערך במקום ה- i",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "זימון של פעולה פנימית TotalEarnings עבור המערך במקום ה- i (3 נקודות)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q4.ב.c4.k3",
+     "description_he": "( השוואה אם התוצאה גבוהה מהפרמטר",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "(לקנוס פעם אחת אם לא בדקו אם arr[i]!=null , הערה למטה) השוואה אם התוצאה גבוהה מהפרמטר (1 נקודה)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q4.ב.c4.k4",
+     "description_he": "קידום המונה",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "קידום המונה (1 נקודה)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q4.ב.c4.t1",
+     "description_he": "סעיף ב:בתוך הלולאה (A) : בדיקה אם המערך במקום ה- i שונה מ- null",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": "q4.ב:once:2aa8e26f",
+     "rubric_quote": "לקנוס פעם אחת אם לא בדקו אם arr[i]!=null , הערה למטה)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c5",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q4.ב.c5.k1",
+     "description_he": "סעיף ב: הקצאת מערך ה-string החדש בדיוק בגודל שנספר (count)",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: הקצאת מערך ה-string החדש בדיוק בגודל שנספר (count)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c6",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q4.ב.c6.k1",
+     "description_he": "סעיף ב: משתנה לאנדקס מערך השמות",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: משתנה לאנדקס מערך השמות",
+     "unit_count": null
+    },
+    {
+     "check_id": "q4.ב.c6.k2",
+     "description_he": "איפוס",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: משתנה לאנדקס מערך השמות + איפוס",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c7",
+   "points_possible": "5",
+   "checks": [
+    {
+     "check_id": "q4.ב.c7.k1",
+     "description_he": "סעיף ב: לולאה שנייה (B) נכונה",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: לולאה שנייה (B) נכונה (1 נקודה)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q4.ב.c7.k2",
+     "description_he": "בדיקה אם המערך במקום ה- i שונה מ- null",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בדיקה אם המערך במקום ה- i שונה מ- null(1 נקודות)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q4.ב.c7.k3",
+     "description_he": "שימוש ב-Getter לקבלת השם arr[i].GetName()",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": ", להוריד רק פעם אחת שימוש ב-Getter לקבלת השם arr[i].GetName() (3 נקודות)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q4.ב.c7.k4",
+     "description_he": "השמה במערך החדש",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "השמה במערך החדש (1 נקודה)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q4.ב.c7.k5",
+     "description_he": "תוך קידום אינדקס נפרד (namesIndex)",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "תוך קידום אינדקס נפרד (namesIndex)(1 נקודה)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q4.ב.c7.t1",
+     "description_he": "בדיקה אם המערך במקום ה- i שונה מ- null",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": "q4.ב:once:2aa8e26f",
+     "rubric_quote": "להוריד רק פעם אחת",
+     "unit_count": null
+    },
+    {
+     "check_id": "q4.ב.c7.t2",
+     "description_he": "תוך קידום אינדקס נפרד (namesIndex)",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "3",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": "q4.ב:once:d754e274",
+     "rubric_quote": "אם טעו פה,להוריד 3 רק פעם 1",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c8",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q4.ב.c8.k1",
+     "description_he": "סעיף ב: החזרת מערך השמות",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: החזרת מערך השמות",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.א.c0",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q5.א.c0.k1",
+     "description_he": "סעיף א: חתימת הפעולה (ללא מילה static!) public bool IsSimilarWorkshop(Workshop other)",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: חתימת הפעולה (ללא מילה static!) public bool IsSimilarWorkshop(Workshop other) כל טעות פה להוריד 1",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.א.c1",
+   "points_possible": "4",
+   "checks": [
+    {
+     "check_id": "q5.א.c1.k1",
+     "description_he": "סעיף א: החזרת החישוב",
+     "source": "generated",
+     "kind": "required",
+     "points": "4",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף א: החזרת החישוב",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c0",
+   "points_possible": "0.5",
+   "checks": [
+    {
+     "check_id": "q5.ב.c0.k1",
+     "description_he": "סעיף ב: חתימת הפעולה (לא static!!) public bool HandleNewWorkshop(Workshop ws)",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: חתימת הפעולה (לא static!!) public bool HandleNewWorkshop(Workshop ws)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c1",
+   "points_possible": "0.5",
+   "checks": [
+    {
+     "check_id": "q5.ב.c1.k1",
+     "description_he": "סעיף ב: משתנים משמעותיים + קוד קריא",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: משתנים משמעותיים + קוד קריא",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c2",
+   "points_possible": "6",
+   "checks": [
+    {
+     "check_id": "q5.ב.c2.k1",
+     "description_he": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null",
+     "source": "generated",
+     "kind": "required",
+     "points": "6",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null , להוריד 2 אם לא ניהולו נכון את גבולות הלולאה להוריד 1",
+     "unit_count": null
+    },
+    {
+     "check_id": "q5.ב.c2.t1",
+     "description_he": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "2",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null , להוריד 2 אם לא ניהולו נכון את גבולות הלולאה להוריד 1",
+     "unit_count": null
+    },
+    {
+     "check_id": "q5.ב.c2.t2",
+     "description_he": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם לא ניהולו נכון את גבולות הלולאה להוריד 1",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c3",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q5.ב.c3.k1",
+     "description_he": "סעיף ב: זימון נכון של הפעולה מסעיף א' על איבר מהמערך: this.workshops[i].IsSimilarWorkshop(ws)",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: זימון נכון של הפעולה מסעיף א' על איבר מהמערך: this.workshops[i].IsSimilarWorkshop(ws)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c4",
+   "points_possible": "5",
+   "checks": [
+    {
+     "check_id": "q5.ב.c4.k1",
+     "description_he": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה 1 נקודה",
+     "unit_count": null
+    },
+    {
+     "check_id": "q5.ב.c4.k2",
+     "description_he": "אם חישבו נכון את סה\"כ ולא עדכנו את התכונה (כמובן ע\"י setter)",
+     "source": "generated",
+     "kind": "required",
+     "points": "4",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם לא השתמשו בפעולה הפנימית להוריד 2, אם לא השתמשו באף אחת מהן להוריד 3 אם חישבו נכון את סה\"כ ולא עדכנו את התכונה (כמובן ע\"י setter) להוריד 2",
+     "unit_count": null
+    },
+    {
+     "check_id": "q5.ב.c4.t1",
+     "description_he": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "2",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם לא השתמשו בפעולה הפנימית להוריד 2",
+     "unit_count": null
+    },
+    {
+     "check_id": "q5.ב.c4.t2",
+     "description_he": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "3",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם לא השתמשו באף אחת מהן להוריד 3",
+     "unit_count": null
+    },
+    {
+     "check_id": "q5.ב.c4.t3",
+     "description_he": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "2",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה 1 נקודה אם לא השתמשו בפעולה הפנימית להוריד 2, אם לא השתמשו באף אחת מהן להוריד 3 אם חישבו נכון את סה\"כ ולא עדכנו את התכונה (כמובן ע\"י setter) להוריד 2",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c5",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q5.ב.c5.k1",
+     "description_he": "סעיף ב: הוספת הסדנה החדשה למקום ה-countWorkshops וקידום המונה ב-1 במידה ולא בוצע איחוד והמערך אינו מלא",
+     "source": "generated",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: הוספת הסדנה החדשה למקום ה-countWorkshops וקידום המונה ב-1 במידה ולא בוצע איחוד והמערך אינו מלא",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c6",
+   "points_possible": "3",
+   "checks": [
+    {
+     "check_id": "q5.ב.c6.k1",
+     "description_he": "סעיף ב: החזרת הערכים הבוליאניים הנכונים (true / false) בכל אחד מהתרחישים",
+     "source": "generated",
+     "kind": "required",
+     "points": "1.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סעיף ב: החזרת הערכים הבוליאניים הנכונים (true / false) בכל אחד מהתרחישים 1.5",
+     "unit_count": null
+    },
+    {
+     "check_id": "q5.ב.c6.k2",
+     "description_he": "ל-true",
+     "source": "generated",
+     "kind": "required",
+     "points": "1.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "ל-true, 1.5",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c0",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q6.c0.k1",
+     "description_he": "חתימת הפעולה (עם המילה static!)",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "חתימת הפעולה (עם המילה static!) כל טעות להוריד 1",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c1",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q6.c1.k1",
+     "description_he": "משתנים משמעותיים",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "משתנים משמעותיים",
+     "unit_count": null
+    },
+    {
+     "check_id": "q6.c1.k2",
+     "description_he": "קוד קריא",
+     "source": "generated",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "משתנים משמעותיים + קוד קריא",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c2",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q6.c2.k1",
+     "description_he": "יצירה של מערך מונים עם הקצאה נכונה (לפחות בגודל 31)",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "יצירה של מערך מונים עם הקצאה נכונה (לפחות בגודל 31)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c3",
+   "points_possible": "1",
+   "checks": [
+    {
+     "check_id": "q6.c3.k1",
+     "description_he": "איפוס מערך המונים או הערה שיש איפוס ע\"י השפה",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "איפוס מערך המונים או הערה שיש איפוס ע\"י השפה",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c4",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q6.c4.k1",
+     "description_he": "סריקה נכונה של מערך הקלט לעדכון מונים",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סריקה נכונה של מערך הקלט לעדכון מונים",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c5",
+   "points_possible": "4",
+   "checks": [
+    {
+     "check_id": "q6.c5.k1",
+     "description_he": "סריקת מערך המונים למציאת המכינה (האינדקס) עם המונה הגבוה ביותר",
+     "source": "generated",
+     "kind": "required",
+     "points": "4",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "סריקת מערך המונים למציאת המכינה (האינדקס) עם המונה הגבוה ביותר (4 נקודות)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c6",
+   "points_possible": "2",
+   "checks": [
+    {
+     "check_id": "q6.c6.k1",
+     "description_he": "הדפסת מספר המכינה בעלת כמות מקסימלית (ולא כמות התלמידים)",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "הדפסת מספר המכינה בעלת כמות מקסימלית (ולא כמות התלמידים) אם הדפיסו את הכמות להוריד 2 (או 1?)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q6.c6.t1",
+     "description_he": "הדפסת מספר המכינה בעלת כמות מקסימלית (ולא כמות התלמידים)",
+     "source": "generated",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "אם הדפיסו את הכמות להוריד 2 (או 1?)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c7",
+   "points_possible": "4",
+   "checks": [
+    {
+     "check_id": "q6.c7.k1",
+     "description_he": "חישוב גודל מערך היעד: סריקת מערך המונים",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "חישוב גודל מערך היעד: סריקת מערך המונים(1 נק')",
+     "unit_count": null
+    },
+    {
+     "check_id": "q6.c7.k2",
+     "description_he": "ספירת התאים שגדולים מ-0",
+     "source": "generated",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": ", ספירת התאים שגדולים מ-0 (1 נקודה)",
+     "unit_count": null
+    },
+    {
+     "check_id": "q6.c7.k3",
+     "description_he": "ויצירה והקצאת מערך חדש בגודל count * 2",
+     "source": "generated",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": ", ויצירה והקצאת מערך חדש בגודל count * 2 (2 נקודות)",
+     "unit_count": null
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c8",
+   "points_possible": "8",
+   "checks": [
+    {
+     "check_id": "q6.c8.k1",
+     "description_he": "בניית מערך התוצאה: מילוי נכון של המערך החדש בזוגות: קודם את result[resIndex] = i ומיד לאחר מכן result[resIndex+1] = counters[i] תוך קידום ידני תקין של אינדקס מערך היעד ב-2 בכל פעם.",
+     "source": "generated",
+     "kind": "required",
+     "points": "8",
+     "tariff_amount": null,
+     "partial_fraction": "0.5",
+     "equivalence_note": null,
+     "charge_group": null,
+     "rubric_quote": "בניית מערך התוצאה: מילוי נכון של המערך החדש בזוגות: קודם את result[resIndex] = i ומיד לאחר מכן result[resIndex+1] = counters[i] תוך קידום ידני תקין של אינדקס מערך היעד ב-2 בכל פעם.",
+     "unit_count": null
+    }
+   ]
+  }
+ ],
+ "compiler_version": "plan-compiler/v2.0",
+ "segmenter_prompt_version": null,
+ "segmenter_model": null,
+ "router_model": null
+}

@@ -1,0 +1,255 @@
+{
+ "exam": "bagrut_899371",
+ "fixtures": [
+  "bagrut_899371.din_ezra",
+  "bagrut_899371.itay_kraft",
+  "bagrut_899371.noam_breinshtein",
+  "bagrut_899371.raz_cohen",
+  "bagrut_899371.roni_ben_ezra",
+  "bagrut_899371.yael_kogan",
+  "bagrut_899371.yahli_cohen"
+ ],
+ "contract_sha256": "5d58b7eab86bca2993ee17a56614cef3f79efbcf24d874a229168393f1b23b0e",
+ "precision": "0.25",
+ "compiler_version": "plan-compiler/v2.0",
+ "plan_version": "bagrut_899371/compiled-918b9f5babae",
+ "terminals": 61,
+ "slots": 96,
+ "kinds": {
+  "counted": 1,
+  "required": 84,
+  "note_only": 2,
+  "tariff": 9
+ },
+ "validator_errors": [],
+ "expressible": 284,
+ "gt_total": 298,
+ "routed_judgments": 35,
+ "bar": 295,
+ "miss_classes": {
+  "decomposition": 7,
+  "granularity-floor": 2,
+  "routed": 4,
+  "granularity-ladder": 1
+ },
+ "per_fixture": {
+  "bagrut_899371.din_ezra": [
+   45,
+   46
+  ],
+  "bagrut_899371.itay_kraft": [
+   45,
+   46
+  ],
+  "bagrut_899371.noam_breinshtein": [
+   38,
+   41
+  ],
+  "bagrut_899371.raz_cohen": [
+   34,
+   39
+  ],
+  "bagrut_899371.roni_ben_ezra": [
+   41,
+   42
+  ],
+  "bagrut_899371.yael_kogan": [
+   41,
+   43
+  ],
+  "bagrut_899371.yahli_cohen": [
+   40,
+   41
+  ]
+ },
+ "routed": [
+  "q1.ב.1.c0",
+  "q2.א.c4",
+  "q3.ב.c4",
+  "q4.א.c1",
+  "q5.א.c1",
+  "q5.ב.c2",
+  "q6.c5",
+  "q6.c8"
+ ],
+ "counterfactual": {
+  "route_min_points": "3",
+  "miss_classes": {
+   "routed": 11,
+   "granularity-floor": 2,
+   "granularity-ladder": 1
+  },
+  "routed": [
+   "q1.ב.1.c0",
+   "q2.א.c4",
+   "q2.ב.c4",
+   "q3.א.c4",
+   "q3.ב.c4",
+   "q3.ב.c5",
+   "q3.ב.c6",
+   "q4.א.c1",
+   "q4.ב.c5",
+   "q5.א.c1",
+   "q5.ב.c2",
+   "q5.ב.c5",
+   "q6.c5",
+   "q6.c8"
+  ]
+ },
+ "misses": [
+  {
+   "fixture": "bagrut_899371.din_ezra",
+   "terminal": "q3.ב.c6",
+   "award": "2.5",
+   "cls": "decomposition",
+   "reachable": [
+    "0",
+    "1.50",
+    "3.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.itay_kraft",
+   "terminal": "q6.c4",
+   "award": "0.5",
+   "cls": "granularity-floor",
+   "reachable": [
+    "0",
+    "1.00",
+    "2.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.noam_breinshtein",
+   "terminal": "q3.ב.c5",
+   "award": "2.5",
+   "cls": "decomposition",
+   "reachable": [
+    "0",
+    "1.50",
+    "3.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.noam_breinshtein",
+   "terminal": "q3.ב.c6",
+   "award": "2.5",
+   "cls": "decomposition",
+   "reachable": [
+    "0",
+    "1.50",
+    "3.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.noam_breinshtein",
+   "terminal": "q6.c5",
+   "award": "1",
+   "cls": "routed",
+   "reachable": [
+    "0",
+    "2.00",
+    "4.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.raz_cohen",
+   "terminal": "q1.ב.2.c1",
+   "award": "1.5",
+   "cls": "granularity-ladder",
+   "reachable": [
+    "0",
+    "1.00",
+    "2.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.raz_cohen",
+   "terminal": "q3.ב.c4",
+   "award": "1",
+   "cls": "routed",
+   "reachable": [
+    "0",
+    "2.00",
+    "4.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.raz_cohen",
+   "terminal": "q3.ב.c6",
+   "award": "2",
+   "cls": "decomposition",
+   "reachable": [
+    "0",
+    "1.50",
+    "3.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.raz_cohen",
+   "terminal": "q6.c5",
+   "award": "1",
+   "cls": "routed",
+   "reachable": [
+    "0",
+    "2.00",
+    "4.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.raz_cohen",
+   "terminal": "q6.c8",
+   "award": "3",
+   "cls": "routed",
+   "reachable": [
+    "0",
+    "4.00",
+    "8.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.roni_ben_ezra",
+   "terminal": "q3.ב.c6",
+   "award": "2",
+   "cls": "decomposition",
+   "reachable": [
+    "0",
+    "1.50",
+    "3.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.yael_kogan",
+   "terminal": "q2.ב.c5",
+   "award": "0.5",
+   "cls": "granularity-floor",
+   "reachable": [
+    "0",
+    "1.00",
+    "2.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.yael_kogan",
+   "terminal": "q3.ב.c6",
+   "award": "2",
+   "cls": "decomposition",
+   "reachable": [
+    "0",
+    "1.50",
+    "3.00"
+   ]
+  },
+  {
+   "fixture": "bagrut_899371.yahli_cohen",
+   "terminal": "q3.ב.c6",
+   "award": "2.5",
+   "cls": "decomposition",
+   "reachable": [
+    "0",
+    "1.50",
+    "3.00"
+   ]
+  }
+ ]
+}

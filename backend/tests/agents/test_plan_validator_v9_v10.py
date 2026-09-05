@@ -258,7 +258,7 @@ def test_scope_labels_are_unique_per_leaf_on_a_depth_2_exam():
     """
     from collections import Counter
 
-    from app.agents.plan_gen.generator import _scope_label, contract_scopes
+    from app.agents.plan_compiler.stage0 import contract_scopes, scope_label as _scope_label
     from tests.grading_eval_suite.fixtures import load_bundle
 
     contract = load_bundle("bagrut_899371.din_ezra",
@@ -277,8 +277,8 @@ def test_scope_labels_are_unique_per_leaf_on_a_depth_2_exam():
 def test_a_scope_label_matches_its_terminals_prefix():
     """The label and the terminal ids must agree, because `terminal_scopes`
     maps one to the other and V9 looks the corpus up by it."""
-    from app.agents.plan_gen.generator import (
-        _scope_label, contract_scopes, terminals_of)
+    from app.agents.plan_compiler.stage0 import (
+        contract_scopes, terminals_of, scope_label as _scope_label)
     from tests.grading_eval_suite.fixtures import load_bundle
 
     contract = load_bundle("bagrut_899371.din_ezra",

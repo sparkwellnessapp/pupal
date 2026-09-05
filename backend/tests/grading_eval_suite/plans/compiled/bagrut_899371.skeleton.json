@@ -1,0 +1,2184 @@
+{
+ "exam_id": "bagrut_899371",
+ "rubric_contract_sha256": "5d58b7eab86bca2993ee17a56614cef3f79efbcf24d874a229168393f1b23b0e",
+ "precision": "0.25",
+ "compiler_version": "plan-compiler/v2.0",
+ "terminals": [
+  {
+   "terminal_id": "q1.א.1.c0",
+   "scope": "q1.א.1",
+   "points_possible": "12",
+   "text": "ניקוד טבלת מעקב סה\"כ 12 נקודות: 17 תאים  0.7 כל תא",
+   "slots": [
+    {
+     "slot_id": "q1.א.1.c0.k1",
+     "kind": "counted",
+     "points": "12",
+     "tariff_amount": null,
+     "unit_count": 17,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "17 תאים  0.7 כל תא",
+     "summary": "ניקוד טבלת מעקב סה\"כ 12 נקודות: 17 תאים 0.7 כל תא",
+     "anchor_span": "",
+     "flags": [
+      "per_unit_is_rounding"
+     ]
+    }
+   ],
+   "routed": false,
+   "case": "counted",
+   "flags": [
+    {
+     "code": "counted_per_unit_rounding",
+     "terminal_id": "q1.א.1.c0",
+     "detail": "17 × 0.7 = 11.9 ≠ 12"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.א.2.c0",
+   "scope": "q1.א.2",
+   "points_possible": "1.5",
+   "text": "הבנת הבדיקה של \"מחלק ללא שארית\"~  1.5 נק'",
+   "slots": [
+    {
+     "slot_id": "q1.א.2.c0.k1",
+     "kind": "required",
+     "points": "1.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "הבנת הבדיקה של \"מחלק ללא שארית\"~  1.5 נק'",
+     "summary": "הבנת הבדיקה של \"מחלק ללא שארית\"",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "valued",
+   "flags": []
+  },
+  {
+   "terminal_id": "q1.א.2.c1",
+   "scope": "q1.א.2",
+   "points_possible": "1.5",
+   "text": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו  0.5 נק'",
+   "slots": [
+    {
+     "slot_id": "q1.א.2.c1.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו  0.5 נק'",
+     "summary": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q1.א.2.c1.k2",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו  0.5 נק'",
+     "summary": "",
+     "anchor_span": "",
+     "flags": [
+      "case2_remainder"
+     ]
+    }
+   ],
+   "routed": false,
+   "case": "case2",
+   "flags": [
+    {
+     "code": "case2_remainder_slot",
+     "terminal_id": "q1.א.2.c1",
+     "detail": "stated 0.5 < 1.5; remainder 1.0"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.1.c0",
+   "scope": "q1.ב.1",
+   "points_possible": "6",
+   "text": "ניקוד: 6 נקודות",
+   "slots": [
+    {
+     "slot_id": "q1.ב.1.c0.k1",
+     "kind": "required",
+     "points": "6",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "ניקוד: 6 נקודות",
+     "summary": "ניקוד",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": true,
+   "case": "valued",
+   "flags": [
+    {
+     "code": "routed",
+     "terminal_id": "q1.ב.1.c0",
+     "detail": "monolith, P=6, solution present"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.2.c0",
+   "scope": "q1.ב.2",
+   "points_possible": "2",
+   "text": "זיהוי שמדובר בפעולת סכימה של איברי המערך – 2 נק'",
+   "slots": [
+    {
+     "slot_id": "q1.ב.2.c0.k1",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "זיהוי שמדובר בפעולת סכימה של איברי המערך – 2 נק'",
+     "summary": "זיהוי שמדובר בפעולת סכימה של איברי המערך",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "valued",
+   "flags": [
+    {
+     "code": "tariff_reclassified_as_value",
+     "terminal_id": "q1.ב.2.c0",
+     "detail": "«דובר בפעולת סכימה של איברי המערך – 2 נק'» closes a component, no verb"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.2.c1",
+   "scope": "q1.ב.2",
+   "points_possible": "2",
+   "text": "הגדרה נכונה של תנאי הסכימה (איברים שיש להם מחלק אחר במערך) 2  נק'",
+   "slots": [
+    {
+     "slot_id": "q1.ב.2.c1.k1",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "הגדרה נכונה של תנאי הסכימה (איברים שיש להם מחלק אחר במערך) 2  נק'",
+     "summary": "הגדרה נכונה של תנאי הסכימה (איברים שיש להם מחלק אחר במערך)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "valued",
+   "flags": []
+  },
+  {
+   "terminal_id": "q2.א.c0",
+   "scope": "q2.א",
+   "points_possible": "1",
+   "text": "סעיף א: חתימת הפעולה public static bool IsMirror(int[] arr)",
+   "slots": [
+    {
+     "slot_id": "q2.א.c0.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: חתימת הפעולה public static bool IsMirror(int[] arr)",
+     "summary": "סעיף א: חתימת הפעולה public static bool IsMirror(int[] arr)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q2.א.c1",
+   "scope": "q2.א",
+   "points_possible": "0.5",
+   "text": "שמות משתנים משמעותיים וקוד קריא",
+   "slots": [
+    {
+     "slot_id": "q2.א.c1.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "שמות משתנים משמעותיים וקוד קריא",
+     "summary": "שמות משתנים משמעותיים וקוד קריא",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q2.א.c2",
+   "scope": "q2.א",
+   "points_possible": "2",
+   "text": "סעיף א: בדיקה האם המערך לא באורך זוגי, להחזיר false (if נק' 1, החזרת false נקודה 1) if (arr.Length % 2 != 0) return false;",
+   "slots": [
+    {
+     "slot_id": "q2.א.c2.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: בדיקה האם המערך לא באורך זוגי, להחזיר false (if נק' 1",
+     "summary": "סעיף א: בדיקה האם המערך לא באורך זוגי, להחזיר false (if",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q2.א.c2.k2",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": ", החזרת false נקודה 1",
+     "summary": "החזרת false",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "valued",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q2.א.c2",
+     "detail": "if (arr.Length % 2 != 0) return false;"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c3",
+   "scope": "q2.א",
+   "points_possible": "1.5",
+   "text": "סעיף א: לולאה על המערך for (int i = 0; i < arr.Length; i++)",
+   "slots": [
+    {
+     "slot_id": "q2.א.c3.k1",
+     "kind": "required",
+     "points": "1.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: לולאה על המערך",
+     "summary": "סעיף א: לולאה על המערך",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q2.א.c3",
+     "detail": "for (int i = 0; i < arr.Length; i++)"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c4",
+   "scope": "q2.א",
+   "points_possible": "4",
+   "text": "סעיף א: בתוך הלולאה: חיפוש אחר המספר הנגדי של arr[i]: int target = -arr[i]; bool found = false; for (int j = 0; j < arr.Length && found == false; j++) { if (arr[j] == target) { found = true; } }",
+   "slots": [
+    {
+     "slot_id": "q2.א.c4.k1",
+     "kind": "required",
+     "points": "4",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: בתוך הלולאה: חיפוש אחר המספר הנגדי של",
+     "summary": "סעיף א: בתוך הלולאה: חיפוש אחר המספר הנגדי של",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": true,
+   "case": "single",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q2.א.c4",
+     "detail": "arr[i]: int target = -arr[i]; bool found"
+    },
+    {
+     "code": "routed",
+     "terminal_id": "q2.א.c4",
+     "detail": "monolith, P=4, solution present"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c5",
+   "scope": "q2.א",
+   "points_possible": "2",
+   "text": "סעיף א: מחוץ ללואה אם לא מצאנו את המספר הנגדי (1 נקודה) להחזיר false (1 נקודה)",
+   "slots": [
+    {
+     "slot_id": "q2.א.c5.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: מחוץ ללואה אם לא מצאנו את המספר הנגדי (1 נקודה)",
+     "summary": "סעיף א: מחוץ ללואה אם לא מצאנו את המספר הנגדי",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q2.א.c5.k2",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "להחזיר false (1 נקודה)",
+     "summary": "להחזיר false",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "valued",
+   "flags": []
+  },
+  {
+   "terminal_id": "q2.א.c6",
+   "scope": "q2.א",
+   "points_possible": "1",
+   "text": "סעיף א: שורה אחרונה: להחזיר true",
+   "slots": [
+    {
+     "slot_id": "q2.א.c6.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: שורה אחרונה: להחזיר true",
+     "summary": "סעיף א: שורה אחרונה: להחזיר true",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q2.ב.c0",
+   "scope": "q2.ב",
+   "points_possible": "1",
+   "text": "סעיף ב: חתימת הפעולה public static void ArrangeMirror(int[] arr)",
+   "slots": [
+    {
+     "slot_id": "q2.ב.c0.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: חתימת הפעולה public static void ArrangeMirror(int[] arr)",
+     "summary": "סעיף ב: חתימת הפעולה public static void ArrangeMirror(int[] arr)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q2.ב.c1",
+   "scope": "q2.ב",
+   "points_possible": "0.5",
+   "text": "סעיף ב: שמות משתנים משמעותיים וקוד קריא",
+   "slots": [
+    {
+     "slot_id": "q2.ב.c1.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: שמות משתנים משמעותיים וקוד קריא",
+     "summary": "סעיף ב: שמות משתנים משמעותיים וקוד קריא",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q2.ב.c2",
+   "scope": "q2.ב",
+   "points_possible": "2",
+   "text": "סעיף ב: יצירת מערך עזר באותו גודל של הפרמטר + משתנה למציין של מערך העזר + אתחול ל-0 int[] temp = new int[arr.Length]; // הקצאת מערך עזר באותו הגודל int tempIndex = 0;",
+   "slots": [
+    {
+     "slot_id": "q2.ב.c2.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: יצירת מערך עזר באותו גודל של הפרמטר",
+     "summary": "סעיף ב: יצירת מערך עזר באותו גודל של הפרמטר",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q2.ב.c2.k2",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "משתנה למציין של מערך העזר",
+     "summary": "משתנה למציין של מערך העזר",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q2.ב.c2.k3",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "אתחול ל",
+     "summary": "אתחול ל",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "separators",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q2.ב.c2",
+     "detail": "-0 int[] temp = new int[arr.Length]; // "
+    },
+    {
+     "code": "even_split_residual",
+     "terminal_id": "q2.ב.c2",
+     "detail": "2 over 3: ['1.00', '0.50', '0.50']"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c3",
+   "scope": "q2.ב",
+   "points_possible": "4.5",
+   "text": "סעיף ב: סריקת המערך הפרמטר ומציאת המספרים החיוביים והעתקם למערך הזמני פלוס קידום האנדקס לולאה על המערך הפרמטר 0.5 אם המספר הנוכחי במערך הפרמטר חיובי 2 העתק המספר החיובי למערך העזר 1 קידום האנדקס 1 for (int i = 0; i < arr.Length; i++) { if (arr[i] > 0) // אם המספר חיובי { temp[tempIndex] = arr[i]; // העתקת המספר החיובי למערך העזר tempIndex++;",
+   "slots": [
+    {
+     "slot_id": "q2.ב.c3.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: סריקת המערך הפרמטר ומציאת המספרים החיוביים והעתקם למערך הזמני פלוס קידום האנדקס לולאה על המערך הפרמטר 0.5",
+     "summary": "סעיף ב: סריקת המערך הפרמטר ומציאת המספרים החיוביים והעתקם למערך הזמני פלוס קידום האנדקס לולאה על המערך הפרמטר",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q2.ב.c3.k2",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "אם המספר הנוכחי במערך הפרמטר חיובי 2",
+     "summary": "אם המספר הנוכחי במערך הפרמטר חיובי",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q2.ב.c3.k3",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "העתק המספר החיובי למערך העזר 1",
+     "summary": "העתק המספר החיובי למערך העזר",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q2.ב.c3.k4",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "קידום האנדקס 1",
+     "summary": "קידום האנדקס",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "bare",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q2.ב.c3",
+     "detail": "for (int i = 0; i < arr.Length; i++) { i"
+    },
+    {
+     "code": "bare_values",
+     "terminal_id": "q2.ב.c3",
+     "detail": "0.5, 2, 1, 1"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c4",
+   "scope": "q2.ב",
+   "points_possible": "3",
+   "text": "סעיף ב: בתוך הלולאה: אופציה 1: מניחים שהמערך פרמטר הוא מערך מראה (כפי שכתוב בשאלה) ופשוט מבצעים: temp[tempIndex] = -arr[i]; tempIndex++; אופציה 2: מציאת המספר הנגדי המתאים (ע\"י עוד לולאה) והשמתו בצמוד למספר שנמצא (באינדקס העוקב). bool found = false; for (int j = 0; j < arr.Length && found == false ; j++) { if (arr[j] == -arr[i]) { temp[tempIndex] = arr[j]; // העתקת המספר השלילי מיד לאחר החיובי tempIndex++; found = true; // מצאנו את הנגדי היחיד, יוצאים מהלולאה הפנימית } }",
+   "slots": [
+    {
+     "slot_id": "q2.ב.c4.k1",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: בתוך הלולאה: אופציה 1: מניחים שהמערך פרמטר הוא מערך מראה (כפי שכתוב בשאלה) ופשוט מבצעים",
+     "summary": "סעיף ב: בתוך הלולאה: אופציה 1: מניחים שהמערך פרמטר הוא מערך מראה (כפי שכתוב בשאלה) ופשוט מבצעים",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q2.ב.c4",
+     "detail": ": temp[tempIndex] = -arr[i]; tempIndex++"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c5",
+   "scope": "q2.ב",
+   "points_possible": "2",
+   "text": "סעיף ב: העתקה מסודרת של כל איברי מערך העזר חזרה למערך המקורי שנתקבל כפרמטר for (int i = 0; i < arr.Length; i++) arr[i] = temp[i];",
+   "slots": [
+    {
+     "slot_id": "q2.ב.c5.k1",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: העתקה מסודרת של כל איברי מערך העזר חזרה למערך המקורי שנתקבל כפרמטר",
+     "summary": "סעיף ב: העתקה מסודרת של כל איברי מערך העזר חזרה למערך המקורי שנתקבל כפרמטר",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q2.ב.c5",
+     "detail": "for (int i = 0; i < arr.Length; i++) arr"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.א.c0",
+   "scope": "q3.א",
+   "points_possible": "0.5",
+   "text": "סעיף א: חתימת הפעולה public static int[] DiceStatistics(int[] arr)",
+   "slots": [
+    {
+     "slot_id": "q3.א.c0.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: חתימת הפעולה public static int[] DiceStatistics(int[] arr)",
+     "summary": "סעיף א: חתימת הפעולה public static int[] DiceStatistics(int[] arr)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q3.א.c1",
+   "scope": "q3.א",
+   "points_possible": "0.5",
+   "text": "סעיף א: משתנים משמעותיים + קוד קריא",
+   "slots": [
+    {
+     "slot_id": "q3.א.c1.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: משתנים משמעותיים + קוד קריא",
+     "summary": "סעיף א: משתנים משמעותיים + קוד קריא",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "separators",
+   "flags": [
+    {
+     "code": "split_below_partial_grid",
+     "terminal_id": "q3.א.c1",
+     "detail": "0.5 over 2 components cannot keep each 50% on the 0.25 grid"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.א.c2",
+   "scope": "q3.א",
+   "points_possible": "2",
+   "text": "סעיף א: הגדרה והקצאה נכונה של מערך המונים בגודל 21 + איפוס מערך מונים",
+   "slots": [
+    {
+     "slot_id": "q3.א.c2.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: הגדרה והקצאה נכונה של מערך המונים בגודל 21",
+     "summary": "סעיף א: הגדרה והקצאה נכונה של מערך המונים בגודל 21",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q3.א.c2.k2",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "איפוס מערך מונים",
+     "summary": "איפוס מערך מונים",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "separators",
+   "flags": []
+  },
+  {
+   "terminal_id": "q3.א.c3",
+   "scope": "q3.א",
+   "points_possible": "2",
+   "text": "סעיף א: לולאה הסורקת את מערך הקלט",
+   "slots": [
+    {
+     "slot_id": "q3.א.c3.k1",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: לולאה הסורקת את מערך הקלט",
+     "summary": "סעיף א: לולאה הסורקת את מערך הקלט",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q3.א.c4",
+   "scope": "q3.א",
+   "points_possible": "3",
+   "text": "סעיף א: בתוך הלולאה, קידום תקין של המונה המתאים int diceValue = arr[i]; // תוצאת ההטלה -ערך בין 1 ל-20 counts[diceValue]++; // קידום המונה באינדקס המתאים אם עשו לולאה פנימית ועדכנו את מערך הונים רק כש- arr[i] == למונה של הלולאה הפנימית , לא להוריד כלום (לא ביקשנו פתרון עם מערך מונים)",
+   "slots": [
+    {
+     "slot_id": "q3.א.c4.k1",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: בתוך הלולאה, קידום תקין של המונה המתאים",
+     "summary": "סעיף א: בתוך הלולאה, קידום תקין של המונה המתאים",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q3.א.c4.n1",
+     "kind": "note_only",
+     "points": "0",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "לא להוריד כלום (לא ביקשנו פתרון עם מערך מונים)",
+     "summary": "לא להוריד כלום (לא ביקשנו פתרון עם מערך מונים)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q3.א.c4",
+     "detail": "int diceValue = arr[i]; // תוצאת ההטלה -"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.א.c5",
+   "scope": "q3.א",
+   "points_possible": "2",
+   "text": "סעיף א: אחרי הלולאה:החזרת מערך המונים המלא",
+   "slots": [
+    {
+     "slot_id": "q3.א.c5.k1",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: אחרי הלולאה:החזרת מערך המונים המלא",
+     "summary": "סעיף א: אחרי הלולאה:החזרת מערך המונים המלא",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q3.ב.c0",
+   "scope": "q3.ב",
+   "points_possible": "0.5",
+   "text": "סעיף ב: חתימת הפעולה public static void PrintStatistics(int[] arr)",
+   "slots": [
+    {
+     "slot_id": "q3.ב.c0.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: חתימת הפעולה public static void PrintStatistics(int[] arr)",
+     "summary": "סעיף ב: חתימת הפעולה public static void PrintStatistics(int[] arr)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q3.ב.c1",
+   "scope": "q3.ב",
+   "points_possible": "0.5",
+   "text": "סעיף ב: משתנים משמעותיים + קוד קריא",
+   "slots": [
+    {
+     "slot_id": "q3.ב.c1.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: משתנים משמעותיים + קוד קריא",
+     "summary": "סעיף ב: משתנים משמעותיים + קוד קריא",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "separators",
+   "flags": [
+    {
+     "code": "split_below_partial_grid",
+     "terminal_id": "q3.ב.c1",
+     "detail": "0.5 over 2 components cannot keep each 50% on the 0.25 grid"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.ב.c2",
+   "scope": "q3.ב",
+   "points_possible": "2",
+   "text": "סעיף ב: קריאה נכונה לפעולה DiceStatistics(arr) ושמירת המערך המוחזר אם יצרו מערך מונים חדש ו/או הריצו את הפעולה DiceStatistics בתוך לולאה תוך העתקה של כל תא , לא להוריד כלום (חוסר יעילות)",
+   "slots": [
+    {
+     "slot_id": "q3.ב.c2.k1",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: קריאה נכונה לפעולה DiceStatistics(arr) ושמירת המערך המוחזר אם יצרו מערך מונים חדש ו/או הריצו את הפעולה DiceStatistics בתוך לולאה תוך העתקה של כל תא , לא להוריד כלום (חוסר יעילות)",
+     "summary": "סעיף ב: קריאה נכונה לפעולה DiceStatistics(arr) ושמירת המערך המוחזר אם יצרו מערך מונים חדש ו/או הריצו את הפעולה DiceStatistics בתוך לולאה תוך העתקה של כל תא",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q3.ב.c2.n1",
+     "kind": "note_only",
+     "points": "0",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "לא להוריד כלום (חוסר יעילות)",
+     "summary": "לא להוריד כלום (חוסר יעילות)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q3.ב.c3",
+   "scope": "q3.ב",
+   "points_possible": "2",
+   "text": "סעיף ב: הגדרת משתנה שלם לשמירת הערך המקסימלי maxCount + _ + אתחול לתא הראשון או לערך מאוד נמוך) (אתחול 1 נקודות)",
+   "slots": [
+    {
+     "slot_id": "q3.ב.c3.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: הגדרת משתנה שלם לשמירת הערך המקסימלי maxCount",
+     "summary": "סעיף ב: הגדרת משתנה שלם לשמירת הערך המקסימלי maxCount",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q3.ב.c3.k2",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "אתחול לתא הראשון או לערך מאוד נמוך) (אתחול 1 נקודות)",
+     "summary": "אתחול לתא הראשון או לערך מאוד נמוך)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "case2",
+   "flags": [
+    {
+     "code": "case2_unvalued_fill",
+     "terminal_id": "q3.ב.c3",
+     "detail": "1 over 1 unvalued"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.ב.c4",
+   "scope": "q3.ב",
+   "points_possible": "4",
+   "text": "סעיף ב: אלגוריתם נכון למציאת הערך המקסימלי (השכיחות הגבוהה ביותר) מתוך מערך המונים (ריצה מאינדקס 1 עד 20).",
+   "slots": [
+    {
+     "slot_id": "q3.ב.c4.k1",
+     "kind": "required",
+     "points": "4",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: אלגוריתם נכון למציאת הערך המקסימלי (השכיחות הגבוהה ביותר) מתוך מערך המונים (ריצה מאינדקס 1 עד 20).",
+     "summary": "סעיף ב: אלגוריתם נכון למציאת הערך המקסימלי (השכיחות הגבוהה ביותר) מתוך מערך המונים (ריצה מאינדקס 1 עד 20).",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": true,
+   "case": "single",
+   "flags": [
+    {
+     "code": "routed",
+     "terminal_id": "q3.ב.c4",
+     "detail": "monolith, P=4, solution present"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.ב.c5",
+   "scope": "q3.ב",
+   "points_possible": "3",
+   "text": "סעיף ב: לולאה נפרדת הסורקת ומדפיסה את כל האינדקסים שערכם שווה ל-maxCount (תמיכה בריבוי שכיחים) (ריצה מאינדקס 1 עד 20).",
+   "slots": [
+    {
+     "slot_id": "q3.ב.c5.k1",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: לולאה נפרדת הסורקת ומדפיסה את כל האינדקסים שערכם שווה ל-maxCount (תמיכה בריבוי שכיחים) (ריצה מאינדקס 1 עד 20).",
+     "summary": "סעיף ב: לולאה נפרדת הסורקת ומדפיסה את כל האינדקסים שערכם שווה ל-maxCount (תמיכה בריבוי שכיחים) (ריצה מאינדקס 1 עד 20).",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q3.ב.c6",
+   "scope": "q3.ב",
+   "points_possible": "3",
+   "text": "סעיף ב: לולאה הסורקת ומדפיסה את האינדקסים שבהם המונה שווה ל-0 (ערכים שלא הופיעו) (ריצה מאינדקס 1 עד 20).",
+   "slots": [
+    {
+     "slot_id": "q3.ב.c6.k1",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: לולאה הסורקת ומדפיסה את האינדקסים שבהם המונה שווה ל-0 (ערכים שלא הופיעו) (ריצה מאינדקס 1 עד 20).",
+     "summary": "סעיף ב: לולאה הסורקת ומדפיסה את האינדקסים שבהם המונה שווה ל-0 (ערכים שלא הופיעו) (ריצה מאינדקס 1 עד 20).",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q4.א.c0",
+   "scope": "q4.א",
+   "points_possible": "1",
+   "text": "סעיף א: חתימת הפעולה (ללא מילה static!) public double TotalEarnings()",
+   "slots": [
+    {
+     "slot_id": "q4.א.c0.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: חתימת הפעולה (ללא מילה static!) public double TotalEarnings()",
+     "summary": "סעיף א: חתימת הפעולה (ללא מילה static!) public double TotalEarnings()",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q4.א.c1",
+   "scope": "q4.א",
+   "points_possible": "4",
+   "text": "סעיף א: החזרת החישוב: return this.seasonsPlayed * this.seasonSalary;",
+   "slots": [
+    {
+     "slot_id": "q4.א.c1.k1",
+     "kind": "required",
+     "points": "4",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: החזרת החישוב",
+     "summary": "סעיף א: החזרת החישוב",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": true,
+   "case": "single",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q4.א.c1",
+     "detail": ": return this.seasonsPlayed * this.seaso"
+    },
+    {
+     "code": "routed",
+     "terminal_id": "q4.א.c1",
+     "detail": "monolith, P=4, solution present"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c0",
+   "scope": "q4.ב",
+   "points_possible": "0.5",
+   "text": "סעיף ב: חתימת הפעולה (static!!) public static string[] TopEarners(BasketballPlayer[] arr, double amount)",
+   "slots": [
+    {
+     "slot_id": "q4.ב.c0.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: חתימת הפעולה (static!!) public static string[] TopEarners(BasketballPlayer[] arr, double amount)",
+     "summary": "סעיף ב: חתימת הפעולה (static!!) public static string[] TopEarners(BasketballPlayer[] arr, double amount)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q4.ב.c1",
+   "scope": "q4.ב",
+   "points_possible": "0.5",
+   "text": "סעיף ב: משתנים משמעותיים + קוד קריא",
+   "slots": [
+    {
+     "slot_id": "q4.ב.c1.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: משתנים משמעותיים + קוד קריא",
+     "summary": "סעיף ב: משתנים משמעותיים + קוד קריא",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "separators",
+   "flags": [
+    {
+     "code": "split_below_partial_grid",
+     "terminal_id": "q4.ב.c1",
+     "detail": "0.5 over 2 components cannot keep each 50% on the 0.25 grid"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c2",
+   "scope": "q4.ב",
+   "points_possible": "1",
+   "text": "סעיף ב: משתנה למניית השחקניות שמקיימות את התנאי + איפוס",
+   "slots": [
+    {
+     "slot_id": "q4.ב.c2.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: משתנה למניית השחקניות שמקיימות את התנאי",
+     "summary": "סעיף ב: משתנה למניית השחקניות שמקיימות את התנאי",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q4.ב.c2.k2",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "איפוס",
+     "summary": "איפוס",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "separators",
+   "flags": []
+  },
+  {
+   "terminal_id": "q4.ב.c3",
+   "scope": "q4.ב",
+   "points_possible": "2",
+   "text": "סעיף ב: לולאה (A) על מערך השחקניות (לספירה נכונה וקידום מונה תקין) for (int i = 0; i < arr.Length; i++)",
+   "slots": [
+    {
+     "slot_id": "q4.ב.c3.k1",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: לולאה (A) על מערך השחקניות (לספירה נכונה וקידום מונה תקין)",
+     "summary": "סעיף ב: לולאה (A) על מערך השחקניות (לספירה נכונה וקידום מונה תקין)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q4.ב.c3",
+     "detail": "for (int i = 0; i < arr.Length; i++)"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c4",
+   "scope": "q4.ב",
+   "points_possible": "5",
+   "text": "סעיף ב:בתוך הלולאה (A) : בדיקה אם המערך במקום ה- i שונה מ- null (1 נקודות) זימון של פעולה פנימית TotalEarnings עבור המערך במקום ה- i (3 נקודות) (לקנוס פעם אחת אם לא בדקו אם arr[i]!=null , הערה למטה) השוואה אם התוצאה גבוהה מהפרמטר (1 נקודה) קידום המונה (1 נקודה) if (arr[i].TotalEarnings() > amount) count++;",
+   "slots": [
+    {
+     "slot_id": "q4.ב.c4.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב:בתוך הלולאה (A) : בדיקה אם המערך במקום ה- i שונה מ- null (1 נקודות)",
+     "summary": "סעיף ב:בתוך הלולאה (A) : בדיקה אם המערך במקום ה- i שונה מ- null",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q4.ב.c4.k2",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "זימון של פעולה פנימית TotalEarnings עבור המערך במקום ה- i (3 נקודות)",
+     "summary": "זימון של פעולה פנימית TotalEarnings עבור המערך במקום ה- i",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q4.ב.c4.k3",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "(לקנוס פעם אחת אם לא בדקו אם arr[i]!=null , הערה למטה) השוואה אם התוצאה גבוהה מהפרמטר (1 נקודה)",
+     "summary": "( השוואה אם התוצאה גבוהה מהפרמטר",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q4.ב.c4.k4",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "קידום המונה (1 נקודה)",
+     "summary": "קידום המונה",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q4.ב.c4.t1",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": "q4.ב:once:2aa8e26f",
+     "source_span": "לקנוס פעם אחת אם לא בדקו אם arr[i]!=null , הערה למטה)",
+     "summary": "פעם אחת אם לא בדקו אם arr[i]!=null , הערה למטה",
+     "anchor_span": "סעיף ב:בתוך הלולאה (A) : בדיקה אם המערך במקום ה- i שונה מ- null",
+     "flags": [
+      "amount_inferred"
+     ]
+    }
+   ],
+   "routed": false,
+   "case": "case3",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q4.ב.c4",
+     "detail": "if (arr[i].TotalEarnings() > amount) cou"
+    },
+    {
+     "code": "case3_over_allocation",
+     "terminal_id": "q4.ב.c4",
+     "detail": "stated ['1', '3', '1', '1'] = 6 > 5 → ['1', '2', '1', '1']"
+    },
+    {
+     "code": "tariff_amount_inferred",
+     "terminal_id": "q4.ב.c4",
+     "detail": "'לקנוס פעם אחת אם לא בדקו אם arr[i]!=null , הערה למטה)' → 1 from «סעיף ב:בתוך הלולאה (A) : בדיקה אם המערך »"
+    },
+    {
+     "code": "charge_once_group",
+     "terminal_id": "q4.ב.c4",
+     "detail": "q4.ב:once:7861537d ← «לקנוס פעם אחת אם לא בדקו אם arr[i]!=null , הערה למ»"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c5",
+   "scope": "q4.ב",
+   "points_possible": "3",
+   "text": "סעיף ב: הקצאת מערך ה-string החדש בדיוק בגודל שנספר (count)",
+   "slots": [
+    {
+     "slot_id": "q4.ב.c5.k1",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: הקצאת מערך ה-string החדש בדיוק בגודל שנספר (count)",
+     "summary": "סעיף ב: הקצאת מערך ה-string החדש בדיוק בגודל שנספר (count)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q4.ב.c6",
+   "scope": "q4.ב",
+   "points_possible": "1",
+   "text": "סעיף ב: משתנה לאנדקס מערך השמות + איפוס",
+   "slots": [
+    {
+     "slot_id": "q4.ב.c6.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: משתנה לאנדקס מערך השמות",
+     "summary": "סעיף ב: משתנה לאנדקס מערך השמות",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q4.ב.c6.k2",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "איפוס",
+     "summary": "איפוס",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "separators",
+   "flags": []
+  },
+  {
+   "terminal_id": "q4.ב.c7",
+   "scope": "q4.ב",
+   "points_possible": "5",
+   "text": "סעיף ב: לולאה שנייה (B) נכונה (1 נקודה) בדיקה אם המערך במקום ה- i שונה מ- null(1 נקודות), להוריד רק פעם אחת שימוש ב-Getter לקבלת השם arr[i].GetName() (3 נקודות) השמה במערך החדש (1 נקודה) תוך קידום אינדקס נפרד (namesIndex)(1 נקודה) for (int i = 0; i < arr.Length; i++) { if (arr[i]!= null && arr[i].TotalEarnings() > amount) // אם טעו פה,להוריד 3 רק פעם 1 (יש גם זימון בלולאה א { namesArr[namesIndex] = arr[i].GetName(); // שימוש ב-Getter namesIndex++; // קידום האנדקס } }",
+   "slots": [
+    {
+     "slot_id": "q4.ב.c7.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: לולאה שנייה (B) נכונה (1 נקודה)",
+     "summary": "סעיף ב: לולאה שנייה (B) נכונה",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q4.ב.c7.k2",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "בדיקה אם המערך במקום ה- i שונה מ- null(1 נקודות)",
+     "summary": "בדיקה אם המערך במקום ה- i שונה מ- null",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q4.ב.c7.k3",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": ", להוריד רק פעם אחת שימוש ב-Getter לקבלת השם arr[i].GetName() (3 נקודות)",
+     "summary": "שימוש ב-Getter לקבלת השם arr[i].GetName()",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q4.ב.c7.k4",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "השמה במערך החדש (1 נקודה)",
+     "summary": "השמה במערך החדש",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q4.ב.c7.k5",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "תוך קידום אינדקס נפרד (namesIndex)(1 נקודה)",
+     "summary": "תוך קידום אינדקס נפרד (namesIndex)",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q4.ב.c7.t1",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": "q4.ב:once:2aa8e26f",
+     "source_span": "להוריד רק פעם אחת",
+     "summary": "רק פעם אחת",
+     "anchor_span": "בדיקה אם המערך במקום ה- i שונה מ- null",
+     "flags": [
+      "amount_inferred"
+     ]
+    },
+    {
+     "slot_id": "q4.ב.c7.t2",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "3",
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": "q4.ב:once:d754e274",
+     "source_span": "אם טעו פה,להוריד 3 רק פעם 1",
+     "summary": "אם טעו פה, רק פעם 1",
+     "anchor_span": "תוך קידום אינדקס נפרד (namesIndex)",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "case3",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q4.ב.c7",
+     "detail": "for (int i = 0; i < arr.Length; i++) { i"
+    },
+    {
+     "code": "case3_over_allocation",
+     "terminal_id": "q4.ב.c7",
+     "detail": "stated ['1', '1', '3', '1', '1'] = 7 > 5 → ['0.5', '0.5', '2', '1', '1'] (residual broken)"
+    },
+    {
+     "code": "tariff_amount_inferred",
+     "terminal_id": "q4.ב.c7",
+     "detail": "'להוריד רק פעם אחת' → 1 from «בדיקה אם המערך במקום ה- i שונה מ- null»"
+    },
+    {
+     "code": "charge_once_group",
+     "terminal_id": "q4.ב.c7",
+     "detail": "q4.ב:once:5971a08c ← «להוריד רק פעם אחת»"
+    },
+    {
+     "code": "charge_once_group",
+     "terminal_id": "q4.ב.c7",
+     "detail": "q4.ב:once:d754e274 ← «אם טעו פה,להוריד 3 רק פעם 1»"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c8",
+   "scope": "q4.ב",
+   "points_possible": "2",
+   "text": "סעיף ב: החזרת מערך השמות",
+   "slots": [
+    {
+     "slot_id": "q4.ב.c8.k1",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: החזרת מערך השמות",
+     "summary": "סעיף ב: החזרת מערך השמות",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q5.א.c0",
+   "scope": "q5.א",
+   "points_possible": "1",
+   "text": "סעיף א: חתימת הפעולה (ללא מילה static!) public bool IsSimilarWorkshop(Workshop other) כל טעות פה להוריד 1",
+   "slots": [
+    {
+     "slot_id": "q5.א.c0.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: חתימת הפעולה (ללא מילה static!) public bool IsSimilarWorkshop(Workshop other) כל טעות פה להוריד 1",
+     "summary": "סעיף א: חתימת הפעולה (ללא מילה static!) public bool IsSimilarWorkshop(Workshop other)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": [
+    {
+     "code": "tariff_folded_into_component",
+     "terminal_id": "q5.א.c0",
+     "detail": "«כל טעות פה להוריד 1» = the 1-point component's own failure"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.א.c1",
+   "scope": "q5.א",
+   "points_possible": "4",
+   "text": "סעיף א: החזרת החישוב: return this.name == other.GetName();",
+   "slots": [
+    {
+     "slot_id": "q5.א.c1.k1",
+     "kind": "required",
+     "points": "4",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף א: החזרת החישוב",
+     "summary": "סעיף א: החזרת החישוב",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": true,
+   "case": "single",
+   "flags": [
+    {
+     "code": "code_tail_ignored",
+     "terminal_id": "q5.א.c1",
+     "detail": ": return this.name == other.GetName();"
+    },
+    {
+     "code": "routed",
+     "terminal_id": "q5.א.c1",
+     "detail": "monolith, P=4, solution present"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c0",
+   "scope": "q5.ב",
+   "points_possible": "0.5",
+   "text": "סעיף ב: חתימת הפעולה (לא static!!) public bool HandleNewWorkshop(Workshop ws)",
+   "slots": [
+    {
+     "slot_id": "q5.ב.c0.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: חתימת הפעולה (לא static!!) public bool HandleNewWorkshop(Workshop ws)",
+     "summary": "סעיף ב: חתימת הפעולה (לא static!!) public bool HandleNewWorkshop(Workshop ws)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q5.ב.c1",
+   "scope": "q5.ב",
+   "points_possible": "0.5",
+   "text": "סעיף ב: משתנים משמעותיים + קוד קריא",
+   "slots": [
+    {
+     "slot_id": "q5.ב.c1.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: משתנים משמעותיים + קוד קריא",
+     "summary": "סעיף ב: משתנים משמעותיים + קוד קריא",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "separators",
+   "flags": [
+    {
+     "code": "split_below_partial_grid",
+     "terminal_id": "q5.ב.c1",
+     "detail": "0.5 over 2 components cannot keep each 50% on the 0.25 grid"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c2",
+   "scope": "q5.ב",
+   "points_possible": "6",
+   "text": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null , להוריד 2 אם לא ניהולו נכון את גבולות הלולאה להוריד 1",
+   "slots": [
+    {
+     "slot_id": "q5.ב.c2.k1",
+     "kind": "required",
+     "points": "6",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null , להוריד 2 אם לא ניהולו נכון את גבולות הלולאה להוריד 1",
+     "summary": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q5.ב.c2.t1",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "2",
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "להוריד 2",
+     "summary": "",
+     "anchor_span": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null",
+     "flags": []
+    },
+    {
+     "slot_id": "q5.ב.c2.t2",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "אם לא ניהולו נכון את גבולות הלולאה להוריד 1",
+     "summary": "אם לא ניהולו נכון את גבולות הלולאה",
+     "anchor_span": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null",
+     "flags": []
+    }
+   ],
+   "routed": true,
+   "case": "single",
+   "flags": [
+    {
+     "code": "routed",
+     "terminal_id": "q5.ב.c2",
+     "detail": "monolith, P=6, solution present"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c3",
+   "scope": "q5.ב",
+   "points_possible": "2",
+   "text": "סעיף ב: זימון נכון של הפעולה מסעיף א' על איבר מהמערך: this.workshops[i].IsSimilarWorkshop(ws)",
+   "slots": [
+    {
+     "slot_id": "q5.ב.c3.k1",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: זימון נכון של הפעולה מסעיף א' על איבר מהמערך: this.workshops[i].IsSimilarWorkshop(ws)",
+     "summary": "סעיף ב: זימון נכון של הפעולה מסעיף א' על איבר מהמערך: this.workshops[i].IsSimilarWorkshop(ws)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q5.ב.c4",
+   "scope": "q5.ב",
+   "points_possible": "5",
+   "text": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה 1 נקודה אם לא השתמשו בפעולה הפנימית להוריד 2, אם לא השתמשו באף אחת מהן להוריד 3 אם חישבו נכון את סה\"כ ולא עדכנו את התכונה (כמובן ע\"י setter) להוריד 2",
+   "slots": [
+    {
+     "slot_id": "q5.ב.c4.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה 1 נקודה",
+     "summary": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q5.ב.c4.k2",
+     "kind": "required",
+     "points": "4",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "אם לא השתמשו בפעולה הפנימית להוריד 2, אם לא השתמשו באף אחת מהן להוריד 3 אם חישבו נכון את סה\"כ ולא עדכנו את התכונה (כמובן ע\"י setter) להוריד 2",
+     "summary": "אם חישבו נכון את סה\"כ ולא עדכנו את התכונה (כמובן ע\"י setter)",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q5.ב.c4.t1",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "2",
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "אם לא השתמשו בפעולה הפנימית להוריד 2",
+     "summary": "אם לא השתמשו בפעולה הפנימית",
+     "anchor_span": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה",
+     "flags": []
+    },
+    {
+     "slot_id": "q5.ב.c4.t2",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "3",
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "אם לא השתמשו באף אחת מהן להוריד 3",
+     "summary": "אם לא השתמשו באף אחת מהן",
+     "anchor_span": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה",
+     "flags": []
+    },
+    {
+     "slot_id": "q5.ב.c4.t3",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "2",
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "להוריד 2",
+     "summary": "ל",
+     "anchor_span": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "case2",
+   "flags": [
+    {
+     "code": "case2_unvalued_fill",
+     "terminal_id": "q5.ב.c4",
+     "detail": "4 over 1 unvalued"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c5",
+   "scope": "q5.ב",
+   "points_possible": "3",
+   "text": "סעיף ב: הוספת הסדנה החדשה למקום ה-countWorkshops וקידום המונה ב-1 במידה ולא בוצע איחוד והמערך אינו מלא",
+   "slots": [
+    {
+     "slot_id": "q5.ב.c5.k1",
+     "kind": "required",
+     "points": "3",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: הוספת הסדנה החדשה למקום ה-countWorkshops וקידום המונה ב-1 במידה ולא בוצע איחוד והמערך אינו מלא",
+     "summary": "סעיף ב: הוספת הסדנה החדשה למקום ה-countWorkshops וקידום המונה ב-1 במידה ולא בוצע איחוד והמערך אינו מלא",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q5.ב.c6",
+   "scope": "q5.ב",
+   "points_possible": "3",
+   "text": "סעיף ב: החזרת הערכים הבוליאניים הנכונים (true / false) בכל אחד מהתרחישים 1.5 ל-true, 1.5 ל-false",
+   "slots": [
+    {
+     "slot_id": "q5.ב.c6.k1",
+     "kind": "required",
+     "points": "1.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סעיף ב: החזרת הערכים הבוליאניים הנכונים (true / false) בכל אחד מהתרחישים 1.5",
+     "summary": "סעיף ב: החזרת הערכים הבוליאניים הנכונים (true / false) בכל אחד מהתרחישים",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q5.ב.c6.k2",
+     "kind": "required",
+     "points": "1.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "ל-true, 1.5",
+     "summary": "ל-true",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "bare",
+   "flags": [
+    {
+     "code": "bare_values",
+     "terminal_id": "q5.ב.c6",
+     "detail": "1.5, 1.5"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c0",
+   "scope": "q6",
+   "points_possible": "1",
+   "text": "חתימת הפעולה (עם המילה static!) כל טעות להוריד 1",
+   "slots": [
+    {
+     "slot_id": "q6.c0.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "חתימת הפעולה (עם המילה static!) כל טעות להוריד 1",
+     "summary": "חתימת הפעולה (עם המילה static!)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": [
+    {
+     "code": "tariff_folded_into_component",
+     "terminal_id": "q6.c0",
+     "detail": "«כל טעות להוריד 1» = the 1-point component's own failure"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c1",
+   "scope": "q6",
+   "points_possible": "1",
+   "text": "משתנים משמעותיים + קוד קריא",
+   "slots": [
+    {
+     "slot_id": "q6.c1.k1",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "משתנים משמעותיים",
+     "summary": "משתנים משמעותיים",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q6.c1.k2",
+     "kind": "required",
+     "points": "0.5",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "קוד קריא",
+     "summary": "קוד קריא",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "separators",
+   "flags": []
+  },
+  {
+   "terminal_id": "q6.c2",
+   "scope": "q6",
+   "points_possible": "2",
+   "text": "יצירה של מערך מונים עם הקצאה נכונה (לפחות בגודל 31)",
+   "slots": [
+    {
+     "slot_id": "q6.c2.k1",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "יצירה של מערך מונים עם הקצאה נכונה (לפחות בגודל 31)",
+     "summary": "יצירה של מערך מונים עם הקצאה נכונה (לפחות בגודל 31)",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q6.c3",
+   "scope": "q6",
+   "points_possible": "1",
+   "text": "איפוס מערך המונים או הערה שיש איפוס ע\"י השפה",
+   "slots": [
+    {
+     "slot_id": "q6.c3.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "איפוס מערך המונים או הערה שיש איפוס ע\"י השפה",
+     "summary": "איפוס מערך המונים או הערה שיש איפוס ע\"י השפה",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q6.c4",
+   "scope": "q6",
+   "points_possible": "2",
+   "text": "סריקה נכונה של מערך הקלט לעדכון מונים",
+   "slots": [
+    {
+     "slot_id": "q6.c4.k1",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סריקה נכונה של מערך הקלט לעדכון מונים",
+     "summary": "סריקה נכונה של מערך הקלט לעדכון מונים",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": []
+  },
+  {
+   "terminal_id": "q6.c5",
+   "scope": "q6",
+   "points_possible": "4",
+   "text": "סריקת מערך המונים למציאת המכינה (האינדקס) עם המונה הגבוה ביותר (4 נקודות) ו",
+   "slots": [
+    {
+     "slot_id": "q6.c5.k1",
+     "kind": "required",
+     "points": "4",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "סריקת מערך המונים למציאת המכינה (האינדקס) עם המונה הגבוה ביותר (4 נקודות)",
+     "summary": "סריקת מערך המונים למציאת המכינה (האינדקס) עם המונה הגבוה ביותר",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": true,
+   "case": "valued",
+   "flags": [
+    {
+     "code": "routed",
+     "terminal_id": "q6.c5",
+     "detail": "monolith, P=4, solution present"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c6",
+   "scope": "q6",
+   "points_possible": "2",
+   "text": "הדפסת מספר המכינה בעלת כמות מקסימלית (ולא כמות התלמידים) אם הדפיסו את הכמות להוריד 2 (או 1?)",
+   "slots": [
+    {
+     "slot_id": "q6.c6.k1",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "הדפסת מספר המכינה בעלת כמות מקסימלית (ולא כמות התלמידים) אם הדפיסו את הכמות להוריד 2 (או 1?)",
+     "summary": "הדפסת מספר המכינה בעלת כמות מקסימלית (ולא כמות התלמידים)",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q6.c6.t1",
+     "kind": "tariff",
+     "points": "0",
+     "tariff_amount": "1",
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "אם הדפיסו את הכמות להוריד 2 (או 1?)",
+     "summary": "אם הדפיסו את הכמות (או 1?",
+     "anchor_span": "הדפסת מספר המכינה בעלת כמות מקסימלית (ולא כמות התלמידים)",
+     "flags": [
+      "case4_lenient"
+     ]
+    }
+   ],
+   "routed": false,
+   "case": "single",
+   "flags": [
+    {
+     "code": "case4_lenient",
+     "terminal_id": "q6.c6",
+     "detail": "«2 (או 1?)» → 1"
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c7",
+   "scope": "q6",
+   "points_possible": "4",
+   "text": "חישוב גודל מערך היעד: סריקת מערך המונים(1 נק'), ספירת התאים שגדולים מ-0 (1 נקודה), ויצירה והקצאת מערך חדש בגודל count * 2 (2 נקודות)",
+   "slots": [
+    {
+     "slot_id": "q6.c7.k1",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "חישוב גודל מערך היעד: סריקת מערך המונים(1 נק')",
+     "summary": "חישוב גודל מערך היעד: סריקת מערך המונים",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q6.c7.k2",
+     "kind": "required",
+     "points": "1",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": ", ספירת התאים שגדולים מ-0 (1 נקודה)",
+     "summary": "ספירת התאים שגדולים מ-0",
+     "anchor_span": "",
+     "flags": []
+    },
+    {
+     "slot_id": "q6.c7.k3",
+     "kind": "required",
+     "points": "2",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": ", ויצירה והקצאת מערך חדש בגודל count * 2 (2 נקודות)",
+     "summary": "ויצירה והקצאת מערך חדש בגודל count * 2",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": false,
+   "case": "valued",
+   "flags": []
+  },
+  {
+   "terminal_id": "q6.c8",
+   "scope": "q6",
+   "points_possible": "8",
+   "text": "בניית מערך התוצאה: מילוי נכון של המערך החדש בזוגות: קודם את result[resIndex] = i ומיד לאחר מכן result[resIndex+1] = counters[i] תוך קידום ידני תקין של אינדקס מערך היעד ב-2 בכל פעם.",
+   "slots": [
+    {
+     "slot_id": "q6.c8.k1",
+     "kind": "required",
+     "points": "8",
+     "tariff_amount": null,
+     "unit_count": null,
+     "partial_fraction": "0.5",
+     "charge_group": null,
+     "source_span": "בניית מערך התוצאה: מילוי נכון של המערך החדש בזוגות: קודם את result[resIndex] = i ומיד לאחר מכן result[resIndex+1] = counters[i] תוך קידום ידני תקין של אינדקס מערך היעד ב-2 בכל פעם.",
+     "summary": "בניית מערך התוצאה: מילוי נכון של המערך החדש בזוגות: קודם את result[resIndex] = i ומיד לאחר מכן result[resIndex+1] = counters[i] תוך קידום ידני תקין של אינדקס מערך היעד ב-2 בכל פעם.",
+     "anchor_span": "",
+     "flags": []
+    }
+   ],
+   "routed": true,
+   "case": "single",
+   "flags": [
+    {
+     "code": "routed",
+     "terminal_id": "q6.c8",
+     "detail": "monolith, P=8, solution present"
+    }
+   ]
+  }
+ ],
+ "flags": []
+}

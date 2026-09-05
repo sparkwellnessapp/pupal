@@ -176,6 +176,7 @@ gen-lang-client-*.json
 !tests/grading_eval_suite/configs/*.json
 !tests/grading_eval_suite/fixtures/*.json
 !tests/grading_eval_suite/benchmarks/**/*.json
+!tests/grading_eval_suite/plans/**/*.json
 # ...except the F0 staging area (superseded by the ratified snapshot):
 tests/grading_eval_suite/benchmarks/contracts/_proposed/
 # Transcription eval suite (same precedent): the EXAM SPECS, per-fixture

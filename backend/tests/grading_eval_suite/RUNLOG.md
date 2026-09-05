@@ -2441,3 +2441,25 @@ per-student authoring runs materially faster than the first exam's did.
 
 Phase 0 has answered what one exam can answer. **Everything still open needs a
 second exam, not another dollar on this one.**
+
+## 2026-09-05 · PLAN COMPILER v2 · A0 (compiler-only, ZERO SPEND)
+
+- **What ran:** `tools/compile_plan.py` — Stages 0/1/3 on both contracts, placeholder wording, the real
+  validator, every attempted GT judgment via the R-2 reader (298 bagrut / 190 hobby = 488).
+- **Result:** validator 0/0 · hobby 184/190 (routed 5 · ruling 1; non-routed 164/165) · bagrut 284/298
+  (routed 4 · granularity-floor 2 · granularity-ladder 1 · decomposition 7 on q3.ב.c5/c6).
+- **Named outcomes:** tariffs 15/12 · 12/10 phrases detected (12 · 9 slots after dispositions); notes 1/1 ·
+  2/2; counted 0 · 1 (N=17); Case 3 (1,2,1,1)/(0.5,0.5,2,1,1) ✓; Case 4 q6.c6 → 1 ✓; OD-10 → s3 + group
+  (OD-23); routed sets diverge from the PR list exactly as OD-14 predicted.
+- **Verdict:** hobby green on the compiler's class (OD-13); **bagrut NOT green as ratified** —
+  7 decomposition-class misses, all on two P=3 monoliths. OD-24 counterfactual (route at P ≥ 3) in the
+  report. No bar moved; nothing spent.
+- **Artefacts:** `plans/compiled/{hobby_tvshow,bagrut_899371}.{plan,skeleton,meta}.json`,
+  `app/agents/plan_gen/A0_REPORT.md`; guard `test_compiled_plan_guard.py`.
+
+## 2026-09-05 · PLAN COMPILER v2 · A1/A2 DRY RUN (zero spend)
+
+- `tools/segment_plan.py --stage both --dry-run` — messages built, nothing called. Router (Sonnet 5):
+  hobby 5 monoliths ≈ $0.030, bagrut 8 ≈ $0.044. Segmenter (Haiku 4.5): hobby 6 scope calls ≈ $0.063,
+  bagrut 13 ≈ $0.115. Conservative estimate (≈2.5 chars/token, out 60%/25% of in).
+- **Not run.** A0 gates all spend (PR §7) and bagrut A0 is not green as ratified — held for a ruling.
