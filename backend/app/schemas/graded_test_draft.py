@@ -112,6 +112,7 @@ class GradingAnnotation(BaseModel):
         # [PR-G4] the feedback call failed; the GRADE is unaffected and the
         # draft lands regardless — INFO, never a blocker.
         "feedback_unavailable",
+        "count_missing",         # [compiler v2, C3] counted check: partially_met with no units_correct — no credit
     ]
     message: str  # Hebrew, user-facing
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -141,10 +142,15 @@ class Check(BaseModel):
 
     check_id: str                       # stable under plan_version
     text: str                           # the plan's own Hebrew phrasing
-    kind: Literal["required", "tariff", "note_only"]
-    points: Decimal                     # required: the credit at stake; else 0
+    kind: Literal["required", "tariff", "note_only", "counted"]
+    points: Decimal                     # required/counted: the credit at stake; else 0
     tariff: Optional[Decimal] = None    # tariff only
     partial_fraction: Decimal = Decimal("0.5")
+    # counted only (PLAN COMPILER v2 C3): the plan's unit_count and the verdict's
+    # units_correct. Additive — None on every other kind and on every existing
+    # draft, so nothing re-parses differently.
+    unit_count: Optional[int] = None
+    units_correct: Optional[int] = None
     # Same-defect-once, scope-wide. Without it neither the composer nor
     # the client can reproduce the pricer's dedup, and a defect charged
     # once by the grader would be charged twice on review.

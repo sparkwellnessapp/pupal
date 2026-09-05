@@ -35,7 +35,7 @@ from typing import Dict, List, Optional
 
 from app.agents.grader.plan_schemas import PlanCheck, TerminalPlan
 from app.schemas.graded_test_draft import Check, GradingAnnotation
-from app.services.pricing import price_scope_checks_detailed
+from app.services.pricing import counted_units, price_scope_checks_detailed
 from app.schemas.ontology_types import (
     AnnotationSeverity,
     AnswerQuotation,
@@ -57,6 +57,7 @@ class AssessedVerdict:
     basis_he: str
     quote_text: str
     quote_status: Optional[QuoteValidationStatus]   # None when quote_text == ""
+    units_correct: Optional[int] = None       # counted checks only
 
 
 @dataclass
@@ -146,6 +147,8 @@ def price_scope(terminal_plans: List[TerminalPlan],
                 tariff=check.tariff_amount,
                 partial_fraction=check.partial_fraction,
                 charge_group=check.charge_group,
+                unit_count=check.unit_count,
+                units_correct=(av.units_correct if av is not None else None),
                 verdict=(av.verdict if av is not None else "not_met"),
                 quote=(av.quote_text or None) if av is not None else None,
                 quote_status=(av.quote_status.value
@@ -205,6 +208,34 @@ def price_scope(terminal_plans: List[TerminalPlan],
                         message=f"check {check.check_id}: fuzzy-matched evidence"))
                 _collect_quote(av)
                 lines.append(f"{_VERDICT_MARK[verdict]} {check.description_he}"
+                             + (f" — {av.basis_he}" if verdict != "met" and av.basis_he else ""))
+
+            elif check.kind == "counted":
+                if verdict in ("met", "partially_met") and not _evidence_verified(av):
+                    flags.append(FlaggedOutcome(
+                        criterion_id=tp.terminal_id,
+                        reason=FlagReason.EVIDENCE_UNVERIFIED,
+                        message=f"check {check.check_id}: {verdict} on an "
+                                f"unverifiable span — credit refused"))
+                    lines.append(f"✗ {check.description_he} — ראיה לא אומתה")
+                    continue
+                units = counted_units(checks[-1])
+                if units is None:
+                    flags.append(FlaggedOutcome(
+                        criterion_id=tp.terminal_id, reason=FlagReason.UNVERIFIED_CHECK,
+                        message=f"check {check.check_id}: partially_met on a counted "
+                                f"check with no units_correct — no credit"))
+                    annotations.append(GradingAnnotation(
+                        severity=AnnotationSeverity.WARNING,
+                        target_id=tp.terminal_id, annotation_type="count_missing",
+                        message=f"הבדיקה '{check.description_he}' סומנה כמתקיימת חלקית "
+                                f"ללא ספירת יחידות — לא ניתן זיכוי",
+                        metadata={"check_id": check.check_id}))
+                    lines.append(f"◐ {check.description_he} — ללא ספירה")
+                    continue
+                _collect_quote(av)
+                lines.append(f"{_VERDICT_MARK[verdict]} {check.description_he} — "
+                             f"{units} מתוך {check.unit_count}"
                              + (f" — {av.basis_he}" if verdict != "met" and av.basis_he else ""))
 
             elif check.kind == "tariff":

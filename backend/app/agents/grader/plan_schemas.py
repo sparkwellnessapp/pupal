@@ -33,7 +33,15 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_serializer
 
-CheckKind = Literal["required", "tariff", "note_only"]
+CheckKind = Literal["required", "tariff", "note_only", "counted"]
+
+# `counted` — R-E Case 1 (owner-ruled), made a kind by PLAN COMPILER v2 (C3).
+# The rubric prices N UNIFORM UNITS («17 תאים 0.7 כל תא»): the award is
+#   snap_to_grid(points × units_correct / unit_count)
+# and the per-unit figure the teacher wrote is her rounding, not an input. A
+# counted check is the ONLY check on its terminal (V12) and carries the terminal's
+# full points (so V1 holds). The verifier reports a COUNT (`units_correct`),
+# never points — the point-blind contract is intact.
 
 
 class PlanCheck(BaseModel):
@@ -59,6 +67,7 @@ class PlanCheck(BaseModel):
     equivalence_note: Optional[str] = None      # acceptable alternative forms (verdict guidance)
     charge_group: Optional[str] = None  # tariff only; same-defect-once across ONE scope
     rubric_quote: Optional[str] = None  # the rubric span this check derives from (H-4 traceability)
+    unit_count: Optional[int] = None    # counted only; >= 2 (V12)
 
     @field_serializer("points", "tariff_amount", "partial_fraction")
     def _sd(self, v: Optional[Decimal]) -> Optional[str]:
@@ -88,6 +97,12 @@ class GradingPlan(BaseModel):
     exam_id: str
     rubric_contract_sha256: str         # pins the plan to the exact contract file bytes
     terminals: List[TerminalPlan]
+    # [PLAN COMPILER v2 §6] provenance. All optional so every ratified hand plan
+    # re-parses unchanged; a compiled plan stamps all four.
+    compiler_version: Optional[str] = None
+    segmenter_prompt_version: Optional[str] = None
+    segmenter_model: Optional[str] = None
+    router_model: Optional[str] = None
 
     def terminal(self, terminal_id: str) -> TerminalPlan:
         for t in self.terminals:
@@ -114,6 +129,11 @@ class CheckVerdict(BaseModel):
     basis_he: str                       # v5.1 basis-lean: "" for met; for not_met: what was searched
     verdict: Literal["met", "partially_met", "not_met"]
     confidence: float                   # 0.0–1.0 for THIS check's verdict
+    # [compiler v2, C3] counted checks only: how many of the unit_count units
+    # are correct. A COUNT, never points. Appended LAST so the pinned
+    # evidence→basis→verdict→confidence decode prefix is untouched; the
+    # verdict is committed before the number that refines it.
+    units_correct: Optional[int] = None
 
 
 class ScopeVerificationResponse(BaseModel):

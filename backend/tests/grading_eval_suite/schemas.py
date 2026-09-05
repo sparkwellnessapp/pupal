@@ -98,7 +98,13 @@ class TerminalScore:
     #                (citation defect: breaks span-highlighting in the review UI)
     fabricated_evidence: bool = False     # [T1-FABRICATED] awarded>0, quote not_found, fragment(s) ABSENT
     evidence_stitched: bool = False       # [T1-STITCHED]   awarded>0, quote not_found, ALL fragments present
-    excluded_by_selection: bool = False   # excluded under the GT-side derivation; not in agreement metrics
+    excluded_by_selection: bool = False   # best-k exclusion from the TOTAL (GT-side derivation)
+    # [R-2, 2026-09-05] the student did not sit this question (selection group +
+    # empty answer, derived from the TRANSCRIPTION). Excluded from EVERY
+    # per-terminal metric — Tier-2 rates, K1's denominator, calibration. Distinct
+    # from `excluded_by_selection`: a 5-attempt student's weakest attempted
+    # question is excluded from the total by best-k but its judgments are real.
+    unattempted: bool = False
     # [C-2, ratified 2026-08-24] terminal sits on a GT-ungradable scope: the
     # owner's best-guess award participates in TOTALS only; excluded from all
     # Tier-2 agreement metrics. Row kept + marked for the read-by-hand ritual.

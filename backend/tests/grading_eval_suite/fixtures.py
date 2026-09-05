@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from app.schemas.gradable import GradableTest
 from app.schemas.ontology_types import GradingRubricContract
@@ -298,6 +298,72 @@ def load_bundle(name: str, *, suite_dir: Path = SUITE_DIR,
         transcription_hash=sha256_file(tc_path),
         manifest=manifest,
         exam_id=manifest_exam_id(name, suite_dir=suite_dir))
+
+
+# ---------------------------------------------------------------------------
+# [R-2, owner-ruled 2026-09-05] selection from the TRANSCRIPTION, never the GT
+# ---------------------------------------------------------------------------
+
+def unattempted_questions(bundle: FixtureBundle) -> Set[str]:
+    """Questions the student did not sit — a member of a selection group whose
+    EVERY leaf scope has an empty answer.
+
+    Derived from the transcription contract and the rubric's selection groups,
+    and from nothing else. The GT will carry `awarded: "0"` on these terminals
+    (R-2), and a scorer that read the zeros to decide selection would be
+    reading its own answer key: a genuine zero on a question the student DID
+    attempt must stay in every per-terminal metric.
+
+    On an exam with no selection groups this is EMPTY by construction — an
+    empty answer there is a real skip the grader is expected to match
+    ([T1-SKIP]), not a question the exam invited her to leave."""
+    members: Set[str] = set()
+    for group in getattr(bundle.rubric_contract, "selection_groups", None) or []:
+        members.update(group.of_question_ids)
+    if not members:
+        return set()
+    answered: Dict[str, bool] = {}
+    for scope in bundle.gradable_test.scopes:
+        q = scope.question_id
+        answered.setdefault(q, False)
+        if (scope.student_answer_text or "").strip():
+            answered[q] = True
+    return {q for q, saw in answered.items() if q in members and not saw}
+
+
+def unattempted_scope_keys(bundle: FixtureBundle) -> Set[ScopeKey]:
+    skipped = unattempted_questions(bundle)
+    return {(s.question_id, s.sub_question_id) for s in bundle.gradable_test.scopes
+            if s.question_id in skipped}
+
+
+def read_gt_judgments(name: str, *, suite_dir: Path = SUITE_DIR
+                      ) -> Tuple[FixtureBundle, List[Tuple[str, Decimal]]]:
+    """(bundle, [(terminal_id, awarded)]) over ATTEMPTED scopes only.
+
+    Reads the GT file RAW rather than through `FixtureGT`, so it works both
+    before and after R-2's zeros land: a null OR a zero on an unattempted scope
+    is skipped; a null on an ATTEMPTED scope is a refusal, because that is a
+    judgment the owner has not made yet. No schema change (R-2)."""
+    bundle = load_bundle(name, suite_dir=suite_dir, require_gt=False)
+    manifest = json.loads((suite_dir / "fixtures" / f"{name}.json")
+                          .read_text(encoding="utf-8"))
+    raw = json.loads((suite_dir / manifest["gt"]).read_text(encoding="utf-8"))
+    skipped = unattempted_scope_keys(bundle)
+    out: List[Tuple[str, Decimal]] = []
+    for t in raw["terminals"]:
+        tid = t["terminal_id"]
+        info = bundle.terminal_infos.get(tid)
+        if info is None:
+            raise GTValidationError(f"{name}: GT names unknown terminal {tid!r}")
+        if info.scope_key in skipped:
+            continue
+        if t.get("awarded") is None:
+            raise GTValidationError(
+                f"{name}: {tid} is on an ATTEMPTED scope and has no award — "
+                f"still being authored")
+        out.append((tid, Decimal(str(t["awarded"]))))
+    return bundle, out
 
 
 # ---------------------------------------------------------------------------

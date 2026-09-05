@@ -113,7 +113,7 @@ def aggregate(trials: List[TrialScore], *, k: int) -> Dict[str, Any]:
     # calibration input (their 'correct' would be measured against a best-guess
     # GT — noise by construction; the C-2 exclusion logic extends to it).
     all_terms = [row for t in valid for row in t.terminals
-                 if not row.excluded_by_selection and not row.ungradable_scope]
+                 if not getattr(row, "unattempted", False) and not row.ungradable_scope]
     if all_terms:
         agg["terminal_within_precision_rate"] = round(
             sum(r.within_precision for r in all_terms) / len(all_terms), 4)

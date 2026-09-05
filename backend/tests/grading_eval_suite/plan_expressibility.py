@@ -30,6 +30,16 @@ from .schemas import FixtureGT
 
 
 def reachable_awards(tp: TerminalPlan, precision: Decimal) -> Set[Decimal]:
+    counted = [c for c in tp.checks if c.kind == "counted"]
+    if counted:
+        # V12: alone on its terminal. Reachable = every snapped k/N fraction.
+        c = counted[0]
+        n = int(c.unit_count or 0)
+        return {
+            (max(Decimal("0"), min(c.points * Decimal(k) / Decimal(n), tp.points_possible))
+             / precision).to_integral_value(rounding=ROUND_HALF_UP) * precision
+            for k in range(n + 1)
+        }
     required = [c for c in tp.checks if c.kind == "required"]
     tariffs = [c for c in tp.checks if c.kind == "tariff"]
     req_options = [(Decimal("0"), c.points * c.partial_fraction, c.points)

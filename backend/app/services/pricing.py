@@ -53,6 +53,23 @@ def _fired(check: Check) -> bool:
     return check.verdict in ("not_met", "partially_met")
 
 
+def counted_units(check: Check) -> Optional[int]:
+    """The units a counted check earns, or None when the record cannot say.
+
+    `met` ⇒ every unit; `not_met` ⇒ none; `partially_met` ⇒ the reported count,
+    clamped into [0, unit_count]. A partially_met with NO count is None — the
+    caller prices nothing and flags, because inventing a count would be a
+    number the model never emitted."""
+    n = check.unit_count or 0
+    if check.verdict == "met":
+        return n
+    if check.verdict == "not_met":
+        return 0
+    if check.units_correct is None:
+        return None
+    return max(0, min(n, int(check.units_correct)))
+
+
 def _credited(check: Check, overridden: bool) -> bool:
     """Whether a `required` check may earn its points at all."""
     if check.verdict not in ("met", "partially_met"):
@@ -96,6 +113,16 @@ def price_scope_checks_detailed(
                     earned += check.points
                 else:                                     # partially_met
                     earned += check.points * check.partial_fraction
+            elif check.kind == "counted":
+                # R-E Case 1: points × units_correct / unit_count, snapped with the
+                # terminal below (12 × 15/17 = 10.588 → 10.5 on a 0.25 grid). The
+                # count is the partial credit; partial_fraction is not consulted.
+                if not _credited(check, check.check_id in overridden):
+                    continue
+                units = counted_units(check)
+                if units is None:
+                    continue                          # pricer flags COUNT_MISSING
+                earned += check.points * Decimal(units) / Decimal(check.unit_count or 1)
             elif check.kind == "tariff":
                 if not _fired(check):
                     continue

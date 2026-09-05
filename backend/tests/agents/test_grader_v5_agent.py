@@ -208,14 +208,21 @@ async def test_parse_failure_degrades_to_failed_scope_no_retry():
 def test_check_verdict_decode_order_is_evidence_first():
     """The grader-v2 lever carried into v5: the verdict is decoded AFTER the
     evidence span and the basis text. Pinned at schema AND prompt level."""
-    want = ["check_id", "evidence_quote", "basis_he", "verdict", "confidence"]
+    want = ["check_id", "evidence_quote", "basis_he", "verdict", "confidence",
+            "units_correct"]          # [compiler v2, C3] the count, appended AFTER the pin
     assert list(CheckVerdict.model_fields) == want
     assert list(CheckVerdict.model_json_schema()["properties"]) == want
     fmt = VERIFIER_SYSTEM_PROMPT[VERIFIER_SYSTEM_PROMPT.index("OUTPUT FORMAT"):]
     # anchor on the field-listing lines ("  <name> ") — a bare substring match
     # would hit "verdict" inside the word "verdicts"
-    positions = [fmt.index(f"\n  {f} ") for f in want]
+    positions = [fmt.index(f"\n  {f} ") for f in want[:5]]
     assert positions == sorted(positions)
+    # [compiler v2, OD-18] the count is NOT in the pinned system prompt — the
+    # grader-v5.3 package stays byte-identical; a counted check explains
+    # `units_correct` in the USER message, and only when such a check is present.
+    assert "units_correct" not in VERIFIER_SYSTEM_PROMPT
+    from app.agents.grader.verifier_prompt import _COUNTED_RULE
+    assert "units_correct" in _COUNTED_RULE
 
 
 def test_verifier_prompt_is_point_blind_and_carries_the_two_proven_clauses():

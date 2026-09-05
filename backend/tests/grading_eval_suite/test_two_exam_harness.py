@@ -296,6 +296,14 @@ def test_hobby_scores_are_byte_identical():
             invalid_reason=expected.get("invalid_reason"))
         got_d, exp_d = got.to_dict(), dict(expected)
 
+        # [OD-16, R-2 2026-09-05] `unattempted` is an ADDITIVE row field the
+        # published baseline predates. The baseline is normalised FORWARD (the
+        # field it could not have had is added at its default) — never the
+        # other way, which would let a real drift hide behind "extra field".
+        # Hobby has no selection groups, so the only honest value is False.
+        for row in exp_d.get("terminals", []):
+            row.setdefault("unattempted", False)
+
         # Fields the RUN stamps (cost/latency/rerun bookkeeping), not the scorer.
         for key in ("cost_usd", "latency_s", "rerun_count", "rerun_reason",
                     "input_tokens", "output_tokens", "cached_input_tokens",

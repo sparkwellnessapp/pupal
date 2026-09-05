@@ -52,7 +52,18 @@ _KIND_HE = {
     "required": "רכיב נדרש",
     "tariff": "בדיקת ליקוי",
     "note_only": "הערה בלבד",
+    "counted": "ספירת יחידות",
 }
+
+# [OD-18, surfaced] The counted instruction is rendered in the per-scope USER
+# message and ONLY when such a check exists, so VERIFIER_PROMPT_VERSION (the
+# production pin, v5.3) is untouched for every plan that has none. A v5.3 stamp
+# on a counted-bearing message is a version fork that needs a ruling before A3.
+_COUNTED_RULE = (
+    "בדיקת ספירה: הסעיף מורכב מ-N יחידות אחידות. החזר/י בשדה units_correct את "
+    "מספר היחידות הנכונות (0..N) — מספר יחידות, לעולם לא נקודות. verdict: met "
+    "כשכולן נכונות, not_met כשאף אחת, partially_met אחרת."
+)
 
 VERIFIER_SYSTEM_PROMPT = """\
 You are verifying a student's handwritten test answer against a list of
@@ -167,11 +178,17 @@ def build_verifier_message(scope: GradableScope,
     parts.append("CHECKS")
     parts.append("═══════════════════════════════════════════════════════════════════════════════")
     check_ids: List[str] = []
+    any_counted = any(c.kind == "counted" for tp in terminal_plans for c in tp.checks)
+    if any_counted:
+        parts.append("")
+        parts.append(_COUNTED_RULE)
     for tp in terminal_plans:
         parts.append(f"\nTerminal: {tp.terminal_id}")
         for c in tp.checks:
             check_ids.append(c.check_id)
             line = f"  • ID: {c.check_id} [{_KIND_HE[c.kind]}] {c.description_he}"
+            if c.kind == "counted":
+                line += f" (N = {c.unit_count})"
             parts.append(line)
             if c.equivalence_note:
                 parts.append(f"    שקילות: {c.equivalence_note}")

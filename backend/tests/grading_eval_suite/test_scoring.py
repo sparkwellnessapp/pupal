@@ -159,8 +159,12 @@ def test_selection_totals_never_rederive_denominator():
     assert excluded == ["q2.c0"]
     included = [t for t in ts.terminals if not t.excluded_by_selection]
     assert {t.terminal_id for t in included} == {"q1.c0", "q3.c0"}
-    # the q1 disagreement (8 vs 2) is real and counted; q3 exact
-    assert ts.mae == pytest.approx((6 + 0) / 2)
+    # [R-2, 2026-09-05 — OD-19] best-k exclusion is a TOTALS fact. Per-terminal
+    # metrics key on `unattempted` (transcription-derived); q2 was ATTEMPTED, so
+    # its judgment (3 vs 9) is real and counted alongside q1 (8 vs 2) and q3.
+    # Previously pinned as (6 + 0) / 2 with q2 dropped.
+    assert not any(t.unattempted for t in ts.terminals)
+    assert ts.mae == pytest.approx((6 + 6 + 0) / 3)
     assert not any("selection" in f for f in ts.tier1_failures)
 
 

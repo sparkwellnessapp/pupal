@@ -47,7 +47,10 @@ def _included_rows(trials: List[dict]) -> List[dict]:
         if not t.get("valid") or t.get("diagnostic_subset"):
             continue
         for r in t.get("terminals", []):
-            if r.get("excluded_by_selection") or r.get("ungradable_scope"):
+            # [R-2] `unattempted` (transcription-derived) keeps unselected
+            # scopes out of K1's denominator; `excluded_by_selection` (best-k on
+            # the total) stays the totals fact. Old rows lack the key → False.
+            if r.get("unattempted") or r.get("ungradable_scope"):
                 continue
             rows.append({**r, "fixture": t["fixture"]})
     return rows

@@ -290,6 +290,7 @@ class PlanVerifyGrader:
                 basis_he=v.basis_he,
                 quote_text=v.evidence_quote,
                 quote_status=quote_match_status(v.evidence_quote, answer),
+                units_correct=v.units_correct,        # counted checks only; None otherwise
             ) for cid, v in consensus.items()}
         priced = price_scope(terminal_plans, assessed, self._policy.precision)
         criterion_outcomes, confidences, price_annotations = \

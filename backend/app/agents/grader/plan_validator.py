@@ -30,6 +30,10 @@ Rules:
   V10 point-blindness: description_he may not state point values — the verifier
       is point-blind by design, and a number in the check text hands it the
       answer.
+  V12 counted shape (PLAN COMPILER v2, C3): a counted check is the ONLY check on
+      its terminal, carries points == points_possible, unit_count >= 2, no
+      tariff_amount, no charge_group, and partial_fraction untouched (it is not
+      consulted — the count is the partial credit).
 """
 from __future__ import annotations
 
@@ -215,6 +219,27 @@ def validate_plan(plan: GradingPlan,
                     errs.append(f"V4: {c.check_id} partial award "
                                 f"{c.points * c.partial_fraction} off the grid — "
                                 f"adjust points or partial_fraction")
+            elif c.kind == "counted":
+                required_sum += c.points          # V1: the counted check IS the earn side
+                if c.points <= 0:
+                    errs.append(f"V12: counted {c.check_id} must carry points > 0")
+                elif c.points != tp.points_possible:
+                    errs.append(f"V12: counted {c.check_id} carries {c.points} but a "
+                                f"counted check prices the whole terminal "
+                                f"({tp.points_possible})")
+                if c.unit_count is None or c.unit_count < 2:
+                    errs.append(f"V12: counted {c.check_id} needs unit_count >= 2 "
+                                f"(got {c.unit_count})")
+                if c.tariff_amount is not None:
+                    errs.append(f"V12: counted {c.check_id} carries a tariff_amount")
+                if c.charge_group is not None:
+                    errs.append(f"V12: counted {c.check_id} carries a charge_group")
+                if c.partial_fraction != Decimal("0.5"):
+                    errs.append(f"V12: counted {c.check_id} overrides partial_fraction; "
+                                f"the count is the partial credit")
+                if len(tp.checks) != 1:
+                    errs.append(f"V12: counted {c.check_id} must be the ONLY check on "
+                                f"{tid} (it has {len(tp.checks)})")
             elif c.kind == "tariff":
                 if c.points != 0:
                     errs.append(f"V3: tariff {c.check_id} must carry points == 0")

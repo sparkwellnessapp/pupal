@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from app.schemas.graded_test_draft import GradedTestDraft, ScopeOutcome
 from app.services.selection_scoring import ScopeScore, score_with_selection
 
-from .fixtures import FixtureBundle, ScopeKey, TerminalInfo
+from .fixtures import FixtureBundle, ScopeKey, TerminalInfo, unattempted_scope_keys
 from .schemas import TerminalScore, TrialScore
 
 # [C-4] Grade-boundary set for the flip metric — DEFAULT PROPOSAL, owner confirms
@@ -235,6 +235,8 @@ def score_trial(draft: GradedTestDraft,
 
     excluded_gt: Set[ScopeKey] = set()
     excluded_ai: Set[ScopeKey] = set()
+    # [R-2] per-terminal exclusion comes from the TRANSCRIPTION, never the GT
+    unattempted_keys: Set[ScopeKey] = unattempted_scope_keys(bundle)
     if not subset:
         gt_scoring = score_with_selection(
             [ScopeScore(q, s, a) for (q, s), a in sorted(gt_by_scope.items(),
@@ -348,6 +350,7 @@ def score_trial(draft: GradedTestDraft,
             fabricated_evidence=fabricated,
             evidence_stitched=stitched,
             excluded_by_selection=excluded,
+            unattempted=info.scope_key in unattempted_keys,       # [R-2]
             ungradable_scope=info.scope_key in ungradable_keys,   # [C-2]
             gt_note=g.note,                                       # [item 6]
         )
@@ -378,8 +381,10 @@ def score_trial(draft: GradedTestDraft,
     # ALL Tier-2 agreement metrics (MAE, within-precision, exact, edit_burden,
     # compensating-error input); their best-guess awards participate ONLY in
     # the totals above (already summed into gt_by_scope/ai_by_scope).
+    # [R-2] `unattempted`, not `excluded_by_selection`: the latter is the
+    # total's best-k fact and may exclude an ATTEMPTED question.
     included = [t for t in ts.terminals
-                if not t.excluded_by_selection and not t.ungradable_scope]
+                if not t.unattempted and not t.ungradable_scope]
     if included and not subset:
         abs_deltas = [Decimal(t.abs_delta) for t in included]
         ts.mae = float(sum(abs_deltas) / len(abs_deltas))
