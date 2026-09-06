@@ -28,6 +28,7 @@ import logging
 import math
 from datetime import datetime, timezone
 from decimal import Decimal
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import update
@@ -42,7 +43,8 @@ from app.schemas.ontology_types import GradingRubricContract
 from app.services.gradable_compiler import compile as compile_gradable_test
 from app.services.selection_scoring import ScopeScore, score_with_selection
 from app.agents.grader.grader import effective_scope_concurrency
-from app.services.grader_selection import build_grader
+from app.services.grader_selection import build_grader, grader_kind_for
+from app.services.plan_build_runner import resolve_plan_for_grade
 
 logger = logging.getLogger(__name__)
 
@@ -77,12 +79,26 @@ class GradingBudgetExceeded(Exception):
     has no exit of its own otherwise, and would sit in `grading` until the
     30-minute liveness reaper noticed."""
 
-# gpt-4o pricing (per 1 000 tokens) — update when model changes
+# gpt-4o pricing (per 1 000 tokens) — the v3 grader's model
 _INPUT_COST_PER_1K  = Decimal("0.005")
 _OUTPUT_COST_PER_1K = Decimal("0.015")
 
 
-def _compute_cost(input_tokens: int, output_tokens: int) -> Decimal:
+def _compute_cost(input_tokens: int, output_tokens: int,
+                  model_version: Optional[str] = None) -> Decimal:
+    """Priced by the model that graded. The Anthropic cards live in ONE place
+    (`plan_compiler.models`, pinned equal to the eval registry); anything else
+    is the historical gpt-4o card. Under the v5 pin every grade is Sonnet-5,
+    and pricing it at gpt-4o rates would put a wrong number in
+    `graded_tests.total_cost_usd` on every row."""
+    from app.agents.plan_compiler.models import MODEL_CARDS
+    from app.services.transcription.two_phase.instrument import cost_usd
+    from app.services.transcription.vlm_provider import Usage
+    card = next((c for c in MODEL_CARDS.values()
+                 if model_version in (c.key, c.model_id)), None) if model_version else None
+    if card is not None:
+        return Decimal(str(cost_usd(Usage(input_tokens=input_tokens, output_tokens=output_tokens),
+                                    card.price))).quantize(Decimal("0.0001"))
     return (
         Decimal(input_tokens)  / 1000 * _INPUT_COST_PER_1K
         + Decimal(output_tokens) / 1000 * _OUTPUT_COST_PER_1K
@@ -149,11 +165,22 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
         gradable_test = compile_gradable_test(rubric_contract, transcription_contract)
 
         # ── 5. Grade (S7) ─────────────────────────────────────────────────────
-        # [PR-G1(a)] the config seam — dark and default-off, so this is
-        # the historical v3 construction until the pin is deliberately set.
+        # [PLAN COMPILER v2, W-4] grader-v5 for every rubric. The plan comes from
+        # grading_plans: ready → use; a live builder → wait (OD-W3); absent /
+        # failed / dead builder → build IN PLACE, then grade (OD-W1). The
+        # build has its own bounds (model timeouts, the wait cap) and runs
+        # before the row budget below, which covers grading alone.
+        resolved = None
+        if grader_kind_for(str(graded_test.rubric_id)) == "v5":
+            resolved = await resolve_plan_for_grade(graded_test.rubric_id, rubric.contract_json)
+            logger.info("grading_plan_resolved graded_test_id=%s row_id=%s wording=%s "
+                        "built_in_place=%s waited_s=%.1f", graded_test_id, resolved.row_id,
+                        resolved.wording_source, resolved.built_in_place, resolved.waited_s)
         agent = build_grader(str(graded_test.rubric_id),
                              rubric_contract.numeric_policy,
-                             gradable_test=gradable_test)
+                             gradable_test=gradable_test,
+                             plan=resolved.plan if resolved else None,
+                             plan_wording_source=resolved.wording_source if resolved else None)
         budget = _row_budget_s(len(gradable_test.scopes))
         try:
             draft = await asyncio.wait_for(agent.grade(gradable_test), timeout=budget)
@@ -216,7 +243,8 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
             if total_possible > 0
             else Decimal("0")
         )
-        cost = _compute_cost(draft.total_input_tokens, draft.total_output_tokens)
+        cost = _compute_cost(draft.total_input_tokens, draft.total_output_tokens,
+                             draft.model_version)
         now2 = datetime.now(timezone.utc)
 
         # ── 7. COMMIT 2: grading → draft ──────────────────────────────────────

@@ -47,6 +47,7 @@ from ...schemas.rubric_management import (
     UpdateDraftRequest,
     UpdateDraftResponse,
 )
+from ...services.plan_store import kick_plan_build
 from ...services.rubric_management_service import (
     compile_rubric,
     get_rubric_detail,
@@ -147,6 +148,11 @@ async def save_ontology_draft_endpoint(
         )
         
         logger.info(f"Created ontology rubric: {result.rubric_id} (compiled)")
+        # [PLAN COMPILER v2, W-2] a saved rubric is a compiled rubric, and a
+        # compiled rubric gets a plan. Request session closed first (the
+        # sessions × background-work discipline); the kick never raises.
+        await db.close()
+        await kick_plan_build(UUID(str(result.rubric_id)))
         return result
         
     except RubricWarningsError as e:
@@ -225,6 +231,8 @@ async def update_draft_endpoint(
         )
         
         logger.info(f"Updated rubric {rubric_id} with new contract")
+        await db.close()
+        await kick_plan_build(rubric_id)                      # [PLAN COMPILER v2, W-2]
         return result
         
     except RubricWarningsError as e:
@@ -367,6 +375,8 @@ async def compile_rubric_endpoint(
         
         if status == CompilationStatus.SUCCESS:
             logger.info(f"Successfully compiled rubric {rubric_id}")
+            await db.close()
+            await kick_plan_build(rubric_id)                  # [PLAN COMPILER v2, W-2]
         elif status == CompilationStatus.WARNINGS_REQUIRE_ACKNOWLEDGMENT:
             logger.info(f"Rubric {rubric_id} has {len(response.warnings)} warnings")
         else:

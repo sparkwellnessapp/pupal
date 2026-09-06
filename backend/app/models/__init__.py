@@ -38,3 +38,6 @@ __all__ = [
     "TranscriptionJob",
 ]
 from app.models.school import School  # noqa: F401,E402  [PR-G6]
+
+# [026] Compiled grading plans, keyed by contract hash (PLAN COMPILER v2).
+from app.models.grading_plan import GradingPlanRecord  # noqa: F401,E402

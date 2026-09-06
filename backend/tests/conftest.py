@@ -90,3 +90,39 @@ if not _ok:
         "\n_ALLOWED_TEST_TARGETS), or run against localhost."
         "\n" + "=" * 76
     )
+
+
+# ---------------------------------------------------------------------------
+# [PLAN COMPILER v2 production wiring] No provider is ever called from a plan
+# build inside the test process. Every rubric save now kicks a build (W-2), and
+# in inline mode that build runs on the app loop during API tests — so the
+# model factory is replaced STRUCTURALLY, for every test, with one whose calls
+# fail. The build then degrades to the compiler's placeholder wording (W-2's
+# guarantee), which is the real production path for a provider outage. Tests
+# that want a model inject their own fake through `llm_factory=`.
+# ---------------------------------------------------------------------------
+import pytest as _pytest
+
+
+class _NoProviderRunner:
+    def __init__(self, schema):
+        self.schema = schema
+
+    async def ainvoke(self, messages):
+        raise RuntimeError("provider calls are forbidden in tests (plan build)")
+
+
+class _NoProviderLLM:
+    def with_structured_output(self, schema, include_raw=True):
+        return _NoProviderRunner(schema)
+
+
+def _no_provider_factory(model_key: str):
+    return _NoProviderLLM()
+
+
+@_pytest.fixture(autouse=True)
+def no_provider_in_plan_builds(monkeypatch):
+    import app.services.plan_build_runner as _pbr
+    monkeypatch.setattr(_pbr, "default_llm_factory", _no_provider_factory)
+    yield

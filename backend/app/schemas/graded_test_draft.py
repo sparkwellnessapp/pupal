@@ -316,7 +316,12 @@ class GradedTestDraft(BaseModel):
     transcription_contract_version: str
     model_version: str                      # the ACTUAL model id the agent ran
     prompt_version: str                     # GRADING_PROMPT_VERSION / VERIFIER_PROMPT_VERSION
-    plan_version: Optional[str] = None      # grader-v5 only: the ratified GradingPlan version
+    plan_version: Optional[str] = None      # grader-v5 only: the GradingPlan version
+    # [026] how that plan's wording was made — "segmented" (the two model
+    # stages ran) or "placeholder" (the compiler's own spans, after a provider
+    # outage / envelope overrun). Additive; None for v3 drafts and for the
+    # hand-ratified pilot plan.
+    plan_wording_source: Optional[Literal["segmented", "placeholder"]] = None
     # [PR-G4] student-facing feedback. None when the call failed — the grade
     # lands regardless; an INFO annotation says why.
     feedback: Optional[FeedbackBlock] = None

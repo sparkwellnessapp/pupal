@@ -510,9 +510,10 @@ or fix/retire the users router.
 **Family C — spec drift (1 test):** `test_s2_auth::test_7_stubbed_grading_endpoints_return_501`
 expects 501 from endpoints that have since been implemented (got 200). Update the test.
 
-**Family D — Windows `charmap` fixture reads (9 tests):** `tests/rubric_eval_suite/test_pedagogical.py`
-(8) + `test_llm_policy.py::test_truncation_guard_per_provider` — `open()` without `encoding="utf-8"`
-on UTF-8 fixtures, cp1252 default on Windows. Fix = add `encoding=` at the read sites.
+**Family D — Windows `charmap` fixture reads (8 tests, was 9):** `tests/rubric_eval_suite/test_pedagogical.py`
+(8) — `open()` without `encoding="utf-8"` on UTF-8 fixtures, cp1252 default on Windows. Fix = add
+`encoding=` at the read sites. (`test_llm_policy.py::test_truncation_guard_per_provider` was fixed
+2026-08-23 as part of the eval-registry normalization, which rewrote that file's neighbours.)
 
 **Family E — in-flight branch artifacts (3 tests):** `test_extraction_jobs::test_stale_extracting_is_reported`
 (the `perf/rubric-extraction-latency` branch is mid-rework of staleness; the old staleness test file
@@ -578,7 +579,78 @@ editing focus, so the review route ships with on-screen edge arrows only. **The 
 (or similar chord) wired to the same dirty-gated `goTo` path, so the flush/guard semantics are
 inherited, not reimplemented. **Trigger:** first teacher-feedback pass on the batch review flow.
 
-## B-23. Batch fan-out swallows transcription failures — no row, no failed state
+## B-24. Trust-layer flag redesign — verification with fresh perception (eval-gated)
+
+**Found by:** field use of the batch review surface (2026-08-07). **Owner:** the
+transcription eval-suite revisit. **Ruling:** readers retired from production
+(`two_phase_engine.PROD_CONFIG` = v1_trust minus readers; engine version
+`two_phase/v2_baseline`).
+
+**Evidence:** transcription `bf610c19…` carried 75 `reader_disagreement` annotations
+(15 warning + 58 info + 2 lint) — effectively all false. Two systematic classes:
+(a) cheap-reader diff noise (15+ flags were a reader omitting a lone `{` line; one
+reader misread `DiceStatistics` as `Dice ( statistics` on five lines); (b)
+**plausibility normalization** — readers "correct" faithfully-captured student errors
+(`i+2`→`i+=2`, `=`→`==` in an if, `minValeu`→`minValue`), so multi-reader consensus
+concentrates on exactly the content FC protects. The vote-ladder calibration assumed
+independent reader errors; cheap models share a code-plausibility prior, so consensus
+≠ evidence. Lab numbers (recall 0.93, warn precision ~0.5) were earned on fixtures
+where the BASELINE erred; the golden set never measured false-positive rate on docs
+the baseline got right — that blind spot is the redesign's first fixture requirement.
+
+**Falsified already (do not re-derive):** self-consistency (0.127), self-audit, judge
+suppression, gemini-rerun-as-reader (×2), gpt-4o-as-reader, flash-silent-downgrade —
+see `flagging.py` docstring + RUNLOG 2026-07-08/09. **Candidate designs worth
+measuring:** persist P1 line bounding-boxes → targeted high-zoom crop re-reads of
+suspect spans (fresh perception, not text priors); a frontier-tier reader measured on
+a doc set that includes clean docs; operator-neighborhood-only verification. Gate: any
+new verifier ships only after `flag_metrics` shows high precision on clean docs at
+preserved critical recall.
+
+## B-26. P2 label quality — the model lever behind segmentation_mismatch (eval-gated)
+
+**Found by:** live E2E 2026-08-07 (transcription 49f9a2e1): the student skipped Q2 and
+nano renumbered every later block one question early — DiceStatistics landed at q2.א
+against both the spec's content signature (which names the method) and the student's
+own leading marker ("א) 3"). The known nano labeling-unreliability class; the P2 prompt
+already forbids position-based labeling and the prompt surface is canon-exhausted
+(kill criterion fired 2026-06-27); escalation is an owner decision with eval evidence.
+
+**What shipped instead (deterministic):** `segmentation_check.py` + its TS mirror —
+leading-marker parse → `segmentation_mismatch` WARNING + triage reason + live review-
+surface banner with one-click swap (teacher decides; never auto-remapped). **The same
+parser doubles as eval instrumentation:** a deterministic marker-vs-assigned-label
+metric over the golden set (and any new fixtures) would quantify P2's mislabel rate
+per model/config — run it before/with any P2 model-escalation experiment. Secondary
+finding recorded here: the extracted rubric draft carries no `question_number` fields
+(spec numbering falls back to positional) and Q1's title+sub-א signature are empty —
+spec-side hardening worth bundling into the same eval pass.
+
+## B-25. Two-phase student-name extraction — ✅ SHIPPED (2026-08-12)
+
+**Found by:** the 2026-08-07 triage rebuild (deferred by ruling, OD-4). **Closed by:**
+the identity-pass PR.
+
+The fix is `app/services/transcription/identity.py`: one gemini-pro call over a
+top-35% crop of page 1 (handwriting first) with the PDF filename as a
+name-plausibility fallback (owner-specified priority), schema-constrained, one
+bounded retry on retryable transport errors, never-raises/never-delays (own
+timeout; gathered CONCURRENTLY with the pipeline in `transcribe_two_phase`).
+P1's verbatim prompt remains untouched — identity travels a separate channel by
+design. Probe-validated 5/5 on owner-verified Hebrew GT + filename-fallback
+controls; live batch: 3/3 suggestion→exact-match→`student_unmatched` cleared
+(bulk-accept revived). Frontend: `StudentPicker.suggestedName` seeds the search
+field; "צור תלמיד חדש" creates+assigns in ONE click when a name is seeded
+(conflict falls back to the input stage).
+
+## B-23. Batch fan-out swallows transcription failures — ✅ RESOLVED (2026-08-15, Cloud Tasks migration)
+
+**Resolution:** superseded exactly as the fix direction predicted — durable per-file
+tracking via `transcription_jobs` (migration 016; one row per PDF, committed with the
+batch), worker failures land as `failed` + error + net_diag verdict, per-document
+retry endpoint (no re-upload), LIV-1 liveness reaps orphans, rollup derives from job
+rows. The interim 015 ledger + Δ15 residue line were retired (ledger reads remain for
+legacy batches; dropping the column is B-27). Original evidence below for history.
 
 **Evidence:** `backend/app/api/v0/batch_grading.py:L87-L91` logs and swallows a failed
 `transcribe_one`; no transcription row exists, `transcriptions` has no `failed` status
@@ -590,3 +662,187 @@ the gate counts rows only, so a batch with a swallowed failure can never reach "
 (CHECK churn) or a batch-level failed-files list — plus a retry affordance. **Trigger:** first
 real-classroom batch where a PDF fails transcription (or the deferred `/submit` endpoint PR,
 whose per-item outcomes want the same tracking).
+
+
+## B-27. Drop the migration-015 failure-ledger column (cleanup migration)
+
+**Context:** the Cloud Tasks migration (2026-08-15) made `transcription_jobs` rows the
+durable failure truth; `grading_batches.transcription_failures` writes were retired the
+same day. Reads survive ONLY as the legacy fallback for pre-016 batches (rollup +
+failure cards, `job_id=None` ⇒ no retry button). **The cleanup:** once pre-016 batches
+no longer matter (or after an owner-approved backfill), migration NNN drops the column
+and the legacy branch in `_build_rollup`/`get_batch` + `TranscriptionFailureItem`
+model_validate path. **Trigger:** owner call; zero urgency — the dormant column is
+harmless and the fallback is 15 lines.
+
+## B-28. Raise queue concurrency after provider-quota review
+
+**Context:** both new queues launched at `--max-concurrent-dispatches=5` — conservative
+parity with the retired in-process semaphore. Cloud Run instances each cap per-model
+LLM concurrency at 5 (shared scheduler), so the ceiling on real parallelism is now the
+QUEUE, and batches of 30+ would finish meaningfully faster at 10-15 dispatches if
+Gemini/OpenAI project quotas hold. **The work:** check quotas, raise
+`maxConcurrentDispatches` (a `gcloud tasks queues update`, no deploy), watch a large
+batch. **Trigger:** first real classroom batch > 15 documents.
+
+---
+
+## B-29 · Sweep every environment's pg_constraint for the half-applied-010 class · P0-severity follow-up
+
+**Context (2026-08-17, batch-redesign P1):** the dev DB's
+`graded_tests_regraded_to_id_fkey` was silently NON-deferrable while the
+schema_migrations ledger listed 010 as applied — the entire revision feature
+(regrade / manual_edit / retry via `extend_chain`) was broken on that database
+with zero alarms, because `verify_schema_head` compares ledger VERSIONS and is
+blind to constraint attributes. Dev was repaired (010 re-applied, verified
+`condeferrable=t, condeferred=t`), and `verify_schema_head` now carries an
+attribute-level check (`EXPECTED_CONSTRAINT_ATTRIBUTES`, database.py) that
+would have caught this at first boot. **The work:** against EVERY other
+environment sharing this schema lineage (staging / prod Cloud Run's
+`DATABASE_URL`), run
+`SELECT conname, condeferrable, condeferred FROM pg_constraint WHERE conname = 'graded_tests_regraded_to_id_fkey';`
+and re-apply `migrations/010_s10_deferrable_regraded_to_fk.sql` wherever the
+answer is not `t/t` — BEFORE anyone exercises regrade/manual-edit/retry there.
+The next deploy's boot log now also answers this (`SCHEMA OK … constraint
+attribute(s) verified` vs `SCHEMA MISMATCH: … constraint-attribute problem`).
+**Trigger:** next backend deploy, or immediately if revision flows misbehave
+in any environment.
+
+
+## B-30 · Eval model-registry follow-ups (from PLAN_model_registry_normalization.md, shipped 2026-08-23)
+
+The registry normalization (one shared `tests/eval_common/models_registry.py`; rubric configs name a
+`model_key`; one shared `cost_usd`) deliberately EXCLUDED these; each is its own change:
+
+- **B-30a — Tier-B cost blindness (the F5 finding; highest value).** `docx_v3/pipeline.py::_make_adjudicator`
+  builds `with_structured_output(QuestionAdjudication)` with NO `include_raw=True` (pipeline.py:1023),
+  where Step 1 uses it (":1111") — usage metadata is discarded at the LangChain boundary, so every rubric
+  cost number ever recorded under-reports by the whole Tier-B spend. Production pipeline change, own review.
+  The full follow-up is per-call `CallRecord` parity with the transcription suite (per-call cost/phase/model
+  attribution instead of one cumulative `ExtractionMetrics`).
+- **B-30b — collapse `two_phase_engine._MODELS` (the third registry copy) into the shared one.** Blocked on
+  an owner ruling: `two_phase/__init__.py` explicitly keeps the registry eval-side; collapsing puts eval-only
+  models on a production import surface.
+- **B-30c — registry `family` capability field** replacing `_is_openai_reasoning`'s prefix sniffing (the xai
+  branch exists only because grok couldn't be recognized as reasoning-family). Deferred as YAGNI until a
+  config actually needs the validation.
+- **B-30d — cross-suite per-model rollup CLI** (`tests/eval_common/model_metrics.py`: scan both `results/`
+  trees, group by `model_key`, emit cost/latency/gate-rate per model). The pay-off of the shared key
+  vocabulary; buildable now that both suites stamp `model_key`.
+- **B-30e — D5 price verification:** `claude-sonnet-4-6` carries `cached_in_per_mtok=3.75 > in_per_mtok=3.00`
+  (the shape of a cache WRITE rate applied to reads). Owner verifies vs the Anthropic pricing page; the guard
+  test `tests/eval_common/test_models_registry.py::test_cached_rate_not_above_uncached` is `xfail` until then.
+- **B-30f — transcription multi-rubric fixtures. ✅ AMENDED + SHIPPED (plumbing) 2026-08-28.** The runner
+  no longer binds one exam to a run: each fixture resolves its own exam spec and critical-token profile
+  (`tests/transcription_eval_suit/exam_resolution.py` + `profiles.py`), `--exam-spec` is demoted to a
+  fallback, and `results.json`/`summary.md` state which exam and profile scored each record. The seed
+  corpus is provably unchanged (same spec, byte-identical `to_prompt_json()`, same profile object — pinned
+  by `test_seed_corpus_resolves_exactly_as_the_historical_loader_did`); `check_goal.sh` is untouched.
+  ⚠ The shape DEVIATES from §9's filed proposal, deliberately and with the owner's ruling: a per-fixture
+  MANIFEST (`fixtures/<doc_id>.json`) naming a SHARED `exams/<exam_id>.json`, not `specs/<doc_id>.json`
+  spec copies — N copies of one exam is the two-copies-drift shape behind GT findings F-1..F-3, and the
+  grading suite ruled the same way first (`grading_eval_suite/fixtures.py`: "the B-30f lesson
+  pre-applied"). Full record: `tests/transcription_eval_suit/PLAN_multi_rubric_fixtures.md`.
+  **Still open there:** D7 (a nested rubric's depth-1 routing signatures come out EMPTY — a PRODUCTION
+  parser gap in `spec_from_rubric_draft_data`, gated by a test before exam-B fixtures may land),
+  D8 (should P2 be told the exam is choose-k), D9 (no GT convention for trace-table answers).
+
+---
+
+## B-31 · Upload-latency plan — the stages implementation stopped short of
+`docs/upload-latency/UPLOAD_LATENCY_PLAN.md` (owner-approved 2026-09-04, R1–R13). Stages A, B, C1
+and D are in the working tree and reviewed; these are what is left, and each is left for a REASON
+rather than for lack of time.
+
+- **B-31a — apply migration 025 to production, and deploy.** Nothing in Stages A–D is deployed;
+  025 is applied to the TEST database only. Deploy order is free (the wire field is additive and
+  the client reads it as `?? 0`), backend-first marginally preferred. Missing the migration is
+  loud and non-fatal — `SCHEMA MISMATCH … NOT APPLIED` at boot, and every batch created in that
+  window simply behaves as the pre-Stage-A NULL population.
+- **B-31b — Stage C2: `--cpu=2` on `gradervision-backend`** (ruling R13, ≈a tenth of a cent per
+  document, nothing when idle). One `gcloud run deploy` flag. Measure the contended-append p95
+  with Stage D's `uplink_kbps`/`bytes` log line BEFORE and AFTER, so C1 (encode off the loop) and
+  C2 (more CPU) stay attributable separately — the plan's kill criterion for "is C enough"
+  depends on telling them apart. `SCALING_ROADMAP.md`'s dial table is deliberately NOT updated
+  until this lands, so the doc never claims a production value that is not set.
+- **B-31c — Stage E: the byte-reduction eval run.** NOT started, but it is CHEAP: from the
+  suite's own recorded per-record costs (~$0.029/doc-run `p1_only`, ~$0.031 end-to-end), the A/B
+  (200 runs) is ≈$6 and the gate (75 runs) ≈$2 — call it $10 with a rerun, and hours of wall
+  clock. ⚠ An earlier version of this entry said "multi-day, 250 req/day": that cap was **AI
+  Studio**, and the transcription models moved to **Vertex** (per-minute quotas). The real reason
+  it is owner-gated is that a half-finished run, or one at the wrong k, produces a number that
+  looks like evidence and is not — which is exactly how the 2026-08-19 attempt ended at k=3. It also needs
+  the client transform written and driven under real Chromium FIRST — a corpus encoded by Pillow
+  measures nothing about what a browser's Skia encoder would actually ship. Prior art that sets
+  the prior: RUNLOG 2026-08-19 declined PNG→JPEG q90 on the wire (a MILDER change) after
+  dan/yonatan lost their floors. Adds `pdfjs-dist` + `pdf-lib` when it starts.
+- **B-31c-RESULT (2026-09-05): the k=3 diagnostic RAN — $1.96, verdict "not yet".** q95 fails on
+  validity (3 MAX_TOKENS truncations vs the champion's zero — its files are LARGER than the source
+  for that corpus). q85 fails on one document (−0.0059, just past the 0.005 tolerance). q90 is the
+  only survivor: 15/15 valid, every document inside the band, cost unchanged — but it introduces
+  2 `abbreviations_altered` (a §17.7 named rule) and drops two critical-recall floors.
+  ⚠ **RETRACTED (same day): the "latency drops 52s → 14s" claim was a TIME-OF-DAY ARTIFACT.** The
+  k=5 champion re-run measured the SAME corpus at 11.2s median, against 52.2s four hours earlier —
+  a 4.7× swing with nothing changed. The arms ran sequentially with the champion first, so
+  provider-side latency drift loaded entirely onto the baseline. Only the ACCURACY findings above
+  survive. Rule: a latency comparison across sequential arms is worthless; interleave, or re-run
+  the champion adjacent to each arm.
+- **B-31h — the transcription suite can only score 5 documents, and they are the wrong 5.**
+  `raw_benchmarks/` holds P1 ground truth for exactly five `hobby_tvshow` documents. The ten bagrut
+  PDFs have no transcription GT, so `p1_only` cannot score them at any k or any cost — and under
+  `chooseSmaller` all five scorable documents would KEEP THEIR ORIGINALS in production, because
+  they grow under every quality. So Stage E can currently only measure documents Stage F would
+  decline to transform. A failure is strong evidence against; a pass is weak evidence for.
+  **Closing this needs teacher-verified verbatim transcriptions for bagrut documents** — owner
+  work, not a code task, and it gates any evidence-backed Stage F.
+- **B-31i — server-side wire JPEG: TESTED AT k=5, FAILED, CLOSED.** `image_format: "jpeg"` (q90)
+  on the P1 wire, the 2026-08-19 experiment re-run at the k its quota denied it. Same verdict,
+  same document: `yonatan_basiuk` −0.0061 with NON-OVERLAPPING ranges across five repeats
+  (0.9584–0.9614 vs 0.9530–0.9540), plus the `CR` abbreviation lost in 2 of 5 repeats where the
+  champion loses it in 0. Cost identical — Gemini prices image input by resolution tiles, not
+  payload bytes, so a 4.2× smaller wire buys nothing. Do not re-propose this without new evidence.
+- **B-31j — RECLAIM THE ENCODE COST LOSSLESSLY (no eval gate needed).** The wire experiment's real
+  discovery: of the ~3.1s/doc it saved, **~2.7s was our own server PNG-encoding the page**, not the
+  model reading it (image_encode 3.47s → 0.74s; the model call moved only 7.34s → 6.53s). PNG's
+  `compress_level` changes bytes but **not one pixel** — verified by decode-and-compare — so it is
+  NOT a model-input change and R1 does not apply. Measured on the full wire path, 4-page document:
+  `compress_level=3` is ~30% faster for +5% payload; `compress_level=1` ~45% faster for +43%.
+  Today's default is 6. Worth its own one-variable change with a before/after on the real box,
+  because the payload rides a Cloud-Run-to-Google hop whose cost is not measured here.
+- **B-31d — Stage F: JPEG-in-PDF repack in the browser.** Conditional on B-31c returning a pass on
+  every fixture and every repeat, and then still gated on R12's print comparison (render one
+  repacked returned exam, print it beside the original, ship only if indistinguishable). Behind
+  `USE_CLIENT_REPACK`, default false.
+- **B-31f — re-measure peak memory BEFORE raising the encode pool (a C2 prerequisite).**
+  `--concurrency` was cut 5→4 on 2026-08-23 from a measured ≈260 MB/doc + ≈480 MB fixed ("C=4 =
+  74%"), and that measurement was taken when the event loop serialized every page encode in the
+  PROCESS. Stage C1 lets several coexist (~25 MB of resized pages plus a buffer and its 1.33×
+  base64, per thread), so the headroom that fixed C=4 is stale. The pool is deliberately 2 threads
+  to keep the addition small; raising it — or raising `--cpu`, which widens the default pool
+  elsewhere too — should follow a fresh two-arm measurement, not an assumption.
+- **B-31g — `extra=` logging is decorative service-wide.** `app/main.py` configures logging as
+  `basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')` and nothing else:
+  no dictConfig, no JSON formatter, no `google-cloud-logging`. So every `logger.info(..., extra={...})`
+  in the codebase attaches fields that are never rendered — the log line Cloud Run captures is the
+  message alone. Found because it silently voided Stage D's whole measurement (fixed there by
+  putting the numbers in the message). Survivable for breadcrumbs, fatal for anything anyone
+  intends to QUERY. A structured formatter would make the existing `extra=` calls pay off
+  retroactively; until then, treat `extra` as documentation and put facts in the message.
+- **B-31e — the poll cost of an honest wait.** Both dashboard gates now stay hot for the whole
+  90-minute `upload_declaration_ttl_minutes` when one file is stuck `uploading` — ~1,800
+  `GET /batches/{id}` per open tab, each recomputing per-transcription verdicts, for a batch where
+  nothing is happening. Correct for a LIVE upload and the honest cost of a dead one, but worth
+  knowing against `--concurrency=4 / max-instances=60` before the fleet grows. A backoff (3s while
+  progress is observed, widening once nothing has changed for N ticks) is the obvious answer and
+  is deliberately not written on a guess.
+
+- **B-32 · Fallback provider for plan builds (OD-W11).** A provider outage today yields a `ready`
+  plan with `wording_source='placeholder'` (valid, coarser wording) and grading proceeds; the owner
+  intends a second provider for the segmenter/router before relying on outage recovery.
+- **B-33 · Operator rebuild tool for placeholder-worded plans.** Insert a new `grading_plans` row and
+  supersede the placeholder `ready` row (the store already supports it); no automatic rebuild in
+  the wiring PR by ruling.
+- **B-34 · A3 for the compiled-plan architecture.** The v5 pin shipped without an A3 number; run
+  A1/A2 (~$0.25) then A3 (~$6, both exams, k=3) and report against the 2026-08-31 bars.
+- **B-35 · `frontend/src/lib/api-types.ts` drift.** Regenerated with the wiring PR; it also carries
+  the in-flight batch `expected_test_count` surface — CI drift stays red until that work lands.

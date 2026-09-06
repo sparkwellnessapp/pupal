@@ -107,7 +107,7 @@ async def test_grade_path_prices_from_verdicts():
         _verdict("c1.k2", "not_met", quote="", basis="חיפשתי בדיקת null — אין")])
     draft = await _agent(_basic_plan(), [resp]).grade(_gradable([_scope()]))
 
-    assert draft.prompt_version == VERIFIER_PROMPT_VERSION == "grader-v5.3"
+    assert draft.prompt_version == VERIFIER_PROMPT_VERSION == "grader-v5.4"
     assert draft.plan_version == "test-plan/v1"
     assert draft.model_version == "fake-model"
     co = draft.scope_outcomes[0].criterion_outcomes[0]
@@ -325,7 +325,9 @@ def test_sonnet_prompt_pin_is_v53_and_v6_is_an_artifact_not_a_pin():
     v6 is retained only as a dated artifact OUTSIDE the SUT, so the rollback is
     a byte-identity restore. This guard fails if v6 is ever silently re-pinned."""
     from pathlib import Path
-    assert VERIFIER_PROMPT_VERSION == "grader-v5.3"
+    # [OD-W6] v5.4 = v5.3's system prompt byte-identical + the conditional
+    # counted rule in the user message (PLAN COMPILER v2).
+    assert VERIFIER_PROMPT_VERSION == "grader-v5.4"
 
     # v6's distinctive text must NOT be live in the prompt
     for marker in ("<verdict_standard>", "Omit entirely for met",

@@ -112,7 +112,8 @@ class PlanVerifyGrader:
                  *,
                  llm=None,
                  model_version: Optional[str] = None,
-                 sc_n: int = 1) -> None:
+                 sc_n: int = 1,
+                 plan_wording_source: Optional[str] = None) -> None:
         if sc_n < 1 or sc_n % 2 == 0:
             raise ValueError(f"sc_n must be an odd positive integer, got {sc_n}")
         self._plan = plan
@@ -122,6 +123,10 @@ class PlanVerifyGrader:
         self._model_version = model_version or settings.openai_model
         self._served_models: set = set()   # [COST_TRUTH] provider-reported ids
         self._sc_n = sc_n
+        # [026] "segmented" | "placeholder" | None — how the plan's wording was
+        # made. Stamped so a placeholder-worded grade is distinguishable in the
+        # ledger even though the teacher never sees the difference (OD-W11).
+        self._plan_wording_source = plan_wording_source
         base = llm if llm is not None else build_chat_model(
             "openai", settings.openai_model)
         self._structured_llm = base.with_structured_output(
@@ -364,6 +369,7 @@ class PlanVerifyGrader:
             model_version=self._model_version,
             prompt_version=VERIFIER_PROMPT_VERSION,
             plan_version=self._plan.plan_version,
+            plan_wording_source=self._plan_wording_source,
             served_models=sorted(self._served_models) or None,
             scope_outcomes=scope_outcomes,
             teacher_overrides={},

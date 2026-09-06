@@ -29,7 +29,10 @@ import pytest
 from app.agents.grader.plan_schemas import GradingPlan
 from app.agents.grader.plan_validator import quote_is_grounded, validate_plan
 
-PLAN = Path("app/agents/grader/plans/hobby_tvshow.plan.json")
+# The ratified hand plan is the calibration artefact for V9/V10. It lives in the
+# eval suite only: the production copy retired with the file-based pin
+# (PLAN_production_wiring.md, OD-W7) — production plans live in grading_plans.
+PLAN = Path("tests/grading_eval_suite/plans/hobby_tvshow.plan.json")
 
 
 def _tight(t):

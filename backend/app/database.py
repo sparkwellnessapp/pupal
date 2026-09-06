@@ -149,7 +149,7 @@ async def get_db_context():
 EXPECTED_MIGRATIONS = (
     "001", "002", "003", "004", "005", "006", "007",
     "008", "009", "010", "011", "012", "013", "014", "015", "016", "017",
-    "018", "019", "020", "021",
+    "018", "019", "020", "021", "026",
 )
 
 # Attribute-level invariants the version ledger CANNOT see (the 010 lesson,
@@ -188,6 +188,13 @@ EXPECTED_PARTIAL_INDEXES: dict = {
     ),
     "idx_extraction_jobs_one_active_per_source": (
         "where", "012",
+    ),
+    # 026 line 60: exactly one LIVE plan (queued/building/ready) per contract
+    # hash. failed and superseded rows are history and coexist; without the
+    # predicate a rebuild after a failure would be impossible while the index
+    # was still "present" by name. The predicate IS the append-only rule.
+    "idx_grading_plans_one_live_per_contract": (
+        "where (status = any", "026",
     ),
 }
 

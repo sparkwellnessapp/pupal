@@ -46,7 +46,12 @@ from app.schemas.gradable import GradableScope
 # ink, not the intent"). The deterministic credit-group alternative was
 # WITHDRAWN by the owner (mis-scores the lone-min-loop case); no schema or
 # pricer change rides this version.
-VERIFIER_PROMPT_VERSION = "grader-v5.3"
+# [OD-W6, owner-ruled 2026-09-06] v5.4 = the v5.3 SYSTEM PROMPT byte-for-byte,
+# plus the `counted` instruction rendered in the USER message only when a
+# counted check exists (PLAN COMPILER v2, C3). For every plan without a counted
+# check the messages are identical to what the 2026-08-31 verdict measured, so
+# those numbers carry; the stamp tells the truth about what ran.
+VERIFIER_PROMPT_VERSION = "grader-v5.4"
 
 _KIND_HE = {
     "required": "רכיב נדרש",

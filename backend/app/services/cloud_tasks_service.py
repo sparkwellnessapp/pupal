@@ -196,6 +196,35 @@ async def enqueue_grading_task_or_log(graded_test_id: UUID) -> None:
                          extra={"graded_test_id": str(graded_test_id)})
 
 
+# ── plan builds (PLAN COMPILER v2 production wiring, OD-W2: its own queue) ──
+
+def _plan_build_runner():
+    from .plan_build_runner import run_plan_build
+    return run_plan_build
+
+
+PLAN_BUILD_KIND = JobKind(
+    label="plan_build_task",
+    internal_path="/internal/plan-jobs/{job_id}/run",
+    queue=lambda: settings.cloud_tasks_plan_build_queue,
+    execution_mode=jobs_execution_mode,
+    inline_runner=_plan_build_runner,
+)
+
+
+async def enqueue_plan_build_task(row_id: UUID) -> None:
+    await enqueue_job(PLAN_BUILD_KIND, row_id)
+
+
+async def enqueue_plan_build_task_or_log(row_id: UUID) -> None:
+    """Best-effort: the queued row is durable, plan_job_liveness reaps a never-
+    dispatched row, and a grade that finds no ready plan builds in place."""
+    try:
+        await enqueue_plan_build_task(row_id)
+    except Exception:
+        logger.exception("plan_build_enqueue_failed row_id=%s", row_id)
+
+
 # =============================================================================
 # Incoming /internal auth (all kinds)
 # =============================================================================

@@ -44,7 +44,13 @@ MESSAGE_CHAR_BUDGET = 9000                     # ≈ 2k tokens; above it, one ca
 
 
 class EnvelopeExceeded(RuntimeError):
-    """The spend envelope would be exceeded — the run stops, nothing is written."""
+    """The spend envelope would be exceeded — the run stops. `run` carries what
+    was worded before the stop, so a caller may keep it and substitute the
+    rest (OD-W10); the eval tool simply aborts."""
+
+    def __init__(self, message: str, run=None) -> None:
+        super().__init__(message)
+        self.run = run
 
 
 # ── the output type: text only, by construction ─────────────────────────────
@@ -278,7 +284,7 @@ async def segment_skeleton(skeleton: PlanSkeleton, llm, *, corpora: Dict[str, st
         for attempt in (1, 2):
             if run.cost_usd >= envelope_usd:
                 raise EnvelopeExceeded(f"spent ${run.cost_usd:.4f} ≥ envelope ${envelope_usd:.2f} "
-                                       f"before scope {scope}")
+                                       f"before scope {scope}", run=run)
             payload = message + (repair_suffix(errors) if errors else "")
             t0 = time.monotonic()
             result = await asyncio.wait_for(runner.ainvoke([

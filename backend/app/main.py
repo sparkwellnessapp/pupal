@@ -21,6 +21,7 @@ from .api.v0 import rubric_extraction_jobs as rubric_extraction_jobs_v0
 from .api.v0 import classroom as classroom_v0
 from .api.v0 import transcription as transcription_v0
 from .api.v0 import batch_grading as batch_grading_v0
+from .api.v0 import plan_jobs as plan_jobs_v0
 from .services.temp_storage_service import start_cleanup_worker
 
 # Configure logging
@@ -81,6 +82,9 @@ async def lifespan(app: FastAPI):
         sweep_on_startup as sweep_grading_runs,
     )
     asyncio.create_task(sweep_grading_runs())
+    # [026] plan builds orphaned by the previous process (PLAN COMPILER v2).
+    from .services.plan_job_liveness import sweep_on_startup as sweep_plan_builds
+    asyncio.create_task(sweep_plan_builds())
     logger.info("Database initialization started in background")
 
     # Pillow's WebP support is a COMPILE-TIME option, so the wheel on a laptop
@@ -203,6 +207,7 @@ app.include_router(batch_grading_v0.router)
 # get_current_user): batch transcription jobs + grading runs.
 app.include_router(batch_grading_v0.internal_router)
 app.include_router(grading_v0.internal_router)
+app.include_router(plan_jobs_v0.internal_router)
 
 
 @app.get("/", tags=["health"])

@@ -66,28 +66,18 @@ class Settings(BaseSettings):
     # accepted with its name attached.
     #
     # The prompt half of the pin is in code, not here: VERIFIER_PROMPT_VERSION
-    # = "grader-v5.3", guarded by
-    # test_sonnet_prompt_pin_is_v53_and_v6_is_an_artifact_not_a_pin.
+    # = "grader-v5.4" (OD-W6: v5.3's system prompt byte-identical plus the
+    # conditional `counted` rule), guarded by tests/agents/test_grader_pin.py.
     #
-    # ⚠ STILL DARK. `grader_architecture` stays "v3" and
-    # `grader_plan_rubric_id` stays None because NO PRODUCTION RUBRIC HAS A
-    # RATIFIED PLAN yet (checked 2026-08-31: 6 rubrics, none is the plan's
-    # exam; graded_tests = 0). Setting v5 without the binding would make
-    # grader_kind_for log `grader_pin_incomplete` on every grade and fall back
-    # to v3 anyway — a warning that always fires, which is the INV-6 mistake.
-    # ACTIVATION IS TWO VALUES, once the pilot rubric exists:
-    #     GRADER_PLAN_RUBRIC_ID=<that rubric's uuid>
-    #     GRADER_ARCHITECTURE=v5
-    grader_architecture: str = "v3"                    # v3 | v5 — see above
+    # LIVE (owner instruction 2026-09-05/06, PLAN_production_wiring.md, W-4):
+    # grader-v5 for EVERY rubric. Every compiled rubric gets a compiled
+    # GradingPlan (grading_plans, built at compile time or in place at the
+    # first grade), so the pilot-era file+rubric-id binding is retired. The
+    # only knob left is the EMERGENCY ROLLBACK: GRADER_ARCHITECTURE=v3 sends
+    # every grade down the historical v3 path with no data change.
+    grader_architecture: str = "v5"                    # v5 | v3 (rollback only)
     grader_model_key: Optional[str] = "claude-sonnet-5"
     grader_model_provider: str = "anthropic"            # openai | anthropic | gemini
-    # Ships inside the image (app/, per the Dockerfile). A tests/ path resolves
-    # to nothing in production.
-    grader_plan_path: Optional[str] = "app/agents/grader/plans/hobby_tvshow.plan.json"
-    # The ONE rubric this plan is ratified for. See grader_selection's
-    # module docstring (OD-G1.4): the plan's own sha256 pin is over contract
-    # FILE bytes, which do not exist for a JSONB-stored production contract.
-    grader_plan_rubric_id: Optional[str] = None
 
     # [PR-G4] Feedback model — a SEPARATE dial from the grader (OD10/OD-B3).
     # Feedback is prose and cheaper; tying it to the grading pin would make
@@ -287,6 +277,9 @@ class Settings(BaseSettings):
     # redelivery heals dispatch-level failures under batch backlog).
     cloud_tasks_transcription_queue: str = "transcription-jobs"
     cloud_tasks_grading_queue: str = "grading-jobs"
+    # [PLAN COMPILER v2 production wiring, OD-W2] plan builds ride their own
+    # queue so a burst of rubric saves never delays a grade.
+    cloud_tasks_plan_build_queue: str = "plan-build-jobs"
     # Transcription-job liveness (LIV-1 arms):
     #   running — heartbeat sidecar touches updated_at every ~60s; 5 min of
     #   silence is PROVABLY dead, not slow.
@@ -301,6 +294,15 @@ class Settings(BaseSettings):
     # 900s dispatch deadline, after which a killed worker can write nothing.
     grading_job_running_ttl_minutes: int = 30
     grading_job_dispatch_ttl_minutes: int = 90
+
+    # ── PLAN COMPILER v2 — production plan builds (PLAN_production_wiring.md) ──
+    # Every rubric gets a compiled GradingPlan at compile time (W-2), built by
+    # a durable job; a grade that finds none builds in place (OD-W1).
+    plan_build_envelope_usd: float = 1.0          # OD-W10: per-rubric spend cap; overrun → placeholder wording
+    plan_route_min_points: int = 3                # OD-W5 / OD-24: monoliths at P ≥ 3 with a solution route
+    plan_wait_s: float = 240.0                    # OD-W3: how long a grade waits on a LIVE builder
+    plan_build_heartbeat_ttl_minutes: int = 5     # building rows lapse after this without a heartbeat
+    plan_build_dispatch_ttl_minutes: int = 90     # queued rows never claimed → failed (backstop)
 
     # Extraction LLM pin for the docx_v3 pipeline. Read from env/.env (Pydantic maps
     # EXTRACTION_LLM_MODEL etc. case-insensitively); default = the eval-validated

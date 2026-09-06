@@ -103,3 +103,21 @@ gate has run. Legend: ☐ todo · ◐ in progress · ☑ done+verified · ⊘ de
   not «only if a slot needs an equivalence note» (PR §4) — the need is not knowable before the call, and
   the licence check on the note is what actually gates it. Measured cost of the inclusion is in the
   dry-run estimate above.
+
+## W — production wiring (owner instruction 2026-09-05/06; PLAN_production_wiring.md)
+
+Rulings: W-1 `grading_plans` append-only by contract hash (026) · W-2 built at compile, substitution
+guarantees a plan · W-3 hidden from the teacher, auto-accept · W-4 v5 always. OD-W1 both paths · OD-W2 own
+queue `plan-build-jobs` · OD-W3 wait ≤240 s on a live heartbeat then take over (the queue split does not
+remove the grade-arrives-while-building case) · OD-W4 hash with `contract_version` blanked · OD-W5 P ≥ 3 ·
+OD-W6 `grader-v5.4` · OD-W7 file pin retired · OD-W8 frontend counted mirror · OD-W9 first grade builds ·
+OD-W10 $1/rubric · OD-W11 placeholder stays, no auto-rebuild (fallback provider later) · OD-W12 8 scopes.
+
+| # | Item | State |
+|---|---|---|
+| W0 | migration 026 + ORM + ledger/canon + `plan_store` (hash, CAS lifecycle, supersede) | ☑ applied to Vivi-Test; 7 store tests on the real DB |
+| W1 | `plan_build_runner` (compile→route→segment→assemble→validate; placeholder on any model failure; `failed` only on CompilerBug) · `PLAN_BUILD_KIND` + `plan-build-jobs` · `/internal/plan-jobs/{id}/run` · `plan_job_liveness` + startup sweep · the three endpoints kick after commit | ☑ 11 builder tests (fake model, real DB) · kick · internal route · trigger tests; root conftest forbids a provider inside any plan build |
+| W2 | `grader_selection` v5-always (v3 = rollback knob only) · runner resolves ready/wait/build-in-place · `plan_wording_source` stamped · cost priced by model · `VERIFIER_PROMPT_VERSION = grader-v5.4` · file pin + `app/agents/grader/plans/` retired | ☑ selection/runner/pin tests; V9/V10 calibration re-pointed to the eval copy |
+| W3 | frontend: `pricing.ts` counted branch + `divideContext` (CPython 28-digit HALF_EVEN) · `CheckRow` «k מתוך N» · model pass-through · parity tests · `api-types.ts` regen | ☑ tsc clean · vitest 1083 |
+| W4 | deploy: `ANTHROPIC_API_KEY` secret (absent on the service today) · queue `plan-build-jobs` · migration 026 on prod · env `GRADER_MAX_CONCURRENT_SCOPES=8` · smoke | ☐ owner-gated (commands in the report) |
+| W5 | A1/A2 on the eval exams, then A3 (~$6) against the 08-31 bars | ☐ after W4 |
