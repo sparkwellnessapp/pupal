@@ -135,6 +135,7 @@ async def build_plan_for_contract(contract: GradingRubricContract, *, plan_exam_
     router_model: Optional[str] = None
     segmenter_model: Optional[str] = None
     router_failed: List[str] = []
+    router_notes: List[str] = []
 
     # Stage 2b — router (a failure leaves every monolith whole)
     if any(t.routed for t in skeleton.terminals):
@@ -143,6 +144,9 @@ async def build_plan_for_contract(contract: GradingRubricContract, *, plan_exam_
                                        solutions=solutions, questions=questions,
                                        cost_fn=cost_fn(ROUTER_MODEL_KEY), envelope_usd=envelope)
             skeleton, router_failed = rr.skeleton, list(rr.failed)
+            # keep WHY a monolith stayed whole (ungrounded span, wrong count, …) —
+            # the production smoke landed 5 refusals with no reason on the row
+            router_notes = [f"{f.terminal_id}: {f.detail}" for f in rr.flags]
             cost += Decimal(str(round(rr.cost_usd, 6)))
             router_model = MODEL_CARDS[ROUTER_MODEL_KEY].model_id
         except EnvelopeExceeded as e:
@@ -201,7 +205,8 @@ async def build_plan_for_contract(contract: GradingRubricContract, *, plan_exam_
     skeleton_json = _json_safe(asdict(skeleton))
     skeleton_json["build"] = dict(router_prompt_version=ROUTER_PROMPT_VERSION if router_model else None,
                                   segmenter_prompt_version=SEGMENTER_PROMPT_VERSION if segmenter_model else None,
-                                  substituted=substituted, router_failed=router_failed, errors=errors)
+                                  substituted=substituted, router_failed=router_failed,
+                                  router_notes=router_notes, errors=errors)
     return BuildResult(plan=plan, skeleton_json=skeleton_json, wording_source=wording_source,
                        cost_usd=cost.quantize(Decimal("0.0001")),
                        error_message=("; ".join(errors)[:2000] or None),

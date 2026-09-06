@@ -2463,3 +2463,14 @@ second exam, not another dollar on this one.**
   hobby 5 monoliths ≈ $0.030, bagrut 8 ≈ $0.044. Segmenter (Haiku 4.5): hobby 6 scope calls ≈ $0.063,
   bagrut 13 ≈ $0.115. Conservative estimate (≈2.5 chars/token, out 60%/25% of in).
 - **Not run.** A0 gates all spend (PR §7) and bagrut A0 is not green as ratified — held for a ruling.
+
+## 2026-09-06 · PLAN COMPILER v2 · A1/A2 FIRST REAL RUN — in production (smoke of the wiring)
+
+- Rubric `09cb31da` (bagrut_899371, 61 terminals), through the deployed service: Cloud Task on
+  `plan-build-jobs` → `/internal/plan-jobs/{id}/run` → Sonnet 5 router + Haiku 4.5 segmenter.
+- **$0.3488**, wall 4:35, `wording_source=segmented`. Segmenter: 1 of 111 slots substituted (clean
+  first-try on the rest). Router: 9 of 14 monoliths split (q6.c8 → 3 components, the PR's reference
+  shape), 5 refused and kept whole (`q1.ב.1.c0`, `q2.א.c4`, `q3.ב.c6`, `q5.א.c1`, `q5.ב.c5`).
+- Dry-run estimate was $0.16 for this rubric: real cost is ~2× — the estimate's chars/token and
+  output ratios were optimistic for Hebrew with code tails. Still well inside the $1 envelope.
+- Not an eval result: no GT was scored. A3 (B-34) is still the accuracy number this architecture owes.
