@@ -689,6 +689,9 @@ async def get_rubric_detail(
         id=rubric.id,
         name=rubric.name,
         description=rubric.description,
+        # The durable subject key (migration 027) — the review surfaces read it
+        # from here to choose prose vs code rendering and text direction.
+        subject=rubric.subject or "computer_science",
         created_at=rubric.created_at,
         updated_at=rubric.updated_at,
         format=rubric_format,
@@ -775,6 +778,7 @@ async def list_rubrics(
             id=r.id,
             name=r.name,
             description=r.description,
+            subject=r.subject or "computer_science",
             format=RubricFormat.ONTOLOGY,
             is_compiled=r.is_compiled,
             needs_recompilation=r.needs_recompilation,

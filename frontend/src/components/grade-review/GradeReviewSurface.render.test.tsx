@@ -124,6 +124,38 @@ describe('GradeReviewSurface renders a real published draft', () => {
         expect(proseOnly).toContain('data-answer-mode="prose"');
     });
 
+    // Phase 3a (multisubject): the SUBJECT decides the answer's grammar, never a
+    // heuristic over the text. The same C#-looking string is prose in English and
+    // Hebrew-direction prose in Mathematics.
+    it('renders an English answer as LTR prose even when it looks like code', () => {
+        const html_en = render({
+            subject: 'english',
+            answers: [{
+                question_number: 1, sub_question_id: null,
+                answer_text: `class Hobby
+{
+    private string name;
+}`,
+            }],
+        });
+        expect(html_en).toContain('data-answer-mode="prose"');
+        expect(html_en).toContain('data-answer-dir="ltr"');
+        expect(html_en).not.toContain('data-answer-mode="code"');
+    });
+
+    it('renders a Mathematics answer as RTL prose', () => {
+        const html_math = render({
+            subject: 'mathematics',
+            answers: [{
+                question_number: 1, sub_question_id: null,
+                answer_text: `f(x) = (ln x)^2 - ln x - 2
+מינימום (sqrt(e), -2.25)`,
+            }],
+        });
+        expect(html_math).toContain('data-answer-mode="prose"');
+        expect(html_math).toContain('data-answer-dir="rtl"');
+    });
+
     it('offers the quote button, and the scope nav', () => {
         expect(html).toContain(RV_QUOTE);
         expect(html).toContain('data-nav-scope="q1.א"');

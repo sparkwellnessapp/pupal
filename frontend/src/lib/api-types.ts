@@ -3984,6 +3984,11 @@ export interface components {
              */
             needs_recompilation: boolean;
             stats?: components["schemas"]["RubricStatsSchema"] | null;
+            /**
+             * Subject
+             * @default computer_science
+             */
+            subject: string;
             /** Updated At */
             updated_at?: string | null;
         };
@@ -4017,6 +4022,11 @@ export interface components {
             name?: string | null;
             /** Needs Recompilation */
             needs_recompilation: boolean;
+            /**
+             * Subject
+             * @default computer_science
+             */
+            subject: string;
             /** Total Points */
             total_points?: number | null;
             /** Total Questions */

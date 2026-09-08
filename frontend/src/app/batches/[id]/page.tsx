@@ -17,6 +17,16 @@ import Link from 'next/link';
 import { AlertCircle, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { GradedTestReviewPanel } from '@/components/GradedTestReviewPanel';
+import { GradeDashboard } from '@/components/grade-review/GradeDashboard';
+import type { GradedItem } from '@/utils/grade-dashboard';
+import {
+    DASH_DOWNLOAD_FAILED, DASH_DOWNLOAD_STARTED, DASH_RETRY_FAILED, DASH_RETRY_STARTED,
+} from '@/copy/grade-review';
+import {
+    ApiError, fetchReturnedExamsManifest, fetchReturnedExamsZip,
+    retryGradedTest as retryGradedTestRow,
+} from '@/lib/api';
+import { toast } from 'sonner';
 import {
     acceptCleanTranscriptions,
     ApiAuthError,
@@ -24,6 +34,7 @@ import {
     createStudent,
     ClassroomConflictError,
     getBatch,
+    getRubric,
     getGradedTest,
     renameBatch,
     retryBatchJob,
@@ -56,13 +67,15 @@ import { StatusChip, type ChipHue } from '@/components/batch/StatusChip';
 import { SegmentBar } from '@/components/batch/SegmentBar';
 import { IdentityWave, type PillView, type PillStatus } from '@/components/batch/IdentityWave';
 import { GhostZone } from '@/components/batch/GhostZone';
+import { UploadLane } from '@/components/batch/UploadLane';
+import { useUploadQueue } from '@/contexts/UploadQueueProvider';
 import { CleanPanel } from '@/components/batch/CleanPanel';
 import { NeedsEyesQueue } from '@/components/batch/NeedsEyesQueue';
 import { FailedZone } from '@/components/batch/FailedZone';
 import { GradingLane } from '@/components/batch/GradingLane';
 import { CompletionHero } from '@/components/batch/CompletionHero';
 import { normalizeName, partitionItems } from '@/utils/batch-partition';
-import { assignZones } from '@/utils/zone-assignment';
+import { assignZones, isIdentityPending } from '@/utils/zone-assignment';
 import {
     barSegments,
     completionReached,
@@ -73,23 +86,136 @@ import {
 } from '@/utils/batch-dashboard';
 import { computeReviewOrder } from '@/utils/batch-review-cursor';
 import { takeSkipNotice, takeUploadFailures } from '@/utils/skip-notice';
-import { SHOW_GRADING_LANE } from '@/lib/flags';
+import { SHOW_GRADING_LANE, USE_GRADE_REVIEW_MODULE } from '@/lib/flags';
 
 // ---------------------------------------------------------------------------
 // Grade-review section — per-test rows opening the S9 panel (pre-redesign
 // machinery kept; chips migrated onto the F8 primitive)
 // ---------------------------------------------------------------------------
-function GradeReviewSection({ items, batchId }: { items: BatchTranscriptionItem[]; batchId: string }) {
-    const [activeTestId, setActiveTestId] = useState<string | null>(null);
-    const [activeDetail, setActiveDetail] = useState<GradedTestDraftResponse | GradedTestApprovedResponse | null>(null);
+function GradeReviewSection({ batch, batchId, onRefresh }: {
+    batch: BatchDetailResponse;
+    batchId: string;
+    /** The page's own refetch — a retry inserts a new pending row the poll will
+     *  show, but she should not have to wait a tick to see it. */
+    onRefresh: () => Promise<void>;
+}) {
+    const router = useRouter();
+    // Hooks before the early returns below.
+    /** Failed tests she sent back to grading THIS session (D6, see retryTest). */
+    const [retriedIds, setRetriedIds] = useState<ReadonlySet<string>>(() => new Set());
+    // Stable identity: the dashboard's manifest effect must key on the modal
+    // opening, not on this function being re-created by every poll re-render.
+    const loadManifest = useCallback(() => fetchReturnedExamsManifest(batchId), [batchId]);
 
-    const openTest = async (gtId: string) => {
-        const detail = await getGradedTest(gtId);
-        if (detail.status === 'draft' || detail.status === 'approved') {
-            setActiveTestId(gtId);
-            setActiveDetail(detail as GradedTestDraftResponse | GradedTestApprovedResponse);
+    /**
+     * F1 — the grade-review dashboard (spec §4.1) replaces the pre-redesign
+     * row list that opened the S9 panel inline.
+     *
+     * `USE_GRADE_REVIEW_MODULE` keeps the old panel one flag away: it is the
+     * rollback target, exactly as RubricEditor is for the document mirror.
+     */
+    const items = batch.graded_tests ?? [];
+    if (items.length === 0) return null;
+
+    /**
+     * The kill-switch has to DO something or it is a lie in a comment.
+     *
+     * When F1 replaced the row list, the old branch went with it and the flag
+     * became decorative — documented as the rollback while flipping it changed
+     * nothing. The pre-redesign list is restored here, minimal and unstyled,
+     * because a pilot wants a way back that has been exercised, not a promise.
+     */
+    if (!USE_GRADE_REVIEW_MODULE) {
+        return <LegacyGradeRows items={batch.transcriptions} />;
+    }
+
+    const openReview = (item: GradedItem) =>
+        router.push(`/batches/${batchId}/grade-review/${item.graded_test_id}`);
+
+    /**
+     * F3. The batch id rides as a query param because the preview route lives
+     * outside `/batches/` (spec §2) while two of its controls are batch-wide —
+     * see that route's own doc. Passing it here is what keeps the breakdown
+     * toggle and «apply to all» reachable from the front door.
+     */
+    const openPreview = (item: GradedItem) =>
+        router.push(
+            `/graded-tests/${item.graded_test_id}/returned?batch=${batchId}`);
+
+    /**
+     * D6: failed → retry. `retry` EXTENDS THE CHAIN (LCY-2) with a new pending
+     * row and enqueues the grader; the dead card stays in the pile as the
+     * batch's honest hole (the feed does not copy `batch_id` to the successor —
+     * reported). Retrying from here rather than from the review route: the
+     * failed shell there has nothing else to offer, so the round trip was two
+     * screens to press one button.
+     */
+    const retryTest = async (item: GradedItem) => {
+        try {
+            await retryGradedTestRow(item.graded_test_id);
+            // The successor is a new pending row that the feed CANNOT show yet
+            // (`extend_chain` does not copy `batch_id` — reported), so the card
+            // is marked locally: it says «נשלח לניקוד חוזר» and stops offering
+            // the same click, which would 409 on the now non-leaf row.
+            setRetriedIds((prev) => new Set(prev).add(item.graded_test_id));
+            toast.success(DASH_RETRY_STARTED(item.student_name || ''));
+            await onRefresh();
+        } catch (err) {
+            // The server's own Hebrew when it has one (§6), ours otherwise.
+            toast.error(err instanceof ApiError ? err.detail : DASH_RETRY_FAILED);
         }
     };
+
+    /**
+     * D8/D9: the ZIP, as bytes through the seam (Bearer-authenticated — a plain
+     * link would 401). Approved-only is enforced server-side; the manifest the
+     * modal read is what told her so beforehand.
+     */
+    const downloadZip = async () => {
+        try {
+            const blob = await fetchReturnedExamsZip(batchId);
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `${batch.name ?? 'מקבץ'}_מבחנים_מוחזרים.zip`;
+            anchor.click();
+            // Firefox starts a blob: download asynchronously; revoking on the same
+            // tick aborts it. Ten seconds is the conventional margin — the cost
+            // of a URL that lives ten seconds too long is nothing.
+            setTimeout(() => URL.revokeObjectURL(url), 10_000);
+            toast.success(DASH_DOWNLOAD_STARTED);
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.detail : DASH_DOWNLOAD_FAILED);
+        }
+    };
+
+    return (
+        <GradeDashboard
+            items={items}
+            batchTotal={batch.rollup?.total ?? null}
+            auditStatus={batch.audit_status ?? 'disabled'}
+            eta={batch.eta ?? null}
+            // No sub-line: the batch page's own header already carries the
+            // rubric, the class and the count. See GradeDashboard's prop doc.
+
+            startedAt={batch.started_at}
+            completedAt={batch.completed_at}
+            onOpenReview={openReview}
+            onContinue={openReview}
+            onOpenPreview={openPreview}
+            onRetry={(item) => { void retryTest(item); }}
+            onDownload={() => { void downloadZip(); }}
+            loadManifest={loadManifest}
+            retriedIds={retriedIds}
+        />
+    );
+}
+
+/** The pre-F1 row list — the rollback target for USE_GRADE_REVIEW_MODULE. */
+function LegacyGradeRows({ items }: { items: BatchTranscriptionItem[] }) {
+    const [activeTestId, setActiveTestId] = useState<string | null>(null);
+    const [activeDetail, setActiveDetail] =
+        useState<GradedTestDraftResponse | GradedTestApprovedResponse | null>(null);
 
     if (activeDetail && activeTestId) {
         const isDraft = activeDetail.status === 'draft';
@@ -100,55 +226,46 @@ function GradeReviewSection({ items, batchId }: { items: BatchTranscriptionItem[
                 onBack={() => { setActiveTestId(null); setActiveDetail(null); }}
                 editable={isDraft}
                 onSaveDraft={isDraft ? async (overrides) => {
-                    const updated = await saveGradedTestDraft(activeTestId, overrides);
-                    setActiveDetail(updated);
+                    setActiveDetail(await saveGradedTestDraft(activeTestId, overrides));
                 } : undefined}
                 onApprove={isDraft ? async (overrides) => {
-                    const approved = await approveGradedTest(activeTestId, overrides);
-                    setActiveDetail(approved);
+                    setActiveDetail(await approveGradedTest(activeTestId, overrides));
                 } : undefined}
             />
         );
     }
 
-    const gradedItems = items.filter(i => i.graded_test_id);
-    if (gradedItems.length === 0) return null;
-
-    const hueFor = (s: string | null): ChipHue =>
-        s === 'approved' ? 'green' : s === 'draft' ? 'blue' : s === 'failed' ? 'red' : 'amber';
-    const labelFor = (s: string | null): string =>
-        s === 'approved' ? 'מאושר' : s === 'draft' ? 'טיוטה' : s === 'failed' ? 'נכשל' : 'בבדיקה...';
+    const graded = items.filter((i) => i.graded_test_id);
+    if (graded.length === 0) return null;
 
     return (
         <div className="space-y-2">
             <h3 className="text-sm font-medium text-batch-ink">סקירת ציונים</h3>
-            {gradedItems.map(item => (
+            {graded.map((item) => (
                 <div
                     key={String(item.transcription_id)}
-                    className="flex items-center justify-between rounded-zone-sm border border-batch-line bg-white px-4 py-3"
+                    className="flex items-center justify-between rounded-zone-sm border
+                        border-batch-line bg-white px-4 py-3"
                 >
-                    <div>
-                        <p className="text-sm font-medium text-batch-ink">{item.filename ?? 'ללא שם'}</p>
-                        <p className="text-xs text-batch-muted">{item.matched_student_name ?? item.student_name_suggestion ?? '—'}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {item.total_score !== null && item.total_possible !== null && (
-                            <span className="text-sm font-medium text-batch-ink" dir="ltr">
-                                {item.total_score}/{item.total_possible}
-                            </span>
-                        )}
-                        <StatusChip hue={hueFor(item.graded_test_status)}>
-                            {labelFor(item.graded_test_status)}
-                        </StatusChip>
-                        {(item.graded_test_status === 'draft' || item.graded_test_status === 'approved') && (
-                            <button
-                                onClick={() => openTest(String(item.graded_test_id!))}
-                                className="text-xs text-primary-600 hover:underline"
-                            >
-                                פתח
-                            </button>
-                        )}
-                    </div>
+                    <p className="text-sm text-batch-ink">
+                        {item.matched_student_name ?? item.filename ?? 'ללא שם'}
+                    </p>
+                    {(item.graded_test_status === 'draft'
+                        || item.graded_test_status === 'approved') && (
+                        <button
+                            onClick={async () => {
+                                const detail = await getGradedTest(String(item.graded_test_id!));
+                                if (detail.status === 'draft' || detail.status === 'approved') {
+                                    setActiveTestId(String(item.graded_test_id!));
+                                    setActiveDetail(detail as GradedTestDraftResponse
+                                        | GradedTestApprovedResponse);
+                                }
+                            }}
+                            className="text-xs text-primary-600 hover:underline"
+                        >
+                            פתח
+                        </button>
+                    )}
                 </div>
             ))}
         </div>
@@ -169,6 +286,18 @@ export default function BatchDetailPage() {
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const mountedRef = useRef(true);
     const authDeadRef = useRef(false);
+    // The rubric's subject key (migration 027): direction of the clean-panel
+    // answer peeks (Phase 3b). Context only — a failed fetch leaves today's ltr.
+    const [rubricSubject, setRubricSubject] = useState<string | null>(null);
+    const rubricIdForSubject = batch?.rubric_id ?? null;
+    useEffect(() => {
+        if (!rubricIdForSubject) return;
+        let alive = true;
+        getRubric(rubricIdForSubject)
+            .then((r) => { if (alive) setRubricSubject((r as { subject?: string | null }).subject ?? null); })
+            .catch(() => { /* direction context only */ });
+        return () => { alive = false; };
+    }, [rubricIdForSubject]);
 
     // D4 — pill state keyed by NORMALIZED name (survives payload replacement)
     const [pillStates, setPillStates] = useState<Record<string, { value: string; status: PillStatus }>>({});
@@ -182,7 +311,17 @@ export default function BatchDetailPage() {
     const [cleanBulkBusy, setCleanBulkBusy] = useState(false);
     const [skipNotice, setSkipNotice] = useState<string | null>(null);
     // D1: files that never became jobs, handed over from upload.
+    //
+    // [Stage B] The upload page no longer WRITES this handoff — its failures
+    // are live in the lane below, with a retry the notice never had. The reader
+    // stays for a key written by a pre-Stage-B session in the same tab.
     const [uploadFailures, setUploadFailures] = useState<string[]>([]);
+
+    // [Stage B] This batch's own transfers, if they are the ones in flight.
+    // The provider holds ONE queue (R10), so a different batch shows no lane
+    // rather than someone else's progress.
+    const uploads = useUploadQueue();
+    const myUploadQueue = uploads.batchId === batchId ? uploads.queue : null;
 
     // D8
     const [retryBusy, setRetryBusy] = useState<ReadonlySet<string>>(new Set());
@@ -461,14 +600,21 @@ export default function BatchDetailPage() {
     }
 
     const rollup = batch.rollup;
+    // [Stage A] Files still on the wire are in-flight for BOTH the label and
+    // the hue: an uploading batch is 'בתמלול'-blue (work is moving) rather than
+    // 'ממתין להחלטות'-amber, which would tell her something is waiting on her
+    // when nothing is.
+    const uploadingNow = rollup.uploading ?? 0;
     const statusLabel = batchStatusLabel(batch.status, {
         transcribing: rollup.transcribing,
         activeJobs: activeJobs.length,
+        uploading: uploadingNow,
     });
     const statusHue: ChipHue =
         batch.status === 'completed' ? 'green'
         : batch.status === 'failed' ? 'red'
-        : batch.status === 'in_progress' && (rollup.transcribing > 0 || activeJobs.length > 0) ? 'blue'
+        : batch.status === 'in_progress'
+            && (uploadingNow > 0 || rollup.transcribing > 0 || activeJobs.length > 0) ? 'blue'
         : 'amber';
 
     const headline = selectHeadline(partition, rollup);
@@ -482,7 +628,16 @@ export default function BatchDetailPage() {
     // as a wave pill, invisible to every sum.
     const zones = assignZones(batch.transcriptions as BatchTranscriptionItem[]);
     const eyesRows = zones.eyesRows;
-    const reviewOrder = computeReviewOrder(batch.transcriptions);
+    // ZC-1 v2/Q3 (owner-ruled): identity-pending items are CLEAN-partition
+    // members of the walk — the CTA count and the walk's stops must agree.
+    const walkItems = batch.transcriptions.map(t => ({
+        transcription_id: String(t.transcription_id),
+        flag_verdict: {
+            review_needed: t.flag_verdict.review_needed
+                && !isIdentityPending(t as BatchTranscriptionItem),
+        },
+    }));
+    const reviewOrder = computeReviewOrder(walkItems);
     const firstReviewId = eyesRows.length > 0 ? reviewOrder[0] ?? null : null;
     const manualReviewId = zones.cleanRows.length > 0
         ? String(zones.cleanRows[0].transcription_id)
@@ -595,6 +750,22 @@ export default function BatchDetailPage() {
                     )}
                 </div>
 
+                {/* [Stage B] Her files arriving. OUTSIDE the complete/
+                    incomplete split on purpose: once the last file lands the
+                    batch can legitimately read as complete, and a lane that
+                    lived only in the incomplete branch would take the list of
+                    files that were LEFT BEHIND down with it — the silent-drop
+                    class U4 exists to kill. It hides itself when it has nothing
+                    left to say. */}
+                {myUploadQueue && (
+                    <UploadLane
+                        queue={myUploadQueue}
+                        onRetry={uploads.retry}
+                        onRemove={uploads.remove}
+                        onDismiss={uploads.clear}
+                    />
+                )}
+
                 {complete ? (
                     <>
                         <CompletionHero
@@ -630,7 +801,10 @@ export default function BatchDetailPage() {
                         <GhostZone jobs={activeJobs} />
                         <CleanPanel
                             items={zones.cleanRows}
+                            acceptableCount={zones.cleanRows.filter(i => i.matched_student_id).length}
+                            pendingCount={zones.cleanRows.filter(isIdentityPending).length}
                             batchId={batchId}
+                            subject={rubricSubject}
                             expanded={cleanExpanded}
                             onToggle={id => setCleanExpanded(prev => {
                                 const n = new Set(prev);
@@ -664,7 +838,7 @@ export default function BatchDetailPage() {
                 )}
 
                 <div ref={gradesRef}>
-                    <GradeReviewSection items={batch.transcriptions} batchId={batchId} />
+                    <GradeReviewSection batch={batch} batchId={batchId} onRefresh={refresh} />
                 </div>
             </div>
         </SidebarLayout>

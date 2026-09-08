@@ -68,6 +68,8 @@ interface GradeReviewState {
     answersByTranscription: Record<string, AnswerItem[]>;
     scanByTranscription: Record<string, ScanSource>;
     questions: QuestionText[];
+    /** The rubric's subject key (migration 027) — null until the rubric loads or for a pre-seam row. */
+    rubricSubject: string | null;
     error: string | null;
     loading: boolean;
     refetch: () => Promise<void>;
@@ -176,6 +178,7 @@ export function GradeReviewProvider({ batchId, children }: {
 }) {
     const [batch, setBatch] = useState<BatchDetailResponse | null>(null);
     const [questions, setQuestions] = useState<QuestionText[]>([]);
+    const [rubricSubject, setRubricSubject] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const cursorRef = useRef<GradeCursor | null>(null);
@@ -206,6 +209,7 @@ export function GradeReviewProvider({ batchId, children }: {
                     const rubric = await getRubric(payload.rubric_id);
                     if (!aliveRef.current) return;
                     setQuestions(extractQuestions(rubric));
+                    setRubricSubject((rubric as { subject?: string | null }).subject ?? null);
                 } catch {
                     // The questions are CONTEXT, not the grade. Losing them
                     // must not take down a surface she can still review from —
@@ -238,12 +242,13 @@ export function GradeReviewProvider({ batchId, children }: {
         answersByTranscription: batch ? toAnswersByTranscription(batch) : {},
         scanByTranscription: batch ? toScansByTranscription(batch) : {},
         questions,
+        rubricSubject,
         error,
         loading,
         refetch: load,
         getCursor: () => cursorRef.current,
         markApproved,
-    }), [batch, questions, error, loading, load, markApproved]);
+    }), [batch, questions, rubricSubject, error, loading, load, markApproved]);
 
     return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

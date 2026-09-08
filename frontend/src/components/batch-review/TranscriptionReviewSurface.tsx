@@ -101,10 +101,17 @@ export interface TranscriptionReviewSurfaceProps {
      * Absent/[] (selection-free rubric) → identical to old behavior.
      */
     selectionGroups?: AnswerSpaceSelectionGroup[] | null;
+    /**
+     * The rubric's subject key (multisubject Phase 3b). Decides the answer islands'
+     * text direction: `mathematics` → rtl, everything else → ltr (today's behaviour).
+     * Absent (single-test flow, pre-seam rows) ⇒ ltr.
+     */
+    subject?: string | null;
 }
 
 export function TranscriptionReviewSurface({
     draft,
+    subject,
     studentNameSuggestion,
     editedAnswers,
     onAnswerChange,
@@ -469,9 +476,11 @@ export function TranscriptionReviewSurface({
                                         <TranscribedAnswerView
                                             text={currentText}
                                             flagCount={lineFlags.length}
+                                            dir={subject === 'mathematics' ? 'rtl' : 'ltr'}
                                         />
                                     ) : (
                                         <TranscribedTextEditor
+                                            dir={subject === 'mathematics' ? 'rtl' : 'ltr'}
                                             value={currentText}
                                             onChange={(text) => {
                                                 // Δ7: first divergence dissolves this answer's

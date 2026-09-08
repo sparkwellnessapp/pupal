@@ -350,6 +350,10 @@ class RubricDetailResponse(BaseModel):
     id: UUID
     name: Optional[str] = None
     description: Optional[str] = None
+    # The durable subject key (migration 027; registry keys computer_science |
+    # english | mathematics). Review surfaces render prose vs code and choose
+    # text direction from THIS, never by guessing from the text.
+    subject: str = "computer_science"
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -403,6 +407,7 @@ class RubricListItemSchema(BaseModel):
     id: UUID
     name: Optional[str] = None
     description: Optional[str] = None
+    subject: str = "computer_science"   # the durable subject key (migration 027)
     format: RubricFormat
     is_compiled: bool
     needs_recompilation: bool

@@ -6,13 +6,13 @@
  * transparent textarea), rebuilt on the current architecture.
  *
  * RTL/bidi mechanism (plan §7, ADJUDICATED by the named Playwright test
- * `rtl-bidi-code-comment-rendering`): the editor is a pure `dir="ltr"` island
+ * `rtl-bidi-code-comment-rendering`): the editor is a pure `dir={dir}` island
  * inside the RTL page — and NOTHING more. The plan's original proposal added
  * `unicode-bidi: plaintext` per backdrop line; the test measured it doing the
  * OPPOSITE of its intent: plaintext resolves paragraph direction from the
  * first strong character, so a Hebrew-initial comment line (`// תכונות`)
  * became RTL-base and the `//` migrated to the RIGHT of the Hebrew (x≈590 vs
- * 559). Under plain dir="ltr" the paragraph stays LTR — `//` stays left,
+ * 559). Under plain dir={dir} the paragraph stays LTR — `//` stays left,
  * punctuation stays put — which is the correct rendering for code and what
  * the v0.5 screenshot showed. The ruled test assertions are the spec; the
  * mechanism serves them.
@@ -35,13 +35,31 @@ export function TranscribedTextEditor({
     readOnly = false,
     lineFlags = [],
     placeholder = 'תמלול ריק — אפשר להקליד כאן',
+    autoFocus = false,
+    dir = 'ltr',
 }: {
     value: string;
     onChange: (newText: string) => void;
     readOnly?: boolean;
     lineFlags?: ReviewLineFlag[];
+    /**
+     * Text direction of the island (multisubject Phase 3b, 2026-09-08): decided by
+     * the rubric's SUBJECT upstream — `rtl` for mathematics (Hebrew prose with
+     * linear notation), `ltr` otherwise. The default keeps every CS surface and the
+     * bidi guard byte-identical. Still a pure `dir` island: `unicode-bidi: plaintext`
+     * stays falsified (see the header).
+     */
+    // ALPHA-GAP A-2 (D-1): monospace + raw linear text for mathematics; alpha adds a math renderer (KaTeX).
+    dir?: 'ltr' | 'rtl';
     /** R2: marked empty-answer cards pass the §3.2 guidance placeholder. */
     placeholder?: string;
+    /**
+     * Focus on mount. Set ONLY when the teacher switched this answer out of the
+     * rendered table view — she clicked to edit, so the caret belongs here (and
+     * a focused textarea is what makes the R3 keymap treat her typing as typing
+     * rather than as navigation).
+     */
+    autoFocus?: boolean;
 }) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
@@ -71,10 +89,11 @@ export function TranscribedTextEditor({
                             ? 'bg-red-50/30 border-red-200 focus:border-red-300'
                             : 'bg-surface-50 border-surface-300'
                     } ${readOnly ? 'cursor-not-allowed opacity-70' : ''}`}
-                    dir="ltr"
+                    dir={dir}
                     style={{ minHeight: `${minHeight}px`, whiteSpace: 'pre-wrap' }}
                     placeholder={placeholder}
                     data-testid="transcription-editor"
+                    autoFocus={autoFocus}
                 />
                 {hasUncertain && (
                     <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">
@@ -104,7 +123,7 @@ export function TranscribedTextEditor({
                     ref={backdropRef}
                     className="absolute inset-0 p-3 font-mono text-sm overflow-hidden pointer-events-none"
                     style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
-                    dir="ltr"
+                    dir={dir}
                     aria-hidden="true"
                 >
                     {value.split('\n').map((line, idx) => {
@@ -137,7 +156,7 @@ export function TranscribedTextEditor({
                     onScroll={handleScroll}
                     readOnly={readOnly}
                     className={`relative w-full h-full p-3 font-mono text-sm bg-transparent resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg ${readOnly ? 'cursor-not-allowed' : ''}`}
-                    dir="ltr"
+                    dir={dir}
                     style={{
                         minHeight: `${minHeight}px`,
                         whiteSpace: 'pre-wrap',
@@ -146,6 +165,7 @@ export function TranscribedTextEditor({
                     }}
                     placeholder={placeholder}
                     data-testid="transcription-editor"
+                    autoFocus={autoFocus}
                 />
             </div>
         </div>

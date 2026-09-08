@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
-import { answerLines, detectAnswerMode } from '@/utils/answer-mode';
+import { answerLines, answerRenderPlan } from '@/utils/answer-mode';
 import { splitLineByQuote, type Highlight } from '@/utils/evidence-highlight';
 
 /**
@@ -30,9 +30,15 @@ export interface AnswerBlockProps {
     highlight: Highlight;
     /** Suppress auto-scroll: the highlight is following the mouse. */
     transient?: boolean;
+    /**
+     * The rubric's subject key (multisubject Phase 3a). Decides the render plan:
+     * english → prose LTR, mathematics → prose RTL, computer_science / absent →
+     * today's heuristic. An essay with a digit in it is still an essay.
+     */
+    subject?: string | null;
 }
 
-export function AnswerBlock({ answer, highlight, transient = false }: AnswerBlockProps) {
+export function AnswerBlock({ answer, highlight, transient = false, subject }: AnswerBlockProps) {
     const markRef = useRef<HTMLElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -45,7 +51,8 @@ export function AnswerBlock({ answer, highlight, transient = false }: AnswerBloc
         }
     }, [highlight.quote, transient]);
 
-    const mode = detectAnswerMode(answer);
+    const plan = answerRenderPlan(answer, subject);
+    const mode = plan.mode;
     const lines = answerLines(answer, mode);
     let markAssigned = false;
 
@@ -84,10 +91,12 @@ export function AnswerBlock({ answer, highlight, transient = false }: AnswerBloc
         return (
             <div
                 ref={containerRef}
-                dir="rtl"
+                dir={plan.dir}
                 data-answer-mode="prose"
-                className="mb-3.5 max-h-answer-max overflow-auto rounded-grade-ctl border
-                    border-grade-line-2 bg-grade-bar px-4 py-3 text-right text-gr-prose"
+                data-answer-dir={plan.dir}
+                className={`mb-3.5 max-h-answer-max overflow-auto rounded-grade-ctl border
+                    border-grade-line-2 bg-grade-bar px-4 py-3 text-gr-prose ${
+                    plan.dir === 'ltr' ? 'text-left' : 'text-right'}`}
             >
                 {lines.map((line) => (
                     <div key={line.number}>{renderSegments(line.text) as React.ReactNode}</div>

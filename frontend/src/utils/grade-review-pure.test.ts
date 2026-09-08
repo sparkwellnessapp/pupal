@@ -591,3 +591,29 @@ describe('grade-review cursor', () => {
         expect(step(cursor, 'ghost', 'next')).toBeNull();
     });
 });
+
+// ---------------------------------------------------------------------------
+// Multisubject Phase 3a (2026-09-08): the SUBJECT decides the render plan.
+// The CS heuristic is untouched; english/mathematics never run it.
+// ---------------------------------------------------------------------------
+import { answerRenderPlan } from './answer-mode';
+
+describe('answer-render-plan-by-subject', () => {
+    const ESSAY = 'The 3 reasons are simple.\nFirst, it costs 20 dollars.';
+    const MATH = 'x^2 - 1 = (x-1)(x+1)\nלכן x = 1';
+
+    it('english is prose LTR even with digits and Latin letters', () => {
+        expect(answerRenderPlan(ESSAY, 'english')).toEqual({ mode: 'prose', dir: 'ltr' });
+    });
+    it('mathematics is prose RTL (linear notation rides the bidi algorithm)', () => {
+        expect(answerRenderPlan(MATH, 'mathematics')).toEqual({ mode: 'prose', dir: 'rtl' });
+    });
+    it('computer_science keeps the heuristic byte-for-byte', () => {
+        expect(answerRenderPlan(ESSAY, 'computer_science')).toEqual({ mode: 'code', dir: 'ltr' });
+        expect(answerRenderPlan('שלום עולם', 'computer_science')).toEqual({ mode: 'prose', dir: 'rtl' });
+    });
+    it('an absent subject (pre-seam row) falls back to the CS heuristic', () => {
+        expect(answerRenderPlan(ESSAY, undefined).mode).toBe('code');
+        expect(answerRenderPlan(ESSAY, null).mode).toBe('code');
+    });
+});

@@ -12,7 +12,7 @@ Legend: ☐ not started · ◐ in progress · ☑ done · ✗ dropped (with the 
 | # | item | state | note |
 |---|---|---|---|
 | 0.1 | WIP commit of the grade-review tree (Q7) | ☑ | `4ee8a5b` — the ruled paths + the module's own route dir, copy file and pricing test. ⚠ ~60 OTHER untracked files (onboarding, auth, batch upload, migrations 022–025, backend services) remain uncommitted in-flight work; not touched |
-| 0.2 | zero-spend gates recorded with commit hash | ◐ | A0 guard 8 passed; vitest 73 files / 1083 passed; tsc 0; copy gates PASS; backend pytest ×2 and Playwright still running (output piped through `tail`, arrives at completion) |
+| 0.2 | zero-spend gates recorded with commit hash | ☑ | A0 guard 8 passed; vitest 73 files / 1083 passed; tsc 0; copy gates PASS; backend pytest 1475 passed / 9 failed (8 = cp1252 locale, 1 = timing artefact — neither a product regression). ⚠ **the Playwright baseline is VOID**: port 3100 was held by another Next app, so all 168 failures drove the wrong application. Re-run on port 3101 with Phase 1–3 in the tree: **161 passed, 1 failed**, and that one is `f45b47e`'s save gate, not this work (RUNLOG) |
 | 0.3 | background spend runs started (A3 k=5, `check_goal.sh` k=5, rubric eval k=1) | ◐ | rubric eval 4/5 (`20260908-192219`); `check_goal` GOAL FAIL = the standing baseline (`20260908_194545_v0`); **A3 BLOCKED by the runner's expressibility guard** (compiled hobby plan cannot express din q2.א.c0 = 4; OD-13 routed-miss class) — see RUNLOG |
 | 0.4 | §7 predictions committed to the three PREDICTIONS.md files | ☑ | grading MS-G (P-8/P-10/P-12), rubric addendum (P-3/P-7/P-11/P-11b/P-14/P-15), transcription `PREDICTIONS.md` created in the PREREG format (P-1/P-2/P-4/P-6/P-9/P-13) |
 | 0.5 | §1 corrections to MANIFEST.md §3 and the plan's A5 Math rows + §0 item 2 | ☑ | manifest §3 + header; plan §0.2 + A5 Math rows + reading paragraph |
@@ -39,18 +39,18 @@ Legend: ☐ not started · ◐ in progress · ☑ done · ✗ dropped (with the 
 
 | # | item | state | note |
 |---|---|---|---|
-| 2a | `image_render.py` + `rubric-read/rr1.0` + trigger in the runner + PDF rasterize + `RenderStats` + §4.6 import guard | ☐ | |
-| 2b | INV-4 k-largest evidence; `rescale_to_exam` + tests; F-1 selection wording | ☐ | |
-| 2c | OMML raw text in `parser_render.py` (drop-order #1) | ☐ | |
-| 2.t | real-provider snapshot of the 4-unit DOCX → pinned Contract JSON | ☐ | |
+| 2a | `image_render.py` + `rubric-read/rr1.0` + trigger in the runner + PDF rasterize + `RenderStats` + §4.6 import guard | ☑ | landed with the Phase 1 commit (the pipeline's render step depends on it). Proven on the real 4-unit DOCX: 16 pages read, 0 failed, $0.1472. Reader separation pinned by `tests/subjects/test_reader_separation.py` |
+| 2b | INV-4 k-largest evidence; `rescale_to_exam` + tests; F-1 selection wording | ☑ | INV-4 already sums the k LARGEST (`ontology_types.py:1181-1185`) — no invariant touched. `rescale_to_exam` v2: consistent weights → exact by largest remainder; INCONSISTENT weights kept as written + flagged + compile-blocked (FC); unwritten stays 0; off-grid exam total snapped once and named. 24 tests |
+| 2c | OMML raw text in `parser_render.py` (drop-order #1) | ☑ | `m:t` text in place + `omml_seen`/`omml_rendered` counters; byte-identical on all 10 existing DOCX; probe renders the equation. NOT dropped — it was already done in Phase 1 |
+| 2.t | real-provider snapshot of the 4-unit DOCX → pinned Contract JSON | ☑ | four attempts, each moving a real defect (schema `gt=0` on an unscored question; the pipeline's `gpt-4o` code default; off-grid shares). See RUNLOG §Phase 2.t |
 
 ## Phase 3 — Frontend
 
 | # | item | state | note |
 |---|---|---|---|
-| 3a | answer mode from subject | ☐ | never drop |
-| 3b | editor direction from subject (drop-order #3) | ☐ | |
-| 3c | picker: upload step, metadata editor select, LanguageSelector CS-only, `types/rubric.ts.subject` | ☐ | |
+| 3a | answer mode from subject | ☑ | `answerRenderPlan(answer, subject)`: english → prose ltr, mathematics → prose rtl, CS → the existing heuristic. Threaded through `AnswerBlock` ← `ScopeSection` ← `GradeReviewSurface` ← `GradeReviewContext`. SSR-pinned: an English answer that LOOKS like code renders as prose |
+| 3b | editor direction from subject (drop-order #3) | ☑ | NOT dropped. `dir` prop through `TranscriptionReviewSurface` → `TranscribedAnswerView` / `TranscribedTextEditor`, and `CleanPanel`; subject fetched non-gating in `BatchReviewContext` (a failed rubric fetch leaves today's direction) |
+| 3c | picker: upload step, metadata editor select, LanguageSelector CS-only, `types/rubric.ts.subject` | ☑ | subject `<select>` above the drop zone (pre-filled from `user.subject_matters` when she teaches exactly one), immutable select in the metadata editor (the server 409s a change), programming-language field gated on CS in both places, DOCX+PDF copy |
 
 ## Phase 4 — Bands (drop-order #4, both or neither)
 

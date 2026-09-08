@@ -177,7 +177,7 @@ function ReviewItemView({ batchId, item, position, counters }: {
     const router = useRouter();
     const {
         batch, save, applyReviewLocally, refetchAfterAction, getCursor,
-        softNote, showSoftNote,
+        softNote, showSoftNote, rubricSubject,
         getPage, warmPage, isDissolved, markDissolved,
     } = useBatchReview();
 
@@ -593,6 +593,7 @@ function ReviewItemView({ batchId, item, position, counters }: {
                 >
                     <TranscriptionReviewSurface
                         draft={item.draft}
+                        subject={rubricSubject}
                         selectionGroups={batch?.selection_groups}
                         studentNameSuggestion={item.student_name_suggestion}
                         editedAnswers={state.editedAnswers}

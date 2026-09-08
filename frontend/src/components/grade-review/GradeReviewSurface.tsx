@@ -60,6 +60,8 @@ export interface GradeReviewSurfaceProps {
     draft: WireDraft;
     answers: readonly AnswerItem[];
     questions: readonly QuestionText[];
+    /** The rubric's subject key (Phase 3a) — answer islands render prose/code by it. */
+    subject?: string | null;
     policy: NumericPolicy;
     overlay: OverlayTerminals;
     onOverlayChange: (next: OverlayTerminals) => void;
@@ -123,7 +125,7 @@ export interface GradeReviewSurfaceProps {
 
 export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
     const {
-        draft, answers, questions, policy, overlay, onOverlayChange,
+        draft, answers, questions, subject, policy, overlay, onOverlayChange,
         feedbackOverrides, onFeedbackChange, onFeedbackRegenerate, feedbackBusy = false,
         feedbackOffers = {}, onAcceptFeedbackOffer, onDismissFeedbackOffer,
         studentName, identityMeta, approved = false, readOnly = false, versionBanner = null,
@@ -405,6 +407,7 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                                 openNoteCheckId={openNote}
                                 feedbackBusy={feedbackBusy}
                                 feedbackEdited={editedFeedback.has(scope.scopeId)}
+                                subject={subject}
                                 onFocusCheck={focusCheck}
                                 onHoverCheck={(id, hovering) =>
                                     setHover(hovering ? id : null)}

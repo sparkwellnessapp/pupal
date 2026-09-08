@@ -44,6 +44,8 @@ export interface ScopeSectionProps {
     feedbackBusy: boolean;
     /** She wrote this text herself — never caption it as Vivi's. */
     feedbackEdited?: boolean;
+    /** The rubric's subject key — decides prose-vs-code and direction of the answer (Phase 3a). */
+    subject?: string | null;
     onFocusCheck: (checkId: string) => void;
     onHoverCheck: (checkId: string, hovering: boolean) => void;
     onCycle: (terminalId: string, checkId: string) => void;
@@ -75,7 +77,7 @@ function preview(text: string): string {
 
 export function ScopeSection({
     scope, highlight, highlightTransient, focusedCheckId, pinnedCheckId,
-    openNoteCheckId, feedbackBusy, feedbackEdited = false,
+    openNoteCheckId, feedbackBusy, feedbackEdited = false, subject = null,
     onFocusCheck, onHoverCheck, onCycle, onRevert, onPin, onNoteChange, onNoteClose,
     onFeedbackChange, onFeedbackRegenerate, onShowScan, onRetry,
     feedbackOffer = null, onAcceptFeedbackOffer, onDismissFeedbackOffer,
@@ -158,6 +160,7 @@ export function ScopeSection({
                     answer={scope.answer}
                     highlight={highlight}
                     transient={highlightTransient}
+                    subject={subject}
                 />
             ) : (
                 <p

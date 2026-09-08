@@ -39,7 +39,7 @@ import {
 } from '@/lib/api';
 import { useExtractionJob, getExtractionStageLabel } from '@/hooks/useExtractionJob';
 import { useAuth } from '@/lib/auth';
-import { SUBJECT_KEYS, type SubjectKey } from '@/lib/subjects';
+import { SUBJECT_KEYS, SUBJECT_LABEL_HE, type SubjectKey } from '@/lib/subjects';
 import { toast } from 'sonner';
 import { ApiAuthError } from '@/lib/api';
 import { authErrorMessage, toMessage, surfaceError } from '@/lib/errorSurface';
@@ -1208,6 +1208,26 @@ export default function Home() {
                     <p className="text-gray-500 mt-1">העלי קובץ DOCX של המחוון</p>
                   </div>
 
+                  {/* Multisubject (D-10): the ONE input extraction depends on is the subject,
+                      and it is the teacher's pick — chosen BEFORE the drop, pre-filled from her
+                      onboarding when she teaches exactly one subject. Same control for every
+                      subject; labels come from the registry mirror. */}
+                  <div className="mb-4">
+                    <label htmlFor="rubric-subject" className="block text-sm font-medium text-gray-700 mb-1">תחום הדעת</label>
+                    <select
+                      id="rubric-subject"
+                      data-testid="rubric-subject"
+                      value={rubricSubject}
+                      onChange={e => setRubricSubject(e.target.value as SubjectKey)}
+                      className="w-full p-2 border border-surface-300 rounded-lg text-sm bg-white"
+                      dir="rtl"
+                    >
+                      {SUBJECT_KEYS.map(k => (
+                        <option key={k} value={k}>{SUBJECT_LABEL_HE[k]}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* S1-1/S1-2: one action — drop the DOCX. No language dropdown,
                       no name field, no purpose step. Everything else is inferable
                       or captured during the wait. */}
@@ -1278,6 +1298,7 @@ export default function Home() {
                               dir="rtl"
                             />
                           </div>
+                          {rubricSubject === 'computer_science' && (
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">שפת תכנות</label>
                             <select
@@ -1294,6 +1315,7 @@ export default function Home() {
                               <option value="Pseudocode">פסאודו-קוד</option>
                             </select>
                           </div>
+                          )}
                           <div className="flex items-center justify-end gap-3 pt-1">
                             <button onClick={handleCaptureSkip} className="text-sm text-gray-500 hover:text-gray-700">דלגי</button>
                             <button onClick={handleCaptureConfirm} className="px-4 py-1.5 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600">שמרי והמשיכי</button>

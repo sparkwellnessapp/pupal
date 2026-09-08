@@ -75,7 +75,7 @@ export default function GradeReviewPage() {
     const router = useRouter();
     const {
         batch, cursor, answersByTest, scanByTest, answersByTranscription, scanByTranscription,
-        questions, error: batchError, getCursor, markApproved,
+        questions, rubricSubject, error: batchError, getCursor, markApproved,
     } = useGradeReview();
 
     const [payload, setPayload] = useState<GradedTestPayload | null>(null);
@@ -536,6 +536,7 @@ export default function GradeReviewPage() {
                     draft={payload.draft}
                     answers={answersForTest}
                     questions={questions}
+                    subject={rubricSubject}
                     policy={policy}
                     overlay={overlay}
                     onOverlayChange={(next) => { setOverlay(next); markDirty(); }}
