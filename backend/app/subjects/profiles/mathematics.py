@@ -14,6 +14,7 @@ SUBJECT: MATHEMATICS
 ═══════════════════════════════════════════
 The handwritten solution pages are the marking scheme. A percentage or point weight written beside a step or sub-question is one criterion; record the number exactly as the teacher wrote it, on a per-question scale of 100, and keep her written weight (e.g. `10%`) in the criterion description. Do no arithmetic.
 'Answer k of n' → a selection group choosing k; 'answer any, total capped at 100' → a selection group choosing ⌊100 / question points⌋ of n.
+A question the solution pages do not score at all: keep the question's total as PRINTED on the exam paper, keep its printed parts, and give each part points 0 with no criteria — never invent a weight; the pipeline flags it for the teacher.
 """
 
 # F-3 (P1 perception). Replaces the CS ink rules.

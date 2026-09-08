@@ -466,7 +466,10 @@ class InnerSubQuestionExtraction(BaseModel):
     """
     sub_question_id: str = Field(..., description="Identifier of the nested part: number (1, 2) or letter.")
     text: Optional[str] = Field(None, description="The specific task instruction for this nested part.")
-    points: float = Field(..., gt=0, description="Points declared for this nested part (e.g. from a 'ניקוד: N נקודות' line). Copy the DECLARED value even if criteria sum differently — never reconcile.")
+    # ge=0 (multisubject Phase 2, 2026-09-08): a part the document does not score at all
+    # is a FACT to surface (0, flagged for the teacher), not a parse failure — the 4-unit
+    # Math fixture has no marking scheme for q2. CS documents never carry a 0 here.
+    points: float = Field(..., ge=0, description="Points declared for this nested part (e.g. from a 'ניקוד: N נקודות' line). Copy the DECLARED value even if criteria sum differently — never reconcile.")
     example_solution: Optional[str] = Field(
         None,
         description="Model solution / answer TEXT for this nested part — lines starting "
@@ -489,7 +492,7 @@ class SubQuestionExtraction(BaseModel):
         "what THIS sub-question asks the student to do. "
         "Must not be null if the sub-question has a task description in the document.",
     )
-    points: float = Field(..., gt=0, description="Total points (= sum of criteria).")
+    points: float = Field(..., ge=0, description="Total points (= sum of criteria).")  # ge=0: see InnerSubQuestionExtraction.points
     example_solution: Optional[str] = Field(
         None,
         description="Model solution as TEXT for this sub-question. "
@@ -1434,11 +1437,15 @@ def _validate_extraction(extraction: RubricExtraction) -> List[ValidationIssue]:
             # SQ with zero criteria — legitimate when the SQ splits into nested
             # parts instead (criteria XOR sub_questions)
             if len(sq.criteria) == 0 and len(sq.sub_questions) == 0:
+                # A SCORED part with no criteria is a misread worth one retry; a part the
+                # document gives NO points (0 — multisubject Phase 2) is a fact about the
+                # document: retrying would only tempt the model to invent criteria for it.
+                # CS parts always carry points, so CS behaviour is unchanged.
                 issues.append(ValidationIssue(
                     code="SQ_ZERO_CRITERIA",
                     message=f"{qid}.{sq.sub_question_id}: Sub-question has no criteria. "
                     "Check rubric table for criteria prefixed with this sub-question identifier.",
-                    retryable=True,
+                    retryable=sq.points > 0,
                 ))
 
         # Duplicate sub-question IDs
