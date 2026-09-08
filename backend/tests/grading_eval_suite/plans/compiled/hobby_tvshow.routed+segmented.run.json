@@ -1,0 +1,131 @@
+{
+ "exam": "hobby_tvshow",
+ "stage": "both",
+ "dry_run": false,
+ "route_calls_planned": 5,
+ "route_chars": [
+  1920,
+  1958,
+  2283,
+  2312,
+  3367
+ ],
+ "route_estimate_usd": 0.0304,
+ "route": {
+  "cost_usd": 0.0692,
+  "calls": 9,
+  "failed": [
+   "q2.א.c0"
+  ],
+  "wall_s": 36.7,
+  "components": {
+   "q1.א.c0": [
+    "כותרת המחלקה",
+    "הגדרת התכונות",
+    "כותרת הפעולה הבונה",
+    "גוף הפעולה הבונה - השמת ערכים"
+   ],
+   "q1.א.c1": [
+    "כותרת המחלקה",
+    "הגדרת התכונות",
+    "כותרת הפעולה הבונה",
+    "גוף הבנאי - שיוך הפרמטרים לתכונות"
+   ],
+   "q2.א.c1": [
+    "מימוש הפעולה הבונה - קליטת פרמטרים ועדכון name, channel",
+    "הפעולה הבונה - קביעת ערכי ברירת מחדל ל-rate ו-isOn",
+    "לולאה על מספר הצופים (numViewers)",
+    "קליטת דירוג מכל צופה",
+    "הוספת הדירוג הנקלט לתכונת rate הקיימת"
+   ],
+   "q2.ב.c3.s3": [
+    "בדיקת תא לא ריק",
+    "צבירת הדירוג למערך הצוברים במקום הערוץ",
+    "שימוש בגישה ישירה לתכונה במקום GetRate"
+   ]
+  },
+  "latency_s": [
+   4.9,
+   3.9,
+   3.6,
+   3.0,
+   2.7,
+   5.0,
+   4.4,
+   5.2,
+   3.9
+  ],
+  "flags": [
+   [
+    "router_failed",
+    "q2.א.c0",
+    "unparseable response: 1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden... "
+   ]
+  ]
+ },
+ "segment_calls_planned": 6,
+ "segment_chars": [
+  2126,
+  3840,
+  5530,
+  1592,
+  6902,
+  2226
+ ],
+ "segment_estimate_usd": 0.0654,
+ "segment": {
+  "cost_usd": 0.1134,
+  "calls": 8,
+  "clean_first_try": 4,
+  "retried": 2,
+  "slots": 81,
+  "substituted": [
+   "q1.ג.c0.k2"
+  ],
+  "notes_dropped": {
+   "q1.ג.c3.k1": "מותר לעשות לולאה עד countHobbies או עד hobbies.length כי הרובריקה מציינת שתי אפשרויות",
+   "q2.א.c1.k2": "מותר להשתמש ב-this.rate ו-this.isOn כי הפתרון לדוגמה עושה זאת",
+   "q2.ב.c4.s0.k2": "מותר אתחול ל-int.MaxValue כי הפתרון לדוגמה עושה זאת",
+   "q2.ב.c4.s1.k2": "מותר אתחול ל-1- כי הפתרון לדוגמה עושה זאת",
+   "q2.ג.c0.s2.k1": "מותר להשתמש ב-GetArrShows כי הפתרון לדוגמה עושה זאת"
+  },
+  "validator_errors": [],
+  "expressible": "188/190",
+  "wall_s": 137.3,
+  "latency_p50_s": 18.0,
+  "latency_max_s": 28.0,
+  "plan_version": "hobby_tvshow/compiled-5cafe7d77698",
+  "flags": [
+   [
+    "segmenter_substituted",
+    "q1.ג.c0",
+    "q1.ג.c0.k2: q1.ג.c0.k2: rubric_quote is not a verbatim span of the text you were shown (copy exactly; elide the middle with … if long)"
+   ],
+   [
+    "equivalence_note_unlicensed",
+    "q1.ג.c3",
+    "q1.ג.c3.k1: מותר לעשות לולאה עד countHobbies או עד hobbies.length כי הרובריקה מציינת שתי אפש"
+   ],
+   [
+    "equivalence_note_unlicensed",
+    "q2.א.c1",
+    "q2.א.c1.k2: מותר להשתמש ב-this.rate ו-this.isOn כי הפתרון לדוגמה עושה זאת"
+   ],
+   [
+    "equivalence_note_unlicensed",
+    "q2.ב.c4.s0",
+    "q2.ב.c4.s0.k2: מותר אתחול ל-int.MaxValue כי הפתרון לדוגמה עושה זאת"
+   ],
+   [
+    "equivalence_note_unlicensed",
+    "q2.ב.c4.s1",
+    "q2.ב.c4.s1.k2: מותר אתחול ל-1- כי הפתרון לדוגמה עושה זאת"
+   ],
+   [
+    "equivalence_note_unlicensed",
+    "q2.ג.c0.s2",
+    "q2.ג.c0.s2.k1: מותר להשתמש ב-GetArrShows כי הפתרון לדוגמה עושה זאת"
+   ]
+  ]
+ }
+}

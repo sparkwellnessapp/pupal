@@ -493,3 +493,33 @@ as detected markers)" — a premise measured false before any candidate ran.
 **P-G2c unchanged**, and now load-bearing for spend: it gates the conditional
 falsification arm (item 11) — ≤15 equivalence notes on V-const defuses the
 leniency hypothesis structurally and costs nothing; >20 buys one arm.
+
+## MS-G — multisubject beta, grading (registered 2026-09-08, before any non-CS grade exists)
+
+> **Scope.** `vivi-multisubject-execution-plan.md` §7. Registered BEFORE the seam (Phase 1) was
+> written. Non-CS grades are produced by `grader-v5.4+english` / `grader-v5.4+mathematics`
+> (D-16 stamps) on PLAN COMPILER v2 plans. No accuracy claim rides on any of these; they are what the
+> incoming dataset will test.
+
+> **P-8 (Math override rate under D-4).** With deductions and follow-through handled by instruction
+> only (the ≤3-line mathematics verify fragment), teachers will override **≤ 30 %** of Math
+> terminals over the first 20 real Math graded tests.
+> **Kill:** > 50 % overridden ⇒ A-9 (D-4b structural deductions / follow-through) cannot stay deferred.
+
+> **P-10 (ceiling check, flattened bands).** Each of the three English answer keys (Module G 016582,
+> F 016584, B 016384), typed, fed through transcription-bypass as a perfect answer and graded by
+> `grader-v5.4+english` on a compiled plan, receives verdict `met` on **every** criterion in
+> **≥ 4/5** repeats.
+> **Kill:** any criterion below `met` on ≥ 3/5 repeats ⇒ a compiler or verifier defect, not a data
+> problem. Also: the histogram of verdicts on band-flattened criteria must show **0** `partially_met`
+> for the unperturbed keys (the "middle band" drift analogue of CS shaving).
+
+> **P-12 (flattened-band override rate).** English writing criteria are flattened ladders graded on
+> the three-value verdict (full / half / zero of the top band). Teachers will override **≤ 25 %** of
+> band criteria over the first 20 real English writing grades.
+> **Kill:** > 25 % ⇒ A-1 (D-3 `Criterion.levels` + INV-5 + discrete level override) starts the next
+> morning, no debate.
+
+**Run:** `grader-v5.4+english`, compiled plan per contract hash, k=5, the three keys + their
+perturbed variants (`SYNTHETIC-DERIVED`), ≈ $2; P-8 and P-12 are scored on the first 20 real tests
+of each subject when they exist.

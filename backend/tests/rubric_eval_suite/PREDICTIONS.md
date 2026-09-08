@@ -363,3 +363,37 @@ terra and luna beat baseline cost trivially; sol is a coin-flip on volume alone.
   reported as such and does not stop the search.
 - If all 9 cells are screened without a winner: STOP and report (no prompt work, no
   GT work, no gate work — those are Noam's call and a different mission).
+
+# Addendum — multisubject beta, extraction (registered 2026-09-08, before any Math/English extraction under the seam)
+
+Scope: `vivi-multisubject-execution-plan.md` §7. Fixtures: `fixtures/English_rubircs-solutions/**`,
+`fixtures/Math_rubrics/**`, the OMML probe, the PUBLIC-MINISTRY F/G writing rubric DOCX (see
+`fixtures/MANIFEST.md`). Rubric-page reading is `rubric-read/rr1.0` (Phase 2a); the arithmetic is
+`rescale_to_exam` (Phase 2b), never the model.
+
+**P-3 (OMML never silently dropped).** On the OMML probe and the founder's Word-equation rubric,
+`RenderStats.omml_seen == omml_rendered` — 100 % of `m:oMath` nodes emit their `m:t` text in place.
+**Falsifier: any count mismatch kills the Phase 2c walker.**
+
+**P-7 (D-3 coverage).** Of the next 20 real English writing rubrics, **≥ 16** fit the level shape
+(`Criterion.levels`, INV-5 LevelPointsBound) with zero residual.
+**Falsifier: < 12/20 ⇒ the extension is the wrong shape.** Record alongside it the in-between-grade
+override rate; > 25 % ⇒ Amendment 1(i) (discrete levels) was the wrong ruling.
+
+**P-11 (D-13 grid-snap compiles at the real total).** 4-unit 35472: total **100**, shares
+33.5 / 33.25 / 33.25 / 33.25 / 33.25, `SelectionGroup` choose 3 of 5; 3-unit 35173: total **100**,
+25 × 5, choose 4 of 5. Both compile and pass INV-1..4 with **no tolerance touched**.
+**Falsifier: INV-4 fires, or any criterion lands off the 0.25 grid.**
+
+**P-11b (grid-snap drift is immaterial).** Per criterion, |snapped − exact| ≤ **0.25 pt** on both
+fixtures; per-question Σ drift = **0** (largest-remainder snapping conserves the question share).
+**Falsifier: any criterion drift > 0.25 ⇒ the snapping method, not the fixture.**
+
+**P-14 (`rubric-read/rr1.0` fidelity).** On the 4-unit pages, **≥ 90 %** of the teacher's weights
+are present in the render AND sit on the same line as the step they annotate.
+**Falsifier: < 75 % ⇒ rr1.0 wording.** (Two exams, one school — n=2; provisional.)
+
+**P-15 (Math criteria sum).** After `rescale_to_exam`, the extracted weights of every question sum
+to its share exactly; before it, the teacher's written percentages sum to **100 on every question**
+of both fixtures as she wrote them.
+**Falsifier: any question ≠ 100 after teacher review ⇒ the mathematics F-1 fragment.**

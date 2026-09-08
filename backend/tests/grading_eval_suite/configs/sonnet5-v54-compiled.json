@@ -1,0 +1,7 @@
+{
+ "model_key": "claude-sonnet-5",
+ "architecture": "v5",
+ "plan": "plans/compiled/hobby_tvshow.routed+segmented.plan.json",
+ "cost_ceiling": 0.15,
+ "notes": "A3 \u2014 grader-v5.4 + Sonnet 5 + the COMPILED (v2) hobby plan with real wording; multisubject Phase 0 baseline (spend lifted by D-17, 2026-09-08). One variable vs sonnet5-v5.json: the plan file."
+}
