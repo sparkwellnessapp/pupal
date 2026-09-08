@@ -40,6 +40,7 @@ class SubjectProfile:
     verify_fragment: Optional[str]                 # F-2: replaces verifier rules 3-5
     p2_keywords: FrozenSet[str]                    # F-5: identifier-filter keyword set for the P2 spec
     ontology: OntologySubjectProfile               # the ontology-layer profile (valid/default question types)
+    rescale_to_exam: bool = False                  # D-13: the grid-snap post-pass runs on this subject's drafts
 
     @property
     def valid_question_types(self) -> FrozenSet[QuestionType]:
@@ -64,6 +65,7 @@ def _build(module) -> SubjectProfile:
         verify_fragment=module.VERIFY_FRAGMENT,
         p2_keywords=frozenset(module.P2_KEYWORDS),
         ontology=_ONTOLOGY_PROFILES[module.KEY],
+        rescale_to_exam=bool(getattr(module, "RESCALE_TO_EXAM", False)),
     )
 
 

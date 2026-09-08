@@ -2120,6 +2120,11 @@ async def extract_rubric_from_docx(
         await _emit("build")
         rubric_name = name or test_topic or ""
         response, warnings = _build_response(extraction, rubric_name, issues, profile=profile)
+        if profile.rescale_to_exam:
+            # D-13 (Phase 2b): the teacher's per-question-100 weights → the exam's
+            # real total on the 0.25 grid. Deterministic code, never the model.
+            from .rescale_to_exam import rescale_to_exam
+            response = rescale_to_exam(response)
         if description:
             response.description = description
 

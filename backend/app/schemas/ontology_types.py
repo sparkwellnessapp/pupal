@@ -749,6 +749,7 @@ class SelectionGroup(BaseModel):
     `label` is display-only and participates in no invariant.
     """
     group_id: str = Field(..., description="Stable id, e.g. 'sg0'.")
+    # ALPHA-GAP A-3 (D-13): choose-k only — no per-question scale, no cap mode («answer any, ≤ 100»), no per-chapter minimum; alpha adds them.
     choose_k: int = Field(..., ge=1, description="How many questions the student must answer from this group.")
     of_question_ids: List[str] = Field(..., min_length=1, description="Question ids in this group, e.g. ['q1','q2','q3'].")
     label: Optional[str] = Field(default=None, description="Display-only, e.g. 'פרק ראשון'. Not an invariant.")

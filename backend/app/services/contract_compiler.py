@@ -411,6 +411,7 @@ class ContractCompiler:
         Before PR-3 this compared Σ offered vs declared, so employee (offered 100,
         achievable 50) and bagrut (offered 150, achievable 100) could never compile.
         """
+        # ALPHA-GAP A-3 (D-13): the k-LARGEST rule already holds for unequal member totals (grid-snapped shares 33.5/33.25…); alpha adds the cap rule and the chapter minimum here.
         achievable = compute_achievable_points(
             response.questions, response.selection_groups
         )

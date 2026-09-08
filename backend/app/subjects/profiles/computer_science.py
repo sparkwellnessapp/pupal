@@ -22,3 +22,6 @@ P2_KEYWORDS = frozenset({
     "throw", "true", "try", "uint", "ulong", "ushort", "using", "var", "virtual",
     "void", "volatile", "while",
 })
+
+# D-13: only the mathematics profile enters the grid-snap post-pass (rescale_to_exam); a flag, never a subject branch.
+RESCALE_TO_EXAM = False

@@ -37,3 +37,6 @@ VERIFY_FRAGMENT = """\
 """
 
 P2_KEYWORDS = frozenset()
+
+# D-13: only the mathematics profile enters the grid-snap post-pass (rescale_to_exam); a flag, never a subject branch.
+RESCALE_TO_EXAM = False

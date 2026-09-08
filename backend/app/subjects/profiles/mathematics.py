@@ -44,3 +44,6 @@ VERIFY_FRAGMENT = """\
 """
 
 P2_KEYWORDS = frozenset()
+
+# D-13 (ruled 2026-09-08): weights recorded on a per-question 100 scale are mapped onto the exam by the grid-snap post-pass.
+RESCALE_TO_EXAM = True
