@@ -836,6 +836,17 @@ export function isDocxFile(file: File): boolean {
 }
 
 /**
+ * A rubric source the extraction job accepts: DOCX, or PDF (D-8, 2026-09-08 —
+ * a PDF is rasterized into the rubric-read stage server-side; a scanned rubric
+ * is the common Math shape). Same rule for every subject.
+ */
+export function isRubricSourceFile(file: File): boolean {
+  return isDocxFile(file) ||
+    file.type === 'application/pdf' ||
+    file.name.toLowerCase().endsWith('.pdf');
+}
+
+/**
  * Check if a file is a PDF document
  */
 export function isPdfFile(file: File): boolean {
@@ -948,20 +959,23 @@ export async function submitExtractionJob(
   config: {
     name?: string;
     description?: string;
-    subject?: string;
+    /** The teacher's subject pick — required (D-10); the server 422s a missing/unknown key. */
+    subject: string;
     locale?: string;
     testTopic?: string;
     questionPurposes?: Record<string, string>;
-  } = {}
+  }
 ): Promise<SubmitExtractionJobResponse> {
-  if (!isDocxFile(file)) {
-    throw new Error('File must be a DOCX document');
+  if (!isRubricSourceFile(file)) {
+    throw new Error('File must be a DOCX or PDF document');
   }
   const formData = new FormData();
   formData.append('file', file);
   if (config.name) formData.append('name', config.name);
   if (config.description) formData.append('description', config.description);
-  formData.append('subject', config.subject || 'computer_science');
+  // Multisubject seam (D-10): the subject is the TEACHER's pick, sent on every
+  // submit; the server 422s a missing or unknown key and never defaults it.
+  formData.append('subject', config.subject);
   formData.append('locale', config.locale || 'he-IL');
   if (config.testTopic) formData.append('test_topic', config.testTopic);
   if (config.questionPurposes && Object.keys(config.questionPurposes).length > 0) {
@@ -1578,6 +1592,72 @@ export async function listSubjectMatters(): Promise<SubjectMatterOption[]> {
 }
 
 // =============================================================================
+// Onboarding (migration 022)
+//
+// Four writes, all on the ONE seam (apiFetch + jsonInit). None of them retries:
+// a mutation that auto-repeats is how a duplicate lands. The onboarding holder
+// owns retry, visibly, at the teacher's click.
+// =============================================================================
+
+/** The wire's user profile — the ONE shape, generated from the backend schema. */
+export type UserProfileWire = components['schemas']['UserResponse'];
+export type SchoolWire = components['schemas']['SchoolResponse'];
+export type Gender = 'female' | 'male' | 'unspecified';
+
+/** Replaces the teacher's whole subject set (the endpoint is a PUT for a
+ *  reason — there are no merge semantics). */
+export async function updateMySubjectMatters(
+  subjectMatterIds: number[],
+): Promise<SubjectMatterOption[]> {
+  return apiFetch<SubjectMatterOption[]>(
+    '/api/v0/users/me/subject-matters',
+    jsonInit('PUT', { subject_matter_ids: subjectMatterIds }),
+  );
+}
+
+/**
+ * Replaces the teacher's whole school list. Committed by NAME: the client's
+ * school index is a display list whose ids are NOT `schools.id` values, so the
+ * server resolves each pick under its normalized-exact rule. The FIRST entry
+ * becomes the PR-G6 attribution key — order is meaningful, do not sort it.
+ */
+export async function setMySchools(
+  schools: { name: string; city?: string | null; ministry_symbol?: string | null }[],
+): Promise<SchoolWire[]> {
+  return apiFetch<SchoolWire[]>(
+    '/api/v0/users/me/schools',
+    jsonInit('PUT', {
+      schools: schools.map((s) => ({
+        name: s.name,
+        city: s.city ?? null,
+        // סמל מוסד when she picked from the list, null when she typed it. The
+        // server treats this — not the name — as the institution's identity.
+        ministry_symbol: s.ministry_symbol ?? null,
+      })),
+    }),
+  );
+}
+
+/** Updates the teacher's own name and/or gender. Omitted fields are untouched. */
+export async function updateMyProfile(body: {
+  full_name?: string;
+  gender?: Gender;
+}): Promise<UserProfileWire> {
+  return apiFetch<UserProfileWire>(
+    '/api/v0/users/me/profile',
+    jsonInit('PATCH', body),
+  );
+}
+
+/** Stamps onboarding as finished. Idempotent server-side: a retry is safe. */
+export async function completeOnboarding(): Promise<UserProfileWire> {
+  return apiFetch<UserProfileWire>(
+    '/api/v0/users/me/onboarding/complete',
+    jsonInit('POST'),
+  );
+}
+
+// =============================================================================
 // S4 Transcription endpoints
 // =============================================================================
 
@@ -1819,6 +1899,11 @@ export async function createBatchMetadata(
     rubricId: string,
     classId?: string | null,
     name?: string | null,
+    /** [Stage A] How many files she selected. Declared HERE because it is a
+     *  fact only the client holds — the server can never infer it later from
+     *  the absence of a file (Defect D). Omitted ⇒ the batch records no
+     *  declaration and behaves exactly as it did before Stage A. */
+    expectedTestCount?: number | null,
 ): Promise<BatchCreateResponse> {
     return apiFetch<BatchCreateResponse>(
         `/api/v0/batches`,
@@ -1826,7 +1911,31 @@ export async function createBatchMetadata(
             rubric_id: rubricId,
             class_id: classId ?? null,
             name: name ?? null,
+            expected_test_count: expectedTestCount ?? null,
         }),
+    );
+}
+
+/**
+ * [Stage A / R9] Re-declare how many files this batch is still expecting.
+ *
+ * THE ONLY WAY a file that will never land stops blocking completion: after a
+ * terminal verdict (a 422 — an invalid file never auto-heals) or an explicit
+ * remove, the client lowers the declaration to `landed + still-queued`. The
+ * server refuses anything below the number of files that already arrived, and
+ * never lowers it on its own.
+ *
+ * Failure is deliberately NOT fatal to the caller: the batch keeps saying
+ * "still uploading" until the next re-declare or the 90-minute backstop, which
+ * is the honest degradation. Losing this call must never lose her upload.
+ */
+export async function redeclareBatchExpectedCount(
+    batchId: string,
+    expectedTestCount: number,
+): Promise<{ batch_id: string; expected_test_count: number | null }> {
+    return apiFetch<{ batch_id: string; expected_test_count: number | null }>(
+        `/api/v0/batches/${batchId}`,
+        jsonInit('PATCH', { expected_test_count: expectedTestCount }),
     );
 }
 
@@ -1871,6 +1980,13 @@ export function appendBatchFileXHR(
         for (const [k, v] of Object.entries(getAuthHeaders())) {
             if (k.toLowerCase() !== 'content-type') xhr.setRequestHeader(k, v);
         }
+        // [Stage D / R11] When this transfer started, by the CLIENT's clock.
+        // The server logs bytes ÷ this to build a real distribution of teacher
+        // uplinks — the whole diagnosis currently rests on one measured link
+        // and one inferred from a complaint. LOG ONLY: nothing branches on it,
+        // here or on the server, and the server drops the value rather than
+        // publishing a fabricated one when the arithmetic is unsound.
+        xhr.setRequestHeader('X-Upload-Started-Ms', String(Date.now()));
         xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
         };
@@ -1989,4 +2105,234 @@ export async function acceptOneTranscription(
         throw new Error(typeof detail === 'string' ? detail : `שגיאה באישור תמלול (${res.status})`);
     }
     return res.json() as Promise<{ accepted: number }>;
+}
+
+// =============================================================================
+// S12 — the grade-review module (PR spec §1.6)
+// =============================================================================
+// These sit BESIDE the older `saveGradedTestDraft` / `approveGradedTest` rather
+// than replacing them: those still serve GradedTestReviewPanel on the v3
+// terminal-level overlay, and one function cannot speak both shapes honestly.
+// The old pair retires with that panel.
+
+/** The verdict-level overlay (`GradedTestOverrides`, PR-G5). */
+export type GradeReviewOverlay =
+  components['schemas']['GradedTestOverrides'];
+export type GradeReviewDraftResponse =
+  components['schemas']['GradedTestDraftResponse'];
+export type GradeReviewApprovedResponse =
+  components['schemas']['GradedTestApprovedResponse'];
+export type RegenerateFeedbackResponse =
+  components['schemas']['RegenerateFeedbackResponse'];
+
+/**
+ * Save her working copy. The server re-prices and answers with
+ * `effective_totals` + `pricing_mismatch` — we send `client_totals` so a
+ * disagreement is CAUGHT rather than silently resolved in the server's favour
+ * (the §5 lesson: she must never review one number while another freezes).
+ */
+export async function saveGradeReviewDraft(
+  id: string,
+  overrides: GradeReviewOverlay,
+  clientTotals?: Record<string, string>,
+): Promise<GradeReviewDraftResponse> {
+  return apiFetch<GradeReviewDraftResponse>(
+    `/api/v0/grading/graded_test/${id}/draft`,
+    jsonInit('PATCH', { overrides, client_totals: clientTotals ?? null }),
+  );
+}
+
+/** Approve and sign. `client_total` is the parity check, not a suggestion. */
+export async function approveGradeReview(
+  id: string,
+  overrides: GradeReviewOverlay,
+  clientTotal?: string,
+): Promise<GradeReviewApprovedResponse> {
+  return apiFetch<GradeReviewApprovedResponse>(
+    `/api/v0/grading/graded_test/${id}/approve`,
+    jsonInit('POST', { overrides, client_total: clientTotal ?? null }),
+  );
+}
+
+/**
+ * Rewrite one scope's feedback, or the summary.
+ *
+ * `offered_only` is the honest half: when she has already edited that target
+ * the server does NOT overwrite her words — it returns the fresh text for the
+ * UI to OFFER beside hers. Vivi proposes; the teacher decides.
+ */
+export async function regenerateFeedback(
+  id: string,
+  target: string,
+): Promise<RegenerateFeedbackResponse> {
+  return apiFetch<RegenerateFeedbackResponse>(
+    `/api/v0/grading/graded_test/${id}/feedback/regenerate?target=${encodeURIComponent(target)}`,
+    jsonInit('POST', {}),
+  );
+}
+
+/**
+ * A page thumbnail as an object URL (PLAN_page1_image_route §3, option B1).
+ *
+ * The route returns `image/webp` BYTES and authenticates with the same
+ * `Authorization: Bearer` header as every other domain endpoint (§9). A browser
+ * `<img src="/api/v0/…">` sends no such header, so a bare `<img>` would 401 on
+ * every card and reproduce the empty frame this route exists to fill. The
+ * client therefore fetches through the seam and hands `<img>` a blob URL.
+ *
+ * Deliberately NOT on `apiFetch<T>`: that parses the body as JSON and would
+ * consume the bytes. `apiFetchRaw` also prefixes NEXT_PUBLIC_API_URL, which the
+ * relative path on the feed depends on — that path is usable ONLY through this
+ * seam, since it would otherwise resolve against the frontend's own origin.
+ *
+ * The caller owns the returned URL and MUST `URL.revokeObjectURL` it.
+ */
+export async function fetchPageImageObjectUrl(path: string): Promise<string> {
+  const response = await apiFetchRaw(path, { headers: { ...getAuthHeaders() } });
+  throwIfAuthError(response);
+  if (!response.ok) {
+    throw new ApiError(response.status, 'שגיאה בטעינת תמונת העמוד');
+  }
+  return URL.createObjectURL(await response.blob());
+}
+
+// =============================================================================
+// S12 F3 — the returned exam (PR spec §4.3)
+// =============================================================================
+
+export type BatchSettingsResponse = components['schemas']['BatchRenameResponse'];
+export type StampPositionWire = components['schemas']['StampPosition'];
+
+/** The approved graded test — the frozen contract the appendix renders from. */
+export async function getApprovedGradedTest(
+  id: string,
+): Promise<GradeReviewApprovedResponse> {
+  return apiFetch<GradeReviewApprovedResponse>(
+    `/api/v0/grading/graded_test/${id}`, { headers: { ...getAuthHeaders() } });
+}
+
+/**
+ * One page of the student's own scan, as an object URL.
+ *
+ * Same B1 shape as the pile thumbnail: the route answers with BYTES behind a
+ * Bearer header, so an `<img src>` pointed at it would 401. The caller owns the
+ * URL and MUST revoke it.
+ */
+export async function fetchTranscriptionPageObjectUrl(
+  transcriptionId: string,
+  pageNumber: number,
+): Promise<string> {
+  return fetchPageImageObjectUrl(
+    `/api/v0/transcriptions/${transcriptionId}/pages/${pageNumber}/image`);
+}
+
+/**
+ * The returned exam PDF.
+ *
+ * `ready: false` is the 202 case from spec §4.3 P1 — the file is being
+ * rendered. The endpoint renders SYNCHRONOUSLY today and so never answers 202;
+ * the branch is here because the spec defines the state and the client must not
+ * treat a future 202 as a failure. It is not dead code by accident.
+ */
+export async function fetchReturnedExamPdf(
+  gradedTestId: string,
+): Promise<{ ready: boolean; blob: Blob | null }> {
+  const response = await apiFetchRaw(
+    `/api/v0/grading/graded_test/${gradedTestId}/returned-exam`,
+    { headers: { ...getAuthHeaders() } });
+  throwIfAuthError(response);
+  if (response.status === 202) return { ready: false, blob: null };
+  if (!response.ok) {
+    throw new ApiError(response.status, await readHebrewDetail(response));
+  }
+  return { ready: true, blob: await response.blob() };
+}
+
+/** The server's own Hebrew, preserved (§6) — never replaced with ours. */
+async function readHebrewDetail(response: Response): Promise<string> {
+  try {
+    const body = await response.json();
+    if (body && typeof body.detail === 'string') return body.detail;
+  } catch {
+    // A non-JSON body is not an extra failure; fall through to the default.
+  }
+  return 'לא הצלחנו להוריד את המבחן המוחזר';
+}
+
+/**
+ * The batch's returned-exam settings (PR-G9).
+ *
+ * ONE endpoint writes both the breakdown toggle and the batch's default stamp
+ * position, and only the fields PRESENT are written — so this never clobbers
+ * the batch's name, and «apply to all» never touches the toggle.
+ */
+export async function updateBatchReturnedExamSettings(
+  batchId: string,
+  settings: {
+    appendix_include_criteria?: boolean;
+    stamp_position_default?: StampPositionWire;
+  },
+): Promise<BatchSettingsResponse> {
+  return apiFetch<BatchSettingsResponse>(
+    `/api/v0/batches/${batchId}`, jsonInit('PATCH', settings));
+}
+
+export type StampPositionResponse = components['schemas']['StampPositionResponse'];
+
+/**
+ * Move the stamp on ONE exam — draft or approved (OD-1, backend phase B).
+ *
+ * This is deliberately NOT `PATCH …/draft`: that endpoint refuses approved rows
+ * (409), and the returned-exam preview only ever shows approved exams, so the
+ * first version of P3 could never persist a drag. The stamp is presentation of
+ * an already-frozen grade — moving it changes no verdict and no contract — so
+ * it has its own write that LCY-2 does not need to guard. The server sets
+ * `source: "manual"` itself and drops the cached render, so the next fetch
+ * re-renders under the new position. `null` clears it back to the batch
+ * default.
+ */
+export async function saveStampPosition(
+  gradedTestId: string,
+  position: StampPositionWire | null,
+): Promise<StampPositionResponse> {
+  return apiFetch<StampPositionResponse>(
+    `/api/v0/grading/graded_test/${gradedTestId}/stamp_position`,
+    jsonInit('PATCH', { stamp_position: position }));
+}
+
+export type ReturnedExamsManifest = components['schemas']['ReturnedExamManifest'];
+
+/**
+ * D9 — what the ZIP WILL contain, before she asks for it.
+ *
+ * The manifest is the authority the confirmation modal reads: who is included,
+ * who is excluded for not being approved, who is excluded for being stale. The
+ * client's own count from the feed is the fallback for the modal's first paint;
+ * this is what it commits on.
+ */
+export async function fetchReturnedExamsManifest(
+  batchId: string,
+): Promise<ReturnedExamsManifest> {
+  return apiFetch<ReturnedExamsManifest>(
+    `/api/v0/batches/${batchId}/returned-exams/manifest`,
+    { headers: { ...getAuthHeaders() } });
+}
+
+/**
+ * D8/D9 — the ZIP of every approved, current returned exam.
+ *
+ * Bytes behind a Bearer header, so it goes through the seam and comes back as
+ * a Blob for the caller to hand to the browser (see `fetchReturnedExamPdf`).
+ * Stale and unapproved exams are excluded SERVER-side — the manifest is how she
+ * learned that before clicking.
+ */
+export async function fetchReturnedExamsZip(batchId: string): Promise<Blob> {
+  const response = await apiFetchRaw(
+    `/api/v0/batches/${batchId}/returned-exams.zip`,
+    { headers: { ...getAuthHeaders() } });
+  throwIfAuthError(response);
+  if (!response.ok) {
+    throw new ApiError(response.status, await readHebrewDetail(response));
+  }
+  return response.blob();
 }

@@ -170,12 +170,70 @@ Return a JSON object with a "verdicts" array. Each element must have:
 """
 
 
+# ---------------------------------------------------------------------------
+# Multisubject seam (2026-09-08, D-16 ruled (a)). The verifier SYSTEM prompt is
+# assembled per subject profile: `computer_science` IS `VERIFIER_SYSTEM_PROMPT`
+# byte-for-byte (sha-pinned in tests/subjects/test_prompt_identity.py, the
+# grader-v5.4 package untouched); every other profile REPLACES rules 3-5 — the
+# code-trace rules — with its own <= 6-line F-2 fragment and keeps rules 1-2 and
+# 6-8 and the output contract. The stamp for a non-CS profile is
+# `grader-v5.4+<key>` (registry.prompt_version) so no CS number is ever confused
+# with one of these.
+# ---------------------------------------------------------------------------
+_CS_RULES_3_5 = """\
+3. VERIFY WHAT THE WRITTEN CODE DOES, NOT WHAT MACHINERY APPEARS. The presence
+   of a right-looking line is not satisfaction of the requirement: trace the
+   actual behavior against the check. A correct-looking assignment inside an
+   inverted guard writes the wrong cell — that check is not met, however
+   familiar the line looks. Before returning met, confirm the traced behavior
+   satisfies the requirement; a variable initialized with the wrong kind of
+   value, a loop that can never enter, a condition that selects the opposite
+   case — these are not_met even when every token looks conventional.
+
+4. THE ABSENCE AUDIT. Before returning not_met for a missing element, search
+   the ENTIRE answer for it — including inside loops, after the main body, and
+   in unconventional placements. basis_he must state, in Hebrew, what you
+   searched for and where (e.g. "חיפשתי השוואת null בגוף הלולאה ובכל הפעולה —
+   אין"). Never assert that an element is present without quoting it: a check
+   claiming a null-test exists must cite the null-test itself, not neighboring
+   code.
+
+5. SURFACE FORM IS NEVER A DEFECT. This is a handwritten exam that was never
+   compiled. Judge conceptual substance: absent machinery, a wrong algorithm,
+   a missing guard or check, direct attribute access where a getter is
+   required, a wrong loop bound or range — these fail their checks. Do NOT
+   fail a check for how the student wrote it when the intent is unambiguous:
+   identifier case, spelling, an obvious local left undeclared, parentheses
+   where brackets belong, a truncated or malformed but clearly-referring name,
+   a missing semicolon, garbled braces. The test is behavioural: if only the
+   written form is wrong and the intended computation is unambiguous, the
+   check is met; if what the code would do differs from what the check
+   requires, it is not. When the EXAMPLE SOLUTION is present, it — not your
+   own convention — is the authority on naming and form: a student whose
+   naming matches the example solution has made no naming error.
+"""
+if _CS_RULES_3_5 not in VERIFIER_SYSTEM_PROMPT:  # loud at import, never at the first non-CS grade
+    raise RuntimeError(
+        "verifier seam: rules 3-5 no longer match VERIFIER_SYSTEM_PROMPT — a non-CS "
+        "profile would silently receive the code-trace rules. Re-align _CS_RULES_3_5.")
+
+
+def verifier_system_prompt(profile=None) -> str:
+    """The verifier system prompt for a subject profile (None ⇒ the CS baseline)."""
+    if profile is None or profile.verify_fragment is None:
+        return VERIFIER_SYSTEM_PROMPT
+    return VERIFIER_SYSTEM_PROMPT.replace(_CS_RULES_3_5, profile.verify_fragment, 1)
+
+
 def build_verifier_message(scope: GradableScope,
-                           terminal_plans: List[TerminalPlan]) -> str:
+                           terminal_plans: List[TerminalPlan],
+                           profile=None) -> str:
     """Render the per-scope verifier user message. Pure — no I/O. The scope
     context (question, priors, example solution, tables) is the SAME rendering
     the v3 grader uses (_render_context_sections — one definition, §0.4);
-    criteria are replaced by the plan's point-blind checks."""
+    criteria are replaced by the plan's point-blind checks. `profile` is the
+    subject seam: the user message is the same for every subject this cycle
+    (subject-specific rules ride the SYSTEM prompt — D-16 (a))."""
     parts: List[str] = _render_context_sections(scope)
 
     parts.append("")
@@ -183,6 +241,7 @@ def build_verifier_message(scope: GradableScope,
     parts.append("CHECKS")
     parts.append("═══════════════════════════════════════════════════════════════════════════════")
     check_ids: List[str] = []
+    # ALPHA-GAP A-1 (D-3): a `level_select` rule renders here, beside the counted rule, when bands become `Criterion.levels`.
     any_counted = any(c.kind == "counted" for tp in terminal_plans for c in tp.checks)
     if any_counted:
         parts.append("")

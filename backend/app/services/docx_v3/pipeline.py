@@ -552,7 +552,9 @@ class SelectionGroupExtraction(BaseModel):
 
 class RubricExtraction(BaseModel):
     document_title: Optional[str] = None
-    subject: str = "computer_science"
+    # `subject` is NEVER model output (D-10, ruled 2026-09-08): it was a field of
+    # this structured-output schema with a CS default, i.e. the model was told
+    # the default was CS. It is stamped from the job's subject after parsing.
     total_points: float = Field(..., description="Total rubric points as declared (usually 100). The pipeline recomputes the achievable total from questions + selection groups; do not reconcile it yourself.")
     questions: List[QuestionExtraction] = Field(..., min_length=1)
     selection_groups: List[SelectionGroupExtraction] = Field(
@@ -1108,11 +1110,24 @@ def _extraction_digest(ext: Any) -> Dict[str, Any]:
             "questions": qs, "selection_groups": groups}
 
 
+def extraction_system_prompt(profile=None) -> str:
+    """The extraction system prompt for a subject profile (None ⇒ the CS baseline).
+
+    Multisubject seam (2026-09-08): `computer_science` IS `EXTRACTION_SYSTEM_PROMPT`
+    byte-for-byte (sha-pinned in tests/subjects/test_prompt_identity.py). Another
+    profile APPENDS its <= 12-line F-1 section; nothing above it is rewritten.
+    """
+    if profile is None or profile.extraction_fragment is None:
+        return EXTRACTION_SYSTEM_PROMPT
+    return EXTRACTION_SYSTEM_PROMPT + "\n\n" + profile.extraction_fragment
+
+
 async def _call_llm(
     rendered_text: str,
     error_feedback: Optional[str] = None,
     deadline: Optional["_Deadline"] = None,
     tracer: Any = NULL_TRACER,
+    profile: Any = None,
 ) -> Tuple[RubricExtraction, Dict[str, Any]]:
     """Single LLM call. If error_feedback is provided, it's appended as correction context.
 
@@ -1144,8 +1159,9 @@ async def _call_llm(
     if error_feedback:
         user_content += f"\n\n⚠️ CORRECTION REQUIRED — Your previous extraction had these errors. Fix them:\n{error_feedback}"
 
+    system_prompt = extraction_system_prompt(profile)
     messages = [
-        SystemMessage(content=EXTRACTION_SYSTEM_PROMPT),
+        SystemMessage(content=system_prompt),
         HumanMessage(content=user_content),
     ]
 
@@ -1155,9 +1171,9 @@ async def _call_llm(
     # (always kept). tracer is NULL_TRACER by default ⇒ byte-identical when off.
     with tracer.generation("llm_call", is_retry=bool(error_feedback),
                            provider=provider, model=model) as gen:
-        gen.set(prompt_version=EXTRACTION_PROMPT_VERSION, timeout_s=timeout_s,
+        gen.set(prompt_version=_extraction_prompt_version(profile), timeout_s=timeout_s,
                 user_chars=len(user_content))
-        gen.blob("system_prompt", EXTRACTION_SYSTEM_PROMPT)
+        gen.blob("system_prompt", system_prompt)
         gen.blob("user_message", user_content)
         if error_feedback:
             gen.blob("retry_feedback_in", error_feedback)
@@ -1658,11 +1674,20 @@ def _downgrade_persistent_mismatches(
 # STEP 1: EXTRACT WITH RETRY LOOP
 # =============================================================================
 
+def _extraction_prompt_version(profile=None) -> str:
+    """D-16 stamp: `3.10.0-fixsource` for CS (unchanged), `…+<subject>` otherwise."""
+    if profile is None:
+        return EXTRACTION_PROMPT_VERSION
+    from app.subjects import prompt_version
+    return prompt_version(EXTRACTION_PROMPT_VERSION, profile)
+
+
 async def _extract_with_retry(
     rendered_text: str,
     emit: Optional[Callable[..., Awaitable[None]]] = None,
     deadline: Optional["_Deadline"] = None,
     tracer: Any = NULL_TRACER,
+    profile: Any = None,
 ) -> Tuple[RubricExtraction, List[ValidationIssue], int, Dict[str, Any]]:
     """Extract → Clean → Validate → Retry if needed.
 
@@ -1703,7 +1728,8 @@ async def _extract_with_retry(
         if emit is not None:
             await emit("llm_call", attempt=attempt + 1,
                        detail="retry with correction feedback" if error_feedback else None)
-        extraction, call_meta = await _call_llm(rendered_text, error_feedback, deadline=dl, tracer=tracer)
+        extraction, call_meta = await _call_llm(rendered_text, error_feedback, deadline=dl, tracer=tracer,
+                                                profile=profile)
         llm_meta["input_tokens"] += call_meta["input_tokens"]
         llm_meta["output_tokens"] += call_meta["output_tokens"]
         llm_meta["reasoning_tokens"] += call_meta.get("reasoning_tokens", 0) or 0
@@ -1830,11 +1856,17 @@ def _build_response(
     extraction: RubricExtraction,
     name: str,
     validation_issues: List[ValidationIssue],
+    profile: Any = None,
 ) -> Tuple[ExtractRubricResponse, List[str]]:
     """Build real ontology objects from validated extraction.
-    
-    Returns (response, warnings).
+
+    Returns (response, warnings). `profile` (subject seam) supplies the subject
+    key and the default question type; None ⇒ the CS baseline, byte-identical
+    to the pre-seam output (`coding_task` on every question, subject CS).
     """
+    if profile is None:
+        from app.subjects import get_profile as _get_subject_profile
+        profile = _get_subject_profile("computer_science")
     warnings: List[str] = []
     questions: List[Question] = []
 
@@ -1864,7 +1896,9 @@ def _build_response(
         direct = [_build_criterion(f"{qid}.c{i}", i, c) for i, c in enumerate(q.criteria)]
 
         questions.append(Question(
-            question_id=qid, question_type=QuestionType.CODING_TASK,
+            # Amendment 2 (ruled 2026-09-08): the extractor emits no type — the
+            # question gets the SUBJECT PROFILE's default (CS: coding_task, as always).
+            question_id=qid, question_type=profile.default_question_type,
             question_text=q.question_text, total_points=Decimal(str(q.total_points)),
             criteria=direct, sub_questions=sqs, example_solution=q.example_solution,
         ))
@@ -1906,7 +1940,7 @@ def _build_response(
 
     resp = ExtractRubricResponse(
         rubric_id=str(uuid4()), rubric_name=name or extraction.document_title or "",
-        subject=extraction.subject, total_points=Decimal(str(extraction.total_points)),
+        subject=profile.key, total_points=Decimal(str(extraction.total_points)),
         questions=questions,
         selection_groups=selection_groups,
         annotations=mismatch_annotations,
@@ -2006,8 +2040,13 @@ async def extract_rubric_from_docx(
     on_progress: Optional[OnProgress] = None,
     deadline_seconds: Optional[float] = None,
     tracer: Optional[Any] = None,
+    source_filename: Optional[str] = None,
 ) -> ExtractionResult:
     """Extract rubric from DOCX — v3 pipeline with validation + retry.
+
+    `source_filename` (multisubject Phase 2a, D-8): selects the render stage —
+    a PDF is rasterized into the rubric-read stage; a DOCX takes the deterministic
+    render unless it is pages-as-images (then the same stage). None ⇒ DOCX.
 
     on_progress: optional pure-data stage callback (see ProgressEvent). None
     (default) is byte-identical to pre-seam behavior; failures are swallowed.
@@ -2027,6 +2066,11 @@ async def extract_rubric_from_docx(
     from .parser_render import render_docx_to_markdown
 
     config = extraction_config or ExtractionConfig()
+    # Subject seam: the profile selects the F-1 fragment, the default question
+    # type and the D-16 stamp. An unknown key raises here, before any LLM call
+    # (the API already 422'd it; a stale queued row fails loudly, never as CS).
+    from app.subjects import get_profile as _get_subject_profile
+    profile = _get_subject_profile(config.subject)
     start = time.time()
     metrics = ExtractionMetrics()
     deadline = _Deadline(deadline_seconds)
@@ -2040,11 +2084,19 @@ async def extract_rubric_from_docx(
         # Step 0: Parse + Render
         with tr.operation("render") as _rsp:
             t0 = time.time()
-            rendered = render_docx_to_markdown(file_bytes)
+            # Render stage selection (Phase 2a): DOCX-with-text → the deterministic
+            # render, byte-identical to render_docx_to_markdown; pages-as-images
+            # DOCX or any PDF → rubric-read/rr1.0 over the page images.
+            from .image_render import render_source
+            rendered, render_report = await render_source(
+                file_bytes, source_filename,
+                deadline_s=(deadline.remaining() if deadline.bounded else None))
             metrics.render_time_seconds = time.time() - t0
             metrics.rendered_chars = len(rendered)
-            _rsp.set(chars=len(rendered)).blob("rendered_markdown", rendered)
-        logger.info(f"v3 Step 0: {len(rendered)} chars in {metrics.render_time_seconds:.2f}s")
+            _rsp.set(chars=len(rendered), stage=render_report.stage).blob("rendered_markdown", rendered)
+        render_report.log(job_label=f"name={name!r}")
+        logger.info(f"v3 Step 0: {len(rendered)} chars in {metrics.render_time_seconds:.2f}s "
+                    f"(stage={render_report.stage})")
         await _emit("render", detail=f"{len(rendered)} chars")
 
         # Step 1: Extract + Clean + Validate + Retry
@@ -2052,7 +2104,7 @@ async def extract_rubric_from_docx(
         with tr.operation("extract_loop") as _elsp:
             extraction, issues, retry_count, llm_meta = await _extract_with_retry(
                 rendered, emit=_emit if on_progress is not None else None,
-                deadline=deadline, tracer=tr)
+                deadline=deadline, tracer=tr, profile=profile)
             _elsp.set(retries=retry_count, n_remaining_issues=len(issues))
         metrics.llm_time_seconds = time.time() - t1
         metrics.retry_count = retry_count
@@ -2062,12 +2114,12 @@ async def extract_rubric_from_docx(
         metrics.cached_tokens = llm_meta.get("cached_tokens", 0)
         metrics.finish_reason = llm_meta["finish_reason"]
         metrics.llm_model = llm_meta["model"]
-        extraction.subject = config.subject
 
-        # Step 2: Build ontology objects
+        # Step 2: Build ontology objects (the subject is stamped from the job's
+        # profile here — never from the model, D-10)
         await _emit("build")
         rubric_name = name or test_topic or ""
-        response, warnings = _build_response(extraction, rubric_name, issues)
+        response, warnings = _build_response(extraction, rubric_name, issues, profile=profile)
         if description:
             response.description = description
 
@@ -2163,7 +2215,11 @@ async def extract_rubric_from_docx(
             metadata={
                 "pipeline_version": PIPELINE_VERSION,
                 "subject": config.subject,
+                # D-16: the stamp the job row and the eval record carry.
+                "prompt_version": _extraction_prompt_version(profile),
                 "retry_count": retry_count,
+                # Phase 2a: which render stage ran, and the OMML/image counts (P-3).
+                "render": render_report.as_dict(),
             },
             metrics=metrics, warnings=warnings,
             requires_review=len(warnings) > 0 or bool(response.pedagogical_mistakes),

@@ -176,6 +176,7 @@ async def transcribe_two_phase(
     rubric_draft_json: dict,
     *,
     doc_priority: int = 0,
+    subject: str = "computer_science",
 ) -> tuple[TrustRun, str | None]:
     """PDF + rubric draft json -> (TrustRun, student-name suggestion).
 
@@ -188,11 +189,20 @@ async def transcribe_two_phase(
     travels this separate channel. It never raises and never delays the doc
     (own timeout; pipeline is the long pole). doc_id is the original filename,
     which doubles as the identity pass's fallback source."""
+    from dataclasses import replace as _replace
+
+    from app.subjects import get_profile
+
     from .identity import extract_student_name
 
-    spec = spec_from_rubric_draft_data(rubric_draft_json, name="rubric")
+    # Subject seam (2026-09-08): the profile selects P1's ink rules (modality
+    # only — the spec stays out of P1) and the P2 identifier keyword set (F-5).
+    # CS reproduces PROD_CONFIG and the pre-seam spec byte-for-byte.
+    profile = get_profile(subject)
+    spec = spec_from_rubric_draft_data(rubric_draft_json, name="rubric",
+                                       keywords=profile.p2_keywords)
     providers, _, scheduler = _shared_infra()
-    pipeline = _build_pipeline_multi(PROD_CONFIG)
+    pipeline = _build_pipeline_multi(_replace(PROD_CONFIG, subject_key=profile.key))
     # Identity rides the SAME shared provider + scheduler slot pool as P1
     # (same eyes — the proven Hebrew-handwriting reader; the crop makes its
     # cost negligible), at its document's priority: submitted before the P1
@@ -387,5 +397,6 @@ def build_draft_from_trust_run(
         answers=answers,
         annotations=annotations,
         model_version=TWO_PHASE_ENGINE_VERSION,
+        prompt_version=getattr(tr.run, "prompt_version", None),
         transcription_duration_ms=duration_ms,
     )

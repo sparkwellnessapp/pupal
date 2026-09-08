@@ -91,25 +91,23 @@ def _canonical_subq(s) -> ExamSubQuestion:
 # collide with common English words and would be a false-fix source; hand-add
 # them via the canonical spec's "identifiers" field if a fixture needs them.
 _SPEC_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
-_CSHARP_KW = frozenset({
-    "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char",
-    "class", "const", "continue", "decimal", "default", "do", "double", "else",
-    "enum", "false", "float", "for", "foreach", "if", "in", "int", "interface",
-    "internal", "is", "long", "namespace", "new", "null", "object", "out",
-    "override", "private", "protected", "public", "readonly", "ref", "return",
-    "sbyte", "sealed", "short", "static", "string", "struct", "switch", "this",
-    "throw", "true", "try", "uint", "ulong", "ushort", "using", "var", "virtual",
-    "void", "volatile", "while",
-})
+# F-5 (multisubject seam, 2026-09-08): the keyword set is the SUBJECT PROFILE's
+# data. The CS set kept its old name here so every existing caller reads the
+# same bytes; a prose/math profile passes an empty set.
+from app.subjects.profiles.computer_science import P2_KEYWORDS as _CSHARP_KW  # noqa: E402
 
 
-def _extract_identifiers(*texts: str) -> frozenset[str]:
-    """Identifier-shaped tokens from spec text; keywords excluded."""
+def _extract_identifiers(*texts: str, keywords: frozenset[str] | None = None) -> frozenset[str]:
+    """Identifier-shaped tokens from spec text; keywords excluded.
+
+    `keywords` defaults to the CS set (the pre-seam behaviour, byte-identical).
+    """
+    kw = _CSHARP_KW if keywords is None else keywords
     out: set[str] = set()
     for text in texts:
         for m in _SPEC_IDENT_RE.finditer(text or ""):
             tok = m.group(0)
-            if tok.lower() in _CSHARP_KW or len(tok) < 3:
+            if tok.lower() in kw or len(tok) < 3:
                 continue
             has_internal_cap = any(c.isupper() for c in tok[1:])
             starts_cap = tok[0].isupper()
@@ -213,7 +211,8 @@ def _signature_from_children(sub_question: dict) -> str:
     return " ".join(p for p in parts if p).strip()
 
 
-def spec_from_rubric_draft_data(data: dict, *, name: str) -> ExamSpec:
+def spec_from_rubric_draft_data(data: dict, *, name: str,
+                                keywords: frozenset[str] | None = None) -> ExamSpec:
     """Best-effort ExamSpec from a rubric draft_json dict (ExtractRubricResponse-ish).
 
     Looks for a top-level 'questions' list; per question, a number-like field
@@ -261,5 +260,6 @@ def spec_from_rubric_draft_data(data: dict, *, name: str) -> ExamSpec:
         identifiers=_extract_identifiers(
             *(q.context for q in questions),
             *(sq.signature for q in questions for sq in q.sub_questions),
+            keywords=keywords,
         ),
     )

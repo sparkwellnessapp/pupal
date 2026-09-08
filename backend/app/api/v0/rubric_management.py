@@ -57,6 +57,7 @@ from ...services.rubric_management_service import (
 )
 from ...services.rubric_errors import (
     RubricSaveError,
+    RubricSubjectConflictError,
     RubricValidationError,
     RubricCompilationError,
     RubricWarningsError,
@@ -242,6 +243,14 @@ async def update_draft_endpoint(
             warnings=e.errors,
             message_he=e.message_he,
         )
+    except RubricSubjectConflictError as e:
+        # The subject of a saved rubric is immutable (migration 027) — 409, never overwrite.
+        logger.warning(f"Subject conflict on update: {e.existing!r} vs {e.incoming!r}")
+        raise HTTPException(status_code=409, detail={
+            "error_type": e.error_type,
+            "message_he": e.message_he,
+            "errors": e.errors,
+        })
     except RubricValidationError as e:
         logger.warning(f"Validation failed: {e}")
         raise HTTPException(status_code=400, detail={

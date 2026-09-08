@@ -69,7 +69,8 @@ def _validate_plan_against(plan, gradable_test, precision) -> None:
 
 
 def build_grader(rubric_id: Optional[str], numeric_policy, gradable_test=None, *,
-                 plan=None, plan_wording_source: Optional[str] = None):
+                 plan=None, plan_wording_source: Optional[str] = None,
+                 subject: str = "computer_science"):
     """Construct the grader this rubric gets. The ONLY place production decides.
 
     `plan` is the resolved GradingPlan (the runner gets it from the store);
@@ -100,8 +101,10 @@ def build_grader(rubric_id: Optional[str], numeric_policy, gradable_test=None, *
         _validate_plan_against(plan, gradable_test, numeric_policy.precision)
 
     llm = build_chat_model(settings.grader_model_provider, settings.grader_model_key)
-    logger.info("grader_v5_selected rubric_id=%s model=%s plan_version=%s wording=%s",
-                rubric_id, settings.grader_model_key, plan.plan_version, plan_wording_source)
+    logger.info("grader_v5_selected rubric_id=%s model=%s plan_version=%s wording=%s subject=%s",
+                rubric_id, settings.grader_model_key, plan.plan_version, plan_wording_source,
+                subject)
     return PlanVerifyGrader(plan, numeric_policy, llm=llm,
                             model_version=settings.grader_model_key,
-                            plan_wording_source=plan_wording_source)
+                            plan_wording_source=plan_wording_source,
+                            subject=subject)

@@ -122,6 +122,7 @@ async def run_extraction_job(job_id: UUID) -> bool:
                 logger.warning("run_extraction_row_vanished", extra={"job_id": str(job_id)})
                 return False
             source_gcs_uri = job.source_gcs_uri
+            source_filename = job.source_filename   # selects the render stage (DOCX vs PDF)
             params: Dict[str, Any] = dict(job.request_params or {})
 
         # Download source bytes (GCS client is sync — keep the loop free).
@@ -133,9 +134,15 @@ async def run_extraction_job(job_id: UUID) -> bool:
         object_path = source_gcs_uri.removeprefix(f"gs://{gcs.bucket_name}/")
         file_bytes: bytes = await asyncio.to_thread(gcs.download_bytes, object_path)
 
-        # Config exactly as the sync endpoint builds it today.
+        # Config exactly as the sync endpoint builds it today. The subject is
+        # REQUIRED at submit (422 otherwise); a queued row from before the seam
+        # carries none and is a CS rubric by the same rule as migration 027.
+        subject_key = params.get("subject")
+        if not subject_key:
+            logger.info("extraction_subject_defaulted job_id=%s subject=computer_science (pre-seam row)", job_id)
+            subject_key = "computer_science"
         config = ExtractionConfig(
-            subject=params.get("subject") or "computer_science",
+            subject=subject_key,
             locale=params.get("locale") or "he-IL",
         )
         llm_config = _effective_llm_config()
@@ -152,9 +159,11 @@ async def run_extraction_job(job_id: UUID) -> bool:
                    "deadline_s": round(deadline_seconds, 1)},
         )
 
+        # ALPHA-GAP A-5 (C4): no rubric-shape telemetry after the render stage yet; alpha adds `rubric_shape.classify` here.
         result = await extract_rubric_from_docx(
             file_bytes=file_bytes,
             extraction_config=config,
+            source_filename=source_filename,
             name=params.get("name"),
             description=params.get("description"),
             test_topic=params.get("test_topic") or None,
@@ -179,7 +188,8 @@ async def run_extraction_job(job_id: UUID) -> bool:
                     warnings=list(result.warnings),
                     errors=list(result.errors),
                     requires_review=result.requires_review,
-                    prompt_version=EXTRACTION_PROMPT_VERSION,
+                    # D-16: `3.10.0-fixsource` for CS; `…+<subject>` otherwise (the pipeline stamps it).
+                    prompt_version=result.metadata.get("prompt_version") or EXTRACTION_PROMPT_VERSION,
                     pipeline_version=result.metadata.get("pipeline_version"),
                     llm_model=m.llm_model,
                     input_tokens=m.input_tokens,

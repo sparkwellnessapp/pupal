@@ -131,6 +131,7 @@ async def run_transcription_job(job_id: UUID) -> bool:
             if rubric is None:
                 raise ValueError(f"Rubric {rubric_id} not found")
             spec_source = rubric.draft_json or rubric.contract_json
+            subject = rubric.subject  # the durable key (migration 027); selects the P1 profile
 
         # Source bytes were persisted at intake — download, don't re-upload.
         from .gcs_service import get_gcs_service
@@ -146,6 +147,7 @@ async def run_transcription_job(job_id: UUID) -> bool:
                 draft = await run_pipeline_and_build_draft(
                     pdf_bytes=pdf_bytes, filename=filename,
                     spec_source=spec_source, doc_priority=doc_priority,
+                    subject=subject,
                 )
                 break
             except VLMCallError as exc:

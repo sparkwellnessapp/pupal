@@ -472,3 +472,24 @@ def test_17_compiler_never_raises_on_empty_transcription():
     assert len(gt.scopes) == 1
     assert all(s.alignment == "answer_missing" for s in gt.scopes)
     assert gt.unmatched_transcription_answers == []
+
+
+# ---------------------------------------------------------------------------
+# Multisubject seam (2026-09-08) — the contract's subject KEY reaches the
+# grader's typed input, and nothing else about the subject does.
+# ---------------------------------------------------------------------------
+
+def test_subject_key_flows_from_contract_to_gradable_test():
+    q = _question("q1", 10, criteria=[_criterion("q1.c0", "10")])
+    contract = _contract([q], subject="english")
+    gt = gradable_compiler.compile(contract, _transcription([(1, None, "an essay")]))
+    assert gt.subject == "english"
+    assert "modalities" not in type(gt).model_fields   # C2 "where it leaks"
+
+
+def test_subject_key_defaults_to_the_baseline_when_absent_from_a_contract_dict():
+    """A pre-seam GradableTest built without `subject` is a CS test (byte-identical path)."""
+    from app.schemas.gradable import GradableTest
+    gt = GradableTest(rubric_contract_version="rc", transcription_contract_version="tc",
+                      scopes=[], unmatched_transcription_answers=[], total_points=Decimal("0"))
+    assert gt.subject == "computer_science"

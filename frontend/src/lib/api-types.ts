@@ -840,6 +840,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/grading/graded_test/{graded_test_id}/stamp_position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Save Stamp Position
+         * @description Move the stamp on an already-signed exam. [OD-1, owner-ruled 2026-09-04]
+         *
+         *     WHY THIS ENDPOINT EXISTS AT ALL. §4.3 P3 lets the teacher drag the stamp on
+         *     the returned-exam preview, and that preview renders APPROVED tests only
+         *     (`get_returned_exam` 409s on anything else). But the only endpoint that
+         *     wrote `stamp_position` was `PATCH …/draft`, which 409s on anything that is
+         *     NOT a draft. The two guards are disjoint, so the drag she performs had
+         *     literally nowhere to go.
+         *
+         *     WHY IT DOES NOT VIOLATE LCY-2, and why that is not a stretch:
+         *       * What LCY-2 freezes is the GRADING DECISION, and that lives in
+         *         `contract_json`, which contains no stamp. Moving it changes no points,
+         *         no verdicts, and no contract.
+         *       * The codebase ALREADY writes `draft_json` on approved rows for exactly
+         *         this purpose: `rename_batch`'s «apply to all» selects the batch's graded
+         *         tests with no status filter and rewrites their stamp. So this does not
+         *         add an exception — it gives the per-test case the write path the batch
+         *         case has had all along.
+         *
+         *     WHY NOT JUST RELAX `PATCH …/draft` — the tempting answer, named so it is not
+         *     chosen later: that endpoint also writes `terminals` and `feedback`, i.e. the
+         *     grading decision. Relaxing it would let a legitimate stamp move carry an
+         *     illegitimate re-grade on the same request. A separate endpoint is what keeps
+         *     the narrow exception narrow.
+         *
+         *     IT MUST NOT EXTEND THE CHAIN. Routing this through `manual_edit` would mint
+         *     a new version and un-sign the exam for a cosmetic change — the teacher would
+         *     have to re-approve because she moved a stamp.
+         *
+         *     THE SERVER SETS `source="manual"`. `source` decides whether «apply to all»
+         *     may clear the position, so a client that sent "auto" could make the
+         *     teacher's own placement erasable by a later batch-default change. Nothing
+         *     persists "auto" anyway — the corner picker runs at render time
+         *     (`auto_stamp_position`) and its result never reaches the overlay — so a
+         *     position that arrives here is, by construction, one she placed.
+         */
+        patch: operations["save_stamp_position_api_v0_grading_graded_test__graded_test_id__stamp_position_patch"];
+        trace?: never;
+    };
     "/api/v0/grading/graded_tests": {
         parameters: {
             query?: never;
@@ -1926,6 +1980,8 @@ export interface components {
         BatchCreateRequest: {
             /** Class Id */
             class_id?: string | null;
+            /** Expected Test Count */
+            expected_test_count?: number | null;
             /** Name */
             name?: string | null;
             /**
@@ -1938,6 +1994,8 @@ export interface components {
         BatchCreateResponse: {
             /** Batch Id */
             batch_id: string;
+            /** Expected Test Count */
+            expected_test_count?: number | null;
             /** Test Count */
             test_count: number;
         };
@@ -2126,6 +2184,8 @@ export interface components {
         BatchRenameRequest: {
             /** Appendix Include Criteria */
             appendix_include_criteria?: boolean | null;
+            /** Expected Test Count */
+            expected_test_count?: number | null;
             /** Name */
             name?: string | null;
             stamp_position_default?: components["schemas"]["StampPosition"] | null;
@@ -2139,6 +2199,8 @@ export interface components {
             appendix_include_criteria: boolean;
             /** Batch Id */
             batch_id: string;
+            /** Expected Test Count */
+            expected_test_count?: number | null;
             /**
              * Invalidated Count
              * @default 0
@@ -2173,6 +2235,11 @@ export interface components {
             grading: number;
             /** Needs Eyes */
             needs_eyes?: number | null;
+            /**
+             * Not Received
+             * @default 0
+             */
+            not_received: number;
             /** Total */
             total: number;
             /** Transcribed */
@@ -2184,6 +2251,11 @@ export interface components {
              * @default 0
              */
             transcription_failed: number;
+            /**
+             * Uploading
+             * @default 0
+             */
+            uploading: number;
         };
         /**
          * BatchTranscriptionItem
@@ -2306,7 +2378,7 @@ export interface components {
             question_purposes?: string | null;
             /**
              * Subject
-             * @default computer_science
+             * @description Subject key: computer_science | english | mathematics
              */
             subject: string;
             /** Test Topic */
@@ -2364,7 +2436,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "required" | "tariff" | "note_only";
+            kind: "required" | "tariff" | "note_only" | "counted";
             /** Partial Fraction */
             partial_fraction?: string | null;
             /** Points */
@@ -2377,6 +2449,10 @@ export interface components {
             tariff?: string | null;
             /** Text */
             text: string;
+            /** Unit Count */
+            unit_count?: number | null;
+            /** Units Correct */
+            units_correct?: number | null;
             /**
              * Verdict
              * @enum {string}
@@ -3163,6 +3239,8 @@ export interface components {
             model_version: string;
             /** Plan Version */
             plan_version?: string | null;
+            /** Plan Wording Source */
+            plan_wording_source?: ("segmented" | "placeholder") | null;
             /** Prompt Version */
             prompt_version: string;
             /** Rubric Contract Version */
@@ -3333,7 +3411,7 @@ export interface components {
              * Annotation Type
              * @enum {string}
              */
-            annotation_type: "closed_world_violation" | "ungraded_criterion" | "bounds_clamped" | "quote_not_found" | "fuzzy_match" | "no_answer" | "llm_failure" | "unverified_check" | "evidence_unverified" | "tariff_coerced" | "charge_group_dedup" | "note_only" | "cascade_routed" | "feedback_unavailable";
+            annotation_type: "closed_world_violation" | "ungraded_criterion" | "bounds_clamped" | "quote_not_found" | "fuzzy_match" | "no_answer" | "llm_failure" | "unverified_check" | "evidence_unverified" | "tariff_coerced" | "charge_group_dedup" | "note_only" | "cascade_routed" | "feedback_unavailable" | "count_missing";
             /** Id */
             id?: string;
             /** Message */
@@ -4165,6 +4243,15 @@ export interface components {
             warnings?: components["schemas"]["AnnotationSchema"][];
         };
         /**
+         * SaveStampPositionRequest
+         * @description [OD-1] `null` clears the position, so the test falls back to the batch
+         *     default (or the auto corner). `source` on the way in is IGNORED — the server
+         *     sets "manual"; see the endpoint's docstring.
+         */
+        SaveStampPositionRequest: {
+            stamp_position?: components["schemas"]["StampPosition"] | null;
+        };
+        /**
          * SchoolInput
          * @description One school as the teacher picked it.
          *
@@ -4433,6 +4520,23 @@ export interface components {
             x?: number | null;
             /** Y */
             y?: number | null;
+        };
+        /** StampPositionResponse */
+        StampPositionResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Returned Exam State
+             * @default stale
+             * @enum {string}
+             */
+            returned_exam_state: "none" | "rendering" | "ready" | "stale";
+            stamp_position?: components["schemas"]["StampPosition"] | null;
+            /** Status */
+            status: string;
         };
         /** StudentDetailResponse */
         StudentDetailResponse: {
@@ -4715,6 +4819,8 @@ export interface components {
             model_version?: string | null;
             /** Page Count */
             page_count: number;
+            /** Prompt Version */
+            prompt_version?: string | null;
             /**
              * Schema Version
              * @default 1.0
@@ -6405,6 +6511,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_stamp_position_api_v0_grading_graded_test__graded_test_id__stamp_position_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                graded_test_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveStampPositionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StampPositionResponse"];
                 };
             };
             /** @description Validation Error */

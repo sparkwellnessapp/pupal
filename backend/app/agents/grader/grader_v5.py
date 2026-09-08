@@ -56,6 +56,7 @@ from app.agents.grader.verifier_prompt import (
     VERIFIER_PROMPT_VERSION,
     VERIFIER_SYSTEM_PROMPT,
     build_verifier_message,
+    verifier_system_prompt,
     scope_terminal_plans,
 )
 from app.config import settings
@@ -113,9 +114,15 @@ class PlanVerifyGrader:
                  llm=None,
                  model_version: Optional[str] = None,
                  sc_n: int = 1,
-                 plan_wording_source: Optional[str] = None) -> None:
+                 plan_wording_source: Optional[str] = None,
+                 subject: str = "computer_science") -> None:
         if sc_n < 1 or sc_n % 2 == 0:
             raise ValueError(f"sc_n must be an odd positive integer, got {sc_n}")
+        # Subject seam (2026-09-08): the profile selects the verifier SYSTEM prompt
+        # (CS = grader-v5.4 byte-for-byte) and the D-16 stamp. Unknown key → raises
+        # here, at construction, never mid-grade.
+        from app.subjects import get_profile
+        self._profile = get_profile(subject)
         self._plan = plan
         self._plan_terminals: Dict[str, TerminalPlan] = {
             t.terminal_id: t for t in plan.terminals}
@@ -136,7 +143,7 @@ class PlanVerifyGrader:
     async def _invoke_once(self, user_msg: str
                            ) -> Tuple[ScopeVerificationResponse, int, int, Optional[int]]:
         result: Dict[str, Any] = await bounded_invoke(self._structured_llm, [
-            SystemMessage(content=VERIFIER_SYSTEM_PROMPT),
+            SystemMessage(content=verifier_system_prompt(self._profile)),
             HumanMessage(content=user_msg),
         ])
         if result.get("parsing_error"):
@@ -154,7 +161,8 @@ class PlanVerifyGrader:
                                        int, int, Optional[int]]:
         """sc_n independent calls → median-consensus verdict per check.
         Returns (verdict per check_id, closed-world annotations, tokens...)."""
-        user_msg = build_verifier_message(scope, terminal_plans)
+        # ALPHA-GAP A-4 (D-2): text-only message; alpha attaches the page image for a scope whose answer carries a figure line.
+        user_msg = build_verifier_message(scope, terminal_plans, self._profile)
         known_ids = {c.check_id for tp in terminal_plans for c in tp.checks}
 
         per_call: List[Dict[str, CheckVerdict]] = []
@@ -363,11 +371,13 @@ class PlanVerifyGrader:
 
         cached_vals = [so.cached_input_tokens for so in scope_outcomes
                        if so.cached_input_tokens is not None]
+        from app.subjects import prompt_version as _subject_prompt_version
         return GradedTestDraft(
             rubric_contract_version=gradable_test.rubric_contract_version,
             transcription_contract_version=gradable_test.transcription_contract_version,
             model_version=self._model_version,
-            prompt_version=VERIFIER_PROMPT_VERSION,
+            # D-16: `grader-v5.4` for CS (unchanged); `grader-v5.4+<subject>` otherwise.
+            prompt_version=_subject_prompt_version(VERIFIER_PROMPT_VERSION, self._profile),
             plan_version=self._plan.plan_version,
             plan_wording_source=self._plan_wording_source,
             served_models=sorted(self._served_models) or None,

@@ -56,6 +56,10 @@ class TranscriptionDraft(BaseModel):
     answers: List[TranscriptionDraftAnswer]
     annotations: List[TranscriptionAnnotation] = Field(default_factory=list)
     model_version: Optional[str] = None
+    # D-16 stamp (2026-09-08): the P1/P2 prompt version this draft was produced
+    # under — `t1.4-tables` for CS, `t1.4-tables+<subject>` otherwise. Additive:
+    # every stored draft parses unchanged (None = pre-seam).
+    prompt_version: Optional[str] = None
     transcription_duration_ms: Optional[int] = None
 
 
@@ -117,6 +121,7 @@ class TranscriptionReview(BaseModel):
 
 class TranscriptionContractAnswer(BaseModel):
     model_config = {"frozen": True}
+    # ALPHA-GAP A-4 (D-2): `page_numbers` is dropped from the contract; alpha carries it so a figure scope can reach its page.
     question_number: int
     sub_question_id: Optional[str] = None
     answer_text: str

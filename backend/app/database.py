@@ -149,7 +149,7 @@ async def get_db_context():
 EXPECTED_MIGRATIONS = (
     "001", "002", "003", "004", "005", "006", "007",
     "008", "009", "010", "011", "012", "013", "014", "015", "016", "017",
-    "018", "019", "020", "021", "026",
+    "018", "019", "020", "021", "022", "023", "024", "025", "026", "027",
 )
 
 # Attribute-level invariants the version ledger CANNOT see (the 010 lesson,
@@ -188,6 +188,26 @@ EXPECTED_PARTIAL_INDEXES: dict = {
     ),
     "idx_extraction_jobs_one_active_per_source": (
         "where", "012",
+    ),
+    # 023 line 30: institution identity is unique only AMONG the rows that have
+    # a symbol — a free-text school has none and many such rows coexist. Without
+    # the predicate this index would forbid the second symbol-less school.
+    "idx_schools_ministry_symbol": (
+        "where (ministry_symbol is not null)", "023",
+    ),
+    # 023's OTHER half, and the one whose predicate is easy to lose: the name
+    # rule now governs ONLY the symbol-less rows. Recreated without the WHERE it
+    # would again forbid two same-named institutions — the exact case 023 was
+    # written to allow — while still being "present" by name.
+    "idx_schools_normalized_name_symbolless": (
+        "where (ministry_symbol is null)", "023",
+    ),
+    # 024: exactly one LIVE verification code per user. Without the predicate
+    # this index would forbid a second code for a user who already verified
+    # once — i.e. it would break every re-verification — while still being
+    # "present" by name. The predicate IS the rule.
+    "idx_email_codes_one_active_per_user": (
+        "where (consumed_at is null)", "024",
     ),
     # 026 line 60: exactly one LIVE plan (queued/building/ready) per contract
     # hash. failed and superseded rows are history and coexist; without the

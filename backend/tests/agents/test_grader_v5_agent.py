@@ -343,3 +343,45 @@ def test_sonnet_prompt_pin_is_v53_and_v6_is_an_artifact_not_a_pin():
     assert "KILLED on both k=3 arms" in body
     assert "Omit entirely for met" in body          # the text is preserved
     assert "torn-rule is recorded UNTESTED" in body  # and so is the ruling
+
+
+# ---------------------------------------------------------------------------
+# Multisubject seam (2026-09-08, D-16): the subject selects the verifier SYSTEM
+# prompt and the stamp. CS is byte-identical (pinned elsewhere); a non-CS
+# subject carries `+<key>` on the draft and never sees the code-trace rules.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_non_cs_subject_stamps_the_suffix_and_swaps_the_system_prompt():
+    resp = ScopeVerificationResponse(verdicts=[
+        _verdict("c1.k1", "met"),
+        _verdict("c1.k2", "not_met", quote="", basis="חיפשתי — אין")])
+    llm = FakeLLM([resp])
+    agent = PlanVerifyGrader(_basic_plan(), NumericPolicy(), llm=llm,
+                             model_version="fake-model", subject="english")
+    draft = await agent.grade(_gradable([_scope()]))
+
+    assert draft.prompt_version == "grader-v5.4+english"
+    system_text = llm.calls[0][0].content
+    assert "SURFACE FORM IS NEVER A DEFECT" not in system_text      # the CS rule 5
+    assert "VERIFY WHAT THE WRITTEN CODE DOES" not in system_text   # the CS rule 3
+    assert "3. VERIFY WHAT THE STUDENT WROTE" in system_text
+    assert "6. VERDICT MEANINGS" in system_text                     # rules 6-8 kept
+
+
+@pytest.mark.asyncio
+async def test_cs_subject_is_the_default_and_keeps_the_pinned_stamp():
+    resp = ScopeVerificationResponse(verdicts=[
+        _verdict("c1.k1", "met"),
+        _verdict("c1.k2", "not_met", quote="", basis="חיפשתי — אין")])
+    llm = FakeLLM([resp])
+    draft = await PlanVerifyGrader(_basic_plan(), NumericPolicy(), llm=llm,
+                                   model_version="fake-model").grade(_gradable([_scope()]))
+    assert draft.prompt_version == VERIFIER_PROMPT_VERSION == "grader-v5.4"
+    assert "SURFACE FORM IS NEVER A DEFECT" in llm.calls[0][0].content
+
+
+def test_unknown_subject_refuses_at_construction():
+    with pytest.raises(ValueError):
+        PlanVerifyGrader(_basic_plan(), NumericPolicy(), llm=FakeLLM([]),
+                         model_version="fake-model", subject="physics")

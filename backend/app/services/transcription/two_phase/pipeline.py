@@ -22,6 +22,7 @@ map). The pipeline never knows about prices/tiers beyond the returned card.
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import base64
 import io
 import logging
@@ -44,11 +45,15 @@ from .prompts import (
     P2_SPAN_SYSTEM,
     TRANSCRIPTION_PROMPT_VERSION,
     P1_SYSTEM,
+    p1_system,
     p1_user_prompt,
+    p2_span_system,
     p2_span_user_prompt,
     p2_system_prompt,
     p2_user_prompt,
 )
+from app.subjects import get_profile as _get_subject_profile
+from app.subjects import prompt_version as _stamp_prompt_version
 
 log = logging.getLogger("transcription.two_phase")
 
@@ -158,6 +163,10 @@ class PipelineConfig:
     temperature: float = 0.0
     use_json_schema: bool = True          # the L3 experiment is this single flip
     timeout_s: float = 90.0
+    # Subject seam (2026-09-08): the SUBJECT PROFILE key. Selects the P1 fragment
+    # (modality only — P1 stays spec-blind) and the D-16 prompt stamp. The default
+    # is the baseline, so every existing config/fixture is byte-identical.
+    subject_key: str = "computer_science"
 
 
 @dataclass(frozen=True)
@@ -215,6 +224,66 @@ def _to_b64_image(img: Image.Image, fmt: str = "png", jpeg_quality: int = 90) ->
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+#: [Stage C1] A DEDICATED pool for page encoding — never the default executor.
+#:
+#: `run_in_executor(None, …)` uses the process-wide default pool, which is
+#: `min(32, os.cpu_count() + 4)` — **5 threads at cpu=1000m**. `asyncio.to_thread`
+#: resolves to that same pool, and this codebase pushes genuinely long blocking
+#: work through it: `docx_v3/pipeline.py` runs a `.invoke` bounded at
+#: EXTRACTION_LLM_TIMEOUT_S (default 360s, twice), and `rubric_service` several
+#: more. An instance serving containerConcurrency=4 can therefore have every
+#: default-pool thread parked in a multi-minute LLM call while a transcription's
+#: page encodes sit in an unbounded, untimed FIFO behind them — a latency
+#: regression in exactly the dimension C1 exists to improve, and one that would
+#: read as slow model calls in the stage timings rather than as queueing.
+#:
+#: TWO, not more, and the smaller number is the deliberate one:
+#:   * `Pipeline._encode_lock` already bounds each DOCUMENT to one encode at a
+#:     time, so this only bounds how many documents encode at once.
+#:   * Encoding is not the bottleneck — a 3-page chunk encodes in ~1s against
+#:     model calls of 20–60s — so more threads buy nothing measurable.
+#:   * Memory is the binding constraint on this box. `--concurrency` was cut
+#:     5→4 on 2026-08-23 from a measurement (≈260 MB/doc + ≈480 MB fixed,
+#:     C=4 = 74% of 2Gi) taken when the event loop serialized every encode in
+#:     the PROCESS. Concurrent encodes are new transient (~25 MB of resized
+#:     pages plus a buffer and its 1.33× base64, per thread), so the headroom
+#:     that fixed C=4 is stale. Two threads keeps that addition small; raising
+#:     it is a decision for the C2 memory re-measure, not a default.
+_ENCODE_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="page-encode")
+
+
+def _encode_pages_sync(
+    images: list[Image.Image], max_px: int, fmt: str, jpeg_quality: int,
+    stitch: bool = False,
+) -> list[str]:
+    # NOTE: `stitch` is deliberately POSITIONAL, not keyword-only.
+    # `loop.run_in_executor` can only forward positional arguments, and a
+    # keyword-only parameter here raises TypeError on every single call — at
+    # runtime, inside the executor, on a path no unit test of the pure encoder
+    # would ever exercise. Do not "tidy" it behind a `*`.
+    """Resize + encode + base64 a chunk of pages. PURE and SYNCHRONOUS.
+
+    [Stage C1, UPLOAD_LATENCY_PLAN.md] Extracted so the callers can hand it to a
+    thread. It is byte-for-byte what the inline code did — same functions, same
+    order, same arguments — because the whole point is that NOTHING the model
+    receives changes (ruling R1). Pinned by a byte-identity test.
+
+    WHY IT MATTERS: this is real CPU on the request thread. PNG measured 1269ms
+    for a 6-page document, and since the strike-check pass every page is encoded
+    TWICE. Cloud Run runs this service at cpu=1000m with containerConcurrency=4,
+    so four concurrent transcription requests were spending that time on the
+    event loop — starving the interactive uploads sharing the same instance
+    (measured: appends 0.43s -> 5.3, 5.9, 15.6s when they overlapped a
+    transcription on the same instanceId). Pillow releases the GIL inside its
+    resize and encode loops, so moving this to a thread is real relief even on
+    one core.
+    """
+    resized = [_resize(img, max_px) for img in images]
+    if stitch and len(resized) > 1:
+        return [_to_b64_image(_stitch(resized), fmt, jpeg_quality)]
+    return [_to_b64_image(img, fmt, jpeg_quality) for img in resized]
+
+
 def _stitch(images: list[Image.Image], gap_px: int = 24) -> Image.Image:
     width = max(i.width for i in images)
     height = sum(i.height for i in images) + gap_px * (len(images) - 1)
@@ -257,6 +326,26 @@ class Pipeline:
         self._sched = scheduler
         self._resolve = resolve_model
         self._render = pdf_renderer
+        # [Stage C1] Serializes this DOCUMENT's page encodes.
+        #
+        # Moving the encode into a thread also made it AWAIT, and the chunks run
+        # under one `asyncio.gather` — so without this the chunk whose encode
+        # finished first dispatched first, and a 5-page/3-per-call document
+        # reliably issued its 2-page call BEFORE its 3-page one (measured: 8/8
+        # trials reversed). Nothing about the model's input changes, and the
+        # merge is by page number, so the transcription is identical either
+        # way — but the plan's bar is "same behaviour, different thread", and a
+        # dispatch order that flips is not that.
+        #
+        # It costs nothing: before C1 the encodes were ALREADY serial, because
+        # they ran inline on the event loop with no await between them. The lock
+        # reproduces exactly that sequence while leaving the loop free to serve
+        # other documents' requests — which is the entire point of C1.
+        #
+        # Per-INSTANCE, and a Pipeline is built per document
+        # (`two_phase_engine._build_pipeline_multi`), so this never serializes
+        # one teacher's batch against another's.
+        self._encode_lock = asyncio.Lock()
 
     # -- internals --
 
@@ -340,12 +429,16 @@ class Pipeline:
         log.info("[%s] %s chunk pages=%s: encoding %d image(s)",
                  trace.doc_id, phase, page_numbers, len(images))
         with timer.span("image_encode"):
-            resized = [_resize(img, max_px) for img in images]
-            enc = lambda im: _to_b64_image(im, cfg.image_format, cfg.image_jpeg_quality)
-            if cfg.p1_image_packing == "stitched" and len(resized) > 1:
-                images_b64 = [enc(_stitch(resized))]
-            else:
-                images_b64 = [enc(img) for img in resized]
+            # [Stage C1] In the executor, not on the event loop. Same function,
+            # same arguments, same bytes — a different thread. The lock keeps
+            # this document's chunks encoding in the order they always did (see
+            # `_encode_lock`).
+            async with self._encode_lock:
+                images_b64 = await asyncio.get_running_loop().run_in_executor(
+                    _ENCODE_POOL, _encode_pages_sync, images, max_px,
+                    cfg.image_format, cfg.image_jpeg_quality,
+                    cfg.p1_image_packing == "stitched",
+                )
 
         user = p1_user_prompt(page_numbers, cfg.p1_image_packing)
         schema = P1_SCHEMA if (cfg.use_json_schema and ms.supports_json_schema) else None
@@ -358,9 +451,14 @@ class Pipeline:
                  trace.doc_id, phase, page_numbers, len(images_b64),
                  ms.model_id, max_tokens, cfg.timeout_s)
 
+        # P1 per subject profile: CS is `P1_SYSTEM` byte-for-byte; a prose/math
+        # profile swaps only the ink-rules block (prompts.p1_system). Spec-blind
+        # either way — the profile carries modality, never rubric content.
+        p1_system_text = p1_system(_get_subject_profile(cfg.subject_key))
+
         def make_call():
             return provider.complete(
-                system=P1_SYSTEM, user=user, images_b64=images_b64,
+                system=p1_system_text, user=user, images_b64=images_b64,
                 max_tokens=max_tokens, temperature=cfg.temperature,
                 json_schema=schema, timeout_s=cfg.timeout_s,
             )
@@ -526,8 +624,15 @@ class Pipeline:
                 with timer.span("strike_encode"):
                     max_px = (cfg.p1_strike_check_image_max_px
                               or cfg.image_max_px)
-                    b64 = _to_b64_image(_resize(images[n - 1], max_px),
-                                        cfg.image_format, cfg.image_jpeg_quality)
+                    # [Stage C1] The SECOND encode of every page — the one that
+                    # doubled this pipeline's CPU on the request thread. Same
+                    # lock, same reason: one page per call here, so the order
+                    # this preserves is the page order.
+                    async with self._encode_lock:
+                        b64 = (await asyncio.get_running_loop().run_in_executor(
+                            _ENCODE_POOL, _encode_pages_sync, [images[n - 1]], max_px,
+                            cfg.image_format, cfg.image_jpeg_quality, False,
+                        ))[0]
                 user = strike_check_user_prompt(n, text)
                 vote_ranges = await asyncio.gather(
                     *(one_vote(n, b64, user, v) for v in range(1, votes + 1)))
@@ -615,9 +720,12 @@ class Pipeline:
                 spec_mismatches=tuple(mismatches), routing_notes=notes,
                 trace=trace, corrected_answers=corrected_answers,
                 corrections=tuple(corrections),
+                prompt_version=_stamp_prompt_version(
+                    TRANSCRIPTION_PROMPT_VERSION, _get_subject_profile(cfg.subject_key)),
             )
 
-        system = p2_system_prompt()
+        # ALPHA-GAP A-8: P2 text is the CS base for every profile; alpha words segmentation per modality.
+        system = p2_system_prompt(_get_subject_profile(cfg.subject_key))
         user = p2_user_prompt(pages, exam_spec.to_prompt_json())
         schema = P2_SCHEMA if (cfg.use_json_schema and ms.supports_json_schema) else None
 
@@ -658,6 +766,8 @@ class Pipeline:
             pages=pages, answers=answers,
             spec_mismatches=tuple(mismatches), routing_notes=notes, trace=trace,
             corrected_answers=corrected_answers, corrections=tuple(corrections),
+            prompt_version=_stamp_prompt_version(
+                TRANSCRIPTION_PROMPT_VERSION, _get_subject_profile(cfg.subject_key)),
         )
 
     async def _phase2_spans(
@@ -684,7 +794,8 @@ class Pipeline:
         cfg = self.cfg
         targets = spec_targets(exam_spec)
         numbered = numbered_pages_block(pages)
-        system = P2_SPAN_SYSTEM
+        # ALPHA-GAP A-8: span-mode P2 text is the CS base for every profile this cycle.
+        system = p2_span_system(_get_subject_profile(cfg.subject_key))
         user = p2_span_user_prompt(numbered, exam_spec.to_prompt_json())
         schema = (build_span_schema(targets)
                   if (cfg.use_json_schema and ms.supports_json_schema) else None)

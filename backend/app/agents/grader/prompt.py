@@ -45,6 +45,7 @@ def prior_context_enabled() -> bool:
 def effective_prompt_version() -> str:
     return GRADING_PROMPT_VERSION + ("+priorctx" if prior_context_enabled() else "")
 
+# ALPHA-GAP A-8: the v3 (rollback) grader prompt is CS-only and takes no subject profile; alpha assembles it per profile like the verifier.
 SYSTEM_PROMPT = """\
 You are grading a student's handwritten test answer. Your job is to evaluate
 each criterion terminal independently and report a structured grade for each.

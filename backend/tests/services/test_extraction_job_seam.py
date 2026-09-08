@@ -51,11 +51,19 @@ def _call_meta() -> Dict[str, Any]:
 
 
 def _patches():
-    """Patch the three side-effecting collaborators of the pipeline."""
+    """Patch the three side-effecting collaborators of the pipeline.
+
+    The render is patched at its stats-returning twin (multisubject Phase 2a):
+    the pipeline's render step now goes through `image_render.render_source`,
+    which reads the DOCX render + its stats from `render_docx_to_markdown_with_stats`
+    (the historical `render_docx_to_markdown` is a thin wrapper over it).
+    """
+    from app.services.docx_v3.parser_render import RenderStats
+
     return (
         patch(
-            "app.services.docx_v3.parser_render.render_docx_to_markdown",
-            return_value="RENDERED DOC",
+            "app.services.docx_v3.parser_render.render_docx_to_markdown_with_stats",
+            return_value=("RENDERED DOC", RenderStats()),
         ),
         patch(
             "app.services.docx_v3.pipeline._call_llm",

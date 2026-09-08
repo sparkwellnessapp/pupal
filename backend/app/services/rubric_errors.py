@@ -34,6 +34,23 @@ class RubricCompilationError(RubricSaveError):
         super().__init__("compilation_failed", errors, message_he)
 
 
+class RubricSubjectConflictError(RubricSaveError):
+    """Raised when an update's draft names a different subject than the rubric row.
+
+    A rubric's subject is IMMUTABLE once saved (migration 027 — every downstream
+    row reaches it through the rubric FK). The API maps this to 409.
+    """
+
+    def __init__(self, existing: str, incoming: str):
+        super().__init__(
+            "subject_conflict",
+            [{"location": "subject", "message": f"rubric subject is {existing!r}; draft says {incoming!r}"}],
+            "לא ניתן לשנות את תחום הדעת של מחוון שנשמר",
+        )
+        self.existing = existing
+        self.incoming = incoming
+
+
 class RubricWarningsError(RubricSaveError):
     """Raised when compilation has warnings that need acknowledgment.
     

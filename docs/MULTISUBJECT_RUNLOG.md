@@ -13,14 +13,14 @@ grade-review module; no product code changed between them).
 
 | gate | command | result | artefact |
 |---|---|---|---|
-| backend pytest (main) | `pytest --ignore=tests/transcription_eval_suit -q` | pending | scratch `phase0/backend_gates.log` |
-| backend pytest (transcription suite) | `pytest tests/transcription_eval_suit -q` | pending | same |
-| A0 compiler guard | `pytest tests/grading_eval_suite/test_compiled_plan_guard.py -q` | pending | same |
-| CS prompt pins | `pytest tests/subjects/test_prompt_identity.py -q` | 6 passed (pinned at this commit) | `tests/subjects/test_prompt_identity.py` |
-| vitest | `npm test` | pending | scratch `phase0/frontend_gates.log` |
-| tsc | `npx tsc --noEmit` | pending | same |
-| copy gate | `npm run check:copy` | pending | same |
-| Playwright | `npm run test:e2e` | pending | same |
+| backend pytest (main) | `pytest --ignore=tests/transcription_eval_suit -q` | **1475 passed, 2 skipped, 9 failed** in 39:54. The 9: (a) 8 × `tests/rubric_eval_suite/test_pedagogical.py` — `UnicodeDecodeError: 'charmap'` reading UTF-8 fixtures without an encoding on a cp1252 Windows locale; **environment, not code** — the same file is 8/8 green under `PYTHONUTF8=1` and fails identically at HEAD; (b) 1 × `test_schema_canon::test_expected_migrations_matches_migration_files_on_disk` — a **timing artefact**: the gate ran while migration 027 was being added (the tuple and the file landed minutes apart); green on the post-seam rerun. Both recorded here; neither is a product regression. ⚠ the run overlapped the Phase 1 edits (19:22–20:02); the number is the working tree's, not a pristine 4ee8a5b | scratch `phase0/backend_gates.log` |
+| backend pytest (transcription suite) | `pytest tests/transcription_eval_suit -q` | **152 passed, 1 skipped** | same |
+| A0 compiler guard | `pytest tests/grading_eval_suite/test_compiled_plan_guard.py -q` | **8 passed** (hobby 184/190, bagrut 284/298, byte-pinned) | same |
+| CS prompt pins | `pytest tests/subjects/test_prompt_identity.py -q` | 6 passed (pinned at this commit; still 6 passed on the post-seam assembly) | `tests/subjects/test_prompt_identity.py` |
+| vitest | `npm test` | **73 files, 1083 passed, 1 todo** | scratch `phase0/frontend_gates.log` |
+| tsc | `npx tsc --noEmit` | **exit 0** | same |
+| copy gate | `npm run check:copy` | **COPY GATES PASS** (inherited debt reported on 6 non-batch lines, unchanged) | same |
+| Playwright | `npm run test:e2e` | running (dev server on :3100 up) — result appended when it lands | same |
 
 ### Spend runs (D-17 lifted)
 

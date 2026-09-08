@@ -86,6 +86,7 @@ async def transcribe_one(
             raise ValueError(f"Rubric {rubric_id} not found")
         # Plain dicts — safe to use after the session closes.
         spec_source = rubric.draft_json or rubric.contract_json
+        subject = rubric.subject  # the durable key (migration 027); selects the P1 profile
 
     # GCS upload OVERLAPS the pipeline (2026-08-12 latency finding): it needs
     # only pdf_bytes, yet it used to run AFTER the 60-90s pipeline, adding its
@@ -107,6 +108,7 @@ async def transcribe_one(
             user_id=user_id, batch_id=batch_id, doc_priority=doc_priority,
             spec_source=spec_source, t_start=t_start,
             upload_task=upload_task, object_path=object_path,
+            subject=subject,
         )
     except BaseException:
         # Don't leave the upload dangling past this call's lifetime.
@@ -165,6 +167,7 @@ async def run_pipeline_and_build_draft(
     spec_source: dict | None,
     doc_priority: int = 0,
     t_start: float | None = None,
+    subject: str = "computer_science",
 ):
     """The engine-dispatch core, shared by BOTH entry shapes:
       * transcribe_one (single flow) — bytes from the request, upload overlapped;
@@ -186,7 +189,7 @@ async def run_pipeline_and_build_draft(
             raise ValueError("Rubric has no draft/contract json to build the exam spec from")
         trust_run, name_suggestion = await transcribe_two_phase(
             pdf_bytes, filename or "upload.pdf", spec_source,
-            doc_priority=doc_priority,
+            doc_priority=doc_priority, subject=subject,
         )
         duration_ms = int((time.monotonic() - t_start) * 1000)
         page_count = len(trust_run.run.pages) or 1
@@ -242,10 +245,11 @@ async def _pipeline_and_persist(
     t_start: float,
     upload_task: "asyncio.Task[None]",
     object_path: str,
+    subject: str = "computer_science",
 ) -> str:
     draft = await run_pipeline_and_build_draft(
         pdf_bytes=pdf_bytes, filename=filename, spec_source=spec_source,
-        doc_priority=doc_priority, t_start=t_start,
+        doc_priority=doc_priority, t_start=t_start, subject=subject,
     )
     duration_ms = draft.transcription_duration_ms
 

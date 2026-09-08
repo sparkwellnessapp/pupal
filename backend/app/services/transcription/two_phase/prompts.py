@@ -99,6 +99,41 @@ Output JSON only, no prose, in exactly this shape:
 {"pages": [{"page_number": <int>, "text": "<full verbatim page text>"}]}
 """
 
+# ---------------------------------------------------------------------------
+# Multisubject seam (2026-09-08). P1 is assembled per SUBJECT PROFILE: the CS
+# profile IS `P1_SYSTEM` byte-for-byte (sha-pinned in
+# tests/subjects/test_prompt_identity.py); every other profile REPLACES the
+# block of CS ink rules below with its own <= 12-line fragment (F-3) and keeps
+# everything else — markers, identity exclusion, `[?]`, layout, the table grid
+# rule, the plain-text output contract. P1 stays spec-blind: the profile
+# carries modality, never rubric content.
+# ---------------------------------------------------------------------------
+_P1_CS_INK_RULES = """\
+- Transcribe EXACTLY what the student wrote. Preserve every student error: \
+misspellings, wrong capitalization (e.g. `While`, `Public`, `minuteS`), \
+missing or wrong punctuation, wrong comment delimiters (e.g. `\\\\` instead of \
+`//`), wrong or inconsistent identifiers.
+- Crossed-out text is omitted entirely — no strikethrough, no marker of any kind.
+- NEVER expand abbreviations. If the student wrote `CW` or `CR`, output `CW` / `CR`.
+- Do not fix, complete, improve, or normalize anything. Do not add quotes, \
+brackets, or code the student did not write.
+- Include the student's handwritten answer content: code, comments, and \
+substantive margin notes or messages.
+"""
+if _P1_CS_INK_RULES not in P1_SYSTEM:  # loud at import, never at the first non-CS page
+    raise RuntimeError(
+        "P1 seam: the CS ink-rules block no longer matches P1_SYSTEM — a non-CS "
+        "profile would silently receive the CS rules. Re-align _P1_CS_INK_RULES.")
+
+
+# ALPHA-GAP A-2 (D-1): the mathematics fragment prescribes linear notation only; alpha adds the LaTeX grammar.
+def p1_system(profile=None) -> str:
+    """The P1 system prompt for a subject profile (None ⇒ the CS baseline)."""
+    if profile is None or profile.p1_fragment is None:
+        return P1_SYSTEM
+    return P1_SYSTEM.replace(_P1_CS_INK_RULES, profile.p1_fragment, 1)
+
+
 P1_SCHEMA: dict = {
     "type": "object",
     "properties": {
@@ -293,11 +328,19 @@ null>", "anchor": "<the spec entity/entities this answer implements>", \
 """
 
 
-def p2_system_prompt() -> str:
+# ALPHA-GAP A-8: P2 returns the CS base text for EVERY profile this cycle; alpha words the segmentation per modality.
+def p2_system_prompt(profile=None) -> str:
     """Pure verbatim segmentation. Correction is a deterministic post-pass
     (corrector.py), never an LLM instruction — the model stays spec-blind for
-    rewriting and can only segment + route."""
+    rewriting and can only segment + route. `profile` is accepted so the seam
+    is in place; the text is the same for every subject until A-8."""
     return _P2_BASE + "\n" + _P2_OUTPUT
+
+
+def p2_span_system(profile=None) -> str:
+    """The span-mode P2 system prompt (production). Same text for every
+    profile this cycle — see p2_system_prompt (ALPHA-GAP A-8)."""
+    return P2_SPAN_SYSTEM
 
 
 P2_SCHEMA: dict = {

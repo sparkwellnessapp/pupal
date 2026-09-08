@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { handOffUploadFailures } from '@/utils/skip-notice';
 import { FileUpload } from '@/components/FileUpload';
+import { useUploadQueue } from '@/contexts/UploadQueueProvider';
 import { UploadFilePanel } from '@/components/batch/UploadFilePanel';
 import { RubricEditor } from '@/components/RubricEditor';
 import { RubricDocument } from '@/components/RubricDocument';
@@ -17,7 +17,7 @@ import {
   isWarningsResponse,
   PagePreview,
   RubricListItem,
-  isDocxFile,
+  isRubricSourceFile,
   ExtractionMetadata,
   Annotation,
   transcribe,
@@ -25,15 +25,11 @@ import {
   getGradedTest,
   listClasses,
   createBatchMetadata,
-  appendBatchFileXHR,
-  UploadAbortError,
-  UploadHttpError,
   // PR-1: async extraction jobs (submit → poll → result → retry)
   submitExtractionJob,
   getExtractionJobResult,
   retryExtractionJob,
   abandonExtractionJob,
-  getBatch,
   listExtractionJobs,
   ExtractRubricResponse,
   RubricSaveError,
@@ -42,6 +38,8 @@ import {
   type OntologyRubricDraft,
 } from '@/lib/api';
 import { useExtractionJob, getExtractionStageLabel } from '@/hooks/useExtractionJob';
+import { useAuth } from '@/lib/auth';
+import { SUBJECT_KEYS, type SubjectKey } from '@/lib/subjects';
 import { toast } from 'sonner';
 import { ApiAuthError } from '@/lib/api';
 import { authErrorMessage, toMessage, surfaceError } from '@/lib/errorSurface';
@@ -90,31 +88,16 @@ import {
 } from 'lucide-react';
 import {
   UPLOAD_CLASS_HINT,
-  UPLOAD_CONTINUE,
-  UPLOAD_LIVE_READY,
-  UPLOAD_LIVE_STARTED,
+  UPLOAD_BUSY_LINK,
+  UPLOAD_BUSY_NOTICE,
   UPLOAD_CREATE_ERROR,
   UPLOAD_CTA,
   UPLOAD_CTA_DISABLED_REASON,
-  UPLOAD_FILE_FAILED,
   UPLOAD_NAME_HINT,
   UPLOAD_NAME_LABEL,
   UPLOAD_UPLOADING,
 } from '@/copy/batch';
-import {
-  aggregatePct,
-  allDone,
-  composeBatchName,
-  initQueue,
-  isDrained,
-  landedCount,
-  nextToStart,
-  uploadQueueReducer,
-  type UploadFileMeta,
-  type UploadItemState,
-  type UploadQueueAction,
-  type UploadQueueState,
-} from '@/utils/batch-upload';
+import { composeBatchName } from '@/utils/batch-upload';
 
 type MainMode = 'select' | 'rubric' | 'grading';
 type RubricStep = 'upload' | 'extracting' | 'arrival' | 'review' | 'saved';
@@ -169,6 +152,18 @@ export default function Home() {
   // could never be saved before this.
   const [selectionGroups, setSelectionGroups] = useState<SelectionGroup[]>([]);
   const [rubricName, setRubricName] = useState('');
+  // Multisubject seam (D-10): the rubric's subject is the TEACHER's pick. It is sent
+  // on the extraction submit, carried in the saved draft, and immutable once saved.
+  // Pre-filled from onboarding when she teaches exactly one subject; otherwise the
+  // picker (Phase 3c) asks. Never inferred from the document.
+  const { user } = useAuth();
+  const [rubricSubject, setRubricSubject] = useState<SubjectKey>('computer_science');
+  useEffect(() => {
+    const codes = (user?.subject_matters ?? [])
+      .map(s => s.code)
+      .filter((c): c is SubjectKey => (SUBJECT_KEYS as readonly string[]).includes(c));
+    if (codes.length === 1) setRubricSubject(codes[0]);
+  }, [user]);
   const [savedRubricId, setSavedRubricId] = useState<string | null>(null);
   // DOCX pipeline state
   const [extractionMetadata, setExtractionMetadata] = useState<ExtractionMetadata | null>(null);
@@ -243,36 +238,22 @@ export default function Home() {
   const [batchName, setBatchName] = useState('');
   const [batchNameTouched, setBatchNameTouched] = useState(false);
 
-  // U3: the upload queue — state drives the UI; the ref is the driver's truth
-  // (pump/afterSettle run from promise callbacks, outside the render cycle).
-  const [uploadQueue, setUploadQueue] = useState<UploadQueueState | null>(null);
-  const uploadQueueRef = useRef<UploadQueueState | null>(null);
-  const uploadBatchIdRef = useRef<string | null>(null);
-  const uploadFileByIdRef = useRef(new Map<string, File>());
-  const uploadAbortsRef = useRef(new Map<string, () => void>());
-  // Live-E2E fix (2026-08-22): while she is still uploading, transcription is
-  // ALREADY running server-side — jobs enqueue per append. Without a signal
-  // she sat on this page for minutes believing nothing was happening. Poll
-  // the batch once >=1 file landed; render the honest count below the queue.
-  const [uploadLiveRollup, setUploadLiveRollup] = useState<{
-    transcribing: number; transcribed: number; approved_transcription: number;
-  } | null>(null);
-  const uploadAnyLanded = uploadQueue !== null && landedCount(uploadQueue) > 0;
+  // [Stage B / R3] The upload queue lives in the app-level provider now, so a
+  // `router.push` no longer unmounts the thing holding the transfers. This page
+  // only SELECTS files and creates the batch; everything after `begin()` is
+  // rendered by the dashboard's lane.
+  const uploads = useUploadQueue();
+  // R10 — one uploading batch at a time. When a queue is already live this
+  // holds its id so the page can link to it instead of starting a second.
+  const [uploadBusyBatchId, setUploadBusyBatchId] = useState<string | null>(null);
+  // The banner is about a CURRENT condition; once that upload finishes it is
+  // stale advice pointing at a batch that no longer needs waiting for.
   useEffect(() => {
-    if (gradingStep !== 'upload_batch' || !uploadAnyLanded) return;
-    const id = uploadBatchIdRef.current;
-    if (!id) return;
-    let alive = true;
-    const tick = async () => {
-      try {
-        const b = await getBatch(id);
-        if (alive) setUploadLiveRollup(b.rollup);
-      } catch { /* transient — the next tick or the dashboard recovers */ }
-    };
-    void tick();
-    const t = setInterval(() => { void tick(); }, 5000);
-    return () => { alive = false; clearInterval(t); };
-  }, [gradingStep, uploadAnyLanded]);
+    if (!uploads.isActive) setUploadBusyBatchId(null);
+  }, [uploads.isActive]);
+  // [Stage B] The upload-page live-rollup poll is GONE along with the wait it
+  // explained: she no longer sits here while files climb the wire — she is on
+  // the dashboard, watching the lane and the documents arrive together.
 
   // QUARANTINED (U1): single-flow state — unreachable, kept for the separate
   // single-flow-deletion PR to resolve.
@@ -398,7 +379,8 @@ export default function Home() {
   }, [testFiles]);
 
   const handleBackToRubricSelect = () => {
-    resetUploadQueue();
+    // [Stage B] Deliberately does NOT touch the upload queue: leaving this page
+    // must not kill transfers that are already on the wire.
     setGradingStep('select_rubric');
     setSelectedRubric(null);
     setTestFiles([]);
@@ -417,8 +399,8 @@ export default function Home() {
 
     if (!file) return;
 
-    if (!isDocxFile(file)) {
-      setError('סוג קובץ לא נתמך. אנא העלי קובץ DOCX.');
+    if (!isRubricSourceFile(file)) {
+      setError('סוג קובץ לא נתמך. אנא העלי קובץ DOCX או PDF.');
       return;
     }
 
@@ -430,6 +412,14 @@ export default function Home() {
   // ---------------------------------------------------------------------------
   const [extractionJobId, setExtractionJobId] = useState<string | null>(null);
   const [extractionRetrying, setExtractionRetrying] = useState(false);
+  /** THE SECOND HALF OF THE ONE-SHOT GUARD (the hook owns the first).
+   *  applyExtractionResult is a full RESET of the review — questions, annotations,
+   *  the undo stack, the dirty flag, and the step. Applying a result the teacher is
+   *  already reviewing therefore deletes her work. This ref makes the apply
+   *  single-shot per job, at the CONSUMING site, so it holds for every way the app
+   *  can re-attach to a finished job (resume, crash-stash restore, retry, a remount,
+   *  a dev-mode Fast Refresh) rather than only the path we happened to observe. */
+  const appliedResultJobIdRef = useRef<string | null>(null);
 
   /** Shared post-processing: identical for the live flow and the resume flow. */
   const applyExtractionResult = useCallback((response: ExtractRubricResponse) => {
@@ -487,6 +477,8 @@ export default function Home() {
   const extractionJob = useExtractionJob(extractionJobId, {
     onComplete: async () => {
       if (!extractionJobId) return;
+      if (appliedResultJobIdRef.current === extractionJobId) return;  // already applied — never re-apply over her review
+      appliedResultJobIdRef.current = extractionJobId;
       // S1-3.4: signal a teacher who left the tab — before the (slower) result fetch.
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
         flipTabTitleToReady();
@@ -496,6 +488,10 @@ export default function Home() {
         const jobResult = await getExtractionJobResult(extractionJobId);
         applyExtractionResult(jobResult.result);
       } catch (err) {
+        // Nothing was applied, so the claim is released — a later re-attach may
+        // still land the result. The guard exists to protect WORK, not to make a
+        // transient result fetch permanently unrecoverable.
+        appliedResultJobIdRef.current = null;
         setErrorModal(translateExtractionError(toMessage(err)));
         setRubricStep('upload');
       }
@@ -522,6 +518,10 @@ export default function Home() {
     if (restorable.rubricName) setRubricName(restorable.rubricName);
     if (restorable.declaredTotal != null) setRubricDeclaredTotal(restorable.declaredTotal);
     setSelectionGroups((restorable.selectionGroups as SelectionGroup[]) ?? []);
+    // The stash IS the applied result plus her edits on top — so mark the job's
+    // result as already applied. Re-applying it here would restore the work and
+    // then immediately overwrite it with the pristine extraction.
+    appliedResultJobIdRef.current = restorable.extractionJobId ?? null;
     if (restorable.extractionJobId) setExtractionJobId(restorable.extractionJobId);
     setExtractionAnnotations((restorable.annotations as Annotation[]) || []);
     setPedagogicalMistakes((restorable.pedagogicalMistakes as PedagogicalMistakeWire[]) || []);
@@ -539,7 +539,7 @@ export default function Home() {
 
   const _runDocxExtraction = async (file: File) => {
     // Fresh wait — reset the capture card, stage ladder, and dirty flag.
-    setFilenameStem(file.name.replace(/\.docx$/i, ''));
+    setFilenameStem(file.name.replace(/\.(docx|pdf)$/i, ''));
     setRubricName('');            // placeholder shows the suggestion; blank ⇒ inference wins
     setInferredName(null);
     setProgrammingLanguage('');   // "זיהוי אוטומטי" until she says otherwise
@@ -548,13 +548,18 @@ export default function Home() {
     setObservedStages([]);
     dirtyRef.current = false;
     clearRubricHistory();
+    // A fresh wait wants its result APPLIED — and submit is idempotent, so a
+    // re-upload of the same DOCX converges on the same job id we may already
+    // have applied. Clear the one-shot marker or that re-upload waits forever.
+    appliedResultJobIdRef.current = null;
     setRubricStep('extracting');
     setIsLoading(true);
     setError(null);
     try {
-      // S1-2: ZERO-PARAM submit — file only. Name/language are captured during the
-      // wait (metadata-only) or inferred; extraction never depends on them.
-      const submitted = await submitExtractionJob(file);
+      // S1-2: file + SUBJECT. Name/language are captured during the wait
+      // (metadata-only) or inferred; the subject is the one input extraction
+      // depends on (D-10) and it is the teacher's pick, never inferred.
+      const submitted = await submitExtractionJob(file, { subject: rubricSubject });
       // Double-click / re-upload of the same doc converges on the same job
       // (reused=true) — the hook picks it up either way.
       setExtractionJobId(submitted.job_id);
@@ -574,6 +579,10 @@ export default function Home() {
     setError(null);
     try {
       await retryExtractionJob(extractionJobId);
+      // Retry re-queues the SAME job id: its next completion is a new run whose
+      // result must land (the hook clears its own edge marker the same way, on
+      // the first non-terminal read).
+      appliedResultJobIdRef.current = null;
       extractionJob.start();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בניסיון חוזר');
@@ -689,6 +698,9 @@ export default function Home() {
     pushRubricHistory();
     dirtyRef.current = true;
     if (patch.rubric_name !== undefined) setRubricName(patch.rubric_name);
+    if (patch.subject !== undefined && (SUBJECT_KEYS as readonly string[]).includes(patch.subject)) {
+      setRubricSubject(patch.subject as SubjectKey);
+    }
   }, [pushRubricHistory]);
 
   // S2 D-3 — delete is undo-over-confirm: the mirror executes immediately and
@@ -879,6 +891,9 @@ export default function Home() {
         questions: dehydrated,
         total_points: rubricDeclaredTotal ?? 0,
         selection_groups: selectionGroups,
+        // Multisubject seam (D-10): the draft carries the teacher's subject; the
+        // server writes it to the rubric row and refuses a later change (409).
+        subject: rubricSubject,
         num_questions: extractedQuestions.length,
         num_sub_questions: extractedQuestions.reduce((sum, q) => sum + (q.sub_questions?.length || 0), 0),
         num_criteria: extractedQuestions.reduce((sum, q) =>
@@ -1008,71 +1023,25 @@ export default function Home() {
   }, [gradingStep, selectedRubric, batchClassId, batchClasses, batchNameTouched]);
 
   // ---------------------------------------------------------------------------
-  // U3 — the upload-queue driver. Pure transitions live in batch-upload.ts;
-  // this is the impure shell: dispatch → pump free slots → settle → navigate.
-  // ---------------------------------------------------------------------------
-
-  const dispatchUpload = (action: UploadQueueAction): UploadQueueState | null => {
-    const current = uploadQueueRef.current;
-    if (!current) return null;
-    const next = uploadQueueReducer(current, action);
-    uploadQueueRef.current = next;
-    setUploadQueue(next);
-    return next;
-  };
-
-  const classifyUploadError = (err: unknown, filename: string): { reason: string; retryable: boolean } => {
-    if (err instanceof UploadHttpError) {
-      // 422 = the B7 validation verdict — terminal, never retried (U3).
-      // 401/403 = auth — retrying can't heal it either.
-      const retryable = err.status !== 422 && err.status !== 401 && err.status !== 403;
-      return { reason: err.message, retryable };
-    }
-    return { reason: UPLOAD_FILE_FAILED(filename), retryable: true };
-  };
-
-  const settleUploadQueue = () => {
-    pumpUploads();
-    const s = uploadQueueRef.current;
-    // Decision 4: auto-navigate ONLY when everything landed; failures keep
-    // the teacher here with their inline reasons + the explicit continue.
-    if (s && allDone(s) && uploadBatchIdRef.current) {
-      router.push(`/batches/${uploadBatchIdRef.current}`);
-    }
-  };
-
-  const pumpUploads = () => {
-    const s = uploadQueueRef.current;
-    const batchId = uploadBatchIdRef.current;
-    if (!s || !batchId) return;
-    for (const clientFileId of nextToStart(s)) {
-      const file = uploadFileByIdRef.current.get(clientFileId);
-      if (!file) continue;
-      dispatchUpload({ type: 'start', clientFileId });
-      const handle = appendBatchFileXHR(batchId, file, clientFileId, (pct) => {
-        dispatchUpload({ type: 'progress', clientFileId, pct });
-      });
-      uploadAbortsRef.current.set(clientFileId, handle.abort);
-      handle.promise
-        .then((res) => {
-          uploadAbortsRef.current.delete(clientFileId);
-          dispatchUpload({ type: 'done', clientFileId, jobId: res.job_id });
-          settleUploadQueue();
-        })
-        .catch((err: unknown) => {
-          uploadAbortsRef.current.delete(clientFileId);
-          if (err instanceof UploadAbortError) return;   // unmount — not a failure
-          const { reason, retryable } = classifyUploadError(err, file.name);
-          dispatchUpload({ type: 'fail', clientFileId, reason, retryable });
-          settleUploadQueue();
-        });
-    }
-  };
-
-  // S11/U1: THE one path — metadata create, then the bounded queue appends
-  // (single file = batch of one).
+  /**
+   * [Stage B / R3] THE one path: create the batch, hand the files to the
+   * app-level queue, and LEAVE.
+   *
+   * The redirect no longer waits for the last byte. It never needed to - jobs
+   * enqueue as each file lands and the first transcription is reviewable about
+   * half a second after its own file arrives; the wait existed only because the
+   * queue lived in this component and its XHRs aborted on unmount.
+   *
+   * `begin()` returning false is R10: a queue is already live, so she goes to
+   * THAT batch rather than starting a second one behind it.
+   */
   const handleGradeAsBatch = async () => {
-    if (!selectedRubric || testFiles.length === 0 || uploadQueue) return;
+    if (!selectedRubric || testFiles.length === 0 || batchUploading) return;
+    if (uploads.isActive && uploads.batchId) {
+      setUploadBusyBatchId(uploads.batchId);
+      return;
+    }
+    setUploadBusyBatchId(null);
     setBatchUploading(true);
     setError(null);
     let created: { batch_id: string };
@@ -1081,65 +1050,27 @@ export default function Home() {
         selectedRubric.id,
         batchClassId || undefined,
         batchName.trim() || undefined,   // B5: the composed/edited name at create
+        testFiles.length,                // [Stage A] the declaration (Defect D)
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : UPLOAD_CREATE_ERROR);
       setBatchUploading(false);
       return;
     }
-    setBatchUploading(false);
-    uploadBatchIdRef.current = created.batch_id;
-    const metas: UploadFileMeta[] = testFiles.map((f) => ({
-      clientFileId: crypto.randomUUID(),   // the B9 idempotency key — owned for the file's lifetime
-      filename: f.name,
-      size: f.size,
-    }));
-    uploadFileByIdRef.current = new Map(metas.map((m, i) => [m.clientFileId, testFiles[i]]));
-    const q = initQueue(metas);
-    uploadQueueRef.current = q;
-    setUploadQueue(q);
-    pumpUploads();
+    const begun = uploads.begin(created.batch_id, testFiles);
+    if (!begun.started) {
+      // Lost a race against a queue that went live between the two checks. The
+      // batch exists and is empty; say so rather than silently doing nothing.
+      // `blockedBy` comes from the provider's own ref — reading `uploads.batchId`
+      // here would read the closure captured BEFORE the click, which was null
+      // (that is what let the first guard pass) and would have rendered an
+      // empty banner.
+      setBatchUploading(false);
+      setUploadBusyBatchId(begun.blockedBy);
+      return;
+    }
+    router.push(`/batches/${created.batch_id}`);
   };
-
-  const handleRetryUpload = (index: number) => {
-    const s = uploadQueueRef.current;
-    if (!s) return;
-    const item = s.items[index];
-    if (!item) return;
-    dispatchUpload({ type: 'retry', clientFileId: item.clientFileId });   // SAME id — idempotent server-side
-    pumpUploads();
-  };
-
-  const resetUploadQueue = () => {
-    uploadAbortsRef.current.forEach((abort) => abort());
-    uploadAbortsRef.current.clear();
-    uploadQueueRef.current = null;
-    uploadBatchIdRef.current = null;
-    uploadFileByIdRef.current = new Map();
-    setUploadQueue(null);
-  };
-
-  // U3: per-row states for the panel (index-aligned with testFiles — the
-  // list is locked while the queue exists, so alignment cannot drift).
-  const uploadStatesMap = useMemo<ReadonlyMap<number, UploadItemState> | null>(
-    () => (uploadQueue ? new Map(uploadQueue.items.map((it, i) => [i, it.state] as const)) : null),
-    [uploadQueue],
-  );
-  const uploadActive = uploadQueue !== null && !isDrained(uploadQueue);
-
-  // U3: tab-close guard while any upload is active.
-  useEffect(() => {
-    if (!uploadActive) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [uploadActive]);
-
-  // U3: abort in-flight XHRs on unmount — no zombie uploads.
-  useEffect(() => {
-    const aborts = uploadAbortsRef.current;
-    return () => { aborts.forEach((abort) => abort()); };
-  }, []);
 
   // Grading Handlers
   const handleRubricSelect = (rubric: RubricListItem) => {
@@ -1177,7 +1108,6 @@ export default function Home() {
     // S1-8(b): if there is unsaved review work, confirm before discarding it.
     if (!confirmDiscardIfDirty()) return;
     dirtyRef.current = false;
-    resetUploadQueue();
     setMainMode('select');
     setRubricStep('upload');
     setGradingStep('select_rubric');
@@ -1281,7 +1211,7 @@ export default function Home() {
                   {/* S1-1/S1-2: one action — drop the DOCX. No language dropdown,
                       no name field, no purpose step. Everything else is inferable
                       or captured during the wait. */}
-                  <FileUpload file={rubricFile} onFileChange={handleRubricFileChange} accept=".pdf,.docx" label="גררי קובץ DOCX לכאן" showFormatGuide />
+                  <FileUpload file={rubricFile} onFileChange={handleRubricFileChange} accept=".pdf,.docx" label="גררי קובץ DOCX או PDF לכאן" showFormatGuide />
                   {isLoading && <div className="mt-4 flex items-center justify-center gap-2 text-primary-600"><Loader2 className="animate-spin" size={20} /><span>מעלה את הקובץ...</span></div>}
                   {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center gap-2"><AlertCircle size={18} />{error}</div>}
                 </div>
@@ -1379,7 +1309,7 @@ export default function Home() {
                         {getExtractionStageLabel(extractionJob.status?.progress_stage ?? null)}
                       </h2>
                       <p className="text-gray-500 mt-2 text-sm">
-                        עלול לקחת עד 5 דקות. אפשר לעזוב את העמוד — החילוץ ימשיך ברקע ונודיע לך כשהוא מוכן.
+                        עלול לקחת עד 2 דקות. אפשר לעזוב את העמוד — החילוץ ימשיך ברקע ונודיע לך כשהוא מוכן.
                       </p>
 
                       {/* Honest stage checklist — only stages the server actually reported */}
@@ -1752,101 +1682,55 @@ export default function Home() {
                     files={testFiles}
                     onFilesChange={setTestFiles}
                     disabled={batchUploading}
-                    uploadStates={uploadStatesMap}
-                    onRetry={handleRetryUpload}
                   />
-
-                  {/* U3: aggregate progress while the queue runs */}
-                  {uploadQueue && (
-                    <div className="mt-4" data-testid="upload-aggregate">
-                      <div className="w-full bg-surface-200 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="bg-primary-500 h-2 transition-all duration-300"
-                          style={{ width: `${aggregatePct(uploadQueue)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
 
                   {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
 
-                  {/* U1: ONE path — always batch (a single file is a batch of one). */}
-                  <div className="mt-6 flex items-center justify-between">
-                    {/* Back stays only while nothing is in flight (the queue's
-                        beforeunload guard covers the tab; this covers the app). */}
-                    {!uploadActive ? <BackButton onClick={handleBackToRubricSelect} /> : <span />}
-                    {uploadQueue === null ? (
+                  {/* [Stage B / R10] One uploading batch at a time. Rather than
+                      queue a second batch behind the first (two progress
+                      stories, one lane, no way to tell them apart), point her
+                      at the upload already running. */}
+                  {uploadBusyBatchId && (
+                    <div
+                      className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-batch-amber-line bg-batch-amber-soft px-4 py-3 text-sm text-batch-amber-ink"
+                      data-testid="upload-busy-notice"
+                    >
+                      <span>{UPLOAD_BUSY_NOTICE}</span>
                       <button
-                        onClick={handleGradeAsBatch}
-                        disabled={testFiles.length === 0 || batchUploading}
-                        title={testFiles.length === 0 ? UPLOAD_CTA_DISABLED_REASON : undefined}
-                        data-testid="upload-cta"
-                        className="flex items-center gap-2 bg-primary-500 text-white px-6 py-2 rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
+                        onClick={() => router.push(`/batches/${uploadBusyBatchId}`)}
+                        className="font-semibold underline"
+                        data-testid="upload-busy-link"
                       >
-                        {batchUploading ? (
-                          <><Loader2 size={18} className="animate-spin" /> {UPLOAD_UPLOADING}</>
-                        ) : (
-                          <>
-                            <ClipboardCheck size={18} />
-                            {UPLOAD_CTA(testFiles.length)}
-                          </>
-                        )}
+                        {UPLOAD_BUSY_LINK}
                       </button>
-                    ) : isDrained(uploadQueue) && !allDone(uploadQueue) && landedCount(uploadQueue) > 0 ? (
-                      /* Decision 4: failures stay visible; the teacher moves on
-                         explicitly once at least one test landed. */
-                      <button
-                        onClick={() => {
-                          const id = uploadBatchIdRef.current;
-                          if (!id) return;
-                          // D1: the batch has no memory of files that never
-                          // became jobs (B9.5 makes JOBS the total), so carry
-                          // their names to the dashboard — otherwise she
-                          // arrives at a tidy batch that is quietly short.
-                          handOffUploadFailures(
-                            id,
-                            uploadQueue.items
-                              .filter((i) => i.state.kind === 'failed')
-                              .map((i) => i.filename),
-                          );
-                          router.push(`/batches/${id}`);
-                        }}
-                        data-testid="upload-continue"
-                        className="flex items-center gap-2 bg-primary-500 text-white px-6 py-2 rounded-lg hover:bg-primary-600 transition-colors"
-                      >
-                        {UPLOAD_CONTINUE}
-                        <ArrowLeft size={18} />
-                      </button>
-                    ) : (
-                      <span className="flex items-center gap-2 text-sm text-gray-500" data-testid="upload-in-flight">
-                        <Loader2 size={16} className="animate-spin" />
-                        {UPLOAD_UPLOADING}
-                      </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
-                  {/* Live-E2E fix: transcription runs server-side per landed
-                      append — say so, with the honest ready-count, instead of
-                      leaving her to believe nothing is happening. */}
-                  {uploadLiveRollup && (() => {
-                    const ready = uploadLiveRollup.transcribed
-                      + uploadLiveRollup.approved_transcription;
-                    if (ready > 0) {
-                      return (
-                        <p className="mt-3 text-sm font-medium text-batch-green-ink" data-testid="upload-live-progress">
-                          {UPLOAD_LIVE_READY(ready)}
-                        </p>
-                      );
-                    }
-                    if (uploadLiveRollup.transcribing > 0) {
-                      return (
-                        <p className="mt-3 text-sm text-batch-muted" data-testid="upload-live-progress">
-                          {UPLOAD_LIVE_STARTED}
-                        </p>
-                      );
-                    }
-                    return null;
-                  })()}
+                  {/* U1: ONE path - always batch (a single file is a batch of one).
+                      [Stage B] The CTA is now terminal for this page: it creates
+                      the batch, hands the files to the app-level queue and
+                      navigates. There is no in-flight state to render here any
+                      more, and no explicit continue - the dashboard's lane is
+                      where the transfers are watched. */}
+                  <div className="mt-6 flex items-center justify-between">
+                    <BackButton onClick={handleBackToRubricSelect} />
+                    <button
+                      onClick={handleGradeAsBatch}
+                      disabled={testFiles.length === 0 || batchUploading}
+                      title={testFiles.length === 0 ? UPLOAD_CTA_DISABLED_REASON : undefined}
+                      data-testid="upload-cta"
+                      className="flex items-center gap-2 bg-primary-500 text-white px-6 py-2 rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
+                    >
+                      {batchUploading ? (
+                        <><Loader2 size={18} className="animate-spin" /> {UPLOAD_UPLOADING}</>
+                      ) : (
+                        <>
+                          <ClipboardCheck size={18} />
+                          {UPLOAD_CTA(testFiles.length)}
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

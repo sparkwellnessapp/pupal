@@ -182,6 +182,12 @@ class ContractCompiler:
             })
             for q in response.questions
         ]
+        # Amendment 2 (multisubject seam, ruled 2026-09-08): a question_type the
+        # subject's ontology profile does not permit is COERCED to the profile's
+        # default and logged — never an ERROR annotation, because a teacher must
+        # not be blocked by a label. CS drafts carry coding_task/short_answer,
+        # both in the CS set, so every CS contract is byte-identical.
+        clean_questions = _coerce_question_types(response.subject, clean_questions)
         # PR-3: selection_groups are PROPAGATED (the field existed with a docstring
         # apologising for its own non-population), and total_points is the ACHIEVABLE
         # total, not the offered sum (R4). This is the single source of the grading
@@ -482,6 +488,30 @@ class ContractCompiler:
                         ))
 
         return warnings
+
+
+def _coerce_question_types(subject: str, questions: list) -> list:
+    """Amendment 2: out-of-profile question types → the profile default, logged.
+
+    Unknown subject keys are left untouched (and logged): the API boundary is
+    where an unknown subject is refused; compile never blocks on the label.
+    """
+    from app.schemas.ontology_types import SUBJECT_PROFILES
+
+    profile = SUBJECT_PROFILES.get(subject)
+    if profile is None:
+        logger.warning("question_type_coercion_skipped subject=%r not in SUBJECT_PROFILES", subject)
+        return questions
+    out = []
+    for q in questions:
+        if q.question_type in profile.valid_question_types:
+            out.append(q)
+            continue
+        logger.info("question_type_coerced subject=%s question=%s from=%s to=%s",
+                    subject, q.question_id, q.question_type.value,
+                    profile.default_question_type.value)
+        out.append(q.model_copy(update={"question_type": profile.default_question_type}))
+    return out
 
 
 def compile_rubric(

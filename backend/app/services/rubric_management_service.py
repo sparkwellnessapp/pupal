@@ -60,6 +60,27 @@ logger = logging.getLogger(__name__)
 # STATISTICS CALCULATION
 # =============================================================================
 
+def _require_known_subject(subject: str) -> None:
+    """The subject key must be in the registry (multisubject seam, D-10).
+
+    Raised as a validation error (400 with a Hebrew message) — the same class
+    the draft-shape check raises, because an unknown subject IS a malformed
+    draft. The extraction-job submit path 422s earlier for the same reason.
+    """
+    from app.subjects import UnknownSubject, get_profile
+
+    from .rubric_errors import RubricValidationError
+
+    try:
+        get_profile(subject)
+    except UnknownSubject as e:
+        raise RubricValidationError(
+            errors=[{"location": "subject", "message": str(e),
+                     "message_he": "תחום הדעת של המחוון אינו מוכר"}],
+            message_he="תחום הדעת של המחוון אינו מוכר",
+        )
+
+
 def _count_criteria(node: Dict[str, Any]) -> tuple[int, int]:
     """(criteria, rules) under a question or sub-question, at ANY depth.
 
@@ -197,6 +218,7 @@ async def save_ontology_draft(
                 "message_he": "מבנה המחוון אינו תקין"
             }]
         )
+    _require_known_subject(validated_draft.subject)
 
     # Step 2: Compile to contract
     compiler = ContractCompiler()
@@ -224,6 +246,9 @@ async def save_ontology_draft(
     rubric = Rubric(
         name=name,
         description=description,
+        # The durable subject key (migration 027) — written from the validated draft,
+        # which the registry check above already vetted.
+        subject=validated_draft.subject,
         draft_json=draft_dict,
         contract_json=contract.model_dump(mode='json'),
         contract_version=contract.contract_version,
@@ -327,6 +352,16 @@ async def update_rubric_draft(
     try:
         validated_draft = ExtractRubricResponse.model_validate(draft)
         draft_dict = validated_draft.model_dump(mode='json')
+        # The subject of a saved rubric is immutable (migration 027): every
+        # downstream row reads it through the rubric FK, and a plan/contract
+        # already carries it. A draft that names another subject is a 409,
+        # never a silent overwrite.
+        if validated_draft.subject != rubric.subject:
+            from .rubric_errors import RubricSubjectConflictError
+            raise RubricSubjectConflictError(existing=rubric.subject,
+                                             incoming=validated_draft.subject)
+    except RubricSubjectConflictError:
+        raise
     except Exception as e:
         logger.warning(f"Draft validation failed: {e}")
         raise RubricValidationError(

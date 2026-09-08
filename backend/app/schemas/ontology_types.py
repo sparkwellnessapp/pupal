@@ -1203,10 +1203,20 @@ def get_claim_type_for_rule_kind(rule_kind: object) -> "ClaimType":
 class SubjectProfile:
     """
     Declares valid question types and evaluation strategy per subject.
+
+    The ONTOLOGY layer of a subject (revived 2026-09-08, multisubject seam):
+    what question types the subject permits and which one an extraction gets
+    when the extractor did not say. The prompt/modality layer lives in
+    `app/subjects/` and is keyed by the same `subject_key`; the two registries
+    must name the same subjects (asserted at import there).
     """
     subject_key: str
     display_name_he: str
     valid_question_types: Set[QuestionType]
+    # Amendment 2 (ruled 2026-09-08): an extracted question carries this type
+    # when the extractor did not choose one; at compile an out-of-set type is
+    # COERCED to it and logged — never an ERROR annotation.
+    default_question_type: QuestionType = QuestionType.SHORT_ANSWER
     skill_taxonomy_key: Optional[str] = None
 
 
@@ -1225,10 +1235,18 @@ SUBJECT_PROFILES: Dict[str, SubjectProfile] = {
             QuestionType.CODING_TASK,
             QuestionType.TRACE_TABLE,
         },
+        # The V3 extractor has always stamped CODING_TASK on every question
+        # (pipeline.py `_build_response`); keeping it as the CS default is what
+        # keeps every CS contract byte-identical under the seam.
+        default_question_type=QuestionType.CODING_TASK,
         skill_taxonomy_key="bagrut_cs",
     ),
-    "math": SubjectProfile(
-        subject_key="math",
+    # D-15 (ruled 2026-09-08): the key is `mathematics`, matching the seeded
+    # `subject_matters.code` the onboarding picker stores — `math` never had a
+    # consumer, so the rename costs nothing and one key now names the subject
+    # everywhere.
+    "mathematics": SubjectProfile(
+        subject_key="mathematics",
         display_name_he="מתמטיקה",
         valid_question_types=_UNIVERSAL_QUESTION_TYPES
         | {
@@ -1236,6 +1254,7 @@ SUBJECT_PROFILES: Dict[str, SubjectProfile] = {
             QuestionType.PROOF,
             QuestionType.WORD_PROBLEM,
         },
+        default_question_type=QuestionType.COMPUTATION,
         skill_taxonomy_key=None,
     ),
     "english": SubjectProfile(
@@ -1247,6 +1266,7 @@ SUBJECT_PROFILES: Dict[str, SubjectProfile] = {
             QuestionType.GRAMMAR_EXERCISE,
             QuestionType.WRITING_TASK,
         },
+        default_question_type=QuestionType.SHORT_ANSWER,
         skill_taxonomy_key=None,
     ),
 }

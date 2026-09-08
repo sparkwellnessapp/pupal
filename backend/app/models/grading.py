@@ -26,6 +26,13 @@ class Rubric(Base):
 
     name        = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
+    # Subject seam (migration 027, D-10): THE durable subject key of this rubric.
+    # Downstream rows (graded_tests, transcriptions, batches) reach it through
+    # this FK; the contract JSON carries the same value. No DB CHECK on the set —
+    # the registry validates at the API boundary (a CHECK per new subject would
+    # fail the Physics litmus test).
+    subject = Column(String(64), nullable=False, default="computer_science",
+                     server_default="computer_science")
     total_points = Column(Float, nullable=True)
 
     draft_json    = Column(JSONB, nullable=True)
@@ -81,6 +88,16 @@ class GradingBatch(Base):
     status                  = Column(String(30), nullable=False, default="pending")
     # S11: number of PDFs submitted at creation — used to compute in-flight transcription count.
     test_count              = Column(Integer, nullable=False, default=0)
+    # [migration 025 / Stage A, R9] What she DECLARED at create time: how many
+    # files she selected. `test_count` and COUNT(jobs) are what ARRIVED — the
+    # gap between the two is the upload-stage in-flight fact, which the batch
+    # otherwise cannot express (B9 creates the row empty, so mid-upload a
+    # ten-file batch reports a total of one and can claim to be "completed").
+    # Derived at read time, never stored: uploading = max(0, expected − jobs).
+    # NULL = the legacy population (pre-025 batches, and any client that does
+    # not declare) — the arithmetic is bypassed and the rollup is unchanged.
+    # The SERVER never lowers this; the client re-declares it via PATCH.
+    expected_test_count     = Column(Integer, nullable=True)
     # Durable per-document failure ledger (migration 015): JSONB array of
     # {filename, error, at, net_verdict} appended ATOMICALLY (jsonb || jsonb)
     # by the fan-out's containment. transcribing = test_count − rows − failures;

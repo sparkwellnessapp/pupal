@@ -53,6 +53,8 @@ internal_router = APIRouter(prefix="/internal/extraction-jobs", tags=["internal"
 
 _DOCX_MAGIC = b"PK\x03\x04"  # DOCX is a ZIP container
 _DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+_PDF_MAGIC = b"%PDF-"
+_PDF_CONTENT_TYPE = "application/pdf"
 
 
 def _heartbeat_ttl() -> timedelta:
@@ -145,9 +147,13 @@ async def _enqueue_or_fail(db: AsyncSession, job_id: UUID) -> None:
 @router.post("/", response_model=SubmitJobResponse, status_code=202)
 async def submit_extraction_job(
     file: UploadFile = File(..., description="Rubric DOCX file"),
+    # ALPHA-GAP A-9 (D-14ii): one file only; alpha accepts a second file (the answer key) merged by item number.
     name: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
-    subject: str = Form("computer_science"),
+    # Multisubject seam (D-10, 2026-09-08): REQUIRED, validated against the subject
+    # registry (422 on an unknown key). The teacher picks it at upload; it is
+    # never model output and never defaulted server-side.
+    subject: str = Form(..., description="Subject key: computer_science | english | mathematics"),
     locale: str = Form("he-IL"),
     test_topic: Optional[str] = Form(None),
     # Stored in request_params for forward-compat; NOT passed to the pipeline
@@ -156,14 +162,29 @@ async def submit_extraction_job(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> SubmitJobResponse:
+    from ...subjects import UnknownSubject, get_profile
+
+    try:
+        get_profile(subject)
+    except UnknownSubject as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
     filename = file.filename or "rubric.docx"
-    if not filename.lower().endswith(".docx"):
-        raise HTTPException(status_code=400, detail="File must be a DOCX document.")
+    lower = filename.lower()
+    if not (lower.endswith(".docx") or lower.endswith(".pdf")):
+        raise HTTPException(status_code=400, detail="File must be a DOCX or PDF document.")
+    is_pdf = lower.endswith(".pdf")
 
     file_bytes = await file.read()
     if len(file_bytes) == 0:
         raise HTTPException(status_code=400, detail="Empty file uploaded")
-    if not file_bytes.startswith(_DOCX_MAGIC):
+    # D-8 (ruled 2026-09-08): a PDF rubric is accepted and rasterized into the
+    # rubric-read stage (docx_v3/image_render.py); a DOCX stays the deterministic
+    # render unless it is pages-as-images. Same message for every subject.
+    if is_pdf:
+        if not file_bytes.startswith(_PDF_MAGIC):
+            raise HTTPException(status_code=400, detail="File is not a valid PDF document.")
+    elif not file_bytes.startswith(_DOCX_MAGIC):
         raise HTTPException(status_code=400, detail="File is not a valid DOCX document.")
     max_bytes = settings.extraction_max_upload_mb * 1024 * 1024
     if len(file_bytes) > max_bytes:
@@ -186,8 +207,9 @@ async def submit_extraction_job(
     from ...services.gcs_service import get_gcs_service
 
     gcs = get_gcs_service()
-    object_path = f"rubric-sources/{user_id}/{sha256}.docx"
-    await asyncio.to_thread(gcs.upload_bytes, file_bytes, object_path, _DOCX_CONTENT_TYPE)
+    object_path = f"rubric-sources/{user_id}/{sha256}.{'pdf' if is_pdf else 'docx'}"
+    await asyncio.to_thread(gcs.upload_bytes, file_bytes, object_path,
+                            _PDF_CONTENT_TYPE if is_pdf else _DOCX_CONTENT_TYPE)
 
     job = RubricExtractionJob(
         user_id=user_id,

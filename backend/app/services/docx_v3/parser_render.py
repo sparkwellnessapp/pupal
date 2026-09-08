@@ -40,6 +40,7 @@ _NS = {
     "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
     "wps": "http://schemas.microsoft.com/office/word/2010/wordprocessingShape",
     "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006",
+    "m": "http://schemas.openxmlformats.org/officeDocument/2006/math",   # OMML (Word equations)
 }
 
 
@@ -218,6 +219,11 @@ class RenderStats:
     highlight_spans: int = 0
     empty_skipped: int = 0
     rendered_chars: int = 0
+    # OMML (Word equations): seen vs rendered-with-text. P-3 pre-registers
+    # `omml_seen == omml_rendered`; a mismatch is a silent drop — the defect
+    # this counter exists to make visible.
+    omml_seen: int = 0
+    omml_rendered: int = 0
 
     def log(self) -> None:
         logger.info(
@@ -225,6 +231,7 @@ class RenderStats:
             f"{self.total_paragraphs} paragraphs | "
             f"{self.total_tables} tables ({self.nested_tables} nested) | "
             f"{self.images_found} images | "
+            f"{self.omml_seen} omml ({self.omml_rendered} rendered) | "
             f"{self.textboxes_found} textboxes | "
             f"{self.merged_cells} merged cells | "
             f"{self.strikethrough_runs} strikethrough spans | "
@@ -304,6 +311,17 @@ def _para_text(p_el, baseline: Optional[str] = None,
                     if htext:
                         segments.append((False, None, None, htext))
 
+        elif tag in ("oMath", "oMathPara"):
+            # Word equations (OMML). Until 2026-09-08 these were silently DROPPED —
+            # the walker visited only `w:r` runs, and an equation's text lives in
+            # `m:r`/`m:t`. Minimal rule (execution plan Phase 2c): emit the
+            # concatenated `m:t` text IN PLACE, never drop. This is a lossy
+            # linearization (a fraction reads as its numerator then denominator).
+            # ALPHA-GAP A-2 (D-1): raw `m:t` text in place; alpha walks the OMML tree into the LaTeX grammar.
+            mtext = _omml_text(child)
+            if mtext:
+                segments.append((False, None, None, mtext))
+
     # Merge consecutive segments sharing (strike, contrast, hl) and emit markup.
     merged: List[Tuple[Tuple[bool, Optional[str], Optional[str]], List[str]]] = []
     for strike, contrast, hl, text in segments:
@@ -330,6 +348,26 @@ def _para_text(p_el, baseline: Optional[str] = None,
         parts.append(s)
 
     return "".join(parts).strip()
+
+
+def _omml_text(math_el) -> str:
+    """Concatenate every `m:t` under an OMML node, in document order, with single
+    spaces between runs. Pure; no structure is interpreted (see ALPHA-GAP A-2)."""
+    ns_m = _NS["m"]
+    parts = [t.text for t in math_el.iter(f"{{{ns_m}}}t") if t.text]
+    return " ".join(p.strip() for p in parts if p.strip())
+
+
+def _count_omml(p_el) -> "tuple[int, int]":
+    """(omml_seen, omml_rendered) for a paragraph: equations present vs equations
+    that carry any `m:t` text. Nested `m:oMath` inside `m:oMathPara` counts once."""
+    ns_m = _NS["m"]
+    seen = rendered = 0
+    for m in p_el.iter(f"{{{ns_m}}}oMath"):
+        seen += 1
+        if _omml_text(m):
+            rendered += 1
+    return seen, rendered
 
 
 def _para_images(p_el) -> List[str]:
@@ -375,6 +413,10 @@ def _render_para(p_el, stats: RenderStats, baseline: Optional[str] = None,
     for tb in _para_textboxes(p_el):
         stats.textboxes_found += 1
         lines.append(f"[TEXTBOX]\n{tb}\n[/TEXTBOX]")
+
+    seen, rendered_math = _count_omml(p_el)
+    stats.omml_seen += seen
+    stats.omml_rendered += rendered_math
 
     text = _para_text(p_el, baseline, hl_baseline)
     if text:
@@ -607,13 +649,20 @@ def _render_nested_table_element(
 # =============================================================================
 
 def render_docx_to_markdown(file_bytes: bytes) -> str:
-    """Convert DOCX bytes to LLM-ready markdown.
+    """Convert DOCX bytes to LLM-ready markdown (the historical entry point —
+    byte-identical output; the stats-returning twin below is the seam the
+    image-render stage reads its trigger from)."""
+    return render_docx_to_markdown_with_stats(file_bytes)[0]
+
+
+def render_docx_to_markdown_with_stats(file_bytes: bytes) -> "tuple[str, RenderStats]":
+    """Convert DOCX bytes to LLM-ready markdown, returning the render stats too.
 
     All elements rendered in document order. Nested tables appear as
     indented blocks below their parent row for clear LLM readability.
 
     Returns:
-        Rendered markdown string.
+        (rendered markdown string, RenderStats)
     Raises:
         ValueError: If DOCX cannot be parsed.
     """
@@ -678,7 +727,7 @@ def render_docx_to_markdown(file_bytes: bytes) -> str:
     except OSError as e:
         logger.debug(f"[RENDER] debug artifact write skipped: {e}")
 
-    return result
+    return result, stats
 
 
 def audit_annotation_channels(file_bytes: bytes, rendered: str) -> List[str]:

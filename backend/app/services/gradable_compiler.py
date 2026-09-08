@@ -277,6 +277,8 @@ def compile(  # noqa: A001 — shadows built-in; intentional, matches ContractCo
         schema_version="1.0",
         rubric_contract_version=rubric_contract.contract_version,
         transcription_contract_version=transcription_contract.contract_version,
+        subject=rubric_contract.subject,
+        # ALPHA-GAP A-4 (D-2): scopes carry text only; alpha threads the contract answer's page refs into each scope.
         scopes=scopes,
         unmatched_transcription_answers=unmatched,
         # NOTE: this is the OFFERED sum of the sliced scopes and is NOT the grading

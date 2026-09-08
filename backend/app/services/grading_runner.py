@@ -180,7 +180,8 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
                              rubric_contract.numeric_policy,
                              gradable_test=gradable_test,
                              plan=resolved.plan if resolved else None,
-                             plan_wording_source=resolved.wording_source if resolved else None)
+                             plan_wording_source=resolved.wording_source if resolved else None,
+                             subject=rubric_contract.subject)
         budget = _row_budget_s(len(gradable_test.scopes))
         try:
             draft = await asyncio.wait_for(agent.grade(gradable_test), timeout=budget)

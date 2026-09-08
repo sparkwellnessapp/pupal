@@ -55,6 +55,8 @@ class TeacherOverride(BaseModel):
     """
     check_id: str
     verdict: Literal["met", "partially_met", "not_met"]
+    # ALPHA-GAP A-1 (D-3): no `selected_level`; alpha adds it beside `units_correct` for leveled checks.
+    # ALPHA-GAP A-9 (D-4b): deductions / follow-through are overridden by verdict only; alpha models them.
     teacher_comment: Optional[str] = None      # the "H" note; no new field
     evidence_disputed: bool = False
     decided_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

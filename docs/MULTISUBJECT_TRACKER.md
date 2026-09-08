@@ -29,9 +29,11 @@ Legend: ☐ not started · ◐ in progress · ☑ done · ✗ dropped (with the 
 | 1.5 | P1/P2: `p1_system(profile)`, `p2_system_prompt(profile)` (P2 = base for all, ALPHA-GAP A-8), F-3 fragments, F-5 keyword set from profile | ☑ | `_P1_CS_INK_RULES` block substitution with an import-time guard; `PipelineConfig.subject_key`; keyword set from the profile |
 | 1.6 | verifier: `verifier_system_prompt(profile)`, `build_verifier_message(…, profile)`, F-2 fragments; kwarg through `grader_v5` ← `grader_selection` ← `grading_runner` | ☑ | rules 3–5 substitution with an import-time guard; D-16 stamp on the draft |
 | 1.7 | `GradableTest.subject` from the contract | ☑ | key only; `modalities` never on the type (test) |
-| 1.8 | API: required `subject` Form on submit (422 unknown); save writes the column, 409 on mismatch | ◐ | 422 ✓; 409 fixed (missing import in the router) — rerun pending |
+| 1.8 | API: required `subject` Form on submit (422 unknown); save writes the column, 409 on mismatch | ☑ | `tests/api/test_subject_seam.py` 6 passed (422 missing/unknown, 409 on change, 400 unknown at save, column↔contract agree) |
 | 1.9 | frontend: `api.ts:964`, `page.tsx` draft envelope + metadata change, `gen:api` | ☑ | `lib/subjects.ts` (keys + Hebrew labels); subject pre-filled from onboarding when exactly one; `gen:api` regenerated; tsc 0 |
-| 1.10 | tests listed in §5 Phase 1 green; CS pins byte-identical | ◐ | 256 unit tests green (agents/services/subjects); API seam tests rerun pending |
+| 1.10 | tests listed in §5 Phase 1 green; CS pins byte-identical | ☑ | pins 6/6 on the post-seam assembly; registry 16; grader v5 +3 (stamp, prompt swap, unknown refuses); gradable +2; API seam 6; extraction-job seam 7 (patch target moved to the stats twin); 256 agents/services unchanged |
+
+**Phase 1 deviation (recorded):** `QuestionExtraction` has no `question_type` field, so a "valid question types" fragment would be a rule the extractor cannot act on (§10 "no rules to be safe"). Implemented instead: the profile DEFAULT type in code (`_build_response`) + coerce-and-log at compile. CS keeps `coding_task` everywhere → byte-identical contracts.
 
 ## Phase 2 — Math ingestion
 

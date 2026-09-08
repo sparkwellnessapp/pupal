@@ -150,6 +150,11 @@ class GradableTest(BaseModel):
     schema_version: str = "1.0"
     rubric_contract_version: str           # pinned rubric version, for audit/reproducibility
     transcription_contract_version: str    # pinned transcription version
+    # Subject seam (2026-09-08): the rubric contract's subject KEY, so the grader
+    # can select its profile. A key only — modalities/fragments never travel on
+    # this type (docs/MULTISUBJECT_PLAN.md C2 "where it leaks"). Defaulted so every
+    # existing constructor call stays valid and byte-identical.
+    subject: str = "computer_science"
 
     scopes: List[GradableScope]                            # per-unit slices the agent iterates
     unmatched_transcription_answers: List[UnmatchedAnswer]  # orphans — data, not errors
@@ -159,6 +164,7 @@ class GradableTest(BaseModel):
     # every nested rubric, not a graceful degradation — its rate is the metric for when
     # the transcription depth-2 segmentation follow-up becomes urgent.
     parent_answer_fallback_scopes: List[str] = Field(default_factory=list)
+    # ALPHA-GAP A-4 (D-2): no page reference per scope; alpha adds `page_numbers` so a figure scope can carry its page.
 
     @field_serializer("total_points")
     def _sp(self, v: Decimal) -> str:
