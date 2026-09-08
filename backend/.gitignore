@@ -170,6 +170,11 @@ gen-lang-client-*.json
 # suites read them in place) — not eval output. The broad *.json above would drop
 # them, breaking CI on a fresh checkout.
 !tests/rubric_eval_suite/benchmarks/*.json
+# A RECORDED RUN is provenance, not eval output: a snapshot exists so a number in a
+# report can be checked without paying the provider again, which it cannot be if its
+# draft/contract/report never leave the machine that made it. Labelled REAL-PROVIDER-
+# SNAPSHOT in each directory's MANIFEST — never hand-ratified, never a benchmark.
+!tests/rubric_eval_suite/snapshots/**/*.json
 # Grading eval suite (mission v0, same precedent): configs, per-fixture
 # manifests, frozen contract snapshots and GT files are SOURCE — hash-pinned
 # provenance the runner validates against committed state. NOT eval output.

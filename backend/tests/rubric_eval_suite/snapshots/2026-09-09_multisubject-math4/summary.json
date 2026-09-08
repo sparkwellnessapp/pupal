@@ -1,0 +1,611 @@
+{
+ "attempt": 3,
+ "model_pin": "gpt-5.6-terra",
+ "render": "REPLAYED from attempt 1 (rubric-read/rr1.0, 16 pages, $0.1472)",
+ "wall_s": 217.8,
+ "input_tokens": 15668,
+ "output_tokens": 9915,
+ "finish_reason": "stop",
+ "llm_model": "gpt-5.6-terra",
+ "retry_count": 0,
+ "warnings": [
+  "[SQ_ZERO_CRITERIA] Q2.ג: Sub-question has no criteria. Check rubric table for criteria prefixed with this sub-question identifier.",
+  "[PREFLIGHT_INV1] q1: criteria+SQ sum (100.0) differs from total (33.333333333333336) by 66.666666666666664",
+  "[PREFLIGHT_INV1] q2: criteria+SQ sum (0.0) differs from total (33.333333333333336) by 33.333333333333336",
+  "[PREFLIGHT_INV1] q3: criteria+SQ sum (105.0) differs from total (33.333333333333336) by 71.666666666666664",
+  "[PREFLIGHT_INV1] q3.ב: criteria sum (25.0) differs from SQ points (20.0) by 5.0",
+  "[PREFLIGHT_INV1] q4: criteria+SQ sum (100.0) differs from total (33.333333333333336) by 66.666666666666664",
+  "[PREFLIGHT_INV1] q4.ד: criteria sum (34.0) differs from SQ points (39.0) by 5.0",
+  "[PREFLIGHT_INV1] q5: criteria+SQ sum (100.0) differs from total (33.333333333333336) by 66.666666666666664",
+  "[PREFLIGHT_INV1] q5.ג: criteria sum (48.0) differs from SQ points (38.0) by 10.0"
+ ],
+ "errors": [],
+ "prompt_version": "3.10.0-fixsource+mathematics",
+ "questions": [
+  {
+   "id": "q1",
+   "total": "33.5",
+   "criteria": [],
+   "subs": [
+    {
+     "id": "א",
+     "points": "6.75",
+     "criteria": [
+      [
+       "q1.א.c0",
+       "1.75",
+       "הצבה 5% a10 = a1 - 90"
+      ],
+      [
+       "q1.א.c1",
+       "1.75",
+       "5% a1 + 9d = a1 - 90\n9d = -90"
+      ],
+      [
+       "q1.א.c2",
+       "3.25",
+       "10% d = -10 כל תשלום קטן ב- 10 ש\"ח מקודמו."
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ב",
+     "points": "13.5",
+     "criteria": [
+      [
+       "q1.ב.c0",
+       "1.75",
+       "מהנתון: S10 = 1.875 S5 5% הבנה"
+      ],
+      [
+       "q1.ב.c1",
+       "3.5",
+       "הצבה 10% [2a1 + (10-1)(-10)] 10/2 = 1.875 [2a1 + ("
+      ],
+      [
+       "q1.ב.c2",
+       "5",
+       "פתרון 15% a1 = 420"
+      ],
+      [
+       "q1.ב.c3",
+       "3.25",
+       "10% S10 = [2x420 + 9(-10)] 10/2 = 3750 ש\"ח סה\"כ תש"
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ג",
+     "points": "13.25",
+     "criteria": [
+      [
+       "q1.ג.c0",
+       "5",
+       "רונן שילם לאחר 8 חודשים 597.5 ש\"ח S8 = S10 - 597.5"
+      ],
+      [
+       "q1.ג.c1",
+       "5",
+       "15% 3152.5 = a1 (1.5^8 - 1) / (1.5 - 1)\n3152.5 = 4"
+      ],
+      [
+       "q1.ג.c2",
+       "3.25",
+       "10% a1 = 64 התשלום הראשון של רונן."
+      ]
+     ],
+     "subs": []
+    }
+   ]
+  },
+  {
+   "id": "q2",
+   "total": "33.25",
+   "criteria": [],
+   "subs": [
+    {
+     "id": "א",
+     "points": "0",
+     "criteria": [],
+     "subs": [
+      {
+       "id": "1",
+       "points": "0",
+       "criteria": []
+      },
+      {
+       "id": "2",
+       "points": "0",
+       "criteria": []
+      }
+     ]
+    },
+    {
+     "id": "ב",
+     "points": "0",
+     "criteria": [],
+     "subs": [
+      {
+       "id": "1",
+       "points": "0",
+       "criteria": []
+      },
+      {
+       "id": "2",
+       "points": "0",
+       "criteria": []
+      }
+     ]
+    },
+    {
+     "id": "ג",
+     "points": "0",
+     "criteria": [],
+     "subs": []
+    }
+   ]
+  },
+  {
+   "id": "q3",
+   "total": "33.25",
+   "criteria": [],
+   "subs": [
+    {
+     "id": "א",
+     "points": "1.75",
+     "criteria": [
+      [
+       "q3.א.c0",
+       "1.75",
+       "(5%) א. גרף I מכונית ספורט שערך התחלתי יותר (ירידה"
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ב",
+     "points": "6.75",
+     "criteria": [
+      [
+       "q3.ב.c0",
+       "1.75",
+       "f(6) = 81,940 משוואה 5%"
+      ],
+      [
+       "q3.ב.c1",
+       "1.75",
+       "81,940 = 92,500 * q^6 5%"
+      ],
+      [
+       "q3.ב.c2",
+       "3.5",
+       "q = root(6)(81,940 / 92,500) = 0.98 מציאת q 10%"
+      ],
+      [
+       "q3.ב.c3",
+       "1.75",
+       "p = 2% מציאת p 5%\nמחיר המכונית קטן ב-2% בכל שנה."
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ג",
+     "points": "8.25",
+     "criteria": [
+      [
+       "q3.ג.c0",
+       "1.75",
+       "p = 2 * 2.5 = 5% מציאת p 5%"
+      ],
+      [
+       "q3.ג.c1",
+       "1.75",
+       "q = 1 - 5/100 = 0.95 5%"
+      ],
+      [
+       "q3.ג.c2",
+       "3.25",
+       "f(6) = 235,080 * 0.95^6 = 172,805.4 הצבה 10%"
+      ],
+      [
+       "q3.ג.c3",
+       "1.5",
+       "172,805.4 - 81,940 = 90,865.4 ההפרש 5%\nש\"ח"
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ד",
+     "points": "6.75",
+     "criteria": [
+      [
+       "q3.ד.c0",
+       "1.75",
+       "92,500 * 0.98^t = 235,080 * 0.95^t משוואה 5%"
+      ],
+      [
+       "q3.ד.c1",
+       "5",
+       "(0.98 / 0.95)^t = 235,080 / 92,500 -> t = ln(235,0"
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ה",
+     "points": "11.75",
+     "criteria": [
+      [
+       "q3.ה.c0",
+       "3.5",
+       "g(0) = 235,080 * 0.95^30 = 50,457.28 ירידה של רכב "
+      ],
+      [
+       "q3.ה.c1",
+       "3.25",
+       "q = 1.05 10%"
+      ],
+      [
+       "q3.ה.c2",
+       "1.75",
+       "82,190 = 50,457.28 * 1.05^t משוואה 5%\n82,190 / 50,"
+      ],
+      [
+       "q3.ה.c3",
+       "3.25",
+       "t = ln(82,190 / 50,457.28) / ln(1.05) = 10 פתרון 1"
+      ]
+     ],
+     "subs": []
+    }
+   ]
+  },
+  {
+   "id": "q4",
+   "total": "33.25",
+   "criteria": [],
+   "subs": [
+    {
+     "id": "א",
+     "points": "3.25",
+     "criteria": [],
+     "subs": [
+      {
+       "id": "1",
+       "points": "2.25",
+       "criteria": [
+        [
+         "q4.א.1.c0",
+         "2.25",
+         "ת.ה 7% x-2!=0 -> x!=2 f(x) = e^((a+x)/(x-2))"
+        ]
+       ]
+      },
+      {
+       "id": "2",
+       "points": "1",
+       "criteria": [
+        [
+         "q4.א.2.c0",
+         "1",
+         "אסימפטוטה אנכית 3% x=2"
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "ב",
+     "points": "3.25",
+     "criteria": [
+      [
+       "q4.ב.c0",
+       "3.25",
+       "(10%) ב נתון (4, e^5/2)\ne^5/2 = e^((a+4)/(4-2)) ->"
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ג",
+     "points": "2.5",
+     "criteria": [
+      [
+       "q4.ג.c0",
+       "1.5",
+       "חיתוך עם ציר y <- x=0 f(x) = e^((1+x)/(x-2))\nf(0) "
+      ],
+      [
+       "q4.ג.c1",
+       "1",
+       "3% חיתוך עם ציר x <- y=0\n0 = e^((1+x)/(x-2)) -> 0 "
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ד",
+     "points": "13",
+     "criteria": [
+      [
+       "q4.ד.c0",
+       "5",
+       "f'(x) = (e^(1+x)(x-2) - 1*e^(1+x))/(x-2)^2 = (e^(1"
+      ],
+      [
+       "q4.ד.c1",
+       "1",
+       "f'(x)=0 0 = (e^(1+x)(x-3))/(x-2)^2 -> 0 = e^(1+x)("
+      ],
+      [
+       "q4.ד.c2",
+       "2",
+       "6% הצבה בטבלה: f'(0) = (e*(-3))/+ < 0\nf'(2 1/2) = "
+      ],
+      [
+       "q4.ד.c3",
+       "1.75",
+       "5% f(3) = e^(1+3)/(3-2) = e^4"
+      ],
+      [
+       "q4.ד.c4",
+       "1.75",
+       "5% מינימום (3, e^4)"
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ה",
+     "points": "3",
+     "criteria": [
+      [
+       "q4.ה.c0",
+       "3",
+       "(9%) ה תחומי עליה: x>3\nתחומי ירידה: 2<x<3\nx<2\n3*3%"
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ו",
+     "points": "5",
+     "criteria": [
+      [
+       "q4.ו.c0",
+       "5",
+       "ו (15%)"
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ז",
+     "points": "3.25",
+     "criteria": [
+      [
+       "q4.ז.c0",
+       "3.25",
+       "ז (10%)\nחיובית x>3\nשלילית x<2\n2<x<3"
+      ]
+     ],
+     "subs": []
+    }
+   ]
+  },
+  {
+   "id": "q5",
+   "total": "33.25",
+   "criteria": [],
+   "subs": [
+    {
+     "id": "א",
+     "points": "2.25",
+     "criteria": [
+      [
+       "q5.א.c0",
+       "2.25",
+       "5) א) ת.ה x>0 7%"
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ב",
+     "points": "4",
+     "criteria": [
+      [
+       "q5.ב.c0",
+       "0.75",
+       "(12%) ב) חיתוך עם ציר y -> x=0 2%\nלא מוגדר ולכן אי"
+      ],
+      [
+       "q5.ב.c1",
+       "3.25",
+       "חיתוך עם ציר x -> y=0 10%\n0 = (lnx)^2 - lnx - 2\nln"
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ג",
+     "points": "12.75",
+     "criteria": [
+      [
+       "q5.ג.c0",
+       "5",
+       "(38%) ג) f'(x) = 2lnx * 1/x - 1/x = 1/x(2lnx - 1) "
+      ],
+      [
+       "q5.ג.c1",
+       "0.75",
+       "f'(x) = 0 -> 0 = (2lnx - 1)/x -> 0 = 2lnx - 1 -> 1"
+      ],
+      [
+       "q5.ג.c2",
+       "5.25",
+       "x = e^(1/2) 16%\n1.648"
+      ],
+      [
+       "q5.ג.c3",
+       "1.75",
+       "f'(2) = (2ln2 - 1)/2 = 0.193 > 0\nf'(1) = (2ln1 - 1"
+      ],
+      [
+       "q5.ג.c4",
+       "1.75",
+       "f(e^(1/2)) = (lne^(1/2))^2 - lne^(1/2) - 2 = -2.25"
+      ],
+      [
+       "q5.ג.c5",
+       "1.75",
+       "מינימום (e^(1/2), -2.25) 5%"
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ד",
+     "points": "3.25",
+     "criteria": [
+      [
+       "q5.ד.c0",
+       "3.25",
+       "(10%) ד)"
+      ]
+     ],
+     "subs": []
+    },
+    {
+     "id": "ה",
+     "points": "6",
+     "criteria": [],
+     "subs": [
+      {
+       "id": "1",
+       "points": "3.25",
+       "criteria": [
+        [
+         "q5.ה.1.c0",
+         "1.75",
+         "(5%) x > e^(1/2) f'(x) > 0 תחום חיוביות של הנגזרת"
+        ],
+        [
+         "q5.ה.1.c1",
+         "1.5",
+         "(5%) 0 < x < e^(1/2) f'(x) < 0 תחום שליליות של הנג"
+        ]
+       ]
+      },
+      {
+       "id": "2",
+       "points": "2.75",
+       "criteria": [
+        [
+         "q5.ה.2.c0",
+         "2.75",
+         "(2) גרף II ת.ה x>0 תואם לתחום חיוביות (הנגזרת)\n(8%"
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "id": "ו",
+     "points": "5",
+     "criteria": [
+      [
+       "q5.ו.c0",
+       "5",
+       "(15%) ו) S = \\int_{e^(1/2)}^{e^2} f'(x)dx = |f(x)|"
+      ]
+     ],
+     "subs": []
+    }
+   ]
+  }
+ ],
+ "total_points": "100",
+ "selection_groups": [
+  {
+   "group_id": "sg0",
+   "choose_k": 3,
+   "of_question_ids": [
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "q5"
+   ],
+   "label": "ענו על שלוש מן השאלות 1-5, על שאלה אחת לפחות מכל פרק ( לכל שאלה - 33 1/3 נקודות)."
+  }
+ ],
+ "annotations": [
+  [
+   "warning",
+   "rubric_mismatch",
+   "q2",
+   "33.25",
+   "0",
+   "q2: children sum to 0, but the node carries 33.25 points on the exam scale (written: 0 of 100). Copied as written — not reconciled."
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   "q3",
+   "33.25",
+   "35.25",
+   "q3: children sum to 35.25, but the node carries 33.25 points on the exam scale (written: 105 of 100). Copied as written — not reconciled."
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   "q3.ב",
+   "6.75",
+   "8.75",
+   "q3.ב: children sum to 8.75, but the node carries 6.75 points on the exam scale (written: 25 of 20). Copied as written — not reconciled."
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   "q4.ד",
+   "13",
+   "11.5",
+   "q4.ד: children sum to 11.5, but the node carries 13 points on the exam scale (written: 34 of 39). Copied as written — not reconciled."
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   "q5.ג",
+   "12.75",
+   "16.25",
+   "q5.ג: children sum to 16.25, but the node carries 12.75 points on the exam scale (written: 48 of 38). Copied as written — not reconciled."
+  ]
+ ],
+ "rescale": {
+  "version": "rescale_to_exam/v2 (grid-snap, largest remainder; written mismatches preserved)",
+  "grid": "0.25",
+  "exam_total": "100",
+  "exam_total_written": "100.0",
+  "shares": {
+   "q1": "33.5",
+   "q2": "33.25",
+   "q3": "33.25",
+   "q4": "33.25",
+   "q5": "33.25"
+  },
+  "unresolved": [
+   "q2",
+   "q3",
+   "q3.ב",
+   "q4.ד",
+   "q5.ג"
+  ]
+ },
+ "compile": "BLOCKED: CompilationError: Compilation blocked by 5 validation error(s):\n[invariant_violation] Question q2: Criteria sum (0) differs from declared total (33.25) by 33.25\n[invariant_violation] Question q3: Criteria sum (35.25) differs from declared total (33.25) by 2.00\n[invariant_violation] Sub-question q3.ב: criteria sum (8.75) differs from declared points (6.75) by 2.00\n[invariant_violation] Sub-question q4.ד: criteria sum (11.50) differs from declared points (13) by 1.50\n[invariant_violation] Sub-question q5.ג: criteria sum (16.25) differs from declared points (12.75) by 3.50",
+ "compile_after_teacher_fill": "FAILED: CompilationError: Compilation blocked by 5 validation error(s):\n[invariant_violation] Sub-question q2.א.1: criteria sum (0) differs from declared points (5.75) by 5.75\n[invariant_violation] Sub-question q2.א.2: criteria sum (0) differs from declared points (5.5) by 5.5\n[invariant_violation] Sub-question q2.ב.1: criteria sum (0) differs from declared points (5.5) by 5.5\n[invariant_violation] Sub-question q2.ב.2: criteria sum (0) differs from declared points (5.5) by 5.5\n[invariant_violation] Sub-question q2.ג: criteria sum (0) differs from declared points (11) by 11"
+}

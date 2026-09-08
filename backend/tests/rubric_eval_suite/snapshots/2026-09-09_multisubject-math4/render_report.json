@@ -1,0 +1,17 @@
+{
+ "stage": "image_read",
+ "source": "docx",
+ "text_chars": 0,
+ "image_count": 16,
+ "omml_seen": 0,
+ "omml_rendered": 0,
+ "pages_read": 16,
+ "pages_failed": 0,
+ "prompt_version": "rubric-read/rr1.0",
+ "model_id": "gemini-3.1-pro-preview",
+ "cost_usd": 0.1472,
+ "read_seconds": 36.0,
+ "failed_pages": [],
+ "wall_s": 47.8,
+ "chars": 14819
+}
