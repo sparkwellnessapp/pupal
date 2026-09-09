@@ -1,0 +1,812 @@
+{
+ "schema_version": "2.0",
+ "contract_version": "3db7f821-9534-4742-a671-ab1a7fb34503",
+ "rubric_id": "95d260e8-0c94-4a01-bd9a-d33b1597dfe1",
+ "subject": "mathematics",
+ "programming_language": null,
+ "numeric_policy": {
+  "precision": "0.25",
+  "rounding_mode": "half_up",
+  "sum_tolerance": "0.01"
+ },
+ "total_points": "96",
+ "questions": [
+  {
+   "question_id": "q1",
+   "question_type": "computation",
+   "question_text": "בחצר של גן ילדים בנו ארגז חול בצורת מלבן, כמתואר בסרטוט שלפניכם,\nהאורך של צלע אחת של המלבן הוא 4.8 מטרים\nוהאורך של הצלע האחרת הוא 3.6 מטרים.\nבסוף כל יום מכסים בבד את ארגז החול כולו.\nרצו לאפשר למספר גדול יותר של ילדים לשחק בארגז החול,\nולכן החליטו להגדיל כל אחת מן הצלעות של ארגז החול ב־25%.",
+   "total_points": "24",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [],
+   "sub_questions": [
+    {
+     "sub_question_id": "א",
+     "index": 0,
+     "title": null,
+     "text": "א. מצאו את שטח הבד המכסה את ארגז החול.",
+     "points": "1.75",
+     "example_solution": "S = a * b\nS = 4.8 * 3.6 = 17.28 מ\"ר",
+     "criteria": [
+      {
+       "criterion_id": "q1.א.c0",
+       "uid": "3f7dbd8d-0251-471b-bb9c-5f28fd99514a",
+       "index": 0,
+       "description": "א. שטח ארגז החול הגדול:\n10%",
+       "points": "1.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ב",
+     "index": 1,
+     "title": null,
+     "text": "ב. מצאו את אורך האלכסון של ארגז החול.",
+     "points": "3.5",
+     "example_solution": "a^2 + b^2 = c^2\n3.6^2 + 4.8^2 = c^2\n36 = c^2\nאורך האלכסון:\nc = 6 מ'",
+     "criteria": [
+      {
+       "criterion_id": "q1.ב.c0",
+       "uid": "78206ec3-6e5a-43a3-ac61-cd6deb8e9e2e",
+       "index": 0,
+       "description": "ב.\n20%",
+       "points": "3.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ג",
+     "index": 2,
+     "title": null,
+     "text": "ג. מצאו את אורכי הצלעות של ארגז החול לאחר ההגדלה.",
+     "points": "13.75",
+     "example_solution": "חלק 25% x = (3.6 * 25) / 100 = 0.9\nשלם 100% 3.6\nתוספת 0.9 מ'\nאורך צלע a 3.6 + 0.9 = 4.5 מ'\nאחוז כמות\nחלק 25% x = (4.8 * 25) / 100 = 1.2\nשלם 100% 4.8 מ'\nתוספת 1.2 מ'\nאורך הצלע 4.8 + 1.2 = 6 מ'\nאורך הצלע הקצרה 4.5 מ'\nאורך הצלע הארוכה 6 מ'",
+     "criteria": [
+      {
+       "criterion_id": "q1.ג.c0",
+       "uid": "35785197-9a3d-40ca-8457-ced5be716a64",
+       "index": 0,
+       "description": "ג. אורך צלע a\n20%",
+       "points": "3.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q1.ג.c1",
+       "uid": "3d04057f-935f-48dc-8f71-85ed53bafaef",
+       "index": 1,
+       "description": "אורך צלע b\n20%",
+       "points": "3.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q1.ג.c2",
+       "uid": "0d4c8dac-346d-4d4b-ba08-735650d343ec",
+       "index": 2,
+       "description": "40%",
+       "points": "7",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ד",
+     "index": 3,
+     "title": null,
+     "text": "ד. מצאו את שטח ארגז החול לאחר ההגדלה.",
+     "points": "1.75",
+     "example_solution": "S = 4.5 * 6 = 27 מ\"ר\nלאחר ההגדלה",
+     "criteria": [
+      {
+       "criterion_id": "q1.ד.c0",
+       "uid": "f0e05b6e-2854-46de-be47-c62413aa9fac",
+       "index": 0,
+       "description": "ד. שטח ארגז החול לאחר ההגדלה\n10%",
+       "points": "1.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ה",
+     "index": 4,
+     "title": null,
+     "text": "ה. מצאו בכמה אחוזים גדל השטח של ארגז החול לאחר ההגדלה, ביחס לשטח המקורי של ארגז החול.",
+     "points": "3.25",
+     "example_solution": "אחוז כמות\nחלק x = (27 * 100) / 17.28 27 מ\"ר\nשלם 100% 17.28 מ\"ר\nx = (27 * 100) / 17.28 = 156.25\nהשטח גדל ב- 56.25%\n156.25 - 100 = 56.25%",
+     "criteria": [
+      {
+       "criterion_id": "q1.ה.c0",
+       "uid": "5af4f9ea-4efa-40cb-a263-a5aa65bea2eb",
+       "index": 0,
+       "description": "ה.\n20%",
+       "points": "3.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    }
+   ],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  },
+  {
+   "question_id": "q2",
+   "question_type": "computation",
+   "question_text": "נועה קנתה מפית בצורת משולש שווה שוקיים.\nאורך הבסיס של המפית הוא 20 ס\"מ.\nאורך הגובה לבסיס גדול ב- 1 ס\"מ מאורך הבסיס.",
+   "total_points": "24",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [],
+   "sub_questions": [
+    {
+     "sub_question_id": "א",
+     "index": 0,
+     "title": null,
+     "text": "א. מה אורך הגובה של המפית?",
+     "points": "2.5",
+     "example_solution": "h = a + 1 = 20 + 1 = 21 ס\"מ",
+     "criteria": [
+      {
+       "criterion_id": "q2.א.c0",
+       "uid": "478aa3cd-188a-4100-8bbb-75729a945869",
+       "index": 0,
+       "description": "א. 10%",
+       "points": "2.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ב",
+     "index": 1,
+     "title": null,
+     "text": "ב. מה אורך השוק של המפית?",
+     "points": "9.5",
+     "example_solution": "כדי להשתמש במשפט פיתגורס, צריך לחלק את המשולש לשני משולשים ישרי זווית.\nנסתכל על משולש ADC:\nמשולש ADC:\na^2 + b^2 = c^2\n21^2 + 10^2 = c^2\n541 = c^2\nאורך השוק c = 23.259 ס\"מ",
+     "criteria": [
+      {
+       "criterion_id": "q2.ב.c0",
+       "uid": "5917b59b-5ffb-434b-bda8-3877a4b02714",
+       "index": 0,
+       "description": "ב. כדי להשתמש במשפט פיתגורס, צריך לחלק את המשולש לשני משולשים ישרי זווית.\nנסתכל על משולש ADC: 40%",
+       "points": "9.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ג",
+     "index": 2,
+     "title": null,
+     "text": "ג. מה היקף המפית?",
+     "points": "6",
+     "example_solution": "p = 23.259 + 23.259 + 20 = 66.518 ס\"מ",
+     "criteria": [
+      {
+       "criterion_id": "q2.ג.c0",
+       "uid": "dca5173f-9395-4052-930e-4e8ead214154",
+       "index": 0,
+       "description": "ג. היקף המפרש 25%",
+       "points": "6",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ד",
+     "index": 3,
+     "title": null,
+     "text": "ד. מהו שטח המפית?",
+     "points": "6",
+     "example_solution": "S = (a * h)/2 = (20 * 21)/2 = 210 סמ\"ר",
+     "criteria": [
+      {
+       "criterion_id": "q2.ד.c0",
+       "uid": "85697015-0a7a-45f0-b88f-6c17e1123b78",
+       "index": 0,
+       "description": "ד. שטח המפרש 25%",
+       "points": "6",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    }
+   ],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  },
+  {
+   "question_id": "q3",
+   "question_type": "computation",
+   "question_text": "",
+   "total_points": "24",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [],
+   "sub_questions": [
+    {
+     "sub_question_id": "א",
+     "index": 0,
+     "title": null,
+     "text": "א. מצאו את אורך הצלע המסומנת ב- x בכל אחד מהמשולשים הבאים (אורכי הצלעות נתונים בס\"מ).",
+     "points": "12",
+     "example_solution": null,
+     "criteria": [],
+     "sub_questions": [
+      {
+       "sub_question_id": "1",
+       "index": 0,
+       "title": null,
+       "text": "סרטוט א.1.",
+       "points": "4",
+       "example_solution": "נתון\nalpha=50^circ\nc=30\na=?\nsin alpha = a/c\nsin 50 / 1 = x / 30\n30 sin 50 = x\nx = 23 ס\"מ",
+       "criteria": [
+        {
+         "criterion_id": "q3.א.1.c0",
+         "uid": "5ede8aa6-8e41-4933-bd5e-16dc7fd63b4a",
+         "index": 0,
+         "description": "2 נקודות הצבה",
+         "points": "2",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        },
+        {
+         "criterion_id": "q3.א.1.c1",
+         "uid": "29b7053f-2a22-480b-9a5e-bc8252d40f77",
+         "index": 1,
+         "description": "2 נקודות פתרון",
+         "points": "2",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      },
+      {
+       "sub_question_id": "2",
+       "index": 1,
+       "title": null,
+       "text": "סרטוט א.2.",
+       "points": "4",
+       "example_solution": "נתון\nalpha=64\nc=28\nb=x\ncos alpha = b/c\ncos 64 / 1 = x / 28\n28 cos 64 = x\nx = 12.27 ס\"מ",
+       "criteria": [
+        {
+         "criterion_id": "q3.א.2.c0",
+         "uid": "f11b6e8d-1423-445b-9c0b-31a230f40575",
+         "index": 0,
+         "description": "2 נקודות הצבה",
+         "points": "2",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        },
+        {
+         "criterion_id": "q3.א.2.c1",
+         "uid": "8bd66644-7427-4b62-9baa-fdfc4eb16438",
+         "index": 1,
+         "description": "2 נקודות פתרון",
+         "points": "2",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      },
+      {
+       "sub_question_id": "3",
+       "index": 2,
+       "title": null,
+       "text": "סרטוט א.3.",
+       "points": "4",
+       "example_solution": "נתון\nalpha=48\na=6\nb=?\ntan alpha = a/b\ntan 48 / 1 = 6 / x\nx * tan 48 = 6\nx = 6 / tan 48\nx = 5.4 ס\"מ",
+       "criteria": [
+        {
+         "criterion_id": "q3.א.3.c0",
+         "uid": "9744952d-77cf-4d79-8bdf-da02c9331872",
+         "index": 0,
+         "description": "2 נקודות הצבה",
+         "points": "2",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        },
+        {
+         "criterion_id": "q3.א.3.c1",
+         "uid": "d157caa2-5ee1-4e7f-a325-35f8d53ab4c6",
+         "index": 1,
+         "description": "2 נקודות פתרון",
+         "points": "2",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      }
+     ],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ב",
+     "index": 1,
+     "title": null,
+     "text": "ב. מצאו את גודל הזווית המסומנת ב- α בכל אחד מהמשולשים הבאים (אורכי הצלעות נתונים בס\"מ).",
+     "points": "12",
+     "example_solution": null,
+     "criteria": [],
+     "sub_questions": [
+      {
+       "sub_question_id": "1",
+       "index": 0,
+       "title": null,
+       "text": "סרטוט ב.1.",
+       "points": "4",
+       "example_solution": "a=15\nb=12\nalpha=?\ntan alpha = a/b\ntan alpha = 15/12\nalpha = 51.34",
+       "criteria": [
+        {
+         "criterion_id": "q3.ב.1.c0",
+         "uid": "bddd5433-dddf-4914-b10d-b236d76666f3",
+         "index": 0,
+         "description": "2 נקודות הצבה",
+         "points": "2",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        },
+        {
+         "criterion_id": "q3.ב.1.c1",
+         "uid": "78cc524c-12af-4762-9eb9-09fde9de59d3",
+         "index": 1,
+         "description": "2 נקודות פתרון",
+         "points": "2",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      },
+      {
+       "sub_question_id": "2",
+       "index": 1,
+       "title": null,
+       "text": "סרטוט ב.2.",
+       "points": "4",
+       "example_solution": "a=5\nc=7\nalpha=?\nsin alpha = a/c\nsin alpha = 5/7\nalpha = 45.585",
+       "criteria": [
+        {
+         "criterion_id": "q3.ב.2.c0",
+         "uid": "0b920eef-4735-491e-a6b8-f435d0c16e77",
+         "index": 0,
+         "description": "2 נקודות הצבה",
+         "points": "2",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        },
+        {
+         "criterion_id": "q3.ב.2.c1",
+         "uid": "87d17a20-c5a2-4d19-a9f5-4327688912cb",
+         "index": 1,
+         "description": "2 נקודות פתרון",
+         "points": "2",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      },
+      {
+       "sub_question_id": "3",
+       "index": 2,
+       "title": null,
+       "text": "סרטוט ב.3.",
+       "points": "4",
+       "example_solution": "b=4\nc=7\nalpha=?\ncos alpha = b/c\ncos alpha = 4/7\nalpha = 55.15^circ",
+       "criteria": [
+        {
+         "criterion_id": "q3.ב.3.c0",
+         "uid": "cd455aa9-2f90-4c19-96e6-35dadb7b6b52",
+         "index": 0,
+         "description": "2 נקודות הצבה",
+         "points": "2",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        },
+        {
+         "criterion_id": "q3.ב.3.c1",
+         "uid": "ff8eedd8-e38b-4230-a78c-72f74f8029a3",
+         "index": 1,
+         "description": "2 נקודות פתרון",
+         "points": "2",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      }
+     ],
+     "proposals": null
+    }
+   ],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  },
+  {
+   "question_id": "q4",
+   "question_type": "computation",
+   "question_text": "בבריכת שחייה מציעים בעונת הקיץ שתי אפשרויות תשלום בעבור שיעורי שחייה:\nאפשרות א': מחיר כולל של 1,620 ש\"ח עבור מנוי לבריכה ועוד 30 ש\"ח לכל שיעור.\nאפשרות ב': מחיר של 90 ש\"ח לכל שיעור.\nדנה לומדת לשחות בבריכה זו. נסמן ב- x את מספר שיעורי השחייה של דנה.",
+   "total_points": "24",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [],
+   "sub_questions": [
+    {
+     "sub_question_id": "א",
+     "index": 0,
+     "title": null,
+     "text": "א. מהו המחיר בעבור 12 שיעורי שחייה לפי אפשרות ב'?",
+     "points": "7.25",
+     "example_solution": "מחיר 12 שיעורים לפי אפשרות ב' 90*12=1080\nש\"ח",
+     "criteria": [
+      {
+       "criterion_id": "q4.א.c0",
+       "uid": "f03c462b-1108-45b6-b073-e95b7257ecb2",
+       "index": 0,
+       "description": "א. 30%",
+       "points": "7.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ב",
+     "index": 1,
+     "title": null,
+     "text": "ב. (1) קבעו איזה מן הביטויים הבאים מתאר את העלות הכוללת עבור אפשרות א':\nI. y = 1,620x + 30\nII. y = 30x + 1,620\nIII. y = 30x",
+     "points": "3.75",
+     "example_solution": "אפשרות א' - II y=1620+30x",
+     "criteria": [
+      {
+       "criterion_id": "q4.ב.c0",
+       "uid": "123a38b3-0066-40c1-bd24-19c98c27857d",
+       "index": 0,
+       "description": "ב. 15%",
+       "points": "3.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ג",
+     "index": 2,
+     "title": null,
+     "text": "ב. (2) כתבו באמצעות x את המחיר שתשלם דנה בעבור שיעורי השחייה שלה לפי אפשרות ב'.",
+     "points": "3.5",
+     "example_solution": "אפשרות ב' y=90x",
+     "criteria": [
+      {
+       "criterion_id": "q4.ג.c0",
+       "uid": "4a8cbfd5-e60d-41b5-b4c7-a18c1ed54725",
+       "index": 0,
+       "description": "ג. 15%",
+       "points": "3.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ד",
+     "index": 3,
+     "title": null,
+     "text": "ג. מצאו את הערך של x שעבורו המחיר שתשלם דנה על שיעורי השחייה שלה יהיה שווה בשתי\nהאפשרויות.",
+     "points": "9.5",
+     "example_solution": "90x=1620+30x /-30x\n60x=1620 /:60\nמחיר שווה עבור שתי האפשרויות כאשר x=27\nלוקחים שיעורים",
+     "criteria": [
+      {
+       "criterion_id": "q4.ד.c0",
+       "uid": "1422f82e-2f9a-44a1-b8d5-e5147c3e742b",
+       "index": 0,
+       "description": "ד. 40%",
+       "points": "9.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    }
+   ],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  },
+  {
+   "question_id": "q5",
+   "question_type": "computation",
+   "question_text": "קיבוץ \"עין הצופה\" הזמין מרצה לתת הרצאה. המרצה נתן\nשתי הצעות לתשלום עבור ההרצאה לפי מספר המשתתפים.\nהצעה א' - תשלום קבוע של 1000 ש\"ח ועוד 20 ש\"ח עבור כל\nמשתתף.\nהצעה ב' - 30 ש\"ח עבור כל משתתף.\nבסרטוט שלפניכם שני גרפים I-ו II המתארים את שתי\nהאפשרויות.\nמארגני האירוע צפו כי לאירוע יגיעו כ 150 משתתפים.\nמארגני האירוע בקיבוץ הזמינו x משתתפים, ובחרו לשלם לפי אפשרות א'.\nגם קיבוצים \"רמת המקשיב\" ו\"מעלה עיניים\" הזמינו את המרצה להרצאה.\nקיבוץ \"רמת המקשיב\" בחר באפשרות א, ואילו קיבוץ \"מעלה עיניים\" בחר בהצעה ב'.\nבשני הקיבוצים השתתפה אותה כמות משתתפים.",
+   "total_points": "24",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [],
+   "sub_questions": [
+    {
+     "sub_question_id": "א",
+     "index": 0,
+     "title": null,
+     "text": "א. קבעו איזה מן הגרפים I-ו II מתאר את אפשרות א'. נמקו את קביעתכם.",
+     "points": "5.75",
+     "example_solution": "גרף I מתאר את הצעה א', כי הוא מתחיל ממקום גבוה\nיותר ולא מראשית הצירים, כלומר מתאר את המחיר שמתחיל\nב-1000 ש\"ח, בנוסף השיפוע שלו קטן יותר.",
+     "criteria": [
+      {
+       "criterion_id": "q5.א.c0",
+       "uid": "6b9d0ae7-53b6-44dc-97da-a4cbe212e725",
+       "index": 0,
+       "description": "א. 20%",
+       "points": "5.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ב",
+     "index": 1,
+     "title": null,
+     "text": "ב. באיזו מן ההצעות א' או ב' כדאי להם לבחור?",
+     "points": "5.75",
+     "example_solution": "הצעה א'. y=1000+20*150=4000\nש\"ח\nהצעה ב'. y=30*150=4500\nש\"ח\nעדיף לבחור בהצעה א' כי היא יותר זולה עבור 150 משתתפים",
+     "criteria": [
+      {
+       "criterion_id": "q5.ב.c0",
+       "uid": "1e2d896b-0c23-4297-aaca-b9ffc93313d0",
+       "index": 0,
+       "description": "ב. 20%",
+       "points": "5.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ג",
+     "index": 2,
+     "title": null,
+     "text": "ג. כתבו ביטוי המתאים לעלות הכוללת שישלם הקיבוץ לפי הצעה א'.\nד. לאחר שהתקיימה ההרצאה, הקיבוץ שילם 4,000 ש\"ח למרצה. כמה משתתפים היו באירוע?",
+     "points": "5.5",
+     "example_solution": "הצעה א' y=1000+20x\n4000=1000+20x /-1000\n3000=20x /:20\nבאירוע השתתפו x=150\nמשתתפים",
+     "criteria": [
+      {
+       "criterion_id": "q5.ג.c0",
+       "uid": "8d8409d4-1618-4f2a-b413-40503b9abba8",
+       "index": 0,
+       "description": "ג. 20%",
+       "points": "5.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ד",
+     "index": 3,
+     "title": null,
+     "text": "ה. מצאו מהי כמות המשתתפים בכל אחד מהקיבוצים \"רמת המקשיב\" ו\"מעלה עיניים\".",
+     "points": "7",
+     "example_solution": "100 משתתפים x=100 1000=10x <= 1000+20x=30x",
+     "criteria": [
+      {
+       "criterion_id": "q5.ד.c0",
+       "uid": "75b65aaf-012f-4ff0-8097-dcfd6a272a90",
+       "index": 0,
+       "description": "ד. 25%",
+       "points": "7",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    }
+   ],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  }
+ ],
+ "selection_groups": [
+  {
+   "group_id": "sg0",
+   "choose_k": 4,
+   "of_question_ids": [
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "q5"
+   ],
+   "label": "מותר לכם לענות על מספר שאלות כרצונכם,\nאך סך הנקודות שתוכלו לצבור לא יעלה על 100"
+  }
+ ]
+}

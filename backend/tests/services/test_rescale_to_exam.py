@@ -2,7 +2,10 @@
 
 Known answers from the execution plan §5 Phase 2b and the two Math fixtures' shapes:
   * 4-unit 35472: 5 questions, answer 3 → shares 33.5 / 33.25 / 33.25 / 33.25 / 33.25, total 100
-  * 3-unit 35173: 5 questions, "answer any, capped at 100" → choose 4 → 25 × 5, total 100
+  * 3-unit 35173: 5 questions, "answer any, capped at 100" → choose ⌊100/points⌋. NOTE: the
+    REAL paper prints 24 points per question, so it is choose-4 at 24 = 96 (verified by a
+    recorded run, snapshots/2026-09-09_multisubject-smoke/math3_docx). The 25-per-question
+    case below is the arithmetic, not that document.
   * Q5's weights 10/10/7/39/9/15/10 (= 100) on a 33.25 share → grid values summing to 33.25
 INV-1..4 must hold EXACTLY on every output — by construction, never by tolerance.
 """
@@ -143,6 +146,8 @@ def test_four_unit_q5_subquestions_snap_by_largest_remainder():
 # --- the 3-unit shape: answer any, capped at 100 → choose 4 of 5 ---------------------
 
 def test_three_unit_cap_as_choose_four_of_five():
+    """The cap shape at 25 a question (⌊100/25⌋ = 4). The real 35173 paper is 24 a question, so it
+    lands at 96 — see the module docstring; the shares logic is identical either way."""
     qs = [_q(f"q{i}", crits=[_crit(f"q{i}.c0", 40), _crit(f"q{i}.c1", 60)]) for i in range(1, 6)]
     group = SelectionGroup(group_id="sg0", choose_k=4, of_question_ids=[q.question_id for q in qs])
     after = rx.rescale_to_exam(_draft(qs, groups=[group]))

@@ -235,3 +235,50 @@ extracted; its cap rule is implemented and unit-tested as choose-4-of-5 but has 
 Not itemised: two failed Math attempts (one on gpt-4o, one that died at the schema parse — tokens
 spent, not recorded by the failing path), the Phase 0 rubric eval and `check_goal` runs, and the
 Phase 5 rubric-eval re-run.
+
+### The CS rubric eval, re-run after the schema change (2026-09-09)
+
+The Phase 2 amendment relaxed `gt=0` to `ge=0` on two extraction fields and made
+`SQ_ZERO_CRITERIA` retryable only for a scored part. Both sit on the CS path, so the CS number had
+to be re-measured rather than assumed.
+
+`runner --config gpt-5.6-terra-high --repeats 1` → `results/20260909-104242_gpt-5.6-terra-high`
+
+| | Phase 0 (`20260908-192219`) | after (`20260909-104242`) |
+|---|---|---|
+| gate | **4 / 5** pass, valid 5, invalid 0 | **4 / 5** pass, valid 5, invalid 0 |
+| the failing fixture's reasons | `point_exactness=0.979<1` · `annotation_mismatch` · `pedagogical_mismatch` | **identical** |
+| question/criterion/sub-criterion recall + precision | 1.0 | 1.0 |
+| point_exactness (worst / mean) | 0.9792 / 0.9958 | 0.9792 / 0.9958 |
+| example_solution_fidelity | 1.0 | 1.0 |
+
+Same gate, same pass set, same failure signature, same structural metrics to four decimals. The two
+NON-gating text-fidelity diagnostics moved in both directions between draws
+(`question_text_fidelity_min` 0.5839 → 0.8364, `subquestion_text_fidelity_min` 0.5996 → 0.2266),
+which is per-draw variation at k=1 on a verbatim-text metric, not a regression signal — the gate
+does not read them and no gated metric moved at all. Four transient `APIConnectionError` retries
+occurred during the run and were absorbed by the transport layer.
+
+### The 3-unit Math document — the cap rule on a real file (2026-09-09)
+
+Run late, to retire a «cannot claim». It corrected the execution plan's own expectation.
+
+`stage=image_read source=docx` — 180 text chars and 10 images, so the trigger fired on a SECOND
+real document; 10 pages read, 0 failed, **$0.0897**. Extraction `gpt-5.6-terra`/high, prompt
+`3.10.0-fixsource+mathematics`, 12,724 in / 8,680 out, **0 retries**, 325 s.
+
+Result: one `SelectionGroup`, **choose_k = 4** of 5, label = the paper's own sentence
+«מותר לכם לענות על מספר שאלות כרצונכם, אך סך הנקודות שתוכלו לצבור לא יעלה על 100»; five questions
+at **24** each; total **96**; compile blocked at q1/q3/q5 (her weights), **OK total=96** after the
+rubric-gate fix.
+
+**The plan predicted «five questions of 25, choose 4, total 100». That was wrong, and the run is
+right.** Page 1 of the paper states «בשאלון זה 5 שאלות - לכל שאלה 24 נקודות» — twenty-four, not
+twenty-five. So ⌊100/24⌋ = 4 (F-1's cap rule, correct) and the achievable total is 4 × 24 = **96**.
+The extraction read what is printed.
+
+**A pedagogical contradiction nobody has surfaced.** The teacher's instructions promise a cap of
+100 that her own point values make unreachable — a student answering every question can earn at
+most 96. Vivi captures this faithfully and says nothing about it: the rubric compiles at 96 and no
+annotation names the gap between 96 and the promised 100. Recorded as a «cannot claim», because it
+is exactly the kind of teacher-facing finding the product exists to surface.

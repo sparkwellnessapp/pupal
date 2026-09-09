@@ -50,3 +50,28 @@ second document by item number is **ALPHA-GAP A-9** (D-14 ii).
 Read the two English runs together: the document that carries its own rubric extracts and compiles;
 the one whose rubric lives elsewhere extracts correctly and then refuses, naming the gap. A teacher
 cannot yet grade a full bagrut English exam from her own two files alone.
+
+## `math3_docx/` — the 3-unit paper and the cap rule
+
+`fixtures/Math_rubrics/3 יחל מבחן ומחוון.docx` (35173), the second Math document, and the one that
+exercises «answer any, capped at 100».
+
+| | |
+|---|---|
+| render | `stage=image_read source=docx` — 180 text chars, 10 images, so the trigger fired; 10 pages read, 0 failed, **$0.0897** |
+| extraction | 12,724 in / 8,680 out, **0 retries**, 325 s, prompt `3.10.0-fixsource+mathematics` |
+| selection | ONE group, **choose_k = 4** of 5, label = the paper's own cap sentence |
+| shape | five questions at **24** each, `computation`, 31 criteria |
+| total | **96** |
+| compile as extracted | BLOCKED at q1 / q3 / q5 — her weights |
+| compile after the fix | **OK total=96** |
+
+**This run corrected the execution plan.** The plan predicted «five questions of 25, choose 4,
+total 100». Page 1 of the paper says «בשאלון זה 5 שאלות - לכל שאלה 24 נקודות» — 24, not 25. So
+F-1's cap rule gives ⌊100/24⌋ = 4 (right), and the achievable total is 4 × 24 = 96 (right). The
+extraction read what is printed; the plan's assumption was the thing that was wrong.
+
+**And it found something for the teacher that Vivi does not yet tell her.** Her instructions
+promise a cap of 100 that her own point values make unreachable: 96 is the maximum anyone can
+earn. The rubric compiles at 96 and nothing names the gap. See the phase-gate report's
+«cannot claim» item 5.

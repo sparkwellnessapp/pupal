@@ -147,12 +147,13 @@ return beside C3 that the execution plan specifies — now keeps a ladder whole.
 | leg | asked | result |
 |---|---|---|
 | CS gates byte-identical | prompt pins + A0 guard unchanged | **PASS** — 6/6 pins on the assembled CS output, A0 compiled-plan guard green (46 tests) |
-| CS rubric eval | matches the Phase 0 baseline (4/5) | see the RUNLOG — re-run because the extraction schema changed |
+| CS rubric eval | matches the Phase 0 baseline (4/5) | **PASS, and identical** — 4/5, with the SAME fixture failing for the SAME three reasons (`point_exactness=0.979<1`, `annotation_mismatch`, `pedagogical_mismatch`) and every structural metric unchanged to four decimals. Re-run because the extraction schema changed; `results/20260909-104242_gpt-5.6-terra-high` |
 | Math loop, **DOCX** | render → extract → rescale → compile at 100 | **PASS** — total 100, shares 33.5/33.25×4, choose 3 of 5; compile blocked at 5 nodes where her own weights disagree, and **OK total=100.00** after the rubric-gate fix |
 | Math loop, **PDF** | the same document through the PDF path | **PASS** — `stage=image_read source=pdf`, 16 pages, 0 failed, $0.147; identical shares and total; **OK total=100.00** after the fix. Independent draw, so a slightly different set of her inconsistencies surfaced (7 nodes) |
 | the teacher's `10%` visible | her written weight kept in each criterion description | **PASS** — e.g. `15% נגזרת`, `הצבה 10%`, carried verbatim |
 | English booklet | non-`coding_task` + compiles | **HALF** — extraction PASSES (`short_answer`, prompt `3.10.0-fixsource+english`, q1 60 + q2 40 = 100, `rescale_to_exam` correctly absent, 1 retry). Compile is **BLOCKED**, and for an honest reason: q2 is the WRITING task, and this booklet does not contain its rubric — that is the ministry band table, a SEPARATE document. `ZERO_CRITERIA` on q2 is the correct reading of the file. Merging a second file by item number is **ALPHA-GAP A-9** (D-14 ii), so this is a known gap meeting a real document, not a defect |
 | English band rubric | ministry F/G → 4 criteria 8/10/16/6 = 40 | **PASS** — compile OK at 40, `short_answer`, every band verbatim |
+| **Math, 3-unit** (the cap rule) | choose-4-of-5 from «answer any, capped at 100» | **PASS, and it corrected the plan** — image stage fired on a second document (180 text chars, 10 images → 10 pages read, 0 failed, $0.0897); `choose_k` **4** of 5 from the Hebrew cap sentence; total **96**, not the 100 the plan predicted, because the paper prints **24 points per question** («לכל שאלה 24 נקודות»), so ⌊100/24⌋ = 4 and 4 × 24 = 96. The extraction is faithful; the plan's 25-per-question assumption was wrong. Compile blocked at 3 of her nodes, **OK total=96** after the fix |
 | P-10 grading ceiling, P-6, P-4 | answer keys graded, misspellings and paragraphs survive P1+P2 | **NOT RUN** — see below |
 | `grep ALPHA-GAP` | returns every §6 site | **PASS** — 47 notes |
 
@@ -233,8 +234,12 @@ Anyone can re-derive it in five minutes; nobody should have to take my word for 
    this work began and is still blocked. Nothing here improved or regressed it.
 4. **The rubric paths are proven on two documents per subject**, one of which (the ministry
    rubric) was authored for this purpose from a public PDF. That is a demonstration, not a corpus.
-5. **The 3-unit Math document was never extracted.** Its "answer any, capped at 100" rule is
-   implemented and unit-tested as choose-4-of-5, but no real run exercised it.
+5. **The 3-unit Math exam can never reach the total its own instructions promise**, and Vivi does
+   not tell the teacher so. The paper says each of 5 questions is worth 24 and that a student may
+   answer freely up to a cap of 100 — but ⌊100/24⌋ = 4, so the most anyone can earn is 96. The
+   extraction is faithful and the rubric compiles at 96; the *pedagogical* contradiction in her
+   instructions is surfaced nowhere. (It was found by running the document, which is why the run
+   was worth doing.)
 6. **A band ladder is graded as one criterion, not as bands** (A-1), and a Math answer is
    transcribed as linear text, not as mathematics (A-2). Both are visible to the teacher and both
    are deferred by decision.

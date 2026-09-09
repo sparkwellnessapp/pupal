@@ -1,0 +1,111 @@
+{
+ "fixture": "3 יחל מבחן ומחוון.docx",
+ "subject": "mathematics",
+ "wall_s": 325.5,
+ "model": "gpt-5.6-terra",
+ "retry_count": 0,
+ "input_tokens": 12724,
+ "output_tokens": 8680,
+ "prompt_version": "3.10.0-fixsource+mathematics",
+ "render": {
+  "stage": "image_read",
+  "source": "docx",
+  "text_chars": 0,
+  "image_count": 10,
+  "omml_seen": 0,
+  "omml_rendered": 0,
+  "pages_read": 10,
+  "pages_failed": 0,
+  "prompt_version": "rubric-read/rr1.0",
+  "model_id": "gemini-3.1-pro-preview",
+  "cost_usd": 0.0897,
+  "read_seconds": 48.1,
+  "failed_pages": []
+ },
+ "total_points": "96",
+ "question_types": [
+  "computation"
+ ],
+ "question_totals": [
+  [
+   "q1",
+   "24"
+  ],
+  [
+   "q2",
+   "24"
+  ],
+  [
+   "q3",
+   "24"
+  ],
+  [
+   "q4",
+   "24"
+  ],
+  [
+   "q5",
+   "24"
+  ]
+ ],
+ "selection_groups": [
+  {
+   "group_id": "sg0",
+   "choose_k": 4,
+   "of_question_ids": [
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "q5"
+   ],
+   "label": "מותר לכם לענות על מספר שאלות כרצונכם,\nאך סך הנקודות שתוכלו לצבור לא יעלה על 100"
+  }
+ ],
+ "n_criteria": 31,
+ "rescale": {
+  "version": "rescale_to_exam/v2 (grid-snap, largest remainder; written mismatches preserved)",
+  "grid": "0.25",
+  "exam_total": "96",
+  "exam_total_written": "96.0",
+  "shares": {
+   "q1": "24",
+   "q2": "24",
+   "q3": "24",
+   "q4": "24",
+   "q5": "24"
+  },
+  "unresolved": [
+   "q1",
+   "q3",
+   "q5"
+  ]
+ },
+ "warnings": [
+  "[PREFLIGHT_INV1] q1: criteria+SQ sum (140.0) differs from total (24.0) by 116.0",
+  "[PREFLIGHT_INV1] q2: criteria+SQ sum (100.0) differs from total (24.0) by 76.0",
+  "[PREFLIGHT_INV1] q4: criteria+SQ sum (100.0) differs from total (24.0) by 76.0",
+  "[PREFLIGHT_INV1] q5: criteria+SQ sum (85.0) differs from total (24.0) by 61.0"
+ ],
+ "annotations": [
+  [
+   "warning",
+   "rubric_mismatch",
+   "q1",
+   "q1: children sum to 33.75, but the node carries 24 points on the exam scale (written: 140 of 100). Copied as w"
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   "q3",
+   "q3: children sum to 6, but the node carries 24 points on the exam scale (written: 24 of 100). Copied as writte"
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   "q5",
+   "q5: children sum to 20.25, but the node carries 24 points on the exam scale (written: 85 of 100). Copied as wr"
+  ]
+ ],
+ "compile": "BLOCKED: CompilationError: Compilation blocked by 3 validation error(s):\n[invariant_violation] Question q1: Criteria sum (33.75) differs from declared total (24) by 9.75\n[invariant_violation] Question q3: Criteria sum (6) differs from declared total (24) by 18\n[invariant_violation] Question q5: Criteria sum (20.25) differs from declared total (24) by 3.75"
+}

@@ -1,0 +1,43 @@
+{
+ "unresolved": [
+  "q1",
+  "q3",
+  "q5"
+ ],
+ "fixes": [
+  {
+   "node": "q1",
+   "held_at": "24"
+  },
+  {
+   "node": "q3",
+   "held_at": "24"
+  },
+  {
+   "node": "q5",
+   "held_at": "24"
+  }
+ ],
+ "compile": "OK total=96",
+ "question_totals": {
+  "q1": "24",
+  "q2": "24",
+  "q3": "24",
+  "q4": "24",
+  "q5": "24"
+ },
+ "selection_groups": [
+  {
+   "group_id": "sg0",
+   "choose_k": 4,
+   "of_question_ids": [
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "q5"
+   ],
+   "label": "מותר לכם לענות על מספר שאלות כרצונכם,\nאך סך הנקודות שתוכלו לצבור לא יעלה על 100"
+  }
+ ]
+}
