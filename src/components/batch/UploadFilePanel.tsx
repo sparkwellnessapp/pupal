@@ -9,9 +9,13 @@
  *  - >50 keeps the first 50 and says so (§3.2 truncation notice).
  *  - Duplicate (name, size) pairs carry the advisory dup chip — never block.
  *  - Sizes render as LTR `X.X MB` islands (§3.1).
- *  - U3 (W4): when `uploadStates` is present the list is LOCKED and each row
- *    renders its queue state — progress %, done ✓, or the failure reason with
- *    an inline retry (same client_file_id, wired by the caller).
+ *  - [Stage B / R3] The U3 per-row queue state is GONE from here. It rendered
+ *    progress, the done tick and the failure reason with an inline retry —
+ *    all of which now live in the dashboard's `UploadLane`, because the queue
+ *    itself moved out of the page and the teacher is no longer standing here
+ *    while it runs. This panel is a file PICKER again: choose, review, remove,
+ *    start. Keeping the dead branch would have left the next reader a live-
+ *    looking surface that nothing can reach.
  */
 
 import { useRef, useState } from 'react';
@@ -40,22 +44,17 @@ export function UploadFilePanel({
     files,
     onFilesChange,
     disabled = false,
-    uploadStates = null,
-    onRetry,
 }: {
     files: File[];
     onFilesChange: (files: File[]) => void;
     disabled?: boolean;
-    /** U3: per-file queue state by index — presence locks the list. */
-    uploadStates?: ReadonlyMap<number, UploadItemState> | null;
-    onRetry?: (index: number) => void;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [dragOver, setDragOver] = useState(false);
     const [excluded, setExcluded] = useState<ExcludedFile[]>([]);
     const [truncated, setTruncated] = useState(false);
 
-    const locked = disabled || uploadStates !== null;
+    const locked = disabled;
     const dups = detectDuplicates(files);
     const totalBytes = files.reduce((s, f) => s + f.size, 0);
 
@@ -159,15 +158,10 @@ export function UploadFilePanel({
 
                     <div className="space-y-1.5 max-h-72 overflow-y-auto" data-testid="upload-file-list">
                         {files.map((f, i) => {
-                            const st = uploadStates?.get(i) ?? null;
                             return (
                                 <div
                                     key={`${f.name}:${f.size}:${f.lastModified}:${i}`}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
-                                        st?.kind === 'failed'
-                                            ? 'border-batch-red-line bg-batch-red-soft'
-                                            : 'border-surface-200 bg-white'
-                                    }`}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-surface-200 bg-white text-sm"
                                     data-testid="upload-row"
                                 >
                                     <FileText size={15} className="text-gray-400 shrink-0" />
@@ -183,31 +177,6 @@ export function UploadFilePanel({
                                     <span dir="ltr" className="shrink-0 text-xs text-gray-500" data-testid="file-size">
                                         {formatMB(f.size)}
                                     </span>
-
-                                    {/* U3: per-row queue state */}
-                                    {st?.kind === 'uploading' && (
-                                        <span className="shrink-0 flex items-center gap-1.5 text-xs text-gray-600" data-testid="row-uploading">
-                                            <Loader2 size={13} className="animate-spin" />
-                                            <span dir="ltr">{st.pct}%</span>
-                                        </span>
-                                    )}
-                                    {st?.kind === 'done' && (
-                                        <Check size={16} className="shrink-0 text-batch-green" data-testid="row-done" />
-                                    )}
-                                    {st?.kind === 'failed' && (
-                                        <span className="shrink-0 flex items-center gap-2 text-xs text-batch-red-ink" data-testid="row-failed">
-                                            <span className="max-w-[180px] truncate" title={st.reason}>{st.reason}</span>
-                                            {st.retryable && onRetry && (
-                                                <button
-                                                    onClick={() => onRetry(i)}
-                                                    className="px-2 py-0.5 rounded bg-batch-red text-white hover:opacity-90 transition-opacity"
-                                                    data-testid="row-retry"
-                                                >
-                                                    {UPLOAD_RETRY}
-                                                </button>
-                                            )}
-                                        </span>
-                                    )}
 
                                     {!locked && (
                                         <button

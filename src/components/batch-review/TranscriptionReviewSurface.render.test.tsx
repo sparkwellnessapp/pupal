@@ -125,3 +125,45 @@ describe('TranscriptionReviewSurface — selection expectation', () => {
         expect(html).toContain('שאלה 2 סעיף א');
     });
 });
+
+/**
+ * Table rendering (2026-08-23). The default is content-derived and the raw text
+ * is never displaced: a grid renders instead of the textarea only when there is
+ * a grid AND nothing is flagged. Line flags outrank the prettier surface — they
+ * are the review signal, and they exist only in the raw view.
+ */
+describe('TranscriptionReviewSurface — the answer view/edit split', () => {
+    const TABLE_ANSWER = [
+        'if:',
+        'returned | x | i | arr[i]',
+        '6 | 0 | 1 | F',
+        '6 | 1 | 5 | F',
+    ].join('\n');
+
+    it('renders a table-bearing answer as a grid, with a toggle back to the text', () => {
+        const html = render(draftWith([[1, null, TABLE_ANSWER]]));
+        expect(html).toContain('data-testid="transcribed-answer-view"');
+        expect(html).toContain('<table');
+        expect(html).toContain('data-testid="answer-view-toggle"');
+        expect(html).toContain('הצגת הטקסט המקורי');
+        expect(html).not.toContain('data-testid="transcription-editor"');
+        expect(html).not.toContain('6 | 0 | 1 | F');
+    });
+
+    it('keeps the editor when the answer carries a line flag, grid or not', () => {
+        const flagged = `${TABLE_ANSWER}\n5 | [?] | 2 | T`;
+        const html = render(draftWith([[1, null, flagged]]));
+        expect(html).toContain('data-testid="transcription-editor"');
+        expect(html).not.toContain('data-testid="transcribed-answer-view"');
+        // The grid is still one click away — the toggle is offered, not forced.
+        expect(html).toContain('data-testid="answer-view-toggle"');
+        expect(html).toContain('הצגה כטבלה');
+    });
+
+    it('leaves a table-free answer exactly as before: editor, no toggle', () => {
+        const html = render(draftWith([[1, null, 'public int foo()\nreturn 1']]));
+        expect(html).toContain('data-testid="transcription-editor"');
+        expect(html).not.toContain('data-testid="answer-view-toggle"');
+        expect(html).not.toContain('data-testid="transcribed-answer-view"');
+    });
+});

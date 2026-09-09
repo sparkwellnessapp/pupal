@@ -118,11 +118,11 @@ async function installMocks(page: Page): Promise<MockState> {
         });
 
         if (url.includes('/api/v0/auth/me')) {
-            return json({
-                id: 'u1', email: 'teacher@example.com', full_name: 'מורה בדיקה',
-                subscription_status: 'active', is_subscription_active: true,
-                subject_matters: [], created_at: '2026-01-01T00:00:00Z',
-            });
+            // AUTH_ME, not a hand-rolled copy: this inline object drifted from
+            // the shared fixture the moment onboarding added a field, and since
+            // /auth/me OVERWRITES the seeded session, the missing
+            // onboarding_completed_at redirected this whole spec to /onboarding.
+            return json(AUTH_ME);
         }
         if (url.includes('/api/v0/classroom/students')) {
             return json({ students: [{ id: 's1', full_name: 'רז כהן', notes: null, created_at: '2026-01-01T00:00:00Z' }] });

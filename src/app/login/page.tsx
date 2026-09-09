@@ -12,11 +12,16 @@ import {
     AlertCircle,
     Sparkles,
 } from 'lucide-react';
-import { useAuth } from '@/lib/auth';
+import { EmailNotVerifiedError, useAuth } from '@/lib/auth';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import { VerificationCodePanel } from '@/components/auth/VerificationCodePanel';
+import { GOOGLE_DIVIDER, LOGIN_GENERIC_ERROR, LOGIN_NEEDS_VERIFY } from '@/copy/auth';
 
 export default function LoginPage() {
     const router = useRouter();
-    const { login, isAuthenticated } = useAuth();
+    const { login, resendCode, isAuthenticated } = useAuth();
+    /** Non-null ⇒ correct password, unproven address: show the code step. */
+    const [needsVerification, setNeedsVerification] = useState<string | null>(null);
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -45,7 +50,18 @@ export default function LoginPage() {
             await login(email, password);
             router.push('/');
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'שגיאה בהתחברות');
+            // [024] Her password was RIGHT and the address was never proven —
+            // an account created before verification existed, or one abandoned
+            // mid-signup. Finish the job here instead of showing her a failure
+            // she cannot act on. `resend-code` is what sends the code; login
+            // deliberately does not, so this page cannot be used to mail-bomb
+            // an address.
+            if (err instanceof EmailNotVerifiedError) {
+                await resendCode(email);
+                setNeedsVerification(email);
+                return;
+            }
+            setError(err instanceof Error ? err.message : LOGIN_GENERIC_ERROR);
         } finally {
             setIsLoading(false);
         }
@@ -96,6 +112,16 @@ export default function LoginPage() {
                     <div className="absolute -inset-1 bg-gradient-to-r from-primary-400/20 via-[#aa77f7]/20 to-primary-400/20 rounded-3xl blur-xl opacity-60" />
 
                     <div className="relative bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl shadow-gray-200/50 p-8 border border-white/50">
+                        {/* [024] Correct password, unproven address: finish the
+                            verification instead of showing a dead end. */}
+                        {needsVerification ? (
+                            <VerificationCodePanel
+                                email={needsVerification}
+                                onVerified={() => router.push('/')}
+                                onStartOver={() => setNeedsVerification(null)}
+                            />
+                        ) : (
+                        <>
                         <div className="text-center mb-8">
                             <h2 className="text-2xl font-bold bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 bg-clip-text text-transparent">
                                 התחברות
@@ -103,6 +129,15 @@ export default function LoginPage() {
                             <p className="text-gray-400 mt-2 text-sm">
                                 הזיני את פרטי ההתחברות שלך
                             </p>
+                        </div>
+
+                        <div className="mb-6 space-y-4">
+                            <GoogleSignInButton onError={setError} />
+                            <div className="flex items-center gap-3">
+                                <span className="h-px flex-1 bg-surface-200" />
+                                <span className="text-xs text-gray-400">{GOOGLE_DIVIDER}</span>
+                                <span className="h-px flex-1 bg-surface-200" />
+                            </div>
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-5">
@@ -227,6 +262,8 @@ export default function LoginPage() {
                                 </Link>
                             </p>
                         </div>
+                        </>
+                        )}
                     </div>
                 </div>
 

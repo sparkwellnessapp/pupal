@@ -38,6 +38,51 @@ const BATCH_SURFACES = [
   join('src', 'utils', 'batch-'),
 ]
 
+/**
+ * The grade-review surfaces (S12, PR spec §6: "check:copy extended to these
+ * three routes"). Two of the three already sit under src/app/batches and are
+ * therefore covered above; these are the rest. Added at F0, while they are
+ * still empty — a gate switched on before the first string is a guarantee,
+ * one switched on afterwards is an inventory of debt.
+ */
+const GRADE_REVIEW_SURFACES = [
+  join('src', 'app', 'graded-tests'),
+  join('src', 'components', 'grade-review'),
+]
+
+/**
+ * Onboarding. Gated from its FIRST string, like the grade-review surfaces
+ * above: a gate switched on before the copy exists is a guarantee, one switched
+ * on afterwards is an inventory of debt. It is also the first screen a teacher
+ * ever reads, so masculine-imperative debt here would be the product's opening
+ * sentence about who it thinks she is.
+ */
+const ONBOARDING_SURFACES = [
+  join('src', 'app', 'onboarding'),
+  join('src', 'components', 'onboarding'),
+  join('src', 'components', 'OnboardingGate'),
+]
+
+/**
+ * Auth (024). Gated from its first string, like onboarding: sign-in and sign-up
+ * are the two screens EVERY teacher reads, including the ones who never get
+ * further, so masculine-imperative debt here is the product's first sentence
+ * about who it thinks she is.
+ */
+const AUTH_SURFACES = [
+  join('src', 'app', 'login'),
+  join('src', 'app', 'signup'),
+  join('src', 'components', 'auth'),
+  join('src', 'copy', 'auth'),
+]
+
+const BLOCKING_SURFACES = [
+  ...BATCH_SURFACES,
+  ...GRADE_REVIEW_SURFACES,
+  ...ONBOARDING_SURFACES,
+  ...AUTH_SURFACES,
+]
+
 const SKIP_DIRS = new Set(['node_modules', '.next', 'dist'])
 const isTest = (p) => /\.test\.[tj]sx?$/.test(p) || p.includes(`${sep}__tests__${sep}`)
 
@@ -52,7 +97,7 @@ function walk(dir, out = []) {
 }
 
 const files = walk(SRC)
-const onBatchSurface = (rel) => BATCH_SURFACES.some((s) => rel.startsWith(s))
+const onGatedSurface = (rel) => BLOCKING_SURFACES.some((s) => rel.startsWith(s))
 
 /**
  * Comments are NOT UI, and this codebase documents its own copy laws in
@@ -140,9 +185,14 @@ for (const file of files) {
     }
 
     for (const [masc, fem] of MASCULINE) {
+      // src/data is DATA, not UI: the Ministry school export contains
+      // «מתי"א זבולון-אשר», whose city name matches the `אשר` imperative. A gate
+      // that permanently reports a school's name as a copy violation trains
+      // exactly the dismissal reflex this gate exists to prevent.
+      if (rel.startsWith(join('src', 'data'))) continue
       if (imperative(masc).test(line) && /["'`>]/.test(line)) {
         const entry = [at, `${code}   → ${fem}`]
-        if (onBatchSurface(rel)) findings.masculineBlocking.push(entry)
+        if (onGatedSurface(rel)) findings.masculineBlocking.push(entry)
         else findings.masculineDebt.push(entry)
       }
     }
@@ -157,7 +207,7 @@ const show = (title, hits) => {
 show('1. אצווה (OD4) [BLOCKING]', findings.batchWord)
 show('2. raw status enum as text (F3) [BLOCKING]', findings.statusText)
 show('3. un-isolated file sizes (§3.1) [BLOCKING]', findings.sizes)
-show('4a. masculine imperatives on batch surfaces (OD5) [BLOCKING]', findings.masculineBlocking)
+show('4a. masculine imperatives on batch + grade-review surfaces (OD5) [BLOCKING]', findings.masculineBlocking)
 show('4b. masculine imperatives elsewhere — INHERITED DEBT (reported, not blocking)', findings.masculineDebt)
 
 const blocking = findings.batchWord.length + findings.statusText.length

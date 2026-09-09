@@ -18,7 +18,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 const RENEWAL_CHECK_INTERVAL_MS = 15 * 60 * 1000;   // 15 min
 
 // Types
-interface User {
+export interface User {
     id: string;
     email: string;
     full_name: string;
@@ -34,6 +34,20 @@ interface User {
         name_he: string;
     }>;
     created_at: string;
+    // ── onboarding (migration 022) ──────────────────────────────────────────
+    /** 'female' | 'male' | 'unspecified'. Collected, not yet read by any copy. */
+    gender?: string | null;
+    /** NULL ⇒ has not finished onboarding. The gate keys off exactly this. */
+    onboarding_completed_at?: string | null;
+    schools?: Array<{
+        id: string;
+        name: string;
+        city?: string | null;
+        /** סמל מוסד — the institution's identity; null for a free-text school. */
+        ministry_symbol?: string | null;
+    }>;
+    /** == users.school_id, the PR-G6 attribution key; always schools[0]. */
+    primary_school_id?: string | null;
 }
 
 interface AuthState {
@@ -43,11 +57,34 @@ interface AuthState {
     isAuthenticated: boolean;
 }
 
+/** Thrown by login() when the password was RIGHT but the address is unproven.
+ *  A distinct type, not a message match: the caller must open the verification
+ *  panel rather than tell her she mistyped her password. */
+export class EmailNotVerifiedError extends Error {
+    constructor(public readonly email: string) {
+        super('email not verified');
+        this.name = 'EmailNotVerifiedError';
+    }
+}
+
 interface AuthContextType extends AuthState {
     login: (email: string, password: string) => Promise<void>;
+    /** [024] Creates the account and emails a code. Returns WITHOUT a session —
+     *  an address nobody proved gets none. `verifyEmail` is what signs her in. */
     signup: (email: string, password: string, fullName: string) => Promise<void>;
+    verifyEmail: (email: string, code: string) => Promise<void>;
+    resendCode: (email: string) => Promise<void>;
+    /** Adopts a session minted by Sign in with Google. */
+    adoptSession: (accessToken: string, user: User) => void;
     logout: () => void;
     refreshUser: () => Promise<void>;
+    /**
+     * Adopt a profile payload the caller ALREADY holds (every onboarding write
+     * answers with the full profile). refreshUser swallows its errors by design,
+     * so relying on it to land the completion stamp would risk the gate bouncing
+     * the teacher straight back into the flow she just finished.
+     */
+    applyUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -131,6 +168,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         if (!response.ok) {
+            // 403 means the credentials were CORRECT and the address is not yet
+            // proven. Typed, so the caller opens the code panel instead of
+            // rendering "wrong password" over a right one.
+            if (response.status === 403) throw new EmailNotVerifiedError(email);
             const error = await response.json().catch(() => ({ detail: 'שגיאה בהתחברות' }));
             throw new Error(error.detail || 'שגיאה בהתחברות');
         }
@@ -164,17 +205,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             throw new Error(error.detail || 'שגיאה ביצירת החשבון');
         }
 
+        // [024] NO SESSION HERE. The account exists and is unusable until the
+        // code is redeemed (owner ruling A4), so nothing is stored and nothing
+        // about `state` changes. Reading `access_token` from this response is
+        // what the old client did and is exactly the bug this comment prevents.
+        await response.json().catch(() => ({}));
+    }, []);
+
+    /** Adopt a session the caller already holds — Sign in with Google and
+     *  verify-email both come back with a full {token, user} pair, and
+     *  re-fetching it would only add a way to fail. */
+    const adoptSession = useCallback((accessToken: string, user: User) => {
+        try {
+            localStorage.setItem(TOKEN_KEY, accessToken);
+            localStorage.setItem(USER_KEY, JSON.stringify(user));
+        } catch {
+            // A blocked localStorage must not stop the session existing in memory.
+        }
+        setState({ user, token: accessToken, isLoading: false, isAuthenticated: true });
+    }, []);
+
+    /** [024] Redeem a verification code. THIS is where a signup gets its session. */
+    const verifyEmail = useCallback(async (email: string, code: string) => {
+        const response = await fetch(`${API_BASE}/api/v0/auth/verify-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: 'הקוד שגוי או שפג תוקפו' }));
+            throw new Error(error.detail || 'הקוד שגוי או שפג תוקפו');
+        }
+
         const data = await response.json();
+        adoptSession(data.access_token, data.user);
+        // Declared ABOVE this callback on purpose: a dependency array is
+        // evaluated during render, so naming a `const` defined further down
+        // would be a TDZ ReferenceError, not a lint nit.
+    }, [adoptSession]);
 
-        // Store in localStorage
-        localStorage.setItem(TOKEN_KEY, data.access_token);
-        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-
-        setState({
-            user: data.user,
-            token: data.access_token,
-            isLoading: false,
-            isAuthenticated: true,
+    /** Ask for a new code. Always resolves — the endpoint answers 202 for every
+     *  address by design, so a rejection here would be inventing information the
+     *  server deliberately refuses to give. */
+    const resendCode = useCallback(async (email: string) => {
+        await fetch(`${API_BASE}/api/v0/auth/resend-code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
         });
     }, []);
 
@@ -211,6 +289,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Ignore errors
         }
     }, [state.token]);
+
+    const applyUser = useCallback((user: User) => {
+        try {
+            localStorage.setItem(USER_KEY, JSON.stringify(user));
+        } catch {
+            // A full/blocked localStorage must not stop the session from
+            // reflecting the new profile in memory.
+        }
+        setState(prev => ({ ...prev, user }));
+    }, []);
 
     // ── PR-2: sliding renewal (C9) ──────────────────────────────────────────
     // POST /auth/refresh already existed and nothing called it. It is gated on a
@@ -264,7 +352,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [state.isAuthenticated, renewToken]);
 
     return (
-        <AuthContext.Provider value={{ ...state, login, signup, logout, refreshUser }}>
+        <AuthContext.Provider value={{ ...state, login, signup, verifyEmail, resendCode, adoptSession, logout, refreshUser, applyUser }}>
             {children}
         </AuthContext.Provider>
     );

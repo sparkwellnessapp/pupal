@@ -1,4 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+/* OD-F1 (== the parent's OD9), RULED 2026-08-31: Assistant app-wide, one line.
+   `body` below and `fontFamily.sans` in tailwind.config.ts move together —
+   two homes for the app face would drift the first time either was edited, and
+   `font-sans` is what most of the app actually renders through. Rubik stays in
+   the import as the one-line rollback. Caveat is used in exactly one place:
+   inside the stamp SVG, the only thing in the product that is literally ink on
+   paper. */
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&family=Assistant:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&family=Caveat:wght@700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -14,7 +21,7 @@ html {
 }
 
 body {
-  font-family: 'Rubik', system-ui, sans-serif;
+  font-family: 'Assistant', system-ui, sans-serif;
   background: var(--background);
   color: var(--foreground);
 }

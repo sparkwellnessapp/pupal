@@ -12,8 +12,10 @@ import {
   HEADLINE_IDENTITY_TRANSCRIBING_TAIL,
   HEADLINE_LAST_TRANSCRIBING,
   HEADLINE_NEEDS_EYES,
+  HEADLINE_UPLOADING,
 } from '@/copy/batch'
 import type { Partition } from '@/utils/batch-partition'
+import { isIdentityPending } from './zone-assignment'
 import { answerTargetId } from '@/utils/review-flags'
 import {
   expectedEmptyKeys,
@@ -21,12 +23,28 @@ import {
 } from '@/utils/selection-expectation'
 
 export interface RollupLike {
+  /** [Stage A] Declared files that have not landed yet.
+   *
+   *  OPTIONAL, and read everywhere as `?? 0`. Absent is not a guess and not a
+   *  degradation: a server that does not send this field has no notion of a
+   *  declared count, so the number of outstanding declared files on it really
+   *  is zero. That also makes the deploy window safe in both orders — Vercel
+   *  and Cloud Run ship to different targets and neither waits for the other. */
+  uploading?: number
+  /** [Stage A] Declared, never arrived, past the backstop TTL. Dead, not moving. */
+  not_received?: number
   transcribing: number
   transcribed: number
   grading: number
   approved: number
   transcription_failed: number
   total: number
+}
+
+/** The upload stage as ONE number, read the same way by every consumer here.
+ *  Files on the wire — not yet ours, and certainly not "transcribing". */
+export function uploadingCount(rollup: RollupLike): number {
+  return rollup.uploading ?? 0
 }
 
 interface BatchLike {
@@ -57,8 +75,10 @@ export function selectHeadline(p: Partition, rollup: RollupLike): string | null 
 
   // 2. Steady: what's waiting on HER (honesty: touched-clean + unmatched
   //    identity items count as needing her eyes), then the clean group.
-  const eyes = p.contentFlagged.length + p.identityOnly.length + p.touchedClean.length
-  const clean = p.clean.length
+  const pendingN = p.identityOnly.filter(isIdentityPending).length
+  const eyes = p.contentFlagged.length + (p.identityOnly.length - pendingN)
+    + p.touchedClean.length
+  const clean = p.clean.length + pendingN
   if (eyes > 0 || clean > 0) {
     const clauses: string[] = []
     if (eyes > 0) clauses.push(HEADLINE_NEEDS_EYES(eyes))
@@ -66,9 +86,15 @@ export function selectHeadline(p: Partition, rollup: RollupLike): string | null 
     return clauses.join(HEADLINE_CLAUSE_SEP)
   }
 
-  // 3. Only the transcription tail remains.
+  // 3. Only the arrival tail remains. Transcription first — those documents are
+  //    further along, and she is closer to being able to act on them. Uploading
+  //    ranks BELOW everything she can already do something about: files on the
+  //    wire ask nothing of her.
   if (rollup.transcribing > 0) {
     return HEADLINE_LAST_TRANSCRIBING(rollup.transcribing)
+  }
+  if (uploadingCount(rollup) > 0) {
+    return HEADLINE_UPLOADING(uploadingCount(rollup))
   }
 
   // 4. Everything terminal-approved.
@@ -84,7 +110,9 @@ export function selectHeadline(p: Partition, rollup: RollupLike): string | null 
 // failed; zero-count segments are dropped, never rendered as slivers)
 // ---------------------------------------------------------------------------
 
-export type BarSegmentKind = 'approved' | 'clean' | 'eyes' | 'moving' | 'failed'
+export type BarSegmentKind =
+  | 'approved' | 'clean' | 'eyes' | 'uploading' | 'moving' | 'failed'
+  | 'not_received'
 
 export interface BarSegment {
   kind: BarSegmentKind
@@ -92,13 +120,31 @@ export interface BarSegment {
 }
 
 export function barSegments(p: Partition, rollup: RollupLike): BarSegment[] {
-  const eyes = p.contentFlagged.length + p.identityOnly.length + p.touchedClean.length
+  // ZC-1 v2 (owner refinement 2026-08-23): identity-pending items count as
+  // CLEAN — their home — not amber. One arithmetic with assignZones, pinned
+  // by the parity test in zone-assignment.test.ts.
+  const pending = p.identityOnly.filter(isIdentityPending).length
+  const eyes = p.contentFlagged.length + (p.identityOnly.length - pending)
+    + p.touchedClean.length
   const all: BarSegment[] = [
     { kind: 'approved', count: p.approved.length },
-    { kind: 'clean', count: p.clean.length },
+    { kind: 'clean', count: p.clean.length + pending },
     { kind: 'eyes', count: eyes },
+    // [Stage A] The upload stage sits BEFORE transcription, and it is its own
+    // segment rather than folded into `moving`: those files are not being read
+    // by anything yet, and a bar that merged them would say the machine is
+    // working on documents it has never seen.
+    { kind: 'uploading', count: uploadingCount(rollup) },
     { kind: 'moving', count: rollup.transcribing },
     { kind: 'failed', count: rollup.transcription_failed },
+    // `not_received` is dead, but it is NOT a failure and gets its own segment.
+    // Folding it into «נכשל» made two surfaces contradict each other about the
+    // same fact — the list says «לא הגיעו … אפשר להעלות אותם שוב» while the
+    // dashboard said «נכשל» — and pointed her at a FailedZone that is empty,
+    // because a file that never arrived has no job row, no filename and no
+    // retry. Nothing was transcribed and nothing broke: the file is still on
+    // her machine.
+    { kind: 'not_received', count: rollup.not_received ?? 0 },
   ]
   return all.filter((s) => s.count > 0)
 }
@@ -173,6 +219,20 @@ export function completionReached(batch: BatchLike): boolean {
   const r = batch.rollup
   return (
     r.total > 0 &&
+    // [Stage A] Files still on the wire are the FIRST thing that makes a batch
+    // incomplete. Without this clause a ten-file batch whose first file has not
+    // landed reads total>0, transcribing 0, transcribed 0, no active jobs — and
+    // fires the completion hero over an upload that has barely started.
+    uploadingCount(r) === 0 &&
+    // …and a batch whose declared files NEVER arrived is not complete either.
+    // This clause is what stops the worst version of the same lie: after the
+    // 90-minute backstop an abandoned ten-file batch reads uploading 0 with
+    // everything else 0, so without it the green ✓ hero renders
+    // «כל 10 המבחנים אושרו» over a batch that received nothing — three lines
+    // under a red «נכשל» status chip. Before Stage A that was unreachable,
+    // because `total` was COUNT(jobs) and the `total > 0` guard held. Making
+    // `total` the declared count is what opened it, so closing it belongs here.
+    (r.not_received ?? 0) === 0 &&
     r.transcribing === 0 &&
     r.transcribed === 0 &&
     (batch.active_jobs ?? []).length === 0
@@ -182,7 +242,19 @@ export function completionReached(batch: BatchLike): boolean {
 /** 3s while transcription decisions are pending (D10 trigger false); 5s while
  * only grading moves; null = stop polling. */
 export function pollCadenceMs(batch: BatchLike): number | null {
-  if (!completionReached(batch)) return 3000
+  if (!completionReached(batch)) {
+    // [Stage B] An EMPTY batch has nothing to wait for, and `completionReached`
+    // will never say otherwise because of its `total > 0` guard. That state is
+    // newly reachable: if every selected file is rejected 422, the client
+    // re-declares `expected = 0`, so `total` is 0 — and before Stage B she
+    // never landed on this page at all, because the continue button required
+    // at least one landed file. Left alone the dashboard polls a dead batch
+    // every 3 seconds forever.
+    const nothingInFlight = batch.rollup.total === 0
+      && uploadingCount(batch.rollup) === 0
+      && (batch.active_jobs ?? []).length === 0
+    return nothingInFlight ? null : 3000
+  }
   if (batch.rollup.grading > 0) return 5000
   return null
 }

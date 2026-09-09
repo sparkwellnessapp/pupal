@@ -283,7 +283,7 @@ test('D5 bulk accept: skipped surfaced verbatim, dimming, poll reconciliation', 
         items: [
             seedItem('t1', { matchedStudentId: 's1', matchedStudentName: 'דנה לוי' }),
             seedItem('t2', { matchedStudentId: 's2', matchedStudentName: 'יובל כץ' }),
-            seedItem('t3', { reasons: ['code_lint'] }),
+            seedItem('t3', { reasons: ['unparseable'] }),
         ],
         rollup: { total: 3 },
     });
@@ -297,7 +297,7 @@ test('D5 bulk accept: skipped surfaced verbatim, dimming, poll reconciliation', 
                 reasons: ['missing_answers'],
                 draft: { answers: [{ question_number: 1, sub_question_id: null, answer_text: '', confidence: 0, page_numbers: [] }] },
             }),
-            seedItem('t3', { reasons: ['code_lint'] }),
+            seedItem('t3', { reasons: ['unparseable'] }),
         ],
         rollup: { total: 3, grading: 1 },
     });
@@ -408,20 +408,21 @@ test('D7: a finishing ghost becomes a highlighted clean row on the next poll', a
 });
 
 // ---------------------------------------------------------------------------
-// ZC-1 (owner-ruled 2026-08-22): transcribed = Σ(eyes rows) + Σ(clean rows).
-// Seeds the OWNER'S EXACT live batch shape — the one where דן בסיוק
-// (clean content + successfully-extracted new name → student_unassigned
-// only) existed solely as a wave pill, with no row in any zone.
+// ZC-1 v2 (owner-ruled 2026-08-22, refined 2026-08-23):
+// transcribed = Σ(eyes rows) + Σ(clean rows), with identity-pending items
+// (ONLY flag = extracted new name, untouched) homed in the CLEAN panel,
+// their names riding the wave, EXCLUDED from the bulk count. Seeds the
+// owner's exact live batch shape.
 // ---------------------------------------------------------------------------
 
-test('ZC-1 — every transcription has a zone row; the unassigned-only item is no longer wave-only', async ({ page }) => {
+test('ZC-1 v2 — identity-pending items home in CLEAN: sum intact, bulk count honest, wave overlaid', async ({ page }) => {
     await seedAuth(page);
     const payload = seedBatch({
         items: [
-            seedItem('t1', { filename: 'איתי קראפט.pdf', suggestion: 'איתי קראפט', reasons: ['code_lint', 'student_unassigned'] }),
-            seedItem('t2', { filename: 'דין עזרא.pdf', suggestion: 'דין עזרא', reasons: ['code_lint', 'student_unassigned'] }),
-            seedItem('t3', { filename: 'יהלי כהן.pdf', suggestion: 'יהלי כהן', reasons: ['code_lint', 'student_unassigned'] }),
-            seedItem('t4', { filename: 'טל גורבן.pdf', suggestion: 'טל גורבן', reasons: ['code_lint', 'student_unassigned'] }),
+            seedItem('t1', { filename: 'איתי קראפט.pdf', suggestion: 'איתי קראפט', reasons: ['unparseable', 'student_unassigned'] }),
+            seedItem('t2', { filename: 'דין עזרא.pdf', suggestion: 'דין עזרא', reasons: ['unparseable', 'student_unassigned'] }),
+            seedItem('t3', { filename: 'יהלי כהן.pdf', suggestion: 'יהלי כהן', reasons: ['unparseable', 'student_unassigned'] }),
+            seedItem('t4', { filename: 'טל גורבן.pdf', suggestion: 'טל גורבן', reasons: ['unparseable', 'student_unassigned'] }),
             // THE bug shape: clean content, new name extracted, no student yet.
             seedItem('t5', { filename: 'דן בסיוק.pdf', suggestion: 'דן בסיוק', reasons: ['student_unassigned'] }),
             seedItem('t6', { filename: 'איתי כתב.pdf', suggestion: 'איתי כתב', matchedStudentId: 's1', matchedStudentName: 'איתי כתב' }),
@@ -436,29 +437,34 @@ test('ZC-1 — every transcription has a zone row; the unassigned-only item is n
 
     await page.goto(`/batches/${SEED_BATCH_ID}`);
 
-    // THE SUM: 6 transcribed = 5 eyes rows + 1 clean row. No item homeless.
-    await expect(page.getByTestId('eyes-row')).toHaveCount(5);
-    await expect(page.getByTestId('clean-row')).toHaveCount(1);
+    // THE SUM: 6 transcribed = 4 eyes rows + 2 clean rows. No item homeless.
+    await expect(page.getByTestId('eyes-row')).toHaveCount(4);
+    await expect(page.getByTestId('clean-row')).toHaveCount(2);
 
-    // דן בסיוק has a ROW now — with the extracted name and the honest reason
-    // note — not just a wave pill.
-    const danRow = page.getByTestId('eyes-row').filter({ hasText: 'דן בסיוק.pdf' });
+    // דן בסיוק homes in the CLEAN panel: his extracted name shows, the amber
+    // chip says WHY he is not yet bulk-acceptable, and the row carries the
+    // panel's per-item entry (reachability, ZC-1's original complaint).
+    const danRow = page.getByTestId('clean-row').filter({ hasText: 'דן בסיוק.pdf' });
     await expect(danRow).toHaveCount(1);
-    await expect(danRow.getByTestId('eyes-unassigned-note'))
-        .toHaveText(/דן בסיוק · תלמיד חדש - טרם נוצר/);
-    await expect(danRow.getByRole('link', { name: 'פתחי לעיון' })).toBeVisible();
+    await expect(danRow).toContainText('דן בסיוק');
+    await expect(danRow).toContainText('תלמיד חדש - טרם נוצר');
 
-    // The zone title and walk CTA count the SAME set the rows render.
-    await expect(page.getByTestId('zone-eyes').getByText('דורשים עיון — 5')).toBeVisible();
-    await expect(page.getByTestId('eyes-start-walk')).toHaveText('התחילי סבב עיון (5)');
+    // The BULK COUNT is honest: only the matched item (איתי כתב) is counted —
+    // the button never claims items the server would refuse.
+    await expect(page.getByTestId('clean-accept-all')).toHaveText('אשרי את המבחן (1)');
+    await expect(page.getByTestId('clean-pending-note'))
+        .toHaveText('מבחן אחד ממתין ליצירת תלמיד — צרי אותו בזיהוי התלמידים למעלה');
 
-    // PARITY: the honesty-bar legend's eyes count equals the zone's row count
-    // — the 10-vs-8 divergence class, pinned dead at the UI level.
+    // The zone title, walk CTA and bar legend all count the SAME eyes set.
+    await expect(page.getByTestId('zone-eyes').getByText('דורשים עיון — 4')).toBeVisible();
+    await expect(page.getByTestId('eyes-start-walk')).toHaveText('התחילי סבב עיון (4)');
     const legendEyes = page.getByTestId('segment-bar').first()
         .locator('span', { hasText: 'דורשים עיון' }).locator('b');
-    await expect(legendEyes).toHaveText('5');
+    await expect(legendEyes).toHaveText('4');
+    const legendClean = page.getByTestId('segment-bar').first()
+        .locator('span', { hasText: 'נקיים' }).locator('b');
+    await expect(legendClean).toHaveText('2');
 
-    // The wave still shows the pills (it is an ACCELERATOR overlay) — its
-    // presence no longer substitutes for a row.
+    // The wave still shows the pills — an ACCELERATOR overlay, never a home.
     await expect(page.getByTestId('zone-identity-wave')).toBeVisible();
 });

@@ -11,6 +11,7 @@ import {
     ChevronRight,
     ChevronLeft,
     User,
+    CalendarCheck,
     LogOut,
     Settings,
     Menu,
@@ -18,8 +19,11 @@ import {
     Layers,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { LIST_TITLE } from '@/copy/batch';
+import { useUploadQueue } from '@/contexts/UploadQueueProvider';
+import { LIST_TITLE, LOGOUT_WHILE_UPLOADING } from '@/copy/batch';
 import { isNavActive } from '@/utils/nav-active';
+import { BOOK_A_CALL } from '@/copy/onboarding';
+import { BOOKING_URL, requestGuidedSession } from '@/lib/guidedSession';
 
 interface SidebarProps {
     children: React.ReactNode;
@@ -72,6 +76,7 @@ function ProfileDropdown() {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
     const { user, logout, isAuthenticated } = useAuth();
+    const uploads = useUploadQueue();
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -85,6 +90,11 @@ function ProfileDropdown() {
     }, []);
 
     const handleLogout = () => {
+        // [Stage B] Signing out is one of the two things that still kills an
+        // upload: it navigates hard and the transfers go with the page. A soft
+        // route change is now safe, which is exactly why THIS one has to ask —
+        // she has no reason to expect that leaving kills anything any more.
+        if (uploads.isActive && !window.confirm(LOGOUT_WHILE_UPLOADING)) return;
         setIsOpen(false);
         logout();
         router.push('/login');
@@ -264,6 +274,43 @@ export function SidebarLayout({ children }: SidebarProps) {
                         );
                     })}
                 </nav>
+
+                {/*
+                  * [028 §8] The persistent guided-session entry point. LOW-KEY
+                  * on purpose — it is not a nav destination (it opens a booking
+                  * page in another tab), so it sits below the nav rather than
+                  * inside it, and it never lights up as "current".
+                  *
+                  * Renders only when a booking URL is configured: the same rule
+                  * the exam step follows and the Google button follows — a dead
+                  * link is worse than no link.
+                  */}
+                {BOOKING_URL && (
+                    <div className="px-3 pb-1">
+                        <a
+                            href={BOOKING_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => {
+                                // Records that she asked, first-occurrence only,
+                                // server-side. Fire-and-forget: she is on her
+                                // way to another tab, and an error toast about
+                                // this write would interrupt the very action it
+                                // is recording.
+                                requestGuidedSession();
+                                setIsMobileOpen(false);
+                            }}
+                            data-testid="book-guided-session"
+                            title={isCollapsed ? BOOK_A_CALL : undefined}
+                            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-gray-500
+                                        transition-all hover:bg-surface-100 hover:text-gray-900
+                                        ${isCollapsed ? 'justify-center' : ''}`}
+                        >
+                            <CalendarCheck size={16} className="shrink-0 text-gray-400" />
+                            {!isCollapsed && <span className="text-sm">{BOOK_A_CALL}</span>}
+                        </a>
+                    </div>
+                )}
 
                 {/* Sidebar Footer */}
                 <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-surface-200/50">

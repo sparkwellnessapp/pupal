@@ -16,8 +16,10 @@
  * the excluded sub-bucket.
  *
  * MEMBERSHIP = THE SERVER'S OWN PREDICATE. eyesRows is contentFlagged ∪
- * identityOnly(ALL) ∪ touchedClean — precisely `needs_eyes` (flagged ∨
- * touched, Ruling 1) restricted to unapproved rows. With this selector the
+ * (identityOnly ∖ identity-pending) ∪ touchedClean — precisely `needs_eyes`
+ * (v2: flagged-beyond-a-new-name ∨ touched) restricted to unapproved rows;
+ * cleanRows absorbs the identity-pending items (owner refinement
+ * 2026-08-23), keeping the ZC-1 sum intact. With this selector the
  * bar, the zone rows, the review walk, the list page and `accept_clean`'s
  * refusals all answer "who needs her?" identically. One number, five
  * surfaces.
@@ -33,6 +35,27 @@
 
 import { partitionItems, type PartitionItem } from './batch-partition'
 
+/**
+ * ZC-1 v2 (owner refinement 2026-08-23): "identity-pending" — content is
+ * clean, the ONLY flag is a successfully-extracted NEW student name, and the
+ * teacher has not touched it. Its home is the CLEAN panel (per-item link
+ * included), its name rides the identity wave, and it is EXCLUDED from the
+ * bulk-accept count until the student exists (the server's accept_clean
+ * would refuse it anyway — verdict flagged). Δ1 outranks this: a touched
+ * item needs her eyes regardless.
+ *
+ * This predicate is the frontend HALF of a cross-language rule — the server's
+ * `_needs_eyes` applies the same exclusion (batch_grading.py). Twin tests on
+ * both sides reference each other; change one, change the other.
+ */
+export function isIdentityPending(item: PartitionItem): boolean {
+  if (item.transcription_status !== 'transcribed') return false
+  if (item.review != null) return false
+  const { review_needed, reasons } = item.flag_verdict
+  if (!review_needed || reasons.length === 0) return false
+  return reasons.every((r) => r === 'student_unassigned')
+}
+
 export interface ZoneAssignment<T extends PartitionItem> {
   /** Needs her eyes: content-flagged ∪ identity-flagged (BOTH sub-cases) ∪
    *  teacher-touched. Display order: content, identity, touched (D6). */
@@ -44,12 +67,17 @@ export interface ZoneAssignment<T extends PartitionItem> {
 
 export function assignZones<T extends PartitionItem>(items: T[]): ZoneAssignment<T> {
   const p = partitionItems(items)
+  // v2: identityOnly splits by the pending predicate — pending → CLEAN
+  // (their home; the wave is an overlay), everything else → eyes. The v1 bug
+  // (an item with NO home) stays impossible: both halves are assigned.
+  const identityPending = p.identityOnly.filter(isIdentityPending)
+  const identityEyes = p.identityOnly.filter((i) => !isIdentityPending(i))
   const eyesRows = [
     ...p.contentFlagged,
-    ...p.identityOnly,          // ALL of it — never filtered by sub-reason
+    ...identityEyes,
     ...p.touchedClean,
   ] as T[]
-  const cleanRows = p.clean as T[]
+  const cleanRows = [...p.clean, ...identityPending] as T[]
   const approved = p.approved as T[]
 
   const assigned = eyesRows.length + cleanRows.length + approved.length

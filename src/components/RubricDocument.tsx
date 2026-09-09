@@ -21,6 +21,7 @@ import { isOpenFinding, visibleAnnotations } from '@/utils/finding-severity';
 import { changedPointNodeIds } from '@/utils/points-cascade';
 import { buildRailOutline, type RailNode } from '@/utils/rail-outline';
 import { formatPoints } from '@/utils/rubric-display';
+import { isClose } from '@/utils/rubric-validation';
 import { ChevronDown, ChevronLeft } from 'lucide-react';
 import { AnnotationBanner } from '@/components/AnnotationBanner';
 import { EditableText } from '@/components/document/EditableText';
@@ -157,9 +158,41 @@ function ScopeFindings({ scopeId }: { scopeId: string | undefined }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CriteriaTable — the centerpiece (§3). Real <table>; description wraps, never
-// h-scrolls; points via EditablePoints (the one cascade site); breakdown rows.
+// CriteriaTable — THE LEDGER (design pass, 2026-08-24). The centerpiece (§3):
+// a real <table>; description wraps, never h-scrolls; points via EditablePoints
+// (the one cascade site); breakdown rows.
+//
+// WHY IT LOOKS LIKE A LEDGER. The previous table was hairlines on white inside
+// a white card — it dissolved into the prose around it, on the one surface where
+// the teacher is doing arithmetic. Three moves fix that:
+//   1. A closed FRAME (ring + header band) so the table is an object on the page,
+//      not a gap between paragraphs.
+//   2. A POINTS LANE — the numbers column is separated by a real rule and tinted,
+//      so the eye can run down the numbers without reading a word of Hebrew. This
+//      is also why sub-criteria are rows of THIS table rather than a nested table
+//      inside the description cell: every number in the scope belongs in the lane.
+//   3. The RECONCILIATION FOOTER — Σ criteria against the scope's own points, the
+//      exact arithmetic the rubric gate turns on (INV-R1 direct-criteria shape /
+//      INV-R1b leaf). It was legible nowhere on this surface before.
+//
+// THE FOOTER IS DISPLAY-ONLY (§3.5a, FC). It shows the sum and, when the two
+// numbers disagree, says so — it never proposes a value, never writes one, and
+// never edits a criterion to make the row balance. Proposing a fix stays the
+// FindingCard's job, so there is still exactly one voice offering a decision.
+// Its comparison is the validator's own `isClose` (imported, not re-derived), so
+// the tick and the finding can never contradict each other.
+//
+// GREYS: Tailwind's built-in `stone` scale, deliberately, and only inside this
+// component. `surface` is defined at 50–300 only, so the mirror's many
+// `text-surface-500/800/900` classes emit no CSS at all and render as full-
+// strength ink — which is the other half of why this table read flat. Completing
+// the `surface` scale is a separate, owner-facing decision (it would restyle the
+// whole mirror); this component does not wait on it and does not pre-empt it.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** The lane's vertical rule + tint. RTL: the criterion text is to the RIGHT of
+ *  the points column, so the divider is the points cell's physical right edge. */
+const LANE = 'border-r border-stone-200 bg-stone-50/70';
 
 function SubCriteriaRows({
     qIndex, sqPath, cIndex, criterion,
@@ -175,9 +208,9 @@ function SubCriteriaRows({
     return (
         <>
             {subs.map((sc, scIndex) => (
-                <tr key={sc.sub_criterion_id} data-scope-id={sc.sub_criterion_id} className="scroll-mt-20 bg-surface-50/40">
-                    <td className="py-1.5 pr-8 pl-3 text-surface-600 text-doc-meta">
-                        <span className="text-surface-300 ml-1">↳</span>
+                <tr key={sc.sub_criterion_id} data-scope-id={sc.sub_criterion_id} className="scroll-mt-20 align-top">
+                    <td className="py-1.5 pr-9 pl-3 bg-stone-50/40 text-stone-600 text-doc-meta">
+                        <span className="text-stone-300 ml-1">↳</span>
                         <EditableText
                             value={sc.description}
                             onCommit={(description) => editSub(scIndex, { description })}
@@ -185,7 +218,7 @@ function SubCriteriaRows({
                             dir="rtl"
                         />
                     </td>
-                    <td className="py-1.5 px-2 text-center align-top">
+                    <td className={`py-1.5 px-2 text-center text-doc-meta ${LANE}`}>
                         <EditablePoints
                             value={sc.points}
                             onCommit={(points) => editSub(scIndex, { points })}
@@ -193,19 +226,40 @@ function SubCriteriaRows({
                             changed={changedIds.has(sc.sub_criterion_id)}
                         />
                     </td>
-                    <td aria-hidden />
+                    <td className="bg-stone-50/40" aria-hidden />
                 </tr>
             ))}
         </>
     );
 }
 
+// ALPHA-GAP A-1 (D-3): a band ladder renders as ordinary criterion PROSE — the bands are inside the
+// description, so she reads them but cannot edit one. Alpha renders the ladder as rows with
+// their own points, which is where the editable band UI belongs.
 function CriteriaTable({
-    qIndex, sqPath, criteria, scopeHeading,
-}: { qIndex: number; sqPath: number[]; criteria: RubricCriterion[]; scopeHeading: string }) {
+    qIndex, sqPath, criteria, scopeHeading, scopePoints,
+}: {
+    qIndex: number; sqPath: number[]; criteria: RubricCriterion[];
+    scopeHeading: string;
+    /** The owning node's OWN points — q.total_points, or sq.points for a leaf. */
+    scopePoints: number;
+}) {
     const { updateCriterion, addCriterion, removeCriterion, annotations, changedIds } = useDoc();
     const tableRef = useRef<HTMLTableElement>(null);
     const muteView = mutedPrefixRenderer(scopeHeading); // D-4
+
+    // The breakdown disclosure is owned HERE, not by DisclosureRow, for a
+    // structural reason: the revealed content is sibling <tr>s of this table (so
+    // sub-criteria points land in the lane), and DisclosureRow renders its
+    // children *inside* the label — which is what forced the old nested table.
+    const [openBreakdowns, setOpenBreakdowns] = useState<Set<string>>(() => new Set());
+    const toggleBreakdown = useCallback((id: string) => {
+        setOpenBreakdowns((prev) => {
+            const next = new Set(prev);
+            if (!next.delete(id)) next.add(id);
+            return next;
+        });
+    }, []);
 
     // E-5: Enter in a points cell advances to the next row's points.
     const focusNextPoints = useCallback((cIndex: number) => {
@@ -216,72 +270,102 @@ function CriteriaTable({
 
     if (criteria.length === 0) return null;
 
+    const criteriaSum = criteria.reduce((sum, c) => sum + c.points, 0);
+    const balanced = isClose(criteriaSum, scopePoints);
+
     return (
-        <table ref={tableRef} className="w-full border-collapse my-3 text-doc-table" dir="rtl">
-            <thead>
-                <tr className="text-surface-400 text-doc-meta">
-                    <th className="text-right font-normal pb-1 pr-3">קריטריון</th>
-                    <th className="text-center font-normal pb-1 px-2 w-16">נק'</th>
-                    <th className="w-8" aria-hidden />
-                </tr>
-            </thead>
-            <tbody>
-                {criteria.map((c, cIndex) => {
-                    const anns = annotationsFor(annotations, c.criterion_id);
-                    const hasSubs = (c.sub_criteria?.length ?? 0) > 0;
-                    return (
-                        <Fragment key={c.criterion_id}>
-                            <tr data-scope-id={c.criterion_id} className="scroll-mt-20 border-t border-surface-100 align-top group">
-                                <td className="py-2 pr-3">
-                                    {hasSubs ? (
-                                        <DisclosureRow
-                                            label={<EditableText value={c.description} onCommit={(description) => updateCriterion(qIndex, sqPath, cIndex, { description })} ariaLabel={`תיאור קריטריון ${cIndex + 1} — לחצי לעריכה`} dir="rtl" renderDisplay={muteView} />}
-                                            toggleLabel={`פירוט קריטריון ${cIndex + 1}`}
-                                        >
-                                            <table className="w-full border-collapse"><tbody>
-                                                <SubCriteriaRows qIndex={qIndex} sqPath={sqPath} cIndex={cIndex} criterion={c} />
-                                            </tbody></table>
-                                        </DisclosureRow>
-                                    ) : (
-                                        <EditableText value={c.description} onCommit={(description) => updateCriterion(qIndex, sqPath, cIndex, { description })} ariaLabel={`תיאור קריטריון ${cIndex + 1} — לחצי לעריכה`} dir="rtl" renderDisplay={muteView} />
-                                    )}
-                                </td>
-                                <td className="py-2 px-2 text-center" data-points-cell>
-                                    <EditablePoints
-                                        value={c.points}
-                                        onCommit={(points) => updateCriterion(qIndex, sqPath, cIndex, { points })}
-                                        onEnterCommit={() => focusNextPoints(cIndex)}
-                                        ariaLabel={`ניקוד קריטריון ${cIndex + 1} — לחצי לעריכה`}
-                                        changed={changedIds.has(c.criterion_id)}
-                                    />
-                                </td>
-                                <td className="py-2 w-8 text-center">
-                                    <button
-                                        type="button"
-                                        onClick={() => removeCriterion(qIndex, sqPath, cIndex, `קריטריון ${cIndex + 1}`)}
-                                        aria-label={`מחקי קריטריון ${cIndex + 1}`}
-                                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-surface-300 hover:text-red-500 transition-opacity text-lg leading-none"
-                                    >×</button>
-                                </td>
-                            </tr>
-                            {anns.length > 0 && (
-                                <tr><td colSpan={3} className="pb-2"><InlineAnnotations annotations={anns} /></td></tr>
-                            )}
-                            <tr><td colSpan={3}><ScopeFindings scopeId={c.criterion_id} /></td></tr>
-                        </Fragment>
-                    );
-                })}
-                <tr>
-                    <td colSpan={3} className="pt-1">
-                        <button
-                            type="button"
-                            onClick={() => addCriterion(qIndex, sqPath)}
-                            className="text-sm text-surface-400 hover:text-primary-600 transition-colors"
-                        >+ הוסיפי קריטריון</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <div className="my-4 overflow-hidden rounded-zone-sm ring-1 ring-stone-200 bg-white">
+            <table ref={tableRef} className="w-full border-collapse text-doc-table" dir="rtl">
+                <thead>
+                    <tr className="text-doc-meta text-stone-500">
+                        <th className="text-right font-semibold px-3.5 py-2.5 border-b border-stone-200">קריטריון</th>
+                        {/* The header band stays uniformly white; it takes only the lane's RULE.
+                            Composing LANE here would have stacked bg-stone-50/70 with bg-white,
+                            and Tailwind's emit order (not the class-attribute order) picks the
+                            winner — stone, silently. */}
+                        <th className="text-center font-semibold px-2 py-2.5 w-20 border-b border-r border-stone-200 bg-white">נק'</th>
+                        <th className="w-9 border-b border-stone-200" aria-hidden />
+                    </tr>
+                </thead>
+                <tbody>
+                    {criteria.map((c, cIndex) => {
+                        const anns = annotationsFor(annotations, c.criterion_id);
+                        const hasSubs = (c.sub_criteria?.length ?? 0) > 0;
+                        const open = openBreakdowns.has(c.criterion_id);
+                        return (
+                            <Fragment key={c.criterion_id}>
+                                <tr data-scope-id={c.criterion_id} className="scroll-mt-20 border-t border-stone-200 align-top group">
+                                    <td className="py-2.5 px-3.5 text-stone-800 group-hover:bg-primary-50/30 transition-colors">
+                                        <div className="flex items-start gap-1.5">
+                                            {hasSubs && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleBreakdown(c.criterion_id)}
+                                                    aria-expanded={open}
+                                                    aria-label={`פירוט קריטריון ${cIndex + 1}`}
+                                                    className="flex-shrink-0 mt-1 text-stone-400 hover:text-stone-700 transition-colors"
+                                                >
+                                                    {open ? <ChevronDown size={14} /> : <ChevronLeft size={14} />}
+                                                </button>
+                                            )}
+                                            <EditableText value={c.description} onCommit={(description) => updateCriterion(qIndex, sqPath, cIndex, { description })} ariaLabel={`תיאור קריטריון ${cIndex + 1} — לחצי לעריכה`} dir="rtl" renderDisplay={muteView} />
+                                        </div>
+                                    </td>
+                                    <td className={`py-2.5 px-2 text-center transition-colors group-hover:bg-primary-50/60 ${LANE}`} data-points-cell>
+                                        <EditablePoints
+                                            value={c.points}
+                                            onCommit={(points) => updateCriterion(qIndex, sqPath, cIndex, { points })}
+                                            onEnterCommit={() => focusNextPoints(cIndex)}
+                                            ariaLabel={`ניקוד קריטריון ${cIndex + 1} — לחצי לעריכה`}
+                                            changed={changedIds.has(c.criterion_id)}
+                                        />
+                                    </td>
+                                    <td className="py-2.5 w-9 text-center group-hover:bg-primary-50/30 transition-colors">
+                                        <button
+                                            type="button"
+                                            onClick={() => removeCriterion(qIndex, sqPath, cIndex, `קריטריון ${cIndex + 1}`)}
+                                            aria-label={`מחקי קריטריון ${cIndex + 1}`}
+                                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-stone-300 hover:text-red-500 transition-opacity text-lg leading-none"
+                                        >×</button>
+                                    </td>
+                                </tr>
+                                {hasSubs && open && (
+                                    <SubCriteriaRows qIndex={qIndex} sqPath={sqPath} cIndex={cIndex} criterion={c} />
+                                )}
+                                {anns.length > 0 && (
+                                    <tr><td colSpan={3} className="px-3.5 pb-2.5"><InlineAnnotations annotations={anns} /></td></tr>
+                                )}
+                                <tr><td colSpan={3} className="empty:hidden px-3.5"><ScopeFindings scopeId={c.criterion_id} /></td></tr>
+                            </Fragment>
+                        );
+                    })}
+                </tbody>
+                <tfoot>
+                    {/* The bottom line: Σ criteria, against the scope's own points. */}
+                    <tr className={balanced ? 'bg-white' : 'bg-amber-50'}>
+                        <td className={`px-3.5 py-2.5 text-doc-meta font-medium border-t-2 ${balanced ? 'border-stone-300 text-stone-600' : 'border-amber-200 text-amber-800'}`}>
+                            סה״כ קריטריונים
+                            {balanced
+                                ? <span className="text-emerald-700 mr-2">✓ תואם</span>
+                                : <span className="mr-2">— לא תואם ל־{formatPoints(scopePoints)} נק&apos;</span>}
+                        </td>
+                        <td className={`px-2 py-2.5 text-center font-bold tabular-nums border-t-2 border-r ${balanced ? 'border-t-stone-300 border-r-stone-200 text-stone-900' : 'border-t-amber-200 border-r-amber-200 text-amber-800'}`}>
+                            {formatPoints(criteriaSum)}
+                        </td>
+                        <td className={`border-t-2 ${balanced ? 'border-stone-300' : 'border-amber-200'}`} aria-hidden />
+                    </tr>
+                    <tr>
+                        <td colSpan={3} className="px-3.5 py-2 bg-white border-t border-stone-200">
+                            <button
+                                type="button"
+                                onClick={() => addCriterion(qIndex, sqPath)}
+                                className="text-sm text-stone-400 hover:text-primary-600 transition-colors"
+                            >+ הוסיפי קריטריון</button>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     );
 }
 
@@ -366,7 +450,7 @@ function SubQuestionSection({
                 ? <div className="space-y-1">{sq.sub_questions!.map((child, i) => (
                     <SubQuestionSection key={child.sub_question_id} qIndex={qIndex} sq={child} sqPath={[...sqPath, i]} idPath={`${idPath}.${child.sub_question_id}`} depth={depth + 1} />
                 ))}</div>
-                : <CriteriaTable qIndex={qIndex} sqPath={sqPath} criteria={sq.criteria} scopeHeading={heading} />}
+                : <CriteriaTable qIndex={qIndex} sqPath={sqPath} criteria={sq.criteria} scopeHeading={heading} scopePoints={sq.points} />}
 
             <SolutionBlock solution={sq.example_solution} />
         </section>
@@ -431,7 +515,7 @@ function QuestionSection({
                 ? q.sub_questions.map((sq, i) => (
                     <SubQuestionSection key={sq.sub_question_id} qIndex={qIndex} sq={sq} sqPath={[i]} idPath={`${q.question_id}.${sq.sub_question_id}`} depth={1} />
                 ))
-                : <CriteriaTable qIndex={qIndex} sqPath={[]} criteria={q.criteria} scopeHeading={heading} />}
+                : <CriteriaTable qIndex={qIndex} sqPath={[]} criteria={q.criteria} scopeHeading={heading} scopePoints={q.total_points} />}
 
             <SolutionBlock solution={q.example_solution} />
         </section>

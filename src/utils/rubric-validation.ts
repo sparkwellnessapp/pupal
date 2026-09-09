@@ -16,6 +16,10 @@
  *              a sub-question-bearing question is the wrong diagnosis.
  *
  *   INV-R1b  — Σ sq.criteria.points == sq.points, per sub-question.
+ *
+ * ALPHA-GAP A-1 (D-3): no band invariant. A flattened ladder validates as an ordinary criterion at the
+ * top band; alpha adds "bands descend, top band == criterion points, bottom band 0" here and
+ * in the backend compiler, together.
  *              Independent of INV-R1. A teacher can break either, both, or
  *              neither; the validator surfaces each independently so the
  *              teacher can resolve them in any order.
@@ -83,8 +87,14 @@ const SUM_TOLERANCE = 0.01;
 // Helpers
 // =============================================================================
 
-/** Safe floating-point comparison within tolerance. */
-function isClose(a: number, b: number, tolerance: number = SUM_TOLERANCE): boolean {
+/**
+ * Safe floating-point comparison within tolerance.
+ *
+ * EXPORTED so the mirror's ledger footer (RubricDocument's CriteriaTable) asks
+ * the SAME question INV-R1/INV-R1b ask about the same two numbers. A second
+ * tolerance would let the table show a tick while the finding shows a gap.
+ */
+export function isClose(a: number, b: number, tolerance: number = SUM_TOLERANCE): boolean {
     return Math.abs(a - b) <= tolerance;
 }
 

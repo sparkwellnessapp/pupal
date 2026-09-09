@@ -24,6 +24,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/auth/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Google Sign In
+         * @description Sign in (or sign up) with a Google ID token.
+         *
+         *     The order below is deliberate: the nonce is spent FIRST, so a replayed
+         *     credential is refused before we spend a network round-trip verifying a token
+         *     we already know we will not accept.
+         */
+        post: operations["google_sign_in_api_v0_auth_google_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/auth/google/nonce": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Google Nonce
+         * @description Mint the one-shot nonce the Sign in with Google button must embed.
+         *
+         *     Public by necessity — it is fetched before anyone is signed in — and
+         *     harmless: a nonce authorizes nothing on its own. It is only ever meaningful
+         *     inside a token Google signed.
+         */
+        get: operations["google_nonce_api_v0_auth_google_nonce_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v0/auth/login": {
         parameters: {
             query?: never;
@@ -109,6 +157,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/auth/resend-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Code
+         * @description Send the pending code again.
+         *
+         *     ALWAYS answers 202 with the same body — for an unknown address, an already
+         *     verified one, a cooldown, or a success. Anything else makes this endpoint a
+         *     way to ask "does this teacher have a Vivi account?", and the honest answer
+         *     to that question is none of the caller's business.
+         */
+        post: operations["resend_code_api_v0_auth_resend_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v0/auth/signup": {
         parameters: {
             query?: never;
@@ -120,11 +193,37 @@ export interface paths {
         put?: never;
         /**
          * Signup
-         * @description Create a new user account.
+         * @description Create an account and email a verification code.
          *
-         *     Returns JWT access token and user info.
+         *     ⚠️ [024] THIS NO LONGER RETURNS A SESSION (owner ruling A4). The account
+         *     exists but is unusable until `/verify-email` redeems the code, because an
+         *     account nobody proved is exactly what makes the Google linking rule
+         *     dangerous: an attacker who can pre-register victim@school.org and be
+         *     treated as its owner is the pre-account-hijacking hole (nOAuth, 2023).
+         *
+         *     Any client reading `access_token` from this response is out of date.
          */
         post: operations["signup_api_v0_auth_signup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Email
+         * @description Redeem a verification code. THIS is where a signup gets its session.
+         */
+        post: operations["verify_email_api_v0_auth_verify_email_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -180,8 +279,17 @@ export interface paths {
         head?: never;
         /**
          * Rename Batch
-         * @description Rename a batch (B5). Strip → reject blank → last-write-wins. Touches
-         *     ONLY name + updated_at; no uniqueness constraint exists or is invented.
+         * @description Rename a batch (B5) and set its returned-exam options (PR-G9).
+         *
+         *     Only the fields PRESENT in the body are written, so the rename call and the
+         *     settings call share an endpoint without either clobbering the other.
+         *
+         *     Both returned-exam settings feed the render cache key, so changing either
+         *     invalidates every cached PDF in the batch. We CLEAR those keys and report
+         *     the count rather than leaving them: a stale PDF is not a slightly-old page,
+         *     it is a document showing points or a stamp the teacher has since changed,
+         *     and it looks entirely correct. Serving it silently is the one outcome this
+         *     feature cannot have (§3.5a).
          */
         patch: operations["rename_batch_api_v0_batches__batch_id__patch"];
         trace?: never;
@@ -284,6 +392,50 @@ export interface paths {
          *     claims, and increments again at the next claim).
          */
         post: operations["retry_transcription_job_api_v0_batches__batch_id__jobs__job_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/returned-exams.zip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returned Exams Zip
+         * @description Approved, current exams only — the same partition the manifest reports.
+         *
+         *     An excluded test is never substituted with a draft render or an older PDF.
+         *     A class set with a stated hole in it is recoverable; a class set with a
+         *     wrong document silently inside it is not.
+         */
+        get: operations["returned_exams_zip_api_v0_batches__batch_id__returned_exams_zip_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/returned-exams/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returned Exams Manifest
+         * @description What the ZIP will contain, and what it will not — with the reason.
+         */
+        get: operations["returned_exams_manifest_api_v0_batches__batch_id__returned_exams_manifest_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -545,6 +697,30 @@ export interface paths {
         patch: operations["save_draft_overrides_api_v0_grading_graded_test__graded_test_id__draft_patch"];
         trace?: never;
     };
+    "/api/v0/grading/graded_test/{graded_test_id}/feedback/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate Feedback
+         * @description Regenerate the feedback for ONE target.
+         *
+         *     OD-G4.2 — her words are never overwritten. If she has already edited this
+         *     target, the fresh text is returned for the UI to offer and the draft is left
+         *     exactly as it was; the decision to take it is hers, not the endpoint's.
+         */
+        post: operations["regenerate_feedback_api_v0_grading_graded_test__graded_test_id__feedback_regenerate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v0/grading/graded_test/{graded_test_id}/manual_edit": {
         parameters: {
             query?: never;
@@ -634,6 +810,88 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v0/grading/graded_test/{graded_test_id}/returned-exam": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Returned Exam
+         * @description Her student's exam back: the original pages, stamped, plus the feedback.
+         *
+         *     APPROVED ONLY. A draft is a proposal the teacher has not accepted; handing
+         *     one to a student would make Vivi the grader, which is the one thing it
+         *     never is.
+         *
+         *     Rendered from the CONTRACT, never the draft — what she froze is what the
+         *     student receives. Cached in GCS under a key covering every input that can
+         *     change a pixel; a mismatch re-renders rather than serving the old page.
+         */
+        get: operations["get_returned_exam_api_v0_grading_graded_test__graded_test_id__returned_exam_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/grading/graded_test/{graded_test_id}/stamp_position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Save Stamp Position
+         * @description Move the stamp on an already-signed exam. [OD-1, owner-ruled 2026-09-04]
+         *
+         *     WHY THIS ENDPOINT EXISTS AT ALL. §4.3 P3 lets the teacher drag the stamp on
+         *     the returned-exam preview, and that preview renders APPROVED tests only
+         *     (`get_returned_exam` 409s on anything else). But the only endpoint that
+         *     wrote `stamp_position` was `PATCH …/draft`, which 409s on anything that is
+         *     NOT a draft. The two guards are disjoint, so the drag she performs had
+         *     literally nowhere to go.
+         *
+         *     WHY IT DOES NOT VIOLATE LCY-2, and why that is not a stretch:
+         *       * What LCY-2 freezes is the GRADING DECISION, and that lives in
+         *         `contract_json`, which contains no stamp. Moving it changes no points,
+         *         no verdicts, and no contract.
+         *       * The codebase ALREADY writes `draft_json` on approved rows for exactly
+         *         this purpose: `rename_batch`'s «apply to all» selects the batch's graded
+         *         tests with no status filter and rewrites their stamp. So this does not
+         *         add an exception — it gives the per-test case the write path the batch
+         *         case has had all along.
+         *
+         *     WHY NOT JUST RELAX `PATCH …/draft` — the tempting answer, named so it is not
+         *     chosen later: that endpoint also writes `terminals` and `feedback`, i.e. the
+         *     grading decision. Relaxing it would let a legitimate stamp move carry an
+         *     illegitimate re-grade on the same request. A separate endpoint is what keeps
+         *     the narrow exception narrow.
+         *
+         *     IT MUST NOT EXTEND THE CHAIN. Routing this through `manual_edit` would mint
+         *     a new version and un-sign the exam for a cosmetic change — the teacher would
+         *     have to re-approve because she moved a stamp.
+         *
+         *     THE SERVER SETS `source="manual"`. `source` decides whether «apply to all»
+         *     may clear the position, so a client that sent "auto" could make the
+         *     teacher's own placement erasable by a later batch-default change. Nothing
+         *     persists "auto" anyway — the corner picker runs at render time
+         *     (`auto_stamp_position`) and its result never reaches the overlay — so a
+         *     position that arrives here is, by construction, one she placed.
+         */
+        patch: operations["save_stamp_position_api_v0_grading_graded_test__graded_test_id__stamp_position_patch"];
         trace?: never;
     };
     "/api/v0/grading/graded_tests": {
@@ -1060,6 +1318,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/transcriptions/{transcription_id}/pages/{page_number}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Transcription Page Image
+         * @description A page as a small WebP resource — the representation §1.5's Pile cards use.
+         *
+         *     A SEPARATE RESOURCE from the JSON proxy above, not a reformatting of it.
+         *     Measured on the six real bagrut scans: that path is 1168 KB / 1227 ms per
+         *     page, this one is 33.6 KB / 259 ms, so a thirty-card dashboard goes from
+         *     ~34 MB and ~37 s of render to ~1.0 MB. The two are cached under different
+         *     variants precisely so neither can ever answer for the other.
+         *
+         *     `?v=` pins the render settings AND the cache key (see `thumbnail`): the
+         *     answer only claims `immutable` when the URL actually pins the bytes, and an
+         *     unrecognised token is a 404 rather than a client-controlled rasterizer.
+         *
+         *     ⚠ NOT reachable from a bare `<img src>`: auth here is `Authorization:
+         *     Bearer`, which a browser image request does not send. The client fetches it
+         *     through the seam and renders an object URL (PLAN §3, ruling B1).
+         */
+        get: operations["get_transcription_page_image_api_v0_transcriptions__transcription_id__pages__page_number__image_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v0/transcriptions/{transcription_id}/review": {
         parameters: {
             query?: never;
@@ -1115,6 +1407,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/users/me/onboarding-exam": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Onboarding Exam
+         * @description Record when her next exam is — and, optionally, how to reach her.
+         *
+         *     Ownership per §9: the row written is `current_user`'s, and there is no user
+         *     id on this request to supply. Idempotent and re-callable; she may change
+         *     the date as often as she likes.
+         */
+        patch: operations["update_onboarding_exam_api_v0_users_me_onboarding_exam_patch"];
+        trace?: never;
+    };
+    "/api/v0/users/me/onboarding/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Onboarding
+         * @description Stamp onboarding as finished. IDEMPOTENT: an already-stamped user keeps
+         *     the original timestamp and gets a 200, so a double-click, a retry, or a
+         *     re-entry can never re-stamp and never 409s.
+         *
+         *     A POST rather than a PATCH with a boolean, deliberately: the client does not
+         *     get to UNSET this. Re-running onboarding is an operator action.
+         */
+        post: operations["complete_onboarding_api_v0_users_me_onboarding_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/users/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update User Profile
+         * @description Update the teacher's own name and/or gender.
+         *
+         *     Until now NOTHING could write `full_name` — the profile screen's save button
+         *     called no endpoint at all — so a typo at signup was permanent.
+         *
+         *     Answers with the ONE profile shape (`build_user_response`, owned by
+         *     auth.py). A second hand-built copy of that response is the truncation risk
+         *     §6 documents; there is no second copy here.
+         */
+        patch: operations["update_user_profile_api_v0_users_me_profile_patch"];
+        trace?: never;
+    };
     "/api/v0/users/me/rubrics": {
         parameters: {
             query?: never;
@@ -1130,6 +1498,74 @@ export interface paths {
          */
         get: operations["get_user_rubrics_api_v0_users_me_rubrics_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/users/me/school": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Me
+         * @description Set the teacher's school. The owning user is ALWAYS current_user
+         *     (CLAUDE.md §9) — there is no user_id in the body or the query string.
+         *
+         *     PATH NOTE (open decision, owner): the spec's PR-G6 text says
+         *     `PATCH /users/me`. Mounting ANY method at that exact path turns
+         *     `GET /api/v0/users/me` from 404 into 405 and fires
+         *     `test_duplicate_users_me_is_gone` — the guard left behind by the worst bug
+         *     this codebase shipped (two auth resolvers; a duplicate profile route).
+         *     The guard's intent is intact either way, but it is written as `== 404` and
+         *     weakening a guard of that provenance to accommodate a new endpoint is not a
+         *     call to make in passing. `/me/school` follows the existing sibling
+         *     (`PUT /me/subject-matters`), says what it does, and leaves the guard
+         *     untouched. One line to move it if the owner prefers the spec's path.
+         *
+         *     Matching is NORMALIZED-EXACT, never fuzzy: trimmed, internal whitespace
+         *     collapsed, case-folded, mirroring migration 018's unique index. Two schools
+         *     differing by one character are two schools; a fuzzy match would merge real
+         *     institutions with no way back.
+         */
+        patch: operations["update_me_api_v0_users_me_school_patch"];
+        trace?: never;
+    };
+    "/api/v0/users/me/schools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update User Schools
+         * @description Replace the teacher's school list.
+         *
+         *     THE PR-G6 RULE, in one place: `users.school_id` remains the single
+         *     override-attribution key and is set to the FIRST school in the submitted
+         *     list. The junction (`user_schools`) is the full truth; the column is the key
+         *     drawn from it. Reordering the list moves the attribution key — that is
+         *     intended, and is the only way a single-column key can follow a multi-valued
+         *     answer. `override_attribution.py` is unchanged and keeps reading one column.
+         *
+         *     Duplicates in the request collapse under the SAME normalized-exact rule the
+         *     resolver uses, so "Blich, Ramat Gan" twice is one school, and the first
+         *     occurrence keeps its position (which matters — position 0 is the key).
+         */
+        put: operations["update_user_schools_api_v0_users_me_schools_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1536,10 +1972,9 @@ export interface components {
         };
         /** ApproveRequest */
         ApproveRequest: {
-            /** Overrides */
-            overrides: {
-                [key: string]: components["schemas"]["TeacherOverride-Input"];
-            };
+            /** Client Total */
+            client_total?: number | string | null;
+            overrides: components["schemas"]["GradedTestOverrides"];
         };
         /**
          * AuthResponse
@@ -1569,6 +2004,8 @@ export interface components {
         BatchCreateRequest: {
             /** Class Id */
             class_id?: string | null;
+            /** Expected Test Count */
+            expected_test_count?: number | null;
             /** Name */
             name?: string | null;
             /**
@@ -1581,6 +2018,8 @@ export interface components {
         BatchCreateResponse: {
             /** Batch Id */
             batch_id: string;
+            /** Expected Test Count */
+            expected_test_count?: number | null;
             /** Test Count */
             test_count: number;
         };
@@ -1591,6 +2030,17 @@ export interface components {
              * @default []
              */
             active_jobs: components["schemas"]["ActiveJobItem"][];
+            /**
+             * Appendix Include Criteria
+             * @default false
+             */
+            appendix_include_criteria: boolean;
+            /**
+             * Audit Status
+             * @default disabled
+             * @enum {string}
+             */
+            audit_status: "disabled" | "pending" | "running" | "done" | "failed";
             /** Class Id */
             class_id?: string | null;
             /** Class Name */
@@ -1599,6 +2049,17 @@ export interface components {
             completed_at?: string | null;
             /** Created At */
             created_at: string;
+            /**
+             * @default {
+             *       "kind": "unknown"
+             *     }
+             */
+            eta: components["schemas"]["BatchEta"];
+            /**
+             * Graded Tests
+             * @default []
+             */
+            graded_tests: components["schemas"]["BatchGradedItem"][];
             /**
              * Id
              * Format: uuid
@@ -1619,6 +2080,10 @@ export interface components {
              * @default []
              */
             selection_groups: components["schemas"]["AnswerSpaceSelectionGroup"][];
+            /** Stamp Position Default */
+            stamp_position_default?: {
+                [key: string]: unknown;
+            } | null;
             /** Started At */
             started_at?: string | null;
             /** Status */
@@ -1632,6 +2097,24 @@ export interface components {
             transcriptions: components["schemas"]["BatchTranscriptionItem"][];
         };
         /**
+         * BatchEta
+         * @description How long until she can start reviewing.
+         *
+         *     `kind` is as honest as the inputs allow: `unknown` when no latency profile
+         *     exists for the model, and the client says «עוד רגע» rather than a figure.
+         *     Publishing a number we cannot support would be a confident guess about the
+         *     one thing she is waiting on.
+         */
+        BatchEta: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "first_landing" | "remaining" | "unknown";
+            /** Seconds */
+            seconds?: number | null;
+        };
+        /**
          * BatchFileAppendResponse
          * @description One appended file (B9). Idempotent: a retried append that already
          *     committed returns the EXISTING job with the same body.
@@ -1643,6 +2126,50 @@ export interface components {
             job_id: string;
             /** Test Count */
             test_count: number;
+        };
+        /**
+         * BatchGradedItem
+         * @description One graded test on the batch feed (spec §1.5).
+         */
+        BatchGradedItem: {
+            /**
+             * Audit Touched
+             * @default none
+             * @enum {string}
+             */
+            audit_touched: "none" | "updated" | "reapprove";
+            /**
+             * Graded Test Id
+             * Format: uuid
+             */
+            graded_test_id: string;
+            /** Landed At */
+            landed_at?: string | null;
+            /** Look Count */
+            look_count?: number | null;
+            /** Opened At */
+            opened_at?: string | null;
+            /** Page1 Image Url */
+            page1_image_url?: string | null;
+            /**
+             * Returned Exam State
+             * @default none
+             * @enum {string}
+             */
+            returned_exam_state: "none" | "rendering" | "ready" | "stale";
+            /** Status */
+            status: string;
+            /** Student Id */
+            student_id?: string | null;
+            /** Student Name */
+            student_name?: string | null;
+            /** Total Awarded */
+            total_awarded?: string | null;
+            /**
+             * Version
+             * @default 1
+             */
+            version: number;
         };
         /** BatchListItem */
         BatchListItem: {
@@ -1672,18 +2199,45 @@ export interface components {
         };
         /**
          * BatchRenameRequest
-         * @description B5: rename a batch. Stripped server-side; blank-after-strip → 422.
+         * @description PATCH /batches/{id} — rename (B5) and the returned-exam settings (PR-G9).
+         *
+         *     Every field is optional and only the ones PRESENT are written, so the
+         *     rename call and the settings call are the same endpoint without either
+         *     clobbering the other's state. `name` still rejects blank-after-strip.
          */
         BatchRenameRequest: {
+            /** Appendix Include Criteria */
+            appendix_include_criteria?: boolean | null;
+            /** Expected Test Count */
+            expected_test_count?: number | null;
             /** Name */
-            name: string;
+            name?: string | null;
+            stamp_position_default?: components["schemas"]["StampPosition"] | null;
         };
         /** BatchRenameResponse */
         BatchRenameResponse: {
+            /**
+             * Appendix Include Criteria
+             * @default false
+             */
+            appendix_include_criteria: boolean;
             /** Batch Id */
             batch_id: string;
+            /** Expected Test Count */
+            expected_test_count?: number | null;
+            /**
+             * Invalidated Count
+             * @default 0
+             */
+            invalidated_count: number;
             /** Name */
-            name: string;
+            name?: string | null;
+            /**
+             * Stamp Applied Count
+             * @default 0
+             */
+            stamp_applied_count: number;
+            stamp_position_default?: components["schemas"]["StampPosition"] | null;
         };
         /**
          * BatchRollup
@@ -1705,6 +2259,11 @@ export interface components {
             grading: number;
             /** Needs Eyes */
             needs_eyes?: number | null;
+            /**
+             * Not Received
+             * @default 0
+             */
+            not_received: number;
             /** Total */
             total: number;
             /** Transcribed */
@@ -1716,6 +2275,11 @@ export interface components {
              * @default 0
              */
             transcription_failed: number;
+            /**
+             * Uploading
+             * @default 0
+             */
+            uploading: number;
         };
         /**
          * BatchTranscriptionItem
@@ -1838,7 +2402,7 @@ export interface components {
             question_purposes?: string | null;
             /**
              * Subject
-             * @default computer_science
+             * @description Subject key: computer_science | english | mathematics
              */
             subject: string;
             /** Test Topic */
@@ -1858,6 +2422,66 @@ export interface components {
              * @description Compiled rubric to grade against
              */
             rubric_id: string;
+        };
+        /**
+         * Check
+         * @description One plan check as the grader priced it — the atomic unit the teacher
+         *     reviews (PR-G1, spec §1.1).
+         *
+         *     Field names follow the EXISTING AssessedVerdict vocabulary (`basis_he`,
+         *     `confidence`) rather than inventing parallel ones (rev-3 correction).
+         *     `confidence` is carried for the eval suite and is never rendered.
+         *
+         *     The pricing inputs (`kind`, `points`, `tariff`, `partial_fraction`) ride
+         *     along because §1.1 makes the terminal's awarded_points DERIVED and has the
+         *     client re-derive it from the verdicts: a verdict plus a bare tariff cannot
+         *     price a `required` check. Spec §1.1 listed only `tariff`; that is a spec
+         *     bug, fixed here and reported.
+         *
+         *     NOT PRESENT: `audit` (reserved out of v1 by ruling R-8 — dropped from the
+         *     wire, not shipped dark) and `equivalence_note` (never invented).
+         */
+        Check: {
+            /**
+             * Basis He
+             * @default
+             */
+            basis_he: string;
+            /** Charge Group */
+            charge_group?: string | null;
+            /** Check Id */
+            check_id: string;
+            /**
+             * Confidence
+             * @default 0
+             */
+            confidence: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "required" | "tariff" | "note_only" | "counted";
+            /** Partial Fraction */
+            partial_fraction?: string | null;
+            /** Points */
+            points: string | null;
+            /** Quote */
+            quote?: string | null;
+            /** Quote Status */
+            quote_status?: ("exact" | "fuzzy" | "not_found") | null;
+            /** Tariff */
+            tariff?: string | null;
+            /** Text */
+            text: string;
+            /** Unit Count */
+            unit_count?: number | null;
+            /** Units Correct */
+            units_correct?: number | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "met" | "partially_met" | "not_met";
         };
         /** ClassDetailResponse */
         ClassDetailResponse: {
@@ -2023,6 +2647,94 @@ export interface components {
             warnings: components["schemas"]["AnnotationSchema"][];
         };
         /**
+         * ContractCheck
+         * @description One check, frozen at approval (PR-G1, spec §1.4).
+         *
+         *     Provenance is preserved the way the terminal already preserves it: what the
+         *     AI said (`ai_verdict`) is immutable, and the teacher's decision rides beside
+         *     it (`final_verdict` + `was_overridden`) rather than overwriting it. Until
+         *     PR-G5 wires the check-level overlay there are no verdict overrides, so
+         *     final == ai and was_overridden is False — the SHAPE is what freezes here.
+         *
+         *     `evidence_disputed` and `teacher_comment` are per-check because the teacher
+         *     reviews per-check; the terminal's own teacher_comment stays for the v3 wire.
+         */
+        ContractCheck: {
+            /**
+             * Ai Verdict
+             * @enum {string}
+             */
+            ai_verdict: "met" | "partially_met" | "not_met";
+            /** Check Id */
+            check_id: string;
+            /**
+             * Evidence Disputed
+             * @default false
+             */
+            evidence_disputed: boolean;
+            /**
+             * Final Verdict
+             * @enum {string}
+             */
+            final_verdict: "met" | "partially_met" | "not_met";
+            /** Tariff */
+            tariff?: string | null;
+            /** Teacher Comment */
+            teacher_comment?: string | null;
+            /** Text */
+            text: string;
+            /**
+             * Was Overridden
+             * @default false
+             */
+            was_overridden: boolean;
+        };
+        /** ContractFeedback */
+        ContractFeedback: {
+            /** Scopes */
+            scopes?: {
+                [key: string]: components["schemas"]["ContractFeedbackText"];
+            };
+            summary?: components["schemas"]["ContractFeedbackText"] | null;
+        };
+        /**
+         * ContractFeedbackText
+         * @description Frozen feedback. `text` is the EFFECTIVE text — the teacher's edit when
+         *     she wrote one, the model's otherwise — and `was_edited` records which.
+         *
+         *     The returned exam renders from the contract only, so what she saw when she
+         *     approved is what the student receives.
+         */
+        ContractFeedbackText: {
+            /** Text */
+            text: string;
+            /**
+             * Was Edited
+             * @default false
+             */
+            was_edited: boolean;
+        };
+        /**
+         * ContractScopeAnswer
+         * @description Frozen twin of `graded_test_draft.ScopeAnswer` (EVD-1).
+         *
+         *     A separate type rather than a re-export, matching how every other outcome
+         *     type in this module mirrors its draft counterpart: the contract family is
+         *     frozen and minimal by design (§4), and importing a draft type here would
+         *     make the contract's shape hostage to changes on the mutable side.
+         */
+        ContractScopeAnswer: {
+            /** Inherited From */
+            inherited_from?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "own" | "inherited";
+            /** Text */
+            text: string;
+        };
+        /**
          * ContractScopeOutcome
          * @description Frozen scope record. final_points_awarded = Σ terminal_outcomes[*].final_points_awarded.
          */
@@ -2043,6 +2755,7 @@ export interface components {
              * @enum {string}
              */
             scope_kind: "direct" | "sub_question";
+            student_answer?: components["schemas"]["ContractScopeAnswer"] | null;
             /** Sub Question Id */
             sub_question_id?: string | null;
             /** Terminal Outcomes */
@@ -2058,6 +2771,8 @@ export interface components {
             ai_points_awarded: string;
             /** Ai Reasoning */
             ai_reasoning: string;
+            /** Checks */
+            checks?: components["schemas"]["ContractCheck"][] | null;
             /** Description */
             description: string;
             /** Final Points Awarded */
@@ -2133,6 +2848,11 @@ export interface components {
              * @description Optional breakdown of this criterion into graded sub-parts. When non-empty, INV-3 requires Σ sub_criteria.points == criterion.points. Null when the criterion is graded as an atomic unit.
              */
             sub_criteria?: components["schemas"]["SubCriterion"][] | null;
+            /**
+             * Uid
+             * @description Stable server-minted UUID4. Durable references use this; criterion_id remains the display/path identity.
+             */
+            uid?: string | null;
         };
         /**
          * CriterionOutcome
@@ -2144,6 +2864,8 @@ export interface components {
          *     confidence = min(sub_criterion confidences) for branches.
          */
         CriterionOutcome: {
+            /** Checks */
+            checks?: components["schemas"]["Check"][] | null;
             /** Confidence */
             confidence: number;
             /** Criterion Id */
@@ -2151,6 +2873,8 @@ export interface components {
             /** Description */
             description: string;
             evidence_quote?: components["schemas"]["AnswerQuotation"] | null;
+            /** Evidence Quotes */
+            evidence_quotes?: components["schemas"]["AnswerQuotation"][] | null;
             /** Flags */
             flags?: components["schemas"]["FlaggedOutcome"][];
             /** Points Awarded */
@@ -2319,13 +3043,50 @@ export interface components {
             total_points?: string;
         };
         /**
+         * FeedbackBlock
+         * @description Per-scope feedback plus a whole-test summary (spec §1.3).
+         *
+         *     Generated ONCE per test, strictly AFTER pricing, from the priced verdicts.
+         *     `None` on the draft is a first-class state — the call may fail and the grade
+         *     must still land (review-first, not guess) — not an error the UI hides.
+         */
+        FeedbackBlock: {
+            /** Model Version */
+            model_version: string;
+            /** Prompt Version */
+            prompt_version: string;
+            /** Scopes */
+            scopes?: {
+                [key: string]: components["schemas"]["FeedbackText"];
+            };
+            summary: components["schemas"]["FeedbackText"];
+        };
+        /**
+         * FeedbackText
+         * @description One piece of student-facing feedback, with the basis it was written for.
+         *
+         *     `basis_hash` is sha256 of the ORDERED EFFECTIVE VERDICT VECTOR at generation
+         *     (OD-G4.1). Staleness is derived from it rather than stored as a flag: when
+         *     the verdicts move, the text says so by construction instead of relying on
+         *     someone remembering to invalidate it.
+         */
+        FeedbackText: {
+            /**
+             * Basis Hash
+             * @default
+             */
+            basis_hash: string;
+            /** Text */
+            text: string;
+        };
+        /**
          * FlagReason
          * @description Reasons for flagging an outcome for teacher review.
          *
          *     Used by FlaggedOutcome to indicate why an item needs attention.
          * @enum {string}
          */
-        FlagReason: "no_answer" | "quote_not_found" | "low_confidence" | "unmeasurable" | "llm_uncertainty" | "fuzzy_match" | "max_retries_exceeded" | "closed_world_violation" | "ungraded_criterion" | "bounds_clamped";
+        FlagReason: "no_answer" | "quote_not_found" | "low_confidence" | "unmeasurable" | "llm_uncertainty" | "fuzzy_match" | "max_retries_exceeded" | "closed_world_violation" | "ungraded_criterion" | "bounds_clamped" | "unverified_check" | "evidence_unverified" | "tariff_coerced";
         /**
          * FlagVerdictResponse
          * @description Flag triage result for a single transcription.
@@ -2356,6 +3117,24 @@ export interface components {
             reason: string;
             /** Rule Id */
             rule_id?: string | null;
+        };
+        /**
+         * GoogleAuthRequest
+         * @description `credential` is the ID token the GIS button hands the browser.
+         */
+        GoogleAuthRequest: {
+            /** Credential */
+            credential: string;
+            /** Nonce */
+            nonce: string;
+        };
+        /**
+         * GoogleNonceResponse
+         * @description A one-shot nonce for the Sign in with Google button.
+         */
+        GoogleNonceResponse: {
+            /** Nonce */
+            nonce: string;
         };
         /** GradeAnswerInput */
         GradeAnswerInput: {
@@ -2419,6 +3198,7 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            numeric_policy?: components["schemas"]["NumericPolicy"] | null;
             /** Percentage */
             percentage?: string | null;
             /** Regraded From Id */
@@ -2456,6 +3236,7 @@ export interface components {
             approved_at: string;
             /** Contract Version */
             contract_version: string;
+            feedback?: components["schemas"]["ContractFeedback"] | null;
             /** Model Version */
             model_version: string;
             /** Percentage */
@@ -2488,12 +3269,23 @@ export interface components {
         GradedTestDraft: {
             /** Annotations */
             annotations?: components["schemas"]["GradingAnnotation"][];
+            /** Cascade Usage */
+            cascade_usage?: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            } | null;
+            feedback?: components["schemas"]["FeedbackBlock"] | null;
             /** Grading Duration Ms */
             grading_duration_ms: number;
             /** Llm Calls Count */
             llm_calls_count: number;
             /** Model Version */
             model_version: string;
+            /** Plan Version */
+            plan_version?: string | null;
+            /** Plan Wording Source */
+            plan_wording_source?: ("segmented" | "placeholder") | null;
             /** Prompt Version */
             prompt_version: string;
             /** Rubric Contract Version */
@@ -2505,10 +3297,11 @@ export interface components {
             schema_version: string;
             /** Scope Outcomes */
             scope_outcomes: components["schemas"]["ScopeOutcome"][];
-            /** Teacher Overrides */
-            teacher_overrides?: {
-                [key: string]: components["schemas"]["TeacherOverride-Output"];
-            };
+            /** Served Models */
+            served_models?: string[] | null;
+            teacher_overrides?: components["schemas"]["GradedTestOverrides"];
+            /** Total Cached Input Tokens */
+            total_cached_input_tokens?: number | null;
             /**
              * Total Input Tokens
              * @default 0
@@ -2530,6 +3323,12 @@ export interface components {
          */
         GradedTestDraftResponse: {
             draft: components["schemas"]["GradedTestDraft"];
+            /** Effective Total */
+            effective_total?: string | null;
+            /** Effective Totals */
+            effective_totals?: {
+                [key: string]: string;
+            } | null;
             /** Filename */
             filename?: string | null;
             /**
@@ -2537,8 +3336,16 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            numeric_policy?: components["schemas"]["NumericPolicy"] | null;
+            /** Opened At */
+            opened_at?: string | null;
             /** Percentage */
             percentage?: string | null;
+            /**
+             * Pricing Mismatch
+             * @default false
+             */
+            pricing_mismatch: boolean;
             /** Regraded From Id */
             regraded_from_id?: string | null;
             /**
@@ -2610,6 +3417,25 @@ export interface components {
             total_score?: string | null;
         };
         /**
+         * GradedTestOverrides
+         * @description The teacher's working copy, laid over the draft — never mutating it.
+         *
+         *     SPARSE: only what she touched appears, so everything she did not look at
+         *     keeps the AI's record. A terminal maps to a LIST because a terminal has
+         *     several checks and she may decide any subset of them.
+         */
+        GradedTestOverrides: {
+            /** Feedback */
+            feedback?: {
+                [key: string]: string;
+            };
+            stamp_position?: components["schemas"]["StampPosition"] | null;
+            /** Terminals */
+            terminals?: {
+                [key: string]: components["schemas"]["TeacherOverride"][];
+            };
+        };
+        /**
          * GradedTestStatusResponse
          * @description Returned while grading is in flight (status='pending' or 'grading').
          */
@@ -2630,7 +3456,7 @@ export interface components {
              * Annotation Type
              * @enum {string}
              */
-            annotation_type: "closed_world_violation" | "ungraded_criterion" | "bounds_clamped" | "quote_not_found" | "fuzzy_match" | "no_answer" | "llm_failure";
+            annotation_type: "closed_world_violation" | "ungraded_criterion" | "bounds_clamped" | "quote_not_found" | "fuzzy_match" | "no_answer" | "llm_failure" | "unverified_check" | "evidence_unverified" | "tariff_coerced" | "charge_group_dedup" | "note_only" | "cascade_routed" | "feedback_unavailable" | "count_missing";
             /** Id */
             id?: string;
             /** Message */
@@ -2751,6 +3577,31 @@ export interface components {
             message: string;
         };
         /**
+         * NumericPolicy
+         * @description Contract-level numeric handling configuration.
+         *
+         *     Inherited by all point calculations within a rubric.
+         *     Used for invariant validation (sum tolerance) and display (rounding).
+         */
+        NumericPolicy: {
+            /**
+             * Precision
+             * @description Smallest point increment (quarter-point granularity)
+             */
+            precision?: string;
+            /**
+             * Rounding Mode
+             * @description Python decimal rounding mode
+             * @default half_up
+             */
+            rounding_mode: string;
+            /**
+             * Sum Tolerance
+             * @description Maximum allowed deviation in point sum validation
+             */
+            sum_tolerance?: string;
+        };
+        /**
          * NumericPolicySchema
          * @description Numeric handling configuration for compilation.
          *
@@ -2775,6 +3626,52 @@ export interface components {
              * @default 0.01
              */
             sum_tolerance: string;
+        };
+        /**
+         * OnboardingExamRequest
+         * @description Every field optional; presence is what carries meaning (see above).
+         *
+         *     `phone` has NO format validation, by design (§5): it is stored exactly as
+         *     she typed it and normalised to E.164 only on read, when a wa.me link is
+         *     built. Rejecting a teacher's phone format mid-onboarding is hostility
+         *     disguised as rigour — and there is no format we could enforce that is
+         *     right for every way an Israeli number is written.
+         */
+        OnboardingExamRequest: {
+            /** Guided Session Requested */
+            guided_session_requested?: boolean | null;
+            /** Next Exam Date */
+            next_exam_date?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Whatsapp Opt In */
+            whatsapp_opt_in?: boolean | null;
+        };
+        /**
+         * OnboardingExamResponse
+         * @description The persisted fields, read back off the row after the commit.
+         *
+         *     Deliberately NOT `UserResponse`: these columns are not part of the profile
+         *     shape, and widening the one profile response for them would put a second
+         *     hand-maintained mirror in front of `build_user_response` — the truncation
+         *     risk CLAUDE.md §6 documents.
+         *
+         *     No `show_booking`: the 14-day threshold is a single frontend constant and
+         *     the block renders reactively on date change, BEFORE submit. A server field
+         *     could only ever answer about the last saved date, one step behind what she
+         *     is looking at.
+         */
+        OnboardingExamResponse: {
+            /** Guided Session Requested At */
+            guided_session_requested_at: string | null;
+            /** Next Exam Answered At */
+            next_exam_answered_at: string | null;
+            /** Next Exam Date */
+            next_exam_date: string | null;
+            /** Phone */
+            phone: string | null;
+            /** Whatsapp Opt In */
+            whatsapp_opt_in: boolean;
         };
         /**
          * PagePreview
@@ -3023,6 +3920,15 @@ export interface components {
          * @enum {string}
          */
         QuoteValidationStatus: "exact" | "fuzzy" | "not_found";
+        /** RegenerateFeedbackResponse */
+        RegenerateFeedbackResponse: {
+            /** Offered Only */
+            offered_only: boolean;
+            /** Target */
+            target: string;
+            /** Text */
+            text: string;
+        };
         /**
          * Requirement
          * @description A constraint or rule (vs a teachable skill).
@@ -3042,6 +3948,14 @@ export interface components {
              */
             promoted: boolean;
         };
+        /** ResendCodeRequest */
+        ResendCodeRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
         /** RetryJobResponse */
         RetryJobResponse: {
             /**
@@ -3051,6 +3965,32 @@ export interface components {
             job_id: string;
             /** Status */
             status: string;
+        };
+        /**
+         * ReturnedExamManifest
+         * @description What the download will and will not contain, and why.
+         *
+         *     Exclusions are ENUMERATED, never silently dropped: a teacher who downloads
+         *     24 of 30 exams must be able to see which six are missing and for which of
+         *     the two reasons, or she hands back a class set with holes in it.
+         */
+        ReturnedExamManifest: {
+            /** Excluded Not Approved */
+            excluded_not_approved?: components["schemas"]["ReturnedExamManifestItem"][];
+            /** Excluded Stale */
+            excluded_stale?: components["schemas"]["ReturnedExamManifestItem"][];
+            /** Included */
+            included?: components["schemas"]["ReturnedExamManifestItem"][];
+        };
+        /** ReturnedExamManifestItem */
+        ReturnedExamManifestItem: {
+            /**
+             * Graded Test Id
+             * Format: uuid
+             */
+            graded_test_id: string;
+            /** Student Name */
+            student_name?: string | null;
         };
         /**
          * ReviewSaveRequest
@@ -3135,6 +4075,11 @@ export interface components {
              */
             needs_recompilation: boolean;
             stats?: components["schemas"]["RubricStatsSchema"] | null;
+            /**
+             * Subject
+             * @default computer_science
+             */
+            subject: string;
             /** Updated At */
             updated_at?: string | null;
         };
@@ -3168,6 +4113,11 @@ export interface components {
             name?: string | null;
             /** Needs Recompilation */
             needs_recompilation: boolean;
+            /**
+             * Subject
+             * @default computer_science
+             */
+            subject: string;
             /** Total Points */
             total_points?: number | null;
             /** Total Questions */
@@ -3295,10 +4245,11 @@ export interface components {
         };
         /** SaveDraftRequest */
         SaveDraftRequest: {
-            /** Overrides */
-            overrides: {
-                [key: string]: components["schemas"]["TeacherOverride-Input"];
-            };
+            /** Client Totals */
+            client_totals?: {
+                [key: string]: number | string;
+            } | null;
+            overrides: components["schemas"]["GradedTestOverrides"];
         };
         /**
          * SaveOntologyDraftRequest
@@ -3393,6 +4344,92 @@ export interface components {
             warnings?: components["schemas"]["AnnotationSchema"][];
         };
         /**
+         * SaveStampPositionRequest
+         * @description [OD-1] `null` clears the position, so the test falls back to the batch
+         *     default (or the auto corner). `source` on the way in is IGNORED — the server
+         *     sets "manual"; see the endpoint's docstring.
+         */
+        SaveStampPositionRequest: {
+            stamp_position?: components["schemas"]["StampPosition"] | null;
+        };
+        /**
+         * SchoolInput
+         * @description One school as the teacher picked it.
+         *
+         *     `ministry_symbol` (סמל מוסד) is present when she chose from the list and
+         *     ABSENT when she typed a school the list lacks. It — not the name — is the
+         *     identity when present (023): the real export has 82 normalized names shared
+         *     by 213 institutions, two of them in the same city.
+         *
+         *     Validated as a numeric string rather than as exactly six digits: every symbol
+         *     in today's export is 6 digits, but hard-coding that length would break
+         *     onboarding for a teacher whose school the Ministry numbers differently, and
+         *     the format is not ours to fix. Non-numeric input is junk and is refused,
+         *     because this value becomes an IDENTITY.
+         */
+        SchoolInput: {
+            /** City */
+            city?: string | null;
+            /** Ministry Symbol */
+            ministry_symbol?: string | null;
+            /** Name */
+            name: string;
+        };
+        /**
+         * SchoolResponse
+         * @description One school on the teacher's list (migration 022).
+         */
+        SchoolResponse: {
+            /** City */
+            city?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Ministry Symbol */
+            ministry_symbol?: string | null;
+            /** Name */
+            name: string;
+        };
+        /**
+         * ScopeAnswer
+         * @description THE ANSWER THIS SCOPE WAS GRADED AGAINST — evidence, not decoration.
+         *
+         *     EVD-1 (WhatWasGradedIsWhatIsShown). The grading gate exists so the teacher
+         *     validates the AI against WHAT IT ACTUALLY SAW. Before this field the answer
+         *     was stored nowhere and re-derived on the client by a second rule, which
+         *     drifted: a depth-2 leaf (`q1.א.1`) whose answer was inherited from `q1.א`
+         *     rendered "no answer in the approved transcription" NEXT TO a full-marks
+         *     grade and a verbatim quotation from that same answer. Two derivations of
+         *     one fact cannot be kept in agreement; one recorded fact can.
+         *
+         *     Stored beside the verdict for the same reason `CriterionOutcome.quote` is:
+         *     both are the evidence the grade rests on, and evidence that has to be
+         *     recomputed from mutable inputs is not evidence. It is also immune to the
+         *     one thing a recompute cannot survive — `rubrics.contract_json` holds only
+         *     the LATEST contract, so once a rubric is recompiled the pinned contract the
+         *     grader used is unrecoverable.
+         *
+         *     `source` is the half the old client join could not express:
+         *       "own"       — the transcription answered this exact scope.
+         *       "inherited" — it answered `inherited_from`, and this scope is graded
+         *                     against that text. Surfaced to the teacher, never hidden
+         *                     (FC): presenting a parent's words as the leaf's own is a
+         *                     silent repair.
+         */
+        ScopeAnswer: {
+            /** Inherited From */
+            inherited_from?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "own" | "inherited";
+            /** Text */
+            text: string;
+        };
+        /**
          * ScopeOutcome
          * @description Grading result for one GradableScope (1:1 with GradableTest.scopes input).
          *
@@ -3417,6 +4454,8 @@ export interface components {
          *     0.0 for skipped and failed scopes (no grade was produced).
          */
         ScopeOutcome: {
+            /** Cached Input Tokens */
+            cached_input_tokens?: number | null;
             /** Criterion Outcomes */
             criterion_outcomes: components["schemas"]["CriterionOutcome"][];
             /** Flags */
@@ -3454,6 +4493,7 @@ export interface components {
              * @enum {string}
              */
             scope_kind: "direct" | "sub_question";
+            student_answer?: components["schemas"]["ScopeAnswer"] | null;
             /** Sub Question Id */
             sub_question_id?: string | null;
         };
@@ -3516,6 +4556,32 @@ export interface components {
             permission: "view" | "edit";
         };
         /**
+         * SignupPendingResponse
+         * @description [024] What signup returns now: NOT a session.
+         *
+         *     Owner ruling A4 — an address nobody proved gets no session. The teacher
+         *     holds this while she fetches the code; `/verify-email` is what issues the
+         *     JWT. `verification_required` is always True and is there so a client can
+         *     branch on the SHAPE rather than on the absence of a field.
+         */
+        SignupPendingResponse: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /**
+             * Resend Available In Seconds
+             * @default 0
+             */
+            resend_available_in_seconds: number;
+            /**
+             * Verification Required
+             * @default true
+             */
+            verification_required: boolean;
+        };
+        /**
          * SignupRequest
          * @description Signup request body.
          */
@@ -3574,6 +4640,42 @@ export interface components {
             line_number?: number | null;
             /** Start Char */
             start_char?: number | null;
+        };
+        /**
+         * StampPosition
+         * @description Where the approved stamp sits on page 1 — a corner, or a normalized
+         *     point. Set by the teacher or auto-chosen; PR-G9 renders it.
+         */
+        StampPosition: {
+            /** Corner */
+            corner?: ("tl" | "tr" | "bl" | "br") | null;
+            /**
+             * Source
+             * @default auto
+             * @enum {string}
+             */
+            source: "auto" | "manual";
+            /** X */
+            x?: number | null;
+            /** Y */
+            y?: number | null;
+        };
+        /** StampPositionResponse */
+        StampPositionResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Returned Exam State
+             * @default stale
+             * @enum {string}
+             */
+            returned_exam_state: "none" | "rendering" | "ready" | "stale";
+            stamp_position?: components["schemas"]["StampPosition"] | null;
+            /** Status */
+            status: string;
         };
         /** StudentDetailResponse */
         StudentDetailResponse: {
@@ -3638,20 +4740,29 @@ export interface components {
             points: string;
             /**
              * Sub Criterion Id
-             * @description Stable ID, e.g. 'q1.c1.sc0'
+             * @description Positional ID, e.g. 'q1.c1.sc0'
              */
             sub_criterion_id: string;
+            /**
+             * Uid
+             * @description Stable server-minted UUID4. Durable references use this; criterion_id remains the display/path identity.
+             */
+            uid?: string | null;
         };
         /**
          * SubCriterionOutcome
          * @description Leaf grading result when a criterion has sub_criteria (one-level depth).
          */
         SubCriterionOutcome: {
+            /** Checks */
+            checks?: components["schemas"]["Check"][] | null;
             /** Confidence */
             confidence: number;
             /** Description */
             description: string;
             evidence_quote?: components["schemas"]["AnswerQuotation"] | null;
+            /** Evidence Quotes */
+            evidence_quotes?: components["schemas"]["AnswerQuotation"][] | null;
             /** Flags */
             flags?: components["schemas"]["FlaggedOutcome"][];
             /** Points Awarded */
@@ -3776,27 +4887,36 @@ export interface components {
         };
         /**
          * TeacherOverride
-         * @description Teacher's edit for one terminal criterion.
-         *     Always carries the effective points_awarded (AI's value if unchanged, teacher's if changed).
-         *     Presence in the map means "the teacher touched this terminal."
+         * @description The teacher's decision on ONE check.
+         *
+         *     An override is a VERDICT, not a number. Points are derived from verdicts by
+         *     `app/services/pricing.py`, in one direction, everywhere — so there is no
+         *     `points_awarded` here and no second pricing path to keep in agreement.
+         *
+         *     (R-2, owner ruling: decide by count. The production count of unapproved
+         *     v3-era drafts carrying an overlay was 0 — in fact `graded_tests` was empty —
+         *     so the simple branch applies with no legacy path and no data migration.)
          */
-        "TeacherOverride-Input": {
-            /** Points Awarded */
-            points_awarded: number | string;
+        TeacherOverride: {
+            /** Check Id */
+            check_id: string;
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at?: string;
+            /**
+             * Evidence Disputed
+             * @default false
+             */
+            evidence_disputed: boolean;
             /** Teacher Comment */
             teacher_comment?: string | null;
-        };
-        /**
-         * TeacherOverride
-         * @description Teacher's edit for one terminal criterion.
-         *     Always carries the effective points_awarded (AI's value if unchanged, teacher's if changed).
-         *     Presence in the map means "the teacher touched this terminal."
-         */
-        "TeacherOverride-Output": {
-            /** Points Awarded */
-            points_awarded: string;
-            /** Teacher Comment */
-            teacher_comment?: string | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "met" | "partially_met" | "not_met";
         };
         /** TranscribeResponse */
         TranscribeResponse: {
@@ -3838,6 +4958,8 @@ export interface components {
             model_version?: string | null;
             /** Page Count */
             page_count: number;
+            /** Prompt Version */
+            prompt_version?: string | null;
             /**
              * Schema Version
              * @default 1.0
@@ -4014,6 +5136,59 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * UpdateMeRequest
+         * @description Exactly one of the two is meaningful per call. `school_id` picks an
+         *     existing school; `school_name` is the one-field onboarding answer and is
+         *     create-or-pick. Sending neither is a no-op, not an error — the prompt is
+         *     skippable by design.
+         */
+        UpdateMeRequest: {
+            /** School City */
+            school_city?: string | null;
+            /** School Id */
+            school_id?: string | null;
+            /** School Name */
+            school_name?: string | null;
+        };
+        /** UpdateMeResponse */
+        UpdateMeResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** School Id */
+            school_id?: string | null;
+            /** School Name */
+            school_name?: string | null;
+        };
+        /**
+         * UpdateProfileRequest
+         * @description Both fields optional; sending neither is a no-op, not an error.
+         *
+         *     `gender` is a closed set including an explicit 'unspecified' — "prefer not
+         *     to say" is an ANSWER and is stored as one. It is collected for future
+         *     address forms; nothing outside onboarding reads it yet (owner ruling D4:
+         *     the product's Hebrew copy is NOT re-gendered by this change).
+         */
+        UpdateProfileRequest: {
+            /** Full Name */
+            full_name?: string | null;
+            /** Gender */
+            gender?: ("female" | "male" | "unspecified") | null;
+        };
+        /**
+         * UpdateSchoolsRequest
+         * @description FULL REPLACEMENT, like `PUT /me/subject-matters` beside it. There are no
+         *     merge semantics anywhere in this codebase and this is not the place to
+         *     invent them. An empty list is a legitimate answer — the schools step is the
+         *     skippable one — and it clears both the junction and the attribution key.
+         */
+        UpdateSchoolsRequest: {
+            /** Schools */
+            schools?: components["schemas"]["SchoolInput"][];
+        };
         /** UpdateStudentRequest */
         UpdateStudentRequest: {
             /** Full Name */
@@ -4035,6 +5210,10 @@ export interface components {
         /**
          * UserResponse
          * @description Response schema for user profile.
+         *
+         *     THE profile shape — `auth.build_user_response` is its only builder. A second
+         *     hand-built copy is what silently truncated the annotation payload (§6); do
+         *     not add one.
          */
         UserResponse: {
             /**
@@ -4046,6 +5225,8 @@ export interface components {
             email: string;
             /** Full Name */
             full_name: string;
+            /** Gender */
+            gender?: string | null;
             /**
              * Id
              * Format: uuid
@@ -4053,6 +5234,12 @@ export interface components {
             id: string;
             /** Is Subscription Active */
             is_subscription_active: boolean;
+            /** Onboarding Completed At */
+            onboarding_completed_at?: string | null;
+            /** Primary School Id */
+            primary_school_id?: string | null;
+            /** Schools */
+            schools?: components["schemas"]["SchoolResponse"][];
             /** Started Pro At */
             started_pro_at?: string | null;
             /** Started Trial At */
@@ -4125,6 +5312,16 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /** VerifyEmailRequest */
+        VerifyEmailRequest: {
+            /** Code */
+            code: string;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -4150,6 +5347,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    google_sign_in_api_v0_auth_google_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleAuthRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    google_nonce_api_v0_auth_google_nonce_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleNonceResponse"];
                 };
             };
         };
@@ -4247,6 +5497,39 @@ export interface operations {
             };
         };
     };
+    resend_code_api_v0_auth_resend_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResendCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     signup_api_v0_auth_signup_post: {
         parameters: {
             query?: never;
@@ -4257,6 +5540,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SignupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupPendingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_email_api_v0_auth_verify_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyEmailRequest"];
             };
         };
         responses: {
@@ -4526,6 +5842,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    returned_exams_zip_api_v0_batches__batch_id__returned_exams_zip_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    returned_exams_manifest_api_v0_batches__batch_id__returned_exams_manifest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnedExamManifest"];
                 };
             };
             /** @description Validation Error */
@@ -5127,6 +6505,40 @@ export interface operations {
             };
         };
     };
+    regenerate_feedback_api_v0_grading_graded_test__graded_test_id__feedback_regenerate_post: {
+        parameters: {
+            query: {
+                /** @description scope id, or the literal "summary" */
+                target: string;
+            };
+            header?: never;
+            path: {
+                graded_test_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegenerateFeedbackResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     manual_edit_graded_test_api_v0_grading_graded_test__graded_test_id__manual_edit_post: {
         parameters: {
             query?: never;
@@ -5207,6 +6619,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevisionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_returned_exam_api_v0_grading_graded_test__graded_test_id__returned_exam_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                graded_test_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_stamp_position_api_v0_grading_graded_test__graded_test_id__stamp_position_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                graded_test_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveStampPositionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StampPositionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -5904,6 +7382,40 @@ export interface operations {
             };
         };
     };
+    get_transcription_page_image_api_v0_transcriptions__transcription_id__pages__page_number__image_get: {
+        parameters: {
+            query?: {
+                v?: string | null;
+            };
+            header?: never;
+            path: {
+                transcription_id: string;
+                page_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page rendered as WebP */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     save_review_api_v0_transcriptions__transcription_id__review_patch: {
         parameters: {
             query?: never;
@@ -5973,6 +7485,92 @@ export interface operations {
             };
         };
     };
+    update_onboarding_exam_api_v0_users_me_onboarding_exam_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingExamRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingExamResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_onboarding_api_v0_users_me_onboarding_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+        };
+    };
+    update_user_profile_api_v0_users_me_profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_user_rubrics_api_v0_users_me_rubrics_get: {
         parameters: {
             query?: {
@@ -5994,6 +7592,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserRubricsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_me_api_v0_users_me_school_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateMeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_user_schools_api_v0_users_me_schools_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSchoolsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolResponse"][];
                 };
             };
             /** @description Validation Error */

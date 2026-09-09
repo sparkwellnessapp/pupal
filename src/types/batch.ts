@@ -14,8 +14,10 @@ import type { components } from '../lib/api-types'
 export interface FlagVerdictResponse {
   review_needed: boolean
   /** Subset of: "unparseable" | "grounding_retry" | "low_confidence" | "low_logprob_span"
-   *  | "code_lint" | "missing_answers" | "segmentation_mismatch"
-   *  | "student_unassigned" | "student_unmatched" */
+   *  | "missing_answers" | "segmentation_mismatch"
+   *  | "student_unassigned" | "student_unmatched"
+   *  (NOT "code_lint" — retired as a triage reason 2026-09-06; it survives as
+   *  an INFO annotation rendered by review-flags.ts as an answer-level badge.) */
   reasons: string[]
 }
 
@@ -54,6 +56,16 @@ export interface ActiveJobItem {
 
 /** Live pipeline counts — derived at query time, never stored. */
 export interface BatchRollup {
+  /** [Stage A, migration 025] The UPLOAD stage, one step before `transcribing`:
+   *  files she declared that have not landed yet. 0 for every legacy batch
+   *  (no declaration) and for every batch created by a client that predates
+   *  the declaration — which is what makes this field additive. */
+  uploading: number
+  /** [Stage A, R9] Declared, never arrived, and the batch has been silent past
+   *  the backstop TTL. Counted as DEAD so the batch reaches a terminal status
+   *  instead of an eternal "in progress" when she closes the tab mid-upload.
+   *  Mutually exclusive with `uploading`. */
+  not_received: number
   transcribing: number           // VLM calls in-flight
   transcribed: number            // awaiting transcription review
   /** Ruling 1: the flagged-or-touched subset of `transcribed` — exactly
@@ -107,6 +119,17 @@ export interface BatchDetailResponse {
   /** Rubric selection groups in answer space (batch-level; [] when
    *  selection-free). The review surface collapses expected-empty containers. */
   selection_groups?: AnswerSpaceSelectionGroup[]
+  /**
+   * S12 grade-review feed (spec §1.5). Typed HERE rather than cast at the call
+   * site: an `as unknown as {...}` in the dashboard hid the fact that these had
+   * never been added, so a wire rename would have made the whole section vanish
+   * with a green typecheck and no error anywhere.
+   */
+  graded_tests?: BatchGradedItem[]
+  eta?: BatchEta | null
+  audit_status?: string
+  appendix_include_criteria?: boolean
+  stamp_position_default?: { corner?: string | null; x?: number | null; y?: number | null } | null
   /** Durable per-document failure records — rendered as failed cards
    *  instead of an eternal "מתמלל" spinner. */
   transcription_failures?: TranscriptionFailureItem[]
@@ -154,11 +177,34 @@ export const FLAG_REASON_LABELS: Record<string, string> = {
   grounding_retry: 'חוסר עקביות בזיהוי',
   low_confidence: 'ביטחון נמוך בתמלול',
   low_logprob_span: 'אי-ודאות לשונית',
-  code_lint: 'סוגריים לא מאוזנים',
   missing_answers: 'תשובות חסרות',
   segmentation_mismatch: 'חשד לשיוך שגוי',
   // Two distinct student facts (2026-08-12, owner-ruled copy): a name WAS
   // extracted but no such student exists yet vs. no name found at all.
   student_unassigned: 'תלמיד חדש - טרם נוצר',
   student_unmatched: 'שם תלמיד לא זוהה',
+}
+
+/** One graded test on the batch feed (spec §1.5). */
+export interface BatchGradedItem {
+  graded_test_id: string
+  student_id?: string | null
+  student_name?: string | null
+  status: string
+  version?: number
+  landed_at?: string | null
+  opened_at?: string | null
+  total_awarded?: string | null
+  /** null = NOT computable (an unparseable draft), never zero. */
+  look_count?: number | null
+  audit_touched?: string
+  returned_exam_state?: string
+  /** Relative path — usable only through the api seam (see fetchPageImageObjectUrl). */
+  page1_image_url?: string | null
+}
+
+/** How long until she can start reviewing (spec §1.5). */
+export interface BatchEta {
+  kind: 'first_landing' | 'remaining' | 'unknown' | string
+  seconds?: number | null
 }

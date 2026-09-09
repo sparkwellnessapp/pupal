@@ -42,8 +42,34 @@ export interface UseExtractionJobResult {
     refresh: () => Promise<void>;
 }
 
-function isTerminal(status: ExtractionJobStatus): boolean {
+export function isTerminal(status: ExtractionJobStatus): boolean {
     return status.status === 'completed' || status.status === 'failed' || status.stale;
+}
+
+/**
+ * TERMINAL IS AN EDGE, NOT A LEVEL — and getting this wrong destroys teacher work.
+ *
+ * A completed job stays completed forever, so every re-attach re-observes it. The
+ * old code fired `onComplete` on EVERY terminal observation; the page's onComplete
+ * re-applies the extraction result, which resets `extractedQuestions`, clears the
+ * undo stack, drops the dirty flag and sends the teacher back to the arrival card.
+ * So any restart of this hook against a finished job silently deleted her
+ * in-progress review.
+ *
+ * Observed live (2026-09-01): a concurrent edit to `frontend/src` hot-reloaded the
+ * page; React DEV treats a Fast-Refreshed component's hook deps as changed, so the
+ * effect below re-ran `start()`, which re-fetched a completed job and bounced her
+ * out of the review every ~2 minutes. Fast Refresh was only the trigger — resume,
+ * crash-stash restore and retry all re-attach the same way in production.
+ *
+ * Keyed on the WIRE's `job_id`, not the hook argument: the answer must be about
+ * the job we actually observed, not the id we happened to ask for.
+ */
+export function isNewTerminal(
+    status: ExtractionJobStatus,
+    deliveredFor: string | null,
+): boolean {
+    return isTerminal(status) && deliveredFor !== status.job_id;
 }
 
 export function useExtractionJob(
@@ -63,6 +89,9 @@ export function useExtractionJob(
 
     const pollingRef = useRef(false);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /** The job id whose TERMINAL transition has already been handed to the caller.
+     *  Survives re-renders and effect re-runs; only a new job id clears it. */
+    const deliveredTerminalRef = useRef<string | null>(null);
 
     const fetchStatus = useCallback(async (): Promise<ExtractionJobStatus | null> => {
         if (!jobId) return null;
@@ -74,12 +103,21 @@ export function useExtractionJob(
         if (isTerminal(data)) {
             pollingRef.current = false;
             setIsPolling(false);
-            if (data.status === 'completed') {
-                callbacksRef.current.onComplete?.(data);
-            } else {
-                // failed, or stale-extracting (server died mid-job) — both retryable
-                callbacksRef.current.onFailed?.(data);
+            // Status is always published (above); the terminal CALLBACKS fire once.
+            if (isNewTerminal(data, deliveredTerminalRef.current)) {
+                deliveredTerminalRef.current = data.job_id;
+                if (data.status === 'completed') {
+                    callbacksRef.current.onComplete?.(data);
+                } else {
+                    // failed, or stale-extracting (server died mid-job) — both retryable
+                    callbacksRef.current.onFailed?.(data);
+                }
             }
+        } else if (deliveredTerminalRef.current === data.job_id) {
+            // The job LEFT terminal — `/retry` re-queued this same id. That is a
+            // genuinely new run, so its completion is a new edge. (A job that
+            // stays completed never reaches this branch, so the guard above holds.)
+            deliveredTerminalRef.current = null;
         }
         return data;
     }, [jobId]);

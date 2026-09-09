@@ -149,3 +149,183 @@ describe('criterion-level set_points cascades like her own edit (living sums)', 
         expect(bet.points).toBe(29);                         // Σ criteria after the edit — E-3 cascade
     });
 });
+
+/**
+ * CROSS-PINNED POINTS SEMANTICS — the eval scorer's twin.
+ *
+ * backend/tests/fixtures/edit_step_points_cases.json is read IN PLACE by BOTH this
+ * file and backend/tests/rubric_eval_suite/test_fix_effect.py. The Python side
+ * SIMULATES these steps to decide whether a model's proposed fix actually leaves
+ * the rubric adding up (the gate criterion added 2026-08-24, after a fix that
+ * created ג correctly but left ב declaring 45 against 29 of criteria reached
+ * production). This file proves the REAL applier lands on the same numbers.
+ *
+ * If these two ever disagree, the eval gate silently starts passing broken fixes
+ * or failing good ones — with nothing to say which. So: change edit-steps.ts's
+ * point semantics on purpose, and update the vectors in the SAME commit.
+ * (selection_expectation_cases.json is the precedent for this arrangement.)
+ */
+const POINTS_VECTORS = path.resolve(
+    HERE, '../../../backend/tests/fixtures/edit_step_points_cases.json');
+
+type PointsCase = {
+    name: string;
+    questions: Array<{
+        question_id: string; total_points: string;
+        sub_questions: Array<{ sub_question_id: string; points: string; criteria: string[] }>;
+    }>;
+    steps: FixStep[];
+    expected_points: Record<string, string>;
+};
+
+const expand = (c: PointsCase): RubricQuestion[] => c.questions.map((q, qi) => ({
+    question_id: q.question_id,
+    total_points: Number(q.total_points),
+    criteria: [],
+    sub_questions: q.sub_questions.map((s, si) => ({
+        sub_question_id: s.sub_question_id,
+        index: si,
+        text: '',
+        points: Number(s.points),
+        criteria: s.criteria.map((p, ci) => ({
+            criterion_id: `${q.question_id}.${s.sub_question_id}.c${ci}`,
+            index: ci,
+            description: `c${ci}`,
+            points: Number(p),
+        })),
+        sub_questions: [],
+    })),
+    index: qi,
+} as unknown as RubricQuestion));
+
+const declaredAt = (questions: RubricQuestion[], scope: string): number | undefined => {
+    const [qid, ...subs] = scope.split('.');
+    const q = questions.find((x) => x.question_id.replace(/^q/i, '') === qid.replace(/^q/i, ''));
+    if (!q) return undefined;
+    let node: RubricSubQuestionLike = {
+        sub_question_id: q.question_id,
+        points: q.total_points,
+        sub_questions: q.sub_questions as unknown as RubricSubQuestionLike[],
+    };
+    for (const seg of subs) {
+        const next: RubricSubQuestionLike | undefined =
+            node.sub_questions?.find((s) => s.sub_question_id === seg);
+        if (!next) return undefined;
+        node = next;
+    }
+    return node.points;
+};
+
+type RubricSubQuestionLike = {
+    sub_question_id: string; points: number; sub_questions?: RubricSubQuestionLike[];
+};
+
+describe('edit-step POINTS semantics — cross-pinned with the eval scorer', () => {
+    const cases: PointsCase[] = JSON.parse(readFileSync(POINTS_VECTORS, 'utf-8')).cases;
+
+    it('the vector file is present and non-empty (a silent drop would disable the cross-pin)', () => {
+        expect(cases.length).toBeGreaterThan(0);
+    });
+
+    cases.forEach((c) => {
+        it(`applier matches the vector: ${c.name}`, () => {
+            const out = applyEditSteps(expand(c), c.steps);
+            expect(out).not.toBeNull();
+            for (const [scope, expected] of Object.entries(c.expected_points)) {
+                expect(
+                    declaredAt(out!.questions, scope),
+                    `${scope}: the REAL applier disagrees with backend/tests/fixtures/` +
+                    `edit_step_points_cases.json. If edit-steps.ts changed on purpose, ` +
+                    `update the vectors in the same commit — the eval gate reads them.`,
+                ).toBe(Number(expected));
+            }
+        });
+    });
+});
+
+/**
+ * ID RE-DERIVATION ON MOVE (2026-08-24, owner-ruled "B — ids reflect current location").
+ *
+ * Extraction names criteria by where they live (`q2.ב.c6`, sub-criteria `<cid>.scN`),
+ * so a criterion that moves to ג while keeping `q2.ב.c6` is an id that lies about its
+ * location — in JSON the teacher and every future reader will see. The applier already
+ * renumbered `index` on both sides of a move; these pin that the id agrees.
+ */
+describe('a moved criterion is renamed to its new home', () => {
+    it('the moved criterion takes an id derived from its DESTINATION', () => {
+        const out = applyEditSteps(hobby(), [
+            { op: 'move_criterion', scope: 'q2.ב', criterion_index: 6, to_scope: 'q2.ג' },
+        ])!;
+        const q2 = out.questions.find((q) => q.question_id === 'q2')!;
+        const gimel = q2.sub_questions.find((s) => s.sub_question_id === 'ג')!;
+
+        expect(gimel.criteria).toHaveLength(1);
+        expect(gimel.criteria[0].criterion_id).toBe('q2.ג.c0');
+        expect(gimel.criteria[0].criterion_id).not.toContain('ב');   // the lie is gone
+        expect(gimel.criteria[0].description).toContain('PrintLowRatingChannel');
+    });
+
+    it('its sub-criteria follow the new parent id', () => {
+        const withSubs = (): RubricQuestion[] => {
+            const qs = hobby();
+            const bet = qs.find((q) => q.question_id === 'q2')!
+                .sub_questions.find((s) => s.sub_question_id === 'ב')!;
+            bet.criteria[6] = {
+                ...bet.criteria[6],
+                sub_criteria: [
+                    { sub_criterion_id: 'q2.ב.c6.sc0', index: 0, description: 'a', points: 8 },
+                    { sub_criterion_id: 'q2.ב.c6.sc1', index: 1, description: 'b', points: 8 },
+                ],
+            };
+            return qs;
+        };
+        const out = applyEditSteps(withSubs(), [
+            { op: 'move_criterion', scope: 'q2.ב', criterion_index: 6, to_scope: 'q2.ג' },
+        ])!;
+        const moved = out.questions.find((q) => q.question_id === 'q2')!
+            .sub_questions.find((s) => s.sub_question_id === 'ג')!.criteria[0];
+
+        expect(moved.criterion_id).toBe('q2.ג.c0');
+        expect(moved.sub_criteria!.map((sc) => sc.sub_criterion_id))
+            .toEqual(['q2.ג.c0.sc0', 'q2.ג.c0.sc1']);
+    });
+
+    it('siblings left behind keep their ids — digits are birth order, not position', () => {
+        const out = applyEditSteps(hobby(), [
+            { op: 'move_criterion', scope: 'q2.ב', criterion_index: 0, to_scope: 'q2.ג' },
+        ])!;
+        const bet = out.questions.find((q) => q.question_id === 'q2')!
+            .sub_questions.find((s) => s.sub_question_id === 'ב')!;
+        // index IS renumbered (pre-existing behaviour) …
+        expect(bet.criteria.map((c) => c.index)).toEqual([0, 1, 2, 3, 4, 5]);
+        // … while the ids of untouched siblings are deliberately NOT churned: they key
+        // grading terminals, teacher overrides (CW-3) and data-scope-id anchors.
+        expect(bet.criteria[0].criterion_id).toBe('q2.ב.c1');
+        expect(bet.criteria.every((c) => c.criterion_id.startsWith('q2.ב.'))).toBe(true);
+    });
+
+    it('an id already taken in the destination falls back to an opaque one', () => {
+        const clash = (): RubricQuestion[] => {
+            const qs = hobby();
+            const q2 = qs.find((q) => q.question_id === 'q2')!;
+            q2.sub_questions.push({
+                sub_question_id: 'ג', index: 2, text: '', points: 0,
+                // the squatter holds the id the move WILL want (append lands at index 1),
+                // which is how a collision actually arises: an id whose digits record
+                // birth order, not position, after an earlier move + removal.
+                criteria: [{ criterion_id: 'q2.ג.c1', index: 0, description: 'squatter', points: 1 }],
+                sub_questions: [],
+            } as unknown as RubricQuestion['sub_questions'][number]);
+            return qs;
+        };
+        const out = applyEditSteps(clash(), [
+            { op: 'move_criterion', scope: 'q2.ב', criterion_index: 6, to_scope: 'q2.ג' },
+        ])!;
+        const gimel = out.questions.find((q) => q.question_id === 'q2')!
+            .sub_questions.find((s) => s.sub_question_id === 'ג')!;
+        const movedIn = gimel.criteria[1];
+        expect(movedIn.criterion_id).not.toBe('q2.ג.c1');       // no collision with the squatter
+        expect(movedIn.criterion_id).toMatch(/^c_/);            // the editor's own opaque shape
+        expect(new Set(gimel.criteria.map((c) => c.criterion_id)).size).toBe(2);
+    });
+});
