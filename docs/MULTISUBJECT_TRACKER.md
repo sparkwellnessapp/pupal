@@ -56,7 +56,7 @@ Legend: ☐ not started · ◐ in progress · ☑ done · ✗ dropped (with the 
 
 | # | item | state | note |
 |---|---|---|---|
-| 4a | extraction ladder rule + probe benchmark + PUBLIC-MINISTRY fixture | ☑ | english F-1 gains the ladder rule (top band, bands verbatim, never split, never summed). PUBLIC-MINISTRY F/G DOCX authored from the ministry PDF's text layer (builder kept beside it). Recorded run: 4 criteria **8/10/16/6 = 40**, compile OK, `short_answer`, all four bands in every description |
+| 4a | extraction ladder rule + probe benchmark + PUBLIC-MINISTRY fixture | ☑ | english F-1 gains the ladder rule (top band, bands verbatim, never split, never summed). PUBLIC-MINISTRY F/G DOCX authored from the ministry PDF's text layer (builder kept beside it). Recorded run: 4 criteria **8/10/16/6 = 40**, compile OK, `short_answer`, all four bands in every description. **The probe benchmark is now pinned too**: `fixtures/probes/omml_bands_probe.docx` → 3 criteria at **10/6/4**, total 20, compile OK, and `omml_seen == omml_rendered == 1` (P-3) — asserted in two halves by `tests/subjects/test_omml_bands_probe.py` |
 | 4b | C8-lite only if the compiler splits ladders (evidence first) | ☑ | **the gate fired**: the probe showed each ladder compiling to THREE `required` slots (C5 read the bands as components, 15 > 8, reconciled to 5/2/1 — full marks would have required three mutually exclusive bands at once). C8-lite added beside C3: a ladder → ONE required slot, `routed=False`, flagged. 10 tests incl. four near-misses and a CS component list that still splits. **Kill check: the A0 guard did not move** (110 plan-compiler tests pass) |
 
 ## Phase 5 — Smoke gate, index, report

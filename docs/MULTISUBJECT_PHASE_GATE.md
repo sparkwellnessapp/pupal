@@ -147,6 +147,8 @@ return beside C3 that the execution plan specifies — now keeps a ladder whole.
 | leg | asked | result |
 |---|---|---|
 | CS gates byte-identical | prompt pins + A0 guard unchanged | **PASS** — 6/6 pins on the assembled CS output, A0 compiled-plan guard green (46 tests) |
+| **full backend suite** | no regression vs Phase 0 | **1583 passed / 2 skipped / 1 failed**, clean run. The one failure is a flaky heartbeat-timing test (6 of 7 isolated runs pass, the seventh a connection error) on a path no commit in this work touches. It found 6 REAL regressions first — see the fifth objection |
+| transcription suite | matches Phase 0 (152) | **PASS** — 152 passed, 1 skipped |
 | CS rubric eval | matches the Phase 0 baseline (4/5) | **PASS, and identical** — 4/5, with the SAME fixture failing for the SAME three reasons (`point_exactness=0.979<1`, `annotation_mismatch`, `pedagogical_mismatch`) and every structural metric unchanged to four decimals. Re-run because the extraction schema changed; `results/20260909-104242_gpt-5.6-terra-high` |
 | Math loop, **DOCX** | render → extract → rescale → compile at 100 | **PASS** — total 100, shares 33.5/33.25×4, choose 3 of 5; compile blocked at 5 nodes where her own weights disagree, and **OK total=100.00** after the rubric-gate fix |
 | Math loop, **PDF** | the same document through the PDF path | **PASS** — `stage=image_read source=pdf`, 16 pages, 0 failed, $0.147; identical shares and total; **OK total=100.00** after the fix. Independent draw, so a slightly different set of her inconsistencies surfaced (7 nodes) |

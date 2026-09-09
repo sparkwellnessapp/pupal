@@ -339,3 +339,46 @@ blocks compile), which is where it belongs. Two tests pin both arms, including o
 teacher's gap ever leaks back into the rounding measure.
 
 The tempting move was to widen the bound. The bound was right.
+
+### A self-inflicted false alarm: 14 failures that were my own concurrency (2026-09-09)
+
+The full-suite re-run after the six fixes came back **14 failed / 1566 passed** — and the failing
+set was completely different from the first run's: `test_plan_store.py` (7), `test_plan_build_runner.py`
+(2+), `test_plan_kick.py`, and `test_schema_attribute_check::test_live_db_constraint_attributes_pass`.
+None of them are near this work.
+
+Cause: **I ran other pytest sessions against the same Vivi-Test database while that suite was
+running.** Those tests are precisely the ones that cannot tolerate it — they exercise CAS claims,
+a two-writers race decided by a unique index, heartbeat staleness and live-constraint attributes on
+shared tables. A second session inserting into `grading_plans` at the same time makes
+«two writers race and the index decides» decide differently.
+
+Re-run alone, nothing else touching the DB: **32 passed**. No regression; the ruler was disturbed,
+not the code.
+
+Recorded because the standing guidance in `CLAUDE.md` covers running the full suite in TWO
+invocations (the Windows teardown wedge) but does not say the obvious neighbouring thing: the
+suite owns the test database for its duration. A third full run was started clean to get a
+trustworthy number.
+
+### The clean full-suite number (2026-09-09)
+
+Third run, alone, nothing else touching Vivi-Test: **1583 passed, 2 skipped, 1 failed** in 58m20s.
+
+| run | result | reading |
+|---|---|---|
+| Phase 0 baseline | 1475 passed / 9 failed | 8 = cp1252 locale (environment), 1 = a timing artefact of adding 027 mid-run |
+| after phases 1–4 | 1574 passed / 6 failed | **6 real regressions from this work** — fixed in `0bcb038` |
+| re-run, contaminated | 1566 passed / 14 failed | my own concurrent pytest sessions on the shared DB; 32/32 alone |
+| **clean** | **1583 passed / 1 failed** | the one failure is flaky and not from this work |
+
+The single failure is `test_plan_build_runner.py::test_resolve_waits_for_a_live_builder`. Run in
+isolation seven times it passed six and errored once (a connection error in setup, not an
+assertion). It waits on a live builder's heartbeat across the pooled Supabase connection, so a
+transient pooler hiccup shows up exactly like this. **No commit in this work touches
+`plan_build_runner`, `plan_store`, `plan_job_liveness`, `job_liveness` or `cloud_tasks_service`** —
+verified by diffing every path changed from `262c6ab~1` to HEAD. The only plan-compiler file this
+work touched is `compile.py` (C8-lite), whose own suite is green.
+
+The locale failures are absent because every run here sets `PYTHONUTF8=1`; they are an environment
+property of the Windows box, unchanged and unrelated.
