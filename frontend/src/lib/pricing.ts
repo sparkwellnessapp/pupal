@@ -102,6 +102,9 @@ const SUPPORTED_ROUNDING_MODE = 'half_up';
  */
 export interface PricingCheck {
     check_id: string;
+    // ALPHA-GAP A-1 (D-3): no 'level_select' kind — a band ladder is ONE 'required' check at the top
+    // band (C8-lite). Alpha adds the kind to CheckKind and a selected-band field beside it,
+    // and both price() arms below gain a branch. Mirrors backend pricer.py.
     kind: CheckKind;
     /** Required checks: the credit at stake. Serializes as `string | null`. */
     points: string | null;

@@ -91,7 +91,7 @@ than claimed clean. **Do not delete a junction with `rmdir` through Git Bash pat
 | backend collect | `pytest --collect-only -q --ignore=tests/transcription_eval_suit` | **1565 collected**, no import errors |
 | targeted backend | rescale + unscored-part + extraction-job seam + `tests/subjects` + retry-policy + fp123 | **70 passed**, then **24 passed** on the rescale suite after the off-grid fix |
 | vitest | `npm test` | **73 files, 1089 passed, 1 todo** (Phase 0: 1083 — +6 new subject tests) |
-| tsc | `npx tsc --noEmit` | **exit 2 — 3 errors, all in `src/mocks/grade_review/handlers.ts`**, an **untracked** msw file belonging to the grade-review work. **No file touched by this work reports an error** (verified by listing every file tsc names). Not repaired here: it is untracked, foreign, and §4.5 applies |
+| tsc | `npx tsc --noEmit` | **exit 0**. ⚠ CORRECTION: it briefly reported 3 errors in the untracked `src/mocks/grade_review/handlers.ts`, and this log first blamed that file. It was wrong — the errors were a SYMPTOM of the node_modules damage recorded above (msw's type dependencies were among the packages removed). The file is byte-unchanged; after `npm install` restored the tree, tsc is clean. A missing transitive package surfaces as a type error in whatever imports it, which reads exactly like a defect in that file |
 | copy gate | `npm run check:copy` | **COPY GATES PASS** |
 
 ## Phase 2.t — the real-provider snapshot of the 4-unit Math DOCX

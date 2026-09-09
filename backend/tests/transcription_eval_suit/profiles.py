@@ -23,6 +23,11 @@ from .critical_tokens import JAVA_BAGRUT, CriticalProfile
 # the seed corpus.
 DEFAULT_PROFILE = "java_bagrut"
 
+# ALPHA-GAP A-7 (D-11): ONE profile, and it is CS. A Mathematics or English document is scored
+# by a ruler built for Java: its critical tokens are operators and brackets, not `sqrt`, `^`,
+# a fraction bar or a misspelling. Alpha adds a scorer profile per subject BESIDE the
+# instrument (never inside it — §17.7 forbids answering a grading question with an instrument
+# change) and the beta P1 rule keeps holding meanwhile.
 PROFILES: dict[str, CriticalProfile] = {
     "java_bagrut": JAVA_BAGRUT,
 }

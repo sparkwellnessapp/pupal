@@ -2,6 +2,13 @@
 
 **How to produce ground-truth artifacts for the transcription eval suite.**
 
+> **ALPHA-GAP A-2 (D-1) — this document is v1 and covers CS only.** The beta Mathematics
+> convention is LINEAR notation (`^`, `(num)/(den)`, `sqrt(...)`, `|x|`) with a one-line
+> `[איור: …]` at a figure, and it lives in the mathematics profile fragment rather than here.
+> Alpha writes the v2 conventions — the LaTeX grammar, what counts as a token in an equation,
+> and how a figure is transcribed — BEFORE any Math ground truth is authored, because a
+> convention decided after the fact is a ruler bent to fit its first measurement.
+
 > **Read this before you transcribe a single page.** You are authoring the *ruler*, not a
 > measurement. Every error you introduce becomes a permanent, invisible penalty on every model
 > that reads the page correctly — and the suite has already lost weeks to exactly that

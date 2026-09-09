@@ -33,6 +33,9 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_serializer
 
+# ALPHA-GAP A-1 (D-3): no `level_select` kind — a band ladder grades as ONE `required` check at the
+# top band (C8-lite in plan_compiler/compile.py). Alpha adds the kind here first; every
+# dispatch below and in pricer.py / plan_validator.py / pricing.ts follows from it.
 CheckKind = Literal["required", "tariff", "note_only", "counted"]
 
 # `counted` — R-E Case 1 (owner-ruled), made a kind by PLAN COMPILER v2 (C3).

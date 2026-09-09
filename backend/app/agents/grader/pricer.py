@@ -210,6 +210,9 @@ def price_scope(terminal_plans: List[TerminalPlan],
                 lines.append(f"{_VERDICT_MARK[verdict]} {check.description_he}"
                              + (f" — {av.basis_he}" if verdict != "met" and av.basis_he else ""))
 
+            # ALPHA-GAP A-1 (D-3): a `level_select` check would price as the SELECTED band's points,
+            # not a fraction of the top band. Beta has no such kind, so a ladder prices
+            # through the `required` arm above with partial_fraction.
             elif check.kind == "counted":
                 if verdict in ("met", "partially_met") and not _evidence_verified(av):
                     flags.append(FlaggedOutcome(

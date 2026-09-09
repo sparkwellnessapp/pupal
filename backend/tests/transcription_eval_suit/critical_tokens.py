@@ -114,6 +114,9 @@ JAVA_BAGRUT = CriticalProfile(
 )
 
 
+# ALPHA-GAP A-7 (D-11): every extractor below is CS-shaped — comments are `//` and `/* */`,
+# tokens are operators and identifiers. Mathematics needs `^`, `sqrt`, `|x|` and fraction
+# spans; English needs words and their spellings. Alpha adds those extractors per profile.
 # --- extraction (pure) ----------------------------------------------------------
 
 _BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)

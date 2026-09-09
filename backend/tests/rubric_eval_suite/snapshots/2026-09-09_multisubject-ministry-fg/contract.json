@@ -1,0 +1,84 @@
+{
+ "schema_version": "2.0",
+ "contract_version": "b56f4d14-edb1-454a-9398-d0f73630ae95",
+ "rubric_id": "dba5f089-41bb-4a3c-87e8-886e3ffb3d62",
+ "subject": "english",
+ "programming_language": null,
+ "numeric_policy": {
+  "precision": "0.25",
+  "rounding_mode": "half_up",
+  "sum_tolerance": "0.01"
+ },
+ "total_points": "40.0",
+ "questions": [
+  {
+   "question_id": "q1",
+   "question_type": "short_answer",
+   "question_text": "WRITING",
+   "total_points": "40.0",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [
+    {
+     "criterion_id": "q1.c0",
+     "uid": "77d40c36-2ecd-491a-8e89-70aeb83622a7",
+     "index": 0,
+     "description": "CONTENT AND ORGANIZATION\nCORRECT (8): • fully on topic • fully developed (main idea and supporting details) • all elements of task are addressed • information is relevant • content is understood • task is well organized and coherent\nPARTIALLY CORRECT (5): • partially on topic • partially developed (main idea or supporting details) • partially addresses elements of task • information is partially relevant • content is partially understood • task is partially organized and coherent\nMINIMALLY CORRECT (2): • minimally on topic • minimally developed (main idea or supporting details) • minimally addresses elements of task • information is minimally relevant • content is minimally understood • task is minimally organized and coherent\nINCORRECT (0): • not on topic • not developed (main idea or supporting details) • elements are not addressed * • information is not relevant * • content is not understood • task is not organized and not coherent",
+     "points": "8.0",
+     "evaluation_guidance": null,
+     "skill_targets": [],
+     "requirements": [],
+     "sub_criteria": null,
+     "extraction_confidence": null,
+     "notes": null
+    },
+    {
+     "criterion_id": "q1.c1",
+     "uid": "b1120f70-a983-4962-85b6-e14fd2be1038",
+     "index": 1,
+     "description": "VOCABULARY\nCORRECT (10): • correct use of varied and rich vocabulary • appropriate use of instances of language chunks and phrases • correct use of connecting words or phrases • use of appropriate register\nPARTIALLY CORRECT (6): • correct use of basic, appropriate vocabulary • partially appropriate use of instances of chunks and phrases. • partial and correct use of connecting words or phrases • occasional use of inappropriate register\nMINIMALLY CORRECT (3): • minimally correct use of basic, appropriate vocabulary • minimally appropriate instances of chunks and phrases. • minimal use of connecting words or phrases • consistent use of inappropriate register\nINCORRECT (0): • incorrect use of words • inappropriate use of chunks and phrases • no use of connecting words or phrases • consistent use of inappropriate register",
+     "points": "10.0",
+     "evaluation_guidance": null,
+     "skill_targets": [],
+     "requirements": [],
+     "sub_criteria": null,
+     "extraction_confidence": null,
+     "notes": null
+    },
+    {
+     "criterion_id": "q1.c2",
+     "uid": "3f7c5b95-21b7-47a9-a385-2feb5d46cff2",
+     "index": 2,
+     "description": "LANGUAGE USE\nCORRECT (16): • correct use of basic tenses and/or language structures • correct use of advanced language structures • correct word order • correct use of parts of speech, pronouns and prepositions\nPARTIALLY CORRECT (10): • correct use of basic tenses and/or language structures • incorrect or no use of advanced language structures • occasional instances of incorrect word order • occasional incorrect use of parts of speech, pronouns & prepositions\nMINIMALLY CORRECT (5): • minimally correct use of basic tenses and/or language structures • incorrect or no use of advanced language structures • minimally correct word order • minimally correct use of parts of speech, pronouns and prepositions\nINCORRECT (0): • Incorrect use of basic tenses and/or language structures • incorrect or no use of advanced language structures • incorrect word order • incorrect use of parts of speech, pronouns and prepositions",
+     "points": "16.0",
+     "evaluation_guidance": null,
+     "skill_targets": [],
+     "requirements": [],
+     "sub_criteria": null,
+     "extraction_confidence": null,
+     "notes": null
+    },
+    {
+     "criterion_id": "q1.c3",
+     "uid": "e1c6f245-30a8-4e20-abf9-846145efb89e",
+     "index": 3,
+     "description": "MECHANICS\nCORRECT (6): • correct use of: spelling • punctuation • capitalization • paragraphing • no run-on sentences\nPARTIALLY CORRECT (4): • partially correct use of: spelling • punctuation • capitalization • paragraphing • some run-on sentences\nMINIMALLY CORRECT (2): • minimally correct use of: spelling • punctuation • capitalization • paragraphing • frequent run-on sentences\nINCORRECT (0): • Incorrect use of: spelling • punctuation • capitalization • paragraphing • consistent use of run-on sentences",
+     "points": "6.0",
+     "evaluation_guidance": null,
+     "skill_targets": [],
+     "requirements": [],
+     "sub_criteria": null,
+     "extraction_confidence": null,
+     "notes": null
+    }
+   ],
+   "sub_questions": [],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  }
+ ],
+ "selection_groups": []
+}

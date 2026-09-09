@@ -19,6 +19,8 @@ import { RV_VERDICT_TITLE } from '@/copy/grade-review';
  */
 
 const GLYPH: Readonly<Record<Verdict, string>> = {
+    // ALPHA-GAP A-1 (D-3): three verdicts, because beta has no bands to choose between. Alpha adds a
+    // band picker here — she selects PARTIALLY CORRECT and the pricer takes that band's points.
     met: '✓',
     partially_met: '½',
     not_met: '✗',

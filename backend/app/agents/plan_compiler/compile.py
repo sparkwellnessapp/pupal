@@ -82,6 +82,7 @@ FLAG_CODES = (
     "deduction_verb_only",             # C1: a deduction phrase with no number and no component
     "split_below_partial_grid",        # C5/OD-22: P over N cannot keep every 50% on the grid → not split
     "partial_off_grid",                # C5: a value whose 50% is off the grid (V4 will refuse — loudly)
+    "band_ladder_kept_whole",          # C8-lite: alternative bands are not components (multisubject 4b)
 )
 
 _NUM = r"\d+(?:[.,]\d+)?"
@@ -550,6 +551,36 @@ def _group_key(scope: str, comp_text: str, amount: Decimal) -> str:
     return f"{scope}:once:{h}"
 
 
+# C8-lite (multisubject 4b). A band ladder is a row of ALTERNATIVES with descending points,
+# written by the extractor as one labelled line per band:
+#     MECHANICS
+#     CORRECT (6): …
+#     PARTIALLY CORRECT (4): …
+#     MINIMALLY CORRECT (2): …
+#     INCORRECT (0): …
+# The shape is deliberately narrow, because a false positive would silently collapse a real
+# component list into one slot: at least three labelled bands, values STRICTLY DESCENDING, the
+# top band equal to the terminal's own points, and the bottom band 0. No CS criterion in the
+# corpus has that shape — the A0 guard is the standing check that it stays that way.
+_BAND_LINE = re.compile(r"^[ \t]*(?P<label>[^\n()]{2,60}?)[ \t]*\((?P<pts>\d+(?:[.,]\d+)?)\)[ \t]*:",
+                        re.MULTILINE)
+_MIN_BANDS = 3
+
+
+def _band_ladder(prose: str, points: Decimal) -> Optional[List[Tuple[str, Decimal]]]:
+    """The ladder as (label, points), or None when the text is not one."""
+    bands = [(m.group("label").strip(), _dec(m.group("pts")))
+             for m in _BAND_LINE.finditer(prose or "")]
+    if len(bands) < _MIN_BANDS:
+        return None
+    values = [v for _, v in bands]
+    if values[0] != points or values[-1] != Decimal("0"):
+        return None
+    if any(a <= b for a, b in zip(values, values[1:])):
+        return None
+    return bands
+
+
 def compile_terminal(*, terminal_id: str, scope: str, text: str, points: Decimal,
                      grid: Decimal, has_solution: bool,
                      inherited: Sequence[Slot] = (),
@@ -578,6 +609,28 @@ def compile_terminal(*, terminal_id: str, scope: str, text: str, points: Decimal
     for m in _TOTAL_CLAIM.finditer(prose):
         if _dec(m.group(1)) != points:
             flag("text_total_disagrees", f"text says {m.group(1)}, points_possible {points}")
+
+    # ── C8-lite: a BAND LADDER is one criterion, never a sum ─────────────────
+    # ALPHA-GAP A-1 (D-3): beta keeps the ladder WHOLE at the top band. Alpha models discrete
+    # levels — a `level_select` check whose bands are selectable, priced and overridable — and
+    # this early return retires with it.
+    #
+    # Evidence that made this necessary (multisubject Phase 4b, the ruled 10-minute probe): the
+    # Ministry F/G writing rubric compiled to THREE `required` slots per criterion, because C5
+    # read the band values as components, saw 8+5+2+0 = 15 > 8, and reconciled them down to
+    # 5/2/1. A student would then have had to satisfy CORRECT *and* PARTIALLY CORRECT *and*
+    # MINIMALLY CORRECT to earn full marks on an essay — bands are ALTERNATIVES, not parts, and
+    # the bottom band ("INCORRECT", 0) was being named as something to earn.
+    ladder = _band_ladder(prose, points)
+    if ladder:
+        flag("band_ladder_kept_whole",
+             " > ".join(f"{lab}={val}" for lab, val in ladder))
+        slots.append(Slot(f"{terminal_id}.k1", "required", points=points,
+                          source_span=prose.strip(), summary=_clean(prose)))
+        if inherited:
+            flag("counted_terminal_extra_slots", f"{len(inherited)} inherited dropped on a ladder")
+        return TerminalSkeleton(terminal_id, scope, points, text, tuple(slots),
+                                routed=False, case="band_ladder", flags=tuple(flags))
 
     # ── C3 ──────────────────────────────────────────────────────────────────
     counted = _counted(_mask(prose, claims))

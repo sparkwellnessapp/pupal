@@ -6,12 +6,16 @@ KEY = "english"
 MODALITIES = ("prose",)
 
 # F-1 (extraction). Appended to the extraction system prompt as a final section.
+# ALPHA-GAP A-1 (D-3): the band ladder is FLATTENED to one criterion at the top band — the beta
+# path. Alpha models discrete levels (ScoringLevel-shaped, ontology + compiler + editor + pricer)
+# so the teacher sees the ladder she wrote and the grader picks a band instead of a partial award.
 EXTRACTION_FRAGMENT = """\
 ═══════════════════════════════════════════
 SUBJECT: ENGLISH
 ═══════════════════════════════════════════
 This rubric is for an English exam: prose answers, no code, no trace tables.
 • An answer key with OR-alternatives ("X OR Y", "Any two of the following") is ONE criterion whose description lists the alternatives verbatim.
+• A criterion scored by a BAND LADDER — columns such as CORRECT / PARTIALLY CORRECT / MINIMALLY CORRECT / INCORRECT, each carrying its own points — is ONE criterion: points = the HIGHEST band's points, and the description names the criterion then quotes every band with its points, in order, verbatim. Never emit one criterion per band, and never add the bands together.
 """
 
 # F-3 (P1 perception). Replaces the CS ink rules (misspellings/identifiers/CW/CR/code).

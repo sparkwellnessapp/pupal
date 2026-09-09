@@ -219,6 +219,8 @@ def validate_plan(plan: GradingPlan,
                     errs.append(f"V4: {c.check_id} partial award "
                                 f"{c.points * c.partial_fraction} off the grid — "
                                 f"adjust points or partial_fraction")
+            # ALPHA-GAP A-1 (D-3): V3 gains a `level_select` arm in alpha — bands present, strictly
+            # descending, top band == the check's points. Beta has no such kind.
             elif c.kind == "counted":
                 required_sum += c.points          # V1: the counted check IS the earn side
                 if c.points <= 0:

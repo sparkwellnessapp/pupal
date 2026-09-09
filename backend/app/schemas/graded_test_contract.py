@@ -62,6 +62,9 @@ class ContractCheck(BaseModel):
     check_id: str
     text: str
     tariff: Optional[Decimal] = None
+    # ALPHA-GAP A-1 (D-3): three verdicts, because beta flattens a band ladder to one criterion. Alpha
+    # freezes the SELECTED band beside the verdict, so a returned exam can say which band the
+    # essay reached rather than only how much of the top band it earned.
     ai_verdict: Literal["met", "partially_met", "not_met"]
     final_verdict: Literal["met", "partially_met", "not_met"]
     was_overridden: bool = False
