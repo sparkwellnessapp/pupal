@@ -103,7 +103,17 @@ Four attempts. Each one moved a real defect, so all four are recorded.
 prompt=rubric-read/rr1.0 model=gemini-3.1-pro-preview` — **$0.1472, 36.0s read, 47.8s wall,
 14,819 chars**. Artefacts: `snapshot/math4_docx/render.md` + `render_report.json`.
 
-**P-14 (rubric-read fidelity) — PASSES by inspection of the render against the page images.**
+**P-14 (rubric-read fidelity) — COUNTED, not asserted.** Across the four handwritten
+marking-scheme pages the reader captured **84 weights**, and **84 of 84 sit on a line carrying
+their referent**: 70 on the step text they annotate, and 14 in the teacher's own per-question
+summary columns, where each is paired with its sub-question letter (`39% ד`, `12% (ב`) — standing
+alone there is faithful, because the page prints them as a bare column. The two summary columns
+match values read off the page images exactly: **7/7** on page 15 (10/10/7/39/9/15/10) and **6/6**
+on page 16 (7/12/38/10/18/15). That clears P-14's ≥ 90 % bound on placement.
+
+What the number is NOT: recall. Counting weights the reader MISSED needs per-weight ground truth
+for all four pages, and none was authored — so "≥ 90 % of weights" is evidenced on placement and on
+the thirteen known summary values, not on a complete census of the ink. The qualitative check:
 The weights sit on the step lines they annotate: q1 `א (20%)` with `5% / 5% / 10%`; q3
 `(20%) ב` with `משוואה 5% / 5% / מציאת q 10% / מציאת p 5%`; q4's summary column
 `10/10/7/39/9/15/10 → 100`; q5's `7/12/38/10/18/15 → 100`. Figures came through as

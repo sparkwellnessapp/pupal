@@ -9,6 +9,7 @@
 # Next.js
 /.next/
 /.next-e2e/
+/.next-e2e-3101/
 /.next-prod/
 /out/
 
@@ -41,3 +42,5 @@ next-env.d.ts
 
 # Design Recovery Suite — snapshot artifacts (gallery); audits ARE committed
 design/shots/
+
+
