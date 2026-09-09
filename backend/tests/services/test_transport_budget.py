@@ -320,7 +320,13 @@ async def _run(deadline_seconds, detect=True, tier_b_spy=None, llm_burns_s: floa
             await asyncio.sleep(llm_burns_s)
         return _extraction(), _meta()
 
-    with patch("app.services.docx_v3.parser_render.render_docx_to_markdown", return_value="DOC"), \
+    # Patched at the STATS-RETURNING twin: since the multisubject render stage the pipeline goes
+    # through `image_render.render_source`, which calls THIS, not the historical
+    # `render_docx_to_markdown` wrapper. Patching the wrapper leaves the real DOCX parser in the
+    # path, and `b"PK\x03\x04"` is not a zip file.
+    from app.services.docx_v3.parser_render import RenderStats
+    with patch("app.services.docx_v3.parser_render.render_docx_to_markdown_with_stats",
+               return_value=("DOC", RenderStats())), \
          patch("app.services.docx_v3.pipeline._call_llm", side_effect=_slow_call), \
          patch("app.services.docx_v3.pipeline.detect_pedagogical_mistakes", side_effect=_detect):
         return await extract_rubric_from_docx(

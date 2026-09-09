@@ -125,6 +125,12 @@ def _mock_gcs():
 
 
 def _submit(client, headers, content=DOCX_BYTES, filename="rubric.docx", **form):
+    """`subject` is a REQUIRED form field since the multi-subject seam (D-10 — the one input
+    extraction cannot infer, and never model output). Defaulted here so each test below still
+    exercises what it is named for; without it FastAPI answers 422 for the missing field before
+    any file check runs, and a file-magic test would be asserting form validation instead.
+    The missing/unknown-subject cases have their own tests in `tests/api/test_subject_seam.py`."""
+    form.setdefault("subject", "computer_science")
     with patch("app.services.gcs_service.get_gcs_service", return_value=_mock_gcs()), \
          patch("app.api.v0.rubric_extraction_jobs.enqueue_extraction_task", new=AsyncMock()):
         return client.post(
