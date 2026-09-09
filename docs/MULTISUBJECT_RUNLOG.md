@@ -282,3 +282,60 @@ The extraction read what is printed.
 most 96. Vivi captures this faithfully and says nothing about it: the rubric compiles at 96 and no
 annotation names the gap between 96 and the promised 100. Recorded as a «cannot claim», because it
 is exactly the kind of teacher-facing finding the product exists to surface.
+
+### The full backend suite, and the six regressions it caught (2026-09-09)
+
+`pytest --ignore=tests/transcription_eval_suit -q` under `PYTHONUTF8=1` — 37m57s.
+
+**1574 passed, 2 skipped, 6 failed.** The Phase 0 baseline was 1475 passed / 9 failed, where 8 of
+the 9 were the cp1252 locale artefact (absent here because this run set `PYTHONUTF8=1`) and 1 was a
+timing artefact. So the honest comparison is: the locale and timing failures are gone, and **six
+NEW failures appeared — all caused by this work.**
+
+| failing test | cause |
+|---|---|
+| `test_transport_budget.py::test_deadline_none_is_the_unbounded_eval_path` | patches `render_docx_to_markdown`; the pipeline now goes through `image_render.render_source` → `render_docx_to_markdown_with_stats`, so the real parser stayed in the path and `b"PK"` raised `BadZipFile` |
+| `…::test_tier_b_skipped_when_budget_cannot_hold_it` | same |
+| `…::test_validation_entry_guard_refuses_and_names_the_budget` | same |
+| `test_extraction_jobs.py::test_submit_rejects_non_docx_magic` | submits without `subject` (required since D-10) → 422 from form validation before the file check |
+| `…::test_submit_rejects_empty_file` | same |
+| `…::test_submit_then_resubmit_reuses_active_job` | same |
+
+Both groups are tests left behind by a seam, not product defects. The first group is the **same**
+defect already fixed once in `test_extraction_job_seam.py` during Phase 1 — one instance repaired,
+the rest never grepped for. Fixed in `0bcb038`; the three affected files now pass 44/44, and the
+full suite is re-running to confirm the total.
+
+`pytest tests/transcription_eval_suit` (the required second invocation): **152 passed, 1 skipped** —
+identical to the Phase 0 baseline.
+
+### Phase 4a's pinned probe, and P-11b measured on real weights (2026-09-09)
+
+Two plan items that were still open and needed no input from Noam.
+
+**The band probe is now a fixture and a pinned benchmark.** `omml_bands_probe.docx` had been living
+in the session scratchpad — one cleanup away from gone — and is now
+`tests/rubric_eval_suite/fixtures/probes/omml_bands_probe.docx`. Run through the english profile
+(`gpt-5.6-terra`/high, `3.10.0-fixsource+english`, render `docx_text`, 0 retries): three criteria at
+**10 / 6 / 4**, total **20**, `compile OK`, `short_answer`, and `omml_seen == omml_rendered == 1`
+(**P-3** confirmed on the same document). Pinned in two halves by
+`tests/subjects/test_omml_bands_probe.py`: the render is asserted live against the fixture, the
+extraction against the recorded snapshot, so a change in the flattening rule surfaces as a diff.
+
+**P-11b measured, after the diagnostic nearly lied.** `rescale_to_exam` runs inside the pipeline, so
+the pre-rescale draft is normally never seen; the post-pass was intercepted to capture both sides of
+the real 4-unit extraction (render replayed, so only the extraction was paid for).
+
+First result: `max_criterion_drift` = **0.9667** against P-11b's 0.25 bound. Splitting the measure by
+node showed the fault was in the ruler, not the rounding — the diagnostic divided by the Σ of the
+teacher's written weights, while the post-pass divides by her DECLARED weight wherever the two
+disagree. On q4.ד (steps summing 34 % under a declared 39 %) that folded her missing 5 % into a
+rounding measurement. Three nodes on this document are in that state: q3.ב (written 25 vs declared
+20), q4.ד (34 vs 39), q5.ג (43 vs 38).
+
+`max_criterion_drift` now mirrors `split_written`'s branch via `_exact_shares`. **P-11b on the real
+4-unit document: 0.1725 — PASS.** Her gap keeps its own channel (a per-node `rubric_mismatch` that
+blocks compile), which is where it belongs. Two tests pin both arms, including one that fails if the
+teacher's gap ever leaks back into the rounding measure.
+
+The tempting move was to widen the bound. The bound was right.

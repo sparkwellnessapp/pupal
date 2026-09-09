@@ -347,3 +347,43 @@ def test_a_real_total_is_untouched_and_stamps_no_warning():
     stamp = after.extraction_metadata[rx.STAMP_KEY]
     assert (stamp["exam_total"], stamp["exam_total_written"]) == ("100", "100")
     assert not [a for a in after.annotations if a.target_id is None]
+
+
+# --- P-11b: the drift diagnostic must measure ROUNDING, not the teacher's arithmetic --------
+
+def test_drift_measures_rounding_not_the_teachers_gap():
+    """The diagnostic mirrors `split_written`'s branch. On a node whose written weights DO add up
+    it divides by their sum; on one that does not it divides by the DECLARED weight, because that
+    is what the pass scaled by. Dividing by the sum in both cases folds her preserved gap into a
+    rounding bound — measured on the real 4-unit document that was 0.97 against a 0.25 bound, when
+    the true rounding drift is 0.1725."""
+    # consistent node: 15 + 24 = 39 declared 39, mapped onto 13 → 5 / 8, exact 5.0 / 8.0
+    d = _four_unit_draft()
+    q5 = next(q for q in d.questions if q.question_id == "q5")
+    dalet = next(s for s in q5.sub_questions if s.sub_question_id == "q5.ד")
+    dalet.criteria = [_crit("q5.ד.c0", 15), _crit("q5.ד.c1", 24)]
+    after = rx.rescale_to_exam(d)
+    assert rx.max_criterion_drift(d, after) <= D("0.25")
+
+    # INCONSISTENT node: 15+3+6+5+5 = 34 under a declared 39. The pass scales by 13/39 and snaps
+    # each child on its own; the drift is the SNAP only, never the missing 5 %.
+    d2 = _four_unit_draft()
+    q5b = next(q for q in d2.questions if q.question_id == "q5")
+    dalet2 = next(s for s in q5b.sub_questions if s.sub_question_id == "q5.ד")
+    dalet2.criteria = [_crit(f"q5.ד.c{i}", w) for i, w in enumerate((15, 3, 6, 5, 5))]
+    after2 = rx.rescale_to_exam(d2)
+    drift2 = rx.max_criterion_drift(d2, after2)
+    assert drift2 <= D("0.25"), f"the teacher's gap leaked into the rounding measure: {drift2}"
+    # and the gap itself is still reported, on its own channel
+    assert after2.extraction_metadata[rx.STAMP_KEY]["unresolved"] == ["q5.ד"]
+
+
+def test_exact_shares_follows_the_branch_the_pass_took():
+    # consistent → divide by Σ weights
+    assert rx._exact_shares([D(15), D(24)], D(39), D("13")) == [D(13) * D(15) / D(39), D(13) * D(24) / D(39)]
+    # inconsistent → divide by the DECLARED weight, so her gap survives in proportion
+    got = rx._exact_shares([D(15), D(3), D(6), D(5), D(5)], D(39), D("13"))
+    assert got[0] == D(13) * D(15) / D(39)
+    assert sum(got) < D("13")          # the gap is preserved, not filled
+    # nothing written → nothing to aim at
+    assert rx._exact_shares([D(0), D(0)], D(0), D("10")) == [D(0), D(0)]

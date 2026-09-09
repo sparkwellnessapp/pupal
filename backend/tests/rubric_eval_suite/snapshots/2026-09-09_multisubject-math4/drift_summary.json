@@ -1,0 +1,32 @@
+{
+ "wall_s": 288.1,
+ "input_tokens": 15668,
+ "output_tokens": 9623,
+ "retry_count": 0,
+ "max_criterion_drift": "0.966666666666666666666666667",
+ "P_11b_bound": "0.25",
+ "passes": false,
+ "exam_total": "100",
+ "exam_total_written": "100.0",
+ "shares": {
+  "q1": "33.5",
+  "q2": "33.25",
+  "q3": "33.25",
+  "q4": "33.25",
+  "q5": "33.25"
+ },
+ "unresolved": [
+  "q2",
+  "q3",
+  "q3.ב",
+  "q4.ד",
+  "q5.ג"
+ ],
+ "question_totals": {
+  "q1": "33.5",
+  "q2": "33.25",
+  "q3": "33.25",
+  "q4": "33.25",
+  "q5": "33.25"
+ }
+}

@@ -1,0 +1,96 @@
+{
+ "schema_version": "2.0",
+ "rubric_id": "2f77cc77-744d-4c99-a43d-fe4fd88eb901",
+ "rubric_name": "OMML + bands probe",
+ "subject": "english",
+ "programming_language": null,
+ "total_points": "20.0",
+ "questions": [
+  {
+   "question_id": "q1",
+   "question_type": "short_answer",
+   "question_text": "חשבו את הגבול של x 2 −1 x−1\n\nכאשר x שואף ל-1.",
+   "total_points": "20.0",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [
+    {
+     "criterion_id": "q1.c0",
+     "uid": "6a4632a7-ef3e-414a-983a-f2ba8dd6c120",
+     "index": 0,
+     "description": "תוכן: מלא / חלקי / חסר",
+     "points": "10.0",
+     "evaluation_guidance": null,
+     "skill_targets": [],
+     "requirements": [],
+     "sub_criteria": null,
+     "extraction_confidence": null,
+     "notes": null
+    },
+    {
+     "criterion_id": "q1.c1",
+     "uid": "6d9d12fe-b73b-41a8-8f71-783f6721aabd",
+     "index": 1,
+     "description": "ארגון: מלא / חלקי / חסר",
+     "points": "6.0",
+     "evaluation_guidance": null,
+     "skill_targets": [],
+     "requirements": [],
+     "sub_criteria": null,
+     "extraction_confidence": null,
+     "notes": null
+    },
+    {
+     "criterion_id": "q1.c2",
+     "uid": "1f4a12e1-908f-4624-9301-2a3304e954d7",
+     "index": 2,
+     "description": "שפה: מלא / חלקי / חסר",
+     "points": "4.0",
+     "evaluation_guidance": null,
+     "skill_targets": [],
+     "requirements": [],
+     "sub_criteria": null,
+     "extraction_confidence": null,
+     "notes": null
+    }
+   ],
+   "sub_questions": [],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  }
+ ],
+ "selection_groups": [],
+ "pedagogical_mistakes": [],
+ "approach_classes": [],
+ "annotations": [
+  {
+   "annotation_type": "rubric_mismatch",
+   "severity": "warning",
+   "message": "אזהרה: סכום הנקודות של כל השאלות הוא 20 נקודות במקום 100 — ייתכן שמדובר בשגיאה בשאלון המקורי. יש לבדוק ידנית.",
+   "target_id": null,
+   "id": "rubric_mismatch:global",
+   "invariant": null,
+   "expected": null,
+   "actual": null,
+   "message_he": null
+  }
+ ],
+ "extraction_metadata": {
+  "pipeline_version": "3.6.2",
+  "method": "structured_output_v3",
+  "tier_b_prompt_version": "1.1.0-fixsource",
+  "advisory_scan": "complete"
+ },
+ "name": "OMML + bands probe",
+ "description": null,
+ "document_context": null,
+ "metadata": {
+  "pipeline_version": "3.6.2",
+  "method": "structured_output_v3",
+  "tier_b_prompt_version": "1.1.0-fixsource",
+  "advisory_scan": "complete"
+ }
+}

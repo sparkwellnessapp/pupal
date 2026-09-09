@@ -153,6 +153,8 @@ return beside C3 that the execution plan specifies — now keeps a ladder whole.
 | the teacher's `10%` visible | her written weight kept in each criterion description | **PASS** — e.g. `15% נגזרת`, `הצבה 10%`, carried verbatim |
 | English booklet | non-`coding_task` + compiles | **HALF** — extraction PASSES (`short_answer`, prompt `3.10.0-fixsource+english`, q1 60 + q2 40 = 100, `rescale_to_exam` correctly absent, 1 retry). Compile is **BLOCKED**, and for an honest reason: q2 is the WRITING task, and this booklet does not contain its rubric — that is the ministry band table, a SEPARATE document. `ZERO_CRITERIA` on q2 is the correct reading of the file. Merging a second file by item number is **ALPHA-GAP A-9** (D-14 ii), so this is a known gap meeting a real document, not a defect |
 | English band rubric | ministry F/G → 4 criteria 8/10/16/6 = 40 | **PASS** — compile OK at 40, `short_answer`, every band verbatim |
+| **Band probe, pinned** (4a) | the OMML probe's band table → 10/6/4 deterministically | **PASS** — 3 criteria at **10 / 6 / 4**, total 20, compile OK, `short_answer`, 0 retries; and `omml_seen == omml_rendered == 1` on the same document (**P-3**). Pinned in two halves: the render is checked live, the extraction against a recorded snapshot |
+| **P-11b** grid-snap drift | max per-criterion drift ≤ 0.25 on a real fixture | **PASS at 0.1725** on the 4-unit document — measured by capturing both sides of the post-pass, not asserted |
 | **Math, 3-unit** (the cap rule) | choose-4-of-5 from «answer any, capped at 100» | **PASS, and it corrected the plan** — image stage fired on a second document (180 text chars, 10 images → 10 pages read, 0 failed, $0.0897); `choose_k` **4** of 5 from the Hebrew cap sentence; total **96**, not the 100 the plan predicted, because the paper prints **24 points per question** («לכל שאלה 24 נקודות»), so ⌊100/24⌋ = 4 and 4 × 24 = 96. The extraction is faithful; the plan's 25-per-question assumption was wrong. Compile blocked at 3 of her nodes, **OK total=96** after the fix |
 | P-10 grading ceiling, P-6, P-4 | answer keys graded, misspellings and paragraphs survive P1+P2 | **NOT RUN** — see below |
 | `grep ALPHA-GAP` | returns every §6 site | **PASS** — 47 notes |
@@ -167,6 +169,15 @@ own rubric (the ministry band table) extracts and compiles cleanly at 40. The on
 (a bagrut booklet) extracts correctly and then refuses to compile, naming the question whose
 criteria are missing. Both behaviours are right; together they say the English path needs the
 second-file merge (A-9) before a teacher can grade a full bagrut from her own files alone.
+
+**P-11b nearly reported a false failure, and the diagnostic was the thing that was wrong.**
+The first measurement on the real document came back **0.97** against a 0.25 bound. Splitting it by
+node showed why: `max_criterion_drift` divided by the sum of the teacher's written weights, while
+the post-pass divides by her DECLARED weight wherever the two disagree. So on q4.ד — 34 % of steps
+under a declared 39 % — the diagnostic was adding her missing 5 % to what is supposed to be a
+rounding measure. Fixed to mirror `split_written`'s branch; the true rounding drift is **0.1725**,
+and her gap keeps its own channel (a `rubric_mismatch` annotation that blocks compile). The
+temptation here was to widen the bound; the bound was right and the ruler was bent.
 
 **Three legs did not run, and none of them silently.** The founder's handwritten Math page and
 English paragraph were never provided, so `fixtures/smoke/` does not exist and P-6 (misspellings
@@ -219,6 +230,23 @@ checkable without it: `attemptSaveRubric` returns early while `openAdvisoryCount
 !advisoryPromptShown`, that code is at HEAD from `f45b47e`, the employee fixture is the only
 golden with an advisory, and the observation was that the first click produced no POST at all.
 Anyone can re-derive it in five minutes; nobody should have to take my word for it.
+
+**5. (unprompted) "You called four phases green while six tests were red."**
+
+Correct, and it is the process failure of this run. Phases 1–4 were gated on the touched test
+files, not the suite. The full backend run at the end found **six** tests this work had broken:
+three in `test_transport_budget.py` still patching `render_docx_to_markdown` (the render seam moved
+to the stats-returning twin, so the real DOCX parser stayed in the path and the fixture's magic
+bytes died as `BadZipFile`), and three in `test_extraction_jobs.py` submitting without the now
+required `subject` field, so FastAPI answered 422 before any file check ran and a file-magic test
+was silently asserting form validation.
+
+Neither is a product defect — the endpoint and pipeline behave correctly, and the frontend always
+sends the subject. But the first group is the SAME defect I had already fixed once in
+`test_extraction_job_seam.py` during Phase 1: I repaired one instance and never grepped for the
+others. The rule that would have caught it is cheap and is now written down: **after moving a
+seam, grep every patch target that names the old one, and run the full suite before calling a
+phase green.** Fixed in `0bcb038`; the suite is re-running to confirm.
 
 ---
 

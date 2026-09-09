@@ -375,34 +375,55 @@ def rescale_to_exam(response: ExtractRubricResponse, *, grid: Decimal = GRID) ->
     })
 
 
+def _exact_shares(weights: Sequence[Decimal], declared: Decimal, target: Decimal) -> List[Decimal]:
+    """The UNSNAPPED allocation the post-pass aimed at, under the branch it actually took.
+
+    This must mirror `split_written`, or the diagnostic measures the wrong thing: on a node whose
+    written weights do NOT add up, the pass scales by the DECLARED weight (preserving her gap),
+    while dividing by Σ weights would fold that deliberate, flagged gap into what is supposed to be
+    a rounding measurement. Measured on the real 4-unit document the difference is the whole
+    finding: 0.15 (rounding) versus 0.97 (rounding + her 34-under-a-declared-39)."""
+    n = len(weights)
+    if n == 0:
+        return []
+    written_sum = sum(weights, _ZERO)
+    effective = declared if declared > 0 else written_sum
+    consistent = effective > 0 and abs(written_sum - effective) <= WRITTEN_TOLERANCE
+    denom = written_sum if consistent else effective
+    if denom <= 0:
+        return [_ZERO] * n
+    return [target * w / denom for w in weights]
+
+
 def max_criterion_drift(before: ExtractRubricResponse, after: ExtractRubricResponse) -> Decimal:
-    """P-11b diagnostic: the largest |snapped − exact| over every criterion, where
-    exact = weight × share / Σ weights of its node (0 where nothing was written).
-    Pure; for reports and tests."""
-    shares = (after.extraction_metadata or {}).get(STAMP_KEY, {}).get("shares", {})
+    """P-11b: the largest |snapped − exact| over every node the post-pass allocated, where `exact`
+    is the unsnapped allocation IT aimed at (see `_exact_shares`). Pure; for reports and tests.
+
+    What this is NOT: a measure of how far the teacher's own numbers are from adding up. That gap
+    is deliberate, preserved, and reported as a `rubric_mismatch` annotation per node; folding it
+    in here would make a rounding bound look violated by a teacher's arithmetic."""
     worst = _ZERO
 
-    def walk(bnode_crits, anode_crits, node_total_exact: Decimal):
+    def walk(bnode, anode, is_question: bool) -> None:
         nonlocal worst
-        total_w = sum((c.points for c in bnode_crits), _ZERO)
-        for bc, ac in zip(bnode_crits, anode_crits):
-            exact = (node_total_exact * bc.points / total_w) if total_w > 0 else _ZERO
-            worst = max(worst, abs(ac.points - exact))
-
-    def walk_sq(bsq, asq, exact_total: Decimal):
-        if bsq.sub_questions:
-            total_w = sum((_sq_weight(c) for c in bsq.sub_questions), _ZERO)
-            for bc, ac in zip(bsq.sub_questions, asq.sub_questions):
-                walk_sq(bc, ac, exact_total * _sq_weight(bc) / total_w if total_w > 0 else _ZERO)
-        else:
-            walk(bsq.criteria, asq.criteria, exact_total)
+        target = anode.total_points if is_question else anode.points
+        declared = GROUP_MEMBER_SCALE if is_question else (bnode.points if bnode.points > 0 else _ZERO)
+        bkids = getattr(bnode, "sub_questions", None) or []
+        if bkids:
+            akids = anode.sub_questions
+            exact = _exact_shares([_sq_weight(c) for c in bkids], declared, target)
+            for bc, ac, e in zip(bkids, akids, exact):
+                worst = max(worst, abs(ac.points - e))
+                walk(bc, ac, is_question=False)
+            return
+        bcrits = bnode.criteria
+        if not bcrits:
+            return
+        node_declared = declared if is_question else (bnode.points if bnode.points > 0 else _ZERO)
+        exact = _exact_shares([c.points for c in bcrits], node_declared, target)
+        for bc, ac, e in zip(bcrits, anode.criteria, exact):
+            worst = max(worst, abs(ac.points - e))
 
     for bq, aq in zip(before.questions, after.questions):
-        share = Decimal(shares.get(bq.question_id, str(aq.total_points)))
-        if bq.sub_questions:
-            total_w = sum((_sq_weight(c) for c in bq.sub_questions), _ZERO)
-            for bc, ac in zip(bq.sub_questions, aq.sub_questions):
-                walk_sq(bc, ac, share * _sq_weight(bc) / total_w if total_w > 0 else _ZERO)
-        else:
-            walk(bq.criteria, aq.criteria, share)
+        walk(bq, aq, is_question=True)
     return worst

@@ -1,0 +1,51 @@
+{
+ "wall_s": 25.8,
+ "model": "gpt-5.6-terra",
+ "retry_count": 0,
+ "input_tokens": 8473,
+ "output_tokens": 482,
+ "prompt_version": "3.10.0-fixsource+english",
+ "render": {
+  "stage": "docx_text",
+  "source": "docx",
+  "text_chars": 243,
+  "image_count": 1,
+  "omml_seen": 1,
+  "omml_rendered": 1,
+  "pages_read": 0,
+  "pages_failed": 0,
+  "prompt_version": null,
+  "model_id": null,
+  "cost_usd": 0.0,
+  "read_seconds": 0.0,
+  "failed_pages": []
+ },
+ "total_points": "20.0",
+ "question_types": [
+  "short_answer"
+ ],
+ "criteria": [
+  [
+   "q1.c0",
+   "10.0",
+   "תוכן: מלא / חלקי / חסר"
+  ],
+  [
+   "q1.c1",
+   "6.0",
+   "ארגון: מלא / חלקי / חסר"
+  ],
+  [
+   "q1.c2",
+   "4.0",
+   "שפה: מלא / חלקי / חסר"
+  ]
+ ],
+ "criterion_points": [
+  "10.0",
+  "6.0",
+  "4.0"
+ ],
+ "warnings": [],
+ "compile": "OK total=20.0"
+}
