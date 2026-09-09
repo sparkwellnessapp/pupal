@@ -33,7 +33,24 @@ import { SegmentBar } from '@/components/batch/SegmentBar';
 import { listActionLine, listBarSegments } from '@/utils/batch-list';
 import type { BatchListItem } from '@/types/batch';
 
-function StatusBadge({ status, transcribing }: { status: string; transcribing: number }) {
+/**
+ * [Stage A fix] The label takes the SAME inputs the detail page gives it.
+ *
+ * It used to pass `transcribing` alone, so a batch whose files were still
+ * arriving rendered the amber «ממתין להחלטות» — "awaiting your decisions" —
+ * directly above this same component's own action line saying «4 קבצים
+ * בהעלאה». The copy module's note on that branch says it must never claim she
+ * is holding the batch up; the list was the one surface still doing it.
+ * `activeJobs` is deliberately NOT threaded: the list payload carries `rollup`
+ * and nothing else, so there is no honest value to pass. For a jobs-era batch
+ * `rollup.transcribing` already counts the queued and running jobs, which is
+ * the same population.
+ */
+function StatusBadge({ status, transcribing, uploading }: {
+    status: string;
+    transcribing: number;
+    uploading: number;
+}) {
     const map: Record<string, string> = {
         in_progress: 'bg-amber-100 text-amber-700',
         completed: 'bg-green-100 text-green-700',
@@ -44,7 +61,7 @@ function StatusBadge({ status, transcribing }: { status: string; transcribing: n
     // Labels come from the C1 copy module (F3) — one home, both surfaces.
     return (
         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${map[status] ?? 'bg-gray-100 text-gray-500'}`}>
-            {batchStatusLabel(status, { transcribing })}
+            {batchStatusLabel(status, { transcribing, uploading })}
         </span>
     );
 }
@@ -93,7 +110,11 @@ function BatchRow({ batch }: { batch: BatchListItem }) {
                         ))}
                     </div>
                 </div>
-                <StatusBadge status={batch.status} transcribing={batch.rollup.transcribing} />
+                <StatusBadge
+                    status={batch.status}
+                    transcribing={batch.rollup.transcribing}
+                    uploading={batch.rollup.uploading ?? 0}
+                />
             </div>
 
             {/* L1: the mini honesty bar — same primitive as D2, legend-less. */}

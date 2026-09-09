@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.api.auth_helpers import signup_verified
 
 
 MINIMAL_DRAFT = {
@@ -43,16 +44,17 @@ def client():
 
 
 def _signup(client: TestClient, tag: str) -> dict:
-    resp = client.post(
-        "/api/v0/auth/signup",
-        json={
-            "email": f"test_{tag}_{uuid4().hex[:8]}@s2test.com",
-            "password": "testpass123",
-            "full_name": f"Test {tag}",
-        },
+    """A usable, signed-in user.
+
+    [024] Signup alone no longer returns a session — an address nobody proved
+    gets none (owner ruling A4) — so this goes through the shared
+    signup-then-verify helper. Every fixture below keeps the same shape it had.
+    """
+    return signup_verified(
+        client,
+        email=f"test_{tag}_{uuid4().hex[:8]}@s2test.com",
+        full_name=f"Test {tag}",
     )
-    assert resp.status_code == 200, f"Signup failed: {resp.text}"
-    return resp.json()
 
 
 @pytest.fixture(scope="session")

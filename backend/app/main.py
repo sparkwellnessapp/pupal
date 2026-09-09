@@ -208,6 +208,8 @@ app.include_router(batch_grading_v0.router)
 app.include_router(batch_grading_v0.internal_router)
 app.include_router(grading_v0.internal_router)
 app.include_router(plan_jobs_v0.internal_router)
+# [028] the onboarding sheet projection's Cloud Tasks target.
+app.include_router(users_v0.internal_router)
 
 
 @app.get("/", tags=["health"])

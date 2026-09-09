@@ -34,8 +34,16 @@ __pycache__/
 
 # ---- the eval suites: fixtures, benchmarks, results, traces. Large, and never
 # ---- part of the served app (the Dockerfile does not copy tests/).
-tests/
-scripts/
+/tests/
+# ANCHORED with a leading slash, and it must stay that way. Unanchored,
+# `scripts/` matches a directory of that name at ANY depth — so when
+# `app/scripts/` was added (the 028 outreach commands) this line silently
+# dropped it from the source upload. The deploy SUCCEEDED and the service ran
+# perfectly, because nothing imports `app.scripts` at request time; the only
+# symptom was the Cloud Run job dying on `ModuleNotFoundError: No module named
+# 'app.scripts'` against a freshly built image. This pattern is meant for the
+# repo-root dev tooling (`backend/scripts/dump_openapi.py`), nothing deeper.
+/scripts/
 
 # ---- docs (owner-requested 2026-08-24): none are read at runtime ----
 *.md

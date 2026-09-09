@@ -5,7 +5,9 @@ Provides an abstracted email interface with Gmail API implementation.
 Supports retry logic, Hebrew templates, and proper error handling.
 """
 import os
+import re
 import base64
+import hashlib
 import json
 import logging
 import asyncio
@@ -306,6 +308,146 @@ def create_rubric_share_subject(sender_name: str) -> str:
     return f"{sender_name} שיתף/ה איתך מחוון חדש ב-Vivi"
 
 
+
+class ResendEmailService(EmailProvider):
+    """Resend (https://resend.com) over plain httpx — no SDK, no new dependency.
+
+    WHY NOT THE GMAIL PROVIDER ABOVE (owner ruling A1): that one calls
+    `credentials.with_subject(sender)`, which is Google *domain-wide
+    delegation* — it needs a paid Workspace domain and a real mailbox to
+    impersonate. Resend authenticates the DOMAIN via SPF/DKIM DNS records on
+    vivi-assistant.com, which we already control, so a verification code needs
+    no mailbox and no Workspace seat.
+
+    The retry/backoff loop lives in the base contract's callers, not here; what
+    IS here is an idempotency key, so a retry at any layer cannot deliver the
+    same code twice to a teacher's inbox.
+    """
+
+    ENDPOINT = "https://api.resend.com/emails"
+    TIMEOUT_S = 15.0
+
+    def __init__(self) -> None:
+        # From `settings`, NOT os.getenv. Pydantic loads .env into the settings
+        # object and NEVER writes back to os.environ (config.py documents this
+        # for the extraction pin, which needed a whole bridge because of it), so
+        # an os.getenv read here would be blind to backend/.env and silently
+        # disable email on every developer machine while looking configured.
+        # Cloud Run's real env vars reach `settings` too — pydantic reads the
+        # process environment first — so one read covers both worlds.
+        from ..config import settings
+
+        key = settings.resend_api_key
+        self._api_key = key.get_secret_value() if key else ""
+        self._from = settings.email_from
+        if not self._api_key:
+            logger.warning("RESEND_API_KEY not set - Resend email sending disabled")
+
+    async def send_email(
+        self,
+        to: str,
+        subject: str,
+        html_body: str,
+        attachments: Optional[List[Attachment]] = None,
+    ) -> EmailResult:
+        if not self._api_key:
+            return EmailResult(success=False, error="שירות המייל אינו מוגדר")
+
+        if attachments:
+            # Resend supports attachments, but nothing in this product sends one
+            # through this provider yet. Refusing loudly beats silently dropping
+            # a file the caller believed was delivered.
+            return EmailResult(
+                success=False,
+                error="ResendEmailService does not implement attachments",
+            )
+
+        import httpx
+
+        payload = {
+            "from": self._from,
+            "to": [to],
+            "subject": subject,
+            "html": html_body,
+        }
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+            # Scoped to the RECIPIENT + SUBJECT + body hash rather than random:
+            # a retry of the same send is deduplicated, while a genuinely new
+            # code (different body) is not.
+            "Idempotency-Key": hashlib.sha256(
+                f"{to}|{subject}|{html_body}".encode("utf-8")
+            ).hexdigest()[:64],
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.TIMEOUT_S) as client:
+                resp = await client.post(self.ENDPOINT, json=payload, headers=headers)
+        except Exception as e:                       # network, DNS, timeout
+            logger.warning("Resend transport failure: %s", e)
+            return EmailResult(success=False, error="שליחת המייל נכשלה")
+
+        if resp.status_code >= 400:
+            # The BODY may echo the recipient; log the status and our own
+            # context, never the payload.
+            logger.error("Resend rejected the send: HTTP %s", resp.status_code)
+            return EmailResult(success=False, error="שליחת המייל נכשלה")
+
+        message_id = None
+        try:
+            message_id = resp.json().get("id")
+        except Exception:
+            pass
+        return EmailResult(success=True, message_id=message_id)
+
+
+class ConsoleEmailService(EmailProvider):
+    """Writes the message to the log instead of sending it.
+
+    The DEFAULT everywhere, so an unconfigured environment — and every test
+    process is one — cannot send real mail to a real address.
+
+    WHAT IT LOGS, AND WHY THAT IS CONDITIONAL. In a dev environment it prints the
+    verification code, because a provider that swallows the code makes local
+    signup impossible to complete: the account is created and can never be
+    verified. Outside a dev environment it prints only the recipient and
+    subject — a one-time code in a production log is a one-time code on disk,
+    and selecting this provider there is a misconfiguration that must not also
+    become a disclosure.
+
+    `is_dev_env()` is the SAME predicate that gates create_all (config.DEV_ENVS),
+    so "dev" means one thing in this codebase rather than two.
+    """
+
+    #: The code as it appears in the rendered template — six digits inside the
+    #: LTR-isolated div. Extracted rather than dumping the whole HTML, which is
+    #: unreadable in a terminal and would bury the one line anyone wants.
+    _CODE_RE = re.compile(r">(\d{6})</div>")
+
+    async def send_email(
+        self,
+        to: str,
+        subject: str,
+        html_body: str,
+        attachments: Optional[List[Attachment]] = None,
+    ) -> EmailResult:
+        from ..config import is_dev_env
+
+        if is_dev_env():
+            match = self._CODE_RE.search(html_body)
+            if match:
+                logger.warning(
+                    "[console-email] to=%s subject=%s CODE=%s "
+                    "(dev only — set EMAIL_PROVIDER=resend to send for real)",
+                    to, subject, match.group(1),
+                )
+                return EmailResult(success=True, message_id="console")
+
+        logger.info("[console-email] to=%s subject=%s (body suppressed)", to, subject)
+        return EmailResult(success=True, message_id="console")
+
+
 # =============================================================================
 # Service Factory
 # =============================================================================
@@ -314,11 +456,36 @@ _email_service: Optional[EmailProvider] = None
 
 
 def get_email_service() -> EmailProvider:
-    """Get or create the global email service instance."""
+    """The configured provider, built once.
+
+    EMAIL_PROVIDER picks it: `resend` (production, A1) | `gmail` (the legacy
+    Workspace path, kept working and still uncalled) | `console` (the default).
+
+    The default is CONSOLE, not Gmail. An unconfigured environment must not
+    silently attempt to send real mail — and every test process is an
+    unconfigured environment.
+    """
     global _email_service
     if _email_service is None:
-        _email_service = GmailEmailService()
+        from ..config import settings
+
+        choice = (settings.email_provider or "console").strip().lower()
+        if choice == "resend":
+            _email_service = ResendEmailService()
+        elif choice == "gmail":
+            _email_service = GmailEmailService()
+        else:
+            if choice not in ("console", ""):
+                logger.warning("Unknown EMAIL_PROVIDER %r - falling back to console", choice)
+            _email_service = ConsoleEmailService()
+        logger.info("Email provider: %s", type(_email_service).__name__)
     return _email_service
+
+
+def reset_email_service_for_tests() -> None:
+    """Drop the memoized provider so a test can re-read EMAIL_PROVIDER."""
+    global _email_service
+    _email_service = None
 
 
 async def send_rubric_share_email(

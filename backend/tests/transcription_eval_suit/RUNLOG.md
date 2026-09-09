@@ -347,3 +347,57 @@ exam-B table pages at k≥5, checked for (a) compliance with the shape and (b) N
 on the five seed fixtures, whose pages contain no tables and must be unaffected. The
 renderer's end-padding stays as-is until that measurement lands — tightening it first would
 regress today's ragged-but-rendered output.
+
+2026-09-05 | **STAGE E — browser JPEG-in-PDF repack, 3 quality arms vs champion** (UPLOAD_LATENCY_PLAN.md R4) | ONE VARIABLE: the source corpus. Same config (v0), same GT, same scorer, same k. Variants built by `frontend/scripts/build-eval-corpus.mjs` driving the REAL `src/utils/page-repack.ts` in Chromium (pdf.js render @200 DPI -> canvas.toBlob image/jpeg -> pdf-lib), because a Pillow-built corpus would measure an encoder no teacher runs | mode=p1_only **k=3** x 5 docs x 4 arms (60 records) — ⚠ **k=3 IS A DIAGNOSTIC, owner-ruled**; §17.5 wants k>=5 and `check_goal.sh` is untouched, so NOTHING here authorises a change | **VERDICTS: q95 NOT PROMISING (invalid records), q90 PROMISING (floors moved), q85 NOT PROMISING (1 doc regressed)** | analyzer: `tools/compare_repack_arms.py`, rule reused from 2026-08-19 (regression = mean strict ratio < champion − 0.005; any critical-recall floor drop is named; VALIDITY BEFORE ACCURACY — invalid records are excluded from the ratio and decide the verdict alone)
+
+  **q95 — killed by MAX_TOKENS, not by blur.** 3 of 15 records truncated (`dan_basiuk` 2/3, `moran_aharon` 1/3), always the pages-1-3 chunk; champion had ZERO. Cost +38% ($0.0299 -> $0.0412), median latency 52s -> 71s. For THIS corpus q95 output is LARGER than the source (2.15 -> 4.06 MB), so the model got more image, thought longer, and blew `p1_max_tokens` (gemini-3 thinking tokens are spent from the same budget before the visible answer). A bigger picture is not a better one.
+  **q90 — accuracy-neutral, and 3.8x FASTER.** 15/15 valid, no doc outside the ±0.005 band, cost unchanged ($0.0296). Median doc latency **52.2s -> 13.6s**. Gate-reason counts vs champion: structural_recall 15->11, method_call_recall 12->9, doc_ratio 10->9, but operator_recall 9->11 and **abbreviations_altered 0->2** (a §17.7 named rule). Two floor drops: `din_ezra` operator_recall 1.0000->0.9855, `yonatan_basiuk` structural_recall 0.9923->0.9705.
+  **q85 — one clean regression.** 15/15 valid, cost unchanged, median 14.0s, four docs IMPROVED, but `yonatan_basiuk` −0.0059 breaches the tolerance. Under the reused rule that is a fail.
+
+  **THE LATENCY FINDING, which is the durable one:** shrinking the image cuts the P1 model call ~3.7x (52s -> 14s median) at unchanged cost, on both q90 and q85. That reproduces the direction of the 2026-08-19 wire-format run (p1_call 19.2s -> 11.6s, −40%) with a much larger effect, and it is INDEPENDENT of the upload saving. It is also the strongest argument for finishing this properly.
+  ⚠ **RUN-QUALITY CAVEAT:** one q90 record (`moran_aharon` rep0) hung for 12,780s — a transport stall, not a corpus property; every other q90 record was 9–74s. Medians are quoted throughout for that reason. The arm's MEAN latency (871s) is meaningless.
+  ⚠ **COVERAGE LIMIT — the reason none of this is decisive.** `raw_benchmarks/` holds P1 GT for exactly 5 documents, ALL `hobby_tvshow`. The 10 bagrut PDFs have no transcription GT, so p1_only cannot score them at any k or cost. And under `chooseSmaller` (keep the smaller file) **none of the 5 scored documents would ever be repacked in production** — all 5 GROW under every quality. So a FAILURE here is strong evidence against; a PASS is weak evidence for, because the bagrut documents get the harsher perturbation (892 -> 406 KB/page) and are unmeasured. Closing this needs teacher-verified bagrut transcriptions — owner work, not a code task.
+  SPEND: **$1.96** total, ~4.5h wall (inflated by the one hung call). NOT SHIPPED; `USE_CLIENT_REPACK` does not exist yet and the plan's Stage F remains conditional.
+
+2026-09-05 **RETRACTION — the "3x faster reading" from the Stage E k=3 run was a TIME-OF-DAY ARTIFACT, not a corpus effect.** The k=5 champion re-run settles it: the SAME corpus with the SAME config measured **52.2s median at 17:21 and 11.2s median at 21:53** — a 4.7x swing with nothing changed, LARGER than the ~3x I attributed to the re-encode. Latency tracked the clock, not the images:
+
+  | arm | window | median | p1_call_max median |
+  |---|---|---|---|
+  | champion k=3 | ~17:21 | 52.2s | 45.9s |
+  | jpeg95 k=3 | ~17:35 | 71.1s | 68.1s |
+  | jpeg90 k=3 | ~18:01 | 13.6s | 8.0s |
+  | jpeg85 k=3 | ~21:39 | 14.0s | 8.2s |
+  | champion k=5 | ~21:53 | 11.2s | 7.3s |
+
+  Provider-side latency improved somewhere between 17:35 and 18:01, and every arm run after that looked fast whatever it read. Because the arms ran SEQUENTIALLY with the champion FIRST, the confound loaded entirely onto the champion and manufactured a speedup.
+
+  **ROOT CAUSE, and the rule to take from it:** the arms were sequential, not interleaved. The 2026-08-19 run avoided exactly this by being a TRUE paired A/B — one render per repeat, encoded both ways, so the two arms shared a moment in time. This tool's own docstring noted that difference and I did not draw the consequence. **A latency comparison across sequential arms is worthless against a provider whose latency moves on its own; only accuracy survives that design.** Any future arm comparison that intends to measure TIME must interleave the arms within a repeat, or re-run the champion adjacent to each arm.
+
+  **WHAT SURVIVES the retraction:** the ACCURACY findings (they are not time-dependent) — q95's 3 MAX_TOKENS truncations, q90/q85 validity clean, q90 method-call precision up on 3 of 5 docs, and `yonatan_basiuk` losing the `CR` abbreviation reproducibly at every quality. **WHAT DIES:** every latency claim in the 2026-09-05 Stage E entry above, and the "reading gets ~3.7x faster" conclusion drawn from it. The plan doc and BACKLOG B-31c-RESULT are corrected alongside this entry.
+
+2026-09-05 | **WIRE FORMAT PNG -> JPEG q90, k=5 — the 2026-08-19 re-run, at the k that run was missing** | ONE VARIABLE: `PipelineConfig.image_format` (configs/v0_wirejpeg90.json; a dataclass diff against v0 shows exactly ONE differing field). Same corpus (`pdfs`), same GT, same scorer | mode=p1_only k=5 x 5 docs x 2 arms (50 records) | **GATE FAIL -> NOT SHIPPED. Same verdict as 2026-08-19, on the SAME DOCUMENT, now with k=5 behind it** | champion `20260905_221105_v0`, variant `20260905_221441_v0_wirejpeg90`, run ~3 MINUTES APART so the timing comparison is fair (see the retraction above for why that matters)
+
+  **THE FAILURE IS STABLE, NOT NOISE — the ranges do not overlap.** `yonatan_basiuk` champion mean 0.9597 (std 0.0014, range 0.9584–0.9614) vs variant 0.9536 (std 0.0005, range 0.9530–0.9540): **−0.0061**, past the 0.005 tolerance, with five repeats each and no overlap. It also loses the `CR` abbreviation in 2 of 5 repeats where the champion loses it in 0 — a §17.7 named rule. **The same document, the same class of failure, and the same abbreviation that the CLIENT-REPACK arms lose at every quality.** Three independent experiments now agree: `yonatan_basiuk` is the document that lossy re-encoding breaks.
+  Everything else was a wash: 25/25 valid (no truncations, unlike the q95 client arm), 2 docs marginally better, 2 marginally worse, cost IDENTICAL ($0.0298 both) — Gemini prices image input by resolution tiles, not by payload bytes, so a 4.2x smaller wire buys nothing on cost. Critical metrics moved ±0.004 either way.
+
+  **THE USEFUL PART — where the time actually goes.** With the arms adjacent, per-document median 11.2s -> 8.1s, and the model call is NOT where it came from:
+
+  | stage (median/doc) | champion | wireJPEG | delta |
+  |---|---|---|---|
+  | image_encode (OUR CPU) | 3.47s | 0.74s | **−2.73s** |
+  | pdf_render | 1.52s | 0.95s | −0.56s |
+  | p1_call_max (the model) | 7.34s | 6.53s | −0.81s |
+
+  So ~2.7s of the ~3.1s was **our own server PNG-encoding the page**, not the model reading it. That reframes the whole thing: the encode cost is a Stage-C-class problem (our CPU), not a Stage-E-class one (model input).
+
+  **AND THAT IS RECLAIMABLE LOSSLESSLY.** PNG's `compress_level` changes BYTES but not one PIXEL — verified by decoding and byte-comparing. Full wire path, 4-page doc, best of 3:
+
+  | wire encoding | total ms | payload | what the model sees |
+  |---|---|---|---|
+  | PNG compress_level=6 (today) | 1723 | 8.0 MB | — |
+  | PNG compress_level=3 | 1214 (−30%) | 8.4 MB | **pixel-identical** |
+  | PNG compress_level=1 | 949 (−45%) | 11.4 MB | **pixel-identical** |
+  | JPEG q90 | 525 (−70%) | 1.9 MB | DIFFERENT (and it fails) |
+
+  A `compress_level=3` wire encode is ~30% cheaper for +5% payload and **needs no eval gate at all**, because the decoded image is bit-identical — it is not a model-input change. NOT DONE HERE (it is a new one-variable change and wants its own before/after measurement on the box that matters); filed as the follow-up.
+  SPEND: $1.50 (2 arms x 25 records). Cumulative Stage E spend today: $3.46.

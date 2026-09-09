@@ -448,3 +448,43 @@ def test_contract_mirrors_checks():
     # frozen, like every other contract type
     with pytest.raises(Exception):
         got["c1.k1"].ai_verdict = "not_met"
+
+
+# ---------------------------------------------------------------------------
+# EVD-1 — the approved contract carries the evidence the grade rests on
+# ---------------------------------------------------------------------------
+
+def test_the_frozen_contract_carries_the_answer_that_was_graded():
+    """The approved contract is the AUDIT artefact — the thing consulted months
+    later to answer «why this grade?».
+
+    Every other input was already frozen into it (rubric + transcription
+    contract versions, model, prompt). The student's own words were the one
+    input that was not — and they are the input the reasoning QUOTES. They
+    cannot simply be recomputed later either: `rubrics.contract_json` keeps
+    only the LATEST contract, so once the rubric is recompiled the scope tree
+    the grader used is gone.
+    """
+    from app.schemas.graded_test_draft import ScopeAnswer
+
+    scope = _scope()
+    scope.student_answer = ScopeAnswer(
+        text="the whole סעיף", source="inherited", inherited_from="א")
+    contract = compile_graded_test(_draft([scope]), _no_ov(), _rubric_contract())
+
+    frozen = contract.scope_outcomes[0].student_answer
+    assert frozen is not None
+    assert frozen.text == "the whole סעיף"
+    # Provenance survives the freeze: an inherited answer must still ANNOUNCE
+    # itself in the audit artefact, or a later reader sees a parent's words
+    # presented as the leaf's own.
+    assert frozen.source == "inherited"
+    assert frozen.inherited_from == "א"
+
+
+def test_a_scope_with_no_evidence_freezes_none_rather_than_inventing_one():
+    """Legacy drafts (and genuinely unanswered scopes) freeze `None`. The gate
+    does not re-resolve the answer, because what the grader saw is not a
+    judgement the approval gate is entitled to make."""
+    contract = compile_graded_test(_draft(), _no_ov(), _rubric_contract())
+    assert contract.scope_outcomes[0].student_answer is None

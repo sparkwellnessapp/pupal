@@ -1,0 +1,7 @@
+{
+  "model_key": "grok-4.6",
+  "max_output_tokens": 32000,
+  "reasoning_effort": null,
+  "cost_ceiling": 2.0,
+  "notes": "SWEEP CONFIG — functional-first phase. cost_ceiling=2.00 is deliberately loose: its job in this phase is pathology detection (runaway retries), not economy. Pricing rationale lives on the registry entry (xAI pricing page 2026-08-15, <=200K-context tier; cached-in omitted -> cost is a conservative upper bound at the uncached input rate). temperature is not a config knob: grok-4+ is a reasoning family — _llm_params omits sampling knobs (xai branch). reasoning_effort=null: not sent unless set (xAI support for the knob unverified on this model). Rides ChatOpenAI against https://api.x.ai/v1 with XAI_API_KEY (pipeline 3.6.1 xai branch). Likeliest smoke failure: structured-output/tool-call schema handling of RubricExtraction — verify parse success and a non-null finish_reason on a repeats=1 smoke before the k-run. VERDICT 2026-08-15 (RUN 20260815-185359): DO NOT ADOPT for extraction — FC violations on every teacher-error fixture (see RUNLOG). Registry-schema migration 2026-08-23: identity/prices registry-owned (model_key -> tests/eval_common/models_registry.py)."
+}

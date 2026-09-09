@@ -115,6 +115,12 @@ class RunPlan:
     mode: str = "per_doc"            # per_doc | p1_only | p2_only | batch
     batch_size: int = 25
     exam_spec_path: str | None = None
+    #: [Stage E] Where the source PDFs come from, relative to the suite dir.
+    #: Default `pdfs` is the champion corpus; a variant directory (built by
+    #: `frontend/scripts/build-eval-corpus.mjs`) is how a re-encoding is put in
+    #: front of the SAME ground truth and the SAME scorer. Runner plumbing only
+    #: — it changes the model's INPUT, never what the ruler measures (§17.10).
+    pdf_dir: str = "pdfs"
 
 
 @dataclass
@@ -170,8 +176,8 @@ class RunRecord:
 
 # --- fixture resolution -----------------------------------------------------------
 
-def _find_pdf(doc_id: str) -> Path | None:
-    pdf_dir = SUITE_DIR / "pdfs"
+def _find_pdf(doc_id: str, pdf_dir_name: str = "pdfs") -> Path | None:
+    pdf_dir = SUITE_DIR / pdf_dir_name
     if not pdf_dir.exists():
         return None
     for p in pdf_dir.glob("*.pdf"):
@@ -199,13 +205,14 @@ def resolve_fixtures(plan: RunPlan) -> list[Fixture]:
             )
         fx = Fixture(
             doc_id=doc_id,
-            pdf_path=_find_pdf(doc_id),
+            pdf_path=_find_pdf(doc_id, plan.pdf_dir),
             raw_gold=load_page_ground_truth(raw_p) if raw_p.exists() else None,
             draft_gold=load_ground_truth(draft_p) if draft_p.exists() else None,
             exam=exam,
         )
         if mode in ("per_doc", "p1_only", "batch") and fx.pdf_path is None:
-            raise FileNotFoundError(f"{doc_id}: no PDF in pdfs/ (required for {mode}).")
+            raise FileNotFoundError(
+                f"{doc_id}: no PDF in {plan.pdf_dir}/ (required for {mode}).")
         if mode in ("per_doc", "p1_only", "batch") and fx.raw_gold is None:
             raise FileNotFoundError(f"{doc_id}: no raw_benchmarks GT (required for {mode}).")
         if mode in ("per_doc", "p2_only", "batch") and fx.draft_gold is None:
@@ -558,6 +565,12 @@ async def execute(plan: RunPlan, pipeline: Pipeline) -> tuple[dict, dict]:
         },
         "mode": plan.mode,
         "repeats": plan.repeats,
+        # [Stage E] WHICH CORPUS the model actually read. A re-encoded variant
+        # scores against the same ground truth and the same scorer, so without
+        # this a variant run and the champion are indistinguishable in the
+        # results — the "which input produced this scoreboard?" ambiguity that
+        # B-30f already cost once. `pdfs` is the champion.
+        "pdf_dir": plan.pdf_dir,
         "models": {
             k: {"model_id": model_spec(k).model_id, "tier": model_spec(k).tier}
             for k in {plan.config.p1_model_key, plan.config.p2_model_key,
@@ -640,6 +653,11 @@ def main() -> None:
                          "to the suite dir. Used only for fixtures with no "
                          "fixtures/<doc_id>.json manifest.")
     ap.add_argument("--batch-size", type=int, default=25)
+    ap.add_argument("--pdf-dir", default="pdfs",
+                    help="source-PDF directory relative to the suite dir "
+                         "(default: pdfs). [Stage E] Point at a variant corpus "
+                         "— e.g. pdfs-variants/jpeg90 — to score a re-encoding "
+                         "against the SAME ground truth and the SAME scorer.")
     args = ap.parse_args()
 
     if args.fixtures:
@@ -653,9 +671,11 @@ def main() -> None:
         config=_load_config(args.config), config_name=args.config,
         fixtures=fixtures, repeats=args.repeats, mode=args.mode,
         batch_size=args.batch_size, exam_spec_path=args.exam_spec,
+        pdf_dir=args.pdf_dir,
     )
-    log.info("config=%s mode=%s repeats=%d fixtures=[%s]",
-             args.config, args.mode, args.repeats, ", ".join(fixtures))
+    log.info("config=%s mode=%s repeats=%d pdf_dir=%s fixtures=[%s]",
+             args.config, args.mode, args.repeats, args.pdf_dir,
+             ", ".join(fixtures))
     out = run_plan(plan)
     print(f"Run complete -> {out}")
 

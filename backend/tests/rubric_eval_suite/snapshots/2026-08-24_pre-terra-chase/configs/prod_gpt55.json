@@ -1,0 +1,7 @@
+{
+  "model_key": "gpt-5.5",
+  "reasoning_effort": "medium",
+  "max_output_tokens": 32000,
+  "cost_ceiling": 1.0,
+  "notes": "Prod pin (CLAUDE.md D-2: openai/gpt-5.5/medium/32000) — used for the k=1 marker-preservation trial of prompt 3.4.0-tablemarkers. Registry-schema migration 2026-08-23: identity/prices registry-owned (model_key -> tests/eval_common/models_registry.py); cost_ceiling 0.40 -> 1.00 (owner ruling 2026-08-23 — the 0.40 was inherited from the gpt-4o baseline and NEVER enforced: this config carried no prices, so cost_usd was None and gates.py skipped the check; measured worst-doc $0.501 at registry prices would have failed it on every bagrut trial)."
+}

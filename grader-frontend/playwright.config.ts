@@ -35,7 +35,34 @@ export default defineConfig({
         // the user's own dev server — two writers corrupt each other's chunk
         // manifests and the OTHER process 404s mid-session (bit the owner's
         // live E2E on 2026-08-22; see next.config.js).
-        env: { NEXT_DIST_DIR: '.next-e2e' },
+        //
+        // ⚠️ TWO CONCURRENT PLAYWRIGHT RUNS share `.next-e2e` and hit the SAME
+        // failure from the other direction (twice on 2026-08-31): one run's
+        // teardown kills the server the other is still driving, and every
+        // remaining test fails with ERR_CONNECTION_REFUSED while a ZOMBIE
+        // listener keeps holding port 3100 and answering nothing — so the next
+        // `reuseExistingServer` probe fails too, and Playwright's own spawn
+        // then cannot bind. A wall of failures with that signature is
+        // INFRASTRUCTURE, not findings: check `curl localhost:3100` before
+        // believing any of them, and re-run on a quiet tree.
+        env: {
+            NEXT_DIST_DIR: '.next-e2e',
+            // The Google button renders NOTHING without a client ID — a
+            // deliberate product choice (a dead sign-in button is worse than
+            // no button), which also means the auth journeys cannot see it
+            // unless the harness supplies one. Any non-empty value works: the
+            // GIS script is stubbed in e2e/auth.spec.ts and never contacts
+            // Google.
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID: 'e2e-stub.apps.googleusercontent.com',
+            // [028] The exam step renders its booking block and its
+            // "talk to me on WhatsApp" link ONLY when these are set — the same
+            // deliberate choice as the Google button above: a dead link is
+            // worse than no link. Stubbed here so the harness does not depend
+            // on a developer's .env.local, and never contacted: the booking CTA
+            // opens a new tab the spec does not follow.
+            NEXT_PUBLIC_BOOKING_URL: 'https://example.test/e2e-booking',
+            NEXT_PUBLIC_WHATSAPP_NUMBER: '972500000000',
+        },
         command: 'npm run dev -- --port 3100',
         url: 'http://localhost:3100',
         reuseExistingServer: !process.env.CI,

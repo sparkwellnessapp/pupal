@@ -110,6 +110,21 @@ class GradableScope(BaseModel):
     student_answer_text: Optional[str] = None  # None when alignment == "answer_missing"
     alignment: Literal["matched", "answer_missing", "scope_not_in_contract"]
 
+    # WHERE that answer CAME FROM. The text alone cannot say whether the
+    # transcription addressed this leaf directly or whether the leaf inherited
+    # its nearest ancestor's answer (the R3 fallback below) — and those are
+    # different facts to anyone judging the grade.
+    #
+    #   "own"       — the transcription answered this exact scope id.
+    #   "inherited" — it answered an ANCESTOR, and this leaf is graded against
+    #                 that text; `answer_inherited_from` names the ancestor path.
+    #   None        — alignment == "answer_missing"; there is no answer to source.
+    #
+    # `fallback_scopes` already counted these firings for the metric; this
+    # records, per scope, the one thing a reader needs to interpret the grade.
+    answer_source: Optional[Literal["own", "inherited"]] = None
+    answer_inherited_from: Optional[str] = None  # e.g. "א" for the leaf "א.1"
+
     # PR-G1 v2 (2026-08-25): prefix-only prior-part context — all preceding
     # parts of the same question in document order; NEVER the current part,
     # never subsequent ones. [] for direct-criteria questions and first parts.

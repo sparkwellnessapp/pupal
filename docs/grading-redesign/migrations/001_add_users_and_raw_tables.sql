@@ -1,5 +1,5 @@
 -- =============================================================================
--- Grader Vision: User Management System Migration
+-- Vivi: User Management System Migration
 -- Run this SQL in Supabase SQL Editor
 -- =============================================================================
 

@@ -36,6 +36,7 @@ import type { RubricQuestion, RubricSubQuestion, RubricCriterion } from '@/types
 import {
     changeQuestionPoints, changeSubQuestionPointsAtPath, updateCriterionAtPath,
     mapCriteriaAtPath, updateSubQuestionAtPath, setQuestionText, setSubQuestionTextAtPath,
+    uid,
 } from '@/utils/rubric-editor-ops';
 import { recalculateParentsFromCriteria, safeParseFloat } from '@/utils/rubric-transform';
 
@@ -161,6 +162,58 @@ function applySetPoints(questions: RubricQuestion[], step: FixStep): RubricQuest
         : changeSubQuestionPointsAtPath(questions, path.qIndex, path.sqPath, value);
 }
 
+/** Every criterion / sub-criterion id currently in the tree — the uniqueness check
+ *  a re-derived id has to clear. */
+function allCriterionIds(questions: RubricQuestion[]): Set<string> {
+    const out = new Set<string>();
+    const eatCriteria = (cs?: RubricCriterion[] | null) => {
+        for (const c of cs ?? []) {
+            out.add(c.criterion_id);
+            for (const sc of c.sub_criteria ?? []) out.add(sc.sub_criterion_id);
+        }
+    };
+    const eatSq = (sq: RubricSubQuestion) => {
+        eatCriteria(sq.criteria);
+        (sq.sub_questions ?? []).forEach(eatSq);
+    };
+    for (const q of questions) {
+        eatCriteria(q.criteria);
+        (q.sub_questions ?? []).forEach(eatSq);
+    }
+    return out;
+}
+
+/**
+ * Re-derive a moved criterion's IDENTITY to its new home (2026-08-24, owner-ruled).
+ *
+ * Extraction names criteria by where they live — `q2.ב.c6`, sub-criteria `<cid>.scN`
+ * — so a criterion that moves to ג while keeping `q2.ב.c6` is an id that LIES about
+ * its location, in JSON a teacher and every future reader will see. The applier
+ * already renumbers `index` on both sides of a move; this makes the id agree.
+ *
+ * Scoped to the MOVED criterion only. Siblings left behind keep their ids even
+ * though their numeric suffix is now off by one — renumbering nodes nobody touched
+ * would churn keys that grading terminals, teacher overrides (CW-3) and
+ * `data-scope-id` anchors are keyed by. So the rule is:
+ *   **an id's digits record birth order, not current position; its SCOPE is kept true.**
+ *
+ * Falls back to the editor's own opaque shape (`c_<uid>`) if the derived id is
+ * somehow taken — an opaque id claims nothing and so cannot lie either.
+ */
+function reidCriterion(
+    c: RubricCriterion, toScope: string, index: number, taken: Set<string>,
+): RubricCriterion {
+    const wanted = `${toScope}.c${index}`;
+    const cid = taken.has(wanted) ? `c_${uid()}` : wanted;
+    return {
+        ...c,
+        criterion_id: cid,
+        sub_criteria: c.sub_criteria
+            ? c.sub_criteria.map((sc, i) => ({ ...sc, sub_criterion_id: `${cid}.sc${i}` }))
+            : c.sub_criteria,
+    };
+}
+
 function applyMoveCriterion(questions: RubricQuestion[], step: FixStep): RubricQuestion[] | null {
     if (!step.to_scope || step.criterion_index === null || step.criterion_index === undefined) return null;
 
@@ -182,8 +235,12 @@ function applyMoveCriterion(questions: RubricQuestion[], step: FixStep): RubricQ
         (cs) => cs.filter((_, i) => i !== ci).map((c, i) => ({ ...c, index: i })));
     const dest = resolveScopePath(next, step.to_scope);
     if (!dest) return null;
+    // `taken` is read AFTER the removal above, so the criterion's own old id is free
+    // and a move into a scope that already holds `.cN` still lands on a fresh name.
+    const taken = allCriterionIds(next);
     next = mapCriteriaAtPath(next, dest.qIndex, dest.sqPath,
-        (cs) => [...cs, { ...moved, index: cs.length }]);
+        (cs) => [...cs, reidCriterion({ ...moved, index: cs.length },
+                                      step.to_scope as string, cs.length, taken)]);
     return next;
 }
 
@@ -265,6 +322,45 @@ export function applyEditSteps(questions: RubricQuestion[], steps: FixStep[]): A
         const node = nodeAt(qs, path);
         const sum = (node.criteria ?? []).reduce((a, c) => a + c.points, 0);
         if (sum > 0) qs = changeSubQuestionPointsAtPath(qs, path.qIndex, path.sqPath, sum);
+    }
+
+    // SAME BOOKKEEPING FOR THE MOVE **SOURCE** (2026-08-24, owner-ruled). The
+    // symmetric half of the rule above: a move takes a criterion OUT of a scope and
+    // that scope goes on declaring points it no longer holds. Observed in production
+    // — a fix created the missing sub-question correctly and left the source at 45
+    // against 29 of criteria, so accepting it put the teacher somewhere WORSE than
+    // before she clicked. The arithmetic must not depend on the model remembering to
+    // emit set_points for the side it emptied.
+    //
+    // Two guards, and they are the whole design:
+    //  1. ONLY IF THE SOURCE WAS CONSISTENT BEFORE THE MOVE. If it already declared a
+    //     number that disagreed with its criteria, THAT NUMBER IS THE TEACHER'S
+    //     FINDING (faithful capture, CLAUDE.md §2) and rewriting it here would be the
+    //     silent repair the whole product forbids. Leave it; the mismatch surfaces the
+    //     way it always did. (On the canonical hobby case this guard costs nothing:
+    //     the faithful draft declares 29 and lands on 29 either way.)
+    //  2. NEVER WHEN THE MOVE EMPTIES THE SCOPE. Σ of nothing is 0, and 0 is a number
+    //     she never wrote — an empty husk she must resolve is honest, a fabricated
+    //     zero is not.
+    // Precedence matches the vivified rule: an explicit set_points on that scope wins.
+    const movedFrom = Array.from(new Set(
+        steps.filter((s) => s.op === 'move_criterion' && s.scope).map((s) => s.scope),
+    ));
+    for (const scope of movedFrom) {
+        if (explicitlySet.has(scope)) continue;
+        const before = resolveScopePath(questions, scope);      // the ORIGINAL tree
+        if (!before || before.sqPath.length === 0) continue;    // a question total is never auto-touched
+        // the guard above proved sqPath is non-empty, so this is a sub-question;
+        // nodeAt's union return cannot express that.
+        const beforeNode = nodeAt(questions, before) as RubricSubQuestion;
+        const beforeSum = (beforeNode.criteria ?? []).reduce((a, c) => a + c.points, 0);
+        if (beforeNode.points !== beforeSum) continue;          // guard 1: her discrepancy stays hers
+        const path = resolveScopePath(qs, scope);
+        if (!path) continue;
+        const remaining = nodeAt(qs, path).criteria ?? [];
+        if (remaining.length === 0) continue;                   // guard 2: emptied ⇒ leave alone
+        const sum = remaining.reduce((a, c) => a + c.points, 0);
+        qs = changeSubQuestionPointsAtPath(qs, path.qIndex, path.sqPath, sum);
     }
     return { questions: qs };
 }

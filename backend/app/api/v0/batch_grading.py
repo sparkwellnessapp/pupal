@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import unicodedata
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Optional
 from urllib.parse import quote
@@ -87,6 +88,7 @@ from ...services.returned_exam import (
 )
 from ...services.transcription_job_liveness import expired_condition as job_expired_condition
 from ...services.transcription_job_liveness import reap_expired as reap_expired_jobs
+from ...services.grading_inputs import transcription_contract_version
 from .auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -125,11 +127,23 @@ async def _enqueue_transcription_or_mark_failed(job_id: UUID) -> None:
 def _derive_batch_status(rollup: BatchRollup) -> str:
     """Derive the batch's aggregate status from child counts. Never stored.
 
-    `dead` counts both grading failures and ledgered transcription failures
-    (migration 015) — a batch whose every document failed is 'failed', not an
-    eternal 'in_progress' (the poll gate keys off this status).
+    `dead` counts grading failures, ledgered transcription failures
+    (migration 015) and declared-but-never-received files (025/R9) — a batch
+    whose every document failed is 'failed', not an eternal 'in_progress' (the
+    poll gate keys off this status).
+
+    [Stage A / Defect D] The upload refusal is FIRST and it is explicit. With
+    `total = max(expected, jobs)` the arithmetic below already cannot reach
+    'completed' while files are outstanding (approved ≤ landed ≤ total), so
+    this clause is belt to that braces — deliberately, because the thing it
+    prevents is the one failure this surface cannot have: a batch that KEEPS
+    COMPUTING and confidently reports "completed" while nine files are still
+    climbing the wire (§3.5a). A future change to how `total` is derived must
+    not be able to reopen it.
     """
-    dead = rollup.failed + rollup.transcription_failed
+    if rollup.uploading > 0:
+        return "in_progress"
+    dead = rollup.failed + rollup.transcription_failed + rollup.not_received
     if rollup.total > 0 and dead >= rollup.total:
         return "failed"
     if dead > 0 and rollup.total > 0:
@@ -166,12 +180,63 @@ def _needs_eyes(transcription: Transcription, verdict: FlagVerdict) -> bool:
     return any(r != "student_unassigned" for r in verdict.reasons)
 
 
+def _as_utc(dt: datetime) -> datetime:
+    """Aware-UTC coercion before any comparison (CLAUDE.md §13). These columns
+    ARE TIMESTAMPTZ, so the driver already hands back aware datetimes — but the
+    rule is 'never compare a stored timestamp against a bare now()', and the one
+    place this codebase skipped it 500'd /auth/login for 271 of 273 users."""
+    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+
+
+def _last_append_at(
+    batch: GradingBatch, jobs: list[TranscriptionJob],
+) -> Optional[datetime]:
+    """When this batch last RECEIVED a file — the clock the R9 backstop runs on.
+
+    Deliberately NOT `batch.updated_at`: a rename, a settings change or a
+    re-declare all touch that, and none of them is evidence that a file is
+    still coming. The newest job's `created_at` is the append itself; before
+    the first append the batch's own creation is the honest start of the wait.
+    """
+    stamps = [_as_utc(j.created_at) for j in jobs if j.created_at is not None]
+    if stamps:
+        return max(stamps)
+    return _as_utc(batch.created_at) if batch.created_at is not None else None
+
+
+def _upload_declaration_expired(
+    batch: GradingBatch, jobs: list[TranscriptionJob], now: datetime,
+) -> bool:
+    """Has the batch gone quiet long enough that outstanding files are dead?
+
+    The clock is the LAST APPEND, and before the first append it is the batch's
+    own creation — which is R9 read literally ("no append for the TTL"), and is
+    deliberate rather than a fallback: after 90 minutes without a single file
+    landing, "she walked away" is the overwhelmingly likelier reading, and a
+    batch that can never reach a terminal status is the trap LIV-1 exists to
+    prevent. It also SELF-HEALS: a late first append makes the newest append
+    recent, so the very next read reports `uploading` again.
+
+    The one true degradation is an UNREADABLE clock — no timestamps at all —
+    where this returns False and the batch keeps saying "still uploading". The
+    two errors are not symmetric: calling a live upload dead lets the batch
+    claim a terminal status while her files are on the wire (the Defect D lie,
+    one stage earlier), while calling a dead upload live costs only a batch that
+    waits. Prefer the honest wait.
+    """
+    last = _last_append_at(batch, jobs)
+    if last is None:
+        return False
+    return now - last > timedelta(minutes=settings.upload_declaration_ttl_minutes)
+
+
 def _build_rollup(
     batch: GradingBatch,
     transcriptions: list[Transcription],
     graded_tests: list[GradedTest],
     jobs: list[TranscriptionJob] | None = None,
     needs_eyes: int = 0,
+    now: Optional[datetime] = None,
 ) -> BatchRollup:
     transcribed = sum(1 for t in transcriptions if t.status == "transcribed")
     approved_t = sum(1 for t in transcriptions if t.status == "approved")
@@ -197,7 +262,37 @@ def _build_rollup(
         transcription_failed = len(batch.transcription_failures or [])
         transcribing = max(0, total - len(transcriptions) - transcription_failed)
 
+    # ── [Stage A, migration 025] The UPLOAD stage, one step before transcribing.
+    #
+    # Applied AFTER both branches above and never inside either, because the
+    # legacy branch INFERS `transcribing` from `total` — folding the declared
+    # count into that subtraction would report files that have not arrived as
+    # documents whose VLM call is in flight. Same number, opposite meaning.
+    #
+    # `expected` NULL ⇒ every value below is untouched and this batch's rollup
+    # is byte-identical to the pre-025 response. That is the whole compatibility
+    # story: legacy rows AND clients that never learned to declare.
+    uploading = 0
+    not_received = 0
+    landed = len(jobs) if jobs else 0
+    declared = batch.expected_test_count
+    if declared is not None:
+        outstanding = max(0, declared - landed)
+        if outstanding > 0:
+            if _upload_declaration_expired(
+                batch, list(jobs or []), now or datetime.now(timezone.utc)
+            ):
+                not_received = outstanding
+            else:
+                uploading = outstanding
+        # `max`, not `declared`: appends are allowed for as long as the batch
+        # exists, so jobs CAN outrun the declaration. The denominator must never
+        # be smaller than the work that actually arrived.
+        total = max(declared, landed)
+
     return BatchRollup(
+        uploading=uploading,
+        not_received=not_received,
         transcribing=transcribing,
         transcribed=transcribed,
         needs_eyes=needs_eyes,
@@ -416,6 +511,12 @@ async def create_batch(
         class_id=body.class_id,
         status="in_progress",
         test_count=0,
+        # [Stage A, R9] What she DECLARED. Recorded at create time BECAUSE it is
+        # a fact only the client holds — the server can never infer it later
+        # from the absence of a file (Defect D). None from a client that has not
+        # shipped the declaration yet, which is why nothing downstream may
+        # require it.
+        expected_test_count=body.expected_test_count,
         started_at=datetime.now(timezone.utc),
     )
     db.add(batch)
@@ -424,8 +525,12 @@ async def create_batch(
     logger.info("batch_created", extra={
         "batch_id": str(batch.id),
         "class_id": str(body.class_id) if body.class_id else None,
+        "expected_test_count": body.expected_test_count,
     })
-    return BatchCreateResponse(batch_id=str(batch.id), test_count=0)
+    return BatchCreateResponse(
+        batch_id=str(batch.id), test_count=0,
+        expected_test_count=body.expected_test_count,
+    )
 
 
 async def _existing_append(
@@ -452,9 +557,87 @@ async def _existing_append(
     )
 
 
+#: [Stage D] Above this, the number is not a teacher's uplink.
+#:
+#: A client clock one millisecond AHEAD of the server's yields a duration of one
+#: millisecond and a rate in the tens of Gbit/s — a value that passes every
+#: other guard while being pure fiction. 2 Gbit/s is far above any real
+#: residential or school uplink and far below what skew produces.
+_MAX_PLAUSIBLE_UPLINK_KBPS = 2_000_000
+
+
+def _client_elapsed_ms(started_ms: Optional[str],
+                       received_ms: float) -> Optional[int]:
+    """[Stage D] How long the transfer took, by the client's clock.
+
+    Logged in its own right rather than left to be back-computed from the rate:
+    `bytes*8/kbps` recovers it only when the rate SURVIVED its guards, and an
+    append that took a plausible time from a client whose clock is skewed is
+    exactly the row worth seeing. Same soundness rules as the rate.
+    """
+    if not started_ms:
+        return None
+    try:
+        started = float(started_ms)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(started):
+        return None
+    elapsed = received_ms - started
+    if elapsed <= 0 or elapsed > 86_400_000:
+        return None
+    return int(elapsed)
+
+
+def _uplink_kbps(size_bytes: int, started_ms: Optional[str],
+                 now_ms: float) -> Optional[int]:
+    """[Stage D] Observed uplink for ONE append, in kbit/s, or None.
+
+    THE POINT (and the limit of what this may be used for): the whole latency
+    diagnosis rests on ONE teacher's link — 3.67 Mbps measured on a live batch,
+    and a ~2.0 Mbps figure INFERRED by fitting the reported four-to-six minutes
+    to the measured payload. Neither is a fleet distribution, and whether the
+    byte-reduction work (Stage E/F) is worth its eval risk at all depends on
+    what the real spread turns out to be. So: measure it.
+
+    LOG ONLY, never a control input (R11). Nothing branches on this number.
+
+    The clock is the CLIENT's, sent as a header, so the value carries the
+    client's clock skew and the whole server-side queue time. That is fine for
+    a distribution and useless for anything else — which is precisely why this
+    returns None rather than a guess whenever the arithmetic is not sound:
+    a missing header, an unparseable one, a negative or zero duration (skew),
+    or an implausible duration. Publishing a fabricated Mbps into the logs that
+    decide a model-input change would be the same confident-wrong-number
+    failure this codebase keeps closing (§3.5a).
+    """
+    if not started_ms:
+        return None
+    try:
+        started = float(started_ms)
+    except (TypeError, ValueError):
+        return None
+    # `float("nan")` PARSES, and NaN fails every comparison below silently —
+    # `nan <= 0` and `nan > 86_400_000` are both False — so control would reach
+    # `int(... / nan)` and raise ValueError. That raise lands at the log line,
+    # i.e. AFTER the GCS upload, AFTER the job row committed and AFTER the task
+    # was enqueued: the file is accepted and will transcribe, but the teacher
+    # gets a 500 and re-uploads multiple megabytes for nothing. `inf` is caught
+    # here too, on the same principle.
+    if not math.isfinite(started):
+        return None
+    elapsed_ms = now_ms - started
+    # 24h guards a clock set to the epoch; <=0 guards ordinary skew.
+    if elapsed_ms <= 0 or elapsed_ms > 86_400_000:
+        return None
+    kbps = int(size_bytes * 8 / elapsed_ms)          # bytes/ms → kbit/s
+    return None if kbps > _MAX_PLAUSIBLE_UPLINK_KBPS else kbps
+
+
 @router.post("/{batch_id}/files", response_model=BatchFileAppendResponse)
 async def append_batch_file(
     batch_id: UUID,
+    request: Request,
     file: UploadFile = File(..., description="One student-test PDF"),
     client_file_id: UUID = Form(..., description="Client-generated idempotency key"),
     db: AsyncSession = Depends(get_db),
@@ -471,6 +654,16 @@ async def append_batch_file(
 
     # ── B7: honest per-file validation, §3.2 reasons verbatim ──
     pdf_bytes = await file.read()
+    # [Stage D] The transfer is OVER here: `read()` returns once the body has
+    # arrived. Stopping the clock at the log line instead would fold the GCS
+    # upload, the FOR-UPDATE insert, the commit and the Cloud Tasks enqueue into
+    # a number labelled "uplink" — and under exactly the contention Stage C
+    # exists to fix (appends measured at 0.43s → 15.6s when they overlap a
+    # transcription) a 3 MB file on a fast link would report ~1.6 Mbit/s instead
+    # of ~20. That is not noise: it is a plausible-looking figure biased LOW,
+    # i.e. biased toward arguing FOR the eval-risky byte reduction the number is
+    # supposed to judge.
+    received_at_ms = datetime.now(timezone.utc).timestamp() * 1000.0
     if not pdf_bytes:
         raise HTTPException(422, "קובץ ריק")
     if pdf_bytes[:5] != b"%PDF-":
@@ -545,10 +738,37 @@ async def append_batch_file(
     # retryable (red card) — never an unreachable 'queued' row.
     await _enqueue_transcription_or_mark_failed(job_id)
 
-    logger.info("batch_file_appended", extra={
-        "batch_id": str(batch_id), "job_id": str(job_id),
-        "doc_priority": count,
-    })
+    # [Stage D] The fleet-uplink measurement. `uplink_kbps` is None whenever the
+    # arithmetic is not sound (no header, skew, NaN, an implausible rate) — an
+    # omitted figure, never a fabricated one.
+    #
+    # ⚠ THE NUMBERS GO IN THE MESSAGE, not only in `extra`. This service
+    # configures logging with `basicConfig(format=...%(message)s)` and nothing
+    # else — no dictConfig, no JSON formatter, no google-cloud-logging — so an
+    # `extra=` key is attached to the LogRecord and then never rendered. Every
+    # `extra=` in this file is invisible in Cloud Run today. That is survivable
+    # for a breadcrumb; it is fatal for a MEASUREMENT, and this line exists only
+    # to be queried in a week. `extra` is kept alongside so the fields are
+    # already structured if a formatter is ever added.
+    elapsed_ms = _client_elapsed_ms(
+        request.headers.get("x-upload-started-ms"), received_at_ms)
+    kbps = _uplink_kbps(
+        len(pdf_bytes), request.headers.get("x-upload-started-ms"),
+        received_at_ms)
+    logger.info(
+        "batch_file_appended batch=%s job=%s prio=%d bytes=%d "
+        "client_elapsed_ms=%s uplink_kbps=%s",
+        batch_id, job_id, count, len(pdf_bytes),
+        "-" if elapsed_ms is None else elapsed_ms,
+        "-" if kbps is None else kbps,
+        extra={
+            "batch_id": str(batch_id), "job_id": str(job_id),
+            "doc_priority": count,
+            "bytes": len(pdf_bytes),
+            "client_elapsed_ms": elapsed_ms,
+            "uplink_kbps": kbps,
+        },
+    )
     return BatchFileAppendResponse(
         job_id=str(job_id), filename=file.filename, test_count=count + 1,
     )
@@ -673,6 +893,29 @@ async def rename_batch(
     """
     batch = await get_owned_or_404(db, GradingBatch, batch_id, current_user.id)
 
+    # [Stage A, R9] THE RE-DECLARE — how a file that will never land stops
+    # blocking completion. Refused BELOW the number of files that already
+    # arrived: a declaration is a claim about the future, and it cannot retract
+    # work the batch is already holding. Note what is NOT here — the server
+    # never lowers this on its own; every downward move is the client saying
+    # "that file is not coming" after a terminal verdict or her explicit remove.
+    #
+    # VALIDATED FIRST, before this handler mutates anything. The count below is
+    # a query, and a query autoflushes whatever is already pending on the
+    # session — so validating after the rename would push a half-applied PATCH
+    # to the database on its way to raising 422.
+    if body.expected_test_count is not None:
+        landed = int((await db.execute(
+            select(func.count()).select_from(TranscriptionJob)
+            .where(TranscriptionJob.batch_id == batch_id)
+        )).scalar_one())
+        if body.expected_test_count < landed:
+            raise HTTPException(
+                status_code=422,
+                detail=f"כבר התקבלו {landed} קבצים במקבץ — לא ניתן להצהיר על פחות",
+            )
+        batch.expected_test_count = body.expected_test_count
+
     if body.name is not None:
         name = body.name.strip()
         if not name:
@@ -722,13 +965,15 @@ async def rename_batch(
     await db.commit()
     logger.info("batch_patched", extra={"batch_id": str(batch_id),
                                         "invalidated": invalidated,
-                                        "stamp_applied": stamp_applied})
+                                        "stamp_applied": stamp_applied,
+                                        "expected_test_count": batch.expected_test_count})
     return BatchRenameResponse(
         batch_id=str(batch.id), name=batch.name,
         appendix_include_criteria=bool(batch.appendix_include_criteria),
         stamp_position_default=(StampPosition.model_validate(batch.stamp_position_default)
                                 if batch.stamp_position_default else None),
-        invalidated_count=invalidated, stamp_applied_count=stamp_applied)
+        invalidated_count=invalidated, stamp_applied_count=stamp_applied,
+        expected_test_count=batch.expected_test_count)
 
 
 # ---------------------------------------------------------------------------
@@ -1233,6 +1478,10 @@ async def accept_clean(
                 student_name=student.full_name,
                 filename=transcription.filename,
                 rubric_contract_version=batch.rubric_contract_version,
+                # [029] The OTHER pinned input (see services/grading_inputs). Read
+                # AFTER the approval write above, so it is the contract the grader
+                # will actually consume. Recorded, never inferred.
+                transcription_contract_version=transcription_contract_version(transcription),
                 status="pending",
                 batch_id=batch_id,
             )
@@ -1362,6 +1611,10 @@ async def accept_one(
         student_name=student.full_name,
         filename=transcription.filename,
         rubric_contract_version=batch.rubric_contract_version,
+        # [029] The OTHER pinned input (see services/grading_inputs). Read
+        # AFTER the approval write above, so it is the contract the grader
+        # will actually consume. Recorded, never inferred.
+        transcription_contract_version=transcription_contract_version(transcription),
         status="pending",
         batch_id=batch_id,
     )

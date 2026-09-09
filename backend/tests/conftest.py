@@ -50,6 +50,23 @@ if _ENV_PATH.exists():
         if _line.startswith("TEST_DATABASE_URL=") and "TEST_DATABASE_URL" not in _os.environ:
             _os.environ["TEST_DATABASE_URL"] = _line.split("=", 1)[1].strip()
 
+# NO REAL MAIL FROM A TEST PROCESS — set BEFORE app.config is imported, the
+# same way DATABASE_URL is redirected above, because pydantic-settings reads the
+# environment once at construction.
+#
+# CLAUDE.md 9 already says the provider defaults to `console` because "every
+# test process is an unconfigured environment". That stopped being true the day
+# backend/.env grew EMAIL_PROVIDER=resend for local development: from then on,
+# every signup in tests/api/ sent a REAL verification email to a fabricated
+# @s2test.com address. It went unnoticed because it worked — until Resend
+# rate-limited the sender mid-suite (429 -> the signup endpoint's 502), which
+# ERRORED every fixture that signs a user up. The failure was loud; the year of
+# silent sends before it was not, and that is the half worth preventing.
+#
+# An explicit override wins, so a test that deliberately exercises a provider
+# can still ask for one.
+_os.environ.setdefault("EMAIL_PROVIDER", "console")
+
 if _os.environ.get("TEST_DATABASE_URL"):
     _os.environ["DATABASE_URL"] = _os.environ["TEST_DATABASE_URL"]
     # Pooled connections that outlive a test wedge session teardown on

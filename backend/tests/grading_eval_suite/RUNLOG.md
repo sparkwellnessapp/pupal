@@ -2474,3 +2474,9 @@ second exam, not another dollar on this one.**
 - Dry-run estimate was $0.16 for this rubric: real cost is ~2× — the estimate's chars/token and
   output ratios were optimistic for Hebrew with code tails. Still well inside the $1 envelope.
 - Not an eval result: no GT was scored. A3 (B-34) is still the accuracy number this architecture owes.
+
+## 2026-09-08 · PLAN COMPILER v2 · A1/A2 (spend stages)
+
+- **hobby_tvshow** stage=both
+  - route (Sonnet 5): $0.0692 · 9 calls · failed ['q2.א.c0'] · wall 36.7s · components {'q1.א.c0': ['כותרת המחלקה', 'הגדרת התכונות', 'כותרת הפעולה הבונה', 'גוף הפעולה הבונה - השמת ערכים'], 'q1.א.c1': ['כותרת המחלקה', 'הגדרת התכונות', 'כותרת הפעולה הבונה', 'גוף הבנאי - שיוך הפרמטרים לתכונות'], 'q2.א.c1': ['מימוש הפעולה הבונה - קליטת פרמטרים ועדכון name, channel', 'הפעולה הבונה - קביעת ערכי ברירת מחדל ל-rate ו-isOn', 'לולאה על מספר הצופים (numViewers)', 'קליטת דירוג מכל צופה', 'הוספת הדירוג הנקלט לתכונת rate הקיימת'], 'q2.ב.c3.s3': ['בדיקת תא לא ריק', 'צבירת הדירוג למערך הצוברים במקום הערוץ', 'שימוש בגישה ישירה לתכונה במקום GetRate']}
+  - segment (Haiku 4.5): $0.1134 · 8 calls · clean first try 4 · retried 2 · substituted 1/81 · notes dropped 5 · validator 0 · expressible 188/190 · p50 18.0s max 28.0s · plan `hobby_tvshow/compiled-5cafe7d77698`

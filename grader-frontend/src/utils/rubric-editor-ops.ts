@@ -53,7 +53,9 @@ export function roundToQuarter(value: number): number {
  * Generate a short unique ID suffix (timestamp + random).
  * Used for new question_id, criterion_id, sub_question_id, etc.
  */
-function uid(): string {
+export function uid(): string {   // exported 2026-08-24 for edit-steps' id re-derivation:
+                                  // ONE id minter, so a fallback id can never take a
+                                  // different shape from the ones the editor creates.
     return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 

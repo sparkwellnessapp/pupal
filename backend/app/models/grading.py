@@ -135,6 +135,13 @@ class GradedTest(Base):
     student_id              = Column(UUID(as_uuid=True), ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
     batch_id                = Column(UUID(as_uuid=True), ForeignKey("grading_batches.id", ondelete="SET NULL"), nullable=True)
     rubric_contract_version = Column(String(50), nullable=False)
+    # [029] The OTHER half of the grading input. VER-2 pinned the rubric and
+    # left the transcription identified only by `transcription_id`, so "what
+    # did the grader consume?" was recorded for one input and inferred for the
+    # other (via LCY-1 immutability). NULLABLE and never back-filled: NULL means
+    # "this row predates the pin", and inventing a value would fabricate exactly
+    # the provenance the column exists to record.
+    transcription_contract_version = Column(String(50), nullable=True)
     student_name            = Column(String(255), nullable=False)
     filename                = Column(String(500), nullable=True)
     # none_as_null=True is LOAD-BEARING: /grade and the batch accepts pass

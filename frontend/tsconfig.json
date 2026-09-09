@@ -1,5 +1,13 @@
 {
   "compilerOptions": {
+    // `target` was unset, so `tsc --noEmit` checked against ES5 syntax while
+    // `lib` already promised esnext — an inconsistency nothing had tripped
+    // until `lib/decimal.ts` needed BigInt literals (ES2020) to price points
+    // exactly. ES2020 and not higher: ES2022 would flip
+    // `useDefineForClassFields`, which is a semantics change this PR has no
+    // business making. `noEmit` is true, so this moves nothing but the
+    // checker's syntax floor, and Next transpiles with SWC regardless.
+    "target": "ES2020",
     "lib": [
       "dom",
       "dom.iterable",
@@ -32,7 +40,9 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next-e2e/types/**/*.ts"
+    ".next-e2e/types/**/*.ts",
+    ".next-review/types/**/*.ts",
+    ".next-e2e-3101/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

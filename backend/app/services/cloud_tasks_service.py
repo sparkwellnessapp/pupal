@@ -225,6 +225,44 @@ async def enqueue_plan_build_task_or_log(row_id: UUID) -> None:
         logger.exception("plan_build_enqueue_failed row_id=%s", row_id)
 
 
+# ── the onboarding sheet projection (028 §6) ────────────────────────────────
+#
+# The one kind whose "job id" is not a job row: there is no table here. The
+# projection is a DERIVED view of `users` (ONB-3), so the durable record is the
+# user row the request already committed, and a task that never runs costs a
+# stale sheet cell, not lost work — which is also why the repair is
+# `app.scripts.rebuild_onboarding_sheet` and not a liveness rule.
+#
+# It exists as a task rather than a FastAPI BackgroundTask because
+# BackgroundTasks are EXTINCT in this codebase: prod Cloud Run throttles CPU
+# after the response, so post-response work silently does not run. §5 of the
+# spec says "BackgroundTask"; the substrate ruling supersedes that word, not
+# its intent — the write is still off the teacher's request path.
+
+def _onboarding_sheet_runner():
+    from .onboarding_sheet_service import upsert_user_row
+    return upsert_user_row
+
+
+ONBOARDING_SHEET_KIND = JobKind(
+    label="onboarding_sheet_task",
+    internal_path="/internal/onboarding-sheet/{job_id}/upsert",
+    queue=lambda: settings.cloud_tasks_onboarding_sheet_queue,
+    execution_mode=jobs_execution_mode,
+    inline_runner=_onboarding_sheet_runner,
+)
+
+
+async def enqueue_onboarding_sheet_task_or_log(user_id: UUID) -> None:
+    """Best-effort, ALWAYS. An enqueue failure must not surface to the teacher
+    (ONB-8) and needs no compensating write: her answer is committed, and the
+    reconcile command rebuilds the sheet from it."""
+    try:
+        await enqueue_job(ONBOARDING_SHEET_KIND, user_id)
+    except Exception:
+        logger.exception("onboarding_sheet_enqueue_failed user_id=%s", user_id)
+
+
 # =============================================================================
 # Incoming /internal auth (all kinds)
 # =============================================================================

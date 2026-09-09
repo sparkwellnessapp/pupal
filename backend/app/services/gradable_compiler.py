@@ -81,6 +81,7 @@ def _emit_leaf_scopes(
     scopes: List[GradableScope],
     fallback_scopes: List[str],
     inherited_answer: Optional[str],
+    inherited_from: Optional[str],
     prior_acc: List[PriorPartContext],
 ) -> None:
     """Emit one GradableScope per LEAF of the sub-question tree (PR-3).
@@ -104,8 +105,14 @@ def _emit_leaf_scopes(
     if own_answer is not None:
         matched_answer_keys.add(own_key)
 
-    # What descendants inherit if they have no answer of their own.
-    answer_for_subtree = own_answer if own_answer is not None else inherited_answer
+    # What descendants inherit if they have no answer of their own — and WHOSE
+    # answer it is. The path travels with the text so a leaf can say which
+    # ancestor answered for it, instead of presenting a parent's words as its
+    # own (FC: surface the inference, never hide it).
+    if own_answer is not None:
+        answer_for_subtree, source_for_subtree = own_answer, path
+    else:
+        answer_for_subtree, source_for_subtree = inherited_answer, inherited_from
 
     if sq.sub_questions:
         for child in sq.sub_questions:
@@ -119,14 +126,22 @@ def _emit_leaf_scopes(
                 scopes=scopes,
                 fallback_scopes=fallback_scopes,
                 inherited_answer=answer_for_subtree,
+                inherited_from=source_for_subtree,
                 prior_acc=prior_acc,
             )
         return   # a parent is NOT a scope — its criteria live on its leaves
 
     # Leaf: this is a gradable scope.
     answer_text = own_answer if own_answer is not None else inherited_answer
-    if own_answer is None and answer_text is not None:
+    if own_answer is not None:
+        answer_source, answer_inherited_from = "own", None
+    elif answer_text is not None:
+        answer_source, answer_inherited_from = "inherited", inherited_from
         fallback_scopes.append(f"{question.question_id}.{path}")
+    else:
+        # No answer at all — there is nothing to attribute. Leaving these None
+        # keeps "missing" a single state rather than a source with no text.
+        answer_source, answer_inherited_from = None, None
 
     scopes.append(GradableScope(
         scope_kind="sub_question",
@@ -143,6 +158,8 @@ def _emit_leaf_scopes(
         sub_question_text=sq.text,
         student_answer_text=answer_text,
         alignment="matched" if answer_text is not None else "answer_missing",
+        answer_source=answer_source,
+        answer_inherited_from=answer_inherited_from,
         # PR-G1 v2 (2026-08-25): the PREFIX of parts already emitted for this
         # question, in document order — a snapshot BEFORE this leaf joins it
         # (prefix-only: never current, never subsequent).
@@ -213,6 +230,7 @@ def compile(  # noqa: A001 — shadows built-in; intentional, matches ContractCo
                     scopes=scopes,
                     fallback_scopes=fallback_scopes,
                     inherited_answer=None,
+                    inherited_from=None,
                     prior_acc=prior_acc,
                 )
 
@@ -236,6 +254,10 @@ def compile(  # noqa: A001 — shadows built-in; intentional, matches ContractCo
                 sub_question_text=None,
                 student_answer_text=answer_text,
                 alignment="matched" if answer_text is not None else "answer_missing",
+                # A direct-criteria question is its own scope: any answer it has
+                # is its own, and there is no ancestor to inherit from.
+                answer_source="own" if answer_text is not None else None,
+                answer_inherited_from=None,
             ))
 
     # Sets for building human-readable orphan reason messages

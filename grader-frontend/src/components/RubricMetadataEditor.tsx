@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Settings2 } from 'lucide-react';
+import { SUBJECT_KEYS, SUBJECT_LABEL_HE, isSubjectKey } from '@/lib/subjects';
 
 export interface RubricMetadata {
     rubric_name: string;
@@ -30,6 +31,8 @@ interface RubricMetadataEditorProps {
     onTotalPointsChange: (newTotal: number) => void;
     /** Highlights the name field with an error border */
     hasNameError?: boolean;
+    /** The rubric is saved — its subject is immutable (the server 409s a change). */
+    subjectLocked?: boolean;
 }
 
 export function RubricMetadataEditor({
@@ -40,6 +43,7 @@ export function RubricMetadataEditor({
     onChange,
     onTotalPointsChange,
     hasNameError = false,
+    subjectLocked = false,
 }: RubricMetadataEditorProps) {
     const [isOpen, setIsOpen] = useState(false);
     // Local draft for the total-points input — committed on blur
@@ -97,20 +101,25 @@ export function RubricMetadataEditor({
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                        {/* Subject */}
+                        {/* Subject — a registry key, picked from a list (Phase 3c). Immutable
+                            once the rubric is saved: the server answers a change with 409. */}
                         <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">נושא</label>
-                            <input
-                                type="text"
-                                value={subject}
+                            <label className="block text-xs font-medium text-gray-500 mb-1">תחום הדעת</label>
+                            <select
+                                value={isSubjectKey(subject) ? subject : 'computer_science'}
                                 onChange={e => onChange({ subject: e.target.value })}
-                                className="w-full text-sm border border-surface-300 rounded-lg px-3 py-2 bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-300 text-right"
-                                placeholder="computer_science"
+                                disabled={subjectLocked}
+                                className="w-full text-sm border border-surface-300 rounded-lg px-3 py-2 bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-300 text-right disabled:opacity-70"
                                 dir="rtl"
-                            />
+                            >
+                                {SUBJECT_KEYS.map(k => (
+                                    <option key={k} value={k}>{SUBJECT_LABEL_HE[k]}</option>
+                                ))}
+                            </select>
                         </div>
 
-                        {/* Programming language */}
+                        {/* Programming language — a computer_science field only */}
+                        {(isSubjectKey(subject) ? subject : 'computer_science') === 'computer_science' && (
                         <div>
                             <label className="block text-xs font-medium text-gray-500 mb-1">שפת תכנות</label>
                             <input
@@ -122,6 +131,7 @@ export function RubricMetadataEditor({
                                 dir="rtl"
                             />
                         </div>
+                        )}
                     </div>
 
                     {/* Total points */}

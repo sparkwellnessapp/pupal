@@ -121,8 +121,10 @@ describe('barSegments (D2)', () => {
     const segs = barSegments(p, rollup({ transcribing: 2, transcription_failed: 1, total: 8 }))
     expect(segs).toEqual([
       { kind: 'approved', count: 1 },
-      { kind: 'clean', count: 1 },
-      { kind: 'eyes', count: 3 },       // contentFlagged + identityOnly + touchedClean
+      // ZC-1 v2 (2026-08-23): the identity-pending item ('דנה לוי' — clean
+      // content, new name only, untouched) counts as CLEAN, its home.
+      { kind: 'clean', count: 2 },
+      { kind: 'eyes', count: 2 },       // contentFlagged + touchedClean
       { kind: 'moving', count: 2 },
       { kind: 'failed', count: 1 },
     ])

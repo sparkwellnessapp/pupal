@@ -219,12 +219,20 @@ def test_rename_batch_ok(client, user_a, headers_a, rubric_a):
         # reported rather than silently done, so the teacher is told her PDFs
         # will re-render instead of wondering why a download she just made looks
         # different. A rename alone changes neither, hence the zeros.
+        #
+        # `expected_test_count` (Stage A, migration 025) is the fifth: the same
+        # PATCH is now also the RE-DECLARE — how a file that will never land
+        # stops blocking completion (R9). It echoes the declaration as it stands
+        # so the client can confirm the server's number rather than assume its
+        # own. None here because this batch never declared one, and a rename
+        # does not invent a declaration.
         assert resp.json() == {
             "batch_id": batch_id, "name": "מקבץ כיתה ט׳ · תרגול לולאות",
             "appendix_include_criteria": False,
             "stamp_position_default": None,
             "invalidated_count": 0,
             "stamp_applied_count": 0,
+            "expected_test_count": None,
         }
         detail = client.get(f"/api/v0/batches/{batch_id}", headers=headers_a).json()
         assert detail["name"] == "מקבץ כיתה ט׳ · תרגול לולאות"

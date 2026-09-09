@@ -8,6 +8,7 @@ import {
     completedBatch,
     steadyBatch,
     transcribingOnlyBatch,
+    uploadingBatch,
 } from './seedBatch';
 
 /**
@@ -21,6 +22,11 @@ const STATES: Array<{ name: string; payload: () => unknown; anchor: string }> = 
     { name: 'cold-start', payload: coldStartBatch, anchor: 'zone-identity-wave' },
     { name: 'steady', payload: steadyBatch, anchor: 'zone-clean' },
     { name: 'transcribing-only', payload: transcribingOnlyBatch, anchor: 'zone-ghosts' },
+    // [Stage A] The Defect-D shape: nine files still on the wire. The anchor is
+    // the honesty bar because that is where the upload segment lives — and
+    // because anchoring on `completion-hero` NOT appearing is what this cell is
+    // really about (asserted below, and in the dedicated journey spec).
+    { name: 'uploading', payload: uploadingBatch, anchor: 'segment-bar' },
     { name: 'completed', payload: completedBatch, anchor: 'completion-hero' },
 ];
 
@@ -47,6 +53,12 @@ for (const state of STATES) {
 
             await page.goto(`/batches/${SEED_BATCH_ID}`);
             await expect(page.getByTestId(state.anchor)).toBeVisible();
+            // [Stage A] The cell exists to prove the batch does NOT claim to be
+            // finished while files are still arriving.
+            if (state.name === 'uploading') {
+                await expect(page.getByTestId('completion-hero')).toHaveCount(0);
+                await expect(page.getByTestId('batch-status-chip')).toHaveText('בהעלאה');
+            }
             // Let the expanded steady peek render for the richer cell.
             if (state.name === 'steady' && vp.w > 940) {
                 await page.getByTestId('clean-row').first().click();

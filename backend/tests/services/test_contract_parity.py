@@ -193,12 +193,47 @@ def test_parent_answer_fallback_fires_and_is_recorded():
     assert all(s.alignment == "matched" for s in gt.scopes)
     # Recorded, so its rate is the metric for when depth-2 segmentation gets urgent.
     assert set(gt.parent_answer_fallback_scopes) == {"q1.א.1", "q1.א.2"}
+    # …and each leaf says WHOSE answer it is holding. The text alone cannot
+    # distinguish "the student answered this part" from "this part is being
+    # graded against its parent's answer", and the review surface has to be
+    # able to tell the teacher which one she is looking at (FC).
+    assert all(s.answer_source == "inherited" for s in gt.scopes)
+    assert all(s.answer_inherited_from == "א" for s in gt.scopes)
+
+
+def test_an_own_answer_is_labelled_own_and_names_no_ancestor():
+    gt = compile_gradable(_nested_contract(),
+                          _transcript([(1, "א.1", "ans1"), (1, "א.2", "ans2")]))
+    assert all(s.answer_source == "own" for s in gt.scopes)
+    assert all(s.answer_inherited_from is None for s in gt.scopes)
+
+
+def test_provenance_is_per_leaf_when_only_one_leaf_was_answered():
+    """The mixed case, which a whole-subtree flag could not express: one leaf
+    answered directly, its sibling falling back to the parent."""
+    gt = compile_gradable(
+        _nested_contract(),
+        _transcript([(1, "א", "the whole answer"), (1, "א.1", "just part 1")]),
+    )
+    by_id = {s.sub_question_id: s for s in gt.scopes}
+    assert by_id["א.1"].student_answer_text == "just part 1"
+    assert by_id["א.1"].answer_source == "own"
+    assert by_id["א.1"].answer_inherited_from is None
+    assert by_id["א.2"].student_answer_text == "the whole answer"
+    assert by_id["א.2"].answer_source == "inherited"
+    assert by_id["א.2"].answer_inherited_from == "א"
+    assert gt.parent_answer_fallback_scopes == ["q1.א.2"]
 
 
 def test_leaf_with_no_answer_anywhere_is_answer_missing():
     gt = compile_gradable(_nested_contract(), _transcript([]))
     assert all(s.alignment == "answer_missing" for s in gt.scopes)
     assert gt.parent_answer_fallback_scopes == []
+    # "missing" is ONE state: no text, and therefore no source to attribute.
+    # A source without text would be a second way to say the same thing, and
+    # the two could then disagree.
+    assert all(s.answer_source is None for s in gt.scopes)
+    assert all(s.answer_inherited_from is None for s in gt.scopes)
 
 
 # ===========================================================================

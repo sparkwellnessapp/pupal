@@ -28,11 +28,18 @@ export const BATCH_STATUS_LABELS: Record<string, string> = {
  */
 export function batchStatusLabel(
   status: string,
-  opts?: { transcribing?: number; activeJobs?: number },
+  opts?: { transcribing?: number; activeJobs?: number; uploading?: number },
 ): string {
   if (status === 'in_progress') {
+    // [Stage A] Uploading gets its OWN label, and it outranks 'בתמלול' only
+    // when nothing is actually being transcribed: if documents are being read
+    // she should hear that, and if the only thing happening is files arriving
+    // she should hear THAT — never 'ממתין להחלטות', which claims she is the
+    // one holding the batch up.
     const inFlight = (opts?.transcribing ?? 0) + (opts?.activeJobs ?? 0)
-    return inFlight > 0 ? 'בתמלול' : 'ממתין להחלטות'
+    if (inFlight > 0) return 'בתמלול'
+    if ((opts?.uploading ?? 0) > 0) return 'בהעלאה'
+    return 'ממתין להחלטות'
   }
   return BATCH_STATUS_LABELS[status] ?? status
 }
@@ -49,8 +56,13 @@ export const SEGMENT_LABELS: Record<string, string> = {
   approved: 'אושרו',
   clean: 'נקיים',
   eyes: 'דורשים עיון',
+  // [Stage A] The upload stage, one step before 'בתמלול'. Its own word because
+  // a file still climbing the wire is not being read by anything yet.
+  uploading: 'בהעלאה',
   moving: 'בתמלול',
   failed: 'נכשל',
+  // [Stage A/R9] Declared, never arrived — dead, but not a failure.
+  not_received: 'לא הגיעו',
 }
 
 /**
@@ -71,6 +83,12 @@ export const HEADLINE_CLEAN_READY = (c: number) =>
 export const HEADLINE_CLAUSE_SEP = ' · '
 export const HEADLINE_LAST_TRANSCRIBING = (t: number) =>
   t === 1 ? 'כמעט שם — מבחן אחרון בתמלול' : `כמעט שם — ${t} מבחנים אחרונים בתמלול`
+/** [Stage A] Files still climbing the wire and nothing else to report. NOT
+ *  'כמעט שם' — an upload that has barely started is not almost finished, and
+ *  the transcription headline's reassurance would be a guess about her uplink.
+ *  AM3 plural-aware; PROPOSED for §3.2. */
+export const HEADLINE_UPLOADING = (u: number) =>
+  u === 1 ? 'קובץ אחד עדיין בהעלאה' : `${u} קבצים עדיין בהעלאה`
 export const HEADLINE_ALL_APPROVED = (n: number) =>
   n === 1 ? 'סיימת — המבחן אושר' : `סיימת — כל ${n} המבחנים אושרו`
 
@@ -92,6 +110,23 @@ export const GHOST_RUNNING = 'קוראת עמוד אחר עמוד…'
 export const GHOST_MORE_QUEUED = (n: number) =>
   n === 1 ? '+ אחד נוסף בתור' : `+ ${n} נוספים בתור`  // AM3
 export const NO_FILENAME = 'קובץ ללא שם'
+
+/** [Stage B] The upload lane on the dashboard — the surface that replaces
+ *  sitting on the upload page watching a bar. AM3 plural-aware; PROPOSED for
+ *  §3.2. Feminine imperatives per OD5. */
+export const ZONE_UPLOAD_TITLE = (n: number) =>
+  n === 1 ? 'בהעלאה עכשיו — קובץ אחד' : `בהעלאה עכשיו — ${n}`
+export const ZONE_UPLOAD_SUB =
+  'התמלול מתחיל בכל קובץ ברגע שהוא מגיע — אפשר להתחיל לעיין במה שכבר כאן'
+export const ZONE_UPLOAD_DONE_TITLE = 'ההעלאה הסתיימה'
+/** The lane stays until she dismisses it when files were left behind, so the
+ *  batch never quietly ends up short without her being told which ones. */
+export const ZONE_UPLOAD_LEFT_BEHIND = (n: number) =>
+  n === 1 ? 'קובץ אחד לא הועלה' : `${n} קבצים לא הועלו`
+export const UPLOAD_LANE_DONE = 'הועלה'
+export const UPLOAD_LANE_WAITING = 'ממתין'
+export const UPLOAD_LANE_REMOVE = 'הסירי'
+export const UPLOAD_LANE_DISMISS = 'סגירת רשימת ההעלאה'
 
 // Identity wave (D4)
 export const ZONE_WAVE_TITLE = (n: number) =>
@@ -119,6 +154,14 @@ export const CLEAN_SHOW_ALL = (n: number) => `הצגת כל ${n} השורות`
 // (עמוד אחד / תשובה אחת) — now §3.2 law for the clean-row meta.
 export const CLEAN_ROW_META = (student: string, pages: number, answers: number) =>
   `← ${student} · ${pagesCount(pages)} · ${answersCount(answers)}`
+/** ZC-1 v2 (2026-08-23): identity-pending rows live in the clean panel but
+ *  are excluded from the bulk count until their student exists. AM3
+ *  plural-aware; PROPOSED for §3.2. */
+export const CLEAN_PENDING_STUDENTS = (n: number) =>
+  n === 1
+    ? 'מבחן אחד ממתין ליצירת תלמיד — צרי אותו בזיהוי התלמידים למעלה'
+    : `${n} ממתינים ליצירת תלמיד — צרי אותם בזיהוי התלמידים למעלה`
+
 export const SKIP_NOTICE = (k: number, reasons: string) =>
   k === 1
     ? `מבחן אחד דולג — ${reasons}. הוא ממתין לעיון.`
@@ -170,6 +213,11 @@ export const RAIL_LABEL = 'סומן בגלל:'
 export const EMPTY_ANSWER_PLACEHOLDER =
   'אם התשובה קיימת בסריקה — אפשר להקליד אותה כאן, או להעביר אליה תוכן משאלה אחרת'
 export const APPROVE_AND_CONTINUE = 'אישור והמשך'
+// Answer view/edit split (table rendering, 2026-08-23). The raw text is always
+// the source of truth; the grid is a display derivation over it.
+export const ANSWER_VIEW_SHOW_RAW = 'הצגת הטקסט המקורי'
+export const ANSWER_VIEW_SHOW_TABLE = 'הצגה כטבלה'
+export const ANSWER_VIEW_FLAGS_HIDDEN = 'שורות מסומנות מוצגות רק בטקסט המקורי'
 export const SOFT_REFETCH_NOTE = 'הרענון נכשל — הנתונים יתעדכנו בהמשך'
 export const INTERSTITIAL_TITLE = 'כל המבחנים שסומנו נבדקו'
 export const INTERSTITIAL_BODY = (n: number) =>
@@ -209,11 +257,21 @@ export const UPLOAD_FILE_FAILED = (filename: string) => `ההעלאה של ${fil
 export const UPLOAD_RETRY = 'נסי שוב'
 export const UPLOAD_CLEAR_ALL = 'נקי הכל'          // U2 (feminine per OD5)
 export const UPLOAD_CTA_DISABLED_REASON = 'בחרי לפחות קובץ PDF אחד כדי להתחיל'
-/** Decision 4 (P4 plan): explicit continue once ≥1 landed while failures
- *  remain visible. Feminine imperative per OD5 — proposed alongside AM3. */
-export const UPLOAD_CONTINUE = 'המשיכי למקבץ'
+/* [Stage B / R3] `UPLOAD_CONTINUE` ('המשיכי למקבץ') is DELETED, not orphaned.
+ * Decision 4's explicit continue existed only to end a wait that no longer
+ * happens: she is on the batch before the first file finishes. */
 export const UPLOAD_UPLOADING = 'מעלה…'
 export const UPLOAD_CREATE_ERROR = 'שגיאה ביצירת המקבץ'  // OD4: מקבץ, never אצווה
+/** [Stage B / R10] One uploading batch at a time. Two simultaneous uploads
+ *  would share one lane with no way to tell whose progress is whose, so she is
+ *  pointed at the one already running instead. PROPOSED for §3.2. */
+export const UPLOAD_BUSY_NOTICE = 'העלאה אחרת עדיין רצה — אפשר להתחיל מקבץ חדש כשהיא תסתיים'
+export const UPLOAD_BUSY_LINK = 'למקבץ שבהעלאה'
+/** [Stage B] Signing out navigates hard and takes in-flight transfers with it.
+ *  Every OTHER navigation is now safe, which is precisely why this one must
+ *  ask — nothing else in the app teaches her that leaving costs anything. */
+export const LOGOUT_WHILE_UPLOADING =
+  'יש קבצים שעדיין בהעלאה. יציאה מהחשבון תעצור אותם. להתנתק בכל זאת?'
 
 // Batches list page (P5/L1, §3.2). Count-bearing lines are AM3 plural-aware;
 // the n=1 forms are PROPOSED in the P5 plan (owner sign-off at the P5 review),
@@ -234,6 +292,18 @@ export const LIST_ACTION_PENDING = (n: number) =>
   n === 1 ? 'מבחן אחד ממתין להחלטה' : `${n} ממתינים להחלטה`
 export const LIST_ACTION_FAILED = (n: number) =>
   n === 1 ? 'תמלול אחד נכשל' : `${n} תמלולים נכשלו`
+/** [Stage A] Declared files still on the wire. AM3 plural-aware; PROPOSED
+ *  for §3.2. The list is the one batch surface with no upload lane, so this
+ *  line is where a still-arriving batch says so. */
+export const LIST_ACTION_UPLOADING = (n: number) =>
+  n === 1 ? 'קובץ אחד בהעלאה' : `${n} קבצים בהעלאה`
+/** [Stage A / R9] Declared, never arrived, and the batch has gone quiet past
+ *  the backstop. Deliberately NOT phrased as a failure: nothing was transcribed
+ *  and nothing broke — the file never reached us and is still on her machine,
+ *  so the sentence that helps her is the one that says to send it again. */
+export const LIST_ACTION_NOT_RECEIVED = (n: number) =>
+  n === 1 ? 'קובץ אחד לא הגיע — אפשר להעלות אותו שוב'
+    : `${n} קבצים לא הגיעו — אפשר להעלות אותם שוב`
 export const LIST_EMPTY = 'אין מקבצים עדיין'
 export const LIST_EMPTY_CTA = 'צרי מקבץ ראשון'
 export const LIST_NEW_BATCH = 'מקבץ חדש'   // was `אצווה חדשה` (OD4)

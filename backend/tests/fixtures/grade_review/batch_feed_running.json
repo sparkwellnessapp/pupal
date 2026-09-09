@@ -10,6 +10,8 @@
   "completed_at": null,
   "created_at": "2026-08-31T17:58:00+00:00",
   "rollup": {
+    "uploading": 0,
+    "not_received": 0,
     "transcribing": 0,
     "transcribed": 5,
     "needs_eyes": 0,

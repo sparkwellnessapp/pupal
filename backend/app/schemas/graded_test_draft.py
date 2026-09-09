@@ -221,6 +221,41 @@ class CriterionOutcome(BaseModel):
         return str(v)
 
 
+class ScopeAnswer(BaseModel):
+    """THE ANSWER THIS SCOPE WAS GRADED AGAINST — evidence, not decoration.
+
+    EVD-1 (WhatWasGradedIsWhatIsShown). The grading gate exists so the teacher
+    validates the AI against WHAT IT ACTUALLY SAW. Before this field the answer
+    was stored nowhere and re-derived on the client by a second rule, which
+    drifted: a depth-2 leaf (`q1.א.1`) whose answer was inherited from `q1.א`
+    rendered "no answer in the approved transcription" NEXT TO a full-marks
+    grade and a verbatim quotation from that same answer. Two derivations of
+    one fact cannot be kept in agreement; one recorded fact can.
+
+    Stored beside the verdict for the same reason `CriterionOutcome.quote` is:
+    both are the evidence the grade rests on, and evidence that has to be
+    recomputed from mutable inputs is not evidence. It is also immune to the
+    one thing a recompute cannot survive — `rubrics.contract_json` holds only
+    the LATEST contract, so once a rubric is recompiled the pinned contract the
+    grader used is unrecoverable.
+
+    `source` is the half the old client join could not express:
+      "own"       — the transcription answered this exact scope.
+      "inherited" — it answered `inherited_from`, and this scope is graded
+                    against that text. Surfaced to the teacher, never hidden
+                    (FC): presenting a parent's words as the leaf's own is a
+                    silent repair.
+    """
+
+    model_config = {"frozen": True}
+
+    text: str
+    source: Literal["own", "inherited"]
+    #: The ancestor path whose answer this is, e.g. "א" for the leaf "א.1".
+    #: None exactly when source == "own".
+    inherited_from: Optional[str] = None
+
+
 class ScopeOutcome(BaseModel):
     """
     Grading result for one GradableScope (1:1 with GradableTest.scopes input).
@@ -255,6 +290,14 @@ class ScopeOutcome(BaseModel):
     criterion_outcomes: List[CriterionOutcome]
     flags: List[FlaggedOutcome] = Field(default_factory=list)
     graded_by: Literal["llm", "skipped_no_answer", "failed", "excluded_by_selection"]
+    # [EVD-1] What this scope was graded against. None means genuinely no
+    # answer — which must coincide with graded_by == "skipped_no_answer", and
+    # the read path refuses to serve any other combination.
+    #
+    # Optional with a None default so every row written before this field
+    # still validates; the read path fills those in from the compiler
+    # (services/grading_inputs) rather than leaving the surface to guess.
+    student_answer: Optional[ScopeAnswer] = None
     retry_count: int = 0                    # 0 = first-try success/failure; 1 = needed retry
     input_tokens: int = 0                   # S8 — LLM input tokens for this scope; 0 for skipped/failed
     output_tokens: int = 0                  # S8 — LLM output tokens for this scope; 0 for skipped/failed

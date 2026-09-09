@@ -1,13 +1,20 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { seedAuth } from './fixtures';
-import { AUTH_ME, fulfillJson } from './seedBatch';
+import { AUTH_ME, fulfillJson, seedBatch } from './seedBatch';
 
 /**
  * §4.2 — the UPLOAD screenshot matrix (P4): four states × two viewports,
  * one PNG per cell under e2e/review-artifacts/P4/. Cells:
- *   empty · files-listed (dup chip + one excluded row) · mid-upload
- *   (per-file % + aggregate bar) · complete (drained: done ✓, a terminal
- *   422 row, the explicit continue — the honest "complete with failures").
+ *   empty · files-listed (dup chip + one excluded row) · lane-mid-upload ·
+ *   lane-complete.
+ *
+ * [Stage B / R3] The last two cells MOVED. They used to photograph the upload
+ * page mid-transfer, because the redirect waited for the last byte; she is now
+ * sent to the dashboard on create and the transfers render in its lane. So the
+ * cells still photograph the same two moments — one file landed and one still
+ * climbing, then drained with a terminal 422 — at their new address. The upload
+ * page itself has no in-flight state left to photograph.
+ *
  * The protocol's second half — opening each PNG and writing the structural
  * note — happens in the phase report.
  */
@@ -51,6 +58,14 @@ async function install(page: Page, opts: {
             }
             return fulfillJson(route, { job_id: `job-${filename}`, filename, test_count: 1 });
         }
+        // [Stage B] The two in-flight cells now photograph the DASHBOARD, so
+        // this route has to answer with a real payload rather than `{}` —
+        // the lane renders beside the board, not instead of it.
+        if (method === 'GET' && url.includes(`/api/v0/batches/${BATCH_ID}`)) {
+            return fulfillJson(route, seedBatch({
+                id: BATCH_ID, items: [], rollup: { uploading: 1, total: 2 },
+            }));
+        }
         return fulfillJson(route, {});
     });
 }
@@ -90,7 +105,7 @@ for (const vp of VIEWPORTS) {
         });
     });
 
-    test(`matrix: upload mid-upload @ ${vp.w}x${vp.h}`, async ({ page }) => {
+    test(`matrix: upload lane-mid-upload @ ${vp.w}x${vp.h}`, async ({ page }) => {
         await page.setViewportSize({ width: vp.w, height: vp.h });
         await seedAuth(page);
         await install(page, { holdFilenames: ['בדרך.pdf'] });
@@ -100,15 +115,20 @@ for (const vp of VIEWPORTS) {
             pdfPayload('נחת.pdf'), pdfPayload('בדרך.pdf'),
         ]);
         await page.getByTestId('upload-cta').click();
-        await expect(page.getByTestId('row-done')).toBeVisible();          // נחת ✓
-        await expect(page.getByTestId('row-uploading')).toBeVisible();     // בדרך %
-        await expect(page.getByTestId('upload-aggregate')).toBeVisible();
+
+        // She is on the dashboard within a beat, and BOTH transfers are still
+        // running there — the one that landed and the one that has not.
+        await expect(page).toHaveURL(new RegExp(`/batches/${BATCH_ID}$`));
+        const lane = page.getByTestId('zone-upload');
+        await expect(lane).toBeVisible();
+        await expect(lane.locator('[data-state="done"]')).toHaveCount(1);       // נחת ✓
+        await expect(lane.locator('[data-state="uploading"]')).toHaveCount(1);  // בדרך %
         await page.screenshot({
-            path: `e2e/review-artifacts/P4/upload-mid-upload-${vp.w}x${vp.h}.png`, fullPage: true,
+            path: `e2e/review-artifacts/P4/upload-lane-mid-upload-${vp.w}x${vp.h}.png`, fullPage: true,
         });
     });
 
-    test(`matrix: upload complete @ ${vp.w}x${vp.h}`, async ({ page }) => {
+    test(`matrix: upload lane-complete @ ${vp.w}x${vp.h}`, async ({ page }) => {
         await page.setViewportSize({ width: vp.w, height: vp.h });
         await seedAuth(page);
         await install(page, { reject422: ['ריק.pdf'] });
@@ -118,11 +138,16 @@ for (const vp of VIEWPORTS) {
             pdfPayload('מבחן_דנה.pdf'), pdfPayload('ריק.pdf'),
         ]);
         await page.getByTestId('upload-cta').click();
-        await expect(page.getByTestId('row-done')).toBeVisible();
-        await expect(page.getByTestId('row-failed')).toBeVisible();        // the 422's verdict, verbatim
-        await expect(page.getByTestId('upload-continue')).toBeVisible();   // decision 4
+
+        await expect(page).toHaveURL(new RegExp(`/batches/${BATCH_ID}$`));
+        const lane = page.getByTestId('zone-upload');
+        // Drained with a file left behind: the lane STAYS, because a batch that
+        // is quietly short is the silent drop U4 exists to kill.
+        await expect(lane.locator('[data-state="failed"]')).toHaveCount(1);
+        await expect(lane.getByTestId('upload-lane-reason')).toBeVisible();  // the 422's verdict, verbatim
+        await expect(lane.getByTestId('upload-lane-dismiss')).toBeVisible();
         await page.screenshot({
-            path: `e2e/review-artifacts/P4/upload-complete-${vp.w}x${vp.h}.png`, fullPage: true,
+            path: `e2e/review-artifacts/P4/upload-lane-complete-${vp.w}x${vp.h}.png`, fullPage: true,
         });
     });
 }

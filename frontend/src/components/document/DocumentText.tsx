@@ -1,9 +1,10 @@
 import { Fragment, type ReactNode } from 'react';
 import { ImageOff } from 'lucide-react';
-import { parseMarkdownText, inferGridDir, type TableSegment } from '@/utils/markdown-parser';
+import { parseMarkdownText } from '@/utils/markdown-parser';
 import { detectTableRuns } from '@/utils/detect-table-runs';
-import { stripColorMarkers, groupTextBlocks, bidiRuns, looksLikeCode } from '@/utils/document-text';
+import { stripColorMarkers, groupTextBlocks, looksLikeCode } from '@/utils/document-text';
 import { CodeBlock } from './CodeBlock';
+import { BidiText, DocTable } from './DocTable';
 
 /**
  * DocumentText — the mirror's verbatim-text renderer (Design Recovery Phase 2).
@@ -19,18 +20,8 @@ import { CodeBlock } from './CodeBlock';
 
 const NUMERIC_ISH = /^-?\d+(\.\d+)?$/;
 
-// ── bidi-isolated inline text: wrap Latin/code runs so RTL can't reorder them ──
-function BidiText({ text }: { text: string }) {
-    return (
-        <>
-            {bidiRuns(text).map((run, i) =>
-                run.latin
-                    ? <bdi key={i} dir="ltr">{run.text}</bdi>
-                    : <Fragment key={i}>{run.text}</Fragment>,
-            )}
-        </>
-    );
-}
+// `BidiText` and `DocTable` now live in ./DocTable (shared with the
+// transcription-review surface); the markup is unchanged.
 
 // ── prose: paragraphs (blank-line separated), single newlines → <br> ──
 function Prose({ text }: { text: string }) {
@@ -69,51 +60,6 @@ function MiniTable({ rows, hasHeader }: { rows: string[][]; hasHeader: boolean }
                     ))}</tr>
                 ))}</tbody>
             </table>
-        </div>
-    );
-}
-
-// ── marked table (parseMarkdownText) → document-styled, hairline, muted header ──
-function DocTable({ segment }: { segment: TableSegment }) {
-    const { rows, nestedTables } = segment;
-    if (rows.length === 0) return null;
-    // A single-row table is a data array (e.g. [TABLE N: 1xC] — an arr/trace row):
-    // its one row is DATA, not a header. A header needs at least one data row
-    // beneath it to be one. Render 1-row tables as a body row, no <thead>.
-    const hasHeader = rows.length >= 2;
-    const header = hasHeader ? rows[0] : null;
-    const dataRows = hasHeader ? rows.slice(1) : rows;
-    // CONSERVE THE SOURCE. Cells arrive in LOGICAL order, so direction decides
-    // which end is column 1 — and the document already told us (`bidiVisual` →
-    // the marker's dir token). Only fall back to guessing from content for legacy
-    // markers that carry no token: guessing mirrored 16 tables across the
-    // fixtures, in BOTH directions (an RTL row of digits, and an LTR table that
-    // merely contained Hebrew).
-    const dir = segment.dir ?? inferGridDir(rows);
-    const align = dir === 'rtl' ? 'text-right' : 'text-left';
-    return (
-        <div className="my-3 overflow-x-auto" dir={dir}>
-            <table className="border-collapse text-doc-table w-full">
-                {header && <thead><tr>{header.map((c, i) => (
-                    <th key={i} className={`border border-surface-200 px-3 py-1.5 text-surface-500 font-medium ${align}`}><BidiText text={c} /></th>
-                ))}</tr></thead>}
-                <tbody>
-                    {dataRows.map((row, ri) => (
-                        <tr key={ri}>{row.map((c, ci) => (
-                            <td key={ci} className={`border border-surface-200 px-3 py-1.5 text-surface-800 align-top ${align}`}><BidiText text={c} /></td>
-                        ))}</tr>
-                    ))}
-                </tbody>
-            </table>
-            {nestedTables.length > 0 && (
-                <div className="mt-1 space-y-1">
-                    {nestedTables.map((nb, i) => (
-                        <div key={i} className="text-doc-meta text-surface-500 pr-3">
-                            {nb.rows.map((r, ri) => <div key={ri} dir={dir}><BidiText text={r.join(' · ')} /></div>)}
-                        </div>
-                    ))}
-                </div>
-            )}
         </div>
     );
 }
@@ -183,7 +129,7 @@ export function SolutionBody({ text, className = '' }: { text: string; className
         >
             {segments.map((seg, i) =>
                 seg.type === 'table'
-                    ? <DocTable key={i} segment={seg} />
+                    ? <DocTable key={i} rows={seg.rows} dir={seg.dir} nestedTables={seg.nestedTables} />
                     : looksLikeCode(seg.content)
                         ? <CodeBlock key={i} code={seg.content} wrap bare />
                         : <Prose key={i} text={seg.content} />,
@@ -204,7 +150,7 @@ export function DocumentText({ text, className = '' }: { text: string; className
                 if (seg.rows.length === 1 && (seg.rows[0]?.length ?? 0) <= 1) {
                     return <TextSegment key={i} text={seg.rows[0]?.[0] ?? ''} />;
                 }
-                return <DocTable key={i} segment={seg} />;
+                return <DocTable key={i} rows={seg.rows} dir={seg.dir} nestedTables={seg.nestedTables} />;
             })}
         </div>
     );

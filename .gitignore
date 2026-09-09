@@ -40,3 +40,29 @@ desktop.ini
 *.swp
 *.swo
 *~
+
+# --- Internal planning material (owner ruling 2026-09-09) -------------------
+# Plans, specs, PR briefs, mission reports, trackers and design mockups stay
+# OUT of the repo. Both remotes are PUBLIC, and this material is working
+# context — not something the codebase needs in order to be built or run.
+#
+# ANCHORED to the repo root (leading `/`): documentation that belongs to the
+# project lives under `docs/`, and nothing here may reach into it.
+/PLAN_*.md
+/PLANS_*.md
+/PR_*.md
+/PR5_*.md
+/REPORT_*.md
+/MISSION_*.md
+/TRACKER_*.md
+/CENSUS_*.md
+/CAPACITY_PLAN_*.md
+/GraderAgent_sprint_plan.md
+/DESIGN_RECOVERY_SUITE.md
+/batch_redesign_LOG.md
+/vivi-*-spec*.md
+/vivi-*-plan.md
+/vivi-*mockup*.html
+# One-off measurement dumps from a single investigation.
+/schema_attest_pre_wipe.txt
+/c1_payload_measurement.txt

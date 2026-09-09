@@ -27,7 +27,7 @@ class FlagVerdictResponse(BaseModel):
     """Flag triage result for a single transcription."""
     review_needed: bool
     reasons: list[str]   # subset of: "unparseable", "grounding_retry",
-                         #  "low_confidence", "low_logprob_span", "code_lint",
+                         #  "low_confidence", "low_logprob_span",
                          #  "missing_answers", "segmentation_mismatch",
                          #  "student_unassigned", "student_unmatched"
 
@@ -67,6 +67,19 @@ class BatchRollup(BaseModel):
     in flight (batch.test_count minus transcription rows minus ledgered
     transcription failures — migration 015).
     """
+    # [Stage A, migration 025] The UPLOAD stage, one step before `transcribing`:
+    # files she declared that have not landed yet. `max(0, expected − COUNT(jobs))`
+    # while appends are still arriving. 0 for every legacy batch (expected NULL),
+    # which is what makes this field additive rather than a behaviour change.
+    uploading: int = 0
+    # [Stage A, R9] The backstop's verdict: declared, never arrived, and nothing
+    # has appended for `upload_declaration_ttl_minutes`. Counted as DEAD (like a
+    # failed doc) so the batch reaches a terminal status instead of an eternal
+    # "in_progress" when the teacher closes the tab mid-upload. A fact by
+    # omission — the batch never learned these files' names, so it reports the
+    # COUNT and nothing it cannot stand behind. Mutually exclusive with
+    # `uploading` by construction.
+    not_received: int = 0
     transcribing: int           # PDFs whose VLM call is in-flight
     transcribed: int            # transcription.status='transcribed' (awaiting review)
     # Closeout/Ruling 1: the flagged-or-touched subset of `transcribed` — i.e.
@@ -88,7 +101,13 @@ class BatchRollup(BaseModel):
     approved: int               # graded_test.status='approved'
     failed: int                 # graded_test.status='failed'
     transcription_failed: int = 0  # ledgered transcription failures (dead, not in flight)
-    total: int                  # = batch.test_count
+    # The denominator. For a jobs-era batch this is COUNT(jobs) — what arrived —
+    # UNLESS she declared an expected count (migration 025), in which case it is
+    # `max(expected, COUNT(jobs))`: the honest denominator counts the files still
+    # on the wire, and never under-reports if appends outran the declaration.
+    # (The old comment said "= batch.test_count"; that stopped being true at B9.5,
+    # when job rows became the truth.)
+    total: int
 
 
 class TranscriptionFailureItem(BaseModel):
@@ -230,6 +249,22 @@ class BatchListItem(BaseModel):
     rollup: BatchRollup
 
 
+#: [Stage A] Server-side ceiling on a DECLARATION.
+#:
+#: The declared count is a client-supplied number promoted to the batch's
+#: authoritative denominator — it drives `total`, the status derivation and
+#: every count the teacher reads. §9's rule is that a request body never gets
+#: to be that without validation, and an unbounded one is not merely silly:
+#: declaring a billion locks the batch to `in_progress` and renders "1000000000
+#: מבחנים" on every surface for the full backstop window.
+#:
+#: 50 mirrors the upload surface's own `MAX_FILES` cap, so the bound the
+#: teacher can actually reach through the UI is the bound the server enforces.
+#: A batch may still GROW past it by appending — this limits the claim, not the
+#: work (`total` is `max(declared, landed)`).
+MAX_DECLARED_TEST_COUNT = 50
+
+
 class BatchCreateRequest(BaseModel):
     """B9 intake v2: metadata-only create. Files arrive one per request via
     POST /batches/{id}/files — the legacy every-PDF-in-one-multipart body hit
@@ -237,11 +272,21 @@ class BatchCreateRequest(BaseModel):
     rubric_id: UUID
     class_id: Optional[UUID] = None
     name: Optional[str] = None
+    # [Stage A, migration 025] How many files she selected. OPTIONAL, and the
+    # optionality is load-bearing in BOTH directions: the backend deploys before
+    # the frontend, so a client that has never heard of this field must keep
+    # working (→ None → today's behaviour exactly), and a batch that genuinely
+    # declares nothing must not be forced to claim zero.
+    expected_test_count: Optional[int] = Field(None, ge=0, le=MAX_DECLARED_TEST_COUNT)
 
 
 class BatchCreateResponse(BaseModel):
     batch_id: str
     test_count: int
+    # Echoed so the client can confirm what the server recorded rather than
+    # assuming its own declaration landed (it is the number every subsequent
+    # re-declare is computed against).
+    expected_test_count: Optional[int] = None
 
 
 class BatchFileAppendResponse(BaseModel):
@@ -292,6 +337,12 @@ class BatchRenameRequest(BaseModel):
     # Setting this IS «apply to all»: it writes the batch default and clears
     # the per-test positions the picker chose, never the ones she dragged.
     stamp_position_default: Optional[StampPosition] = None
+    # [Stage A, R9] THE RE-DECLARE. How a file that will never land stops
+    # blocking completion: the client lowers the declared count on a terminal
+    # event (a 422 verdict, or she removed the file). Refused below COUNT(jobs)
+    # — a declaration cannot claim fewer files than have already arrived. The
+    # SERVER never writes this itself.
+    expected_test_count: Optional[int] = Field(None, ge=0, le=MAX_DECLARED_TEST_COUNT)
 
 
 class BatchRenameResponse(BaseModel):
@@ -299,6 +350,8 @@ class BatchRenameResponse(BaseModel):
     name: Optional[str] = None
     appendix_include_criteria: bool = False
     stamp_position_default: Optional[StampPosition] = None
+    # [Stage A] the declaration as it now stands (None = never declared).
+    expected_test_count: Optional[int] = None
     # [PR-G9] how many cached returned exams this change invalidated. Reported
     # rather than silently dropped: the teacher is told the PDFs will re-render,
     # instead of wondering why a download she just made is different.

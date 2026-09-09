@@ -303,6 +303,16 @@ class Settings(BaseSettings):
     plan_wait_s: float = 240.0                    # OD-W3: how long a grade waits on a LIVE builder
     plan_build_heartbeat_ttl_minutes: int = 5     # building rows lapse after this without a heartbeat
     plan_build_dispatch_ttl_minutes: int = 90     # queued rows never claimed → failed (backstop)
+    # Upload-declaration backstop (migration 025, ruling R9). NOT a LIV-1 arm:
+    # there is no row to reap — the files it describes never reached us, so
+    # nothing can be marked failed. It is a READ-TIME fact only: a batch whose
+    # declared count still exceeds its job count, and which has received no
+    # append for this long, reports the difference as `not_received` instead of
+    # an eternal `uploading`. 90 minutes matches the transcription DISPATCH
+    # backstop for the same reason it was chosen there — a slow uplink under a
+    # 30-file batch makes a long wait honest, and declaring her files dead while
+    # they are still climbing would be the confident lie in the other direction.
+    upload_declaration_ttl_minutes: int = 90
 
     # Extraction LLM pin for the docx_v3 pipeline. Read from env/.env (Pydantic maps
     # EXTRACTION_LLM_MODEL etc. case-insensitively); default = the eval-validated
@@ -386,6 +396,34 @@ class Settings(BaseSettings):
     email_provider: str = "console"
     resend_api_key: Optional[SecretStr] = None
     email_from: str = "Vivi <noreply@vivi-assistant.com>"
+
+    # [028] Where operational digests go (the 14-day re-ask digest, §7).
+    #
+    # DECLARED, not inherited from `extra = "allow"`: ALERT_EMAIL has been in
+    # backend/.env since before this PR and no code ever read it, so it typed
+    # as an undeclared string on the model and the digest would have had to
+    # reach for `getattr(settings, "alert_email", None)` — the defensive
+    # boundary read CLAUDE.md §6 names as the thing that turns a loud failure
+    # into a quiet lie. None ⇒ the digest refuses to run rather than sending
+    # nowhere.
+    alert_email: Optional[str] = None
+
+    # [028] The Google Sheet the onboarding queue projects into (§6).
+    #
+    # Unset ⇒ the projection is a NO-OP that logs once. This is load-bearing,
+    # not politeness: the sheet is a DERIVED view (ONB-3 — the DB is the
+    # record, and `rebuild_onboarding_sheet` can reconstruct it from the users
+    # table alone), so an environment without it must still boot, still take
+    # her answer, and still commit it. Every test process is such an
+    # environment.
+    onboarding_sheet_id: Optional[str] = None
+
+    # [028] The queue carrying the sheet-upsert task. Its OWN queue, per the
+    # substrate's standing rule that kinds tune independently — and here it
+    # matters more than usual: this is the only kind whose work is a call to a
+    # THIRD-PARTY API with its own quota, and letting a Sheets rate limit
+    # share a queue with grading would let a spreadsheet throttle a grade.
+    cloud_tasks_onboarding_sheet_queue: str = "onboarding-sheet"
 
     # Google Cloud Storage settings
     gcs_bucket_name: str = "grader-vision-pdfs"

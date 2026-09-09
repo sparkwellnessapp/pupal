@@ -86,7 +86,8 @@ export function reasonAnchors(
       case 'student_unmatched':
         return { reason, anchor: { kind: 'student' } }
 
-      case 'code_lint':
+      // ('code_lint' was here until 2026-09-06 — retired as a triage reason;
+      //  it is still an annotation, rendered as an answer badge by review-flags.)
       case 'segmentation_mismatch':
         return { reason, anchor: annotationAnchor(reason) }
 

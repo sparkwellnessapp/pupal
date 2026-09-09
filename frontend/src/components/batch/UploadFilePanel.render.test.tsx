@@ -1,27 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import type { UploadItemState } from '@/utils/batch-upload';
 import { UploadFilePanel } from './UploadFilePanel';
 
 /**
- * U2/U3 render pins (SSR): the §3.2 dropzone copy, LTR MB size islands, the
- * advisory dup chip, and the three U3 row states. The interactive halves
- * (filter-with-reason, truncation notice, retry) are pure-logic-tested in
- * batch-upload.test.ts and journey-tested in Playwright (W5).
+ * U2 render pins (SSR): the §3.2 dropzone copy, LTR MB size islands, and the
+ * advisory dup chip. The interactive halves (filter-with-reason, truncation
+ * notice) are pure-logic-tested in batch-upload.test.ts and journey-tested in
+ * Playwright (W5).
+ *
+ * [Stage B / R3] The U3 row-state pins that used to live here are RE-HOMED to
+ * `UploadLane.render.test.tsx`, not dropped (the §4.4a precedent): progress %,
+ * the done tick, the server's failure reason verbatim, and retry-only-where-a-
+ * retry-can-heal are all asserted there. They moved because the surface moved —
+ * the queue is no longer owned by this page, and the teacher watches it on the
+ * dashboard while the transfers run.
  */
 
 const pdf = (name: string, bytes: number) =>
     new File([new Uint8Array(bytes)], name, { type: 'application/pdf' });
 
-function render(files: File[], uploadStates?: ReadonlyMap<number, UploadItemState>) {
+function render(files: File[]) {
     return renderToStaticMarkup(
-        <UploadFilePanel
-            files={files}
-            onFilesChange={() => {}}
-            uploadStates={uploadStates ?? null}
-            onRetry={() => {}}
-        />,
+        <UploadFilePanel files={files} onFilesChange={() => {}} />,
     );
 }
 
@@ -42,27 +43,12 @@ describe('UploadFilePanel — U2 render', () => {
         expect(html).toContain('כפילות אפשרית — שם וגודל זהים');
     });
 
-    it('U3 row states: uploading %, done ✓, failed reason + retry', () => {
-        const states = new Map<number, UploadItemState>([
-            [0, { kind: 'uploading', pct: 42 }],
-            [1, { kind: 'done', jobId: 'j1' }],
-            [2, { kind: 'failed', reason: 'קובץ ריק', retryable: false }],
-            [3, { kind: 'failed', reason: 'ההעלאה נקטעה', retryable: true }],
-        ]);
-        const html = render(
-            [pdf('a.pdf', 100), pdf('b.pdf', 100), pdf('c.pdf', 100), pdf('d.pdf', 100)],
-            states,
+    it('locks every affordance while a create is in flight', () => {
+        // `disabled` is now the ONLY thing that locks the panel — the queue no
+        // longer lives here to do it.
+        const html = renderToStaticMarkup(
+            <UploadFilePanel files={[pdf('a.pdf', 100)]} onFilesChange={() => {}} disabled />,
         );
-        expect(html).toContain('data-testid="row-uploading"');
-        expect(html).toContain('42%');
-        expect(html).toContain('data-testid="row-done"');
-        const failed = html.match(/data-testid="row-failed"/g) ?? [];
-        expect(failed).toHaveLength(2);
-        expect(html).toContain('קובץ ריק');
-        // Retry renders ONLY on the retryable failure (a 422 is terminal).
-        const retries = html.match(/data-testid="row-retry"/g) ?? [];
-        expect(retries).toHaveLength(1);
-        // Locked while uploading: no clear-all, no per-row remove.
         expect(html).not.toContain('data-testid="clear-all"');
         expect(html).not.toContain('aria-label="הסרת');
     });

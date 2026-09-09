@@ -1,0 +1,661 @@
+{
+ "plan_version": "bagrut_899371/v0-skeleton",
+ "exam_id": "bagrut_899371",
+ "rubric_contract_sha256": "5d58b7eab86bca2993ee17a56614cef3f79efbcf24d874a229168393f1b23b0e",
+ "rubric_contract_version": "d7f1d3c8-7c74-44c3-9fcd-aa4bc0b9e8cb",
+ "precision": "0.25",
+ "_instructions": "Fill `checks` per terminal. Each check: check_id (\"<terminal_id>.k<N>\" required / \".t<N>\" tariff / \".n<N>\" note_only), description_he (requirement-phrased so that 'met' means SATISFIED, and never stating points), kind, points, partial_fraction, optional equivalence_note / charge_group, and rubric_quote — a VERBATIM span of this scope's own text (V9; elide with … but never paraphrase). Per terminal, Σ required.points must equal points_possible EXACTLY, and every value must sit on the precision grid. Delete every key beginning with `_` when done; they are authoring aids, not plan fields.",
+ "terminals": [
+  {
+   "terminal_id": "q1.א.1.c0",
+   "points_possible": "12",
+   "scope": "q1.א.1",
+   "description": "ניקוד טבלת מעקב סה\"כ 12 נקודות: 17 תאים  0.7 כל תא",
+   "checks": [],
+   "_re_case": "case_1_uniform_units",
+   "_units": 17,
+   "_stated_per_unit": "0.7",
+   "_stated_total": "11.9",
+   "_note": "17 uniform units at 0.7 each = 11.9 vs points_possible 12. R-E Case 1: emit ONE counted check with points=12, unit_count=17; per-unit is derived, and the stated per-unit is her rounding, not an error. NOTE: the `counted` kind is not implemented yet."
+  },
+  {
+   "terminal_id": "q1.א.2.c0",
+   "points_possible": "1.5",
+   "scope": "q1.א.2",
+   "description": "הבנת הבדיקה של \"מחלק ללא שארית\"~  1.5 נק'",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q1.א.2.c1",
+   "points_possible": "1.5",
+   "scope": "q1.א.2",
+   "description": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו  0.5 נק'",
+   "checks": [],
+   "_re_case": "case_2_partial_itemisation",
+   "_stated_components": [
+    "0.5"
+   ],
+   "_stated_total": "0.5",
+   "_note": "one component stated (0.5) below points_possible 1.5; the remainder 1.0 is unenumerated. R-E Case 2."
+  },
+  {
+   "terminal_id": "q1.ב.1.c0",
+   "points_possible": "6",
+   "scope": "q1.ב.1",
+   "description": "ניקוד: 6 נקודות",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q1.ב.2.c0",
+   "points_possible": "2",
+   "scope": "q1.ב.2",
+   "description": "זיהוי שמדובר בפעולת סכימה של איברי המערך – 2 נק'",
+   "checks": [],
+   "_re_case": "clean",
+   "_detected_deductions": [
+    {
+     "marker_id": "d1",
+     "amount": "2",
+     "polarity": "deduct",
+     "quote": "זיהוי שמדובר בפעולת סכימה של איברי המערך – 2 נק'",
+     "candidate_terminal_ids": [
+      "q1.ב.2.c0"
+     ]
+    }
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.2.c1",
+   "points_possible": "2",
+   "scope": "q1.ב.2",
+   "description": "הגדרה נכונה של תנאי הסכימה (איברים שיש להם מחלק אחר במערך) 2  נק'",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q2.א.c0",
+   "points_possible": "1",
+   "scope": "q2.א",
+   "description": "סעיף א: חתימת הפעולה public static bool IsMirror(int[] arr)",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q2.א.c1",
+   "points_possible": "0.5",
+   "scope": "q2.א",
+   "description": "שמות משתנים משמעותיים וקוד קריא",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q2.א.c2",
+   "points_possible": "2",
+   "scope": "q2.א",
+   "description": "סעיף א: בדיקה האם המערך לא באורך זוגי, להחזיר false (if נק' 1, החזרת false נקודה 1) if (arr.Length % 2 != 0) return false;",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q2.א.c3",
+   "points_possible": "1.5",
+   "scope": "q2.א",
+   "description": "סעיף א: לולאה על המערך for (int i = 0; i < arr.Length; i++)",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q2.א.c4",
+   "points_possible": "4",
+   "scope": "q2.א",
+   "description": "סעיף א: בתוך הלולאה: חיפוש אחר המספר הנגדי של arr[i]: int target = -arr[i]; bool found = false; for (int j = 0; j < arr.Length && found == false; j++) { if (arr[j] == target) { found = true; } }",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q2.א.c5",
+   "points_possible": "2",
+   "scope": "q2.א",
+   "description": "סעיף א: מחוץ ללואה אם לא מצאנו את המספר הנגדי (1 נקודה) להחזיר false (1 נקודה)",
+   "checks": [],
+   "_re_case": "clean_itemised",
+   "_stated_components": [
+    "1",
+    "1"
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c6",
+   "points_possible": "1",
+   "scope": "q2.א",
+   "description": "סעיף א: שורה אחרונה: להחזיר true",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q2.ב.c0",
+   "points_possible": "1",
+   "scope": "q2.ב",
+   "description": "סעיף ב: חתימת הפעולה public static void ArrangeMirror(int[] arr)",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q2.ב.c1",
+   "points_possible": "0.5",
+   "scope": "q2.ב",
+   "description": "סעיף ב: שמות משתנים משמעותיים וקוד קריא",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q2.ב.c2",
+   "points_possible": "2",
+   "scope": "q2.ב",
+   "description": "סעיף ב: יצירת מערך עזר באותו גודל של הפרמטר + משתנה למציין של מערך העזר + אתחול ל-0 int[] temp = new int[arr.Length]; // הקצאת מערך עזר באותו הגודל int tempIndex = 0;",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q2.ב.c3",
+   "points_possible": "4.5",
+   "scope": "q2.ב",
+   "description": "סעיף ב: סריקת המערך הפרמטר ומציאת המספרים החיוביים והעתקם למערך הזמני פלוס קידום האנדקס לולאה על המערך הפרמטר 0.5 אם המספר הנוכחי במערך הפרמטר חיובי 2 העתק המספר החיובי למערך העזר 1 קידום האנדקס 1 for (int i = 0; i < arr.Length; i++) { if (arr[i] > 0) // אם המספר חיובי { temp[tempIndex] = arr[i]; // העתקת המספר החיובי למערך העזר tempIndex++;",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q2.ב.c4",
+   "points_possible": "3",
+   "scope": "q2.ב",
+   "description": "סעיף ב: בתוך הלולאה: אופציה 1: מניחים שהמערך פרמטר הוא מערך מראה (כפי שכתוב בשאלה) ופשוט מבצעים: temp[tempIndex] = -arr[i]; tempIndex++; אופציה 2: מציאת המספר הנגדי המתאים (ע\"י עוד לולאה) והשמתו בצמוד למספר שנמצא (באינדקס העוקב). bool found = false; for (int j = 0; j < arr.Length && found == false ; j++) { if (arr[j] == -arr[i]) { temp[tempIndex] = arr[j]; // העתקת המספר השלילי מיד לאחר החיובי tempIndex++; found = true; // מצאנו את הנגדי היחיד, יוצאים מהלולאה הפנימית } }",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q2.ב.c5",
+   "points_possible": "2",
+   "scope": "q2.ב",
+   "description": "סעיף ב: העתקה מסודרת של כל איברי מערך העזר חזרה למערך המקורי שנתקבל כפרמטר for (int i = 0; i < arr.Length; i++) arr[i] = temp[i];",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q3.א.c0",
+   "points_possible": "0.5",
+   "scope": "q3.א",
+   "description": "סעיף א: חתימת הפעולה public static int[] DiceStatistics(int[] arr)",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q3.א.c1",
+   "points_possible": "0.5",
+   "scope": "q3.א",
+   "description": "סעיף א: משתנים משמעותיים + קוד קריא",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q3.א.c2",
+   "points_possible": "2",
+   "scope": "q3.א",
+   "description": "סעיף א: הגדרה והקצאה נכונה של מערך המונים בגודל 21 + איפוס מערך מונים",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q3.א.c3",
+   "points_possible": "2",
+   "scope": "q3.א",
+   "description": "סעיף א: לולאה הסורקת את מערך הקלט",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q3.א.c4",
+   "points_possible": "3",
+   "scope": "q3.א",
+   "description": "סעיף א: בתוך הלולאה, קידום תקין של המונה המתאים int diceValue = arr[i]; // תוצאת ההטלה -ערך בין 1 ל-20 counts[diceValue]++; // קידום המונה באינדקס המתאים אם עשו לולאה פנימית ועדכנו את מערך הונים רק כש- arr[i] == למונה של הלולאה הפנימית , לא להוריד כלום (לא ביקשנו פתרון עם מערך מונים)",
+   "checks": [],
+   "_re_case": "clean",
+   "_detected_deductions": [
+    {
+     "marker_id": "d1",
+     "amount": null,
+     "polarity": "no_deduct",
+     "quote": "סעיף א: בתוך הלולאה, קידום תקין של המונה המתאים int diceValue = arr[i]; // תוצאת ההטלה -ערך בין 1 ל-20 counts[diceValue]++; // קידום המונה באינדקס המתאים אם עשו לולאה פנימית ועדכנו את מערך הונים רק כש- arr[i] == למונה של הלולאה הפנימית , לא להוריד כלום (לא ביקשנו פתרון עם מערך מונים)",
+     "candidate_terminal_ids": [
+      "q3.א.c4"
+     ]
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.א.c5",
+   "points_possible": "2",
+   "scope": "q3.א",
+   "description": "סעיף א: אחרי הלולאה:החזרת מערך המונים המלא",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q3.ב.c0",
+   "points_possible": "0.5",
+   "scope": "q3.ב",
+   "description": "סעיף ב: חתימת הפעולה public static void PrintStatistics(int[] arr)",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q3.ב.c1",
+   "points_possible": "0.5",
+   "scope": "q3.ב",
+   "description": "סעיף ב: משתנים משמעותיים + קוד קריא",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q3.ב.c2",
+   "points_possible": "2",
+   "scope": "q3.ב",
+   "description": "סעיף ב: קריאה נכונה לפעולה DiceStatistics(arr) ושמירת המערך המוחזר אם יצרו מערך מונים חדש ו/או הריצו את הפעולה DiceStatistics בתוך לולאה תוך העתקה של כל תא , לא להוריד כלום (חוסר יעילות)",
+   "checks": [],
+   "_re_case": "clean",
+   "_detected_deductions": [
+    {
+     "marker_id": "d1",
+     "amount": null,
+     "polarity": "no_deduct",
+     "quote": "סעיף ב: קריאה נכונה לפעולה DiceStatistics(arr) ושמירת המערך המוחזר אם יצרו מערך מונים חדש ו/או הריצו את הפעולה DiceStatistics בתוך לולאה תוך העתקה של כל תא , לא להוריד כלום (חוסר יעילות)",
+     "candidate_terminal_ids": [
+      "q3.ב.c2"
+     ]
+    }
+   ]
+  },
+  {
+   "terminal_id": "q3.ב.c3",
+   "points_possible": "2",
+   "scope": "q3.ב",
+   "description": "סעיף ב: הגדרת משתנה שלם לשמירת הערך המקסימלי maxCount + _ + אתחול לתא הראשון או לערך מאוד נמוך) (אתחול 1 נקודות)",
+   "checks": [],
+   "_re_case": "case_2_partial_itemisation",
+   "_stated_components": [
+    "1"
+   ],
+   "_stated_total": "1",
+   "_note": "one component stated (1) below points_possible 2; the remainder 1 is unenumerated. R-E Case 2."
+  },
+  {
+   "terminal_id": "q3.ב.c4",
+   "points_possible": "4",
+   "scope": "q3.ב",
+   "description": "סעיף ב: אלגוריתם נכון למציאת הערך המקסימלי (השכיחות הגבוהה ביותר) מתוך מערך המונים (ריצה מאינדקס 1 עד 20).",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q3.ב.c5",
+   "points_possible": "3",
+   "scope": "q3.ב",
+   "description": "סעיף ב: לולאה נפרדת הסורקת ומדפיסה את כל האינדקסים שערכם שווה ל-maxCount (תמיכה בריבוי שכיחים) (ריצה מאינדקס 1 עד 20).",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q3.ב.c6",
+   "points_possible": "3",
+   "scope": "q3.ב",
+   "description": "סעיף ב: לולאה הסורקת ומדפיסה את האינדקסים שבהם המונה שווה ל-0 (ערכים שלא הופיעו) (ריצה מאינדקס 1 עד 20).",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q4.א.c0",
+   "points_possible": "1",
+   "scope": "q4.א",
+   "description": "סעיף א: חתימת הפעולה (ללא מילה static!) public double TotalEarnings()",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q4.א.c1",
+   "points_possible": "4",
+   "scope": "q4.א",
+   "description": "סעיף א: החזרת החישוב: return this.seasonsPlayed * this.seasonSalary;",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q4.ב.c0",
+   "points_possible": "0.5",
+   "scope": "q4.ב",
+   "description": "סעיף ב: חתימת הפעולה (static!!) public static string[] TopEarners(BasketballPlayer[] arr, double amount)",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q4.ב.c1",
+   "points_possible": "0.5",
+   "scope": "q4.ב",
+   "description": "סעיף ב: משתנים משמעותיים + קוד קריא",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q4.ב.c2",
+   "points_possible": "1",
+   "scope": "q4.ב",
+   "description": "סעיף ב: משתנה למניית השחקניות שמקיימות את התנאי + איפוס",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q4.ב.c3",
+   "points_possible": "2",
+   "scope": "q4.ב",
+   "description": "סעיף ב: לולאה (A) על מערך השחקניות (לספירה נכונה וקידום מונה תקין) for (int i = 0; i < arr.Length; i++)",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q4.ב.c4",
+   "points_possible": "5",
+   "scope": "q4.ב",
+   "description": "סעיף ב:בתוך הלולאה (A) : בדיקה אם המערך במקום ה- i שונה מ- null (1 נקודות) זימון של פעולה פנימית TotalEarnings עבור המערך במקום ה- i (3 נקודות) (לקנוס פעם אחת אם לא בדקו אם arr[i]!=null , הערה למטה) השוואה אם התוצאה גבוהה מהפרמטר (1 נקודה) קידום המונה (1 נקודה) if (arr[i].TotalEarnings() > amount) count++;",
+   "checks": [],
+   "_re_case": "case_3_over_allocation",
+   "_stated_components": [
+    "1",
+    "3",
+    "1",
+    "1"
+   ],
+   "_stated_total": "6",
+   "_note": "stated components sum to 6 > points_possible 5. R-E Case 3: classes descending absorb WHOLE POINTS per member, never reaching the next class; residual breaks the largest class that can take it without inverting order, split evenly, and flags."
+  },
+  {
+   "terminal_id": "q4.ב.c5",
+   "points_possible": "3",
+   "scope": "q4.ב",
+   "description": "סעיף ב: הקצאת מערך ה-string החדש בדיוק בגודל שנספר (count)",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q4.ב.c6",
+   "points_possible": "1",
+   "scope": "q4.ב",
+   "description": "סעיף ב: משתנה לאנדקס מערך השמות + איפוס",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q4.ב.c7",
+   "points_possible": "5",
+   "scope": "q4.ב",
+   "description": "סעיף ב: לולאה שנייה (B) נכונה (1 נקודה) בדיקה אם המערך במקום ה- i שונה מ- null(1 נקודות), להוריד רק פעם אחת שימוש ב-Getter לקבלת השם arr[i].GetName() (3 נקודות) השמה במערך החדש (1 נקודה) תוך קידום אינדקס נפרד (namesIndex)(1 נקודה) for (int i = 0; i < arr.Length; i++) { if (arr[i]!= null && arr[i].TotalEarnings() > amount) // אם טעו פה,להוריד 3 רק פעם 1 (יש גם זימון בלולאה א { namesArr[namesIndex] = arr[i].GetName(); // שימוש ב-Getter namesIndex++; // קידום האנדקס } }",
+   "checks": [],
+   "_re_case": "case_3_over_allocation",
+   "_stated_components": [
+    "1",
+    "1",
+    "3",
+    "1",
+    "1"
+   ],
+   "_stated_total": "7",
+   "_note": "stated components sum to 7 > points_possible 5. R-E Case 3: classes descending absorb WHOLE POINTS per member, never reaching the next class; residual breaks the largest class that can take it without inverting order, split evenly, and flags.",
+   "_detected_deductions": [
+    {
+     "marker_id": "d1",
+     "amount": "3",
+     "polarity": "deduct",
+     "quote": "TotalEarnings() > amount) // אם טעו פה,להוריד 3 רק פעם 1 (יש גם זימון בלולאה א { namesArr[namesIndex] = arr[i]",
+     "candidate_terminal_ids": [
+      "q4.ב.c7"
+     ]
+    }
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c8",
+   "points_possible": "2",
+   "scope": "q4.ב",
+   "description": "סעיף ב: החזרת מערך השמות",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q5.א.c0",
+   "points_possible": "1",
+   "scope": "q5.א",
+   "description": "סעיף א: חתימת הפעולה (ללא מילה static!) public bool IsSimilarWorkshop(Workshop other) כל טעות פה להוריד 1",
+   "checks": [],
+   "_re_case": "clean",
+   "_detected_deductions": [
+    {
+     "marker_id": "d1",
+     "amount": "1",
+     "polarity": "deduct",
+     "quote": "סעיף א: חתימת הפעולה (ללא מילה static!) public bool IsSimilarWorkshop(Workshop other) כל טעות פה להוריד 1",
+     "candidate_terminal_ids": [
+      "q5.א.c0"
+     ]
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.א.c1",
+   "points_possible": "4",
+   "scope": "q5.א",
+   "description": "סעיף א: החזרת החישוב: return this.name == other.GetName();",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q5.ב.c0",
+   "points_possible": "0.5",
+   "scope": "q5.ב",
+   "description": "סעיף ב: חתימת הפעולה (לא static!!) public bool HandleNewWorkshop(Workshop ws)",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q5.ב.c1",
+   "points_possible": "0.5",
+   "scope": "q5.ב",
+   "description": "סעיף ב: משתנים משמעותיים + קוד קריא",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q5.ב.c2",
+   "points_possible": "6",
+   "scope": "q5.ב",
+   "description": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null , להוריד 2 אם לא ניהולו נכון את גבולות הלולאה להוריד 1",
+   "checks": [],
+   "_re_case": "clean",
+   "_detected_deductions": [
+    {
+     "marker_id": "d1",
+     "amount": "2",
+     "polarity": "deduct",
+     "quote": "אם רצו עד Length ולא בדקו ששונה מ-Null , להוריד 2 אם לא ניהולו נכון את גבולות הלולאה להוריד 1",
+     "candidate_terminal_ids": [
+      "q5.ב.c2"
+     ]
+    },
+    {
+     "marker_id": "d2",
+     "amount": "1",
+     "polarity": "deduct",
+     "quote": "אם רצו עד Length ולא בדקו ששונה מ-Null , להוריד 2 אם לא ניהולו נכון את גבולות הלולאה להוריד 1",
+     "candidate_terminal_ids": [
+      "q5.ב.c2"
+     ]
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c3",
+   "points_possible": "2",
+   "scope": "q5.ב",
+   "description": "סעיף ב: זימון נכון של הפעולה מסעיף א' על איבר מהמערך: this.workshops[i].IsSimilarWorkshop(ws)",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q5.ב.c4",
+   "points_possible": "5",
+   "scope": "q5.ב",
+   "description": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה 1 נקודה אם לא השתמשו בפעולה הפנימית להוריד 2, אם לא השתמשו באף אחת מהן להוריד 3 אם חישבו נכון את סה\"כ ולא עדכנו את התכונה (כמובן ע\"י setter) להוריד 2",
+   "checks": [],
+   "_re_case": "case_2_partial_itemisation",
+   "_stated_components": [
+    "1"
+   ],
+   "_stated_total": "1",
+   "_note": "one component stated (1) below points_possible 5; the remainder 4 is unenumerated. R-E Case 2.",
+   "_detected_deductions": [
+    {
+     "marker_id": "d3",
+     "amount": "2",
+     "polarity": "deduct",
+     "quote": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה 1 נקודה אם לא השתמשו בפעולה הפנימית להוריד 2, אם לא השתמשו באף אחת מהן להוריד 3 אם חישבו נכון את סה\"כ ולא עדכנו את התכונה (כמובן ע\"י setter) להוריד 2",
+     "candidate_terminal_ids": [
+      "q5.ב.c4"
+     ]
+    },
+    {
+     "marker_id": "d4",
+     "amount": "3",
+     "polarity": "deduct",
+     "quote": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה 1 נקודה אם לא השתמשו בפעולה הפנימית להוריד 2, אם לא השתמשו באף אחת מהן להוריד 3 אם חישבו נכון את סה\"כ ולא עדכנו את התכונה (כמובן ע\"י setter) להוריד 2",
+     "candidate_terminal_ids": [
+      "q5.ב.c4"
+     ]
+    }
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c5",
+   "points_possible": "3",
+   "scope": "q5.ב",
+   "description": "סעיף ב: הוספת הסדנה החדשה למקום ה-countWorkshops וקידום המונה ב-1 במידה ולא בוצע איחוד והמערך אינו מלא",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q5.ב.c6",
+   "points_possible": "3",
+   "scope": "q5.ב",
+   "description": "סעיף ב: החזרת הערכים הבוליאניים הנכונים (true / false) בכל אחד מהתרחישים 1.5 ל-true, 1.5 ל-false",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q6.c0",
+   "points_possible": "1",
+   "scope": "q6",
+   "description": "חתימת הפעולה (עם המילה static!) כל טעות להוריד 1",
+   "checks": [],
+   "_re_case": "clean",
+   "_detected_deductions": [
+    {
+     "marker_id": "d1",
+     "amount": "1",
+     "polarity": "deduct",
+     "quote": "חתימת הפעולה (עם המילה static!) כל טעות להוריד 1",
+     "candidate_terminal_ids": [
+      "q6.c0"
+     ]
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c1",
+   "points_possible": "1",
+   "scope": "q6",
+   "description": "משתנים משמעותיים + קוד קריא",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q6.c2",
+   "points_possible": "2",
+   "scope": "q6",
+   "description": "יצירה של מערך מונים עם הקצאה נכונה (לפחות בגודל 31)",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q6.c3",
+   "points_possible": "1",
+   "scope": "q6",
+   "description": "איפוס מערך המונים או הערה שיש איפוס ע\"י השפה",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q6.c4",
+   "points_possible": "2",
+   "scope": "q6",
+   "description": "סריקה נכונה של מערך הקלט לעדכון מונים",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q6.c5",
+   "points_possible": "4",
+   "scope": "q6",
+   "description": "סריקת מערך המונים למציאת המכינה (האינדקס) עם המונה הגבוה ביותר (4 נקודות) ו",
+   "checks": [],
+   "_re_case": "clean"
+  },
+  {
+   "terminal_id": "q6.c6",
+   "points_possible": "2",
+   "scope": "q6",
+   "description": "הדפסת מספר המכינה בעלת כמות מקסימלית (ולא כמות התלמידים) אם הדפיסו את הכמות להוריד 2 (או 1?)",
+   "checks": [],
+   "_re_case": "case_4_teacher_indecision",
+   "_note": "The rubric states two possible deductions. R-E Case 4: default to the LENIENT end (smaller) and flag.",
+   "_detected_deductions": [
+    {
+     "marker_id": "d2",
+     "amount": "2",
+     "polarity": "deduct",
+     "quote": "הדפסת מספר המכינה בעלת כמות מקסימלית (ולא כמות התלמידים) אם הדפיסו את הכמות להוריד 2 (או 1?)",
+     "candidate_terminal_ids": [
+      "q6.c6"
+     ]
+    }
+   ]
+  },
+  {
+   "terminal_id": "q6.c7",
+   "points_possible": "4",
+   "scope": "q6",
+   "description": "חישוב גודל מערך היעד: סריקת מערך המונים(1 נק'), ספירת התאים שגדולים מ-0 (1 נקודה), ויצירה והקצאת מערך חדש בגודל count * 2 (2 נקודות)",
+   "checks": [],
+   "_re_case": "clean_itemised",
+   "_stated_components": [
+    "1",
+    "1",
+    "2"
+   ]
+  },
+  {
+   "terminal_id": "q6.c8",
+   "points_possible": "8",
+   "scope": "q6",
+   "description": "בניית מערך התוצאה: מילוי נכון של המערך החדש בזוגות: קודם את result[resIndex] = i ומיד לאחר מכן result[resIndex+1] = counters[i] תוך קידום ידני תקין של אינדקס מערך היעד ב-2 בכל פעם.",
+   "checks": [],
+   "_re_case": "clean"
+  }
+ ]
+}

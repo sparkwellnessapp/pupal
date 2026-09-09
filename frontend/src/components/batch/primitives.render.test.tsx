@@ -96,4 +96,28 @@ describe('Modal', () => {
       ),
     ).toBe('')
   })
+
+  // The onboarding flow added `dismissible` and `size`. Both default to the
+  // ORIGINAL behaviour so the three pre-existing callers are untouched — these
+  // pin that, because a default that drifts silently rewrites three dialogs
+  // nobody thought they were editing.
+  it('defaults to the md panel width', () => {
+    const html = renderToStaticMarkup(
+      <Modal open onClose={() => {}}>
+        x
+      </Modal>,
+    )
+    expect(html).toContain('max-w-md')
+    expect(html).not.toContain('max-w-2xl')
+  })
+
+  it('widens only when asked', () => {
+    const html = renderToStaticMarkup(
+      <Modal open onClose={() => {}} size="lg">
+        x
+      </Modal>,
+    )
+    expect(html).toContain('max-w-2xl')
+    expect(html).not.toContain('max-w-md')
+  })
 })

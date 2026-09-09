@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 /**
@@ -12,12 +12,22 @@ import path from 'node:path';
  * Scoped to the mirror on purpose: the rest of the app carries ~79 legacy
  * arbitrary values (decorative orbs, modal sizing) — a repo-wide gate is a
  * separate migration (BACKLOG). Expand SCOPE when that lands.
+ *
+ * S12/F0 adds the GRADE-REVIEW surface to the scope, from its first line of
+ * code rather than after the fact. F0 lands the palette, the radii and the
+ * `gr-*` type scale precisely so F1-F3 never need `text-[21px]` or a raw
+ * `#C8102E`; a gate that starts clean stays clean, while one retro-fitted to a
+ * finished surface only prints debt.
  */
 
 const ROOT = path.resolve('src');
 const SCOPE = [
     path.join(ROOT, 'components', 'document'),
     path.join(ROOT, 'components', 'RubricDocument.tsx'),
+    // Grade review (S12). Listed ahead of the routes that will fill them — a
+    // path that does not exist yet is skipped, never a crash (see filesUnder).
+    path.join(ROOT, 'components', 'grade-review'),
+    path.join(ROOT, 'app', 'graded-tests'),
 ];
 
 // Flag a bracket value that is EXACTLY a hex color or a bare px length.
@@ -26,6 +36,10 @@ const HEX_RE = /^#[0-9A-Fa-f]{3,8}$/;
 const BARE_PX_RE = /^-?[0-9.]+px$/;
 
 function filesUnder(p) {
+    // A scope entry may name a surface that has not been built yet (the S12
+    // routes). Skipping is correct; crashing would make the gate look broken
+    // on a tree where it is simply not needed yet.
+    if (!existsSync(p)) return [];
     const st = statSync(p);
     if (st.isFile()) return p.endsWith('.tsx') && !p.endsWith('.test.tsx') ? [p] : [];
     return readdirSync(p).flatMap((c) => filesUnder(path.join(p, c)));

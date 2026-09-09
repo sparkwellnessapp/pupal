@@ -22,6 +22,13 @@ export const AUTH_ME = {
     is_subscription_active: true,
     subject_matters: [],
     created_at: '2026-01-01T00:00:00Z',
+    // [022] ONBOARDED — see the same note on fixtures.ts::USER. Every batch spec
+    // drives a teacher already using the product; a missing stamp here sends the
+    // gate (and the whole suite) to /onboarding instead of the batch surfaces.
+    onboarding_completed_at: '2026-01-02T00:00:00Z',
+    gender: 'female',
+    schools: [],
+    primary_school_id: null,
 };
 
 export function fulfillJson(route: Route, body: unknown, status = 200) {
@@ -142,6 +149,11 @@ export function seedFailure(overrides: Record<string, unknown> = {}) {
 
 export function seedRollup(overrides: Record<string, number> = {}) {
     return {
+        // [Stage A] The upload stage. Present in the seed because the WIRE
+        // carries it: a mock that omitted it would exercise the `?? 0` legacy
+        // read on every spec and never the real field.
+        uploading: 0,
+        not_received: 0,
         transcribing: 0,
         transcribed: 0,
         approved_transcription: 0,
@@ -263,6 +275,22 @@ export function transcribingOnlyBatch() {
             seedActiveJob({ filename: 'אחרון א.pdf', state: 'running', started_at: minutesAgo(2), attempt_count: 1 }),
             seedActiveJob({ filename: 'אחרון ב.pdf', state: 'queued' }),
         ],
+    });
+}
+
+/**
+ * [Stage A] STILL UPLOADING — the Defect-D shape.
+ *
+ * She declared ten files; one has landed and been approved; nine are still
+ * climbing the wire. Before migration 025 this payload read total 1 /
+ * transcribing 0 / transcribed 0 and every completion gate fired over it.
+ * The dashboard must show an upload segment, keep polling, and NOT render the
+ * completion hero.
+ */
+export function uploadingBatch() {
+    return seedBatch({
+        items: [seedItem('t1', { status: 'approved' })],
+        rollup: { uploading: 9, approved: 1, total: 10 },
     });
 }
 

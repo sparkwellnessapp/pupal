@@ -61,6 +61,7 @@ from app.agents.grader.verifier_prompt import (
 )
 from app.config import settings
 from app.schemas.gradable import GradableScope, GradableTest
+from app.services.grading_inputs import scope_answer
 from app.schemas.graded_test_draft import (
     CriterionOutcome,
     GradedTestDraft,
@@ -331,6 +332,9 @@ class PlanVerifyGrader:
                 criterion_outcomes=criterion_outcomes,
                 flags=[],
                 graded_by="llm",
+                # [EVD-1] the answer this scope was graded against, recorded
+                # with the verdict rather than re-derived by the reader.
+                student_answer=scope_answer(scope),
                 retry_count=retry_count,
                 input_tokens=in_tok,
                 output_tokens=out_tok,

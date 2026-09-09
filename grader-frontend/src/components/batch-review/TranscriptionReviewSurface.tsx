@@ -12,22 +12,29 @@
  * Subject-agnostic (§3.3): plain monospace editing, no CS-specific rendering.
  */
 
-import { ChevronDown, ChevronUp, Eye, FileText, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlignLeft, ChevronDown, ChevronUp, Eye, FileText, Loader2, Table, ZoomIn, ZoomOut } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { StudentPicker } from '@/components/StudentPicker';
-import { EMPTY_ANSWER_MARKER, EMPTY_ANSWER_PLACEHOLDER } from '@/copy/batch';
+import {
+    ANSWER_VIEW_SHOW_RAW,
+    ANSWER_VIEW_SHOW_TABLE,
+    EMPTY_ANSWER_MARKER,
+    EMPTY_ANSWER_PLACEHOLDER,
+} from '@/copy/batch';
 import type {
     AnswerSpaceSelectionGroup,
     TranscriptionAnnotation,
     TranscriptionDraft,
 } from '@/types/transcription';
+import { hasRenderableTable } from '@/utils/detect-pipe-tables';
 import { answersCount, pagesCount } from '@/utils/hebrew-plural';
 import { orderAnswersPageFirst } from '@/utils/review-anchors';
 import { answerTargetId, deriveReviewFlags } from '@/utils/review-flags';
 import { expectedEmptyKeys } from '@/utils/selection-expectation';
 import { detectMismatch, keyLabel, type AnswerKey } from '@/utils/segmentation-check';
 
+import { TranscribedAnswerView } from './TranscribedAnswerView';
 import { TranscribedTextEditor } from './TranscribedTextEditor';
 
 /** R10: discrete zoom stops for the scan pane (§3.2 — resets per item, which
@@ -94,10 +101,17 @@ export interface TranscriptionReviewSurfaceProps {
      * Absent/[] (selection-free rubric) → identical to old behavior.
      */
     selectionGroups?: AnswerSpaceSelectionGroup[] | null;
+    /**
+     * The rubric's subject key (multisubject Phase 3b). Decides the answer islands'
+     * text direction: `mathematics` → rtl, everything else → ltr (today's behaviour).
+     * Absent (single-test flow, pre-seam rows) ⇒ ltr.
+     */
+    subject?: string | null;
 }
 
 export function TranscriptionReviewSurface({
     draft,
+    subject,
     studentNameSuggestion,
     editedAnswers,
     onAnswerChange,
@@ -120,6 +134,18 @@ export function TranscriptionReviewSurface({
     // R10: scan-pane zoom index into ZOOM_LEVELS.
     const [zoomIdx, setZoomIdx] = useState(0);
     const zoom = ZOOM_LEVELS[zoomIdx];
+    /**
+     * Per-answer view mode — EXPLICIT teacher choices only. The default is
+     * derived per render (below), so an answer whose text starts or stops
+     * containing a grid follows its own content until she overrules it.
+     *
+     * Δ14 (viewing is not commitment): switching modes writes ONLY here. It
+     * never calls onAnswerChange, so it cannot mark the item dirty, cannot
+     * create a review overlay, and cannot pull the item out of bulk-accept.
+     */
+    const [viewOverride, setViewOverride] = useState<Record<string, 'raw' | 'table'>>({});
+    // The answer whose editor should take the caret: she clicked through to edit.
+    const [focusKey, setFocusKey] = useState<string | null>(null);
 
     // Δ9: eager first page, then background-warm the rest sequentially.
     useEffect(() => {
@@ -299,6 +325,7 @@ export function TranscriptionReviewSurface({
                             sub_question_id: answer.sub_question_id,
                         };
                         const currentText = editedAnswers[key] ?? answer.answer_text;
+                        // ALPHA-GAP A-4 (D-2): the reviewer sees whole pages; alpha shows the crop behind a `[איור: …]` line.
                         const displayPages = pageNumbersByKey?.[key] ?? answer.page_numbers;
                         const anns = draft.annotations.filter((a) => a.target_id === key);
                         const { lineFlags, badges } = deriveReviewFlags({
@@ -307,6 +334,15 @@ export function TranscriptionReviewSurface({
                             annotations: anns,
                             dissolved: isDissolved(key),
                         });
+                        // Table rendering (2026-08-23): a DISPLAY derivation over the
+                        // same verbatim text — the raw string stays the payload.
+                        // Default to the grid only when nothing is flagged: line
+                        // flags are the review signal and they live in the raw view
+                        // alone, so never trade one away for a prettier surface.
+                        const tableAvailable = hasRenderableTable(currentText);
+                        const viewMode = viewOverride[key]
+                            ?? (tableAvailable && lineFlags.length === 0 ? 'table' : 'raw');
+                        const showTable = tableAvailable && viewMode === 'table';
                         const questionLabel = keyLabel(assignedKey);
                         // LIVE marker↔key mismatch — recomputed against the
                         // current text, so banners stay truthful through a
@@ -359,31 +395,51 @@ export function TranscriptionReviewSurface({
                                             </button>
                                         ))}
                                     </div>
-                                    {reassignEnabled && (
-                                        <select
-                                            value=""
-                                            onChange={(e) => {
-                                                if (e.target.value) onSwapAnswers!(key, e.target.value);
-                                            }}
-                                            className="text-xs border border-surface-300 rounded-lg px-2 py-1 bg-white text-gray-600 hover:border-surface-400 cursor-pointer"
-                                            title="החלפת תוכן עם שאלה אחרת (הכיתוב נשאר; התוכן עובר)"
-                                            data-testid="reassign-select"
-                                        >
-                                            <option value="" disabled>העברה אל…</option>
-                                            {draft.answers
-                                                .filter((o) => answerTargetId(o) !== key)
-                                                .map((o) => {
-                                                    const ok = answerTargetId(o);
-                                                    const empty = (currentTextByKey[ok] ?? '').trim() === '';
-                                                    return (
-                                                        <option key={ok} value={ok}>
-                                                            {keyLabel({ question_number: o.question_number, sub_question_id: o.sub_question_id })}
-                                                            {empty ? ' (ריק)' : ' (החלפה)'}
-                                                        </option>
-                                                    );
-                                                })}
-                                        </select>
-                                    )}
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {tableAvailable && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const next = showTable ? 'raw' : 'table';
+                                                    setViewOverride((prev) => ({ ...prev, [key]: next }));
+                                                    // Switching TO the editor hands over the caret;
+                                                    // switching away must not leave a stale request.
+                                                    setFocusKey(next === 'raw' ? key : null);
+                                                }}
+                                                className="flex items-center gap-1 text-xs border border-surface-300 rounded-lg px-2 py-1 bg-white text-gray-600 hover:border-surface-400 hover:bg-surface-50 transition-colors"
+                                                data-testid="answer-view-toggle"
+                                            >
+                                                {showTable
+                                                    ? <><AlignLeft size={13} />{ANSWER_VIEW_SHOW_RAW}</>
+                                                    : <><Table size={13} />{ANSWER_VIEW_SHOW_TABLE}</>}
+                                            </button>
+                                        )}
+                                        {reassignEnabled && (
+                                            <select
+                                                value=""
+                                                onChange={(e) => {
+                                                    if (e.target.value) onSwapAnswers!(key, e.target.value);
+                                                }}
+                                                className="text-xs border border-surface-300 rounded-lg px-2 py-1 bg-white text-gray-600 hover:border-surface-400 cursor-pointer"
+                                                title="החלפת תוכן עם שאלה אחרת (הכיתוב נשאר; התוכן עובר)"
+                                                data-testid="reassign-select"
+                                            >
+                                                <option value="" disabled>העברה אל…</option>
+                                                {draft.answers
+                                                    .filter((o) => answerTargetId(o) !== key)
+                                                    .map((o) => {
+                                                        const ok = answerTargetId(o);
+                                                        const empty = (currentTextByKey[ok] ?? '').trim() === '';
+                                                        return (
+                                                            <option key={ok} value={ok}>
+                                                                {keyLabel({ question_number: o.question_number, sub_question_id: o.sub_question_id })}
+                                                                {empty ? ' (ריק)' : ' (החלפה)'}
+                                                            </option>
+                                                        );
+                                                    })}
+                                            </select>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="p-4">
                                     {mismatch && (
@@ -416,21 +472,31 @@ export function TranscriptionReviewSurface({
                                             ))}
                                         </div>
                                     )}
-                                    <TranscribedTextEditor
-                                        value={currentText}
-                                        onChange={(text) => {
-                                            // Δ7: first divergence dissolves this answer's
-                                            // span flags for the session.
-                                            if (text !== answer.answer_text && !isDissolved(key)) {
-                                                markDissolved(key);
-                                                bumpDissolved((n) => n + 1);
-                                            }
-                                            onAnswerChange(key, text);
-                                        }}
-                                        readOnly={readOnly}
-                                        lineFlags={lineFlags}
-                                        placeholder={emptyUnexplained ? EMPTY_ANSWER_PLACEHOLDER : undefined}
-                                    />
+                                    {showTable ? (
+                                        <TranscribedAnswerView
+                                            text={currentText}
+                                            flagCount={lineFlags.length}
+                                            dir={subject === 'mathematics' ? 'rtl' : 'ltr'}
+                                        />
+                                    ) : (
+                                        <TranscribedTextEditor
+                                            dir={subject === 'mathematics' ? 'rtl' : 'ltr'}
+                                            value={currentText}
+                                            onChange={(text) => {
+                                                // Δ7: first divergence dissolves this answer's
+                                                // span flags for the session.
+                                                if (text !== answer.answer_text && !isDissolved(key)) {
+                                                    markDissolved(key);
+                                                    bumpDissolved((n) => n + 1);
+                                                }
+                                                onAnswerChange(key, text);
+                                            }}
+                                            readOnly={readOnly}
+                                            lineFlags={lineFlags}
+                                            placeholder={emptyUnexplained ? EMPTY_ANSWER_PLACEHOLDER : undefined}
+                                            autoFocus={focusKey === key}
+                                        />
+                                    )}
                                 </div>
                             </div>
                         );

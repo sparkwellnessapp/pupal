@@ -19,7 +19,8 @@
  * late arrivals append — flagged at the partition boundary, clean at the
  * tail. ONE mergePayload() is the sole writer, fed by the entry fetch, the
  * post-accept refetch, and a 5s poll that runs ONLY while documents are
- * still in flight (rollup.transcribing > 0 || active_jobs non-empty) and
+ * still in flight (rollup.uploading > 0 || rollup.transcribing > 0 ||
+ * active_jobs non-empty — the first arm is Stage A's upload stage) and
  * tears down the tick that condition clears. Totals grow; the counter bump
  * is the only signal. Δ11's same-id-refresh-never-clobbers-edits still holds
  * at the controller layer.
@@ -39,7 +40,7 @@ import {
     type ReactNode,
 } from 'react';
 
-import { getBatch, getTranscriptionPage, saveTranscriptionReview } from '@/lib/api';
+import { getBatch, getRubric, getTranscriptionPage, saveTranscriptionReview } from '@/lib/api';
 import type { TranscriptionReview } from '@/lib/api';
 import type { BatchDetailResponse } from '@/types/batch';
 import {
@@ -48,6 +49,7 @@ import {
     type FrozenCursor,
 } from '@/utils/batch-review-cursor';
 import { BATCH_LOAD_ERROR } from '@/copy/batch';
+import { isIdentityPending } from '@/utils/zone-assignment';
 
 const POLL_MS = 5000;
 
@@ -58,6 +60,9 @@ export interface BatchReviewState {
     /** Back-compat view of cursor.order (existing consumers). */
     frozenOrder: string[] | null;
     error: string | null;
+    /** The rubric's subject key (migration 027) — null until the rubric loads
+     *  (or when its fetch fails: the review still works, in today's direction). */
+    rubricSubject: string | null;
     /** R11: post-accept refetch failed — accepted state stands, data catches
      *  up later. Cleared by the next successful fetch. */
     softNote: string | null;
@@ -100,6 +105,7 @@ export function BatchReviewProvider({ batchId, children }: {
 }) {
     const [batch, setBatch] = useState<BatchDetailResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [rubricSubject, setRubricSubject] = useState<string | null>(null);
     const [softNote, setSoftNote] = useState<string | null>(null);
     const cursorRef = useRef<FrozenCursor | null>(null);
     const pageCacheRef = useRef(new Map<string, Promise<string>>());
@@ -113,11 +119,23 @@ export function BatchReviewProvider({ batchId, children }: {
     }, []);
 
     /** OD2's sole writer: entry fetch, poll, and refetchAfterAction all land
-     *  here. Prefix-stable append + state replacement + soft-note clear. */
+     *  here. Prefix-stable append + state replacement + soft-note clear.
+     *
+     *  ZC-1 v2/Q3 (owner-ruled 2026-08-23): the cursor's flagged partition is
+     *  the WALK's definition of flagged — identity-pending items (only flag =
+     *  extracted new name, untouched) walk as CLEAN, so the eyes CTA count
+     *  and the walk's stop count agree. One predicate, shared with the
+     *  dashboard (zone-assignment.ts). */
     const mergePayload = useCallback((b: BatchDetailResponse) => {
+        const walkItems = b.transcriptions.map((t) => ({
+            transcription_id: String(t.transcription_id),
+            flag_verdict: {
+                review_needed: t.flag_verdict.review_needed && !isIdentityPending(t),
+            },
+        }));
         cursorRef.current = cursorRef.current === null
-            ? initialCursor(b.transcriptions)
-            : appendNewItems(cursorRef.current, b.transcriptions);
+            ? initialCursor(walkItems)
+            : appendNewItems(cursorRef.current, walkItems);
         setBatch(b);
         setSoftNote(null);          // R11: a successful fetch clears the note
     }, []);
@@ -125,7 +143,18 @@ export function BatchReviewProvider({ batchId, children }: {
     useEffect(() => {
         let cancelled = false;
         getBatch(batchId)
-            .then((b) => { if (!cancelled) mergePayload(b); })
+            .then((b) => {
+                if (cancelled) return;
+                mergePayload(b);
+                // The subject rides the rubric row (migration 027). Its fetch is
+                // CONTEXT for direction, never a gate: a failure leaves it null and
+                // the surface renders in today's direction.
+                getRubric(b.rubric_id)
+                    .then((r) => {
+                        if (!cancelled) setRubricSubject((r as { subject?: string | null }).subject ?? null);
+                    })
+                    .catch(() => { /* direction context only */ });
+            })
             .catch((e) => {
                 if (!cancelled) setError(e instanceof Error ? e.message : BATCH_LOAD_ERROR);
             });
@@ -136,8 +165,16 @@ export function BatchReviewProvider({ batchId, children }: {
     // OD2 poll: ONLY while documents are still in flight. The interval dies
     // the tick the condition clears; a failing poll is silent (transient —
     // the next tick or the next explicit action recovers).
+    // [Stage A] `uploading` joins the in-flight test: while she reviews the
+    // documents that landed first, later ones are still climbing the wire and
+    // will append to the cursor (OD2). A gate that watched only `transcribing`
+    // would stop polling in the gap between "the last landed file finished
+    // transcribing" and "the next file arrives" — and the review surface would
+    // sit there believing the batch was done.
     const stillInFlight = batch !== null
-        && (batch.rollup.transcribing > 0 || (batch.active_jobs?.length ?? 0) > 0);
+        && ((batch.rollup.uploading ?? 0) > 0
+            || batch.rollup.transcribing > 0
+            || (batch.active_jobs?.length ?? 0) > 0);
     useEffect(() => {
         if (!stillInFlight) return;
         const tick = async () => {
@@ -205,6 +242,7 @@ export function BatchReviewProvider({ batchId, children }: {
                 cursor: batch ? cursorRef.current : null,
                 frozenOrder: batch ? cursorRef.current?.order ?? null : null,
                 error,
+                rubricSubject,
                 softNote,
                 showSoftNote,
                 refetchAfterAction,

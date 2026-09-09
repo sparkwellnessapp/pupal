@@ -25,6 +25,7 @@ from langchain_openai import ChatOpenAI
 
 from app.config import settings
 from app.schemas.gradable import GradableScope, GradableTest
+from app.services.grading_inputs import scope_answer
 from app.schemas.graded_test_draft import (
     CriterionOutcome,
     GradedTestDraft,
@@ -199,6 +200,9 @@ def _build_skip_result(scope: GradableScope) -> _ScopeResult:
                 reason=FlagReason.NO_ANSWER,
             )],
             graded_by="skipped_no_answer",
+            # [EVD-1] the answer this scope was graded against, recorded
+            # with the verdict rather than re-derived by the reader.
+            student_answer=scope_answer(scope),
             retry_count=0,
             input_tokens=0,
             output_tokens=0,
@@ -237,6 +241,9 @@ def _build_failure_result(
                 message=str(exc)[:200],
             )],
             graded_by="failed",
+            # [EVD-1] the answer this scope was graded against, recorded
+            # with the verdict rather than re-derived by the reader.
+            student_answer=scope_answer(scope),
             retry_count=retry_count,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
@@ -480,6 +487,9 @@ class GraderAgent:
                 criterion_outcomes=criterion_outcomes,
                 flags=scope_flags,
                 graded_by="llm",
+                # [EVD-1] the answer this scope was graded against, recorded
+                # with the verdict rather than re-derived by the reader.
+                student_answer=scope_answer(scope),
                 retry_count=retry_count,
                 input_tokens=accumulated_in_tokens,
                 output_tokens=accumulated_out_tokens,

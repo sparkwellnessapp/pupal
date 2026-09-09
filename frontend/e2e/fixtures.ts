@@ -11,7 +11,7 @@ export function loadGoldenRaw(name: string): string {
     return readFileSync(path.join(BENCHMARKS, `${name}.json`), 'utf-8');
 }
 
-const USER = {
+export const USER = {
     id: 'u1',
     email: 'teacher@example.com',
     full_name: 'מורה בדיקה',
@@ -19,6 +19,14 @@ const USER = {
     is_subscription_active: true,
     subject_matters: [],
     created_at: '2026-01-01T00:00:00Z',
+    // [022] ONBOARDED. Every spec in this suite drives a teacher who is already
+    // using the product; without this stamp the onboarding gate redirects all of
+    // them to /onboarding and the whole suite drives the wrong screen. The
+    // onboarding journey seeds its own un-onboarded user (onboarding.spec.ts).
+    onboarding_completed_at: '2026-01-02T00:00:00Z',
+    gender: 'female',
+    schools: [],
+    primary_school_id: null,
 };
 
 /** A well-formed JWT with a far-future exp so session.ts never renews/logs out. */

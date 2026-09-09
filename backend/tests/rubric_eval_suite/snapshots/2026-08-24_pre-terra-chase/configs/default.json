@@ -1,0 +1,5 @@
+{
+  "model_key": "gpt-4o",
+  "cost_ceiling": 0.40,
+  "notes": "Baseline config. Change ONE variable per run; bump EXTRACTION_PROMPT_VERSION in app/services/docx_v3/pipeline.py on any prompt edit (prompt_version is stamped from that constant, not from configs). Registry-schema migration 2026-08-23: identity/prices are registry-owned (model_key -> tests/eval_common/models_registry.py); this ARMED the cost gate for the first time — the old config carried no prices, so cost_usd was None and gates.py skipped the check. Measured worst-doc upper bound ~= $0.19 vs the 0.40 ceiling (~2x headroom)."
+}

@@ -29,7 +29,13 @@ def _prose(name):
 
 
 def _draft(name):
-    r = ExtractRubricResponse.model_validate_json((BEN / f"{name}.json").read_text())
+    # encoding="utf-8" EXPLICITLY. Bare `read_text()` uses the locale default,
+    # which on Windows is cp1252 — and every benchmark here is UTF-8 Hebrew, so
+    # all eight tests in this module died on `UnicodeDecodeError: byte 0x90`
+    # before reaching a single assertion. Green on Linux CI, red on the dev box;
+    # never trust the platform default for a file this repo wrote.
+    r = ExtractRubricResponse.model_validate_json(
+        (BEN / f"{name}.json").read_text(encoding="utf-8"))
     return r.model_copy(update={"pedagogical_mistakes": []})
 
 

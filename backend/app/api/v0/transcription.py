@@ -46,6 +46,7 @@ from ...services import thumbnail
 from ...services.transcription_adapter import build_transcription_draft
 from ...services.cloud_tasks_service import enqueue_grading_task_or_log
 from ...services.transcribe_one import transcribe_one
+from ...services.grading_inputs import transcription_contract_version
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +218,9 @@ async def grade(
         student_name=student.full_name,             # denormalized
         filename=transcription.filename,
         rubric_contract_version=rubric.contract_version,  # pinned now per VER-2
+        # [029] The OTHER pinned input. Read AFTER the approval write above,
+        # so it is the contract the grader will actually consume.
+        transcription_contract_version=transcription_contract_version(transcription),
         status="pending",
         draft_json=None,        # populated in S8
         contract_json=None,

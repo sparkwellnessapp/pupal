@@ -1,0 +1,7 @@
+{
+  "model_key": "claude-sonnet-4-6",
+  "max_output_tokens": 16000,
+  "reasoning_effort": null,
+  "cost_ceiling": 2.0,
+  "notes": "SWEEP CONFIG — functional-first phase. cost_ceiling=2.00 is deliberately loose: its job in this phase is pathology detection (runaway retries), not economy. Revisit when stripping toward cost/latency benchmarks. Extended thinking deliberately NOT enabled (forces temperature=1 and constrains forced tool choice, which structured output uses); if ever wanted, it is a new policy branch and a new config. Registry-schema migration 2026-08-23: identity/prices registry-owned (model_key -> tests/eval_common/models_registry.py)."
+}

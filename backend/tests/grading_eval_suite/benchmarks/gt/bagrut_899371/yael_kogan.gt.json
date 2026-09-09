@@ -1,0 +1,503 @@
+{
+ "fixture": "yael_kogan",
+ "exam_id": "bagrut_899371",
+ "rubric_contract_hash": "5d58b7eab86bca2993ee17a56614cef3f79efbcf24d874a229168393f1b23b0e",
+ "transcription_contract_hash": "f849f48a259d6b24616062d4ca56cc4a964e492a9903245425d7d5d5ac53c9dd",
+ "gt_source": "teacher_validated",
+ "blind": false,
+ "proposed_by": "claude-fable-5 (design-partner session)",
+ "validated_by": "Noam",
+ "authored_by": "Noam",
+ "authored_at": "2026-09-03",
+ "terminals": [
+  {
+   "terminal_id": "q1.א.1.c0",
+   "points_possible": "12",
+   "description": "ניקוד טבלת מעקב סה\"כ 12 נקודות: 17 תאים  0.7 כל תא",
+   "awarded": "12",
+   "evidence_exists": true,
+   "note": "[C1-TABLE] counted: 17/17 → 12. x per row ✓, i 0..4 ✓, arr[i] ✓, if F,f,f,f,t ✓, 'true' ✓. Extra loop-condition column not priced."
+  },
+  {
+   "terminal_id": "q1.א.2.c0",
+   "points_possible": "1.5",
+   "description": "הבנת הבדיקה של \"מחלק ללא שארית\"~  1.5 נק'",
+   "awarded": "1.5",
+   "evidence_exists": true,
+   "note": "'באיזה מספרים מתחלק (X) בשלם בלי שארית' — X divisible by them (correct direction), no-remainder explicit."
+  },
+  {
+   "terminal_id": "q1.א.2.c1",
+   "points_possible": "1.5",
+   "description": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו  0.5 נק'",
+   "awarded": "1.5",
+   "evidence_exists": true,
+   "note": "'שהם לא המספר עצמו וגם לא אחד' — both exclusions."
+  },
+  {
+   "terminal_id": "q1.ב.1.c0",
+   "points_possible": "6",
+   "description": "ניקוד: 6 נקודות",
+   "awarded": "6",
+   "evidence_exists": true,
+   "note": "Full trace, consistent scheme (addition written where it lands), '(1) 76'."
+  },
+  {
+   "terminal_id": "q1.ב.2.c0",
+   "points_possible": "2",
+   "description": "זיהוי שמדובר בפעולת סכימה של איברי המערך – 2 נק'",
+   "awarded": "2",
+   "evidence_exists": true,
+   "note": "Summation."
+  },
+  {
+   "terminal_id": "q1.ב.2.c1",
+   "points_possible": "2",
+   "description": "הגדרה נכונה של תנאי הסכימה (איברים שיש להם מחלק אחר במערך) 2  נק'",
+   "awarded": "2",
+   "evidence_exists": true,
+   "note": "Condition complete: divisible by another array element, no remainder, ≠self, ≠1 — the most complete purpose answer in the corpus."
+  },
+  {
+   "terminal_id": "q2.א.c0",
+   "points_possible": "1",
+   "description": "סעיף א: חתימת הפעולה public static bool IsMirror(int[] arr)",
+   "awarded": "1",
+   "evidence_exists": true,
+   "note": ""
+  },
+  {
+   "terminal_id": "q2.א.c1",
+   "points_possible": "0.5",
+   "description": "שמות משתנים משמעותיים וקוד קריא",
+   "awarded": "0.5",
+   "evidence_exists": true,
+   "note": "mirror/g, commented."
+  },
+  {
+   "terminal_id": "q2.א.c2",
+   "points_possible": "2",
+   "description": "סעיף א: בדיקה האם המערך לא באורך זוגי, להחזיר false (if נק' 1, החזרת false נקודה 1) if (arr.Length % 2 != 0) return false;",
+   "awarded": "0",
+   "evidence_exists": false,
+   "note": "Even-length check absent → PB-8."
+  },
+  {
+   "terminal_id": "q2.א.c3",
+   "points_possible": "1.5",
+   "description": "סעיף א: לולאה על המערך for (int i = 0; i < arr.Length; i++)",
+   "awarded": "1.5",
+   "evidence_exists": true,
+   "note": ""
+  },
+  {
+   "terminal_id": "q2.א.c4",
+   "points_possible": "4",
+   "description": "סעיף א: בתוך הלולאה: חיפוש אחר המספר הנגדי של arr[i]: int target = -arr[i]; bool found = false; for (int j = 0; j < arr.Length && found == false; j++) { if (arr[j] == target) { found = true; } }",
+   "awarded": "4",
+   "evidence_exists": true,
+   "note": "Inner search arr[g] == arr[i]*-1 with a found-flag."
+  },
+  {
+   "terminal_id": "q2.א.c5",
+   "points_possible": "2",
+   "description": "סעיף א: מחוץ ללואה אם לא מצאנו את המספר הנגדי (1 נקודה) להחזיר false (1 נקודה)",
+   "awarded": "2",
+   "evidence_exists": true,
+   "note": "Not-found→false deferred one iteration ('else return mirror') and backstopped by the final 'return mirror' — traced: a failing last element is caught. Behavior-equivalent (PL-3), ratified."
+  },
+  {
+   "terminal_id": "q2.א.c6",
+   "points_possible": "1",
+   "description": "סעיף א: שורה אחרונה: להחזיר true",
+   "awarded": "1",
+   "evidence_exists": true,
+   "note": "'return mirror' — true when every element matched."
+  },
+  {
+   "terminal_id": "q2.ב.c0",
+   "points_possible": "1",
+   "description": "סעיף ב: חתימת הפעולה public static void ArrangeMirror(int[] arr)",
+   "awarded": "1",
+   "evidence_exists": true,
+   "note": ""
+  },
+  {
+   "terminal_id": "q2.ב.c1",
+   "points_possible": "0.5",
+   "description": "סעיף ב: שמות משתנים משמעותיים וקוד קריא",
+   "awarded": "0.5",
+   "evidence_exists": true,
+   "note": "num/num1/L/t/g opaque but not misleading — 0.5-pt criterion kept lenient."
+  },
+  {
+   "terminal_id": "q2.ב.c2",
+   "points_possible": "2",
+   "description": "סעיף ב: יצירת מערך עזר באותו גודל של הפרמטר + משתנה למציין של מערך העזר + אתחול ל-0 int[] temp = new int[arr.Length]; // הקצאת מערך עזר באותו הגודל int tempIndex = 0;",
+   "awarded": "1.5",
+   "evidence_exists": true,
+   "note": "Helper same size ✓ 1; index variable 't' exists but is re-initialized inside the loop and never advances → 0.5 of 1."
+  },
+  {
+   "terminal_id": "q2.ב.c3",
+   "points_possible": "4.5",
+   "description": "סעיף ב: סריקת המערך הפרמטר ומציאת המספרים החיוביים והעתקם למערך הזמני פלוס קידום האנדקס לולאה על המערך הפרמטר 0.5 אם המספר הנוכחי במערך הפרמטר חיובי 2 העתק המספר החיובי למערך העזר 1 קידום האנדקס 1 for (int i = 0; i < arr.Length; i++) { if (arr[i] > 0) // אם המספר חיובי { temp[tempIndex] = arr[i]; // העתקת המספר החיובי למערך העזר tempIndex++;",
+   "awarded": "3",
+   "evidence_exists": true,
+   "note": "Scan ✓ 0.5, positive test ✓ 2, copy to temp present but always to slot 0 (t reset) → 0.5 of 1, index advance absent 0."
+  },
+  {
+   "terminal_id": "q2.ב.c4",
+   "points_possible": "3",
+   "description": "סעיף ב: בתוך הלולאה: אופציה 1: מניחים שהמערך פרמטר הוא מערך מראה (כפי שכתוב בשאלה) ופשוט מבצעים: temp[tempIndex] = -arr[i]; tempIndex++; אופציה 2: מציאת המספר הנגדי המתאים (ע\"י עוד לולאה) והשמתו בצמוד למספר שנמצא (באינדקס העוקב). bool found = false; for (int j = 0; j < arr.Length && found == false ; j++) { if (arr[j] == -arr[i]) { temp[tempIndex] = arr[j]; // העתקת המספר השלילי מיד לאחר החיובי tempIndex++; found = true; // מצאנו את הנגדי היחיד, יוצאים מהלולאה הפנימית } }",
+   "awarded": "1.5",
+   "evidence_exists": true,
+   "note": "Option-2 search ✓ and the negative IS placed adjacent — swapped into arr[i+1] in place; operates on arr rather than the helper and cannot guarantee pair boundaries. Half."
+  },
+  {
+   "terminal_id": "q2.ב.c5",
+   "points_possible": "2",
+   "description": "סעיף ב: העתקה מסודרת של כל איברי מערך העזר חזרה למערך המקורי שנתקבל כפרמטר for (int i = 0; i < arr.Length; i++) arr[i] = temp[i];",
+   "awarded": "0.5",
+   "evidence_exists": true,
+   "note": "'arr = arr1' — a write-back attempted as a parameter rebind, which leaves the caller's array untouched; also inside the first loop. Intent present, mechanism wrong."
+  },
+  {
+   "terminal_id": "q3.א.c0",
+   "points_possible": "0.5",
+   "description": "סעיף א: חתימת הפעולה public static int[] DiceStatistics(int[] arr)",
+   "awarded": "0.5",
+   "evidence_exists": true,
+   "note": "'Static'/'DiceStatics' PL-1."
+  },
+  {
+   "terminal_id": "q3.א.c1",
+   "points_possible": "0.5",
+   "description": "סעיף א: משתנים משמעותיים + קוד קריא",
+   "awarded": "0.5",
+   "evidence_exists": true,
+   "note": ""
+  },
+  {
+   "terminal_id": "q3.א.c2",
+   "points_possible": "2",
+   "description": "סעיף א: הגדרה והקצאה נכונה של מערך המונים בגודל 21 + איפוס מערך מונים",
+   "awarded": "2",
+   "evidence_exists": true,
+   "note": "new int[21] + explicit zeroing loop."
+  },
+  {
+   "terminal_id": "q3.א.c3",
+   "points_possible": "2",
+   "description": "סעיף א: לולאה הסורקת את מערך הקלט",
+   "awarded": "2",
+   "evidence_exists": true,
+   "note": "'arr' on one line and 'For(… i < Length …)' on the next = arr.Length split by the transcription (PL-10)."
+  },
+  {
+   "terminal_id": "q3.א.c4",
+   "points_possible": "3",
+   "description": "סעיף א: בתוך הלולאה, קידום תקין של המונה המתאים int diceValue = arr[i]; // תוצאת ההטלה -ערך בין 1 ל-20 counts[diceValue]++; // קידום המונה באינדקס המתאים אם עשו לולאה פנימית ועדכנו את מערך הונים רק כש- arr[i] == למונה של הלולאה הפנימית , לא להוריד כלום (לא ביקשנו פתרון עם מערך מונים)",
+   "awarded": "3",
+   "evidence_exists": true,
+   "note": "num[arr[i]]++ ('num'/'nums' PL-1)."
+  },
+  {
+   "terminal_id": "q3.א.c5",
+   "points_possible": "2",
+   "description": "סעיף א: אחרי הלולאה:החזרת מערך המונים המלא",
+   "awarded": "2",
+   "evidence_exists": true,
+   "note": ""
+  },
+  {
+   "terminal_id": "q3.ב.c0",
+   "points_possible": "0.5",
+   "description": "סעיף ב: חתימת הפעולה public static void PrintStatistics(int[] arr)",
+   "awarded": "0.5",
+   "evidence_exists": true,
+   "note": ""
+  },
+  {
+   "terminal_id": "q3.ב.c1",
+   "points_possible": "0.5",
+   "description": "סעיף ב: משתנים משמעותיים + קוד קריא",
+   "awarded": "0.5",
+   "evidence_exists": true,
+   "note": "nums1/num/nums inconsistent; '.1'/'.2' are her part-labels — lenient."
+  },
+  {
+   "terminal_id": "q3.ב.c2",
+   "points_possible": "2",
+   "description": "סעיף ב: קריאה נכונה לפעולה DiceStatistics(arr) ושמירת המערך המוחזר אם יצרו מערך מונים חדש ו/או הריצו את הפעולה DiceStatistics בתוך לולאה תוך העתקה של כל תא , לא להוריד כלום (חוסר יעילות)",
+   "awarded": "2",
+   "evidence_exists": true,
+   "note": "'nums 1 = DiceStatics(arr)' — stored once ('nums 1' = ink)."
+  },
+  {
+   "terminal_id": "q3.ב.c3",
+   "points_possible": "2",
+   "description": "סעיף ב: הגדרת משתנה שלם לשמירת הערך המקסימלי maxCount + _ + אתחול לתא הראשון או לערך מאוד נמוך) (אתחול 1 נקודות)",
+   "awarded": "2",
+   "evidence_exists": true,
+   "note": "int Max = int.MinValue."
+  },
+  {
+   "terminal_id": "q3.ב.c4",
+   "points_possible": "4",
+   "description": "סעיף ב: אלגוריתם נכון למציאת הערך המקסימלי (השכיחות הגבוהה ביותר) מתוך מערך המונים (ריצה מאינדקס 1 עד 20).",
+   "awarded": "4",
+   "evidence_exists": true,
+   "note": "'nums > Max' missing [i] = PL-10 ink; correct max; 0-start inert."
+  },
+  {
+   "terminal_id": "q3.ב.c5",
+   "points_possible": "3",
+   "description": "סעיף ב: לולאה נפרדת הסורקת ומדפיסה את כל האינדקסים שערכם שווה ל-maxCount (תמיכה בריבוי שכיחים) (ריצה מאינדקס 1 עד 20).",
+   "awarded": "3",
+   "evidence_exists": true,
+   "note": "Separate loop, multi-mode ✓."
+  },
+  {
+   "terminal_id": "q3.ב.c6",
+   "points_possible": "3",
+   "description": "סעיף ב: לולאה הסורקת ומדפיסה את האינדקסים שבהם המונה שווה ל-0 (ערכים שלא הופיעו) (ריצה מאינדקס 1 עד 20).",
+   "awarded": "2",
+   "evidence_exists": true,
+   "note": "'i != 0' guard shows explicit 1..20 intent ✓; the second Console.Write(i) sits outside the else-block as transcribed — brace garble around a labeled '.2', intent unambiguous (PL-10). PB-5 (ratified): both prints are bare Console.Write(i) in one loop, no labels, no separators — modes and zeros indistinguishable → −1."
+  },
+  {
+   "terminal_id": "q4.א.c0",
+   "points_possible": "1",
+   "description": "סעיף א: חתימת הפעולה (ללא מילה static!) public double TotalEarnings()",
+   "awarded": "1",
+   "evidence_exists": true,
+   "note": "No static."
+  },
+  {
+   "terminal_id": "q4.א.c1",
+   "points_possible": "4",
+   "description": "סעיף א: החזרת החישוב: return this.seasonsPlayed * this.seasonSalary;",
+   "awarded": "4",
+   "evidence_exists": true,
+   "note": "Sum = seasonsPlayed * seasonsSalary; return Sum ('seasonsSalary' PL-1)."
+  },
+  {
+   "terminal_id": "q4.ב.c0",
+   "points_possible": "0.5",
+   "description": "סעיף ב: חתימת הפעולה (static!!) public static string[] TopEarners(BasketballPlayer[] arr, double amount)",
+   "awarded": "0.5",
+   "evidence_exists": true,
+   "note": "'Static' PL-1; static present ✓."
+  },
+  {
+   "terminal_id": "q4.ב.c1",
+   "points_possible": "0.5",
+   "description": "סעיף ב: משתנים משמעותיים + קוד קריא",
+   "awarded": "0.5",
+   "evidence_exists": true,
+   "note": ""
+  },
+  {
+   "terminal_id": "q4.ב.c2",
+   "points_possible": "1",
+   "description": "סעיף ב: משתנה למניית השחקניות שמקיימות את התנאי + איפוס",
+   "awarded": "1",
+   "evidence_exists": true,
+   "note": "int Size = 0."
+  },
+  {
+   "terminal_id": "q4.ב.c3",
+   "points_possible": "2",
+   "description": "סעיף ב: לולאה (A) על מערך השחקניות (לספירה נכונה וקידום מונה תקין) for (int i = 0; i < arr.Length; i++)",
+   "awarded": "2",
+   "evidence_exists": true,
+   "note": ""
+  },
+  {
+   "terminal_id": "q4.ב.c4",
+   "points_possible": "5",
+   "description": "סעיף ב:בתוך הלולאה (A) : בדיקה אם המערך במקום ה- i שונה מ- null (1 נקודות) זימון של פעולה פנימית TotalEarnings עבור המערך במקום ה- i (3 נקודות) (לקנוס פעם אחת אם לא בדקו אם arr[i]!=null , הערה למטה) השוואה אם התוצאה גבוהה מהפרמטר (1 נקודה) קידום המונה (1 נקודה) if (arr[i].TotalEarnings() > amount) count++;",
+   "awarded": "4",
+   "evidence_exists": true,
+   "note": "R-E (1,2,1,1): call ✓ 2, compare ✓ 1 (missing ')' = ink), Size++ ✓ 1; null absent → −1, charged once."
+  },
+  {
+   "terminal_id": "q4.ב.c5",
+   "points_possible": "3",
+   "description": "סעיף ב: הקצאת מערך ה-string החדש בדיוק בגודל שנספר (count)",
+   "awarded": "3",
+   "evidence_exists": true,
+   "note": "new String[Size]. Her extra 'איפוס' loop writing \" \" into the array ('String[i]' for 'players[i]' = ink) is harmless surplus."
+  },
+  {
+   "terminal_id": "q4.ב.c6",
+   "points_possible": "1",
+   "description": "סעיף ב: משתנה לאנדקס מערך השמות + איפוס",
+   "awarded": "1",
+   "evidence_exists": true,
+   "note": "int n = 0."
+  },
+  {
+   "terminal_id": "q4.ב.c7",
+   "points_possible": "5",
+   "description": "סעיף ב: לולאה שנייה (B) נכונה (1 נקודה) בדיקה אם המערך במקום ה- i שונה מ- null(1 נקודות), להוריד רק פעם אחת שימוש ב-Getter לקבלת השם arr[i].GetName() (3 נקודות) השמה במערך החדש (1 נקודה) תוך קידום אינדקס נפרד (namesIndex)(1 נקודה) for (int i = 0; i < arr.Length; i++) { if (arr[i]!= null && arr[i].TotalEarnings() > amount) // אם טעו פה,להוריד 3 רק פעם 1 (יש גם זימון בלולאה א { namesArr[namesIndex] = arr[i].GetName(); // שימוש ב-Getter namesIndex++; // קידום האנדקס } }",
+   "awarded": "5",
+   "evidence_exists": true,
+   "note": "R-E (0.5,0.5,2,1,1): all present; null credited (charged at c4). 'inti', 'TotalEarning' = ink."
+  },
+  {
+   "terminal_id": "q4.ב.c8",
+   "points_possible": "2",
+   "description": "סעיף ב: החזרת מערך השמות",
+   "awarded": "2",
+   "evidence_exists": true,
+   "note": "return players."
+  },
+  {
+   "terminal_id": "q5.א.c0",
+   "points_possible": "1",
+   "description": "סעיף א: חתימת הפעולה (ללא מילה static!) public bool IsSimilarWorkshop(Workshop other) כל טעות פה להוריד 1",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q5.א.c1",
+   "points_possible": "4",
+   "description": "סעיף א: החזרת החישוב: return this.name == other.GetName();",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q5.ב.c0",
+   "points_possible": "0.5",
+   "description": "סעיף ב: חתימת הפעולה (לא static!!) public bool HandleNewWorkshop(Workshop ws)",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q5.ב.c1",
+   "points_possible": "0.5",
+   "description": "סעיף ב: משתנים משמעותיים + קוד קריא",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q5.ב.c2",
+   "points_possible": "6",
+   "description": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null , להוריד 2 אם לא ניהולו נכון את גבולות הלולאה להוריד 1",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q5.ב.c3",
+   "points_possible": "2",
+   "description": "סעיף ב: זימון נכון של הפעולה מסעיף א' על איבר מהמערך: this.workshops[i].IsSimilarWorkshop(ws)",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q5.ב.c4",
+   "points_possible": "5",
+   "description": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה 1 נקודה אם לא השתמשו בפעולה הפנימית להוריד 2, אם לא השתמשו באף אחת מהן להוריד 3 אם חישבו נכון את סה\"כ ולא עדכנו את התכונה (כמובן ע\"י setter) להוריד 2",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q5.ב.c5",
+   "points_possible": "3",
+   "description": "סעיף ב: הוספת הסדנה החדשה למקום ה-countWorkshops וקידום המונה ב-1 במידה ולא בוצע איחוד והמערך אינו מלא",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q5.ב.c6",
+   "points_possible": "3",
+   "description": "סעיף ב: החזרת הערכים הבוליאניים הנכונים (true / false) בכל אחד מהתרחישים 1.5 ל-true, 1.5 ל-false",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q6.c0",
+   "points_possible": "1",
+   "description": "חתימת הפעולה (עם המילה static!) כל טעות להוריד 1",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q6.c1",
+   "points_possible": "1",
+   "description": "משתנים משמעותיים + קוד קריא",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q6.c2",
+   "points_possible": "2",
+   "description": "יצירה של מערך מונים עם הקצאה נכונה (לפחות בגודל 31)",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q6.c3",
+   "points_possible": "1",
+   "description": "איפוס מערך המונים או הערה שיש איפוס ע\"י השפה",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q6.c4",
+   "points_possible": "2",
+   "description": "סריקה נכונה של מערך הקלט לעדכון מונים",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q6.c5",
+   "points_possible": "4",
+   "description": "סריקת מערך המונים למציאת המכינה (האינדקס) עם המונה הגבוה ביותר (4 נקודות) ו",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q6.c6",
+   "points_possible": "2",
+   "description": "הדפסת מספר המכינה בעלת כמות מקסימלית (ולא כמות התלמידים) אם הדפיסו את הכמות להוריד 2 (או 1?)",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q6.c7",
+   "points_possible": "4",
+   "description": "חישוב גודל מערך היעד: סריקת מערך המונים(1 נק'), ספירת התאים שגדולים מ-0 (1 נקודה), ויצירה והקצאת מערך חדש בגודל count * 2 (2 נקודות)",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  },
+  {
+   "terminal_id": "q6.c8",
+   "points_possible": "8",
+   "description": "בניית מערך התוצאה: מילוי נכון של המערך החדש בזוגות: קודם את result[resIndex] = i ומיד לאחר מכן result[resIndex+1] = counters[i] תוך קידום ידני תקין של אינדקס מערך היעד ב-2 בכל פעם.",
+   "awarded": null,
+   "evidence_exists": null,
+   "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
+  }
+ ],
+ "ungradable_scopes": []
+}

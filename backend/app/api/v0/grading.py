@@ -84,6 +84,7 @@ class ApproveRequest(BaseModel):
     # approval is refused with an ERROR annotation — never a silent server win,
     # because freezing a number she never reviewed is the §5 catastrophe.
     client_total: Optional[Decimal] = None
+from ...services.grading_inputs import backfill_scope_answers
 from ...services.pdf_preview_service import generate_pdf_previews
 from ...services.document_parser import (
     pdf_to_images,
@@ -596,6 +597,13 @@ async def get_single_graded_test(
 
     if row.status == "draft":
         draft = GradedTestDraft.model_validate(row.draft_json)
+        # [EVD-1] Rows graded before the evidence field get it resolved here,
+        # by the SAME compiler the grader used. Never persisted, and it refuses
+        # rather than guesses when the inputs have moved (see grading_inputs).
+        await backfill_scope_answers(
+            db, row, draft, rubric=rubric,
+            rubric_contract_stale=rubric_contract_stale,
+        )
         return GradedTestDraftResponse(
             id=row.id,
             status=row.status,
@@ -616,6 +624,13 @@ async def get_single_graded_test(
     # approved — return draft + frozen contract (S9)
     draft = GradedTestDraft.model_validate(row.draft_json)
     contract = GradedTestContract.model_validate(row.contract_json)
+    # [EVD-1] Same legacy resolution for approved rows. The frozen contract is
+    # authoritative for anything it carries; this only fills the DRAFT's
+    # evidence, which is what the review surface renders.
+    await backfill_scope_answers(
+        db, row, draft, rubric=rubric,
+        rubric_contract_stale=rubric_contract_stale,
+    )
     return GradedTestApprovedResponse(
         id=row.id,
         status=row.status,

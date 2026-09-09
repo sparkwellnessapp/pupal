@@ -33,7 +33,9 @@ interface UploadMockState {
     /** filename → every client_file_id seen for it, in order. */
     appendIds: Map<string, string[]>;
     /** filename → behavior for the NEXT append of that file. */
-    behaviors: Map<string, 'ok' | '422' | 'net-once'>;
+    behaviors: Map<string, 'ok' | '422' | 'net-once' | 'hang'>;
+    /** [Stage A/R9] every expected_test_count the client re-declared, in order. */
+    redeclared: number[];
 }
 
 function parseMultipart(post: string | null): { filename: string; clientFileId: string } {
@@ -48,6 +50,7 @@ async function installMocks(page: Page): Promise<UploadMockState> {
         createBodies: [],
         appendIds: new Map(),
         behaviors: new Map(),
+        redeclared: [],
     };
 
     await page.route('**/api/v0/**', async (route: Route) => {
@@ -64,8 +67,23 @@ async function installMocks(page: Page): Promise<UploadMockState> {
             return fulfillJson(route, { students: [] });
         }
         if (method === 'POST' && /\/api\/v0\/batches$/.test(url.split('?')[0])) {
-            state.createBodies.push(route.request().postDataJSON() as Record<string, unknown>);
-            return fulfillJson(route, { batch_id: BATCH_ID, test_count: 0 });
+            const body = route.request().postDataJSON() as Record<string, unknown>;
+            state.createBodies.push(body);
+            return fulfillJson(route, {
+                batch_id: BATCH_ID, test_count: 0,
+                expected_test_count: body.expected_test_count ?? null,
+            });
+        }
+        // [Stage A/R9] the re-declare
+        if (method === 'PATCH' && url.includes(`/api/v0/batches/${BATCH_ID}`)) {
+            const body = route.request().postDataJSON() as Record<string, unknown>;
+            if (typeof body.expected_test_count === 'number') {
+                state.redeclared.push(body.expected_test_count);
+            }
+            return fulfillJson(route, {
+                batch_id: BATCH_ID, name: null,
+                expected_test_count: body.expected_test_count ?? null,
+            });
         }
         if (method === 'POST' && url.includes(`/api/v0/batches/${BATCH_ID}/files`)) {
             const { filename, clientFileId } = parseMultipart(route.request().postData());
@@ -79,6 +97,11 @@ async function installMocks(page: Page): Promise<UploadMockState> {
             if (behavior === 'net-once') {
                 state.behaviors.set(filename, 'ok');   // heal on the retry
                 return route.abort('failed');
+            }
+            if (behavior === 'hang') {
+                // Never resolves: the transfer stays in flight for the whole
+                // test, which is what R10 needs to observe.
+                return new Promise(() => {});
             }
             return fulfillJson(route, {
                 job_id: `job-${filename}`, filename, test_count: seen.length,
@@ -136,7 +159,18 @@ test('upload-journey (U1) — one path: a single file becomes a batch of one and
     expect(ids[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
 });
 
-test('inline-states (U3/U4) — 422 terminal inline, network retry keeps the SAME client_file_id, continue after partial success', async ({ page }) => {
+test('inline-states (U3/U4) — the SAME invariants, now on the dashboard lane', async ({ page }) => {
+    // [Stage B / R3] Re-homed, not weakened (the §4.4a precedent). This journey
+    // used to run entirely on the upload page, because the redirect waited for
+    // the last byte. It no longer does: she is sent to the dashboard on create
+    // and watches the transfers there. The invariants are unchanged and every
+    // one of them is still asserted:
+    //   * a 422 renders the server's Hebrew verdict VERBATIM and offers NO retry;
+    //   * a network failure retries with the SAME client_file_id (B9) — the
+    //     contract that makes a retry incapable of minting a second test;
+    //   * failures stay visible instead of vanishing into a tidy short batch.
+    // What is GONE is the four-minute wait and the explicit continue that
+    // existed only to end it.
     await seedAuth(page);
     const state = await installMocks(page);
     state.behaviors.set('bad.pdf', '422');
@@ -150,52 +184,102 @@ test('inline-states (U3/U4) — 422 terminal inline, network retry keeps the SAM
     await expect(page.getByTestId('upload-cta')).toHaveText(/התחלת תמלול \(3 מבחנים\)/);
     await page.getByTestId('upload-cta').click();
 
-    // Drained with failures → NO auto-navigation; each row tells its truth.
-    await expect(page.getByTestId('row-done')).toBeVisible();          // good.pdf ✓
-    const failedRows = page.getByTestId('row-failed');
-    await expect(failedRows).toHaveCount(2);
-    await expect(page.getByText('לא קובץ PDF')).toBeVisible();         // the server's 422 verdict, verbatim
-    // Exactly ONE retry affordance: the network failure. The 422 is terminal.
-    await expect(page.getByTestId('row-retry')).toHaveCount(1);
-    await expect(page).toHaveURL(/\/\?rubric=r1$/);
+    // THE Stage B claim: she leaves at once, and the transfers survive the
+    // route change instead of being aborted by the unmounting page.
+    await expect(page).toHaveURL(new RegExp(`/batches/${BATCH_ID}$`));
 
-    // Partial success → the explicit continue is offered (decision 4).
-    await expect(page.getByTestId('upload-continue')).toBeVisible();
+    const lane = page.getByTestId('zone-upload');
+    await expect(lane).toBeVisible();
 
-    // Live-E2E fix (2026-08-22): the page now SAYS transcription is already
-    // running server-side — the mock batch serves one transcribed row, so
-    // the signal reads the AM3 singular. She is no longer staring at a page
-    // that pretends nothing is happening.
-    await expect(page.getByTestId('upload-live-progress'))
-        .toHaveText('תמלול אחד כבר מוכן לעיון', { timeout: 10_000 });
+    // good.pdf landed AFTER the navigation — the whole point.
+    await expect(lane.locator('[data-state="done"]')).toHaveCount(1);
+
+    // The 422's verdict, verbatim, with NO retry; the network failure keeps one.
+    await expect(lane.getByTestId('upload-lane-reason').filter({ hasText: 'לא קובץ PDF' }))
+        .toBeVisible();
+    await expect(lane.locator('[data-state="failed"]')).toHaveCount(2);
+    await expect(lane.getByTestId('upload-lane-retry')).toHaveCount(1);
 
     // Retry the network failure: the SAME idempotency key rides the wire.
-    await page.getByTestId('row-retry').click();
-    await expect(page.getByTestId('row-done')).toHaveCount(2);
+    await lane.getByTestId('upload-lane-retry').click();
+    await expect(lane.locator('[data-state="done"]')).toHaveCount(2);
     const flakyIds = state.appendIds.get('flaky.pdf') ?? [];
     expect(flakyIds).toHaveLength(2);
     expect(flakyIds[0]).toBe(flakyIds[1]);                             // B9: retry ≠ new identity
 
-    // The 422 stays failed; the teacher moves on explicitly.
-    await expect(page.getByTestId('row-failed')).toHaveCount(1);
-    await page.getByTestId('upload-continue').click();
+    // The 422 stays failed and stays VISIBLE: a batch that is quietly short is
+    // the silent drop U4 kills at intake, relocated one screen later.
+    await expect(lane.locator('[data-state="failed"]')).toHaveCount(1);
+    await expect(lane).toContainText('bad.pdf');
+
+    // R9's explicit half: removing it re-declares the batch's expected count
+    // rather than leaving it to the 90-minute backstop.
+    await lane.getByTestId('upload-lane-remove').click();
+    expect(state.redeclared.at(-1)).toBe(2);
+
+    // Nothing moving and nothing left behind ⇒ the lane has said all it has to
+    // say and gets out of the way.
+    await expect(page.getByTestId('zone-upload')).toHaveCount(0);
+});
+
+test('dismissing a lane with files left behind SETTLES the batch (review fix)', async ({ page }) => {
+    // The bug this pins: `declaredCount` keeps a RETRYABLE failure in the
+    // declaration on the reasoning that she may still click «נסי שוב» — true
+    // only while the queue exists. Dismissing without settling left the server
+    // holding expected > COUNT(jobs), so the batch reported "1 file still
+    // uploading", pinned itself to in_progress and drew an uploading segment,
+    // about a file that was not on the wire and that nothing could put there —
+    // for ninety minutes, with the retry gone along with the lane. The X says
+    // "close this list"; it must not also mean "abandon this file and misreport
+    // it".
+    await seedAuth(page);
+    const state = await installMocks(page);
+    state.behaviors.set('flaky.pdf', 'net-once');
+
+    await page.goto('/?rubric=r1');
+    await page.setInputFiles('input[type=file]', [
+        pdfPayload('good.pdf'), pdfPayload('flaky.pdf'),
+    ]);
+    await page.getByTestId('upload-cta').click();
     await expect(page).toHaveURL(new RegExp(`/batches/${BATCH_ID}$`));
 
-    // D1 (closeout): the batch has no memory of `bad.pdf` — jobs ARE the
-    // total (B9.5), so it renders as a coherent 2-item batch. Without the
-    // handoff she would arrive at a tidy batch that is quietly short, which
-    // is the silent drop U4 kills at intake relocated one screen later.
-    await expect(page.getByTestId('upload-failures-notice')).toBeVisible();
-    await expect(page.getByTestId('upload-failures-notice')).toContainText('bad.pdf');
-    await expect(page.getByTestId('upload-failures-notice')).toContainText('לא הועלה');
+    const lane = page.getByTestId('zone-upload');
+    await expect(lane.locator('[data-state="failed"]')).toHaveCount(1);
+    // Still declared as 2: a retryable failure keeps its slot while she can act.
+    expect(state.redeclared).not.toContain(1);
 
-    // It is a notice, not a blocker.
-    await page.getByRole('button', { name: 'סגירת ההודעה' }).click();
-    await expect(page.getByTestId('upload-failures-notice')).toBeHidden();
+    await lane.getByTestId('upload-lane-dismiss').click();
+    await expect(page.getByTestId('zone-upload')).toHaveCount(0);
 
-    // ONE-SHOT: a reload must not resurrect it (the handoff is consumed).
-    await page.reload();
-    await expect(page.getByTestId('upload-failures-notice')).toHaveCount(0);
+    // Letting go IS a terminal event: the honest declaration is what landed.
+    await expect.poll(() => state.redeclared.at(-1)).toBe(1);
+});
+
+test('one uploading batch at a time (R10) — the second start links to the first', async ({ page }) => {
+    await seedAuth(page);
+    const state = await installMocks(page);
+    state.behaviors.set('slow.pdf', 'hang');
+
+    await page.goto('/?rubric=r1');
+    await page.setInputFiles('input[type=file]', [pdfPayload('slow.pdf')]);
+    await page.getByTestId('upload-cta').click();
+    await expect(page).toHaveURL(new RegExp(`/batches/${BATCH_ID}$`));
+
+    // Back to the upload page with that transfer still in flight — via the
+    // browser's own back, i.e. a SOFT navigation. A `page.goto` here would be a
+    // full reload, which tears down the provider along with the page and is the
+    // one case Stage B explicitly does not defend (the beforeunload guard is
+    // what covers it). Soft navigation is the case that must keep the queue.
+    await page.goBack();
+    await expect(page.getByText('העלאת מבחנים')).toBeVisible();
+    await page.setInputFiles('input[type=file]', [pdfPayload('second.pdf')]);
+    await page.getByTestId('upload-cta').click();
+
+    // No second batch is created, and she is pointed at the one running.
+    await expect(page.getByTestId('upload-busy-notice')).toBeVisible();
+    expect(state.createBodies).toHaveLength(1);
+    await page.getByTestId('upload-busy-link').click();
+    await expect(page).toHaveURL(new RegExp(`/batches/${BATCH_ID}$`));
 });
 
 test('form-truths (U2) — dup chip, >50 truncation notice, LTR sizes', async ({ page }) => {

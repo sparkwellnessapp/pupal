@@ -1602,6 +1602,10 @@ export async function listSubjectMatters(): Promise<SubjectMatterOption[]> {
 /** The wire's user profile — the ONE shape, generated from the backend schema. */
 export type UserProfileWire = components['schemas']['UserResponse'];
 export type SchoolWire = components['schemas']['SchoolResponse'];
+/** [028] The exam step's persisted fields. Generated, like every wire type —
+ *  hand-writing this one would put a second opinion about the wire in front of
+ *  the schema the server actually publishes. */
+export type OnboardingExamWire = components['schemas']['OnboardingExamResponse'];
 export type Gender = 'female' | 'male' | 'unspecified';
 
 /** Replaces the teacher's whole subject set (the endpoint is a PUT for a
@@ -1645,6 +1649,34 @@ export async function updateMyProfile(body: {
 }): Promise<UserProfileWire> {
   return apiFetch<UserProfileWire>(
     '/api/v0/users/me/profile',
+    jsonInit('PATCH', body),
+  );
+}
+
+/**
+ * [028] Records her next exam date, and optionally a phone + WhatsApp consent.
+ *
+ * OMISSION IS MEANINGFUL and is the whole reason this takes a partial body.
+ * The server reads which fields were SENT, not which are null:
+ *   * `next_exam_date` omitted  → left alone, and `next_exam_answered_at` is
+ *     NOT re-stamped — which is what lets the app-shell "book a call" link post
+ *     `guided_session_requested` alone without silently pushing her 14-day
+ *     re-ask out or erasing a date she already gave.
+ *   * `next_exam_date: null`    → «עוד לא יודעת», a real answer (ONB-2).
+ * So never fill this object in "for completeness".
+ *
+ * `phone` travels EXACTLY as she typed it. There is no client-side format
+ * check and there must not be one: the server does not validate it either, and
+ * a second opinion here could reject a number the server would have taken.
+ */
+export async function updateOnboardingExam(body: {
+  next_exam_date?: string | null;
+  phone?: string | null;
+  whatsapp_opt_in?: boolean;
+  guided_session_requested?: boolean;
+}): Promise<OnboardingExamWire> {
+  return apiFetch<OnboardingExamWire>(
+    '/api/v0/users/me/onboarding-exam',
     jsonInit('PATCH', body),
   );
 }

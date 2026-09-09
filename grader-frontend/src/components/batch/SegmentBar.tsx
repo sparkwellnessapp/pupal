@@ -2,7 +2,9 @@
  * F8/D2 — the honesty bar: one proportional segment per live state, with a
  * counted legend. Consumed by the dashboard (D2) and, mini, by the list
  * rows (L1). Segment order and hues follow the mockup (RTL start→:
- * approved · clean · eyes · moving[shimmer] · failed); zero-count segments
+ * approved · clean · eyes · uploading[shimmer] · moving[shimmer] · failed ·
+ * not_received);
+ * zero-count segments
  * never render (barSegments already drops them); total 0 → nothing at all.
  * The shimmer runs under `motion-safe:` only — prefers-reduced-motion kills
  * it (D2 requirement, asserted by computed-style in Playwright).
@@ -14,16 +16,25 @@ const SEG_BG: Record<BarSegment['kind'], string> = {
     approved: 'bg-batch-green',
     clean: 'bg-batch-seg-clean',
     eyes: 'bg-batch-seg-eyes',
+    // [Stage A] Uploading shares the `moving` hue and shimmer on purpose: both
+    // are work in flight, and inventing a sixth colour would ask the teacher to
+    // learn a new one for a state that means the same thing to her ("wait").
+    // The LEGEND is what distinguishes them — 'בהעלאה' vs 'בתמלול'.
+    uploading: 'bg-batch-seg-moving motion-safe:animate-shimmer',
     moving: 'bg-batch-seg-moving motion-safe:animate-shimmer',
     failed: 'bg-batch-seg-failed',
+    // Muted, not red: a file that never arrived is absent, not broken.
+    not_received: 'bg-batch-line',
 };
 
 const SWATCH_BG: Record<BarSegment['kind'], string> = {
     approved: 'bg-batch-green',
     clean: 'bg-batch-seg-clean',
     eyes: 'bg-batch-seg-eyes',
+    uploading: 'bg-batch-seg-moving',
     moving: 'bg-batch-seg-moving',
     failed: 'bg-batch-seg-failed',
+    not_received: 'bg-batch-line',
 };
 
 const SHIMMER_STYLE: React.CSSProperties = {
@@ -57,7 +68,8 @@ export function SegmentBar({
                         className={`h-full min-w-[6px] ${SEG_BG[s.kind]}`}
                         style={{
                             width: `${(s.count / total) * 100}%`,
-                            ...(s.kind === 'moving' ? SHIMMER_STYLE : {}),
+                            ...(s.kind === 'moving' || s.kind === 'uploading'
+                                ? SHIMMER_STYLE : {}),
                         }}
                     />
                 ))}

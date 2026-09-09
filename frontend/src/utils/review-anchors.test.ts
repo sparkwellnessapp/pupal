@@ -80,24 +80,20 @@ describe('reasonAnchors (R1)', () => {
     ])
   })
 
-  it('code_lint / segmentation_mismatch → the annotation target_id', () => {
-    const item = itemOf(['code_lint', 'segmentation_mismatch'],
+  it('segmentation_mismatch → the annotation target_id', () => {
+    const item = itemOf(['segmentation_mismatch'],
       [ans(2, 'א', 'code'), ans(3, null, 'other')],
-      [
-        { annotation_type: 'code_lint', target_id: 'q2.א' },
-        { annotation_type: 'segmentation_mismatch', target_id: 'q3' },
-      ])
+      [{ annotation_type: 'segmentation_mismatch', target_id: 'q3' }])
     expect(reasonAnchors(item, {}, [])).toEqual([
-      { reason: 'code_lint', anchor: { kind: 'card', key: 'q2.א' } },
       { reason: 'segmentation_mismatch', anchor: { kind: 'card', key: 'q3' } },
     ])
   })
 
   it('an annotation pointing at no existing card → missing target', () => {
-    const item = itemOf(['code_lint'], [ans(1, null, 'x')],
-      [{ annotation_type: 'code_lint', target_id: 'q9' }])
+    const item = itemOf(['segmentation_mismatch'], [ans(1, null, 'x')],
+      [{ annotation_type: 'segmentation_mismatch', target_id: 'q9' }])
     expect(reasonAnchors(item, {}, [])).toEqual([
-      { reason: 'code_lint', anchor: { kind: 'missing' } },
+      { reason: 'segmentation_mismatch', anchor: { kind: 'missing' } },
     ])
   })
 

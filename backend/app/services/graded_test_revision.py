@@ -73,6 +73,13 @@ async def extend_chain(
         student_name=source.student_name,
         filename=source.filename,
         rubric_contract_version=new_rubric_contract_version,
+        # [029] CARRIED, not re-read. A successor grades the SAME transcription
+        # (`transcription_id` is copied one line above) — only the rubric can
+        # move forward in a chain, which is what `new_rubric_contract_version`
+        # is a parameter for. Re-reading the row here would let a successor
+        # claim a provenance its predecessor never had, and would silently
+        # "upgrade" a legacy NULL into a version nobody verified.
+        transcription_contract_version=source.transcription_contract_version,
         status=new_status,
         draft_json=new_draft_json,
         contract_json=None,

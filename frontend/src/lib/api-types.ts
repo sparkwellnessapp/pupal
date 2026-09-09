@@ -1407,6 +1407,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/users/me/onboarding-exam": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Onboarding Exam
+         * @description Record when her next exam is — and, optionally, how to reach her.
+         *
+         *     Ownership per §9: the row written is `current_user`'s, and there is no user
+         *     id on this request to supply. Idempotent and re-callable; she may change
+         *     the date as often as she likes.
+         */
+        patch: operations["update_onboarding_exam_api_v0_users_me_onboarding_exam_patch"];
+        trace?: never;
+    };
     "/api/v0/users/me/onboarding/complete": {
         parameters: {
             query?: never;
@@ -2691,6 +2715,26 @@ export interface components {
             was_edited: boolean;
         };
         /**
+         * ContractScopeAnswer
+         * @description Frozen twin of `graded_test_draft.ScopeAnswer` (EVD-1).
+         *
+         *     A separate type rather than a re-export, matching how every other outcome
+         *     type in this module mirrors its draft counterpart: the contract family is
+         *     frozen and minimal by design (§4), and importing a draft type here would
+         *     make the contract's shape hostage to changes on the mutable side.
+         */
+        ContractScopeAnswer: {
+            /** Inherited From */
+            inherited_from?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "own" | "inherited";
+            /** Text */
+            text: string;
+        };
+        /**
          * ContractScopeOutcome
          * @description Frozen scope record. final_points_awarded = Σ terminal_outcomes[*].final_points_awarded.
          */
@@ -2711,6 +2755,7 @@ export interface components {
              * @enum {string}
              */
             scope_kind: "direct" | "sub_question";
+            student_answer?: components["schemas"]["ContractScopeAnswer"] | null;
             /** Sub Question Id */
             sub_question_id?: string | null;
             /** Terminal Outcomes */
@@ -3583,6 +3628,52 @@ export interface components {
             sum_tolerance: string;
         };
         /**
+         * OnboardingExamRequest
+         * @description Every field optional; presence is what carries meaning (see above).
+         *
+         *     `phone` has NO format validation, by design (§5): it is stored exactly as
+         *     she typed it and normalised to E.164 only on read, when a wa.me link is
+         *     built. Rejecting a teacher's phone format mid-onboarding is hostility
+         *     disguised as rigour — and there is no format we could enforce that is
+         *     right for every way an Israeli number is written.
+         */
+        OnboardingExamRequest: {
+            /** Guided Session Requested */
+            guided_session_requested?: boolean | null;
+            /** Next Exam Date */
+            next_exam_date?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Whatsapp Opt In */
+            whatsapp_opt_in?: boolean | null;
+        };
+        /**
+         * OnboardingExamResponse
+         * @description The persisted fields, read back off the row after the commit.
+         *
+         *     Deliberately NOT `UserResponse`: these columns are not part of the profile
+         *     shape, and widening the one profile response for them would put a second
+         *     hand-maintained mirror in front of `build_user_response` — the truncation
+         *     risk CLAUDE.md §6 documents.
+         *
+         *     No `show_booking`: the 14-day threshold is a single frontend constant and
+         *     the block renders reactively on date change, BEFORE submit. A server field
+         *     could only ever answer about the last saved date, one step behind what she
+         *     is looking at.
+         */
+        OnboardingExamResponse: {
+            /** Guided Session Requested At */
+            guided_session_requested_at: string | null;
+            /** Next Exam Answered At */
+            next_exam_answered_at: string | null;
+            /** Next Exam Date */
+            next_exam_date: string | null;
+            /** Phone */
+            phone: string | null;
+            /** Whatsapp Opt In */
+            whatsapp_opt_in: boolean;
+        };
+        /**
          * PagePreview
          * @description Preview of a single PDF page.
          */
@@ -4302,6 +4393,43 @@ export interface components {
             name: string;
         };
         /**
+         * ScopeAnswer
+         * @description THE ANSWER THIS SCOPE WAS GRADED AGAINST — evidence, not decoration.
+         *
+         *     EVD-1 (WhatWasGradedIsWhatIsShown). The grading gate exists so the teacher
+         *     validates the AI against WHAT IT ACTUALLY SAW. Before this field the answer
+         *     was stored nowhere and re-derived on the client by a second rule, which
+         *     drifted: a depth-2 leaf (`q1.א.1`) whose answer was inherited from `q1.א`
+         *     rendered "no answer in the approved transcription" NEXT TO a full-marks
+         *     grade and a verbatim quotation from that same answer. Two derivations of
+         *     one fact cannot be kept in agreement; one recorded fact can.
+         *
+         *     Stored beside the verdict for the same reason `CriterionOutcome.quote` is:
+         *     both are the evidence the grade rests on, and evidence that has to be
+         *     recomputed from mutable inputs is not evidence. It is also immune to the
+         *     one thing a recompute cannot survive — `rubrics.contract_json` holds only
+         *     the LATEST contract, so once a rubric is recompiled the pinned contract the
+         *     grader used is unrecoverable.
+         *
+         *     `source` is the half the old client join could not express:
+         *       "own"       — the transcription answered this exact scope.
+         *       "inherited" — it answered `inherited_from`, and this scope is graded
+         *                     against that text. Surfaced to the teacher, never hidden
+         *                     (FC): presenting a parent's words as the leaf's own is a
+         *                     silent repair.
+         */
+        ScopeAnswer: {
+            /** Inherited From */
+            inherited_from?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "own" | "inherited";
+            /** Text */
+            text: string;
+        };
+        /**
          * ScopeOutcome
          * @description Grading result for one GradableScope (1:1 with GradableTest.scopes input).
          *
@@ -4365,6 +4493,7 @@ export interface components {
              * @enum {string}
              */
             scope_kind: "direct" | "sub_question";
+            student_answer?: components["schemas"]["ScopeAnswer"] | null;
             /** Sub Question Id */
             sub_question_id?: string | null;
         };
@@ -7343,6 +7472,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_onboarding_exam_api_v0_users_me_onboarding_exam_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingExamRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingExamResponse"];
                 };
             };
             /** @description Validation Error */

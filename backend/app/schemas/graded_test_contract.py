@@ -103,6 +103,22 @@ class ContractTerminalOutcome(BaseModel):
         return str(v)
 
 
+class ContractScopeAnswer(BaseModel):
+    """Frozen twin of `graded_test_draft.ScopeAnswer` (EVD-1).
+
+    A separate type rather than a re-export, matching how every other outcome
+    type in this module mirrors its draft counterpart: the contract family is
+    frozen and minimal by design (§4), and importing a draft type here would
+    make the contract's shape hostage to changes on the mutable side.
+    """
+
+    model_config = {"frozen": True}
+
+    text: str
+    source: Literal["own", "inherited"]
+    inherited_from: Optional[str] = None
+
+
 class ContractScopeOutcome(BaseModel):
     """Frozen scope record. final_points_awarded = Σ terminal_outcomes[*].final_points_awarded."""
     model_config = {"frozen": True}
@@ -120,6 +136,18 @@ class ContractScopeOutcome(BaseModel):
     # provisional mark is not simply copied here.
     # Default True ⇒ every stored contract (all selection-free) re-parses unchanged.
     counted_in_total: bool = True
+    # [EVD-1] The answer this scope was graded against, frozen with the verdict.
+    #
+    # The approved contract is the AUDIT artefact — the thing consulted months
+    # later to answer "why this grade?". Every other input is already recorded
+    # (rubric + transcription contract versions, model, prompt); the student's
+    # own words were the one input that was not, and they are the input the
+    # reasoning quotes. Recomputing them later is not possible in general:
+    # `rubrics.contract_json` keeps only the LATEST contract, so once the rubric
+    # is recompiled the scope tree the grader used is gone.
+    #
+    # Optional ⇒ every contract frozen before this field re-parses unchanged.
+    student_answer: Optional[ContractScopeAnswer] = None
     terminal_outcomes: List[ContractTerminalOutcome]
 
     @field_serializer("points_possible", "final_points_awarded")

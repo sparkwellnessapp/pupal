@@ -32,8 +32,28 @@ class UpdateSubjectMattersRequest(BaseModel):
 # User Schemas
 # =============================================================================
 
+class SchoolResponse(BaseModel):
+    """One school on the teacher's list (migration 022)."""
+    id: UUID
+    name: str
+    city: Optional[str] = None
+    # [023] סמל מוסד, or null for a school the teacher typed herself. Returned so
+    # a client that re-submits her list round-trips the IDENTITY, not just the
+    # spelling — without it, re-saving an unchanged list would demote every
+    # picked school to a free-text one.
+    ministry_symbol: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class UserResponse(BaseModel):
-    """Response schema for user profile."""
+    """Response schema for user profile.
+
+    THE profile shape — `auth.build_user_response` is its only builder. A second
+    hand-built copy is what silently truncated the annotation payload (§6); do
+    not add one.
+    """
     id: UUID
     email: str
     full_name: str
@@ -44,7 +64,15 @@ class UserResponse(BaseModel):
     is_subscription_active: bool
     subject_matters: List[SubjectMatterResponse] = Field(default_factory=list)
     created_at: datetime
-    
+    # [022] onboarding
+    gender: Optional[str] = None
+    onboarding_completed_at: Optional[datetime] = None
+    schools: List[SchoolResponse] = Field(default_factory=list)
+    # == users.school_id, the PR-G6 attribution key, named for what it IS rather
+    # than for the column it lives in. It is always schools[0] when schools is
+    # non-empty; it is exposed so a client never has to infer that rule.
+    primary_school_id: Optional[UUID] = None
+
     class Config:
         from_attributes = True
 

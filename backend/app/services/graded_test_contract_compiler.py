@@ -26,6 +26,7 @@ from uuid import uuid4
 
 from app.schemas.graded_test_contract import (
     ContractCheck,
+    ContractScopeAnswer,
     ContractScopeOutcome,
     ContractTerminalOutcome,
     GradedTestContract,
@@ -297,6 +298,14 @@ def compile_graded_test(
             sub_question_id=scope.sub_question_id,
             points_possible=scope.points_possible,
             final_points_awarded=scope_final,
+            # [EVD-1] carried verbatim from the draft — the approval gate does
+            # not re-resolve the answer, because the answer is not a judgement
+            # the gate makes. Re-deriving it here would be a second opinion
+            # about what the grader saw.
+            student_answer=(
+                ContractScopeAnswer(**scope.student_answer.model_dump())
+                if scope.student_answer is not None else None
+            ),
             terminal_outcomes=terminals,
         ))
 

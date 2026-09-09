@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -15,6 +15,14 @@ import {
     CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import { VerificationCodePanel } from '@/components/auth/VerificationCodePanel';
+import { GOOGLE_DIVIDER, SIGNUP_GENERIC_ERROR, SIGNUP_SENDING } from '@/copy/auth';
+
+/** Survives a reload during the code step: without it, refreshing the page
+ *  after "we sent you a code" strands her with an account she cannot reach and
+ *  an address she cannot re-register. */
+const PENDING_KEY = 'vivi_pending_verification_email';
 
 type FocusedField = 'name' | 'email' | 'password' | 'confirmPassword' | null;
 
@@ -30,6 +38,18 @@ export default function SignupPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [focusedField, setFocusedField] = useState<FocusedField>(null);
+    /** Non-null ⇒ the account exists and is waiting for its code. */
+    const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+
+    // Rehydrate the code step after a reload.
+    useEffect(() => {
+        try {
+            const saved = sessionStorage.getItem(PENDING_KEY);
+            if (saved) setPendingEmail(saved);
+        } catch {
+            /* private mode — the form simply starts fresh */
+        }
+    }, []);
 
     // Redirect if already authenticated
     if (isAuthenticated) {
@@ -60,13 +80,29 @@ export default function SignupPage() {
         setIsLoading(true);
 
         try {
+            // [024] Creates the account and emails a code — it does NOT sign her
+            // in. The session is issued by the code panel below.
             await signup(email, password, fullName);
-            router.push('/');
+            try {
+                sessionStorage.setItem(PENDING_KEY, email);
+            } catch {
+                // A blocked sessionStorage costs reload-resilience, not the flow.
+            }
+            setPendingEmail(email);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'שגיאה ביצירת החשבון');
+            setError(err instanceof Error ? err.message : SIGNUP_GENERIC_ERROR);
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const clearPending = () => {
+        try {
+            sessionStorage.removeItem(PENDING_KEY);
+        } catch {
+            /* nothing to clear */
+        }
+        setPendingEmail(null);
     };
 
     return (
@@ -114,6 +150,21 @@ export default function SignupPage() {
                     <div className="absolute -inset-1 bg-gradient-to-r from-primary-400/20 via-[#aa77f7]/20 to-primary-400/20 rounded-3xl blur-xl opacity-60" />
 
                     <div className="relative bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl shadow-gray-200/50 p-8 border border-white/50">
+                        {/* [024] PHASE TWO. The account exists but is unusable
+                            until the code is redeemed, so the form is replaced
+                            rather than merely disabled — there is nothing left
+                            to edit on it. */}
+                        {pendingEmail ? (
+                            <VerificationCodePanel
+                                email={pendingEmail}
+                                onVerified={() => {
+                                    clearPending();
+                                    router.push('/');
+                                }}
+                                onStartOver={clearPending}
+                            />
+                        ) : (
+                        <>
                         <div className="text-center mb-6">
                             <h2 className="text-2xl font-bold bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 bg-clip-text text-transparent">
                                 הרשמה
@@ -121,6 +172,17 @@ export default function SignupPage() {
                             <p className="text-gray-400 mt-2 text-sm">
                                 צרי חשבון חדש והתחילי לבדוק מבחנים
                             </p>
+                        </div>
+
+                        {/* Google first: it is one click and needs no code at
+                            all, because Google already proved the address. */}
+                        <div className="mb-5 space-y-4">
+                            <GoogleSignInButton onError={setError} />
+                            <div className="flex items-center gap-3">
+                                <span className="h-px flex-1 bg-surface-200" />
+                                <span className="text-xs text-gray-400">{GOOGLE_DIVIDER}</span>
+                                <span className="h-px flex-1 bg-surface-200" />
+                            </div>
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-4">
@@ -313,6 +375,8 @@ export default function SignupPage() {
                                 </Link>
                             </p>
                         </div>
+                        </>
+                        )}
                     </div>
                 </div>
 

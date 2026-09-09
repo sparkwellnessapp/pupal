@@ -81,7 +81,7 @@ def match_student(
 class FlagVerdict:
     review_needed: bool
     # Subset of: "unparseable", "grounding_retry", "low_confidence",
-    #            "low_logprob_span", "code_lint", "missing_answers",
+    #            "low_logprob_span", "missing_answers",
     #            "segmentation_mismatch", "student_unassigned", "student_unmatched"
     # Deduplicated and ordered for stable display.
     reasons: list[str] = field(default_factory=list)
@@ -105,8 +105,7 @@ def compute_flag_verdict(
     Signal sources (engine-agnostic — must be honest for BOTH engines):
       - draft.annotations: vlm_unparseable ([?] in an answer — both engines),
         vlm_uncertainty (grounding_retry or low_confidence — legacy only),
-        vlm_low_logprob (legacy only), code_lint (brace imbalance — two_phase;
-        measured zero-noise on the golden set)
+        vlm_low_logprob (legacy only)
       - draft.answers[]: empty answer_text → "missing_answers" (a fact, not a
         confidence guess); NON-EMPTY answer below confidence_threshold →
         "low_confidence". Under two_phase, confidence is page-attribution
@@ -121,6 +120,15 @@ def compute_flag_verdict(
         individual attention (approval requires a student).
       - reader_disagreement is deliberately NOT a triage signal (retired in
         production — see two_phase_engine docstring).
+      - code_lint (brace imbalance) is deliberately NOT a triage signal either
+        (owner-ruled 2026-09-06: too noisy). A `{`/`}` imbalance is usually the
+        STUDENT's own missing brace on a handwritten page — faithful capture,
+        not a transcription defect — so routing the whole document to needs-eyes
+        for it trains the click-through reflex INV-6's history warns about
+        (the engine emitted 52 of them across 35 docs in one run). The engine
+        still WRITES the INFO annotation and the review surface still renders it
+        as an answer-level badge: she sees the imbalance on the card she is
+        already reading, it just no longer decides where the document lives.
 
     Uses dict.fromkeys to deduplicate while preserving first-seen order.
     """
@@ -143,9 +151,6 @@ def compute_flag_verdict(
 
         elif atype == "vlm_low_logprob":
             reasons.append("low_logprob_span")
-
-        elif atype == "code_lint":
-            reasons.append("code_lint")
 
         elif atype == "segmentation_mismatch":
             # The student's own marker contradicts the assigned key — grading

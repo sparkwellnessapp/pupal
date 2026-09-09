@@ -14,7 +14,9 @@ import {
     CLEAN_OPEN_FULL,
     CLEAN_PRIMARY,
     CLEAN_ROW_META,
+    CLEAN_PENDING_STUDENTS,
     CLEAN_SECONDARY,
+    flagReasonLabel,
     CLEAN_SHOW_ALL,
     EMPTY_ANSWER_MARKER,
     NO_FILENAME,
@@ -44,11 +46,16 @@ export function CleanPanel({
     bulkBusy,
     onAcceptAll,
     skipNotice,
+    acceptableCount,
+    pendingCount,
     manualReviewId,
     newIds,
+    subject,
 }: {
     items: BatchTranscriptionItem[];
     batchId: string;
+    /** The rubric's subject key (Phase 3b): `mathematics` peeks read rtl; others ltr (today). */
+    subject?: string | null;
     expanded: ReadonlySet<string>;
     onToggle: (id: string) => void;
     showAll: boolean;
@@ -58,6 +65,12 @@ export function CleanPanel({
     bulkBusy: boolean;
     onAcceptAll: () => void;
     skipNotice: string | null;
+    /** ZC-1 v2: bulk-acceptable subset (matched, non-pending). The TITLE
+     *  counts every row; the PRIMARY counts only what the POST will carry —
+     *  a button must never claim items the server would refuse. */
+    acceptableCount: number;
+    /** Identity-pending rows in this panel (new name, student not created). */
+    pendingCount: number;
     /** First clean item in cursor order — the בדיקה ידנית entry (R12/AM1). */
     manualReviewId: string | null;
     newIds: ReadonlySet<string>;
@@ -85,15 +98,23 @@ export function CleanPanel({
                     )}
                     <button
                         onClick={onAcceptAll}
-                        disabled={bulkBusy || items.length === 0}
+                        disabled={bulkBusy || acceptableCount === 0}
                         className="rounded-[10px] bg-batch-green px-4 py-2 font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
                         data-testid="clean-accept-all"
                     >
-                        {CLEAN_PRIMARY(items.length)}
+                        {CLEAN_PRIMARY(acceptableCount)}
                     </button>
                 </>
             }
         >
+            {pendingCount > 0 && (
+                <div
+                    className="mx-5 mb-2 rounded-zone-sm border border-batch-teal-soft bg-batch-teal-soft/50 px-3.5 py-2.5 text-[13px] text-batch-teal-ink"
+                    data-testid="clean-pending-note"
+                >
+                    {CLEAN_PENDING_STUDENTS(pendingCount)}
+                </div>
+            )}
             {skipNotice && (
                 <div
                     className="mx-5 mb-2 rounded-zone-sm border border-batch-amber-line bg-batch-amber-soft px-3.5 py-2.5 text-[13px] text-batch-amber-ink"
@@ -119,11 +140,19 @@ export function CleanPanel({
                                         <span className="font-medium">{it.filename ?? NO_FILENAME}</span>{' '}
                                         <span className="text-[12.5px] text-batch-muted">
                                             {CLEAN_ROW_META(
-                                                it.matched_student_name ?? '—',
+                                                it.matched_student_name
+                                                    ?? it.student_name_suggestion
+                                                    ?? '—',
                                                 it.draft.page_count,
                                                 it.draft.answers.length,
                                             )}
-                                        </span>
+                                        </span>{' '}
+                                        {!it.matched_student_name
+                                            && it.flag_verdict.reasons.includes('student_unassigned') && (
+                                            <StatusChip hue="amber" className="!text-[11px]">
+                                                {flagReasonLabel('student_unassigned')}
+                                            </StatusChip>
+                                        )}
                                     </span>
                                     <span
                                         className={`flex-none text-batch-faint transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -151,8 +180,8 @@ export function CleanPanel({
                                                 ) : (
                                                     <div
                                                         className="overflow-hidden whitespace-pre-wrap font-mono text-[12.5px] leading-[1.65]"
-                                                        dir="ltr"
-                                                        style={{ textAlign: 'left' }}
+                                                        dir={subject === 'mathematics' ? 'rtl' : 'ltr'}
+                                                        style={{ textAlign: subject === 'mathematics' ? 'right' : 'left' }}
                                                     >
                                                         {a.answer_text
                                                             .split('\n')

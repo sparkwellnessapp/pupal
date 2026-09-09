@@ -134,6 +134,11 @@ async def test_skip_path_no_llm_call():
     assert len(draft.scope_outcomes) == 1
     so = draft.scope_outcomes[0]
     assert so.graded_by == "skipped_no_answer"
+    # [EVD-1] no answer ⇒ no evidence, and the two agree BY CONSTRUCTION
+    # (both derive from `alignment`). The review surface reads exactly this
+    # pair to decide between «the student left it blank» and «we cannot show
+    # what was graded» — two claims it must never swap.
+    assert so.student_answer is None
     assert so.points_awarded == Decimal("0")
     assert so.input_tokens == 0
     assert so.output_tokens == 0
@@ -530,3 +535,42 @@ def test_system_prompt_rule_structure_v3():
     for frag in ("This rule never creates credit",
                  "is the authority on naming and form"):
         assert frag in SYSTEM_PROMPT, frag
+
+
+# ---------------------------------------------------------------------------
+# EVD-1 — the grader RECORDS what each scope was graded against
+# ---------------------------------------------------------------------------
+
+def test_evidence_is_recorded_on_the_outcome_from_the_scope():
+    """The seam between `gradable_compiler`'s resolution and the stored grade.
+
+    Before EVD-1 the answer was stored nowhere, and the review surface
+    re-derived it by a second rule that drifted: a depth-2 leaf whose answer
+    was inherited from its parent rendered «no answer in the approved
+    transcription» beside a full-marks grade and a verbatim quotation from
+    that same answer. This pins the recording, in both provenance flavours.
+    """
+    from app.services.grading_inputs import scope_answer
+
+    own = scope_answer(_make_scope_answered(answer_text="her own words"))
+    assert own is not None
+    assert (own.text, own.source, own.inherited_from) == ("her own words", "own", None)
+
+    inherited = scope_answer(GradableScope(
+        scope_kind="sub_question",
+        question_id="q1",
+        sub_question_id="א.1",
+        criteria=[],
+        points=Decimal("12"),
+        student_answer_text="the whole סעיף",
+        alignment="matched",
+        answer_source="inherited",
+        answer_inherited_from="א",
+    ))
+    assert inherited is not None
+    assert inherited.source == "inherited"
+    # The ancestor is NAMED, so the surface can say whose answer this is rather
+    # than passing a parent's words off as the leaf's own (FC).
+    assert inherited.inherited_from == "א"
+
+    assert scope_answer(_make_scope_missing()) is None

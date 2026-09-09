@@ -121,7 +121,7 @@ describe('partitionItems (D4/D5/D6 partitions)', () => {
     const p = partitionItems([
       item('fx', {
         review: { answers: [] },
-        flag_verdict: { review_needed: true, reasons: ['code_lint'] },
+        flag_verdict: { review_needed: true, reasons: ['unparseable'] },
       }),
     ])
     expect(p.contentFlagged.map(i => i.transcription_id)).toEqual(['fx'])

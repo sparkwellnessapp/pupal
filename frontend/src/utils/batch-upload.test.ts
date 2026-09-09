@@ -4,6 +4,7 @@ import {
   aggregatePct,
   allDone,
   composeBatchName,
+  declaredCount,
   detectDuplicates,
   formatMB,
   initQueue,
@@ -213,5 +214,99 @@ describe('upload-queue selectors', () => {
     expect(isDrained(s)).toBe(true)     // nothing left to run…
     expect(allDone(s)).toBe(false)      // …but NOT all-done: a failure is visible
     expect(landedCount(s)).toBe(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Stage A / R9 — declaredCount: what the client re-declares to the server
+// ---------------------------------------------------------------------------
+
+describe('declaredCount (Stage A / R9)', () => {
+  const q = () => initQueue([
+    { clientFileId: 'a', filename: 'a.pdf', size: 10 },
+    { clientFileId: 'b', filename: 'b.pdf', size: 10 },
+    { clientFileId: 'c', filename: 'c.pdf', size: 10 },
+  ])
+
+  const fail = (s: UploadQueueState, id: string, retryable: boolean) =>
+    uploadQueueReducer(
+      uploadQueueReducer(s, { type: 'start', clientFileId: id }),
+      { type: 'fail', clientFileId: id, reason: 'x', retryable },
+    )
+
+  it('counts every selected file before anything happens', () => {
+    expect(declaredCount(q())).toBe(3)
+  })
+
+  it('drops a TERMINAL failure — a 422 file will never land', () => {
+    expect(declaredCount(fail(q(), 'b', false))).toBe(2)
+  })
+
+  it('KEEPS a retryable failure — she has not given up yet', () => {
+    // Dropping it here would let the batch claim completion in the seconds
+    // before she clicks «נסי שוב».
+    expect(declaredCount(fail(q(), 'b', true))).toBe(3)
+  })
+
+  it('restores the slot when a terminal-looking file is retried back in', () => {
+    const failed = fail(q(), 'b', true)
+    const retried = uploadQueueReducer(failed, { type: 'retry', clientFileId: 'b' })
+    expect(declaredCount(retried)).toBe(3)
+  })
+
+  it('is never below landedCount — so the server refusal is unreachable', () => {
+    let s = q()
+    s = uploadQueueReducer(s, { type: 'start', clientFileId: 'a' })
+    s = uploadQueueReducer(s, { type: 'done', clientFileId: 'a', jobId: 'j1' })
+    s = fail(s, 'b', false)
+    s = fail(s, 'c', false)
+    expect(landedCount(s)).toBe(1)
+    expect(declaredCount(s)).toBe(1)
+    expect(declaredCount(s)).toBeGreaterThanOrEqual(landedCount(s))
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Stage B review fix — a progress event that changes nothing IS nothing
+// ---------------------------------------------------------------------------
+
+describe('progress no-op (Stage B review fix)', () => {
+  const uploading = () => {
+    const q = initQueue([{ clientFileId: 'a', filename: 'a.pdf', size: 10 }])
+    return uploadQueueReducer(q, { type: 'start', clientFileId: 'a' })
+  }
+
+  it('returns the SAME object when the rounded percent has not moved', () => {
+    // XHR fires progress far more often than the rounded percent changes; a new
+    // object per event is a new context value, which re-renders the whole batch
+    // dashboard tens of times a second during the exact window Stage B exists
+    // to make usable.
+    const s1 = uploadQueueReducer(uploading(), { type: 'progress', clientFileId: 'a', pct: 40 })
+    const s2 = uploadQueueReducer(s1, { type: 'progress', clientFileId: 'a', pct: 40 })
+    expect(s2).toBe(s1)
+  })
+
+  it('still advances when the percent actually changes', () => {
+    const s1 = uploadQueueReducer(uploading(), { type: 'progress', clientFileId: 'a', pct: 40 })
+    const s2 = uploadQueueReducer(s1, { type: 'progress', clientFileId: 'a', pct: 41 })
+    expect(s2).not.toBe(s1)
+    expect(s2.items[0].state).toEqual({ kind: 'uploading', pct: 41 })
+  })
+
+  it('treats a clamped duplicate as a no-op too', () => {
+    // 100 and 140 both clamp to 100 — the second must not allocate.
+    const s1 = uploadQueueReducer(uploading(), { type: 'progress', clientFileId: 'a', pct: 100 })
+    const s2 = uploadQueueReducer(s1, { type: 'progress', clientFileId: 'a', pct: 140 })
+    expect(s2).toBe(s1)
+  })
+
+  it('the first progress after start is not swallowed', () => {
+    // `start` sets pct 0, so a genuine 0% event is correctly a no-op, but any
+    // real progress must land.
+    const started = uploading()
+    expect(uploadQueueReducer(started, { type: 'progress', clientFileId: 'a', pct: 0 }))
+      .toBe(started)
+    expect(uploadQueueReducer(started, { type: 'progress', clientFileId: 'a', pct: 1 }))
+      .not.toBe(started)
   })
 })

@@ -150,6 +150,7 @@ EXPECTED_MIGRATIONS = (
     "001", "002", "003", "004", "005", "006", "007",
     "008", "009", "010", "011", "012", "013", "014", "015", "016", "017",
     "018", "019", "020", "021", "022", "023", "024", "025", "026", "027",
+    "028", "029",
 )
 
 # Attribute-level invariants the version ledger CANNOT see (the 010 lesson,
@@ -213,6 +214,13 @@ EXPECTED_PARTIAL_INDEXES: dict = {
     # hash. failed and superseded rows are history and coexist; without the
     # predicate a rebuild after a failure would be impossible while the index
     # was still "present" by name. The predicate IS the append-only rule.
+    # 028: the re-ask candidate set. WITHOUT the predicate this index would
+    # cover every user row — including everyone who gave a date and everyone
+    # who never answered — while still being "present" by name, so the
+    # candidate query would silently scan the whole table.
+    "idx_users_reask_candidates": (
+        "where (next_exam_date is null)", "028",
+    ),
     "idx_grading_plans_one_live_per_contract": (
         "where (status = any", "026",
     ),

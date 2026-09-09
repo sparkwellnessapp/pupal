@@ -238,11 +238,21 @@ class TestComputeFlagVerdict:
 
     # --- two_phase-engine signal classes (2026-08-07 triage rebuild) ---
 
-    def test_code_lint_annotation(self):
+    def test_code_lint_annotation_is_NOT_a_triage_signal(self):
+        """Owner-ruled 2026-09-06: a brace imbalance no longer routes a whole
+        document to needs-eyes — it is usually the student's own missing brace,
+        and it fired on most CS documents (52 annotations over 35 docs in one
+        production run). The engine still WRITES the INFO annotation and the
+        review surface still renders it as an answer-level badge; it just no
+        longer decides where the document lives. The reader_disagreement
+        precedent, for the same reason (a check nobody can fail teaches the
+        click-through reflex)."""
         draft = _draft_with_annotation("code_lint", {"balance": 1})
         verdict = compute_flag_verdict(draft, self._exact_match())
-        assert verdict.review_needed
-        assert "code_lint" in verdict.reasons
+        assert verdict.reasons == []
+        assert not verdict.review_needed
+        # the annotation itself is untouched — this is a triage change only
+        assert draft.annotations[0].annotation_type == "code_lint"
 
     def test_empty_answer_is_missing_not_low_confidence(self):
         """A skipped question under two_phase is empty text with confidence 0.0
@@ -804,6 +814,11 @@ class TestFailureLedgerRollup:
         from app.api.v0.batch_grading import _build_rollup
         batch = SimpleNamespace(
             test_count=test_count,
+            # [Stage A] Explicitly None, not omitted: `_build_rollup` reads the
+            # attribute directly rather than through a defensive getattr, so an
+            # incomplete fake fails LOUDLY instead of quietly exercising a
+            # different branch than production (CLAUDE.md §6).
+            expected_test_count=None,
             transcription_failures=[{"filename": f"f{i}.pdf", "error": "x",
                                      "at": "2026-08-12T00:00:00+00:00",
                                      "net_verdict": None}
@@ -835,6 +850,7 @@ class TestFailureLedgerRollup:
         from app.api.v0.batch_grading import _build_rollup, _derive_batch_status
         batch = SimpleNamespace(
             test_count=2,
+            expected_test_count=None,
             transcription_failures=[{"filename": "dead.pdf", "error": "x",
                                      "at": "t", "net_verdict": None}],
         )
@@ -860,7 +876,8 @@ class TestJobsBasedRollup:
                           row_statuses: list[str] = ()):
         from types import SimpleNamespace
         from app.api.v0.batch_grading import _build_rollup
-        batch = SimpleNamespace(test_count=test_count, transcription_failures=[])
+        batch = SimpleNamespace(test_count=test_count, transcription_failures=[],
+                                expected_test_count=None)
         jobs = [SimpleNamespace(status=s) for s in job_statuses]
         transcriptions = [SimpleNamespace(status=s) for s in row_statuses]
         return _build_rollup(batch, transcriptions, [], jobs)

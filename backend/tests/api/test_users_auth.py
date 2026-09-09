@@ -31,6 +31,8 @@ test).
 from datetime import timedelta
 from uuid import uuid4
 
+from tests.api.auth_helpers import signup_verified
+
 import pytest
 from jose import jwt
 
@@ -93,12 +95,12 @@ def test_login_succeeds_for_trial_user(client):
     TypeError inside the response builder, AFTER authentication had succeeded.
     """
     email = f"trial_{uuid4().hex[:8]}@s2test.com"
-    signup = client.post(
-        "/api/v0/auth/signup",
-        json={"email": email, "password": "testpass123", "full_name": "Trial User"},
-    )
-    assert signup.status_code == 200, signup.text
-    assert signup.json()["user"]["subscription_status"] == "trial"
+    # [024] Signup no longer returns a session or a profile — the address must
+    # be proven first (A4) — so the trial status is asserted on what verifying
+    # hands back. The defect under test is unchanged: it fires in the response
+    # builder, which verify-email and login both run.
+    created = signup_verified(client, email=email, full_name="Trial User")
+    assert created["user"]["subscription_status"] == "trial"
 
     login = client.post("/api/v0/auth/login", json={"email": email, "password": "testpass123"})
     assert login.status_code == 200, (

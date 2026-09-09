@@ -28,3 +28,19 @@ export const USE_DOCUMENT_MIRROR = true;
  * it returns with real numbers.
  */
 export const SHOW_GRADING_LANE = false;
+
+/**
+ * S12 — the grade-review module (בדיקת ציונים) is the surface `פתח` opens.
+ *
+ * The new review route existed for a phase with NOTHING linking to it: the
+ * dashboard's `פתח` swapped in the old `GradedTestReviewPanel` in place, so the
+ * owner drove the old panel while believing it was the new module and filed
+ * four bugs against a surface that was being replaced. A phase that cannot be
+ * reached from the app is not finished, whatever its tests say.
+ *
+ * The link properly belongs to F1 (the grade-review dashboard); this flag
+ * borrows it early so the module is drivable now. Flip to `false` and `פתח`
+ * returns to the old panel — which stays in-tree as the rollback target, the
+ * same arrangement as USE_DOCUMENT_MIRROR and RubricEditor. It retires with F1.
+ */
+export const USE_GRADE_REVIEW_MODULE = true;

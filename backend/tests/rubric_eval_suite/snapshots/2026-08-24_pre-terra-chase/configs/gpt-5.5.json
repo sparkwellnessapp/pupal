@@ -1,0 +1,7 @@
+{
+  "model_key": "gpt-5.5",
+  "max_output_tokens": 40000,
+  "reasoning_effort": "medium",
+  "cost_ceiling": 1.0,
+  "notes": "SWEEP CONFIG — functional-first phase. temperature is not a config knob: the reasoning family rejects non-default temperature — _llm_params omits it by policy. reasoning_effort=high per ceiling-establishment intent; effort is the first strip-down variable. PREDICTION armed: if verbatim text_ratio failures appear here that sonnet/gemini don't show, reasoning-paraphrase is implicated — test effort=low. Registry-schema migration 2026-08-23: identity/prices registry-owned (model_key -> tests/eval_common/models_registry.py); cost_ceiling 2.00 -> 1.00 (owner ruling 2026-08-23 for the gpt-5.5 configs — measured worst-doc $0.501, ~2x headroom; replaces the loose pathology-detection ceiling)."
+}

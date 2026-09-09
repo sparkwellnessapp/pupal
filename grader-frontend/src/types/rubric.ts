@@ -64,6 +64,9 @@ export interface RubricCriterion {
      * Optional graded sub-parts. When present, INV-3 requires Σ sub_criteria.points == criterion.points.
      * Null when the criterion is graded as an atomic unit.
      */
+    // ALPHA-GAP A-1 (D-3): the editor family has no band type. A ladder arrives as one criterion whose
+    // DESCRIPTION holds the bands verbatim; alpha gives it a real shape here and in
+    // rubric-validation.ts, so the teacher edits bands instead of prose.
     sub_criteria?: RubricSubCriterion[] | null;
     /** B-11: opaque wire fields not modeled here; preserved across round-trip. */
     _carry?: Record<string, unknown>;

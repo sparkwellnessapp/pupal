@@ -20,6 +20,14 @@ from pydantic import BaseModel, field_serializer
 
 from app.schemas.graded_test_contract import GradedTestContract
 from app.schemas.graded_test_draft import GradedTestDraft
+# [OD-F8] Used in the annotations below. `from __future__ import annotations`
+# makes those lazy strings, so a missing import here does NOT fail at import
+# time — `python -c "import app.main"` stays green while
+# GradedTestDraftResponse/ApprovedResponse cannot be CONSTRUCTED at all
+# ("not fully defined"), 500-ing every draft and approved GET. The boot sanity
+# gate cannot see this class of break; `model_json_schema()` can, which is why
+# the OpenAPI dump caught it first.
+from app.schemas.ontology_types import NumericPolicy
 
 
 class GradedTestListItem(BaseModel):
