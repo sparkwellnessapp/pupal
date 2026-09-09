@@ -416,6 +416,8 @@ class Annotation(BaseModel):
 # CRITERION
 # =============================================================================
 
+# ALPHA-GAP A-1 (D-3): no `levels` — a band ladder arrives flattened into `description` at the top
+# band. Alpha adds Criterion.levels + INV-5 (bands descend, top == points, bottom 0) here first.
 class Criterion(BaseModel):
     """
     A grading criterion with optional sub-criteria breakdown.

@@ -9,7 +9,7 @@ one-line `ALPHA-GAP A-n (D-x): …` note, so `grep` is a work list rather than a
 grep -rn "ALPHA-GAP" backend/app backend/migrations backend/tests frontend/src
 ```
 
-**47 notes**, one line each, at the site the work must start. The full index is at the bottom of this file.
+**53 notes**, one line each, at the site the work must start. The full index is at the bottom of this file.
 
 ---
 
@@ -71,14 +71,19 @@ Generated with the grep above, grouped by gap.
 
 | gap | sites |
 |---|---|
-| **A-1** | `plan_schemas.py:36` · `plan_validator.py:222` · `pricer.py:213` · `verifier_prompt.py:244` · `plan_compiler/compile.py:614` · `graded_test_contract.py:65` · `graded_test_draft.py:58` · `subjects/profiles/english.py:9` · `tests/subjects/test_english_bands.py:5` · `RubricDocument.tsx:236` · `VerdictButton.tsx:22` · `lib/pricing.ts:105` · `types/rubric.ts:67` · `rubric-validation.ts:20` · ministry snapshot MANIFEST |
+| **A-1** | `ontology_types.py` `Criterion` · `contract_compiler.py` (the INV-5 slot) · `docx_v3/pipeline.py` `CriterionExtraction` · `plan_schemas.py:36` · `plan_validator.py:222` · `pricer.py:213` · `verifier_prompt.py:244` · `plan_compiler/compile.py:614` · `graded_test_contract.py:65` · `graded_test_draft.py:58` · `subjects/profiles/english.py:9` · `tests/subjects/test_english_bands.py:5` · `RubricDocument.tsx:236` · `VerdictButton.tsx:22` · `lib/pricing.ts:105` · `types/rubric.ts:67` · `rubric-validation.ts:20` · ministry snapshot MANIFEST |
 | **A-2** | `parser_render.py:320` · `parser_render.py:355` · `two_phase/prompts.py:129` · `subjects/profiles/mathematics.py:21` · `TRANSCRIPTION_GT_CONVENTIONS.md:5` · `TranscribedTextEditor.tsx:52` · `utils/answer-mode.ts:63` |
 | **A-3** | `ontology_types.py:752` · `contract_compiler.py:414` · `rescale_to_exam.py:3` · `subjects/profiles/mathematics.py:10` |
 | **A-4** | `grader_v5.py:164` · `gradable.py:167` · `transcription.py:124` · `gradable_compiler.py:281` · `subjects/profiles/mathematics.py:22` · `TranscriptionReviewSurface.tsx:328` |
 | **A-5** | `rubric_extraction_runner.py:162` |
 | **A-6** | `image_render.py:14` |
-| **A-7** | `tests/transcription_eval_suit/profiles.py:26` · `critical_tokens.py:117` · `PREDICTIONS.md:17` |
+| **A-7** | `tests/transcription_eval_suit/profiles.py:26` · `critical_tokens.py:117` · `scoring.py` (the missing paragraph metric) · `PREDICTIONS.md:17` |
 | **A-8** | `grader/prompt.py:48` · `two_phase/pipeline.py:727` · `two_phase/pipeline.py:797` · `two_phase/prompts.py:331` · `two_phase/prompts.py:342` · `tests/subjects/test_registry.py:131` · `PREDICTIONS.md:16` |
-| **A-9** | `rubric_extraction_jobs.py:150` · `graded_test_draft.py:59` · `subjects/profiles/mathematics.py:35` |
+| **A-9** | `verifier_prompt.py` (the D-4 instruction lines) · `rubric_extraction_jobs.py:150` · `graded_test_draft.py:59` · `subjects/profiles/mathematics.py:35` |
 
 Line numbers drift; the grep does not. Run it.
+
+**One §6 site does not exist.** The plan names `tests/transcription_eval_suit/normalize.py` for the
+A-2 `MN-1` canonicalizer; there is no such file in the tree. The A-2 note that would have gone
+there lives on `TRANSCRIPTION_GT_CONVENTIONS.md` instead, which is where the convention itself is
+written and where alpha must start.

@@ -441,6 +441,8 @@ class SubCriterionExtraction(BaseModel):
     points: float = Field(..., ge=0, description="Points for this sub-criterion.")
 
 
+# ALPHA-GAP A-1 (D-3): the extractor emits no bands — F-1 tells it to flatten a ladder to the top
+# band with the ladder quoted in the description. Alpha gives this schema a real `levels` field.
 class CriterionExtraction(BaseModel):
     description: str = Field(..., description="Criterion text exactly as the teacher wrote it. If no criterion text was found, this should be an empty string, not null.")
     points: float = Field(..., ge=0, description="Points allocated by the teacher. Use 0 for crossed-out criteria.")

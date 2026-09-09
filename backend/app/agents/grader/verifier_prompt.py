@@ -64,6 +64,8 @@ _KIND_HE = {
 # message and ONLY when such a check exists, so VERIFIER_PROMPT_VERSION (the
 # production pin, v5.3) is untouched for every plan that has none. A v5.3 stamp
 # on a counted-bearing message is a version fork that needs a ruling before A3.
+# ALPHA-GAP A-9 (D-4b): deductions and follow-through reach the verifier as INSTRUCTION in the
+# subject fragment, never as structure. Alpha models them as their own rule kind beside this one.
 _COUNTED_RULE = (
     "בדיקת ספירה: הסעיף מורכב מ-N יחידות אחידות. החזר/י בשדה units_correct את "
     "מספר היחידות הנכונות (0..N) — מספר יחידות, לעולם לא נקודות. verdict: met "

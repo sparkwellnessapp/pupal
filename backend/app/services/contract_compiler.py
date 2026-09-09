@@ -396,6 +396,9 @@ class ContractCompiler:
         """
         INV-4: RubricPointsSum — ACHIEVABLE-AWARE (PR-3).
 
+        ALPHA-GAP A-1 (D-3): the INV-5 slot is empty — beta has no bands to validate. Alpha adds
+        INV-5 (a leveled criterion's bands descend, top == points, bottom 0) beside this one.
+
         `total_points` means ACHIEVABLE, everywhere, by definition (R4). The Draft
         already said so (the extraction pipeline sets it via
         _achievable_from_extraction); the Contract now agrees, which resolves the

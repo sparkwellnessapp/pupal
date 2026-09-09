@@ -35,6 +35,8 @@ length-independent and catches them.
 """
 from __future__ import annotations
 
+# ALPHA-GAP A-7 (D-11): no paragraph metric. English prose fidelity depends on paragraph breaks
+# surviving P1+P2 (P-4), and nothing here measures them. Alpha adds it beside the token metrics.
 import difflib
 from collections import Counter
 from dataclasses import dataclass, field
