@@ -1,0 +1,320 @@
+{
+ "schema_version": "2.0",
+ "rubric_id": "71530040-888c-4756-9cfa-0eb7f9e0a2c6",
+ "rubric_name": "016584-HEB-1500-1645.docx",
+ "subject": "english",
+ "programming_language": null,
+ "total_points": "100.0",
+ "questions": [
+  {
+   "question_id": "q1",
+   "question_type": "short_answer",
+   "question_text": "Read the text below and then answer questions 1–9.\n\nLAST-CHANCE TOURISM\n\nMary Geller had always wanted to fly to Iceland to visit its mountains and glaciers. Last summer, she finally did that with a group of twenty other tourists. At the top of one remote mountain, they stood on the rocks and looked at a glacier in the distance. Geller was thrilled by the view. However, her excitement was replaced with sadness as she listened to Magnus\n\n5  Olafsson, the tour guide. \"Not long ago, this mountain was also covered by that glacier,\" Olafsson told the group. \"Now that part of the glacier is gone, and the rest of it is disappearing too.\"\n\nIn fact, Geller decided to go to Iceland precisely because its glaciers are disappearing. Like mountain glaciers worldwide, they are melting because of rising temperatures, and many could disappear completely by 2100. Other wonders of nature are endangered as well. In the oceans,\n\n10  for example, various factors including warmer water temperatures and more powerful storms are fast destroying coral reefs. Elsewhere, huge areas of rainforests are already disappearing as people cut down trees to clear the land for farming and for mining projects.\n\nIn this troubling reality, nature lovers like Geller have begun going on so-called \"last-chance tours\" to see such places before they are gone forever. Unfortunately, these tours themselves\n\n15  also damage the environment. In Iceland, for example, visitors to the glaciers cause destruction to the surrounding countryside. \"Two million tourists come annually to these wild areas,\" says Olafsson. \"Many disturb local wildlife, such as foxes and birds. They also leave a lot of litter. Moreover, most tourists arrive by long-distance flights, which increase air pollution and in that way contribute to climate change.\"\n\n20 IV Recently, environmental experts have made several recommendations to help reduce damage from last-chance tourism. It is recommended, for example, that visitors to vulnerable locations go with experienced tour guides. In addition, near glaciers or in forests, tourists should stay only on marked paths and avoid taking anything like plants, flowers, or rocks from the area. \"Such recommendations are simple but extremely important,\" says Olafsson. \"In my opinion,\n\n25  governments should make them into laws.\"\n\nV Many tour guides in endangered locations are already making sure visitors follow these recommendations and are also educating them on other ways to help protect the planet. And indeed, many tourists return home determined to make a difference. \"These people now donate to organizations that fight global warming,\" says Olafsson. \"Many of them become activists.\n\n30  They speak in schools and community centers, promoting responsible behavior such as reduced use of cars and airplanes. And although these activists themselves went on last-chance tours, they try to convince people it is not a good idea. I hope they succeed.\"\n\nAnswer questions 1–9 in English, according to the text. In questions 1, 5, 7 and 8, circle the number of the correct answer. In the other questions, follow the instructions.",
+   "total_points": "60.0",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [],
+   "sub_questions": [
+    {
+     "sub_question_id": "1",
+     "index": 0,
+     "title": null,
+     "text": "What do we learn about Geller from paragraph I?\n\nWhy she became interested in glaciers.\n\nHow she chose the tour group she went with.\n\nWhy she did not go to Iceland sooner.\n\nWhat she experienced during her trip to Iceland.",
+     "points": "6.0",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q1.1.c0",
+       "uid": "22a1f50d-90e4-4ebe-873f-3e62451c7597",
+       "index": 0,
+       "description": "(6 points)",
+       "points": "6.0",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "2",
+     "index": 1,
+     "title": null,
+     "text": "How is the mountain that the tour group visited different than it was in the past? (paragraph I)\n\nCOMPLETE THE SENTENCE.\n\nToday, .",
+     "points": "8.0",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q1.2.c0",
+       "uid": "55e0c23a-58be-4324-bb27-97765414a19b",
+       "index": 0,
+       "description": "(8 points)",
+       "points": "8.0",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "3",
+     "index": 2,
+     "title": null,
+     "text": "What do all the \"wonders of nature\" referred to in paragraph II have in common?\n\nCOMPLETE THE SENTENCE.\n\nThey all might .",
+     "points": "7.0",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q1.3.c0",
+       "uid": "cf9d60fb-2ff3-4849-9e2f-5c0e86be8954",
+       "index": 0,
+       "description": "(7 points)",
+       "points": "7.0",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "4",
+     "index": 3,
+     "title": null,
+     "text": "How do tourists who visit Iceland's glaciers damage the environment? Give ONE way from lines 13–17.\n\nCOMPLETE THE ANSWER.\n\nBy .",
+     "points": "7.0",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q1.4.c0",
+       "uid": "0df57dfe-7d62-4fca-bfbd-4ff46c02718e",
+       "index": 0,
+       "description": "(7 points)",
+       "points": "7.0",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "5",
+     "index": 4,
+     "title": null,
+     "text": "What does Olafsson explain about long-distance flights? (paragraph III)\n\nWhy most tourists to Iceland take them.\n\nHow they can be avoided.\n\nHow they affect the climate.\n\nWhy their numbers are increasing.",
+     "points": "5.0",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q1.5.c0",
+       "uid": "489d0f40-8c44-4621-b610-ab409e72405f",
+       "index": 0,
+       "description": "(5 points)",
+       "points": "5.0",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "6",
+     "index": 5,
+     "title": null,
+     "text": "What might be a problematic behavior of tourists in vulnerable locations? Give ONE answer. Base your answer on information in lines 21–23. COMPLETE THE SENTENCE.\n\nTourists might .",
+     "points": "8.0",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q1.6.c0",
+       "uid": "58709ad4-5643-471d-9dd3-fd500859f7fa",
+       "index": 0,
+       "description": "(8 points)",
+       "points": "8.0",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "7",
+     "index": 6,
+     "title": null,
+     "text": "What do we learn about the recommendations mentioned in paragraph IV?\n\nWhich ones are easiest to follow.\n\nWhat they are meant to achieve.\n\nWhy Olafsson helped prepare them.\n\nWhen governments will make them into laws.",
+     "points": "6.0",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q1.7.c0",
+       "uid": "cdd06fff-5da7-4d9f-9323-dcaa54b7ed6d",
+       "index": 0,
+       "description": "(6 points)",
+       "points": "6.0",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "8",
+     "index": 7,
+     "title": null,
+     "text": "What do we learn from Olafsson in paragraph V?\n\nWhich recommendations he thinks are the most important.\n\nWhy many people go on last-chance tours.\n\nHow people can reduce their use of cars.\n\nWhat many people do after their last-chance tour.",
+     "points": "5.0",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q1.8.c0",
+       "uid": "104df40b-ae90-4cfb-a89b-c56a13173cd5",
+       "index": 0,
+       "description": "(5 points)",
+       "points": "5.0",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "9",
+     "index": 8,
+     "title": null,
+     "text": "What does Olafsson hope will happen as a result of the activists' efforts? Give ONE answer from lines 29–32.\n\nCOMPLETE THE SENTENCE.\n\nHe hopes that fewer people .",
+     "points": "8.0",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q1.9.c0",
+       "uid": "724ba358-3f10-408f-b50e-28d3a2509095",
+       "index": 0,
+       "description": "(8 points)",
+       "points": "8.0",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    }
+   ],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  },
+  {
+   "question_id": "q2",
+   "question_type": "short_answer",
+   "question_text": "IMPORTANT:   You   may   use   words   and/or   phrases   from   the   text   in   Part   I. However, you must NOT copy a sentence or sentences from the text.\n\nWrite 100–120 words in English on the following topic.\n\nWould you like to go on a last-chance tour? Write a composition explaining why or why not.\n\nWrite your final version here. If necessary, you may use page 10 as well.",
+   "total_points": "40.0",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [],
+   "sub_questions": [],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  }
+ ],
+ "selection_groups": [],
+ "pedagogical_mistakes": [
+  {
+   "mistake_id": "pts:q2",
+   "kind": "point_sum_mismatch",
+   "severity": "warning",
+   "target_id": "q2",
+   "explanation": "רכיבי שאלה q2 מסתכמים ל-0 אך הניקוד המוצהר הוא 40.0.",
+   "evidence": {
+    "children_sum": "0",
+    "declared_total": "40.0"
+   },
+   "suggested_fix": {
+    "operation": "adjust_points",
+    "description": "עדכני את הניקוד המוצהר ל-0",
+    "params": {},
+    "steps": [
+     {
+      "op": "set_points",
+      "scope": "q2",
+      "criterion_index": null,
+      "to_scope": null,
+      "text": null,
+      "value": "0",
+      "current_value": "40.0"
+     }
+    ]
+   },
+   "requires_teacher_input": true,
+   "confidence": 1.0,
+   "explained_by": null,
+   "dismissed": null,
+   "dismissed_at": null,
+   "fix_applied": null,
+   "fix_applied_at": null
+  }
+ ],
+ "approach_classes": [],
+ "annotations": [],
+ "extraction_metadata": {
+  "pipeline_version": "3.6.2",
+  "method": "structured_output_v3",
+  "tier_b_prompt_version": "1.1.0-fixsource",
+  "advisory_scan": "complete"
+ },
+ "name": "016584-HEB-1500-1645.docx",
+ "description": null,
+ "document_context": null,
+ "metadata": {
+  "pipeline_version": "3.6.2",
+  "method": "structured_output_v3",
+  "tier_b_prompt_version": "1.1.0-fixsource",
+  "advisory_scan": "complete"
+ }
+}

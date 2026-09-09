@@ -1,0 +1,48 @@
+{
+ "fixture": "016584-HEB-1500-1645.docx",
+ "subject": "english",
+ "wall_s": 108.5,
+ "model": "gpt-5.6-terra",
+ "retry_count": 1,
+ "input_tokens": 26896,
+ "output_tokens": 7022,
+ "prompt_version": "3.10.0-fixsource+english",
+ "render": {
+  "stage": "docx_text",
+  "source": "docx",
+  "text_chars": 10960,
+  "image_count": 162,
+  "omml_seen": 0,
+  "omml_rendered": 0,
+  "pages_read": 0,
+  "pages_failed": 0,
+  "prompt_version": null,
+  "model_id": null,
+  "cost_usd": 0.0,
+  "read_seconds": 0.0,
+  "failed_pages": []
+ },
+ "total_points": "100.0",
+ "question_types": [
+  "short_answer"
+ ],
+ "question_totals": [
+  [
+   "q1",
+   "60.0"
+  ],
+  [
+   "q2",
+   "40.0"
+  ]
+ ],
+ "selection_groups": [],
+ "n_criteria": 9,
+ "rescale": null,
+ "warnings": [
+  "[ZERO_CRITERIA] Q2: No criteria and no sub-questions found. ",
+  "[PREFLIGHT_INV1] q2: criteria+SQ sum (0) differs from total (40.0) by 40.0"
+ ],
+ "annotations": [],
+ "compile": "BLOCKED: CompilationError: Compilation blocked by 1 validation error(s):\n[invariant_violation] Question q2: Criteria sum (0) differs from declared total (40.0) by 40.0"
+}

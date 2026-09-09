@@ -142,3 +142,96 @@ total of **33.33**, and the post-pass cut a share of **11.33** from it — a poi
 from it, the written value is kept in the stamp (`exam_total_written`), a global WARNING names the
 change, and `snap_shares` refuses an off-grid total outright. On a real 100 total every one of
 these is a no-op. Pinned by three tests.
+
+## Phase 4 — the ministry band rubric, and the compiler defect the probe found (2026-09-09)
+
+**The fixture is authored, not found.** No public band rubric existed in the repo, so the Ministry
+of Education Module G (16582) / F (external 16584) writing rubric, Winter 2020, was transcribed
+from its own PDF text layer into a DOCX with the shape a teacher's file has (band table, four
+band columns, points row beneath). Source URL and fetch date are in the snapshot MANIFEST; the
+builder script is committed beside the fixture so it can be audited or rebuilt. No wording is
+invented.
+
+**4a, the recorded run** (`snapshots/2026-09-09_multisubject-ministry-fg/`): `gpt-5.6-terra`/high,
+prompt `3.10.0-fixsource+english`, 26.6 s, 9,106 in / 1,654 out (**$0.038**), **0 retries**, no
+warnings. Four criteria at **8 / 10 / 16 / 6 = 40**; `compile OK total=40.0`; `short_answer`;
+`rescale_to_exam` absent; all four band names present in all four descriptions with their own
+points. The plan's 4a target, met on the document.
+
+**4b, the evidence gate fired.** The ruled 10-minute probe compiled that contract through PLAN
+COMPILER v2 (pure algebra, no provider, no cost) and read the slots:
+
+```
+q1.c0 (8):  required 5 · required 2 · required 1
+q1.c1 (10): required 6 · required 3 · required 1
+q1.c2 (16): required 10 · required 5 · required 1
+q1.c3 (6):  required 3 · required 2 · required 1
+flags: case3_over_allocation  "stated ['8','5','2','0'] = 15 > 8 → ['5','2','1','0']"
+       unvalued_component_dropped  "15 valueless segment(s)"
+```
+
+C5 read the band values as COMPONENTS of the criterion, saw they exceeded it, and reconciled them
+downward. The consequence is not cosmetic: a student would have had to satisfy CORRECT *and*
+PARTIALLY CORRECT *and* MINIMALLY CORRECT to earn full marks on an essay, and the bottom band
+(INCORRECT, 0) was named as something to earn. Bands are ALTERNATIVES, not parts, and the plan is
+the grade.
+
+**C8-lite** (the third early return beside C3, exactly as the plan specifies): a terminal whose
+text is a band ladder → ONE `required` slot at the terminal's points, wording = the ladder
+verbatim, `routed=False`, flagged `band_ladder_kept_whole` with the ladder in the detail. Re-probe:
+4 terminals → **4 earn slots, no splits**.
+
+The detector is deliberately narrow, because a false positive collapses a real component list — the
+same error in the other direction. Three or more labelled bands, values strictly descending, top
+band == the terminal's points, bottom band 0. Ten tests cover it, including a Hebrew CS component
+list that still splits and four near-misses.
+
+**Kill check (the phase's stated kill): the A0 guard did not move.** 110 plan-compiler tests pass,
+the compiled-plan guard among them.
+
+## Phase 5 — the smoke gate (2026-09-09)
+
+Artefacts: `snapshots/2026-09-09_multisubject-smoke/`.
+
+| leg | result |
+|---|---|
+| CS prompt pins + A0 guard | **PASS** — 46 tests (pins 6/6 on the assembled CS output) |
+| **Math, PDF** (D-8) | `stage=image_read source=pdf`, 16 pages, 0 failed, **$0.1473**; 15,692 in / 10,306 out, 0 retries, 344 s; total **100**, shares 33.5/33.25×4, choose 3 of 5, `computation`; compile blocked at 7 of her own nodes; **OK total=100.00** after the rubric-gate fix |
+| **English booklet** | `stage=docx_text`; 26,896 in / 7,022 out, 1 retry, 108 s; q1 60 + q2 40 = **100**, `short_answer`, `rescale_to_exam` absent; compile **BLOCKED** on q2 |
+| `grep ALPHA-GAP` | **47 notes** across backend and frontend |
+
+**The PDF run is what justified the off-grid guard.** Its per-question totals came back as
+33.333333…, summing to **99.99999999989998**. Snapped once to 100, the written value kept in the
+stamp, the change named to the teacher. Without the Phase 2 amendment the shares themselves would
+have been off the 0.25 grid.
+
+**The English block is correct, and it names an alpha gap.** q2 of that booklet is the WRITING
+task; the booklet does not contain its rubric, because that rubric is the ministry band table — a
+separate document. `ZERO_CRITERIA` on q2 is the right reading of the file. Merging a second
+document by item number is ALPHA-GAP A-9 (D-14 ii). Read with the ministry run, the two English
+results say: the document that carries its own rubric compiles; the one whose rubric lives
+elsewhere refuses and says which question is missing. A teacher cannot yet grade a full bagrut
+English exam from her own two files alone.
+
+**Legs that did not run**, stated rather than dropped: the founder's handwritten Math page and
+English paragraph were never provided, so `fixtures/smoke/` does not exist and P-6 (misspellings
+survive P1+P2) and P-4 (paragraph breaks survive) are untested — they are transcription claims with
+nothing to transcribe. The SYNTHETIC-DERIVED answer-key variants were not built, so P-10 (the
+grading ceiling with `grader-v5.4+english`) was not measured. The 3-unit Math document was never
+extracted; its cap rule is implemented and unit-tested as choose-4-of-5 but has no real run.
+
+### Spend, itemised (terra at $2.00 / $12.00 per Mtok)
+
+| run | tokens | cost |
+|---|---|---|
+| 4-unit render (DOCX) | 16 pages | $0.147 |
+| 4-unit extraction (attempt 4) | 15,668 / 9,915 | $0.150 |
+| ministry rubric | 9,106 / 1,654 | $0.038 |
+| 4-unit render (PDF) | 16 pages | $0.147 |
+| 4-unit extraction (PDF) | 15,692 / 10,306 | $0.155 |
+| English booklet | 26,896 / 7,022 | $0.138 |
+| **subtotal, Phases 2–5 extraction/render** | | **≈ $0.78** |
+
+Not itemised: two failed Math attempts (one on gpt-4o, one that died at the schema parse — tokens
+spent, not recorded by the failing path), the Phase 0 rubric eval and `check_goal` runs, and the
+Phase 5 rubric-eval re-run.

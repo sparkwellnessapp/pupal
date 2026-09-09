@@ -56,16 +56,16 @@ Legend: ☐ not started · ◐ in progress · ☑ done · ✗ dropped (with the 
 
 | # | item | state | note |
 |---|---|---|---|
-| 4a | extraction ladder rule + probe benchmark + PUBLIC-MINISTRY fixture | ☐ | |
-| 4b | C8-lite only if the compiler splits ladders (evidence first) | ☐ | |
+| 4a | extraction ladder rule + probe benchmark + PUBLIC-MINISTRY fixture | ☑ | english F-1 gains the ladder rule (top band, bands verbatim, never split, never summed). PUBLIC-MINISTRY F/G DOCX authored from the ministry PDF's text layer (builder kept beside it). Recorded run: 4 criteria **8/10/16/6 = 40**, compile OK, `short_answer`, all four bands in every description |
+| 4b | C8-lite only if the compiler splits ladders (evidence first) | ☑ | **the gate fired**: the probe showed each ladder compiling to THREE `required` slots (C5 read the bands as components, 15 > 8, reconciled to 5/2/1 — full marks would have required three mutually exclusive bands at once). C8-lite added beside C3: a ladder → ONE required slot, `routed=False`, flagged. 10 tests incl. four near-misses and a CS component list that still splits. **Kill check: the A0 guard did not move** (110 plan-compiler tests pass) |
 
 ## Phase 5 — Smoke gate, index, report
 
 | # | item | state | note |
 |---|---|---|---|
-| 5.1 | smoke fixtures assembled (`fixtures/smoke/`, `derived/`) | ☐ | |
-| 5.2 | gate run + `docs/MULTISUBJECT_PHASE_GATE.md` | ☐ | |
-| 5.3 | `docs/ALPHA_BACKLOG.md` (A-1…A-9 + grep index) | ☐ | |
-| 5.4 | ≥3 adversarial objections + "What this beta cannot claim" | ☐ | |
+| 5.1 | smoke fixtures assembled (`fixtures/smoke/`, `derived/`) | ◐ | PUBLIC-MINISTRY F/G DOCX authored and committed (with its builder). The founder's handwritten Math page and English paragraph were **never provided**, so `fixtures/smoke/` does not exist; the `derived/` SYNTHETIC-DERIVED answer-key variants were NOT built, because the P-10 grading run they feed was out of budget. Both stated in the gate report's «cannot claim» |
+| 5.2 | gate run + `docs/MULTISUBJECT_PHASE_GATE.md` | ☑ | written: per-phase before/after, tests, spend, the smoke gate, four adversarial objections and «what this beta cannot claim» (8 items) |
+| 5.3 | `docs/ALPHA_BACKLOG.md` (A-1…A-9 + grep index) | ☑ | A-1…A-9 with ruling, beta behaviour, alpha work and first site; full grep index (47 notes) |
+| 5.4 | ≥3 adversarial objections + "What this beta cannot claim" | ☑ | four objections (circular evidence on the Math fixture; invented between-band scores; a fragment changed mid-run; the deleted diagnostic) and 8 cannot-claims |
 
 ## Findings log (append-only)

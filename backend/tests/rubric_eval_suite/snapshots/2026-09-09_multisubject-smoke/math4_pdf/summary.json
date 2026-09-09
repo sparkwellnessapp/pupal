@@ -1,0 +1,151 @@
+{
+ "fixture": "4 יחל מבחן ומחוון.pdf",
+ "subject": "mathematics",
+ "wall_s": 344.0,
+ "model": "gpt-5.6-terra",
+ "retry_count": 0,
+ "input_tokens": 15692,
+ "output_tokens": 10306,
+ "prompt_version": "3.10.0-fixsource+mathematics",
+ "render": {
+  "stage": "image_read",
+  "source": "pdf",
+  "text_chars": 0,
+  "image_count": 16,
+  "omml_seen": 0,
+  "omml_rendered": 0,
+  "pages_read": 16,
+  "pages_failed": 0,
+  "prompt_version": "rubric-read/rr1.0",
+  "model_id": "gemini-3.1-pro-preview",
+  "cost_usd": 0.1473,
+  "read_seconds": 33.0,
+  "failed_pages": []
+ },
+ "total_points": "100",
+ "question_types": [
+  "computation"
+ ],
+ "question_totals": [
+  [
+   "q1",
+   "33.5"
+  ],
+  [
+   "q2",
+   "33.25"
+  ],
+  [
+   "q3",
+   "33.25"
+  ],
+  [
+   "q4",
+   "33.25"
+  ],
+  [
+   "q5",
+   "33.25"
+  ]
+ ],
+ "selection_groups": [
+  {
+   "group_id": "sg0",
+   "choose_k": 3,
+   "of_question_ids": [
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "q5"
+   ],
+   "label": "ענו על שלוש מן השאלות 5-1, על שאלה אחת לפחות מכל פרק ( לכל שאלה - 33 1/3 נקודות)."
+  }
+ ],
+ "n_criteria": 51,
+ "rescale": {
+  "version": "rescale_to_exam/v2 (grid-snap, largest remainder; written mismatches preserved)",
+  "grid": "0.25",
+  "exam_total": "100",
+  "exam_total_written": "99.99999999989998",
+  "shares": {
+   "q1": "33.5",
+   "q2": "33.25",
+   "q3": "33.25",
+   "q4": "33.25",
+   "q5": "33.25"
+  },
+  "unresolved": [
+   "q2",
+   "q3",
+   "q3.ב",
+   "q4",
+   "q4.ג",
+   "q4.ד",
+   "q5.ג"
+  ]
+ },
+ "warnings": [
+  "[SQ_ZERO_CRITERIA] Q2.ג: Sub-question has no criteria. Check rubric table for criteria prefixed with this sub-question identifier.",
+  "[PREFLIGHT_INV1] q1: criteria+SQ sum (100.0) differs from total (33.3333333333) by 66.6666666667",
+  "[PREFLIGHT_INV1] q2: criteria+SQ sum (0.0) differs from total (33.3333333333) by 33.3333333333",
+  "[PREFLIGHT_INV1] q3: criteria+SQ sum (105.0) differs from total (33.3333333333) by 71.6666666667",
+  "[PREFLIGHT_INV1] q3.ב: criteria sum (25.0) differs from SQ points (20.0) by 5.0",
+  "[PREFLIGHT_INV1] q4: criteria+SQ sum (104.0) differs from total (33.3333333333) by 70.6666666667",
+  "[PREFLIGHT_INV1] q4.ג: criteria sum (7.0) differs from SQ points (17.0) by 10.0",
+  "[PREFLIGHT_INV1] q4.ד: criteria sum (34.0) differs from SQ points (33.0) by 1.0",
+  "[PREFLIGHT_INV1] q5: criteria+SQ sum (100.0) differs from total (33.3333333333) by 66.6666666667",
+  "[PREFLIGHT_INV1] q5.ג: criteria sum (43.0) differs from SQ points (38.0) by 5.0"
+ ],
+ "annotations": [
+  [
+   "warning",
+   "rubric_mismatch",
+   "q2",
+   "q2: children sum to 0, but the node carries 33.25 points on the exam scale (written: 0 of 100). Copied as writ"
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   "q3",
+   "q3: children sum to 35.25, but the node carries 33.25 points on the exam scale (written: 105 of 100). Copied a"
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   "q3.ב",
+   "q3.ב: children sum to 8.75, but the node carries 6.75 points on the exam scale (written: 25 of 20). Copied as "
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   "q4",
+   "q4: children sum to 34.5, but the node carries 33.25 points on the exam scale (written: 104 of 100). Copied as"
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   "q4.ג",
+   "q4.ג: children sum to 2.25, but the node carries 5.75 points on the exam scale (written: 7 of 17). Copied as w"
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   "q4.ד",
+   "q4.ד: children sum to 11.5, but the node carries 11 points on the exam scale (written: 34 of 33). Copied as wr"
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   "q5.ג",
+   "q5.ג: children sum to 14.5, but the node carries 12.75 points on the exam scale (written: 43 of 38). Copied as"
+  ],
+  [
+   "warning",
+   "rubric_mismatch",
+   null,
+   "The exam total 99.99999999989998 is not on the 0.25 grade grid; the rubric is scored out of 100. Change the to"
+  ]
+ ],
+ "compile": "BLOCKED: CompilationError: Compilation blocked by 7 validation error(s):\n[invariant_violation] Question q2: Criteria sum (0) differs from declared total (33.25) by 33.25\n[invariant_violation] Question q3: Criteria sum (35.25) differs from declared total (33.25) by 2.00\n[invariant_violation] Sub-question q3.ב: criteria sum (8.75) differs from declared points (6.75) by 2.00\n[invariant_violation] Question q4: Criteria sum (34.50) differs from declared total (33.25) by 1.25\n[invariant_violation] Sub-question q4.ג: criteria sum (2.25) differs from declared points (5.75) by 3.50\n[invariant_violation] Sub-question q4.ד: criter"
+}

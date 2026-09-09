@@ -1,0 +1,1221 @@
+{
+ "schema_version": "2.0",
+ "contract_version": "c431cafc-566a-41ae-acd6-f4e73d3c4360",
+ "rubric_id": "3f26105b-d212-443f-9fb8-c6ffaf92783a",
+ "subject": "mathematics",
+ "programming_language": null,
+ "numeric_policy": {
+  "precision": "0.25",
+  "rounding_mode": "half_up",
+  "sum_tolerance": "0.01"
+ },
+ "total_points": "100.00",
+ "questions": [
+  {
+   "question_id": "q1",
+   "question_type": "computation",
+   "question_text": "שגיא קנה טלוויזיה בחנות מסוימת ב- 10 תשלומים חודשיים.\nהתשלומים החודשיים מהווים סדרה חשבונית.\nהתשלום האחרון קטן ב- 90 ש\"ח מהתשלום הראשון.\n\nסך כל התשלום עבור הטלוויזיה גדול פי 1.875 מסך 5 התשלומים הראשונים.\n\nיואב קנה אותה הטלוויזיה באותה החנות, והחל לשלם בתשלומים חודשיים המהווים סדרה\nהנדסית שמנתה 1.5 .\nלאחר התשלום ה- 8 התברר שנותר ליואב לשלם עוד 597.5 ש\"ח.",
+   "total_points": "33.5",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [],
+   "sub_questions": [
+    {
+     "sub_question_id": "א",
+     "index": 0,
+     "title": null,
+     "text": "א. מצאו בכמה קטן כל תשלום חודשי מהתשלום שבחודש הקודם.",
+     "points": "6.75",
+     "example_solution": "(א)\n{ a_10 = a_1 - 90\n{ a_10 = a_1 + 9d\na_1 - 90 = a_1 + 9d\nd = -10 התשלום החודשי קטן ב-10 ש\"ח",
+     "criteria": [
+      {
+       "criterion_id": "q1.א.c0",
+       "uid": "8d198b46-656a-4646-8148-ced7dd60cece",
+       "index": 0,
+       "description": "הצבה 5% a10 = a1 - 90",
+       "points": "1.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q1.א.c1",
+       "uid": "c28740cc-0437-4bf6-9500-a8821cfe4819",
+       "index": 1,
+       "description": "5% a1 + 9d = a1 - 90\n9d = -90",
+       "points": "1.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q1.א.c2",
+       "uid": "de859741-e34e-457b-a83a-2cb3b426af24",
+       "index": 2,
+       "description": "כל תשלום קטן ב-10 ש\"ח מקודמו. d = -10 10%",
+       "points": "3.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ב",
+     "index": 1,
+     "title": null,
+     "text": "ב. מצאו את סך כל התשלומים עבור הטלוויזיה.",
+     "points": "13.5",
+     "example_solution": "(ב)\nS_10 = 1.875 S_5\n(2a_1 + 9d) 10/2 = 1.875 * (2a_1 + 4d) * 5/2\n4a_1 + 18d = 3.75a_1 + 7.5d\n0.25a_1 = -10.5d\na_1 = -42d\na_1 = 420\nS_10 = [2 * 420 + 9 * (-10)] 10/2 = 3750 תשלום כללי",
+     "criteria": [
+      {
+       "criterion_id": "q1.ב.c0",
+       "uid": "2bb92734-b387-4e53-a399-b77187556431",
+       "index": 0,
+       "description": "מהנתון: S10 = 1.875 S5 5% הצבה",
+       "points": "1.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q1.ב.c1",
+       "uid": "f1bf427c-d975-476e-bc65-ae55e3c580ae",
+       "index": 1,
+       "description": "הצבה 10% [2a1 + (10-1)(-10)] 10/2 = 1.875 [2a1 + (5-1)(-10)] 5/2\n(2a1 - 90)5 = 1.875 (2a1 - 40)\n10a1 - 450 = 3.75a1 - 75\n6.25a1 = 375",
+       "points": "3.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q1.ב.c2",
+       "uid": "c70f8be5-ab83-4f5f-b1d3-1b4d7ffb4807",
+       "index": 2,
+       "description": "פתרון 15% a1 = 60",
+       "points": "5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q1.ב.c3",
+       "uid": "3c47b985-1f50-482b-8e5d-091246a96642",
+       "index": 3,
+       "description": "סה\"כ תשלומים עבור S10 = [2x60 + 9(-10)] 10/2 = 3750 10%\nהטלוויזיה.",
+       "points": "3.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ג",
+     "index": 2,
+     "title": null,
+     "text": "ג. מה היה התשלום החודשי הראשון של יואב ?",
+     "points": "13.25",
+     "example_solution": "(ג)\nS_n = 3750\nq = 1.5\nS_8 = 3750 - 597.5\nS_8 = 3152.5\nS_n = (a_1 * q^n) / (q - 1)\n3152.5 = (a_1 * 1.5^8) / (1.5 - 1)\n3152.5 = (a_1 * (1.5^8 - 1)) / 0.5 / * 0.5\n1576.25 = a_1 (1.5^8 - 1)\na_1 = 64",
+     "criteria": [
+      {
+       "criterion_id": "q1.ג.c0",
+       "uid": "8a240cd8-d082-4a8a-8361-23adbc1ae84b",
+       "index": 0,
+       "description": "רווחים ששילם לאחר S8 = S10 - 597.5 הצבה 15%\n8 חודשים (597.5 ש\"ח S8 = 3750 - 597.5 = 3152.5",
+       "points": "5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q1.ג.c1",
+       "uid": "7a79fe62-a6aa-4eb5-999c-fee2081fa196",
+       "index": 1,
+       "description": "3152.5 = a1 (1.5^8 - 1) / (1.5 - 1) 15%\n3152.5 = 49.257 a1",
+       "points": "5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q1.ג.c2",
+       "uid": "dd23e281-9cd8-4f80-9b93-93f75659ebff",
+       "index": 2,
+       "description": "התשלום החודשי הראשון של יואב. a1 = 64 10%",
+       "points": "3.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    }
+   ],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  },
+  {
+   "question_id": "q2",
+   "question_type": "computation",
+   "question_text": "בסרטוט שלפניכם פירמידה ABCDE שבסיסה ABCD הוא ריבוע.\nהנקודה M נמצאת על המקצוע EC כך שמתקיים CM = 2/3 CE.\nAE מאונך לבסיס הפירמידה.\nנסמן: AB = v , AD = u , AE = w .\nנתון: |w| = |u| .\n\nנתון: האורך של צלע הריבוע ABCD הוא 6,\nA(0,0,0) .\nהקודקוד B נמצא על החלק החיובי של ציר ה- x.\nהקודקוד D נמצא על החלק החיובי של ציר ה- y.\nהקודקוד E נמצא על החלק החיובי של ציר ה- z.",
+   "total_points": "33.25",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [],
+   "sub_questions": [
+    {
+     "sub_question_id": "א",
+     "index": 0,
+     "title": null,
+     "text": null,
+     "points": "11.25",
+     "example_solution": null,
+     "criteria": [],
+     "sub_questions": [
+      {
+       "sub_question_id": "1",
+       "index": 0,
+       "title": null,
+       "text": "(1) הביעו את הווקטורים CE, AM באמצעות u, v ו- w.",
+       "points": "5.75",
+       "example_solution": null,
+       "criteria": [
+        {
+         "criterion_id": "q2.א.1.c0",
+         "uid": "26620b9f-e16d-4488-9f35-4ad69c29b242",
+         "index": 0,
+         "description": "פתרון מלא (הניקוד נקבע על ידי המורה)",
+         "points": "5.75",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      },
+      {
+       "sub_question_id": "2",
+       "index": 1,
+       "title": null,
+       "text": "(2) הוכיחו כי AM מאונך ל- CE.",
+       "points": "5.5",
+       "example_solution": null,
+       "criteria": [
+        {
+         "criterion_id": "q2.א.2.c0",
+         "uid": "5825c064-45c9-4cfa-9ad4-f88d5aefc132",
+         "index": 0,
+         "description": "פתרון מלא (הניקוד נקבע על ידי המורה)",
+         "points": "5.5",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      }
+     ],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ב",
+     "index": 1,
+     "title": null,
+     "text": null,
+     "points": "11",
+     "example_solution": null,
+     "criteria": [],
+     "sub_questions": [
+      {
+       "sub_question_id": "1",
+       "index": 0,
+       "title": null,
+       "text": "(1) מצאו את שיעורי הקודקודים E ו- C.",
+       "points": "5.5",
+       "example_solution": null,
+       "criteria": [
+        {
+         "criterion_id": "q2.ב.1.c0",
+         "uid": "080f2ef4-2c1a-4177-a590-ce16c725463a",
+         "index": 0,
+         "description": "פתרון מלא (הניקוד נקבע על ידי המורה)",
+         "points": "5.5",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      },
+      {
+       "sub_question_id": "2",
+       "index": 1,
+       "title": null,
+       "text": "(2) מצאו את שיעורי הנקודה M.",
+       "points": "5.5",
+       "example_solution": null,
+       "criteria": [
+        {
+         "criterion_id": "q2.ב.2.c0",
+         "uid": "3e493ad8-f9c5-45f7-a0e4-feda5f75fa45",
+         "index": 0,
+         "description": "פתרון מלא (הניקוד נקבע על ידי המורה)",
+         "points": "5.5",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      }
+     ],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ג",
+     "index": 2,
+     "title": null,
+     "text": "ג. חשבו את שטח המשולש AMC.",
+     "points": "11",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q2.ג.c0",
+       "uid": "b6fd405b-f42b-49d8-9aeb-5857b24feba6",
+       "index": 0,
+       "description": "פתרון מלא (הניקוד נקבע על ידי המורה)",
+       "points": "11",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    }
+   ],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  },
+  {
+   "question_id": "q3",
+   "question_type": "computation",
+   "question_text": "מכונית ספורט ומכונית משפחתית נמכרו באותה שנה.\nבשנים הראשונות לאחר שנמכרו, המחיר של מכונית משפחתית יורד בכל שנה באחוז קבוע, ואילו המחיר\nשל מכונית ספורט יורד בכל שנה באחוז הגדול פי 2.5 מן האחוז שבו יורד המחיר של מכונית משפחתית.\nהגרפים I-ו II שלפניכם מתארים את המחיר של כל אחת מן המכוניות, לפי השנה.\n\nלאחר 6 שנים מהמכירה, המחיר של מכונית משפחתית היה 81,940 ש\"ח.\n\nלאחר מספר שנים, כאשר המחיר של מכונית משפחתית שווה למחיר של מכונית ספורט, המכוניות\nמוגדרות כ\"רכבי אספנות\".\n\nכאשר מכונית ספורט מוגדרת בתור רכב אספנות, המחיר שלה מתחיל לעלות באותו האחוז שבו ירד לפני\nכן (לפני שהוגדרה בתור רכב אספנות).\nרועי רכש מכונית ספורט, בשנה שבה היא הוגדרה כרכב אספנות, והוא מעוניין למכור את המכונית כאשר\nהמחיר שלה יגיע ל 82,190.",
+   "total_points": "33.25",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [],
+   "sub_questions": [
+    {
+     "sub_question_id": "א",
+     "index": 0,
+     "title": null,
+     "text": "א. מבין הגרפים I ו- II קבעו איזה גרף מתאים למכונית משפחתית ואיזה מתאים למכונית ספורט.\nנמקו את קביעתכם.",
+     "points": "1.75",
+     "example_solution": "א. גרף I מתאר את מכונית הספורט כי המחיר שלה יורד מהר יותר\nגרף II מתאר את המכונית המשפחתית כי המחיר שלה יורד לאט יותר.",
+     "criteria": [
+      {
+       "criterion_id": "q3.א.c0",
+       "uid": "b1da5918-2b62-43b2-b57b-94d1554ebf34",
+       "index": 0,
+       "description": "א (5%) גרף I מכונה פשוטה יותר ירידת תלולה יותר של הערך.\nגרף II מכונה משוכללת.",
+       "points": "1.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ב",
+     "index": 1,
+     "title": null,
+     "text": "ב. מצאו בכמה אחוזים קטן המחיר של מכונית משפחתית בכל שנה.",
+     "points": "6.5",
+     "example_solution": "ב. f(6) = 81,940 f(t) = f(0) * q^t\nf(0) = 92,500 81,940 = 92,500 * q^6\nt = 6 q^6 = 81,940 / 92,500\nq = ? p = ?\nשל מכונית משפחתית q = 0.98 משפחתית\nהמחיר יורד ב- 2% p = 2% משפחתית",
+     "criteria": [
+      {
+       "criterion_id": "q3.ב.c0",
+       "uid": "dabfbd43-0b2f-4518-8abd-dbbbc461c406",
+       "index": 0,
+       "description": "הצבה 5% f(6) = 81,940",
+       "points": "1.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q3.ב.c1",
+       "uid": "50c7d5bc-091f-477e-b315-f98bbe5d180c",
+       "index": 1,
+       "description": "5% 81,940 = 92,500 * q^6",
+       "points": "1.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q3.ב.c2",
+       "uid": "4791c511-b350-48b0-866e-fac81045159e",
+       "index": 2,
+       "description": "מציאת q 10% q = 6sqrt(81940/92500) = 0.98",
+       "points": "2.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q3.ב.c3",
+       "uid": "703e3b3f-810a-47d8-b4a8-f0a6754d52f1",
+       "index": 3,
+       "description": "מציאת p 5% p = 2%\nמחיר המכונה יורד ב-2% בכל שנה.",
+       "points": "1.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ג",
+     "index": 2,
+     "title": null,
+     "text": "ג. מהו ההפרש בין מחיר מכונית ספורט למחיר מכונית משפחתית 6 לאחר שנים.",
+     "points": "7.75",
+     "example_solution": "ג. מכונית משפחתית מכונית ספורט\np = 2% משפחתית p = 2.5 * 2% = 5% ספורט\nq = 0.98 משפחתית q = 0.95 ספורט\nf(0) = 92,500 g(0) = 235,080\nf(6) = 81,940 g(6) = 235,080 * 0.95^6\ng(6) = 172,805\nד. ההפרש בין מחיר מכונית ספורט למחיר מכונית פרטית אחרי 6 שנים\nהוא 172,805 - 81,940 = 90,865 ש\"ח",
+     "criteria": [
+      {
+       "criterion_id": "q3.ג.c0",
+       "uid": "98ebebf2-8480-47fb-97e2-751bb9deae4d",
+       "index": 0,
+       "description": "5% מציאת p = 2 * 2.5 = 5%",
+       "points": "1.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q3.ג.c1",
+       "uid": "1813d0f9-7f60-431a-a203-51c286f09506",
+       "index": 1,
+       "description": "5% q = 1 - 5/100 = 0.95",
+       "points": "1.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q3.ג.c2",
+       "uid": "38af1daf-69d5-4570-b57b-fb430d50f251",
+       "index": 2,
+       "description": "10% פשוטה f(6) = 235,080 * 0.95^6 = 172,805.4",
+       "points": "3",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q3.ג.c3",
+       "uid": "65ed8d32-bd23-4d2d-bd4c-fc58248f8106",
+       "index": 3,
+       "description": "5% ההפרש 172,805.4 - 81,940 = 90,865.4 ש\"ח",
+       "points": "1.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ד",
+     "index": 3,
+     "title": null,
+     "text": "ד. מצאו לאחר כמה שנים מיום ההוצאה לשוק של שתי המכוניות, הוגדרו המכוניות בתור רכבי אספנות.",
+     "points": "6.25",
+     "example_solution": "ה. 235,080 * 0.95^t = 92,500 * 0.98^t\n235,080 / 92,500 = (0.98 / 0.95)^t\nt = log_(0.98/0.95) (235,080 / 92,500)\nלאחר 30 שנים הרכבים הגיעו לאותו מחיר t = 30",
+     "criteria": [
+      {
+       "criterion_id": "q3.ד.c0",
+       "uid": "bdb2547e-36d9-4288-a905-72e3a8a8a7c2",
+       "index": 0,
+       "description": "השוואה 5% 92,500 * 0.98^t = 235,080 * 0.95^t",
+       "points": "1.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q3.ד.c1",
+       "uid": "97bd971b-4671-436c-95bf-9608ba604ce9",
+       "index": 1,
+       "description": "15% פתרון\n(0.98/0.95)^t = 235080/92500 -> t = ln(235080/92500) / ln(0.98/0.95) = 30\nלאחר 30 שנים המחיר יהיה שווה.",
+       "points": "4.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ה",
+     "index": 4,
+     "title": null,
+     "text": "ה. מצאו כמה שנים מיום רכישת המכונית, ימכור רועי את מכונית הספורט.",
+     "points": "11",
+     "example_solution": "ה. אחרי 30 שנה מחיר רכב מכונית ספורט g(30) = 235,080 * 0.95^30\ng(30) = 50,457",
+     "criteria": [
+      {
+       "criterion_id": "q3.ה.c0",
+       "uid": "694d265a-c42d-4eb1-bf3d-bb48c26bc36e",
+       "index": 0,
+       "description": "10% רכישה של רועי g(0) = 235080 * 0.95^30 = 50,457.28 ש\"ח",
+       "points": "3.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q3.ה.c1",
+       "uid": "8041f42d-b9d2-4679-954d-d1e43f819cab",
+       "index": 1,
+       "description": "10% q = 1.05",
+       "points": "3",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q3.ה.c2",
+       "uid": "4c29306a-78a4-4864-a9e5-ac71ed312ca9",
+       "index": 2,
+       "description": "השוואה 5% 82,190 = 50,457.28 * 1.05^t\n82190/50457.28 = 1.05^t",
+       "points": "1.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q3.ה.c3",
+       "uid": "5da6924a-1282-4bed-885e-46caea884868",
+       "index": 3,
+       "description": "10% פתרון t = ln(82190/50457.28) / ln(1.05) = 10 שנה\nרועי ימכור לאחר 10 שנים את המכונה.",
+       "points": "3",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    }
+   ],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  },
+  {
+   "question_id": "q4",
+   "question_type": "computation",
+   "question_text": "נתונה הפונקציה f(x) = (e^(a+x))/(x-2), a הוא פרמטר.\n\nנתון כי הנקודה (4, (e^5)/2) נמצאת על גרף הפונקציה f(x).\n\nהציבו a = 1 בפונקציה f(x), וענו על הסעיפים ג-ו.\n\nנתונה הפונקציה g(x) = -f(x) + 13 המוגדרת באותו תחום שבו מוגדרת הפונקציה f(x).",
+   "total_points": "33.25",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [],
+   "sub_questions": [
+    {
+     "sub_question_id": "א",
+     "index": 0,
+     "title": null,
+     "text": null,
+     "points": "3.25",
+     "example_solution": null,
+     "criteria": [],
+     "sub_questions": [
+      {
+       "sub_question_id": "1",
+       "index": 0,
+       "title": null,
+       "text": "(1) מצאו את תחום ההגדרה של הפונקציה f(x).",
+       "points": "2.25",
+       "example_solution": null,
+       "criteria": [
+        {
+         "criterion_id": "q4.א.1.c0",
+         "uid": "1b6c7185-2478-4b49-bb3e-4228eb93eee4",
+         "index": 0,
+         "description": "ת.ה 7% x-2!=0 -> x!=2\nf(x) = e^((a+x)/(x-2))",
+         "points": "2.25",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      },
+      {
+       "sub_question_id": "2",
+       "index": 1,
+       "title": null,
+       "text": "(2) מצאו את משוואת האסימפטוטה של הפונקציה f(x) המאונכת לציר ה- x.",
+       "points": "1",
+       "example_solution": null,
+       "criteria": [
+        {
+         "criterion_id": "q4.א.2.c0",
+         "uid": "5e06016f-285c-4764-a7ee-8d2bf0b3d501",
+         "index": 0,
+         "description": "אסימפטוטה אנכית 3% x=2",
+         "points": "1",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      }
+     ],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ב",
+     "index": 1,
+     "title": null,
+     "text": "ב. מצאו את הפרמטר a.",
+     "points": "3.25",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q4.ב.c0",
+       "uid": "010903fa-f207-4a68-ba52-7b77db266397",
+       "index": 0,
+       "description": "ב (10%)",
+       "points": "3.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ג",
+     "index": 2,
+     "title": null,
+     "text": "ג. מצאו את שיעורי נקודות החיתוך של גרף הפונקציה f(x) עם הצירים (אם יש כאלה).",
+     "points": "5.5",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q4.ג.c0",
+       "uid": "a71af822-8910-4bc4-b34f-b0796a7118de",
+       "index": 0,
+       "description": "חיתוך עם ציר y <- x=0\nf(0) = e^1/-2 = -e/2 (0, -e/2) 4%",
+       "points": "3",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q4.ג.c1",
+       "uid": "48f35bc9-97ee-4722-b33e-8452c4ee0e89",
+       "index": 1,
+       "description": "חיתוך עם ציר x <- y=0 3%\n0 = e^((1+x)/(x-2)) -> 0 = e^(1+x) אין פתרון\nאין חיתוך עם ציר x",
+       "points": "2.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ד",
+     "index": 3,
+     "title": null,
+     "text": "ד. מצאו את שיעורי נקודת הקיצון של הפונקציה f(x) וקבעו את סוגה.",
+     "points": "10.5",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q4.ד.c0",
+       "uid": "fa6e2e53-f336-45de-bd27-1322d161fbf6",
+       "index": 0,
+       "description": "f'(x) = (e^(1+x)*(x-2) - 1*e^(1+x))/(x-2)^2 = (e^(1+x)(x-2-1))/(x-2)^2 = (e^(1+x)(x-3))/(x-2)^2 15% נגזרת",
+       "points": "4.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q4.ד.c1",
+       "uid": "95858aec-787b-42cb-b22a-555ff4ade85a",
+       "index": 1,
+       "description": "f'(x)=0 0 = (e^(1+x)(x-3))/(x-2)^2 -> 0 = e^(1+x)(x-3)\ne^(1+x)=0 אין פתרון\nx-3=0 פתרון 3%\nx=3",
+       "points": "1",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q4.ד.c2",
+       "uid": "4190190d-0ba7-4bc0-b6e0-b4e5e18f9859",
+       "index": 2,
+       "description": "טבלה 6%\nx | 0 | 2 | 2 1/2 | 3 | 4\nf'(x) | - | // | - | min | +\nf(x) | \\ | // | \\ | U | /\n\nf'(0) = (e*(-3))/+ < 0 : חישובים בטבלה\nf'(2 1/2) = (e^(3 1/2)*(-1/2))/+ < 0\nf'(4) = (e^5*(1))/+ > 0",
+       "points": "1.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q4.ד.c3",
+       "uid": "f56bc80c-7394-4787-b3f3-ea840cb5e28c",
+       "index": 3,
+       "description": "f(3) = e^(1+3)/(3-2) = e^4 5%",
+       "points": "1.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q4.ד.c4",
+       "uid": "b6a5a3ba-0b3c-472b-822e-c498aed7ef8d",
+       "index": 4,
+       "description": "מינימום (3, e^4) 5%",
+       "points": "1.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ה",
+     "index": 4,
+     "title": null,
+     "text": "ה. מצאו את תחומי העליה והירידה של הפונקציה f(x).",
+     "points": "3",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q4.ה.c0",
+       "uid": "88debc04-cd0b-4881-a831-4a835b7e86a5",
+       "index": 0,
+       "description": "תחומי עלייה : x>3\nתחומי ירידה : 2<x<3\nx<2\n3*3% = 9%",
+       "points": "3",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ו",
+     "index": 5,
+     "title": null,
+     "text": "ו. סרטטו את גרף הפונקציה f(x).",
+     "points": "4.75",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q4.ו.c0",
+       "uid": "99b04a72-f71a-4300-851a-217feeadefaa",
+       "index": 0,
+       "description": "ו (15%)",
+       "points": "4.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ז",
+     "index": 6,
+     "title": null,
+     "text": "ז. מצאו את תחומי החיוביות והשליליות של הפונקציה g(x). נמקו את תשובתכם.",
+     "points": "3",
+     "example_solution": "ז.\ng(x) = -f(x) + 13\nלפי הגרף: חיובית x < 2\nשלילית x > 2",
+     "criteria": [
+      {
+       "criterion_id": "q4.ז.c0",
+       "uid": "f15161cc-eed6-46bf-8e9a-28839bf2ba8e",
+       "index": 0,
+       "description": "ז (10%)",
+       "points": "3",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    }
+   ],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  },
+  {
+   "question_id": "q5",
+   "question_type": "computation",
+   "question_text": "נתונה הפונקציה: f(x) = (lnx)^2 - lnx - 2",
+   "total_points": "33.25",
+   "allow_multiple_valid_forms": false,
+   "skill_targets": [],
+   "requirements": [],
+   "criteria": [],
+   "sub_questions": [
+    {
+     "sub_question_id": "א",
+     "index": 0,
+     "title": null,
+     "text": "א. מצאו את תחום ההגדרה של הפונקציה f(x).",
+     "points": "2.25",
+     "example_solution": "א. x > 0",
+     "criteria": [
+      {
+       "criterion_id": "q5.א.c0",
+       "uid": "d42b32f5-3506-4cd9-bd5a-9ad484d8af0d",
+       "index": 0,
+       "description": "א) ת.ה x>0 7%",
+       "points": "2.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ב",
+     "index": 1,
+     "title": null,
+     "text": "ב. מצאו את שיעורי נקודות החיתוך של הפונקציה f(x) עם ציר הצירים (אם יש כאלה).",
+     "points": "4",
+     "example_solution": "ב. חיתוך עם ציר y (x=0) לא בתחום\nחיתוך עם ציר x (y=0)\n(ln x)^2 - ln x - 2 = 0\nln x = t\nt^2 - t - 2 = 0\nt_1 = 2\nt_2 = -1\nln x = 2\nln x = -1\n(e^2, 0)\nx = e^2\nx = e^-1 = 1/e\n(1/e, 0)",
+     "criteria": [
+      {
+       "criterion_id": "q5.ב.c0",
+       "uid": "7b8f66c3-956b-42d0-83df-4936bf9f7adf",
+       "index": 0,
+       "description": "ב) (12%) חיתוך עם ציר y -> x=0 2%\nלא מוגדר ולכן אין חיתוך עם ציר y.",
+       "points": "0.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q5.ב.c1",
+       "uid": "810ea9f1-252f-4125-9591-4934b1cbf3f0",
+       "index": 1,
+       "description": "חיתוך עם ציר x -> y=0 10%\n0 = (lnx)^2 - lnx - 2\nlnx = t\n0 = t^2 - t - 2\nt = 2, -1\nlnx = -1\nx = e^-1\nlnx = 2\nx = e^2\n(1/e, 0), (e^2, 0)\n(0.367, 0) (7.389, 0)",
+       "points": "3.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ג",
+     "index": 2,
+     "title": null,
+     "text": "ג. מצאו את שיעורי נקודת הקיצון של גרף הפונקציה f(x) וקבע את סוגה.",
+     "points": "12.75",
+     "example_solution": "ג. קיצון\n{ f'(x) = 0\n{ f'(x) = (2 ln x)/x - 1/x\n(2 ln x)/x - 1/x = 0 / * x מכיוון ש- x>0 אפשר להכפיל\n2 ln x - 1 = 0\nln x = 1/2\nx = e^(1/2) = sqrt(e)\ny = (ln sqrt(e))^2 - ln sqrt(e) - 2 = -2.25\nmin(sqrt(e), -2.25)\nx | x <= 0 | 0 < x < sqrt(e) | x = sqrt(e) | x > sqrt(e)\nf'(x) | לא מוגדר | - | 0 | +\nf(x) | | \\searrow | | \\nearrow\nf'(1) = 2 ln 1 - 1 < 0\nf'(2) = 2 ln 2 - 1 > 0",
+     "criteria": [
+      {
+       "criterion_id": "q5.ג.c0",
+       "uid": "92759690-00b6-4aa3-9ec0-6523379ea990",
+       "index": 0,
+       "description": "f'(x) = 2lnx * 1/x - 1/x = 1/x(2lnx - 1) או (2lnx - 1)/x 15% נגזרת",
+       "points": "4.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q5.ג.c1",
+       "uid": "06d1722b-9d9b-4842-b050-47c682df2dd2",
+       "index": 1,
+       "description": "f'(x) = 0 -> 0 = (2lnx - 1)/x -> 0 = 2lnx - 1 -> 1 = 2lnx -> lnx = 1/2 2%\nx = e^(1/2)",
+       "points": "0.75",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q5.ג.c2",
+       "uid": "ead92c37-0a53-4347-a85c-98a276d55f4b",
+       "index": 2,
+       "description": "1.648 16%\nטבלת ערכים:\nx | 0 | 1 | e^(1/2) | 2\nf'(x) | // | - | min | +\nf(x) | // | \\ | U | /\nf'(2) = (2ln2 - 1)/2 = 0.193 > 0\nf'(1) = (2ln1 - 1)/1 = -1 < 0",
+       "points": "4.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q5.ג.c3",
+       "uid": "aef76f13-3f83-44d8-af88-7f4d1be9c164",
+       "index": 3,
+       "description": "f(e^(1/2)) = (lne^(1/2))^2 - lne^(1/2) - 2 = -2.25 5%",
+       "points": "1.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      },
+      {
+       "criterion_id": "q5.ג.c4",
+       "uid": "b3f5c4dd-2cef-4f5b-94d8-00aaacf34680",
+       "index": 4,
+       "description": "מינימום (e^(1/2), -2.25) 5%",
+       "points": "1.5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ד",
+     "index": 3,
+     "title": null,
+     "text": "ד. סרטטו סקיצה של גרף הפונקציה f(x).",
+     "points": "3.25",
+     "example_solution": null,
+     "criteria": [
+      {
+       "criterion_id": "q5.ד.c0",
+       "uid": "ab221188-6391-4804-b1c6-3e8bdb913a16",
+       "index": 0,
+       "description": "ד) (10%)",
+       "points": "3.25",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ה",
+     "index": 4,
+     "title": null,
+     "text": null,
+     "points": "6",
+     "example_solution": null,
+     "criteria": [],
+     "sub_questions": [
+      {
+       "sub_question_id": "1",
+       "index": 0,
+       "title": null,
+       "text": "(1) רשמו את תחומי החיוביות והשליליות של פונקציית הנגזרת f'(x).",
+       "points": "3.25",
+       "example_solution": "ה) (1) f'(x) חיובית x > sqrt(e)\nf'(x) שלילית 0 < x < sqrt(e)",
+       "criteria": [
+        {
+         "criterion_id": "q5.ה.1.c0",
+         "uid": "897cf416-151a-4283-8cf5-995837612abd",
+         "index": 0,
+         "description": "(1) (5%) x > e^(1/2) f'(x) > 0 תחום חיוביות של הנגזרת",
+         "points": "1.75",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        },
+        {
+         "criterion_id": "q5.ה.1.c1",
+         "uid": "e8b6b938-a10c-476e-bc14-34e68219dec9",
+         "index": 1,
+         "description": "(5%) 0 < x < e^(1/2) f'(x) < 0 תחום שליליות של הנגזרת",
+         "points": "1.5",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      },
+      {
+       "sub_question_id": "2",
+       "index": 1,
+       "title": null,
+       "text": "(2) לפניכם שלושה גרפים. קבעו איזה מהגרפים הבאים מתאים לגרף הנגזרת f'(x).\nנמקו.",
+       "points": "2.75",
+       "example_solution": "(2) גרף I לא נכון כי ת.הגדרה x > 0\nגרף II נכון כי הפונקציה קודם שלילית ואח\"כ חיובית\nגרף III לא נכון, כי הנגזרת קודם חיובית ואז שלילית",
+       "criteria": [
+        {
+         "criterion_id": "q5.ה.2.c0",
+         "uid": "996c7c42-9c9d-4019-81b8-df4fc8080ec6",
+         "index": 0,
+         "description": "(2) גרף II ת.ה x>0 ותואם לתחום חיוביות ושליליות\n(8%) קיצון e^(1/2) שהוא חיתוך עם ציר ה-x",
+         "points": "2.75",
+         "evaluation_guidance": null,
+         "skill_targets": [],
+         "requirements": [],
+         "sub_criteria": null,
+         "extraction_confidence": null,
+         "notes": null
+        }
+       ],
+       "sub_questions": [],
+       "proposals": null
+      }
+     ],
+     "proposals": null
+    },
+    {
+     "sub_question_id": "ו",
+     "index": 5,
+     "title": null,
+     "text": "ו. חשבו את השטח המוגבל על ידי גרף פונקציית הנגזרת f'(x), על ידי הישר x = e^2\nועל ידי ציר ה- x.",
+     "points": "5",
+     "example_solution": "int_{sqrt(e)}^{e^2} f'(x) dx = f(x) |_{sqrt(e)}^{e^2} = f(e^2) - f(sqrt(e))\n= 0 - (-2.25) = 2.25\nהשטח הכלוא הוא 2.25 יח\"ר.\n\nלשים לב שכבר חישבנו את הערך של f(e^2) בסעיף ב',\nואת הערך של f(sqrt(e)) בסעיף ג, ולכן אין צורך\nלחשב מחדש - רק להציב.",
+     "criteria": [
+      {
+       "criterion_id": "q5.ו.c0",
+       "uid": "6f84134c-9288-491f-92b2-07f52cb79f9e",
+       "index": 0,
+       "description": "ו) (15%)\nS = \\int_{e^(1/2)}^{e^2} f'(x)dx = [f(x)]_{e^(1/2)}^{e^2} = f(e^2) - f(e^(1/2))\n= ((lne^2)^2 - lne^2 - 2) - ((lne^(1/2))^2 - lne^(1/2) - 2)\n4 - 2 - 2\n1/4 - 1/2 - 2\n= (0) - (-2.25) = 2.25 יח\"ר",
+       "points": "5",
+       "evaluation_guidance": null,
+       "skill_targets": [],
+       "requirements": [],
+       "sub_criteria": null,
+       "extraction_confidence": null,
+       "notes": null
+      }
+     ],
+     "sub_questions": [],
+     "proposals": null
+    }
+   ],
+   "example_solution": null,
+   "trace_tables": null,
+   "context_tables": null,
+   "proposals": null
+  }
+ ],
+ "selection_groups": [
+  {
+   "group_id": "sg0",
+   "choose_k": 3,
+   "of_question_ids": [
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "q5"
+   ],
+   "label": "ענו על שלוש מן השאלות 5-1, על שאלה אחת לפחות מכל פרק ( לכל שאלה - 33 1/3 נקודות)."
+  }
+ ]
+}
