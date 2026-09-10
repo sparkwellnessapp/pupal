@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from app.agents.grader import grader_v5 as grader_v5_mod
 from app.agents.grader.grader_v5 import PlanVerifyGrader
 from app.agents.grader.plan_schemas import (
     CheckVerdict,
@@ -184,25 +185,104 @@ async def test_sc3_median_wins():
     assert so.input_tokens == 300 and so.output_tokens == 120
 
 
-@pytest.mark.asyncio
-async def test_parse_failure_degrades_to_failed_scope_no_retry():
-    class ParseFakeLLM(FakeLLM):
-        def with_structured_output(self, schema, include_raw=False):
-            outer = self
+# ---------------------------------------------------------------------------
+# [OD-R1, owner-ruled 2026-09-10] A failed scope is re-graded automatically.
+#
+# This block REPLACES `test_parse_failure_degrades_to_failed_scope_no_retry`,
+# which pinned the opposite rule (GA-3/R6: "deterministic parse failure at temp
+# 0 — never retried"). That premise is false — §17.5 records this model class
+# answering identically-framed input three different ways at temperature 0 —
+# and it was load-bearing: on graded_test e372e6f1 the un-retried ValueError
+# zeroed a 16-point scope and left a test that could never be approved.
+# ---------------------------------------------------------------------------
 
-            class _Runner:
-                async def ainvoke(self, messages):
+class FlakyParseLLM(FakeLLM):
+    """`parsing_error` on the first N calls, then the queued response."""
+
+    def __init__(self, responses: List, failures: int = 1):
+        super().__init__(responses)
+        self.failures = failures
+
+    def with_structured_output(self, schema, include_raw=False):
+        outer = self
+        healthy = super().with_structured_output(schema, include_raw)
+
+        class _Runner:
+            async def ainvoke(self, messages):
+                if outer.failures > 0:
+                    outer.failures -= 1
                     outer.calls.append(messages)
                     return {"raw": None, "parsed": None,
                             "parsing_error": "bad json"}
-            return _Runner()
+                return await healthy.ainvoke(messages)
+        return _Runner()
 
-    fake = ParseFakeLLM([])
-    agent = PlanVerifyGrader(_basic_plan(), NumericPolicy(), llm=fake,
-                             model_version="fake-model")
-    draft = await agent.grade(_gradable([_scope()]))
-    assert draft.scope_outcomes[0].graded_by == "failed"
-    assert len(fake.calls) == 1                          # ValueError: no retry
+
+@pytest.fixture
+def no_backoff(monkeypatch):
+    """The retry sleeps 0.5-2.0s in production; the suite need not."""
+    monkeypatch.setattr(grader_v5_mod, "RETRY_BACKOFF_MIN", 0.0)
+    monkeypatch.setattr(grader_v5_mod, "RETRY_BACKOFF_MAX", 0.0)
+
+
+@pytest.mark.asyncio
+async def test_a_parse_failure_is_retried_and_she_never_learns_of_it(no_backoff):
+    """The whole point of the ruling: a blip that heals leaves no trace."""
+    resp = ScopeVerificationResponse(verdicts=[
+        _verdict("c1.k1", "met"),
+        _verdict("c1.k2", "met", quote="and a null check there")])
+    fake = FlakyParseLLM([resp], failures=1)
+    draft = await PlanVerifyGrader(
+        _basic_plan(), NumericPolicy(), llm=fake,
+        model_version="fake-model").grade(_gradable([_scope()]))
+
+    so = draft.scope_outcomes[0]
+    assert len(fake.calls) == 2                     # failed once, re-graded once
+    assert so.graded_by == "llm"                    # healed — not "failed"
+    assert so.retry_count == 1
+    assert so.points_awarded == Decimal("3")
+    assert not any(a.annotation_type == "llm_failure" for a in draft.annotations)
+
+
+@pytest.mark.asyncio
+async def test_two_parse_failures_fail_the_scope_but_leave_her_its_checks(no_backoff):
+    """The fallback must be REACHABLE. A crashed scope used to arrive with its
+    criteria and NO checks, so there was nothing on screen to override — and
+    since the blocking annotation is cleared only BY overriding, the row was a
+    dead end for everyone."""
+    fake = FlakyParseLLM([ScopeVerificationResponse(verdicts=[])], failures=2)
+    draft = await PlanVerifyGrader(
+        _basic_plan(), NumericPolicy(), llm=fake,
+        model_version="fake-model").grade(_gradable([_scope()]))
+
+    so = draft.scope_outcomes[0]
+    assert len(fake.calls) == 2                     # one retry, then it stops
+    assert so.graded_by == "failed" and so.points_awarded == Decimal("0")
+    assert so.retry_count == 1
+
+    failures = [a for a in draft.annotations if a.annotation_type == "llm_failure"]
+    assert len(failures) == 1
+    # The CAUSE travels with the annotation — «ValueError» alone was the only
+    # record of the live incident anywhere, logs included (§8).
+    assert "LLM parse failure" in failures[0].message
+
+    checks = [c for co in so.criterion_outcomes for c in (co.checks or [])]
+    assert [c.check_id for c in checks] == ["c1.k1", "c1.k2"]
+    assert all(c.verdict == "not_met" and c.confidence == 0.0 for c in checks)
+
+
+@pytest.mark.asyncio
+async def test_a_billing_failure_is_never_retried(no_backoff):
+    """The one carve-out. A permanent 429 fails every scope of every test, so a
+    retry recovers nothing and doubles the cost of a run already lost."""
+    fake = FakeLLM([RuntimeError("Error code: 429 - insufficient_quota")])
+    draft = await PlanVerifyGrader(
+        _basic_plan(), NumericPolicy(), llm=fake,
+        model_version="fake-model").grade(_gradable([_scope()]))
+
+    so = draft.scope_outcomes[0]
+    assert len(fake.calls) == 1                     # asked once, not twice
+    assert so.graded_by == "failed" and so.retry_count == 0
 
 
 def test_check_verdict_decode_order_is_evidence_first():

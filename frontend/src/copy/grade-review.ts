@@ -100,6 +100,17 @@ export const RV_ANSWER_UNAVAILABLE =
 export const RV_SCOPE_FAILED = 'הניקוד נכשל לשאלה זו'
 export const RV_SCOPE_FAILED_CHIP = 'לא נוקד'
 export const RV_SCOPE_RETRY = 'ניסיון נוסף'
+
+// [OD-R1] The approval blockers. A failed scope is re-graded automatically, so
+// she reaches these only when the retry ALSO failed — and then the way out is
+// her own judgement, which is what these sentences have to say out loud.
+export const RV_BLOCK_LLM_FAILURE = (scopeId: string) =>
+    `הניקוד האוטומטי נכשל בסעיף ${scopeId} — קבעי בעצמך את כל הבדיקות בסעיף כדי לאשר`
+export const RV_BLOCK_GENERIC = 'יש בעיה שדורשת תיקון לפני אישור'
+export const RV_APPROVE_BLOCKED = (blockers: readonly string[]) =>
+    blockers.length === 1
+        ? `לא ניתן לאשר עדיין · ${blockers[0]}`
+        : `לא ניתן לאשר עדיין · ${blockers.join(' · ')}`
 export const RV_SCOPE_EXCLUDED = 'לא נכללה בציון — נבחרו שאלות אחרות'
 export const RV_SCOPE_OPEN = 'פתיחה'
 export const RV_SCOPE_NO_MARKERS = 'ללא סימונים'
@@ -280,10 +291,20 @@ export const DL_BODY_PARTIAL = (excluded: number) =>
         : `יורדו רק המבחנים שאישרת וחתמת. ${excluded} מבחנים עדיין לא אושרו ולא ייכללו בקובץ.`
 export const DL_BODY_ALL =
     'כל המבחנים אושרו ונחתמו. יורד קובץ ZIP אחד — כל מבחן כולל את דפי הסריקה עם חותמת הציון, ואחריהם דפי המשוב.'
-export const DL_STALE = (n: number) =>
+/**
+ * Approved, but no document can be produced from it.
+ *
+ * REPLACES `DL_STALE`, which said «נערך אחרי החתימה ... אשרי אותו מחדש» — an
+ * accusation AND a wrong instruction. A test that had merely never been
+ * rendered landed in that bucket, so a teacher who had just approved five
+ * tests and touched nothing was told she had edited all five. The download
+ * now RENDERS what is missing, so the only exam it cannot ship is one whose
+ * frozen contract will not parse — which is ours to fix, not hers.
+ */
+export const DL_UNAVAILABLE = (n: number) =>
     n === 1
-        ? 'מבחן אחד נערך אחרי החתימה ואינו מעודכן — אשרי אותו מחדש כדי לכלול אותו.'
-        : `${n} מבחנים נערכו אחרי החתימה ואינם מעודכנים — אשרי אותם מחדש כדי לכלול אותם.`
+        ? 'מבחן אחד לא ניתן להפקה כרגע ולא ייכלל — אנחנו בודקים את זה.'
+        : `${n} מבחנים לא ניתנים להפקה כרגע ולא ייכללו — אנחנו בודקים את זה.`
 /** A failed test can never be approved — she can only send it back to grading,
  *  so it is named apart from the ones that merely await her review. */
 export const DL_FAILED = (n: number) =>
@@ -293,7 +314,10 @@ export const DL_FAILED = (n: number) =>
 export const DL_NAMING = 'שם כל קובץ: <שם המקבץ>_<שם התלמיד/ה>_מוחזר.pdf'
 export const DL_CONFIRM = (n: number) => `הורדת ${n} המבחנים`
 export const DL_CANCEL = 'ביטול'
-export const DL_NOTHING = 'עדיין לא אושר אף מבחן, ולכן אין מה להוריד.'
+/** No exam can be included. Deliberately does NOT claim she approved nothing:
+ *  the state that produced this bug was five approved tests and zero
+ *  includable ones, and the old sentence blamed her for it. */
+export const DL_NOTHING = 'אין כרגע מבחנים להורדה.'
 export const DASH_DOWNLOAD_STARTED = 'ההורדה התחילה'
 export const DASH_DOWNLOAD_FAILED = 'לא הצלחנו להוריד את הקובץ — נסי שוב'
 export const DASH_RETRY_STARTED = (name: string) => `${name} נשלח לניקוד חוזר`

@@ -798,7 +798,11 @@ export default function BatchDetailPage() {
                                 onBulkCreate={onBulkCreate}
                             />
                         )}
-                        <GhostZone jobs={activeJobs} />
+                        <GhostZone
+                            jobs={activeJobs}
+                            onRetry={retryJob}
+                            retryBusy={retryBusy}
+                        />
                         <CleanPanel
                             items={zones.cleanRows}
                             acceptableCount={zones.cleanRows.filter(i => i.matched_student_id).length}

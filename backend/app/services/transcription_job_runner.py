@@ -28,6 +28,7 @@ Design (mirrors rubric_extraction_runner discipline):
 """
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
@@ -40,12 +41,18 @@ from ..models.grading import Rubric
 from ..models.transcription import Transcription
 from ..models.transcription_job import TranscriptionJob
 from .transcribe_one import run_pipeline_and_build_draft
+from .transcription.budget import BudgetExceeded
 from .transcription.vlm_provider import VLMCallError
 
 logger = logging.getLogger(__name__)
 
 HEARTBEAT_INTERVAL_S = 60.0
 _DOC_RERUN_BACKOFF_S = 10.0
+#: A second full pipeline is only worth STARTING if the budget can plausibly
+#: cover one. Measured production runs land at 47-78s end to end; 120s is that
+#: with headroom, and it is deliberately a floor on STARTING rather than a
+#: promise about finishing — the pipeline's own budget checks handle the rest.
+_DOC_RERUN_MIN_BUDGET_S = 120.0
 
 
 async def _claim_job(job_id: UUID) -> bool:
@@ -83,8 +90,7 @@ async def _heartbeat_loop(job_id: UUID, stop: asyncio.Event) -> None:
                 )
                 await db.commit()
         except Exception:
-            logger.warning("transcription_job_heartbeat_failed",
-                           extra={"job_id": str(job_id)})
+            logger.warning("transcription_job_heartbeat_failed job_id=%s", job_id)
 
 
 async def _fail_job(job_id: UUID, exc: Exception, net_verdict: Optional[str]) -> None:
@@ -106,19 +112,27 @@ async def run_transcription_job(job_id: UUID) -> bool:
     """Entry point for the task handler (cloud_tasks) and inline dev mode.
     Returns True if this invocation ran the document, False on no-op.
     Never raises: failures land on the row as status='failed'."""
+    # THE WALL CLOCK starts at the CAS claim, not at pipeline entry: the GCS
+    # download and the rubric read are time the teacher waits through, so they
+    # are INSIDE the budget rather than assumed away (PR-2: pre-work is
+    # MEASURED, never assumed).
+    t0 = time.monotonic()
     if not await _claim_job(job_id):
-        logger.info("run_transcription_skipped", extra={"job_id": str(job_id)})
+        logger.info("run_transcription_skipped job_id=%s", job_id)
         return False
 
     stop = asyncio.Event()
     heartbeat = asyncio.create_task(_heartbeat_loop(job_id, stop))
+    # Bound before the try so no error handler below can raise NameError while
+    # reporting a different failure — an exception inside an exception path is
+    # how a loud fault becomes a quiet one.
+    filename: Optional[str] = None
     try:
         # Load the claimed row + the rubric's exam-spec source (short sessions).
         async with get_db_context() as db:
             job: Optional[TranscriptionJob] = await db.get(TranscriptionJob, job_id)
             if job is None:
-                logger.warning("run_transcription_row_vanished",
-                               extra={"job_id": str(job_id)})
+                logger.warning("run_transcription_row_vanished job_id=%s", job_id)
                 return False
             batch_id = job.batch_id
             rubric_id = job.rubric_id
@@ -142,20 +156,38 @@ async def run_transcription_job(job_id: UUID) -> bool:
         # scheduler's single transport retry and kill the whole document.
         # Only RETRYABLE transport failures re-run; content/parse and
         # permanent errors never do.
+        budget_s = settings.transcription_task_budget_s
         for attempt in (1, 2):
             try:
                 draft = await run_pipeline_and_build_draft(
                     pdf_bytes=pdf_bytes, filename=filename,
                     spec_source=spec_source, doc_priority=doc_priority,
                     subject=subject,
+                    deadline_seconds=budget_s,
+                    budget_started_at=t0,
                 )
                 break
             except VLMCallError as exc:
                 if not exc.retryable or attempt == 2:
                     raise
+                # GATED ON THE REMAINING BUDGET (owner-ruled 2026-09-10). This
+                # re-run was added for a real transient window, and it stays —
+                # but it is the outermost of the three retry layers that used to
+                # MULTIPLY (2 x 2 x 2 x 240s = 1,920s against a 900s Cloud Run
+                # request timeout). Starting a second full pipeline the budget
+                # cannot pay for buys nothing and costs the teacher the wait.
+                elapsed = time.monotonic() - t0
+                needed = _DOC_RERUN_BACKOFF_S + _DOC_RERUN_MIN_BUDGET_S
+                if elapsed + needed > budget_s:
+                    logger.warning(
+                        "transcription transport failure (%s) on %s — NOT "
+                        "re-running: %.0fs of the %.0fs budget already spent",
+                        exc.kind.value, filename, elapsed, budget_s)
+                    raise
                 logger.warning(
                     "transcription transport failure (%s) — re-running "
-                    "document once: %s", exc.kind.value, filename)
+                    "document once (%.0fs of %.0fs budget spent): %s",
+                    exc.kind.value, elapsed, budget_s, filename)
                 await asyncio.sleep(_DOC_RERUN_BACKOFF_S)
 
         # Terminal success — ONE transaction: the transcriptions INSERT and
@@ -191,24 +223,33 @@ async def run_transcription_job(job_id: UUID) -> bool:
                 # re-queued and re-run elsewhere). Committing would DOUBLE the
                 # document — discard the zombie result instead.
                 await db.rollback()
-                logger.warning("transcription_zombie_completion_discarded",
-                               extra={"job_id": str(job_id)})
+                logger.warning("transcription_zombie_completion_discarded job_id=%s", job_id)
                 return True
             await db.commit()
             logger.info(
-                "transcription_created",
-                extra={
-                    "transcription_id": str(transcription.id),
-                    "job_id": str(job_id),
-                    "batch_id": str(batch_id),
-                    "duration_ms": draft.transcription_duration_ms,
-                },
+                "transcription_created transcription_id=%s job_id=%s "
+                "batch_id=%s file=%s duration_ms=%s wall_s=%.0f",
+                transcription.id, job_id, batch_id, filename,
+                draft.transcription_duration_ms, time.monotonic() - t0,
             )
         return True
 
+    except BudgetExceeded as exc:
+        # TERMINAL AND RETRYABLE, and deliberately NOT routed through net_diag:
+        # the budget ran out, which is a statement about OUR wall clock, not
+        # about the teacher's network — a "local-no-internet" verdict here would
+        # send her to check her WiFi over a fault that is entirely ours. The
+        # source PDF is in GCS, so the retry costs her nothing.
+        logger.warning("transcription_job_budget_exceeded job_id=%s file=%s: %s",
+                       job_id, filename, exc)
+        try:
+            await _fail_job(job_id, exc, None)
+        except Exception:
+            logger.exception("transcription_failure_write_failed job_id=%s", job_id)
+        return True
+
     except Exception as exc:
-        logger.exception("transcription_job_failed",
-                         extra={"job_id": str(job_id)})
+        logger.exception("transcription_job_failed job_id=%s", job_id)
         net_verdict: Optional[str] = None
         try:
             from .net_diag import diagnose_transport_failure
@@ -219,9 +260,9 @@ async def run_transcription_job(job_id: UUID) -> bool:
         try:
             await _fail_job(job_id, exc, net_verdict)
         except Exception:  # the row stays 'running' and surfaces via
-            # heartbeat-staleness + the retry endpoint.
-            logger.exception("transcription_failure_write_failed",
-                             extra={"job_id": str(job_id)})
+            # heartbeat-staleness, the absolute cap, + the retry endpoint.
+            logger.exception("transcription_failure_write_failed job_id=%s",
+                             job_id)
         return True
 
     finally:

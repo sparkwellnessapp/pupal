@@ -289,6 +289,18 @@ class Settings(BaseSettings):
     #   covers dispatch flakes — so this is a generous absolute backstop, not
     #   the extraction-style 5-minute dispatch window.
     transcription_job_dispatch_ttl_minutes: int = 90
+    #: LIV-1 ABSOLUTE cap for a 'running' transcription job, in minutes
+    #: (owner-ruled 20, 2026-09-10). Clocked on `started_at`, which the worker
+    #: writes ONCE at its CAS claim and never touches again - unlike
+    #: `updated_at`, which the heartbeat refreshes, so a hung-but-alive worker
+    #: can hold a row past every heartbeat deadline forever.
+    #:
+    #: 20 minutes can only ever catch corpses: the document's own wall budget is
+    #: 480s and Cloud Run kills the owning request at 900s, so no LEGITIMATE run
+    #: can still be running at 20 minutes. It is the backstop for the case the
+    #: budget cannot cover - a coroutine orphaned past its request, still
+    #: heartbeating, which no in-process check can reach.
+    transcription_job_absolute_ttl_minutes: int = 20
     # Grading liveness over graded_tests rows (no in-run heartbeat; updated_at
     # is written at the pending→grading claim): TTL must exceed the task's
     # 900s dispatch deadline, after which a killed worker can write nothing.
@@ -350,6 +362,21 @@ class Settings(BaseSettings):
     # have covered). Keep in lockstep with the Cloud Run --timeout and the Cloud
     # Tasks dispatchDeadline: budget < request timeout, always.
     extraction_task_budget_s: float = 840.0
+
+    # The per-DOCUMENT transcription wall budget, in seconds (owner-ruled 480,
+    # 2026-09-10). Same doctrine as `extraction_task_budget_s` and comfortably
+    # under the Cloud Run 900s request timeout / Cloud Tasks dispatchDeadline.
+    #
+    # WHY 480 IS SAFE DESPITE BEING SHORTER THAN THE INCIDENT IT ANSWERS: the
+    # run that provoked it took ~580s, but ~481 of those were a single hung
+    # optional-pass call that `PipelineConfig.optional_pass_timeout_s` now caps
+    # at ~82s. The same document under this code is ~210s end to end, so the
+    # budget carries roughly 2.3x headroom over the run that actually failed.
+    # And the budget NEVER cancels a call in flight (services/transcription/
+    # budget.py): it clamps the next call's timeout and refuses to START a phase
+    # it cannot cover, so a slow-but-succeeding upload keeps its patience and a
+    # document only ever dies at a phase boundary.
+    transcription_task_budget_s: float = 480.0
 
     # LangSmith settings
     langchain_tracing_v2: Optional[str] = "false"

@@ -35,18 +35,8 @@ from ...schemas.graded_test_responses import (
 )
 from ...schemas.ontology_types import GradingRubricContract, NumericPolicy
 from ...services.graded_test_contract_compiler import GateError, compile_graded_test
-from ...services.gcs_service import get_gcs_service
 from ...services.graded_test_revision import extend_chain
-from ...services.points_display import format_points
-from ...services.returned_exam import (
-    OVERLAY_KEY,
-    current_cache_key,
-    effective_stamp_position,
-    gcs_object_path,
-    render_returned_exam,
-    scopes_for_render,
-    summary_for_render,
-)
+from ...services.returned_exam_store import ReturnedExamUnavailable, returned_exam_pdf
 from ...services.cloud_tasks_service import enqueue_grading_task_or_log, verify_task_request
 from .auth import get_current_user
 
@@ -826,6 +816,14 @@ async def approve_graded_test(
                 status_code=422,
                 detail={
                     "pricing_mismatch": True,
+                    # `message_he` is the field `lib/api.ts` reads to build the
+                    # thrown ApiError. Without one, a structured detail falls
+                    # through to «שגיאת שרת (422)» — see the GateError arm below.
+                    "message_he": (
+                        f"הציון שהוצג ({body.client_total}) שונה מהציון שחושב "
+                        f"בשרת ({contract.total_score}). האישור נעצר — רענני "
+                        f"את הדף ובדקי את הסעיפים לפני אישור."
+                    ),
                     "client_total": str(body.client_total),
                     "server_total": str(contract.total_score),
                     "annotation": {
@@ -841,9 +839,31 @@ async def approve_graded_test(
                 },
             )
     except GateError as e:
+        # She gets a SENTENCE, not a status code. This detail used to carry only
+        # `gate_violations` — an object with no string and no `message_he` — so
+        # `lib/api.ts`'s normaliser fell through to «שגיאת שרת (422)», which
+        # reads as "Vivi is broken". On 2026-09-09 a teacher pressed אישור four
+        # times in seventeen seconds against a blocker nobody had named.
+        blocked = sorted({v.terminal_id for v in e.violations
+                          if v.violation_kind == "error_annotation" and v.terminal_id})
+        if blocked:
+            noun = "בסעיף" if len(blocked) == 1 else "בסעיפים"
+            message_he = (
+                f"לא ניתן לאשר עדיין: הדירוג האוטומטי נכשל {noun} "
+                f"{', '.join(blocked)}. עברי על הסעיף וקבעי בעצמך את כל "
+                f"הבדיקות שבו — לאחר מכן אפשר לאשר."
+            )
+        else:
+            message_he = (
+                f"לא ניתן לאשר: נמצאו {len(e.violations)} בעיות שדורשות תיקון "
+                f"לפני אישור."
+            )
         raise HTTPException(
             status_code=422,
-            detail={"gate_violations": [v.__dict__ for v in e.violations]},
+            detail={
+                "message_he": message_he,
+                "gate_violations": [v.__dict__ for v in e.violations],
+            },
         )
 
     # Atomic freeze — all six fields in memory before the single commit.
@@ -909,59 +929,30 @@ async def get_returned_exam(
     """
     row: GradedTest = await get_owned_or_404(db, GradedTest, graded_test_id,
                                              current_user.id)
-    if row.status != "approved" or not row.contract_json:
-        raise HTTPException(
-            status_code=409,
-            detail="אפשר להחזיר לתלמיד רק מבחן שאושר")
-
-    contract = GradedTestContract.model_validate(row.contract_json)
-
     batch = await db.get(GradingBatch, row.batch_id) if row.batch_id else None
-    include_criteria = bool(getattr(batch, "appendix_include_criteria", False))
-    stamp = effective_stamp_position(
-        (row.draft_json or {}).get(OVERLAY_KEY, {}).get("stamp_position"),
-        getattr(batch, "stamp_position_default", None))
 
-    key = current_cache_key(contract, stamp, include_criteria)
-    path = gcs_object_path(row.id, key)
-    gcs = get_gcs_service()
+    # ONE producer, shared with the batch ZIP (`services/returned_exam_store`).
+    # This endpoint's render-on-miss behaviour used to live inline here, which
+    # is how the ZIP path came to disagree with it: a cache miss meant "rebuild"
+    # here and "withhold" there, and since this was the ONLY writer of
+    # `returned_exam_key`, a batch download could only ever contain exams whose
+    # preview the teacher had happened to open one at a time.
+    try:
+        pdf = await returned_exam_pdf(db, row, batch)
+    except ReturnedExamUnavailable as exc:
+        # Each cause keeps the status and the sentence it always had — the
+        # reason is a code precisely so this mapping cannot drift.
+        if exc.reason == "not_approved":
+            raise HTTPException(
+                status_code=409,
+                detail="אפשר להחזיר לתלמיד רק מבחן שאושר") from exc
+        if exc.reason == "scan_missing":
+            raise HTTPException(
+                status_code=404, detail="לא נמצאה הסריקה המקורית") from exc
+        raise HTTPException(
+            status_code=422,
+            detail="לא הצלחנו להפיק את המבחן המוחזר") from exc
 
-    if row.returned_exam_key == key:
-        try:
-            cached = await run_in_threadpool(gcs.download_bytes, path)
-            return Response(content=cached, media_type="application/pdf")
-        except Exception:                            # noqa: BLE001
-            # The row claims a render that is not in the bucket. Fall through and
-            # rebuild it — the key is a claim about the object, and the object is
-            # the truth.
-            logger.warning("returned_exam_cache_miss",
-                           extra={"graded_test_id": str(row.id), "path": path})
-
-    transcription = await db.get(Transcription, row.transcription_id)
-    if transcription is None:
-        raise HTTPException(status_code=404, detail="לא נמצאה הסריקה המקורית")
-    source_pdf = await run_in_threadpool(gcs.download_bytes,
-                                         transcription.gcs_object_path)
-
-    pdf = await run_in_threadpool(
-        render_returned_exam,
-        source_pdf,
-        row.student_name,
-        scopes_for_render(contract, include_criteria),
-        summary_for_render(contract),
-        stamp,
-        include_criteria,
-        # [OD-2] the stamp carries her grade. From the CONTRACT — the frozen
-        # number she signed — never re-summed from the rendered scopes.
-        format_points(contract.total_score),
-        format_points(contract.total_possible),
-    )
-    await run_in_threadpool(gcs.upload_bytes, pdf, path, "application/pdf")
-
-    row.returned_exam_key = key
-    await db.commit()
-    logger.info("returned_exam_rendered",
-                extra={"graded_test_id": str(row.id), "bytes": len(pdf)})
     return Response(content=pdf, media_type="application/pdf")
 
 

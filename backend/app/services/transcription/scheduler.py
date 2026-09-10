@@ -88,8 +88,24 @@ class _AdaptiveLimiter:
         try:
             await fut
         except asyncio.CancelledError:
+            # TWO different states hide behind one exception, and they need
+            # OPPOSITE handling. This was latent until the optional-pass belts
+            # (pipeline.optional_pass_budget_s) made cancellation reachable at
+            # all; a leaked slot is permanent, instance-wide, and silent — the
+            # effective concurrency just quietly drops and never comes back.
+            #
+            #   fut.cancelled()  -> we were still QUEUED. No slot was charged;
+            #                       _dispatch skips cancelled waiters when it
+            #                       pops them, so simply leave.
+            #   not fut.cancelled() -> _dispatch already handed us the slot and
+            #                       charged in_flight BEFORE this task was
+            #                       cancelled (Task.cancel on a resolved future
+            #                       sets _must_cancel and throws at resume). The
+            #                       `finally: lim.release()` in `submit` has not
+            #                       been entered yet, so nobody else will give
+            #                       this slot back. We must.
             if not fut.cancelled():
-                fut.cancel()
+                self.release()
             raise
 
     def release(self) -> None:
@@ -133,9 +149,18 @@ class ProviderScheduler:
         provider_name: str,
         doc_priority: int,
         call: Callable[[], Awaitable[VLMResponse]],
+        *,
+        doc_id: str = "",
     ) -> ScheduledResult:
-        """Run `call` under the provider's limiter. One retry on retryable kinds."""
+        """Run `call` under the provider's limiter. One retry on retryable kinds.
+
+        `doc_id` is DIAGNOSTIC AND LOAD-BEARING. On 2026-09-10 a single call
+        spent 481s here (240s + backoff + 240s) and the only line it wrote named
+        the PROVIDER — so filtering the logs by the document that was stuck
+        could not find the 481 seconds that explained it. Every line below now
+        carries the document."""
         lim = self.limiter(provider_name)
+        tag = f"[{doc_id}] " if doc_id else ""
         submitted = self._time()
         await lim.acquire(doc_priority)
         queue_wait_ms = (self._time() - submitted) * 1000.0
@@ -144,13 +169,20 @@ class ProviderScheduler:
         try:
             while True:
                 attempts += 1
-                log.debug("%s: calling provider (attempt %d, in_flight=%d/%d, "
+                log.debug("%s%s: calling provider (attempt %d, in_flight=%d/%d, "
                           "queue_wait=%.0fms)",
-                          provider_name, attempts, lim.in_flight, lim.effective,
-                          queue_wait_ms)
+                          tag, provider_name, attempts, lim.in_flight,
+                          lim.effective, queue_wait_ms)
+                attempt_started = self._time()
                 try:
                     response = await call()
                 except VLMCallError as e:
+                    # The COST of a failed attempt is logged here and nowhere
+                    # else: the success-path timing line in
+                    # `Pipeline._call_and_parse` is only reached when `submit`
+                    # RETURNS, so before this a call that raised recorded how
+                    # long it burned in no log at all.
+                    failed_after_s = self._time() - attempt_started
                     if e.kind.value == "rate_limit":
                         lim.on_rate_limit()
                     if e.retryable and attempts == 1:
@@ -158,12 +190,16 @@ class ProviderScheduler:
                         backoff = cfg.backoff_base_s * (
                             1.0 + self._rng.random() * cfg.backoff_jitter
                         )
-                        log.warning("%s: call failed (%s); retrying once after %.2fs",
-                                    provider_name, e.kind.value, backoff)
+                        log.warning(
+                            "%s%s: call failed (%s) after %.0fs; retrying once "
+                            "after %.2fs", tag, provider_name, e.kind.value,
+                            failed_after_s, backoff)
                         await self._sleep(backoff)
                         continue
-                    log.warning("%s: call failed (%s); not retrying (attempt %d)",
-                                provider_name, e.kind.value, attempts)
+                    log.warning(
+                        "%s%s: call failed (%s) after %.0fs; not retrying "
+                        "(attempt %d)", tag, provider_name, e.kind.value,
+                        failed_after_s, attempts)
                     raise
                 lim.on_success()
                 return ScheduledResult(

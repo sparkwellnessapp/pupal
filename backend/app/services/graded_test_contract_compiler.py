@@ -125,6 +125,53 @@ def _build_terminal_index(
     return terminal_index, branch_criterion_ids
 
 
+def _scope_target_id(scope_key: Tuple[str, Optional[str]]) -> str:
+    """Mirror of `agents/grader/grader.py::_scope_target_id`, which is what
+    stamps an `llm_failure` annotation's `target_id`. The two must agree."""
+    question_id, sub_question_id = scope_key
+    return f"{question_id}.{sub_question_id}" if sub_question_id else question_id
+
+
+def _llm_failure_resolved_by_teacher(
+    ann,
+    terminal_index: Dict[str, _TerminalInfo],
+    overrides: GradedTestOverrides,
+) -> bool:
+    """[OD-R1] Her own verdicts resolve the ONE scope the grader could not grade.
+
+    `llm_failure` is the only ERROR class a teacher can answer directly, and the
+    reason is §2: it asserts nothing about the student's work — it says the
+    machine has no opinion — so the authority who decides grades can simply
+    decide this one. Every other ERROR class stays blocking.
+
+    Without this the row is a DEAD END, which is what production showed: `/retry`
+    demands `status == 'failed'` and this row is `draft`; `/manual_edit` demands
+    `approved`. Nothing could ever clear the gate, so a student's returned exam
+    could never be produced (graded_test e372e6f1, 2026-09-09).
+
+    THE BAR IS EVERY CHECK IN THE SCOPE, not some of them. A crashed scope was
+    zeroed wholesale, so a check she has not decided still carries a machine zero
+    that no one has read — freezing that into an immutable contract is precisely
+    the §5 catastrophe the gate exists to prevent. And a scope carrying NO checks
+    can never be resolved this way: there is nothing she could have decided, so
+    "all of them are decided" must not be vacuously true (`bool(required)`).
+    """
+    if getattr(ann, "annotation_type", None) != "llm_failure" or not ann.target_id:
+        return False
+    decided = {
+        (terminal_id, decision.check_id)
+        for terminal_id, decisions in overrides.terminals.items()
+        for decision in decisions
+    }
+    required = [
+        (info.terminal_id, check.check_id)
+        for info in terminal_index.values()
+        if _scope_target_id(info.scope_key) == ann.target_id
+        for check in (info.checks or [])
+    ]
+    return bool(required) and all(key in decided for key in required)
+
+
 # ---------------------------------------------------------------------------
 # Public: compile_graded_test
 # ---------------------------------------------------------------------------
@@ -205,17 +252,20 @@ def compile_graded_test(
                     ),
                 ))
 
-    # Check 5: no error-severity annotations in draft
+    # Check 5: no UNRESOLVED error-severity annotations in draft
     for ann in draft.annotations:
-        if ann.severity == AnnotationSeverity.ERROR:
-            violations.append(GateViolation(
-                terminal_id=ann.target_id,
-                violation_kind="error_annotation",
-                message=(
-                    f"Annotation '{ann.annotation_type}' (ERROR) on target "
-                    f"'{ann.target_id}' must be resolved before approval: {ann.message}"
-                ),
-            ))
+        if ann.severity != AnnotationSeverity.ERROR:
+            continue
+        if _llm_failure_resolved_by_teacher(ann, terminal_index, overrides):
+            continue
+        violations.append(GateViolation(
+            terminal_id=ann.target_id,
+            violation_kind="error_annotation",
+            message=(
+                f"Annotation '{ann.annotation_type}' (ERROR) on target "
+                f"'{ann.target_id}' must be resolved before approval: {ann.message}"
+            ),
+        ))
 
     if violations:
         raise GateError(violations)

@@ -456,12 +456,17 @@ async def test_confidence_propagation_and_prompt_version():
 
 
 # ---------------------------------------------------------------------------
-# Test 21 — Parse-error path (S8 addition): parsing_error non-None is treated as
-# non-transient failure; LLM called exactly once (GA-3: no retry);
-# scope graded_by="failed"; grade() returns without raising.
+# Test 21 — Parse-error path. [OD-R1, owner-ruled 2026-09-10] the scope is
+# re-graded ONCE and only then degrades; grade() returns without raising.
+#
+# This test previously asserted the opposite (`call_count == 1`, "no retry per
+# GA-3"). v3 is the rollback target for the v5 pin, so it carries the same rule:
+# a rollback that quietly dropped it would reintroduce the unapprovable row.
 # ---------------------------------------------------------------------------
 
-async def test_no_retry_on_parsing_error():
+async def test_a_parse_failure_is_retried_once_then_degrades(monkeypatch):
+    monkeypatch.setattr("app.agents.grader.grader.RETRY_BACKOFF_MIN", 0.0)
+    monkeypatch.setattr("app.agents.grader.grader.RETRY_BACKOFF_MAX", 0.0)
     scope = _make_scope_answered("q1", "c1", 5.0)
     gt = _make_gradable_test([scope])
     agent = _make_agent()
@@ -485,15 +490,39 @@ async def test_no_retry_on_parsing_error():
     so = draft.scope_outcomes[0]
     assert so.graded_by == "failed"
     assert so.points_awarded == Decimal("0")
-    assert so.retry_count == 0  # ValueError (non-transient) — no retry per GA-3
+    assert so.retry_count == 1              # re-graded once before giving up
 
-    # LLM was called exactly once
-    assert call_count[0] == 1
+    # Asked twice, and only twice — the retry is ONE, never a loop.
+    assert call_count[0] == 2
 
-    # Error annotation produced
+    # Error annotation produced, and it names the CAUSE rather than just a class
     failure_anns = [a for a in draft.annotations if a.annotation_type == "llm_failure"]
     assert len(failure_anns) == 1
     assert failure_anns[0].severity == AnnotationSeverity.ERROR
+    assert "LLM parse failure" in failure_anns[0].message
+
+
+async def test_a_billing_failure_is_never_retried(monkeypatch):
+    """The one carve-out: a permanent 429 cannot heal, so retrying it only
+    doubles the cost of a run that is already lost."""
+    monkeypatch.setattr("app.agents.grader.grader.RETRY_BACKOFF_MIN", 0.0)
+    monkeypatch.setattr("app.agents.grader.grader.RETRY_BACKOFF_MAX", 0.0)
+    gt = _make_gradable_test([_make_scope_answered("q1", "c1", 5.0)])
+    agent = _make_agent()
+
+    call_count = [0]
+
+    async def raises_quota(*args, **kwargs):
+        call_count[0] += 1
+        raise RuntimeError("Error code: 429 - insufficient_quota")
+
+    agent._structured_llm = MagicMock()
+    agent._structured_llm.ainvoke = AsyncMock(side_effect=raises_quota)
+
+    draft = await agent.grade(gt)
+    assert call_count[0] == 1
+    assert draft.scope_outcomes[0].graded_by == "failed"
+    assert draft.scope_outcomes[0].retry_count == 0
 
 
 # ---------------------------------------------------------------------------

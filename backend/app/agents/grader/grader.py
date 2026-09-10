@@ -80,8 +80,8 @@ async def bounded_invoke(runner, payload):
                                   timeout=GRADER_SCOPE_TIMEOUT_S)
 
 # Transient transport failures — same input retried once will likely succeed.
-# Non-transient (schema parse failures, auth errors, ValueError from parsing_error)
-# are NOT retried per GA-3.
+# ⚠ This tuple no longer decides WHETHER v5 retries, only how the retry is
+# LOGGED. See `is_permanent_provider_error` below and grader_v5._grade_scope.
 TRANSIENT_EXCEPTIONS = (
     # [PR-G2] the wall's own expiry. Note openai.APITimeoutError was a DEAD
     # branch until this PR: with no client timeout, nothing could ever raise it.
@@ -91,6 +91,40 @@ TRANSIENT_EXCEPTIONS = (
     openai.APIConnectionError,
     openai.InternalServerError,
 )
+
+
+def _permanent_classes() -> Tuple[type, ...]:
+    """Provider rejections that a retry cannot possibly heal."""
+    classes: List[type] = []
+    for mod in ("openai", "anthropic"):
+        try:
+            m = __import__(mod)
+            classes += [m.AuthenticationError, m.PermissionDeniedError,
+                        m.BadRequestError]
+        except Exception:                                          # noqa: BLE001
+            continue
+    return tuple(classes)
+
+
+def is_permanent_provider_error(exc: BaseException) -> bool:
+    """True when re-issuing the IDENTICAL request cannot possibly succeed.
+
+    This is the one carve-out from the owner's «always retry a failed scope»
+    ruling, and it exists to avoid making a known defect worse: a billing 429
+    or a 401 fails EVERY scope of EVERY test, so retrying it does not recover
+    anything — it doubles the cost and the latency of a run that is already
+    lost. Same predicate PR-2 established for extraction
+    (`docx_v3/pipeline.py::_classify_transport`), kept here rather than
+    imported so the grader's transport vocabulary stays beside the tuple above.
+    """
+    if isinstance(exc, _permanent_classes()):
+        return True
+    # `insufficient_quota` is a 429 that is NOT rate pressure — the account is
+    # out of credit. The SDKs cannot discriminate it and retry it as though it
+    # were transient (the exact defect PR-2 documented). The string is how the
+    # providers name it.
+    text = f"{type(exc).__name__} {exc}".lower()
+    return "insufficient_quota" in text or "credit balance" in text
 
 
 @dataclass
@@ -219,11 +253,18 @@ def _build_failure_result(
     output_tokens: int = 0,
 ) -> _ScopeResult:
     criterion_outcomes = _build_zero_criterion_outcomes(scope, FlagReason.LLM_UNCERTAINTY)
+    # The CAUSE travels with the annotation, not just the class name. A live
+    # incident (graded_test e372e6f1, 2026-09-09) left «ValueError» as the only
+    # record anywhere: `extra=` renders nowhere in this service (§8), so the log
+    # line carried nothing either, and the actual parse failure was
+    # unrecoverable after the fact.
+    detail = str(exc).strip()
+    cause = f"{type(exc).__name__}: {detail[:300]}" if detail else type(exc).__name__
     annotation = GradingAnnotation(
         severity=AnnotationSeverity.ERROR,
         target_id=_scope_target_id(scope),
         annotation_type="llm_failure",
-        message=f"שגיאת LLM בדירוג הסעיף: {type(exc).__name__}",
+        message=f"שגיאת LLM בדירוג הסעיף: {cause}",
         metadata={"exception_class": type(exc).__name__, "retry_count": retry_count},
     )
     return _ScopeResult(
@@ -384,7 +425,9 @@ class GraderAgent:
                 HumanMessage(content=user_msg),
             ])
             if result.get("parsing_error"):
-                # Deterministic parse failure at temperature=0.0 — never retry (GA-3).
+                # A parse failure. GA-3 called this "deterministic at temp 0.0"
+                # and never retried it; OD-R1 reverses that — the scope is
+                # re-graded once. Temperature 0 is not determinism (§17.5).
                 raise ValueError(f"LLM parse failure: {result['parsing_error']}")
             _capture_served_model(result.get("raw"), self._served_models)
             usage = (result["raw"].usage_metadata or {}) if result.get("raw") else {}
@@ -398,17 +441,29 @@ class GraderAgent:
             response, in_tok, out_tok = await _invoke()
             accumulated_in_tokens += in_tok
             accumulated_out_tokens += out_tok
-        except TRANSIENT_EXCEPTIONS as e:
-            # Transport blip — retry once with jitter (GA-3 allows this)
+        except Exception as e:
+            # [OD-R1, owner-ruled 2026-09-10] EVERY failed scope is re-graded
+            # once — see `grader_v5._grade_scope` for the evidence behind the
+            # reversal of GA-3's «no retry». v3 keeps the same rule because it
+            # is the LIVE rollback target (`GRADER_ARCHITECTURE=v3`): a rollback
+            # that quietly drops the ruling would reintroduce the dead-end row
+            # at the worst possible moment.
+            target = _scope_target_id(scope)
+            if is_permanent_provider_error(e):
+                logger.error(
+                    f"scope_grade_failed_permanent scope={target} "
+                    f"exc={type(e).__name__}: {str(e)[:300]}")
+                return _build_failure_result(
+                    scope, e, retry_count=0,
+                    input_tokens=accumulated_in_tokens,
+                    output_tokens=accumulated_out_tokens,
+                )
             retry_count = 1
+            kind = "transient" if isinstance(e, TRANSIENT_EXCEPTIONS) else "content"
+            # §8: `extra=` renders nowhere in this service — facts go in the message.
             logger.warning(
-                "transient_llm_error_retrying",
-                extra={
-                    "exception_class": type(e).__name__,
-                    "question_id": scope.question_id,
-                    "sub_question_id": scope.sub_question_id,
-                },
-            )
+                f"scope_grade_retry scope={target} kind={kind} "
+                f"exc={type(e).__name__}: {str(e)[:300]}")
             await asyncio.sleep(random.uniform(RETRY_BACKOFF_MIN, RETRY_BACKOFF_MAX))
             try:
                 response, in_tok, out_tok = await _invoke()
@@ -416,31 +471,13 @@ class GraderAgent:
                 accumulated_out_tokens += out_tok
             except Exception as e2:
                 logger.error(
-                    "scope_grade_failed_after_retry",
-                    extra={
-                        "exception_class": type(e2).__name__,
-                        "question_id": scope.question_id,
-                    },
-                )
+                    f"scope_grade_failed_after_retry scope={target} "
+                    f"exc={type(e2).__name__}: {str(e2)[:300]}")
                 return _build_failure_result(
                     scope, e2, retry_count=1,
                     input_tokens=accumulated_in_tokens,
                     output_tokens=accumulated_out_tokens,
                 )
-        except Exception as e:
-            # Non-transient (ValueError from parsing_error, auth error, etc.) — GA-3: no retry
-            logger.error(
-                "scope_grade_failed_no_retry",
-                extra={
-                    "exception_class": type(e).__name__,
-                    "question_id": scope.question_id,
-                },
-            )
-            return _build_failure_result(
-                scope, e, retry_count=0,
-                input_tokens=accumulated_in_tokens,
-                output_tokens=accumulated_out_tokens,
-            )
 
         # ── Post-validation and assembly ──────────────────────────────────────
         validation_result = validate_scope_grading(response, scope, self._policy)

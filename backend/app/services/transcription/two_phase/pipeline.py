@@ -32,6 +32,7 @@ from typing import Awaitable, Callable, Protocol
 
 from PIL import Image
 
+from ..budget import Budget
 from ..scheduler import ProviderScheduler
 from ..vlm_provider import VLMProvider, VLMResponse
 
@@ -162,7 +163,28 @@ class PipelineConfig:
     # Shared
     temperature: float = 0.0
     use_json_schema: bool = True          # the L3 experiment is this single flip
+    # THE ESSENTIAL-CALL timeout (P1, P2). 240s in PROD_CONFIG, and that number
+    # was earned by measurement on real congested uplinks: P1 pushes multi-MB
+    # image payloads and a SLOWLY-SUCCEEDING upload must not be killed.
     timeout_s: float = 90.0
+    # THE OPTIONAL-PASS timeout (strike check, readers) -- owner-ruled 40s,
+    # 2026-09-10. These passes are NOT what `timeout_s` was calibrated for: the
+    # strike check sends one page image to a cheap fast model and answers in
+    # ~7.8s median, so inheriting P1's 240s gave it a ceiling ~30x its median
+    # and, with the scheduler's one transport retry, a worst case of ~481s --
+    # which is exactly what it spent on the incident that produced this field.
+    # Retry policy is unchanged (the scheduler already retries exactly once), so
+    # the worst case here is ~40 + backoff + 40 = ~82s.
+    optional_pass_timeout_s: float = 40.0
+    # THE OPTIONAL-PASS PHASE BELT (owner-ruled 120s). `_call_and_parse`'s parse
+    # re-request still wraps the scheduler's transport retry, so ONE page's true
+    # worst case is 2 x ~82s = ~164s. This belt is what bounds that residual
+    # multiplication rather than leaving it to argument -- and it generalises the
+    # policy `identity.py` already had (CALL_TIMEOUT_S + TOTAL_TIMEOUT_S, its
+    # «belt over everything»), which is the only one of the three optional passes
+    # that got it right. Expiry degrades to the pass's OWN defined failure
+    # behaviour: keep the text / cast no votes.
+    optional_pass_budget_s: float = 120.0
     # Subject seam (2026-09-08): the SUBJECT PROFILE key. Selects the P1 fragment
     # (modality only — P1 stays spec-blind) and the D-16 prompt stamp. The default
     # is the baseline, so every existing config/fixture is byte-identical.
@@ -303,6 +325,17 @@ def _chunk(seq: list[int], size: int) -> list[list[int]]:
 
 PdfRenderer = Callable[[bytes, int], list[Image.Image]]
 
+#: Runway an ESSENTIAL phase (P1, P2) needs before it is worth beginning.
+#:
+#: A MARGIN, not a worst case — and the difference matters. Demanding a full
+#: `timeout_s` (240s) of runway would refuse to start a P1 that had 239s left
+#: and needed 40, killing documents that were going to succeed. PR-2 already
+#: settled this shape for extraction: it gates its phases on T+10 / T+60
+#: margins and lets the remaining budget become the call's own timeout, so the
+#: deadline stops work that CANNOT finish rather than work that MIGHT not.
+#: The clamp does the rest — a phase starting with 30s left gets a 30s call.
+_ESSENTIAL_MIN_RUNWAY_S = 30.0
+
 
 def _default_renderer(pdf_bytes: bytes, dpi: int) -> list[Image.Image]:
     # Lazy import: reuse the production renderer; the pipeline stays decoupled
@@ -320,12 +353,19 @@ class Pipeline:
         *,
         resolve_model: ResolveModel,
         pdf_renderer: PdfRenderer = _default_renderer,
+        budget: Budget | None = None,
     ):
         self.cfg = cfg
         self._providers = providers
         self._sched = scheduler
         self._resolve = resolve_model
         self._render = pdf_renderer
+        # The document's wall budget (budget.py). DEFAULT UNBOUNDED, and that
+        # default IS the eval path: the suite measures model behaviour, not
+        # Cloud Run's request timeout, so `check_goal.sh` is untouched by
+        # construction (PR-2's seam, `deadline_seconds=None`). Production passes
+        # a real one down from the job runner, clocked at the CAS claim.
+        self._budget = budget or Budget(None)
         # [Stage C1] Serializes this DOCUMENT's page encodes.
         #
         # Moving the encode into a thread also made it AWAIT, and the chunks run
@@ -372,7 +412,8 @@ class Pipeline:
         for attempt in (1, 2):
             log.info("[%s] %s: submitting to %s (parse-attempt %d/2)",
                      trace.doc_id, tag, provider_name, attempt)
-            res = await self._sched.submit(provider_name, doc_priority, make_call)
+            res = await self._sched.submit(
+                provider_name, doc_priority, make_call, doc_id=trace.doc_id)
             log.info("[%s] %s: provider returned in %.0fms "
                      "(queue_wait=%.0fms, call-attempts=%d)",
                      trace.doc_id, tag, res.response.total_ms,
@@ -418,10 +459,17 @@ class Pipeline:
         phase: str = "p1",
         model_key: str | None = None,
         image_max_px: int | None = None,
+        timeout_s: float | None = None,
     ) -> dict[int, str]:
         cfg = self.cfg
         key = model_key or cfg.p1_model_key
         max_px = image_max_px or cfg.image_max_px
+        # An EXPLICIT parameter, not a `phase == "reader"` sniff. Readers share
+        # this code path with P1 and need the optional-pass timeout, and the
+        # caller is the only thing that knows which it is; branching on the
+        # phase STRING here would put that knowledge in two places and make the
+        # transport policy a stringly-typed transport (CLAUDE.md 3.2).
+        base_timeout_s = timeout_s if timeout_s is not None else cfg.timeout_s
         ms = self._resolve(key)
         provider = self._providers[ms.provider]
 
@@ -449,7 +497,7 @@ class Pipeline:
         log.info("[%s] %s chunk pages=%s: %d image(s) encoded "
                  "(model=%s, max_tokens=%d, timeout=%.0fs)",
                  trace.doc_id, phase, page_numbers, len(images_b64),
-                 ms.model_id, max_tokens, cfg.timeout_s)
+                 ms.model_id, max_tokens, self._budget.clamp(base_timeout_s))
 
         # P1 per subject profile: CS is `P1_SYSTEM` byte-for-byte; a prose/math
         # profile swaps only the ink-rules block (prompts.p1_system). Spec-blind
@@ -457,10 +505,18 @@ class Pipeline:
         p1_system_text = p1_system(_get_subject_profile(cfg.subject_key))
 
         def make_call():
+            # Clamped HERE, inside the closure, so the budget is read at
+            # DISPATCH rather than at chunk entry. Between the two sits the page
+            # encode and however long the scheduler holds this call behind the
+            # per-model concurrency cap — which on a busy instance is the whole
+            # reason a clamp is worth having. Every other phase already reads it
+            # at dispatch; P1 reading it earlier would have been the one call
+            # allowed to outlive the budget.
             return provider.complete(
                 system=p1_system_text, user=user, images_b64=images_b64,
                 max_tokens=max_tokens, temperature=cfg.temperature,
-                json_schema=schema, timeout_s=cfg.timeout_s,
+                json_schema=schema,
+                timeout_s=self._budget.clamp(base_timeout_s),
             )
 
         ok, data = await self._call_parsed(
@@ -494,6 +550,7 @@ class Pipeline:
         phase: str = "p1",
         model_key: str | None = None,
         image_max_px: int | None = None,
+        timeout_s: float | None = None,
     ) -> dict[int, str]:
         """Chunk + dispatch pre-rendered page images through one P1 model."""
         page_numbers = list(range(1, len(images) + 1))
@@ -504,6 +561,7 @@ class Pipeline:
             self._phase1_chunk(
                 nums, [images[n - 1] for n in nums], doc_priority, trace,
                 phase=phase, model_key=model_key, image_max_px=image_max_px,
+                timeout_s=timeout_s,
             )
             for nums in chunks
         ])
@@ -552,6 +610,9 @@ class Pipeline:
         tests/transcription_eval_suit/test_strike_check.py::
         test_trust_path_runs_the_strike_check_too.
         """
+        # P1 is ESSENTIAL: without it there is no transcription at all, so an
+        # exhausted budget raises rather than degrading (budget.py).
+        self._budget.require(_ESSENTIAL_MIN_RUNWAY_S, "phase 1 (perception)")
         pages = await self._transcribe_pages(images, doc_id, doc_priority, trace)
         log.info("[%s] phase1 done: %d page(s) transcribed", doc_id, len(pages))
         if self.cfg.p1_strike_check_model_key:
@@ -586,6 +647,18 @@ class Pipeline:
         targets = [n for n in sorted(pages) if pages[n].strip()]
         if not targets:
             return pages
+        # OPTIONAL PASS: when the document's wall budget cannot cover this
+        # phase, SKIP it and keep P1's text -- which is precisely what this pass
+        # already does on any failure. Degradation by omission, never by guess
+        # (CLAUDE.md 3.5a); the teacher loses a crossed-out-ink correction, not
+        # her document.
+        if not self._budget.can_start(self.cfg.optional_pass_budget_s):
+            log.warning(
+                "[%s] strike_check skipped: %.0fs of the %.0fs document budget "
+                "already spent — keeping P1 text for %d page(s)",
+                doc_id, self._budget.elapsed_s(), self._budget.total_s or 0.0,
+                len(targets))
+            return pages
         log.info("[%s] strike_check: verifying %d page(s) with %s",
                  doc_id, len(targets), ms.model_id)
 
@@ -599,7 +672,8 @@ class Pipeline:
                         system=STRIKE_CHECK_SYSTEM, user=user, images_b64=[b64],
                         max_tokens=cfg.p1_strike_check_max_tokens,
                         temperature=cfg.temperature,
-                        json_schema=schema, timeout_s=cfg.timeout_s,
+                        json_schema=schema,
+                        timeout_s=self._budget.clamp(cfg.optional_pass_timeout_s),
                     )
 
                 label = (f"strike_check page={n}" if votes == 1
@@ -658,7 +732,26 @@ class Pipeline:
                             doc_id, n, exc_info=True)
                 return n, text
 
-        results = await asyncio.gather(*(one(n) for n in targets))
+        # THE BELT (optional_pass_budget_s). The per-page `except` below already
+        # guarantees this pass never RAISES; it does not — and cannot — bound how
+        # long it DELAYS, because every layer under it (parse re-request x
+        # scheduler transport retry x call timeout) multiplies. On 2026-09-10 one
+        # page spent ~481s here and then discarded its own result exactly as
+        # designed. Expiry lands on the same outcome the pass already defines:
+        # keep every page's text unchanged.
+        t_phase = time.monotonic()
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*(one(n) for n in targets)),
+                timeout=self._budget.clamp(self.cfg.optional_pass_budget_s),
+            )
+        except asyncio.TimeoutError:
+            log.warning(
+                "[%s] strike_check exceeded its %.0fs budget after %.0fs — "
+                "keeping P1 text for all %d page(s)",
+                doc_id, self.cfg.optional_pass_budget_s,
+                time.monotonic() - t_phase, len(targets))
+            return pages
         out = dict(pages)
         out.update(dict(results))
         return out
@@ -677,6 +770,17 @@ class Pipeline:
         trace = trace or Trace(doc_id=doc_id)
         if not self.cfg.reader_model_keys:
             return {}, trace
+        # OPTIONAL PASS, same policy as the strike check: an unaffordable budget
+        # casts no votes rather than delaying the document. (Retired in prod --
+        # PROD_CONFIG names no readers -- so this is the eval path today; it gets
+        # the policy anyway because the difference between the two passes was
+        # never a decision anyone made.)
+        if not self._budget.can_start(self.cfg.optional_pass_budget_s):
+            log.warning(
+                "[%s] readers skipped: %.0fs of the %.0fs document budget "
+                "already spent — casting no votes",
+                doc_id, self._budget.elapsed_s(), self._budget.total_s or 0.0)
+            return {}, trace
 
         async def one_reader(key: str) -> tuple[str, dict[int, str]]:
             try:
@@ -684,6 +788,7 @@ class Pipeline:
                     images, doc_id, doc_priority, trace,
                     phase="reader", model_key=key,
                     image_max_px=self.cfg.reader_image_max_px,
+                    timeout_s=self.cfg.optional_pass_timeout_s,
                 )
             except Exception:  # noqa: BLE001 — a reader must never sink the doc
                 log.warning("[%s] reader %s failed; casting no votes",
@@ -691,8 +796,19 @@ class Pipeline:
                 pages = {}
             return key, pages
 
-        results = await asyncio.gather(
-            *[one_reader(k) for k in self.cfg.reader_model_keys])
+        t_phase = time.monotonic()
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(
+                    *[one_reader(k) for k in self.cfg.reader_model_keys]),
+                timeout=self._budget.clamp(self.cfg.optional_pass_budget_s),
+            )
+        except asyncio.TimeoutError:
+            log.warning(
+                "[%s] readers exceeded their %.0fs budget after %.0fs — "
+                "casting no votes", doc_id, self.cfg.optional_pass_budget_s,
+                time.monotonic() - t_phase)
+            return {}, trace
         return dict(results), trace
 
     async def run_phase2(
@@ -705,9 +821,13 @@ class Pipeline:
             raise ValueError("Phase 2 requested but p2_model_key is empty (p1_only config).")
         ms = self._resolve(cfg.p2_model_key)
         provider = self._providers[ms.provider]
+        # P2 is ESSENTIAL -- P1 text without segmentation is not a transcription
+        # anyone can grade, so exhaustion raises here rather than shipping a
+        # partial draft (budget.py; CLAUDE.md 3.5a + FC).
+        self._budget.require(_ESSENTIAL_MIN_RUNWAY_S, "phase 2 (segmentation)")
         log.info("[%s] phase2 start: %d page(s) -> %s (contract=%s, timeout=%.0fs)",
                  doc_id, len(pages), ms.model_id, cfg.p2_output_contract,
-                 cfg.timeout_s)
+                 self._budget.clamp(cfg.timeout_s))
 
         if cfg.p2_output_contract == "spans":
             answers, notes = await self._phase2_spans(
@@ -733,7 +853,7 @@ class Pipeline:
             return provider.complete(
                 system=system, user=user, images_b64=None,
                 max_tokens=cfg.p2_max_tokens, temperature=cfg.temperature,
-                json_schema=schema, timeout_s=cfg.timeout_s,
+                json_schema=schema, timeout_s=self._budget.clamp(cfg.timeout_s),
                 reasoning_effort=cfg.p2_reasoning_effort or None,
             )
 
@@ -805,7 +925,8 @@ class Pipeline:
                 return provider.complete(
                     system=system, user=user_text, images_b64=None,
                     max_tokens=cfg.p2_max_tokens, temperature=cfg.temperature,
-                    json_schema=schema, timeout_s=cfg.timeout_s,
+                    json_schema=schema,
+                    timeout_s=self._budget.clamp(cfg.timeout_s),
                     reasoning_effort=cfg.p2_reasoning_effort or None,
                 )
             return make_call

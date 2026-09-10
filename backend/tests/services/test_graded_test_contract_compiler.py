@@ -360,6 +360,77 @@ def test_gate_warning_and_info_do_not_block():
 
 
 # ---------------------------------------------------------------------------
+# [OD-R1, owner-ruled 2026-09-10] `llm_failure` is the ONE teacher-resolvable
+# ERROR. The grader re-grades a failed scope automatically; when even the retry
+# fails, HER verdicts are what clears the gate — otherwise the row is a dead end
+# (`/retry` wants status 'failed', `/manual_edit` wants 'approved', and this row
+# is 'draft'), and the student's returned exam can never be produced.
+# ---------------------------------------------------------------------------
+
+def _failed_scope_ann(target_id="q1"):
+    return _annotation(AnnotationSeverity.ERROR, target_id=target_id,
+                       annotation_type="llm_failure",
+                       message="שגיאת LLM בדירוג הסעיף: ValueError: LLM parse failure")
+
+
+def test_llm_failure_blocks_until_every_check_in_the_scope_is_decided():
+    draft = _draft(annotations=[_failed_scope_ann()])
+
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(draft, _no_ov(), _rubric_contract())
+    assert "error_annotation" in [v.violation_kind for v in exc_info.value.violations]
+
+    # She decides the scope's only check — the machine's non-opinion is answered.
+    contract = compile_graded_test(
+        draft, _ov("q1.c0", "q1.c0.k1", "met"), _rubric_contract())
+    assert contract is not None
+
+
+def test_a_partly_decided_failed_scope_still_blocks():
+    """A check she has not touched still carries the CRASH's zero, which nobody
+    read. Freezing that into an immutable contract is the §5 catastrophe."""
+    draft = _draft(
+        scope_outcomes=[_scope(criterion_outcomes=[
+            _leaf_criterion("q1.c0"), _leaf_criterion("q1.c1")])],
+        annotations=[_failed_scope_ann()])
+
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(draft, _ov("q1.c0", "q1.c0.k1", "met"),
+                            _rubric_contract())
+    assert "error_annotation" in [v.violation_kind for v in exc_info.value.violations]
+
+
+def test_only_llm_failure_is_teacher_resolvable():
+    """Every other ERROR class asserts something about the WORK, not about the
+    machine's silence, so no overlay may wave it through."""
+    draft = _draft(annotations=[_annotation(
+        AnnotationSeverity.ERROR, target_id="q1",
+        annotation_type="closed_world_violation")])
+
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(draft, _ov("q1.c0", "q1.c0.k1", "met"),
+                            _rubric_contract())
+    assert "error_annotation" in [v.violation_kind for v in exc_info.value.violations]
+
+
+def test_a_failed_scope_carrying_no_checks_is_never_vacuously_resolved():
+    """"All of them are decided" must not be true of an empty set. Drafts graded
+    before OD-R1 have exactly this shape, and they must keep refusing rather than
+    approve a scope nobody could have reviewed."""
+    checkless = CriterionOutcome(
+        criterion_id="q1.c0", description="Leaf criterion",
+        points_possible=Decimal("5"), points_awarded=Decimal("0"),
+        reasoning="", confidence=0.0, sub_criterion_outcomes=None, checks=None)
+    draft = _draft(scope_outcomes=[_scope(criterion_outcomes=[checkless])],
+                   annotations=[_failed_scope_ann()])
+
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(draft, _ov("q1.c0", "q1.c0.k1", "met"),
+                            _rubric_contract())
+    assert "error_annotation" in [v.violation_kind for v in exc_info.value.violations]
+
+
+# ---------------------------------------------------------------------------
 # Test 10: Aggregates → total_score/possible/percentage correct; /0 guarded
 # [CORE-13]
 # ---------------------------------------------------------------------------

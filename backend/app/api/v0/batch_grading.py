@@ -67,6 +67,10 @@ from ...schemas.transcription import (
 )
 from ...services.batch_triage import FlagVerdict, compute_flag_verdict, match_student
 from ...services.selection_expectation import answer_space_groups
+from ...services.returned_exam_store import (
+    ReturnedExamUnavailable,
+    returned_exam_pdf,
+)
 from ...services.cloud_tasks_service import (
     enqueue_grading_task_or_log,
     enqueue_transcription_task,
@@ -87,6 +91,7 @@ from ...services.returned_exam import (
     unique_zip_entry_names,
 )
 from ...services.transcription_job_liveness import expired_condition as job_expired_condition
+from ...services.transcription_job_liveness import is_expired as job_is_expired
 from ...services.transcription_job_liveness import reap_expired as reap_expired_jobs
 from ...services.grading_inputs import transcription_contract_version
 from .auth import get_current_user
@@ -1003,8 +1008,8 @@ async def _exam_rows(db, batch_id, user_id):
             except Exception:                       # noqa: BLE001
                 # An unreadable contract is a real problem, but it must not blank
                 # the manifest. `current` stays None, so the row lands in
-                # `excluded_stale` — honest: we cannot prove this PDF is current,
-                # so we do not ship it.
+                # `excluded_unavailable` — honest: we cannot prove what this
+                # document should say, so we do not ship one.
                 logger.warning("returned_exam_key_uncomputable",
                                extra={"graded_test_id": str(row.id)})
         exam_rows.append(ExamRow(graded_test_id=str(row.id),
@@ -1034,7 +1039,7 @@ async def returned_exams_manifest(
     return ReturnedExamManifest(
         included=items("included"),
         excluded_not_approved=items("excluded_not_approved"),
-        excluded_stale=items("excluded_stale"))
+        excluded_unavailable=items("excluded_unavailable"))
 
 
 @router.get("/{batch_id}/returned-exams.zip")
@@ -1055,27 +1060,47 @@ async def returned_exams_zip(
         raise HTTPException(status_code=404,
                             detail="אין מבחנים מוכנים להורדה עדיין")
 
-    gcs = get_gcs_service()
     # Names minted for the WHOLE set at once: uniqueness is a property of the
     # archive, not of one entry, so it cannot be decided one student at a time.
     entry_names = unique_zip_entry_names(batch.name,
                                          [e.student_name for e in included])
     buffer = BytesIO()
+    written = 0
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         for entry, entry_name in zip(included, entry_names):
             row = by_id[entry.graded_test_id]
-            path = gcs_object_path(row.id, entry.cached_key)
             try:
-                pdf = await run_in_threadpool(gcs.download_bytes, path)
+                # RENDERS IF NEEDED. The cache is an optimisation, not a gate —
+                # the single-test preview always rebuilt on a miss, while this
+                # path used to withhold the exam instead. Since that preview was
+                # the ONLY writer of `returned_exam_key`, a teacher who approved
+                # a batch and downloaded it got an empty ZIP every time.
+                # Freshness is unchanged: anything outdated is rebuilt from the
+                # frozen contract before it ships, never served stale.
+                pdf = await returned_exam_pdf(db, row, batch)
+            except ReturnedExamUnavailable as exc:
+                # Named in the manifest, omitted here. One exam that cannot be
+                # produced is not a reason to fail the other twenty-nine, and a
+                # substitute document would be worse than a stated hole.
+                logger.warning("returned_exam_unavailable graded_test_id=%s: %s",
+                               entry.graded_test_id, exc)
+                continue
             except Exception:                       # noqa: BLE001
-                # The key said this render exists and it does not. Omit it — the
-                # manifest is the contract for what is inside, and one missing
-                # object is not a reason to fail the other twenty-nine.
-                logger.warning("returned_exam_object_missing",
-                               extra={"graded_test_id": entry.graded_test_id,
-                                      "path": path})
+                logger.exception("returned_exam_render_failed graded_test_id=%s",
+                                 entry.graded_test_id)
                 continue
             archive.writestr(entry_name, pdf)
+            written += 1
+
+    # EVERY render failed. The manifest promised documents and none could be
+    # produced, so refuse rather than stream a valid, empty ZIP — an empty
+    # archive reads as «these students have no feedback», which is a worse lie
+    # than an error. The old code got this for free because a row was only ever
+    # included when its PDF already existed; now that the ZIP builds them, the
+    # guard has to be explicit.
+    if written == 0:
+        raise HTTPException(status_code=404,
+                            detail="אין מבחנים מוכנים להורדה עדיין")
 
     buffer.seek(0)
     stem = unicodedata.normalize("NFC", (batch.name or "מקבץ").strip())
@@ -1213,11 +1238,18 @@ async def get_batch(
     # doc_priority, so active means genuinely active, in upload order).
     active_jobs = [
         ActiveJobItem(
+            job_id=str(j.id),
             filename=j.source_filename,
             state=j.status,
             created_at=j.created_at.isoformat(),
             started_at=j.started_at.isoformat() if j.started_at else None,
             attempt_count=j.attempt_count,
+            # The reap above already ran, so an ACTIVE row reaching here is
+            # normally alive. This can still be True in one honest window: the
+            # reap and this predicate read the same rule but at different
+            # instants, and a row can cross its deadline between them. Saying so
+            # is better than a spinner that is wrong for one poll.
+            retryable=job_is_expired(j),
         )
         for j in jobs if j.status in ("queued", "running")
     ]

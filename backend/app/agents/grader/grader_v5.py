@@ -42,6 +42,7 @@ from app.agents.grader.grader import (
     _capture_served_model,
     _get_terminal_map,
     _scope_target_id,
+    is_permanent_provider_error,
 )
 from app.agents.grader.llm_factory import build_chat_model
 from app.agents.grader.plan_schemas import (
@@ -148,7 +149,9 @@ class PlanVerifyGrader:
             HumanMessage(content=user_msg),
         ])
         if result.get("parsing_error"):
-            # Deterministic parse failure at temp 0 — never retried (R6/GA-3).
+            # A parse failure. R6/GA-3 called this "deterministic at temp 0" and
+            # never retried it; OD-R1 (2026-09-10) reverses that — `_grade_scope`
+            # re-runs this scope once. Temperature 0 is not determinism (§17.5).
             raise ValueError(f"LLM parse failure: {result['parsing_error']}")
         _capture_served_model(result.get("raw"), self._served_models)
         usage = (result["raw"].usage_metadata or {}) if result.get("raw") else {}
@@ -252,6 +255,43 @@ class PlanVerifyGrader:
                 ))
         return criterion_outcomes, confidences, annotations
 
+    def _failure_result(self, scope: GradableScope,
+                        terminal_plans: List[TerminalPlan],
+                        exc: Exception, retry_count: int) -> _ScopeResult:
+        """[OD-R1] A failed scope still carries its CHECKS, so she can decide it.
+
+        Without this the teacher-override fallback is a fiction. A crashed scope
+        reached the review surface with its criteria and ZERO checks (measured on
+        graded_test e372e6f1: 8 criteria, 0 checks), so there was nothing on
+        screen to override — and since the blocking `llm_failure` annotation is
+        resolved only BY overriding, no action by anyone could ever clear it.
+
+        The record is built by the ONE pricer with an EMPTY verdict map. That is
+        not a trick: `price_scope`'s existing "no verdict arrived" branch already
+        says exactly what a crashed scope is — every check `not_met` at
+        confidence 0 with UNVERIFIED_CHECK and a WARNING that names it. Building
+        these here by hand would be the second pricing path §5 spent a whole
+        incident deleting.
+        """
+        result = _build_failure_result(scope, exc, retry_count=retry_count)
+        try:
+            priced = price_scope(terminal_plans, {}, self._policy.precision)
+            criterion_outcomes, _confidences, price_annotations = \
+                self._assemble(scope, priced)
+        except Exception as inner:                                 # noqa: BLE001
+            # The recovery path must never be what turns a graded test into a
+            # 500. The bare zero-outcome above still stands, and the log says
+            # the checks are missing so the surface's emptiness is explicable.
+            logger.error(
+                f"v5_failure_checks_unavailable scope={_scope_target_id(scope)} "
+                f"exc={type(inner).__name__}: {str(inner)[:200]}")
+            return result
+        return _ScopeResult(
+            outcome=result.outcome.model_copy(
+                update={"criterion_outcomes": criterion_outcomes}),
+            annotations=[*result.annotations, *price_annotations],
+        )
+
     # ── one scope, isolated ──────────────────────────────────────────────────
     async def _grade_scope(self, scope: GradableScope) -> _ScopeResult:
         if scope.alignment == "answer_missing" or not scope.student_answer_text:
@@ -273,26 +313,48 @@ class PlanVerifyGrader:
         try:
             consensus, cw_annotations, in_tok, out_tok, cached = \
                 await self._verify_scope(scope, terminal_plans)
-        except V5_TRANSIENT_EXCEPTIONS as e:
+        except Exception as e:
+            # [OD-R1, owner-ruled 2026-09-10] EVERY failed scope is re-graded
+            # ONCE, automatically, and the teacher is never told about a blip
+            # that healed itself. This REVERSES GA-3/R6's «deterministic parse
+            # failure at temp 0 — never retried» (the comment in
+            # `_verify_scope`), and the reversal is evidence-led on both sides:
+            #   * the premise is false. §17.5 records this same class of model
+            #     answering identically-framed input three different ways at
+            #     temperature 0 — a swap, then a merge, then a refusal.
+            #   * the premise was load-bearing. On graded_test e372e6f1
+            #     (2026-09-09) `_verify_scope` raised ValueError on
+            #     `parsing_error`, took the no-retry arm, and zeroed a 16-point
+            #     scope. The ERROR annotation then blocked approval (§5), so
+            #     the teacher had a 72.50/100 she could neither fix nor sign
+            #     and a returned exam that could never be produced.
+            # §3.6 isolates failure per scope; recovery is now isolated the
+            # same way. `V5_TRANSIENT_EXCEPTIONS` no longer gates the retry —
+            # it survives as the vocabulary that names one in the log.
+            target = _scope_target_id(scope)
+            if is_permanent_provider_error(e):
+                logger.error(
+                    f"v5_scope_failed_permanent scope={target} "
+                    f"exc={type(e).__name__}: {str(e)[:300]}")
+                return self._failure_result(scope, terminal_plans, e,
+                                            retry_count=0)
             retry_count = 1
-            logger.warning("v5_transient_retry", extra={
-                "exception_class": type(e).__name__,
-                "question_id": scope.question_id,
-                "sub_question_id": scope.sub_question_id})
+            kind = ("transient" if isinstance(e, V5_TRANSIENT_EXCEPTIONS)
+                    else "content")
+            # §8: anything you intend to QUERY goes in the message string.
+            logger.warning(
+                f"v5_scope_retry scope={target} kind={kind} "
+                f"exc={type(e).__name__}: {str(e)[:300]}")
             await asyncio.sleep(random.uniform(RETRY_BACKOFF_MIN, RETRY_BACKOFF_MAX))
             try:
                 consensus, cw_annotations, in_tok, out_tok, cached = \
                     await self._verify_scope(scope, terminal_plans)
             except Exception as e2:
-                logger.error("v5_scope_failed_after_retry", extra={
-                    "exception_class": type(e2).__name__,
-                    "question_id": scope.question_id})
-                return _build_failure_result(scope, e2, retry_count=1)
-        except Exception as e:
-            logger.error("v5_scope_failed_no_retry", extra={
-                "exception_class": type(e).__name__,
-                "question_id": scope.question_id})
-            return _build_failure_result(scope, e, retry_count=0)
+                logger.error(
+                    f"v5_scope_failed_after_retry scope={target} "
+                    f"exc={type(e2).__name__}: {str(e2)[:300]}")
+                return self._failure_result(scope, terminal_plans, e2,
+                                            retry_count=1)
 
         # ── per-span quote validation → pricing (both deterministic) ────────
         answer = scope.student_answer_text or ""

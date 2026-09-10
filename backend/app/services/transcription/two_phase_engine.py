@@ -58,6 +58,7 @@ from ...schemas.transcription import (
 from .providers.anthropic_provider import AnthropicProvider
 from .providers.gemini_provider import GeminiProvider
 from .providers.openai_provider import OpenAIProvider
+from .budget import Budget
 from .scheduler import ProviderLimit, ProviderScheduler
 from .two_phase.instrument import PriceCard
 from .two_phase.parsing import spec_from_rubric_draft_data
@@ -177,6 +178,8 @@ async def transcribe_two_phase(
     *,
     doc_priority: int = 0,
     subject: str = "computer_science",
+    deadline_seconds: float | None = None,
+    budget_started_at: float | None = None,
 ) -> tuple[TrustRun, str | None]:
     """PDF + rubric draft json -> (TrustRun, student-name suggestion).
 
@@ -202,7 +205,14 @@ async def transcribe_two_phase(
     spec = spec_from_rubric_draft_data(rubric_draft_json, name="rubric",
                                        keywords=profile.p2_keywords)
     providers, _, scheduler = _shared_infra()
-    pipeline = _build_pipeline_multi(_replace(PROD_CONFIG, subject_key=profile.key))
+    # The document's wall budget. `deadline_seconds=None` ⇒ UNBOUNDED ⇒ the
+    # eval path (PR-2's seam): the suite measures model behaviour, not Cloud
+    # Run's request timeout. `budget_started_at` lets the job runner anchor the
+    # clock at its CAS claim so the GCS download and the rubric read are INSIDE
+    # the budget rather than assumed away (PR-2: pre-work is MEASURED).
+    budget = Budget(deadline_seconds, started_at=budget_started_at)
+    pipeline = _build_pipeline_multi(
+        _replace(PROD_CONFIG, subject_key=profile.key), budget)
     # Identity rides the SAME shared provider + scheduler slot pool as P1
     # (same eyes — the proven Hebrew-handwriting reader; the crop makes its
     # cost negligible), at its document's priority: submitted before the P1
@@ -271,12 +281,16 @@ def _shared_infra() -> tuple[dict, dict, ProviderScheduler]:
     return providers, aliased, scheduler
 
 
-def _build_pipeline_multi(cfg: PipelineConfig) -> Pipeline:
+def _build_pipeline_multi(cfg: PipelineConfig,
+                          budget: Budget | None = None) -> Pipeline:
     """Per-document Pipeline over the SHARED providers/scheduler (adapter
-    instance per MODEL KEY, aliased — see pipeline.AliasedModel)."""
+    instance per MODEL KEY, aliased — see pipeline.AliasedModel).
+
+    `budget` is the document's wall clock (budget.py); None = unbounded, which
+    is the eval path and every direct caller with no request behind it."""
     providers, aliased, scheduler = _shared_infra()
     return Pipeline(cfg, providers, scheduler,
-                    resolve_model=lambda k: aliased[k])
+                    resolve_model=lambda k: aliased[k], budget=budget)
 
 
 def build_draft_from_trust_run(

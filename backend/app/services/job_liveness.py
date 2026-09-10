@@ -42,11 +42,38 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class ActiveArm:
-    """One active status and the liveness clock that backs its claim."""
+    """One active status and the liveness clock(s) that back its claim.
+
+    A HEARTBEAT CLOCK PROVES THE WORKER PROCESS EXISTS. It does not prove the
+    work is progressing, that it can still land, or that the request which owns
+    it is still alive - and the worker is the thing REFRESHING it. So an
+    orphaned-but-still-scheduled coroutine renders its own row unfalsifiable:
+    it keeps beating, the reaper keeps declining, and LIV-1's whole purpose
+    ("a row that cannot be falsified is a row that traps the teacher forever")
+    is satisfied in letter and defeated in fact.
+
+    Hence the optional ABSOLUTE arm: a second clock on a column the worker does
+    not touch (`started_at`), with a TTL derived from a number the work is
+    supposed to be honoring. Past it the row is dead BY ARITHMETIC, whatever the
+    heartbeat says. Its reason is separate on purpose - "the worker died" and
+    "the worker overran its budget" are different events, and the teacher may
+    act on them differently.
+    """
     status: str
     clock_attr: str                      # "created_at" | "updated_at"
-    ttl: Callable[[], timedelta]         # callable → live settings reads
+    ttl: Callable[[], timedelta]         # callable -> live settings reads
     reason: str                          # recorded on expiry (teacher-facing)
+    # The cap the worker cannot refresh. Both None, or both set.
+    absolute_clock_attr: Optional[str] = None      # e.g. "started_at"
+    absolute_ttl: Optional[Callable[[], timedelta]] = None
+    absolute_reason: str = ""
+
+    def __post_init__(self):
+        if bool(self.absolute_clock_attr) != bool(self.absolute_ttl):
+            raise ValueError(
+                "ActiveArm: absolute_clock_attr and absolute_ttl must be set "
+                "together - a cap with no clock (or a clock with no cap) is a "
+                "guard that silently never fires")
 
 
 @dataclass(frozen=True)
@@ -78,43 +105,94 @@ class LivenessRule:
         safe: it can only match a row whose deadline has already passed, never
         one another worker is still heartbeating."""
         now = now or datetime.now(timezone.utc)
-        return or_(*[
-            and_(
+        clauses = []
+        for arm in self.arms:
+            clauses.append(and_(
                 self.model.status == arm.status,
                 getattr(self.model, arm.clock_attr) < now - arm.ttl(),
-            )
-            for arm in self.arms
-        ])
+            ))
+            if arm.absolute_clock_attr and arm.absolute_ttl:
+                col = getattr(self.model, arm.absolute_clock_attr)
+                clauses.append(and_(
+                    self.model.status == arm.status,
+                    # Stated, not assumed: an absolute clock that was never
+                    # stamped must not condemn a row. `started_at` is written by
+                    # the CAS claim so a running row always has one, but SQL
+                    # NULL semantics would make the comparison quietly UNKNOWN
+                    # rather than loud.
+                    col.isnot(None),
+                    col < now - arm.absolute_ttl(),
+                ))
+        return or_(*clauses)
 
     # -- the Python half (must agree with the SQL half) ----------------------
+
+    @staticmethod
+    def _aware(value):
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+
+    def _absolute_expired(self, arm: ActiveArm, row, now: datetime) -> bool:
+        if not (arm.absolute_clock_attr and arm.absolute_ttl):
+            return False
+        clock = self._aware(getattr(row, arm.absolute_clock_attr, None))
+        return clock is not None and (now - clock) > arm.absolute_ttl()
 
     def is_expired(self, row, now: Optional[datetime] = None) -> bool:
         now = now or datetime.now(timezone.utc)
         arm = self._arm_for(row.status)
         if arm is None:
             return False
-        clock = getattr(row, arm.clock_attr, None)
+        if self._absolute_expired(arm, row, now):
+            return True
+        clock = self._aware(getattr(row, arm.clock_attr, None))
         if clock is None:
             return False
-        if clock.tzinfo is None:
-            clock = clock.replace(tzinfo=timezone.utc)
         return (now - clock) > arm.ttl()
 
-    def expiry_reason(self, row) -> str:
+    def expiry_reason(self, row, now: Optional[datetime] = None) -> str:
+        """The reason THIS row expired. The absolute cap is checked first and
+        wins: when both fire it is the more specific fact, and it is the one
+        that tells the teacher the work overran rather than vanished.
+
+        `now` became a parameter when the absolute arm landed: the answer is no
+        longer a pure function of `status`, so a caller that judges a row at a
+        given instant (and every test that does) must be able to say WHICH
+        instant. Defaulting to real now keeps every existing call site
+        unchanged."""
         arm = self._arm_for(row.status)
-        return arm.reason if arm is not None else ""
+        if arm is None:
+            return ""
+        if self._absolute_expired(arm, row, now or datetime.now(timezone.utc)):
+            return arm.absolute_reason or arm.reason
+        return arm.reason
 
     # -- reaping -------------------------------------------------------------
 
-    def _reason_case(self):
+    def _reason_case(self, now: Optional[datetime] = None):
         """Per-status reason as ONE SQL expression, so a set-based reap stays
-        one statement."""
-        if len(self.arms) == 1:
-            return self.arms[0].reason
-        return case(
-            *[(self.model.status == arm.status, arm.reason) for arm in self.arms[:-1]],
-            else_=self.arms[-1].reason,
-        )
+        one statement.
+
+        Ordering mirrors `expiry_reason`: an arm's ABSOLUTE clause is tested
+        before its heartbeat clause, so a row that blew its cap is recorded as
+        having overrun rather than as having gone quiet. The two forms must
+        agree - that is this module's standing invariant, and its test."""
+        now = now or datetime.now(timezone.utc)
+        whens = []
+        for arm in self.arms:
+            if arm.absolute_clock_attr and arm.absolute_ttl and arm.absolute_reason:
+                col = getattr(self.model, arm.absolute_clock_attr)
+                whens.append((
+                    and_(self.model.status == arm.status,
+                         col.isnot(None),
+                         col < now - arm.absolute_ttl()),
+                    arm.absolute_reason,
+                ))
+            whens.append((self.model.status == arm.status, arm.reason))
+        if len(whens) == 1:
+            return whens[0][1]
+        return case(*whens[:-1], else_=whens[-1][1])
 
     async def reap(
         self,
@@ -131,7 +209,7 @@ class LivenessRule:
         # a teacher's in-flight work into a failure she is never shown — the
         # count alone made that unfindable without a DB query, which is the
         # wrong altitude for the one event that means "her batch died".
-        stmt = stmt.values(**self.failed_values(self._reason_case(), now)).returning(self.model.id)
+        stmt = stmt.values(**self.failed_values(self._reason_case(now), now)).returning(self.model.id)
         result = await db.execute(stmt)
         reaped_ids = [row[0] for row in result.fetchall()]
         reaped = len(reaped_ids)

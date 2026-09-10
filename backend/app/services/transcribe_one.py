@@ -168,13 +168,27 @@ async def run_pipeline_and_build_draft(
     doc_priority: int = 0,
     t_start: float | None = None,
     subject: str = "computer_science",
+    deadline_seconds: float | None = None,
+    budget_started_at: float | None = None,
 ):
     """The engine-dispatch core, shared by BOTH entry shapes:
       * transcribe_one (single flow) — bytes from the request, upload overlapped;
       * transcription_job_runner (batch, Cloud Tasks) — bytes from GCS,
         upload already done at intake.
     Pure with respect to persistence: returns the built TranscriptionDraft,
-    touches no DB and no GCS."""
+    touches no DB and no GCS.
+
+    TWO CLOCKS, and they measure different things — do not merge them:
+      * `t_start` is the DURATION clock. It is reset on every entry, so
+        `transcription_duration_ms` records the winning pipeline run. Its
+        meaning is frozen: it is persisted in every draft ever written and on
+        the wire, and redefining it would put old and new rows in quiet
+        disagreement (owner ruling, 2026-09-10).
+      * `budget_started_at` is the WALL clock, anchored by the job runner at
+        its CAS claim. It covers everything the teacher waits through,
+        including a discarded attempt and the GCS download. `deadline_seconds`
+        is the ceiling on it; None = unbounded = the eval path.
+    """
     t_start = t_start if t_start is not None else time.monotonic()
 
     if settings.transcription_engine == "two_phase":
@@ -190,6 +204,8 @@ async def run_pipeline_and_build_draft(
         trust_run, name_suggestion = await transcribe_two_phase(
             pdf_bytes, filename or "upload.pdf", spec_source,
             doc_priority=doc_priority, subject=subject,
+            deadline_seconds=deadline_seconds,
+            budget_started_at=budget_started_at,
         )
         duration_ms = int((time.monotonic() - t_start) * 1000)
         page_count = len(trust_run.run.pages) or 1

@@ -453,29 +453,47 @@ class ExamRow:
 
 
 def manifest_partition(rows: Sequence[ExamRow]) -> Dict[str, List[ExamRow]]:
-    """What the ZIP may contain, and why each exclusion happened.
+    """What the ZIP will contain, and why each exclusion happened.
 
-    Two exclusion classes, both stated rather than silently dropped:
+    TWO exclusion classes, both stated rather than silently dropped:
 
     - NOT APPROVED — a draft is not a grade. The teacher has not decided yet.
-    - STALE — a PDF exists but was rendered under a different contract, stamp,
-      or feedback text. Shipping it would hand the student a document the
-      teacher never froze, and NOTHING on the page would reveal that. We omit
-      it and say so, rather than serving a plausible wrong artefact (§3.5a).
+    - UNAVAILABLE — approved, but no document can be produced from it: the
+      frozen contract will not parse, so there is nothing trustworthy to
+      render. Omitted and named, never substituted with a draft render or an
+      older PDF (§3.5a).
+
+    A MISSING OR OUTDATED RENDER IS NOT AN EXCLUSION ANY MORE, and that is the
+    fix. This used to read `cached_key and cached_key == current_key`, so an
+    approved test that had simply never been rendered fell into the `else` and
+    was reported as STALE — "edited after signing, re-approve it". Since the
+    only writer of `returned_exam_key` was the single-test preview endpoint, a
+    teacher who approved a batch and clicked download hit that on EVERY row:
+    nothing included, and a modal telling her she had approved nothing and
+    edited five tests she had not touched. Both statements false, and both
+    pointing at a fix that would not have helped.
+
+    The ZIP now renders what is missing or outdated (`returned_exam_store`), so
+    a cache miss is a reason to BUILD the exam rather than to withhold it. The
+    freshness guarantee is untouched: nothing outdated is ever served, because
+    anything outdated is rebuilt before it ships.
     """
     included: List[ExamRow] = []
     not_approved: List[ExamRow] = []
-    stale: List[ExamRow] = []
+    unavailable: List[ExamRow] = []
     for row in rows:
         if row.status != "approved":
             not_approved.append(row)
-        elif row.cached_key and row.cached_key == row.current_key:
-            included.append(row)
+        elif row.current_key is None:
+            # The key could not be computed at all — an unreadable contract.
+            # We cannot prove what this document should say, so we do not ship
+            # one. This is the ONLY remaining reason to exclude an approved test.
+            unavailable.append(row)
         else:
-            stale.append(row)
+            included.append(row)
     return {"included": included,
             "excluded_not_approved": not_approved,
-            "excluded_stale": stale}
+            "excluded_unavailable": unavailable}
 
 
 def zip_entry_name(batch_name: Optional[str], student_name: Optional[str]) -> str:

@@ -206,7 +206,8 @@ async def _extract(
         )
 
     if scheduler is not None:
-        res = (await scheduler.submit(provider_key, doc_priority, make_call)
+        res = (await scheduler.submit(provider_key, doc_priority, make_call,
+                                      doc_id=filename or "identity")
                ).response
     else:
         res = await make_call()

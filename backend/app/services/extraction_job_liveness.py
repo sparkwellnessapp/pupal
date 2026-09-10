@@ -65,6 +65,24 @@ def heartbeat_ttl() -> timedelta:
     return timedelta(minutes=settings.extraction_heartbeat_ttl_minutes)
 
 
+# ---------------------------------------------------------------------------
+# DEFERRED (owner-ruled 2026-09-10, scope: transcription only this PR).
+#
+# This rule's heartbeat arm has the SAME hole `transcription_job_liveness`
+# just closed: `extracting.updated_at` is refreshed by the worker's own heartbeat, so a
+# coroutine orphaned past its Cloud Run request deadline — still scheduled,
+# still beating, no longer able to land anything — holds its row ACTIVE
+# forever and no reader can falsify it. `ActiveArm` now supports the fix
+# (`absolute_clock_attr` / `absolute_ttl` / `absolute_reason`: a cap on a
+# column the worker never touches), and instantiating it here is a two-line
+# change plus its TTL setting.
+#
+# It was NOT done here because the incident that produced the mechanism was a
+# transcription one, and shipping the other domains unmeasured would be
+# choosing a cap by analogy. AWAITS IMPLEMENTATION — do not read the presence
+# of the mechanism in job_liveness.py as evidence that this domain uses it.
+# ---------------------------------------------------------------------------
+
 _RULE = LivenessRule(
     model=RubricExtractionJob,
     arms=(

@@ -113,8 +113,25 @@ export function OnboardingDialog() {
         whatsappOptIn: false,
     }));
 
+    /**
+     * Merge into the draft, and BAIL when nothing actually changed.
+     *
+     * Without the guard every call returns a fresh object, so React re-renders
+     * even when the values are identical — and several handlers here re-assert
+     * a field they are not changing (`onDateChange` also sends
+     * `examUnknown: false`). A re-render mid-edit is not free on a controlled
+     * `<input type="date">`: React writes `node.value` back whenever its
+     * rendered value differs from the DOM's, and a half-typed date reads as
+     * `''` in the DOM, so an incidental render can put the OLD date back under
+     * her caret. Rendering only on real change removes that whole class.
+     */
     const patch = useCallback(
-        (fields: Partial<OnboardingDraft>) => setDraft((d) => ({ ...d, ...fields })),
+        (fields: Partial<OnboardingDraft>) =>
+            setDraft((d) => {
+                const changed = (Object.keys(fields) as (keyof OnboardingDraft)[])
+                    .some((k) => !Object.is(d[k], fields[k]));
+                return changed ? { ...d, ...fields } : d;
+            }),
         [],
     );
 
@@ -290,6 +307,9 @@ export function OnboardingDialog() {
             onClose={() => undefined}
             dismissible={false}
             size="lg"
+            // Move focus into each new step — the ONLY intended half of what
+            // the focus effect used to do by accident on every keystroke.
+            focusKey={step}
             // A WARM scrim, not the default dark one: this dialog is not
             // interrupting a surface, it IS the surface, and black/50 over the
             // cream ground reads as muddy grey instead of as a dimmed Vivi.

@@ -28,6 +28,10 @@ class FakeCall:
     json_schema: dict | None
     reasoning_effort: str | None = None
     images_b64: tuple[str, ...] = ()   # payloads, so tests can assert wire format
+    # The transport policy is part of the wire, not decoration: the per-phase
+    # timeout split (essential 240s vs optional-pass 40s) is only pinnable if
+    # the value that actually reached the provider is recorded.
+    timeout_s: float = 0.0
 
 
 @dataclass
@@ -66,7 +70,7 @@ class FakeProvider:
             images_b64=tuple(images_b64 or ()),
             max_tokens=max_tokens, temperature=temperature,
             want_logprobs=want_logprobs, json_schema=json_schema,
-            reasoning_effort=reasoning_effort,
+            reasoning_effort=reasoning_effort, timeout_s=timeout_s,
         ))
         if self.gate is not None:
             await self.gate.wait()

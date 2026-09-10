@@ -130,11 +130,24 @@ class ActiveJobItem(BaseModel):
     """One in-flight document (B3): sourced from the already-fetched
     queued/running TranscriptionJob rows, doc_priority order. Feeds the
     dashboard's transcribing ghosts — name + elapsed, no fabricated ETA."""
+    # [2026-09-10] The ghost was the ONLY row on this dashboard with no
+    # identifier and therefore no action. Failed rows carry a job_id and a
+    # retry; not_received rows can be re-uploaded; needs-eyes rows can be
+    # reviewed. A stuck 'running' row offered a spinner and nothing else — so
+    # the one state that can trap the teacher was the one she could not act on.
+    # Costs no query: `j.id` is already in hand where this is built.
+    job_id: str
     filename: Optional[str] = None
     state: Literal["queued", "running"]
     created_at: str                    # enqueue time (queued clock)
     started_at: Optional[str] = None   # claim time (running only)
     attempt_count: int
+    # LIV-1 says this row is past a deadline and may be re-queued NOW. It is a
+    # SERVER fact, computed from the same rule the reaper uses — never a client
+    # guess that a spinner "looks stuck". Degradation by omission, never by
+    # guessing (CLAUDE.md 3.5a): when this is False the client shows no
+    # affordance rather than inventing a threshold of its own.
+    retryable: bool = False
 
 
 class BatchEta(BaseModel):
@@ -374,7 +387,12 @@ class ReturnedExamManifest(BaseModel):
     """
     included: List[ReturnedExamManifestItem] = Field(default_factory=list)
     excluded_not_approved: List[ReturnedExamManifestItem] = Field(default_factory=list)
-    excluded_stale: List[ReturnedExamManifestItem] = Field(default_factory=list)
+    #: Approved, but no document can be produced — an unreadable frozen
+    #: contract. RENAMED from `excluded_stale`, which had become a lie: a test
+    #: that had simply never been rendered landed there and the UI told the
+    #: teacher she had "edited it after signing". A missing or outdated render
+    #: is no longer an exclusion at all — the ZIP builds it.
+    excluded_unavailable: List[ReturnedExamManifestItem] = Field(default_factory=list)
 
 
 class AcceptCleanItem(BaseModel):

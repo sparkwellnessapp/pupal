@@ -243,11 +243,19 @@ def test_manifest_lists_approved_only_and_names_each_exclusion(
     body = r.json()
 
     assert [i["student_name"] for i in body["excluded_not_approved"]] == ["טיוטה"]
-    assert [i["student_name"] for i in body["excluded_stale"]] == \
-        ["מאושר ללא רינדור"], "an unrendered exam was reported as downloadable"
-    assert body["included"] == []
+    # AN UNRENDERED EXAM IS INCLUDABLE. The download RENDERS it — the cache is
+    # an optimisation, not a gate. This assertion is inverted from what it used
+    # to be, and the old version was pinning the bug: the single-test preview
+    # was the only writer of `returned_exam_key`, so every approved test in a
+    # batch had a NULL key, every one was excluded, and the teacher was told
+    # she had approved nothing.
+    assert [i["student_name"] for i in body["included"]] == ["מאושר ללא רינדור"]
+    assert body["excluded_unavailable"] == []
 
-    # …and the ZIP refuses rather than shipping an empty archive that looks fine
+    # …and when NOTHING can actually be produced (no bucket in this test), the
+    # ZIP refuses rather than streaming a valid, empty archive. That guard used
+    # to come for free — a row was only included when its PDF already existed —
+    # and had to become explicit once the ZIP started building them.
     z = client.get(f"/api/v0/batches/{batch_id}/returned-exams.zip",
                    headers=headers_a)
     assert z.status_code == 404, (
@@ -289,14 +297,17 @@ def test_zip_contains_approved_current_exams_only(
 
     key = asyncio.run(_make_current())
 
-    import app.api.v0.batch_grading as bg
+    # The ZIP now produces exams through `returned_exam_store`, so the fake has
+    # to sit where the bytes are actually fetched. Patching batch_grading alone
+    # silently stopped intercepting anything.
+    import app.services.returned_exam_store as store
 
     class _FakeGCS:
         def download_bytes(self, path):
             assert key in path, f"the ZIP asked for a path it did not key: {path}"
             return b"%PDF-1.4 fake"
 
-    monkeypatch.setattr(bg, "get_gcs_service", lambda: _FakeGCS())
+    monkeypatch.setattr(store, "get_gcs_service", lambda: _FakeGCS())
 
     manifest = client.get(
         f"/api/v0/batches/{batch_id}/returned-exams/manifest",
@@ -543,7 +554,7 @@ def test_stamp_set_on_an_approved_exam_reaches_the_batch_zip(
     assert stamped_key != unstamped_key, (
         "the stamp is not in the cache key — this test proves nothing")
 
-    import app.api.v0.batch_grading as bg
+    import app.services.returned_exam_store as store
 
     asked = []
 
@@ -552,15 +563,15 @@ def test_stamp_set_on_an_approved_exam_reaches_the_batch_zip(
             asked.append(path)
             return b"%PDF-1.4 fake"
 
-    bg_original = bg.get_gcs_service
-    bg.get_gcs_service = lambda: _FakeGCS()
+    bg_original = store.get_gcs_service
+    store.get_gcs_service = lambda: _FakeGCS()
     try:
         r = client.get(f"/api/v0/batches/{batch_id}/returned-exams.zip", headers=headers_a)
         assert r.status_code == 200, r.text
         names = zipfile.ZipFile(BytesIO(r.content)).namelist()
         assert names, "the stamped exam was excluded from the archive"
     finally:
-        bg.get_gcs_service = bg_original
+        store.get_gcs_service = bg_original
 
     assert asked, "the ZIP fetched nothing"
     assert any(stamped_key in p for p in asked), (

@@ -158,23 +158,35 @@ def _row(name, status="approved", cached="k1", current="k1"):
                    cached_key=cached, current_key=current)
 
 
-def test_manifest_partitions_approved_stale_and_unapproved():
-    """The ZIP ships APPROVED work whose cached PDF still matches what the
-    contract says today. A draft is not a grade, and a PDF rendered from a
-    superseded contract is worse than a missing one — the student would receive
-    a document the teacher never froze, and nothing on the page would say so."""
+def test_manifest_partitions_includable_unapproved_and_unavailable():
+    """The ZIP ships every APPROVED test, and names what it cannot ship.
+
+    A missing or outdated render is NOT an exclusion: the download builds it
+    (`returned_exam_store`). This test used to assert the opposite — that a
+    never-rendered exam was excluded as "stale" — which is precisely the bug it
+    was pinning. Since the single-test preview was the only thing that ever
+    wrote `returned_exam_key`, EVERY approved test in a batch matched that
+    branch, and a teacher who approved five and clicked download was told she
+    had approved none and edited five she had not touched.
+
+    The freshness guarantee is untouched: nothing outdated is served, because
+    anything outdated is rebuilt before it ships.
+    """
     from app.services.returned_exam import manifest_partition
 
     got = manifest_partition([
-        _row("dan"),
-        _row("din", status="draft"),
-        _row("moran", cached="old", current="new"),
-        _row("omer", cached=None),           # never rendered
+        _row("dan"),                              # cached and current agree
+        _row("din", status="draft"),              # a draft is not a grade
+        _row("moran", cached="old", current="new"),   # outdated -> re-rendered
+        _row("omer", cached=None),                # never rendered -> rendered
+        _row("noa", current=None),                # contract unreadable
     ])
 
-    assert [r.student_name for r in got["included"]] == ["dan"]
+    assert {r.student_name for r in got["included"]} == {"dan", "moran", "omer"}
     assert [r.student_name for r in got["excluded_not_approved"]] == ["din"]
-    assert {r.student_name for r in got["excluded_stale"]} == {"moran", "omer"}
+    # The ONLY remaining reason to exclude an approved test: we cannot prove
+    # what the document should say, so we ship none rather than a guess.
+    assert [r.student_name for r in got["excluded_unavailable"]] == ["noa"]
 
 
 def test_zip_names_are_nfc_and_path_safe():
