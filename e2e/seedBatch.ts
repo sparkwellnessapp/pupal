@@ -125,13 +125,23 @@ export function minutesAgo(m: number): string {
 }
 
 /** B3: one in-flight document (queued/running ghost). */
+let _activeJobSeq = 0;
+
 export function seedActiveJob(overrides: Record<string, unknown> = {}) {
+    // `job_id` is required on the wire since 2026-09-10 (it is the ghost's
+    // React key AND the handle its retry posts to), and `retryable` is the
+    // SERVER's verdict that the row is past a LIV-1 deadline — the surface
+    // never guesses that from elapsed time, so a fixture that wants a stuck
+    // ghost must say so explicitly.
+    _activeJobSeq += 1;
     return {
+        job_id: `job-${_activeJobSeq}`,
         filename: 'scan_inflight.pdf',
         state: 'queued',
         created_at: minutesAgo(3),
         started_at: null,
         attempt_count: 0,
+        retryable: false,
         ...overrides,
     };
 }

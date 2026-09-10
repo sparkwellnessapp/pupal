@@ -32,7 +32,8 @@ import {
     type SaveState,
 } from './ReviewChrome';
 import {
-    RV_FB_SUMMARY_TITLE, RV_KEYS_REST, RV_NO_CHECKS, RV_QUOTE_PINNED,
+    RV_APPROVE_BLOCKED, RV_FB_SUMMARY_TITLE, RV_KEYS_REST, RV_NO_CHECKS,
+    RV_QUOTE_PINNED,
 } from '@/copy/grade-review';
 
 /**
@@ -142,6 +143,25 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
     const model = useMemo(() => buildReviewModel({
         draft, overlay, policy, questions, editedFeedback, feedbackOverrides,
     }), [draft, overlay, policy, questions, editedFeedback, feedbackOverrides]);
+
+    /**
+     * [OD-R1] Name the blockers and take her to the first one.
+     *
+     * §11's rule, applied to the grading gate: the affordance stays CLICKABLE
+     * and explains itself. A native `disabled` would leave her pressing a dead
+     * button with no account of why — which is materially what happened when
+     * the only account was «שגיאת שרת (422)».
+     */
+    const showBlockers = useCallback(() => {
+        const { blockers } = model;
+        if (blockers.length === 0) return;
+        onNotice(RV_APPROVE_BLOCKED(blockers.map((b) => b.message)));
+        const anchor = blockers.find((b) => b.scopeId)?.scopeId;
+        if (anchor) {
+            document.getElementById(`scope-${anchor}`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [model, onNotice]);
 
     /** Every check, flat, in document order — what ↓/↑ and F walk. */
     const flatChecks = useMemo(
@@ -324,8 +344,14 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
             // Ctrl+Enter must obey exactly what the button obeys. The listener
             // is registered before the `renderable` early return, so without
             // this a REFUSED draft could still be signed from the keyboard —
-            // approving a test the surface declined to show her.
-            if (resolution.action === 'approve' && (approved || !model.renderable)) return;
+            // approving a test the surface declined to show her. [OD-R1] the
+            // blockers ride the same guard, or the shortcut walks straight into
+            // the 422 the button now prevents.
+            if (resolution.action === 'approve'
+                && (approved || !model.renderable || model.blockers.length > 0)) {
+                if (model.blockers.length > 0) showBlockers();
+                return;
+            }
 
             if (resolution.preventDefault) event.preventDefault();
 
@@ -359,7 +385,7 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [overlay, focus, canNext, canPrev, onNext, onPrev, onApprove, onSaveNow,
         stepCheck, goToNextMarker, withFocused, approved, readOnly, model.renderable,
-        modalOpen]);
+        model.blockers.length, showBlockers, modalOpen]);
 
     if (!model.renderable) {
         return (
@@ -504,6 +530,8 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                 saveState={saveState}
                 approving={approving}
                 canApprove={!approved}
+                blocked={model.blockers.length > 0}
+                onBlocked={showBlockers}
                 onApprove={onApprove}
                 onShowKeys={() => onNotice(RV_KEYS_REST)}
             />

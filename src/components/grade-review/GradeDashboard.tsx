@@ -13,7 +13,7 @@ export interface ManifestLike {
     // server omits is an empty bucket, not a missing manifest.
     included?: readonly { graded_test_id?: string }[] | null;
     excluded_not_approved?: readonly { graded_test_id?: string }[] | null;
-    excluded_stale?: readonly { graded_test_id?: string }[] | null;
+    excluded_unavailable?: readonly { graded_test_id?: string }[] | null;
 }
 import {
     DASH_ATTENTION_MARKERS, DASH_ATTENTION_OPEN, DASH_ATTENTION_PREFIX,
@@ -140,7 +140,7 @@ export function GradeDashboard({
                 setManifestSummary({
                     included: manifest.included?.length ?? 0,
                     excludedNotApproved: notApproved.length - failed,
-                    excludedStale: manifest.excluded_stale?.length ?? 0,
+                    excludedUnavailable: manifest.excluded_unavailable?.length ?? 0,
                     excludedFailed: failed,
                 });
             })

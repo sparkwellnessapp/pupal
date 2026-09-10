@@ -577,3 +577,24 @@ describe('the summary cannot go stale — because the wire carries no basis', ()
         expect(html.match(/data-feedback-state="stale"/g)?.length).toBe(1);
     });
 });
+
+describe('the approve button obeys the gate before the server does [OD-R1]', () => {
+    it('blocks — and stays CLICKABLE — when an ERROR is unresolved', () => {
+        // draft_din_ezra carries `error/llm_failure` on q2.ב. §11: a native
+        // `disabled` cannot explain itself, and «press it and find out» is how
+        // the teacher met «שגיאת שרת (422)» four times.
+        const html = render({ draft: readFixture('draft_din_ezra.json') });
+        expect(html).toContain('data-blocked="true"');
+        // …and it is the APPROVE button that carries no `disabled` (the prev/next
+        // nav legitimately does, so a whole-document search would pass vacuously).
+        // `disabled=` the ATTRIBUTE — the class list carries Tailwind's
+        // `disabled:opacity-50` variant, which a bare substring test matches.
+        const tag = html.slice(html.indexOf('data-blocked="true"'));
+        expect(tag.slice(0, tag.indexOf('>'))).not.toContain('disabled=');
+    });
+
+    it('does not block a clean draft', () => {
+        const html = render({ draft: readFixture('draft_dan_basiuk.json') });
+        expect(html).not.toContain('data-blocked="true"');
+    });
+});

@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import type { DownloadSummary } from '@/utils/grade-dashboard';
 import {
     DL_BODY_ALL, DL_BODY_PARTIAL, DL_CANCEL, DL_CONFIRM, DL_FAILED, DL_NAMING,
-    DL_NOTHING, DL_STALE, DL_TITLE,
+    DL_NOTHING, DL_TITLE, DL_UNAVAILABLE,
 } from '@/copy/grade-review';
 
 /**
@@ -76,11 +76,11 @@ export function DownloadModal({
                     </p>
                 ) : null}
 
-                {summary.excludedStale > 0 ? (
-                    <p data-stale-line className="mt-2 rounded-grade-ctl border
+                {summary.excludedUnavailable > 0 ? (
+                    <p data-unavailable-line className="mt-2 rounded-grade-ctl border
                         border-grade-amber-200 bg-grade-amber-50 px-3 py-2 text-gr-meta
                         text-grade-amber-ink">
-                        {DL_STALE(summary.excludedStale)}
+                        {DL_UNAVAILABLE(summary.excludedUnavailable)}
                     </p>
                 ) : null}
 

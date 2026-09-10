@@ -261,10 +261,19 @@ export type SaveState = 'saved' | 'saving' | 'failed';
 
 export function ReviewBottomBar({
     saveState, approving, canApprove, onApprove, onShowKeys,
+    blocked = false, onBlocked,
 }: {
     saveState: SaveState;
     approving: boolean;
     canApprove: boolean;
+    /**
+     * [OD-R1] An unresolved ERROR — the server WILL refuse. §11: the button
+     * styles as disabled but stays CLICKABLE, because a native `disabled`
+     * cannot tell her why, and «press it and find out» is how she ended up
+     * reading «שגיאת שרת (422)» four times.
+     */
+    blocked?: boolean;
+    onBlocked?: () => void;
     onApprove: () => void;
     onShowKeys: () => void;
 }) {
@@ -301,12 +310,18 @@ export function ReviewBottomBar({
 
                 <button
                     type="button"
-                    onClick={onApprove}
+                    onClick={blocked ? onBlocked : onApprove}
                     disabled={!canApprove || approving}
-                    className="inline-flex items-center gap-2 rounded-grade-ctl border
-                        border-primary-600 bg-primary-600 px-4 py-2.5 text-gr-body
-                        font-medium text-white hover:border-primary-700 hover:bg-primary-700
-                        disabled:opacity-50"
+                    data-blocked={blocked ? 'true' : undefined}
+                    aria-describedby={blocked ? 'approve-blocked' : undefined}
+                    className={[
+                        `inline-flex items-center gap-2 rounded-grade-ctl border
+                         border-primary-600 bg-primary-600 px-4 py-2.5 text-gr-body
+                         font-medium text-white disabled:opacity-50`,
+                        blocked
+                            ? 'opacity-50'
+                            : 'hover:border-primary-700 hover:bg-primary-700',
+                    ].join(' ')}
                 >
                     {approving ? RV_APPROVING : RV_APPROVE}
                     <kbd className="rounded border border-white/35 bg-white/20 px-1.5

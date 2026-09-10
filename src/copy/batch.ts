@@ -109,6 +109,12 @@ export const GHOST_QUEUED = 'בתור'
 export const GHOST_RUNNING = 'קוראת עמוד אחר עמוד…'
 export const GHOST_MORE_QUEUED = (n: number) =>
   n === 1 ? '+ אחד נוסף בתור' : `+ ${n} נוספים בתור`  // AM3
+/** The ghost that overran. Says what happened and what it costs her — the
+ *  source PDF is on the server, so the retry is one click and no re-upload.
+ *  Deliberately NOT «נכשל»: nothing broke, it just took too long. */
+export const GHOST_STUCK = 'לוקח יותר מדי זמן'
+export const GHOST_STUCK_HINT = 'אפשר לנסות שוב — הקובץ כבר אצלנו, אין צורך להעלות מחדש'
+export const GHOST_RETRY = 'נסי שוב'
 export const NO_FILENAME = 'קובץ ללא שם'
 
 /** [Stage B] The upload lane on the dashboard — the surface that replaces

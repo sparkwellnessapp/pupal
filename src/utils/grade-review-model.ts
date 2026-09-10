@@ -47,6 +47,7 @@ import {
     type OverlayTerminals,
 } from './verdict-cycle';
 import { basisHash, feedbackState, type FeedbackState } from './feedback-staleness';
+import { RV_BLOCK_GENERIC, RV_BLOCK_LLM_FAILURE } from '@/copy/grade-review';
 import { add, dec, toString as decToString } from '@/lib/decimal';
 
 // ── wire shapes (structural, so fixtures type as readily as live payloads) ──
@@ -96,6 +97,13 @@ export interface WireScope {
 
 export interface WireFeedbackText { text: string; basis_hash?: string }
 
+export interface WireAnnotation {
+    severity?: string | null;
+    annotation_type?: string | null;
+    target_id?: string | null;
+    message?: string | null;
+}
+
 export interface WireDraft {
     scope_outcomes?: WireScope[] | null;
     feedback?: {
@@ -103,6 +111,13 @@ export interface WireDraft {
         summary?: WireFeedbackText;
     } | null;
     plan_version?: string | null;
+    /**
+     * The teacher-facing diagnostic surface (§6). This page never read it, so
+     * an ERROR that blocks approval was invisible until the server refused —
+     * and the refusal carried no sentence either, so she saw «שגיאת שרת (422)»
+     * and clicked again (2026-09-09).
+     */
+    annotations?: WireAnnotation[] | null;
 }
 
 export interface AnswerItem {
@@ -187,6 +202,12 @@ export interface ReviewScope {
     markerCount: number;
 }
 
+export interface ApprovalBlocker {
+    /** The scope it anchors to (`q1.ב`), or null for a whole-test blocker. */
+    scopeId: string | null;
+    message: string;
+}
+
 export interface ReviewModel {
     scopes: ReviewScope[];
     total: string;
@@ -195,6 +216,8 @@ export interface ReviewModel {
     summary: { text: string; state: FeedbackState };
     /** A pre-v5 draft cannot be reviewed here — the surface refuses. */
     renderable: boolean;
+    /** Unresolved ERRORs — non-empty means the server WILL refuse (§11). */
+    blockers: ApprovalBlocker[];
 }
 
 /** `q1` + `א` → «שאלה 1.א»; the id keeps the full path for anchoring. */
@@ -307,6 +330,46 @@ function leavesOf(scope: WireScope): { criterion: WireCriterion; leaf: WireLeaf 
 
 const terminalIdOf = (criterion: WireCriterion, leaf: WireLeaf): string =>
     leaf.sub_criterion_id || criterion.criterion_id;
+
+/**
+ * The ERRORs that will make the server refuse this approval.
+ *
+ * EARLY WARNING, never authority — `compile_graded_test` is the authority and
+ * says so (§11). The point is that she should never REACH a 422: the blocker
+ * is named on the page, anchored to the scope that carries it, before she
+ * presses אישור.
+ *
+ * [OD-R1] `llm_failure` is the one class her own verdicts resolve, mirroring
+ * `graded_test_contract_compiler::_llm_failure_resolved_by_teacher` — and it
+ * mirrors the same BAR: every check in the scope, because a check she has not
+ * decided still carries the crash's unread zero. A scope with no checks is
+ * never vacuously resolved, which is what keeps pre-OD-R1 drafts refusing.
+ */
+function approvalBlockers(
+    draft: WireDraft,
+    overlay: OverlayTerminals,
+): ApprovalBlocker[] {
+    const errors = (draft.annotations ?? []).filter(
+        (a) => (a.severity ?? '').toUpperCase() === 'ERROR');
+    if (errors.length === 0) return [];
+
+    const decided = overriddenCheckIds(overlay);
+    const checksByScope = new Map<string, string[]>();
+    for (const scope of draft.scope_outcomes ?? []) {
+        checksByScope.set(scopeIdOf(scope), leavesOf(scope).flatMap(
+            ({ leaf }) => (leaf.checks ?? []).map((c) => c.check_id)));
+    }
+
+    return errors.flatMap((annotation): ApprovalBlocker[] => {
+        const scopeId = annotation.target_id ?? null;
+        if (annotation.annotation_type === 'llm_failure' && scopeId) {
+            const checks = checksByScope.get(scopeId) ?? [];
+            if (checks.length > 0 && checks.every((id) => decided.has(id))) return [];
+            return [{ scopeId, message: RV_BLOCK_LLM_FAILURE(scopeId) }];
+        }
+        return [{ scopeId, message: annotation.message || RV_BLOCK_GENERIC }];
+    });
+}
 
 /** The scope's checks in document order — the vector `basis_hash` covers. */
 export function scopeBasisChecks(
@@ -526,6 +589,7 @@ export function buildReviewModel(options: BuildOptions): ReviewModel {
         // would show empty checklists — "nothing to check" on a test nobody
         // checked — so the surface refuses instead (§3.5a).
         renderable: sawChecks,
+        blockers: approvalBlockers(draft, overlay),
     };
 }
 

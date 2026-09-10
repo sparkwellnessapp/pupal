@@ -221,7 +221,7 @@ describe('download-modal-reads-manifest', () => {
             item({ status: 'draft' }),
             item({ status: 'failed' }),
         ])).toEqual({
-            included: 2, excludedNotApproved: 1, excludedStale: 0, excludedFailed: 1,
+            included: 2, excludedNotApproved: 1, excludedUnavailable: 0, excludedFailed: 1,
         });
     });
 
@@ -238,12 +238,21 @@ describe('download-modal-reads-manifest', () => {
         expect(summary.excludedFailed).toBe(1);
     });
 
-    it('excludes an approved test whose returned exam went stale', () => {
+    /**
+     * THE REGRESSION GUARD. This used to exclude an approved test whose
+     * returned exam was missing or outdated — and since NOTHING in the batch
+     * flow ever rendered one, every approved test matched. A teacher who
+     * approved five and clicked download was told she had approved none and
+     * edited five. The download now renders what it needs, so neither state
+     * excludes anything.
+     */
+    it('includes an approved test whose returned exam is missing or outdated', () => {
         expect(downloadSummary([
             item({ status: 'approved' }),
             item({ status: 'approved', returned_exam_state: 'stale' }),
+            item({ status: 'approved', returned_exam_state: 'none' }),
         ])).toEqual({
-            included: 1, excludedNotApproved: 0, excludedStale: 1, excludedFailed: 0,
+            included: 3, excludedNotApproved: 0, excludedUnavailable: 0, excludedFailed: 0,
         });
     });
 
@@ -251,7 +260,7 @@ describe('download-modal-reads-manifest', () => {
         // Four approved, one failed — the hole is excluded and counted.
         expect(downloadSummary(feed('complete').graded_tests))
             .toEqual({
-                included: 4, excludedNotApproved: 0, excludedStale: 0, excludedFailed: 1,
+                included: 4, excludedNotApproved: 0, excludedUnavailable: 0, excludedFailed: 1,
             });
     });
 });

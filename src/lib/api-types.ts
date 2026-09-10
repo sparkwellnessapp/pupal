@@ -1796,6 +1796,13 @@ export interface components {
             created_at: string;
             /** Filename */
             filename?: string | null;
+            /** Job Id */
+            job_id: string;
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable: boolean;
             /** Started At */
             started_at?: string | null;
             /**
@@ -3977,8 +3984,8 @@ export interface components {
         ReturnedExamManifest: {
             /** Excluded Not Approved */
             excluded_not_approved?: components["schemas"]["ReturnedExamManifestItem"][];
-            /** Excluded Stale */
-            excluded_stale?: components["schemas"]["ReturnedExamManifestItem"][];
+            /** Excluded Unavailable */
+            excluded_unavailable?: components["schemas"]["ReturnedExamManifestItem"][];
             /** Included */
             included?: components["schemas"]["ReturnedExamManifestItem"][];
         };

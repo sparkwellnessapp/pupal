@@ -274,8 +274,8 @@ export interface DownloadSummary {
     included: number;
     /** Reviewable but unsigned — she can still act on these. */
     excludedNotApproved: number;
-    /** Signed, then edited — needs re-signing, a different action. */
-    excludedStale: number;
+    /** Approved, but no document can be produced — ours to fix, not hers. */
+    excludedUnavailable: number;
     /** Never graded at all — she cannot approve these, only retry them. */
     excludedFailed: number;
 }
@@ -291,20 +291,22 @@ export interface DownloadSummary {
 export function downloadSummary(items: readonly GradedItem[]): DownloadSummary {
     let included = 0;
     let excludedNotApproved = 0;
-    let excludedStale = 0;
+    let excludedUnavailable = 0;
     let excludedFailed = 0;
     for (const item of items) {
         // A failed test is counted APART from an unapproved one. Telling her
         // "N tests are not yet approved" about a test that can never be
         // approved sends her looking for a review that does not exist — the
-        // same conflation this function already refuses to make for stale
-        // exams, whose fix is re-signing rather than reviewing.
+        // same conflation this function already refuses to make elsewhere.
         if (item.status === 'failed') { excludedFailed += 1; continue; }
         if (item.status !== 'approved') { excludedNotApproved += 1; continue; }
-        if (item.returned_exam_state === 'stale') { excludedStale += 1; continue; }
+        // A missing or outdated render is NOT an exclusion: the download
+        // builds it. This used to read `returned_exam_state === 'stale'`, and
+        // since nothing in the batch flow ever rendered an exam, every approved
+        // test matched and the modal reported zero includable.
         included += 1;
     }
-    return { included, excludedNotApproved, excludedStale, excludedFailed };
+    return { included, excludedNotApproved, excludedUnavailable, excludedFailed };
 }
 
 /** «מבחן אחד» / «N מבחנים» — the plural helper, so "1 מבחנים" cannot ship. */
