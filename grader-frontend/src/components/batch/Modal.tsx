@@ -26,6 +26,7 @@ export function Modal({
     dismissible = true,
     size = 'md',
     backdropClassName = 'bg-black/50 backdrop-blur-sm',
+    focusKey,
 }: {
     open: boolean;
     onClose: () => void;
@@ -50,26 +51,67 @@ export function Modal({
      * ground renders as muddy grey rather than as a dimmed Vivi.
      */
     backdropClassName?: string;
+    /**
+     * Change this to MOVE focus back to the top of the panel deliberately —
+     * a wizard advancing a step, say. Initial focus is otherwise taken exactly
+     * once per open (see below); this is the only other way to claim it.
+     */
+    focusKey?: string | number;
 }) {
     const panelRef = useRef<HTMLDivElement | null>(null);
+
+    /**
+     * TAKING FOCUS IS AN EVENT, NOT A CONSEQUENCE OF RENDERING.
+     *
+     * This lived in the trap effect below, whose deps are `[open, onClose,
+     * dismissible]` — and `onClose` is a FUNCTION supplied by the caller. An
+     * inline `onClose={() => undefined}` (which is exactly what the onboarding
+     * dialog passes, and the right thing for a non-dismissible wall) is a new
+     * identity on every render, so the effect re-ran on EVERY KEYSTROKE and
+     * re-applied initial focus each time.
+     *
+     * It was invisible on every other surface, because `.focus()` on an
+     * already-focused text input does not move the caret. The onboarding exam
+     * step is the one place with a SECOND field below the first, and with a
+     * `<input type="date">` as the first — and `.focus()` on a date input
+     * resets its segment cursor back to `dd`. So: typing the year jumped the
+     * cursor back to the day and the rest of her digits overwrote the date,
+     * and typing a phone number threw the caret up into the date field.
+     *
+     * Keyed on `open` (and an explicit `focusKey`), never on callback identity:
+     * no future caller can reintroduce this by passing a lambda.
+     */
+    useEffect(() => {
+        if (!open) return;
+        const panel = panelRef.current;
+        if (!panel) return;
+        const initial =
+            panel.querySelector<HTMLElement>('[data-autofocus]') ??
+            panel.querySelector<HTMLElement>(FOCUSABLE) ??
+            panel;
+        initial.focus();
+    }, [open, focusKey]);
+
+    /**
+     * The latest `onClose`, read at EVENT time. The trap must not re-subscribe
+     * because a caller passed an inline lambda — re-binding a listener is
+     * cheap, but coupling anything else to that identity is how the bug above
+     * happened, and the next thing added to this effect would inherit it.
+     */
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
 
     useEffect(() => {
         if (!open) return;
         const panel = panelRef.current;
         if (!panel) return;
 
-        const initial =
-            panel.querySelector<HTMLElement>('[data-autofocus]') ??
-            panel.querySelector<HTMLElement>(FOCUSABLE) ??
-            panel;
-        initial.focus();
-
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 // Swallowed either way: a non-dismissible dialog must not let
                 // Esc reach a background handler while it is the only surface.
                 e.stopPropagation();
-                if (dismissible) onClose();
+                if (dismissible) onCloseRef.current();
                 return;
             }
             if (e.key !== 'Tab') return;
@@ -95,7 +137,7 @@ export function Modal({
         // must never see keys while a modal is open.
         document.addEventListener('keydown', onKeyDown, true);
         return () => document.removeEventListener('keydown', onKeyDown, true);
-    }, [open, onClose, dismissible]);
+    }, [open, dismissible]);
 
     if (!open) return null;
 

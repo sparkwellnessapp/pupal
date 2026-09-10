@@ -376,3 +376,110 @@ describe('canHighlight — the quote button cannot land nowhere', () => {
         expect(check.canHighlight).toBe(false);
     });
 });
+
+describe('approval blockers [OD-R1] — she must never be sent into a 422', () => {
+    /**
+     * The live incident (graded_test e372e6f1, 2026-09-09): a scope crashed,
+     * its ERROR annotation blocked `compile_graded_test`, and NOTHING on this
+     * page read `draft.annotations`. She pressed אישור four times in seventeen
+     * seconds and got «שגיאת שרת (422)» each time.
+     *
+     * These pin the CLIENT half. The compiler is still the authority (§11) —
+     * this is early warning, and the two must agree about what "resolved"
+     * means: every check in the failed scope, and never a vacuous none.
+     */
+    const failedScope = (checks: WireScope['criterion_outcomes']) => scope({
+        question_id: 'q2', sub_question_id: 'ב', graded_by: 'failed',
+        points_awarded: '0', criterion_outcomes: checks,
+    });
+
+    const llmFailure = (target = 'q2.ב') => ({
+        severity: 'error', annotation_type: 'llm_failure', target_id: target,
+        message: 'שגיאת LLM בדירוג הסעיף: ValueError: LLM parse failure',
+    });
+
+    const withChecksScope = failedScope([{
+        criterion_id: 'q2.ב.c0', description: 'סעיף', points_possible: '4',
+        points_awarded: '0',
+        checks: [
+            {
+                check_id: 'q2.ב.c0.k1', text: 'ראשון', kind: 'required',
+                points: '2', partial_fraction: '0.5', verdict: 'not_met',
+                quote: null, quote_status: null, tariff: null,
+            },
+            {
+                check_id: 'q2.ב.c0.k2', text: 'שני', kind: 'required',
+                points: '2', partial_fraction: '0.5', verdict: 'not_met',
+                quote: null, quote_status: null, tariff: null,
+            },
+        ],
+    }] as WireScope['criterion_outcomes']);
+
+    const draftWith = (s: WireScope, annotations: unknown[]): WireDraft =>
+        ({ ...draftOf([s]), annotations } as WireDraft);
+
+    it('is EMPTY on a clean draft — nothing blocks what nothing flagged', () => {
+        expect(build(draftOf([scope()])).blockers).toEqual([]);
+    });
+
+    it('names the failed scope, anchored so the surface can scroll to it', () => {
+        const model = build(draftWith(withChecksScope, [llmFailure()]));
+        expect(model.blockers).toHaveLength(1);
+        expect(model.blockers[0].scopeId).toBe('q2.ב');
+        expect(model.blockers[0].message).toContain('q2.ב');
+    });
+
+    it('CLEARS once she has decided every check in that scope', () => {
+        // Both checks live on one terminal, so they accumulate on one entry —
+        // exactly how the surface builds the overlay click by click.
+        const overlay = cycleVerdict(
+            cycleVerdict({}, 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met'),
+            'q2.ב.c0', 'q2.ב.c0.k2', 'not_met');
+        expect(build(draftWith(withChecksScope, [llmFailure()]), overlay).blockers)
+            .toEqual([]);
+    });
+
+    it('still BLOCKS when only some of the checks are decided', () => {
+        const partial = cycleVerdict({}, 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met');
+        expect(build(draftWith(withChecksScope, [llmFailure()]), partial).blockers)
+            .toHaveLength(1);
+    });
+
+    it('never resolves VACUOUSLY — a scope with no checks keeps refusing', () => {
+        // The pre-OD-R1 shape, and the production row's exact shape: a crashed
+        // scope arrived with criteria and NO checks, so there was nothing she
+        // could decide. "All of them are decided" must be false of an empty set.
+        const checkless = failedScope([{
+            criterion_id: 'q2.ב.c0', description: 'סעיף',
+            points_possible: '4', points_awarded: '0', checks: null,
+        }] as WireScope['criterion_outcomes']);
+        const anywhere = cycleVerdict({}, 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met');
+        expect(build(draftWith(checkless, [llmFailure()]), anywhere).blockers)
+            .toHaveLength(1);
+    });
+
+    it('leaves every OTHER error class blocking, whatever she decided', () => {
+        const other = {
+            severity: 'error', annotation_type: 'closed_world_violation',
+            target_id: 'q2.ב', message: 'לא ניתן לאשר',
+        };
+        const decided = cycleVerdict({}, 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met');
+        expect(build(draftWith(withChecksScope, [other]), decided).blockers)
+            .toHaveLength(1);
+    });
+
+    it('ignores WARNING and INFO — only ERROR blocks (§6)', () => {
+        const noise = [
+            { severity: 'warning', annotation_type: 'unverified_check', target_id: 'q2.ב', message: 'w' },
+            { severity: 'info', annotation_type: 'charge_group_dedup', target_id: 'q2.ב', message: 'i' },
+        ];
+        expect(build(draftWith(withChecksScope, noise)).blockers).toEqual([]);
+    });
+
+    it('blocks the REAL fixture the backend generated for this case', () => {
+        // draft_din_ezra carries `error/llm_failure` on q2.ב with zero checks —
+        // the shape production actually produced.
+        const model = build(readFixture('draft_din_ezra.json') as WireDraft);
+        expect(model.blockers.map((b) => b.scopeId)).toEqual(['q2.ב']);
+    });
+});

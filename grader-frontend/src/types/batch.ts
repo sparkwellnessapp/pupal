@@ -47,11 +47,24 @@ export interface BatchTranscriptionItem {
 
 /** One in-flight document (B3) — feeds the dashboard's transcribing ghosts. */
 export interface ActiveJobItem {
+  /** [2026-09-10] The ghost's identity. It had none, which made it the only
+   *  row on this dashboard with no action: failed rows retry, not_received
+   *  rows re-upload, needs-eyes rows open — a stuck 'running' row offered a
+   *  spinner. It is also the React key: keying by `filename-index` reshuffled
+   *  every row whenever a job left the array. */
+  job_id: string
   filename: string | null
   state: 'queued' | 'running'
   created_at: string
   started_at: string | null
   attempt_count: number
+  /** LIV-1 says this row is past a deadline and may be re-queued NOW — a
+   *  SERVER fact from the same rule the reaper uses. The client never decides
+   *  a spinner "looks stuck": absent the server's word there is no affordance
+   *  (degrade by omission, never by guessing). Optional so a payload from a
+   *  backend that predates the field reads as "not retryable" rather than
+   *  breaking — the two deploy targets do not ship together. */
+  retryable?: boolean
 }
 
 /** Live pipeline counts — derived at query time, never stored. */
