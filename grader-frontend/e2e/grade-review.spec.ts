@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import {
     BATCH_ID, TEST_A, installGradeReviewMocks, readDraft,
@@ -16,6 +16,31 @@ import {
  */
 
 const REVIEW = `/batches/${BATCH_ID}/grade-review/${TEST_A}`;
+
+/**
+ * [S4] Open every collapsed criterion.
+ *
+ * The breakdown now sits behind a disclosure, so the per-CHECK affordances —
+ * verdict buttons, the per-check quote button — are not in the DOM until she
+ * opens the box. Tests that drive those are testing the row, not the fold, so
+ * they open everything first and say so. Journeys that are ABOUT the fold live
+ * in their own block and must not use this.
+ */
+async function openAllBreakdowns(page: Page) {
+    // WAIT FOR THE SURFACE FIRST. `page.goto` resolves on load, but this screen
+    // paints only after its (mocked) fetches settle — so querying straight away
+    // matches nothing, opens nothing, and hands the test a silent no-op that
+    // looks exactly like the product having no quote buttons.
+    await page.locator('[data-breakdown-for]').first().waitFor();
+    const ids: string[] = await page.locator('[data-breakdown-for]').evaluateAll(
+        (els) => els
+            .filter((el) => el.getAttribute('aria-expanded') === 'false')
+            .map((el) => el.getAttribute('data-breakdown-for') as string));
+    for (const id of ids) {
+        await page.locator(`[data-breakdown-for="${id}"]`).click();
+    }
+}
+
 const ART = 'e2e/review-artifacts/F2';
 
 test.describe('בדיקת ציונים — the review module', () => {
@@ -29,6 +54,8 @@ test.describe('בדיקת ציונים — the review module', () => {
         const proposal = (await total.textContent())?.trim();
 
         await page.screenshot({ path: `${ART}/review-landed.png`, fullPage: true });
+
+        await openAllBreakdowns(page);
 
         // Click the first verdict button — one click cycles the verdict.
         const firstVerdict = page.locator('[data-check-id] [data-verdict]').first();
@@ -79,6 +106,7 @@ test.describe('בדיקת ציונים — the review module', () => {
         await installGradeReviewMocks(page);
         await page.goto(REVIEW);
 
+        await openAllBreakdowns(page);
         const quoteButton = page.getByRole('button', { name: /ציטוט רלוונטי מהתשובה/ }).first();
         await quoteButton.click();
 
@@ -97,6 +125,46 @@ test.describe('בדיקת ציונים — the review module', () => {
     });
 
     /**
+     * [S3] The criterion-level button lights the UNION, and one pin replaces
+     * the other (owner ruling D4: one pin at a time, criterion replaces check).
+     *
+     * The identity «the union is exactly what its rows light» is pinned as an
+     * equation in `evidence-highlight.test.ts`; this journey proves the WIRING —
+     * that the button exists, lights something, is drawn as pinned, is replaced
+     * by a per-check pin rather than layered beneath it, and releases on Esc.
+     */
+    test('criterion-quote-button: lights the union, and a check pin replaces it', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+
+        const unionButton = page.locator('[data-terminal-quote]').first();
+        await expect(unionButton).toBeVisible();
+        await unionButton.click();
+        await page.mouse.move(0, 0);                       // hover outranks pin
+
+        // Something is lit, drawn as pinned, and the CRITERION button says so.
+        await expect(page.locator('mark[data-pinned="true"]').first()).toBeVisible();
+        await expect(page.locator('[data-terminal-quote][data-pinned="true"]')).toHaveCount(1);
+
+        // A per-check pin REPLACES it: the criterion's pinned state clears and
+        // exactly one span (that check's own) stays lit. Clicking the union
+        // above OPENED that criterion (S4), so its rows are reachable.
+        await page.getByRole('button', { name: /ציטוט רלוונטי מהתשובה/ }).first().click();
+        await page.mouse.move(0, 0);
+        await expect(page.locator('[data-terminal-quote][data-pinned="true"]')).toHaveCount(0);
+        await expect(page.locator('mark[data-pinned="true"]')).toHaveCount(1);
+
+        // …and clicking the criterion again takes it back, replacing the check pin.
+        await unionButton.click();
+        await page.mouse.move(0, 0);
+        await expect(page.locator('[data-terminal-quote][data-pinned="true"]')).toHaveCount(1);
+
+        await page.keyboard.press('Escape');
+        await expect(page.locator('mark[data-pinned="true"]')).toHaveCount(0);
+        await expect(page.locator('[data-terminal-quote][data-pinned="true"]')).toHaveCount(0);
+    });
+
+    /**
      * The quote button's SCROLL, and the two ways it went wrong.
      *
      * The button sits in the checklist, below the answer it cites, so the
@@ -110,6 +178,7 @@ test.describe('בדיקת ציונים — the review module', () => {
         await installGradeReviewMocks(page);
         await page.goto(REVIEW);
 
+        await openAllBreakdowns(page);
         const quoteButton = page.getByRole('button', { name: /ציטוט רלוונטי מהתשובה/ }).first();
         await quoteButton.scrollIntoViewIfNeeded();
 
@@ -141,6 +210,7 @@ test.describe('בדיקת ציונים — the review module', () => {
         // mouse is moved by coordinate rather than with `.hover()`, because
         // Playwright's hover scrolls the target into view itself — that would
         // measure Playwright, not the app.
+        await openAllBreakdowns(page);
         const quoteButton = page.getByRole('button', { name: /ציטוט רלוונטי מהתשובה/ }).first();
         await quoteButton.scrollIntoViewIfNeeded();
         await page.waitForTimeout(300);
@@ -265,6 +335,192 @@ test.describe('בדיקת ציונים — the review module', () => {
         await page.screenshot({ path: `${ART}/mobile-interstitial.png`, fullPage: true });
     });
 });
+
+/**
+ * [S4] The fold itself.
+ *
+ * Everything above drives what is INSIDE a criterion and opens the box first.
+ * These journeys are about the box: that it starts closed, that it opens itself
+ * where her eyes are needed, that her own collapse is respected afterwards, and
+ * that the keyboard can still reach a row behind it.
+ */
+test.describe('בדיקת ציונים — the criterion fold (S4/S5)', () => {
+    test('the criterion quote button lights nothing on HOVER — only the click does', async ({ page }) => {
+        // Owner question (2026-09-11). By construction the answer is "click":
+        // the only thing that can set `hover` is a CheckRow's mouseenter, and
+        // the header button carries one handler, onClick. Pinned here so a
+        // future "helpful" hover preview cannot arrive unnoticed.
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        const union = page.locator('[data-terminal-quote]').first();
+        await expect(union).toBeVisible();
+
+        await union.hover();
+        await page.waitForTimeout(300);
+        await expect(page.locator('mark')).toHaveCount(0);
+
+        await union.click();
+        await page.mouse.move(0, 0);
+        expect(await page.locator('mark').count()).toBeGreaterThan(0);
+    });
+
+    /**
+     * [S4/S5 review] Two ways an id outlived the row it named.
+     *
+     * `focus` and `hover` are ids. She can fold the very box the caret sits
+     * in, and a KEYBOARD collapse unmounts a hovered row without ever firing
+     * its mouseleave. Both states then point at something she cannot see —
+     * and Space on the first of those cycled an invisible verdict, the exact
+     * failure mode S5 was built to remove. `visibleCheck` is the one guard.
+     */
+    test('folding the box the caret is in makes Space inert — no invisible verdict', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await page.locator('[data-breakdown-for]').first().waitFor();
+
+        // ↓ focuses the first check and opens its box (S5).
+        await page.keyboard.press('ArrowDown');
+        const focused = page.locator('[data-check-id][data-focused="true"]');
+        await expect(focused).toHaveCount(1);
+        const terminalId = await focused.evaluate(
+            (el) => el.closest('[data-terminal-id]')!.getAttribute('data-terminal-id'));
+        const disclosure = page.locator(`[data-breakdown-for="${terminalId}"]`);
+
+        // She folds that box with the caret still inside it. The disclosure is
+        // then BLURRED on purpose: with DOM focus left on the button, Space is
+        // the button's own activation (the keymap stands down for controls)
+        // and this test would pass for a reason that is not the guard.
+        await disclosure.click();
+        await disclosure.evaluate((el) => (el as HTMLElement).blur());
+        await expect(page.locator(`[data-terminal-id="${terminalId}"] [data-check-id]`))
+            .toHaveCount(0);
+
+        // Space must not change a grade she cannot see…
+        await page.keyboard.press('Space');
+        await expect(page.locator('[data-total]')).toHaveAttribute('data-overridden', 'false');
+        // …and a folded focus paints nothing in the answer either.
+        await expect(page.locator('mark')).toHaveCount(0);
+
+        // Navigation, by contrast, keeps the caret: ↓ resumes from where she
+        // was and opens whatever box the next row lives in.
+        await page.keyboard.press('ArrowDown');
+        await expect(page.locator('[data-check-id][data-focused="true"]')).toHaveCount(1);
+    });
+
+    test('a keyboard collapse leaves no phantom hover behind', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await page.locator('[data-breakdown-for]').first().waitFor();
+
+        // Open one box through its union button, then release the pin so the
+        // only thing that can light the answer is the hover under test.
+        const union = page.locator('[data-terminal-quote]').first();
+        const terminalId = await union.getAttribute('data-terminal-quote');
+        await union.click();
+        await page.keyboard.press('Escape');
+        await expect(page.locator('mark[data-pinned="true"]')).toHaveCount(0);
+
+        // Rest the mouse on a row that has a quote: a transient mark paints.
+        const row = page.locator(
+            `[data-terminal-id="${terminalId}"] [data-check-id]:has(button:has-text("ציטוט רלוונטי מהתשובה"))`,
+        ).first();
+        await row.hover();
+        expect(await page.locator('mark').count()).toBeGreaterThan(0);
+
+        // Collapse WITHOUT moving the mouse: focus the disclosure and press
+        // Enter. The hovered row unmounts and its mouseleave never fires.
+        const disclosure = page.locator(`[data-breakdown-for="${terminalId}"]`);
+        await disclosure.focus();
+        await page.keyboard.press('Enter');
+        await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+
+        // The hover id is now stale — and it must paint nothing.
+        await expect(page.locator('mark')).toHaveCount(0);
+    });
+
+    test('starts collapsed, except the criteria that need her eyes', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await page.locator('[data-breakdown-for]').first().waitFor();
+
+        const closed = page.locator('[data-breakdown-for][aria-expanded="false"]');
+        const open = page.locator('[data-breakdown-for][aria-expanded="true"]');
+
+        // Most of the page is folded…
+        expect(await closed.count()).toBeGreaterThan(10);
+        // …and the exception is real: dan_basiuk carries exactly one marker (a
+        // clamp), so exactly one criterion opens itself. If this ever becomes
+        // zero, D1's safety half is gone and «approve without reading» is one
+        // click away.
+        await expect(open).toHaveCount(1);
+    });
+
+    test('opens and closes on click, and her collapse STICKS', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await page.locator('[data-breakdown-for]').first().waitFor();
+
+        // Pinned BY ID, not by state: a locator written as
+        // `[aria-expanded="false"]` stops matching the instant the box opens,
+        // and every later assertion would then be about a different criterion.
+        const terminalId = await page
+            .locator('[data-breakdown-for][aria-expanded="false"]').first()
+            .getAttribute('data-breakdown-for');
+        const header = page.locator(`[data-breakdown-for="${terminalId}"]`);
+        const box = page.locator(`[data-terminal-id="${terminalId}"]`);
+
+        await expect(box.locator('[data-check-id]')).toHaveCount(0);
+        await header.click();
+        await expect(header).toHaveAttribute('aria-expanded', 'true');
+        expect(await box.locator('[data-check-id]').count()).toBeGreaterThan(0);
+
+        // She decides something inside it, then folds it away.
+        await box.locator('[data-verdict]').first().click();
+        await expect(box.locator('[data-check-id][data-overridden="true"]').first())
+            .toBeVisible();
+        await header.click();
+        await expect(header).toHaveAttribute('aria-expanded', 'false');
+
+        // AND IT STAYS SHUT. The opening rule's second clause re-opens criteria
+        // she has already decided — computed ONCE, at mount. Were it live, the
+        // override she just made would spring this box open again under her
+        // hand, which is the UI arguing with the teacher.
+        await page.waitForTimeout(300);
+        await expect(header).toHaveAttribute('aria-expanded', 'false');
+        await expect(box.locator('[data-check-id]')).toHaveCount(0);
+    });
+
+    test('the keyboard opens a folded criterion rather than focusing nothing', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await page.locator('[data-breakdown-for]').first().waitFor();
+
+        const first = page.locator('[data-breakdown-for]').first();
+        await expect(first).toHaveAttribute('aria-expanded', 'false');
+
+        // Before S5 this focused a row that was not in the DOM: the caret went
+        // nowhere and the next Space would have cycled a verdict she could not
+        // see — the worse of the two failure modes.
+        await page.keyboard.press('ArrowDown');
+
+        await expect(first).toHaveAttribute('aria-expanded', 'true');
+        await expect(page.locator('[data-check-id][data-focused="true"]')).toHaveCount(1);
+    });
+
+    test('F opens the criterion it stops at', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await page.locator('[data-breakdown-for]').first().waitFor();
+
+        await page.keyboard.press('KeyF');
+
+        // F promises to stop at the thing needing her eyes; stopping beside a
+        // closed box that hides it would keep the letter of that, not the point.
+        await expect(page.locator('[data-breakdown-for][aria-expanded="true"]').first())
+            .toBeVisible();
+    });
+});
+
 
 /**
  * The MOCKUP, captured through the same browser at the same viewport — so the

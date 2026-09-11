@@ -226,6 +226,9 @@ export function CheckRow({
                 <button
                     type="button"
                     title={RV_QUOTE_TITLE}
+                    // A toggle, announced as one. Matches the criterion-level
+                    // quote button, which gained this with S3.
+                    aria-pressed={pinned}
                     data-pinned={pinned ? 'true' : 'false'}
                     onClick={(e) => { e.stopPropagation(); onPin(); }}
                     className={[

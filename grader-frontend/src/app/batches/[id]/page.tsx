@@ -144,19 +144,19 @@ function GradeReviewSection({ batch, batchId, onRefresh }: {
 
     /**
      * D6: failed → retry. `retry` EXTENDS THE CHAIN (LCY-2) with a new pending
-     * row and enqueues the grader; the dead card stays in the pile as the
-     * batch's honest hole (the feed does not copy `batch_id` to the successor —
-     * reported). Retrying from here rather than from the review route: the
-     * failed shell there has nothing else to offer, so the round trip was two
-     * screens to press one button.
+     * row and enqueues the grader. Since 2026-09-10 the successor CARRIES
+     * `batch_id`, so it arrives in this feed on the next poll and the batch
+     * heals in place — previously it landed batch-less and the student's
+     * returned exam was gone from the batch download for good. Retrying from
+     * here rather than from the review route: the failed shell there has
+     * nothing else to offer, so the round trip was two screens for one button.
      */
     const retryTest = async (item: GradedItem) => {
         try {
             await retryGradedTestRow(item.graded_test_id);
-            // The successor is a new pending row that the feed CANNOT show yet
-            // (`extend_chain` does not copy `batch_id` — reported), so the card
-            // is marked locally: it says «נשלח לניקוד חוזר» and stops offering
-            // the same click, which would 409 on the now non-leaf row.
+            // Marked locally so the card stops offering the same click while
+            // the refresh is in flight: the row is no longer the leaf, so a
+            // second press would 409.
             setRetriedIds((prev) => new Set(prev).add(item.graded_test_id));
             toast.success(DASH_RETRY_STARTED(item.student_name || ''));
             await onRefresh();

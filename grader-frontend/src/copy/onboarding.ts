@@ -94,7 +94,7 @@ export const EXAM_SKIP = 'אפשר לדלג'
 export const EXAM_SUCCESS_DATE = 'מעולה. נהיה בקשר לקראת המבחן.'
 export const EXAM_SUCCESS_UNKNOWN = 'אין בעיה. נשאל שוב בעוד שבועיים.'
 /** The persistent app-shell entry point (§8), independent of this step. */
-export const BOOK_A_CALL = 'קביעת שיחה עם נועם (מייסד Vivi)'
+export const BOOK_A_CALL = 'לקביעת מפגש אישי מקוון לבדיקת מבחנים'
 
 // ── Step 6 · welcome aboard ──────────────────────────────────────────────────
 export const READY_TITLE = (firstName: string) =>

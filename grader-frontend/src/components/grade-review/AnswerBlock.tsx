@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 
 import { answerLines, answerRenderPlan } from '@/utils/answer-mode';
-import { markRangesFor, segmentsForLine, type Highlight, type LineRange }
+import { markRangesForAll, segmentsForLine, type Highlight, type LineRange }
     from '@/utils/evidence-highlight';
 
 /**
@@ -45,11 +45,21 @@ export function AnswerBlock({ answer, highlight, transient = false, subject, sco
     const markRef = useRef<HTMLElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
 
-    // WHERE THE QUOTE LIVES, decided ONCE over the whole answer. Per line it
-    // was undecidable: a five-line quote is a substring of no single line.
+    // WHERE THE SPANS LIVE, decided ONCE over the whole answer. Per line it was
+    // undecidable: a five-line quote is a substring of no single line.
+    //
+    // `spanKey` is a stable identity for what is lit, because `spans` is a fresh
+    // array on every parent render — depending on it directly would re-run the
+    // matcher, and re-fire the scroll effect, for no change at all.
+    //
+    // JSON, not a hand-rolled join: a quote can contain any delimiter a join
+    // might pick, and two different span lists that serialise to one key would
+    // silently skip a repaint. `JSON.stringify` is injective on this shape.
+    const spanKey = JSON.stringify(highlight.spans);
     const ranges = useMemo(
-        () => markRangesFor(answer, highlight.quote),
-        [answer, highlight.quote],
+        () => markRangesForAll(answer, highlight.spans),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [answer, spanKey],
     );
     const rangesByLine = useMemo(() => {
         const out = new Map<number, LineRange[]>();
@@ -80,7 +90,8 @@ export function AnswerBlock({ answer, highlight, transient = false, subject, sco
             container.scrollTop += (mark.top - box.top)
                 - (box.height - mark.height) / 2;
         }
-    }, [highlight.quote, transient]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [spanKey, transient]);
 
     const plan = answerRenderPlan(answer, subject);
     const mode = plan.mode;
@@ -96,10 +107,14 @@ export function AnswerBlock({ answer, highlight, transient = false, subject, sco
                 <mark
                     key={i}
                     ref={isFirst ? markRef : undefined}
-                    data-highlight={highlight.kind}
+                    // PER SEGMENT, not per highlight: a criterion lights the
+                    // union of its checks' spans, and those can differ in kind.
+                    // Painting them all with one kind would upgrade an
+                    // approximate citation to a verbatim one on screen.
+                    data-highlight={segment.kind}
                     data-pinned={highlight.pinned ? 'true' : 'false'}
                     className={
-                        highlight.kind === 'fuzzy'
+                        segment.kind === 'fuzzy'
                             // Fuzzy is drawn as an underline, not a fill: the
                             // span is approximate, and a solid block would
                             // claim a precision Vivi did not have.
