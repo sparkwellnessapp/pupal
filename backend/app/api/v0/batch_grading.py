@@ -824,7 +824,14 @@ async def list_batches(
             select(Transcription).where(Transcription.batch_id == batch.id)
         )).scalars().all()
         graded_tests = (await db.execute(
-            select(GradedTest).where(GradedTest.batch_id == batch.id)
+            select(GradedTest).where(
+                GradedTest.batch_id == batch.id,
+                # Leaves only — the live grade, the same rule `_exam_rows`
+                # states. `_build_rollup` COUNTS these, so a chain would report
+                # one student twice (`failed` + `grading`) and the segments
+                # would sum past the number of tests in the batch.
+                GradedTest.regraded_to_id.is_(None),
+            )
         )).scalars().all()
         jobs = (await db.execute(
             select(TranscriptionJob).where(TranscriptionJob.batch_id == batch.id)
@@ -1146,7 +1153,15 @@ async def get_batch(
     )).scalars().all()
 
     graded_tests = (await db.execute(
-        select(GradedTest).where(GradedTest.batch_id == batch_id)
+        select(GradedTest).where(
+            GradedTest.batch_id == batch_id,
+            # Leaves only. `gt_by_tid` below indexes BY TRANSCRIPTION, and a
+            # chain shares one transcription across every row — so without this
+            # two rows collide on the same key and the winner is whichever the
+            # unordered query returned last. The teacher would sometimes see a
+            # superseded grade and sometimes the live one, on the same data.
+            GradedTest.regraded_to_id.is_(None),
+        )
     )).scalars().all()
 
     # Index graded_tests by transcription_id for O(1) lookup

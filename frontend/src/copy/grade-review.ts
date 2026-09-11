@@ -127,11 +127,30 @@ export const RV_LOOK_COUNT = (n: number) =>
 export const RV_CHIP_NOT_FOUND = 'לא נמצאה עדות בתשובה — ודאי לפני שאת מאשרת'
 export const RV_CHIP_FUZZY = 'ציטוט משוער — הטקסט בתשובה שונה מעט'
 export const RV_CHIP_DISPUTED = 'סימנת: העדות שגויה'
+
 export const RV_QUOTE = 'ציטוט רלוונטי מהתשובה'
 export const RV_QUOTE_TITLE = 'הדגשת הציטוט בתשובה'
+// [S3] The criterion-level button — lights every span its checks would light,
+// at once. Owner wording (2026-09-11); it must NOT contain the per-check
+// label «ציטוט רלוונטי מהתשובה» as a substring, or the two families become
+// indistinguishable to a role query — the «ה» in «הרלוונטי» is what keeps
+// them apart.
+export const RV_QUOTE_ALL = 'לציטוט הרלוונטי מהתשובה'
+export const RV_QUOTE_ALL_TITLE = 'הדגשת הציטוטים הרלוונטיים של הקריטריון בתשובה'
+
+// [S4] The criterion breakdown, behind a disclosure.
+/** The accessible name of the expander — it must say WHAT opens, not «פתיחה». */
+export const RV_BREAKDOWN_SHOW = (criterion: string) => `פתיחת הפירוט של ${criterion}`
+export const RV_BREAKDOWN_HIDE = (criterion: string) => `סגירת הפירוט של ${criterion}`
+/** «N בדיקות» — the weight of the box, visible before she opens it. */
+export const RV_BREAKDOWN_COUNT = (n: number) =>
+    n === 1 ? 'בדיקה אחת' : `${n} בדיקות`
 /** A counted check (a trace table priced per cell): how many of the N units were right. */
 export const RV_COUNTED_OF = (k: number, n: number) => `${k} מתוך ${n}`
 export const RV_QUOTE_PINNED = 'הציטוט מודגש בתשובה · Esc לביטול'
+// [S3] The criterion button lights SEVERAL spans; the singular above would
+// describe one of them and leave her looking for the rest.
+export const RV_QUOTES_PINNED = 'כל הציטוטים של הקריטריון מודגשים · Esc לביטול'
 export const RV_VERDICT_TITLE = 'שינוי (Space)'
 
 /** «הצעת ויוי: ✓ · 2 → השינוי שלך · חזרה» — the struck-through proposal. */

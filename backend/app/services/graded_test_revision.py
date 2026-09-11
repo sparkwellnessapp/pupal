@@ -72,6 +72,21 @@ async def extend_chain(
         student_id=source.student_id,
         student_name=source.student_name,
         filename=source.filename,
+        # A re-grade of a batch test is STILL THAT BATCH'S TEST. Dropping this
+        # made every successor batch-less: the dashboard could not show it, and
+        # `_exam_rows` selects by `batch_id`, so the student's returned exam
+        # fell out of «הורדת כל המבחנים המוחזרים» permanently — a retry
+        # silently traded a broken grade for a missing one.
+        #
+        # ⚠ This only reads correctly because every batch-scoped query over
+        # `graded_tests` selects LEAVES. `_exam_rows` always did; `get_batch`
+        # and `list_batches` were made to (2026-09-10, with this line), because
+        # a chain otherwise counts twice in `_build_rollup` — the same student
+        # reported as both `failed` and `grading` — and `get_batch`'s
+        # `gt_by_tid` index is keyed by transcription, so two rows sharing one
+        # transcription resolve last-write-wins on an unordered query. Any NEW
+        # batch-scoped query over this table needs the leaf filter too.
+        batch_id=source.batch_id,
         rubric_contract_version=new_rubric_contract_version,
         # [029] CARRIED, not re-read. A successor grades the SAME transcription
         # (`transcription_id` is copied one line above) — only the rubric can

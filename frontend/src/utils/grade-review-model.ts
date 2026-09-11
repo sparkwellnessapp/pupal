@@ -30,7 +30,7 @@
  * was marked anyway.
  */
 
-import { markRangesFor } from '@/utils/evidence-highlight';
+import { markRangesFor, spansForChecks } from '@/utils/evidence-highlight';
 import {
     priceScopeCheckContributions,
     priceScopeChecksDetailed,
@@ -499,7 +499,24 @@ export function buildReviewModel(options: BuildOptions): ReviewModel {
                     // and the button landed nowhere. Asking the real matcher
                     // makes the affordance true by construction: the button
                     // exists exactly when the highlight does.
-                    canHighlight: markRangesFor(answerText, check.quote ?? null).length > 0,
+                    //
+                    // BOTH halves, from the one source. `spansForChecks` is the
+                    // eligibility rule the highlight resolver itself applies —
+                    // a `not_found` quote is never painted, because painting a
+                    // best guess for invented credit manufactures the very
+                    // evidence the flag exists to report as missing. Asking the
+                    // matcher ALONE let that case back in: the client's fuzzy
+                    // floor (0.6) is looser than the server's certification
+                    // (0.85), so a quote the server rated `not_found` can still
+                    // be placed here — `canHighlight` said yes, the resolver
+                    // said no, and the button landed nowhere after all. That is
+                    // the exact defect this field was introduced to remove, so
+                    // it is removed on both paths at once (S3 review).
+                    canHighlight: spansForChecks([{
+                        check_id: check.check_id,
+                        quote: check.quote,
+                        quote_status: check.quote_status,
+                    }]).some((s) => markRangesFor(answerText, s.quote, s.kind).length > 0),
                     unit_count: check.unit_count,
                     units_correct: check.units_correct,
                     aiVerdict: check.verdict,

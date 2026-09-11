@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * A layout effect on the client, a plain effect on the server. React warns
@@ -19,10 +19,13 @@ import {
 import {
     cycleVerdict, revert, setNote, toggleEvidenceDisputed, type OverlayTerminals,
 } from '@/utils/verdict-cycle';
-import { resolveHighlight, type HighlightableCheck } from '@/utils/evidence-highlight';
+import {
+    resolveHighlight, type HighlightableCheck, type PinTarget,
+} from '@/utils/evidence-highlight';
 import {
     markerCountByScope, nextMarker as nextMarkerAfter, reviewMarkers,
 } from '@/utils/review-markers';
+import { initialExpandedTerminals } from '@/utils/criterion-disclosure';
 import { resolveKeyAction } from '@/utils/grade-review-keymap';
 import type { QueueState } from '@/utils/grade-review-cursor';
 import { ScopeSection } from './ScopeSection';
@@ -33,7 +36,7 @@ import {
 } from './ReviewChrome';
 import {
     RV_APPROVE_BLOCKED, RV_FB_SUMMARY_TITLE, RV_KEYS_REST, RV_NO_CHECKS,
-    RV_QUOTE_PINNED,
+    RV_QUOTE_PINNED, RV_QUOTES_PINNED,
 } from '@/copy/grade-review';
 
 /**
@@ -135,7 +138,9 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
     } = props;
 
     const [focus, setFocus] = useState<string | null>(null);
-    const [pin, setPin] = useState<string | null>(null);
+    // ONE pin, of either kind (S2). A criterion pin replaces a check pin and
+    // vice versa — see `PinTarget` for why that is the ruling.
+    const [pin, setPin] = useState<PinTarget | null>(null);
     const [hover, setHover] = useState<string | null>(null);
     const [openNote, setOpenNote] = useState<string | null>(null);
     const [editedFeedback, setEdited] = useState<ReadonlySet<string>>(new Set());
@@ -192,6 +197,52 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
     const markersByScope = useMemo(() => markerCountByScope(markers), [markers]);
 
     /**
+     * [S4] Which criterion breakdowns are open.
+     *
+     * TWO SOURCES, MERGED — and the split is the whole design:
+     *
+     *   `openingRef`  the once-per-test state (D1): collapsed, except where a
+     *                 marker or her own earlier work says her eyes are needed.
+     *   `toggled`     every change she has made since. Hers always wins.
+     *
+     * The opening state is computed into a REF during the first render that has
+     * a renderable model, never recomputed. Its second clause reads the overlay,
+     * which changes as she works — recomputed live, a criterion she had just
+     * collapsed would spring open again the moment she overrode a check inside
+     * it, the UI arguing with the teacher. A ref also means no state write
+     * during render and no effect that paints twice.
+     *
+     * The route remounts per `gradedTestId`, so "once per mount" IS once per
+     * test; the ref is re-seeded from scratch for the next student.
+     */
+    const openingRef = useRef<ReadonlySet<string> | null>(null);
+    if (openingRef.current === null && model.renderable) {
+        openingRef.current = initialExpandedTerminals(model.scopes, markers);
+    }
+    const [toggled, setToggled] = useState<ReadonlyMap<string, boolean>>(() => new Map());
+
+    const isCriterionOpen = useCallback((terminalId: string) => {
+        const hers = toggled.get(terminalId);
+        return hers ?? (openingRef.current?.has(terminalId) ?? false);
+    }, [toggled]);
+
+    const toggleCriterion = useCallback((terminalId: string) => {
+        setToggled((prev) => {
+            const next = new Map(prev);
+            next.set(terminalId, !(prev.get(terminalId)
+                ?? (openingRef.current?.has(terminalId) ?? false)));
+            return next;
+        });
+    }, []);
+
+    /** Open one, idempotently — what a pin and (S5) the keyboard walk need. */
+    const expandCriterion = useCallback((terminalId: string) => {
+        setToggled((prev) => (prev.get(terminalId) === true
+            ? prev
+            : new Map(prev).set(terminalId, true)));
+    }, []);
+
+    /**
      * R3 scroll-spy. The nav follows the SCROLL, so she always knows where she
      * is on a page this long — but an explicit focus outranks it, because
      * arrow-walking a checklist must not have the nav argue with the caret.
@@ -224,20 +275,83 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         return () => observer.disconnect();
     }, [model.scopes.length]);
 
-    const focusCheck = useCallback((checkId: string) => {
-        setFocus(checkId);
+    /** check_id → the criterion that owns it, for S5's auto-expand. */
+    const terminalOf = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const check of flatChecks) map.set(check.check_id, check.terminalId);
+        return map;
+    }, [flatChecks]);
+    /** Every criterion that actually renders a disclosure — what may be expanded. */
+    const knownTerminals = useMemo(() => new Set(terminalOf.values()), [terminalOf]);
+
+    /**
+     * A check id ONLY IF ITS ROW IS ON SCREEN — else null.
+     *
+     * `hover` and `focus` are ids, and an id outlives the row it names: she can
+     * collapse the very box the caret sits in, and a keyboard collapse unmounts
+     * a hovered row without ever firing its mouseleave. Both states then point
+     * at something she cannot see. Everything that ACTS on a row — painting its
+     * span, cycling its verdict — goes through this, so a hidden row is inert
+     * by construction rather than by each caller remembering to check.
+     *
+     * A pure derivation, deliberately: clearing the state in an effect would
+     * paint one frame of the wrong thing first and add a second owner of it.
+     */
+    const visibleCheck = useCallback((id: string | null): string | null => {
+        if (id === null) return null;
+        const terminalId = terminalOf.get(id);
+        return terminalId !== undefined && isCriterionOpen(terminalId) ? id : null;
+    }, [terminalOf, isCriterionOpen]);
+
+    const scrollRowIntoView = (el: HTMLElement) => {
         // Focus follows the eye: the row scrolls into view only when it is not
         // already there, so arrow-walking a visible list does not jitter.
-        const el = typeof document === 'undefined'
-            ? null
-            : document.querySelector<HTMLElement>(`[data-check-id="${CSS.escape(checkId)}"]`);
-        if (el) {
-            const rect = el.getBoundingClientRect();
-            if (rect.top < 170 || rect.bottom > window.innerHeight - 70) {
-                el.scrollIntoView({ block: 'center' });
-            }
+        const rect = el.getBoundingClientRect();
+        if (rect.top < 170 || rect.bottom > window.innerHeight - 70) {
+            el.scrollIntoView({ block: 'center' });
         }
-    }, []);
+    };
+
+    /**
+     * [S5] A row the walk is about to focus may be behind a fold — scroll it
+     * once it EXISTS, not before.
+     *
+     * Since S4 the checklist is collapsed by default, so ↓/↑ and F can target a
+     * check that is not in the DOM yet. The old code queried for it in the same
+     * tick as `setFocus` and simply found nothing: focus went nowhere, and the
+     * next Space would have cycled a verdict on a row she could not see. A row
+     * already on screen is handled synchronously, exactly as before; only a
+     * row behind a fold defers to the commit that paints it.
+     */
+    const pendingScrollRef = useRef<string | null>(null);
+
+    const focusCheck = useCallback((checkId: string) => {
+        setFocus(checkId);
+        if (typeof document === 'undefined') return;
+        const el = document.querySelector<HTMLElement>(
+            `[data-check-id="${CSS.escape(checkId)}"]`);
+        if (el) { scrollRowIntoView(el); return; }
+        // Behind a fold: open the owning criterion and scroll on the paint.
+        const terminalId = terminalOf.get(checkId);
+        if (terminalId) expandCriterion(terminalId);
+        pendingScrollRef.current = checkId;
+    }, [terminalOf, expandCriterion]);
+
+    useIsomorphicLayoutEffect(() => {
+        // ONE SHOT. Whatever else happens, the pending id is consumed on the
+        // first commit after it was set. Left armed, it survived a clamped ↓ at
+        // the last row (same focus, so no commit) and fired on her NEXT click
+        // on any disclosure — scrolling the page to an unrelated check.
+        const checkId = pendingScrollRef.current;
+        if (checkId === null || typeof document === 'undefined') return;
+        pendingScrollRef.current = null;
+        if (checkId !== focus) return;                     // she has moved on
+        const el = document.querySelector<HTMLElement>(
+            `[data-check-id="${CSS.escape(checkId)}"]`);
+        if (el) scrollRowIntoView(el);
+        // `toggled` is the commit that paints the row; `focus` covers the case
+        // where the expand was a no-op and the focus change is the only commit.
+    }, [toggled, focus]);
 
     const stepCheck = useCallback((delta: 1 | -1) => {
         if (!flatChecks.length) return;
@@ -258,30 +372,60 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         }
         // A scope-level marker (a failed or unanswered question, a clamped
         // terminal) has no row to focus — take her to the section itself.
+        //
+        // [S5] Its `id` may still name a TERMINAL (bounds_clamped and
+        // closed_world anchor there), so open that criterion on the way: F
+        // promises to stop at the thing needing her eyes, and stopping beside
+        // a closed box that hides it keeps the letter of that and not the point.
+        // Only a REAL terminal, though — a failed/unanswered question anchors
+        // on the scope id, and recording that as "expanded" would be junk state.
+        if (knownTerminals.has(target.id)) expandCriterion(target.id);
         setFocus(target.id);
         document.getElementById(`scope-${target.scopeId}`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, [markers, lastMarkerKey, focusCheck]);
+    }, [markers, lastMarkerKey, focusCheck, expandCriterion, knownTerminals]);
 
     const withFocused = useCallback((fn: (terminalId: string, checkId: string,
         aiVerdict: Parameters<typeof cycleVerdict>[3]) => OverlayTerminals) => {
-        if (readOnly || !focus) return;
-        const check = flatChecks.find((c) => c.check_id === focus);
+        // A DECIDING action needs a row she can see. Navigation may keep the
+        // caret on a folded row (so ↓ resumes from where she was); a verdict
+        // may not be changed there.
+        const target = visibleCheck(readOnly ? null : focus);
+        if (target === null) return;
+        const check = flatChecks.find((c) => c.check_id === target);
         if (!check) return;
         onOverlayChange(fn(check.terminalId, check.check_id, check.aiVerdict));
-    }, [readOnly, focus, flatChecks, onOverlayChange]);
+    }, [readOnly, focus, flatChecks, onOverlayChange, visibleCheck]);
 
-    const togglePin = useCallback((checkId: string) => {
+    /**
+     * Pin a target, or release it when it is already pinned.
+     *
+     * ONE implementation for both kinds. The scroll-to-answer and the toast are
+     * the same promise whichever button was pressed, and a second copy of this
+     * for criteria is how the two would drift.
+     *
+     * @param scopeId the scope whose answer to bring into view. Passed in
+     *   rather than looked up, because a criterion has no check id to look it
+     *   up BY — and a criterion whose checks are all unhighlightable has no
+     *   entry in `scopeOf` at all.
+     */
+    const toggleTarget = useCallback((
+        target: PinTarget, scopeId: string | undefined,
+    ) => {
         // The side effects sit OUTSIDE the state updater on purpose: React may
         // invoke an updater twice (StrictMode does, in dev), and a toast fired
         // twice or a scroll commanded twice is a bug the updater form invites.
         // `pin` is a dependency, so this closure is never stale.
-        const willPin = pin !== checkId;
-        setPin(willPin ? checkId : null);
-        setFocus(checkId);
+        const willPin = !(pin && pin.kind === target.kind && pin.id === target.id);
+        setPin(willPin ? target : null);
+        // Only a CHECK is a focusable row. A criterion pin leaves the caret
+        // where she left it rather than inventing a focus for a header.
+        if (target.kind === 'check') setFocus(target.id);
         if (!willPin) return;
 
-        onNotice(RV_QUOTE_PINNED);
+        // The criterion lights several spans; the singular notice would describe
+        // one of them and leave her hunting for the rest.
+        onNotice(target.kind === 'criterion' ? RV_QUOTES_PINNED : RV_QUOTE_PINNED);
 
         // BRING THE ANSWER INTO VIEW — on the CLICK, and only then.
         //
@@ -290,16 +434,19 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         // evidence anything had happened. This lives in the click handler
         // because a click is the one unambiguous signal of intent: deriving it
         // from highlight state made the page jump on HOVER and on keyboard
-        // focus, which paint a highlight too. It scrolls to THIS check's own
+        // focus, which paint a highlight too. It scrolls to THIS target's own
         // scope, never to the last-highlighted one.
         //
         // `scroll-mt-scope` on the answer keeps it clear of the sticky bar;
         // without it `block: 'start'` lands the answer behind the header.
-        const scopeId = scopeOf.get(checkId);
         if (!scopeId || typeof document === 'undefined') return;
         document.querySelector(`[data-answer-for="${CSS.escape(scopeId)}"]`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, [pin, onNotice, scopeOf]);
+    }, [pin, onNotice]);
+
+    const togglePin = useCallback((checkId: string) => {
+        toggleTarget({ kind: 'check', id: checkId }, scopeOf.get(checkId));
+    }, [toggleTarget, scopeOf]);
 
     // ── the single keydown listener ────────────────────────────────────────
     // `useLayoutEffect`, NOT `useEffect`: a passive effect attaches after PAINT,
@@ -440,15 +587,38 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                     {model.scopes.map((scope) => {
                         const scopeCheckIds = new Set(
                             scope.criteria.flatMap((c) => c.checks.map((k) => k.check_id)));
+                        // Transient means THIS answer is lit by a hover. Precedence
+                        // is per answer (see activeTarget), so a hover in another
+                        // scope neither lights this one nor marks it transient —
+                        // a global flag here suppressed a pinned answer's centre-
+                        // scroll whenever the mouse rested on any row elsewhere.
+                        const hoverHere = hover !== null && scopeCheckIds.has(hover)
+                            ? visibleCheck(hover) : null;
                         return (
                             <ScopeSection
                                 key={scope.scopeId}
                                 scope={scope}
                                 highlight={resolveHighlight(
-                                    { hover, pin, focus }, checksById, scopeCheckIds)}
-                                highlightTransient={hover !== null}
+                                    // A folded row paints nothing (see visibleCheck);
+                                    // the PIN is a deliberate act and stays lit.
+                                    { hover: visibleCheck(hover), pin, focus: visibleCheck(focus) },
+                                    checksById, scopeCheckIds)}
+                                highlightTransient={hoverHere !== null}
                                 focusedCheckId={focus}
-                                pinnedCheckId={pin}
+                                pinnedCheckId={pin?.kind === 'check' ? pin.id : null}
+                                pinnedTerminalId={pin?.kind === 'criterion' ? pin.id : null}
+                                // The scope is in closure, so no terminal→scope
+                                // index is needed to tell toggleTarget where to
+                                // scroll — the section knows which answer is its own.
+                                onPinCriterion={(terminalId) => {
+                                    // She asked to see this criterion's evidence;
+                                    // opening it is part of answering that.
+                                    expandCriterion(terminalId);
+                                    toggleTarget({ kind: 'criterion', id: terminalId },
+                                        scope.scopeId);
+                                }}
+                                isCriterionOpen={isCriterionOpen}
+                                onToggleCriterion={toggleCriterion}
                                 openNoteCheckId={openNote}
                                 feedbackBusy={feedbackBusy}
                                 feedbackEdited={editedFeedback.has(scope.scopeId)}

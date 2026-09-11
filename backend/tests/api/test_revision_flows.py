@@ -218,6 +218,7 @@ async def _insert_failed_row(
     rubric_id: str,
     *,
     regraded_to_id: str | None = None,
+    batch_id: str | None = None,
 ) -> tuple[str, str]:
     """Insert a failed GradedTest leaf. Returns (graded_test_id, transcription_id)."""
     from tests.api.test_batch_grading import _fresh_loop_session
@@ -270,6 +271,7 @@ async def _insert_failed_row(
             status="failed",
             error_message="LLM timed out",
             regraded_to_id=uuid.UUID(regraded_to_id) if regraded_to_id else None,
+            batch_id=uuid.UUID(batch_id) if batch_id else None,
         )
         db.add(graded_test)
         if regraded_to_id is not None:
@@ -310,6 +312,7 @@ async def _fetch_row(graded_test_id: str) -> dict:
             "regraded_from_id": str(row.regraded_from_id) if row.regraded_from_id else None,
             "regraded_to_id": str(row.regraded_to_id) if row.regraded_to_id else None,
             "rubric_contract_version": row.rubric_contract_version,
+            "batch_id": str(row.batch_id) if row.batch_id else None,
         }
 
 
@@ -770,6 +773,61 @@ def test_retry_fires_agent(client, failed_leaf):
     assert fired_with == [r2_id], "the grading enqueue should fire with the new row's id"
 
     asyncio.run(_delete_row_cascade(r2_id))
+
+
+@pytest.mark.integration
+def test_retry_keeps_the_successor_IN_its_batch(client, user_a, rubric_a, headers_a):
+    """A re-grade of a batch test is still that batch's test.
+
+    `extend_chain` used to drop `batch_id`, so a retry produced a batch-LESS
+    successor: the dashboard could not show it, and `_exam_rows` selects by
+    `batch_id`, so the student's returned exam left «הורדת כל המבחנים
+    המוחזרים» permanently. Retrying traded a broken grade for a missing one.
+    """
+    import uuid as _uuid
+    from datetime import datetime, timezone as _tz
+    from sqlalchemy import delete as _delete
+
+    from tests.api.test_batch_grading import _fresh_loop_session
+    from app.models.grading import GradingBatch, GradedTest as _GT
+
+    uid = user_a["user"]["id"]
+    rid = rubric_a["rubric_id"]
+
+    async def _make_batch() -> str:
+        async with _fresh_loop_session() as db:
+            batch = GradingBatch(
+                user_id=_uuid.UUID(uid), rubric_id=_uuid.UUID(rid),
+                rubric_contract_version="test-v1", name="Retry batch",
+                status="in_progress", test_count=1,
+                started_at=datetime.now(_tz.utc),
+            )
+            db.add(batch)
+            await db.commit()
+            return str(batch.id)
+
+    batch_id = asyncio.run(_make_batch())
+    gid, _ = asyncio.run(_insert_failed_row(uid, rid, batch_id=batch_id))
+
+    try:
+        assert asyncio.run(_fetch_row(gid))["batch_id"] == batch_id
+
+        with patch("app.api.v0.grading.enqueue_grading_task_or_log", new=AsyncMock()):
+            resp = client.post(f"/api/v0/grading/graded_test/{gid}/retry",
+                               headers=headers_a)
+        assert resp.status_code == 200, resp.text
+        r2_id = resp.json()["graded_test_id"]
+
+        assert asyncio.run(_fetch_row(r2_id))["batch_id"] == batch_id, (
+            "the successor must stay in the batch it was retried from")
+    finally:
+        async def _cleanup():
+            async with _fresh_loop_session() as db:
+                await db.execute(_delete(_GT).where(_GT.batch_id == _uuid.UUID(batch_id)))
+                await db.execute(
+                    _delete(GradingBatch).where(GradingBatch.id == _uuid.UUID(batch_id)))
+                await db.commit()
+        asyncio.run(_cleanup())
 
 
 # ---------------------------------------------------------------------------

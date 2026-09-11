@@ -120,6 +120,30 @@ echo "==> Ensuring the Cloud Scheduler API is enabled"
 # timer before. Enabling is idempotent and takes ~1 minute the first time.
 gcloud services enable cloudscheduler.googleapis.com --project "$PROJECT"
 
+# The identity Cloud Scheduler presents when it calls `jobs:run`. Computed
+# ONCE and reused below, because it is needed in two places that must agree:
+# the trigger's OAuth identity and the IAM binding that lets it in.
+SCHEDULER_SA="${SERVICE_ACCOUNT:-$(gcloud projects describe "$PROJECT" --format 'value(projectNumber)')-compute@developer.gserviceaccount.com}"
+
+echo "==> Granting the scheduler permission to RUN the job"
+#
+# ⚠️ CREATING A SCHEDULE DOES NOT GRANT IT ANYTHING. This step was missing, and
+# the failure is SILENT from every angle that matters: `gcloud scheduler jobs
+# list` reports ENABLED, the job is healthy, a manual `jobs execute` works — and
+# the trigger returns PERMISSION_DENIED at 08:00 every morning into a log
+# nobody reads. Discovered 2026-09-10, by which point the digest had never once
+# fired on its own; `get-iam-policy` on the job returned `{"etag": "ACAB"}` —
+# no bindings at all.
+#
+# `roles/run.invoker` ON THE JOB, not project-wide: this identity needs to
+# start exactly one job and nothing else.
+gcloud run jobs add-iam-policy-binding "$JOB" \
+    --project "$PROJECT" --region "$REGION" \
+    --member "serviceAccount:${SCHEDULER_SA}" \
+    --role roles/run.invoker >/dev/null
+echo "    ${SCHEDULER_SA} → roles/run.invoker on ${JOB}"
+echo
+
 echo "==> Creating (or updating) the Cloud Scheduler trigger"
 SCHEDULER_URI="https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${PROJECT}/jobs/${JOB}:run"
 
@@ -130,7 +154,7 @@ SCHED_ARGS=(
     --time-zone "$TIMEZONE"
     --uri "$SCHEDULER_URI"
     --http-method POST
-    --oauth-service-account-email "${SERVICE_ACCOUNT:-$(gcloud projects describe "$PROJECT" --format 'value(projectNumber)')-compute@developer.gserviceaccount.com}"
+    --oauth-service-account-email "$SCHEDULER_SA"
     # Retry on failure: a transient provider or cold-start error should not
     # cost a whole day's digest.
     --max-retry-attempts 3

@@ -49,6 +49,12 @@ async function setup(
         googleStatus?: number;
         /** Fail the first N nonce requests, to exercise the retry. */
         nonceFailures?: number;
+        /**
+         * Hold the nonce response open, standing in for the cold Cloud Run
+         * start that produced this defect (11.75s measured, 2026-09-10). It is
+         * the only way to observe the slot BEFORE the button can exist.
+         */
+        nonceDelayMs?: number;
     } = {},
 ): Promise<Recorded> {
     const rec: Recorded = {
@@ -104,6 +110,9 @@ async function setup(
             if (rec.nonceRequests <= (opts.nonceFailures ?? 0)) {
                 // A backend mid-restart, or a network blip.
                 return json(route, { detail: 'boom' }, 503);
+            }
+            if (opts.nonceDelayMs) {
+                await new Promise((r) => setTimeout(r, opts.nonceDelayMs));
             }
             rec.noncesIssued += 1;
             return json(route, { nonce: `nonce-${rec.noncesIssued}` });
@@ -266,6 +275,45 @@ test('the button appears on BOTH entry pages', async ({ page }) => {
 
     await page.goto('/signup');
     await expect(page.getByTestId('gsi-button')).toBeVisible();
+});
+
+/**
+ * The slot while the nonce is in flight.
+ *
+ * REPORTED AS "the Google button is only on the login page". It was on both,
+ * in code and in production — but the button needs a server-issued nonce, and
+ * the nonce comes from a Cloud Run service at `minScale=0` whose first request
+ * after an idle period measured 11.75s (2026-09-10). The slot rendered as an
+ * EMPTY div for those twelve seconds, so a slow dependency was indistinguishable
+ * from an absent feature — and /signup is the page a teacher opens cold.
+ */
+test('a pending nonce shows a skeleton on BOTH pages, not an empty gap', async ({ page }) => {
+    await setup(page, { nonceDelayMs: 4000 });
+
+    for (const path of ['/login', '/signup']) {
+        await page.goto(path);
+        // Before the nonce lands the slot is OCCUPIED and says what it is…
+        const skeleton = page.getByTestId('google-signin-skeleton');
+        await expect(skeleton).toBeVisible();
+        await expect(skeleton).toHaveAttribute('role', 'status');
+        // …and it is NOT something she can press: no button, no link.
+        await expect(page.getByTestId('gsi-button')).toHaveCount(0);
+
+        // …then the real button replaces it, leaving exactly one control.
+        await expect(page.getByTestId('gsi-button')).toBeVisible({ timeout: 15_000 });
+        await expect(skeleton).toHaveCount(0);
+    }
+});
+
+test('a nonce that never arrives retires the skeleton — no endless shimmer', async ({ page }) => {
+    await setup(page, { nonceFailures: 99 });
+    await page.goto('/signup');
+
+    // The page says why, in its own banner…
+    await expect(page.getByText(/אינה זמינה/)).toBeVisible({ timeout: 15_000 });
+    // …and the slot does not keep promising a button that is not coming.
+    await expect(page.getByTestId('google-signin-skeleton')).toHaveCount(0);
+    await expect(page.getByTestId('gsi-button')).toHaveCount(0);
 });
 
 // --- login into an unverified account ---------------------------------------

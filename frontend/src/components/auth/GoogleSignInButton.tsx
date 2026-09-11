@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 
 import { useAuth } from '@/lib/auth';
-import { GOOGLE_NEEDS_VERIFY, GOOGLE_UNAVAILABLE } from '@/copy/auth';
+import { GOOGLE_LOADING, GOOGLE_NEEDS_VERIFY, GOOGLE_UNAVAILABLE } from '@/copy/auth';
 
 /**
  * "Sign in with Google" — the Google Identity Services button.
@@ -96,6 +96,26 @@ export function GoogleSignInButton({ onError }: { onError?: (message: string) =>
     const rendered = useRef(false);
     const nonceRequested = useRef(false);
 
+    /**
+     * What occupies the slot. The button needs BOTH Google's script and a
+     * server-issued nonce, and until then this rendered an empty div — so a
+     * slow dependency was indistinguishable from an absent feature.
+     *
+     * MEASURED, not supposed: the nonce comes from Cloud Run, which runs at
+     * `minScale=0`, and the first request after an idle period took **11.75s**
+     * against ~0.4s warm (2026-09-10). For twelve seconds the auth page showed
+     * no Google option at all, which is exactly how it was reported — as the
+     * button being missing from /signup, a page a teacher is more likely to
+     * open cold than /login.
+     *
+     * `loading` is a SKELETON, never a button: rendering something clickable
+     * before the nonce exists is the one thing the nonce rule forbids (see the
+     * header). `failed` shows nothing, because `onError` has already said the
+     * true thing in the page's own error banner and a dead slot beneath it
+     * would only ask her to keep waiting.
+     */
+    const [slot, setSlot] = useState<'loading' | 'ready' | 'failed'>('loading');
+
     // EXACTLY ONE nonce per mount, guarded by a ref rather than by the effect's
     // dependency list. React StrictMode double-invokes mount effects in dev, and
     // a second fetch does not merely waste a nonce: the first one has already
@@ -115,7 +135,10 @@ export function GoogleSignInButton({ onError }: { onError?: (message: string) =>
         // and a setState after unmount is a no-op in React 18.
         void fetchNonceWithRetry().then((value) => {
             if (value) setNonce(value);
-            else onError?.(GOOGLE_UNAVAILABLE);
+            else {
+                setSlot('failed');
+                onError?.(GOOGLE_UNAVAILABLE);
+            }
         });
         // onError is a render-scope callback; re-running on it would refetch a
         // nonce on every parent render and burn them.
@@ -169,6 +192,9 @@ export function GoogleSignInButton({ onError }: { onError?: (message: string) =>
         // Rendered ONCE per mount: GIS appends an iframe, and re-running would
         // stack a second button under the first.
         rendered.current = true;
+        // The ref is the idempotency guard and cannot drive a render; this is
+        // what retires the skeleton the moment the real button exists.
+        setSlot('ready');
     }, [scriptReady, nonce, handleCredential]);
 
     // No client ID configured ⇒ render nothing at all. A dead button is worse
@@ -181,9 +207,30 @@ export function GoogleSignInButton({ onError }: { onError?: (message: string) =>
                 src="https://accounts.google.com/gsi/client"
                 strategy="afterInteractive"
                 onReady={() => setScriptReady(true)}
-                onError={() => onError?.(GOOGLE_UNAVAILABLE)}
+                onError={() => {
+                    setSlot('failed');
+                    onError?.(GOOGLE_UNAVAILABLE);
+                }}
             />
             <div ref={holder} data-testid="google-signin" className="flex justify-center" />
+            {slot === 'loading' && (
+                // A SIBLING of the holder, never a child: GIS *appends* its
+                // iframe into the holder, so a skeleton inside it would sit
+                // beside the real button rather than be replaced by it.
+                //
+                // 320×40 pill — the exact footprint of the button configured
+                // below, so the swap costs no layout shift and the form under
+                // it never jumps while she is reaching for it.
+                <div className="flex justify-center">
+                    <div
+                        role="status"
+                        aria-label={GOOGLE_LOADING}
+                        data-testid="google-signin-skeleton"
+                        className="h-10 w-[320px] max-w-full animate-pulse rounded-full
+                                   border border-surface-200 bg-surface-100"
+                    />
+                </div>
+            )}
         </>
     );
 }

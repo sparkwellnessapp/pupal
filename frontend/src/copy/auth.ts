@@ -12,6 +12,9 @@
 // ── Sign in with Google ──────────────────────────────────────────────────────
 export const GOOGLE_DIVIDER = 'או'
 export const GOOGLE_UNAVAILABLE = 'ההתחברות עם Google אינה זמינה כרגע. אפשר להמשיך עם מייל וסיסמה.'
+/** The skeleton's accessible name. A shimmer says "wait" to the eye and
+ *  nothing at all to a screen reader; this is the same fact, spoken. */
+export const GOOGLE_LOADING = 'טוענת אפשרות התחברות עם Google'
 /** The 409 from the nOAuth guard — the one Google failure with a real next step. */
 export const GOOGLE_NEEDS_VERIFY =
     'כבר קיים חשבון עם הכתובת הזאת שעדיין לא אומת. נאמת אותו במייל ואז אפשר לחבר את Google.'
