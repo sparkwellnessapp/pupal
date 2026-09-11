@@ -107,26 +107,20 @@ export function AnswerBlock({ answer, highlight, transient = false, subject, sco
                 <mark
                     key={i}
                     ref={isFirst ? markRef : undefined}
-                    // PER SEGMENT, not per highlight: a criterion lights the
-                    // union of its checks' spans, and those can differ in kind.
-                    // Painting them all with one kind would upgrade an
-                    // approximate citation to a verbatim one on screen.
+                    // The kind is recorded PER SEGMENT as data (a criterion's
+                    // union can mix exact and fuzzy spans), but since the owner
+                    // ruling of 2026-09-11 it is not PAINTED differently: one
+                    // teal fill for every placed span. The dashed amber
+                    // underline that used to mark a fuzzy span is gone.
                     data-highlight={segment.kind}
                     data-pinned={highlight.pinned ? 'true' : 'false'}
-                    className={
-                        segment.kind === 'fuzzy'
-                            // Fuzzy is drawn as an underline, not a fill: the
-                            // span is approximate, and a solid block would
-                            // claim a precision Vivi did not have.
-                            ? 'bg-transparent border-b-2 border-dashed border-grade-amber-dot text-inherit'
-                            : [
-                                'rounded-mark bg-primary-100 text-inherit',
-                                'shadow-[0_0_0_2px_theme(colors.primary.100)]',
-                                highlight.pinned
-                                    ? 'shadow-[0_0_0_2px_theme(colors.primary.100),0_2px_0_0_theme(colors.primary.600)]'
-                                    : '',
-                            ].join(' ')
-                    }
+                    className={[
+                        'rounded-mark bg-primary-100 text-inherit',
+                        'shadow-[0_0_0_2px_theme(colors.primary.100)]',
+                        highlight.pinned
+                            ? 'shadow-[0_0_0_2px_theme(colors.primary.100),0_2px_0_0_theme(colors.primary.600)]'
+                            : '',
+                    ].join(' ')}
                 >
                     {segment.text}
                 </mark>

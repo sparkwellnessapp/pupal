@@ -52,7 +52,7 @@ export const RV_FB_OFFERED_USE = 'שימוש בנוסח של ויוי'
 // ── R2 · queue line ───────────────────────────────────────────────────────
 export const RV_QUEUE_NEXT = (name: string) => `הבא בתור: ${name}`
 export const RV_QUEUE_GRADING = (name: string, eta: string | null) =>
-    eta ? `אחריו ${name} (מנוקד עכשיו, ${eta})` : `אחריו ${name} (מנוקד עכשיו)`
+    eta ? `אחריו ${name} (נבדק עכשיו, ${eta})` : `אחריו ${name} (נבדק עכשיו)`
 export const RV_QUEUE_UNLANDED = (n: number) =>
     hebrewCount(n, {
         zero: '',
@@ -125,7 +125,6 @@ export const RV_LOOK_COUNT = (n: number) =>
 
 // ── R6/R7 · check row ─────────────────────────────────────────────────────
 export const RV_CHIP_NOT_FOUND = 'לא נמצאה עדות בתשובה — ודאי לפני שאת מאשרת'
-export const RV_CHIP_FUZZY = 'ציטוט משוער — הטקסט בתשובה שונה מעט'
 export const RV_CHIP_DISPUTED = 'סימנת: העדות שגויה'
 
 export const RV_QUOTE = 'ציטוט רלוונטי מהתשובה'
@@ -209,8 +208,8 @@ export const RV_WAIT_TITLE = 'אין כרגע מבחן נוסף שנחת'
 export const RV_WAIT_GRADING = (n: number) =>
     hebrewCount(n, {
         zero: 'כל המבחנים במקבץ נבדקו.',
-        one: 'מבחן אחד מנוקד עכשיו.',
-        many: (x) => `${x} מבחנים מנוקדים עכשיו.`,
+        one: 'מבחן אחד נבדק עכשיו.',
+        many: (x) => `${x} מבחנים נבדקים עכשיו.`,
     })
 export const RV_WAIT_ETA_UNKNOWN = 'עוד רגע'
 export const RV_WAIT_TO_DASHBOARD = 'חזרה ללוח המקבץ'
@@ -299,7 +298,7 @@ export const DASH_CARD_RETRY = 'ניסיון נוסף'
 export const DASH_CARD_RETRIED = 'נשלח לניקוד חוזר'
 export const DASH_CARD_NO_NAME = 'ללא שם'
 export const DASH_CARD_ALT = (name: string) => `העמוד הראשון של המבחן של ${name}`
-export const DASH_PILE_EMPTY = 'אין עדיין מבחנים מנוקדים במקבץ הזה.'
+export const DASH_PILE_EMPTY = 'אין עדיין מבחנים בדוקים במקבץ הזה.'
 
 // ── D9 · download modal ───────────────────────────────────────────────────
 export const DL_TITLE = (n: number) =>

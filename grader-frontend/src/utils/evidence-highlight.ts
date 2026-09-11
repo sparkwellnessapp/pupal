@@ -12,9 +12,13 @@
  *
  * ── THE THREE QUOTE STATES ─────────────────────────────────────────────────
  *   exact      solid teal mark. Vivi found the span verbatim.
- *   fuzzy      dashed amber underline + chip. Found, but the answer's text
- *              differs slightly — so it still earns credit (the pricer verifies
- *              it) and she is told the citation is approximate.
+ *   fuzzy      the SAME solid teal mark (owner ruling 2026-09-11 — it used to
+ *              be a dashed amber underline with a chip, both removed). Found,
+ *              but the answer's text differs slightly; it still earns credit
+ *              because the pricer verifies it. The kind survives as DATA on
+ *              every span and segment (`MarkKind`, `data-highlight`): the
+ *              locating logic and the merge rule still need it, and nothing is
+ *              gained by forgetting what the server certified.
  *   not_found  NO MARK AT ALL, an amber chip, and no quote button.
  *
  * `not_found` is the one that matters. It is INVENTED CREDIT: the model claimed

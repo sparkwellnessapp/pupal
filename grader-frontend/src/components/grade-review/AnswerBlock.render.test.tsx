@@ -68,13 +68,21 @@ describe('AnswerBlock — the quote highlight', () => {
         expect(markCount(render(null, 'none'))).toBe(0);
     });
 
-    it('renders a fuzzy quote as a dashed underline, not a fill', () => {
-        // The span is approximate; a solid block would claim a precision Vivi
-        // did not have.
-        const html = render('private bool isSportve ;', 'fuzzy');
-        expect(markCount(html)).toBeGreaterThan(0);
-        expect(html).toContain('border-dashed');
-        expect(html).not.toContain('bg-primary-100');
+    it('paints a fuzzy quote exactly like an exact one', () => {
+        // Owner ruling 2026-09-11: one teal fill for exact and fuzzy alike. The
+        // dashed amber underline is gone; `data-highlight` still records the
+        // kind as data, so the two renders differ in that attribute ONLY.
+        const fuzzy = render('private bool isSportve ;', 'fuzzy');
+        const exact = render('private bool isSportive ;', 'exact');
+        expect(markCount(fuzzy)).toBe(1);
+        expect(fuzzy).not.toContain('border-dashed');
+        expect(fuzzy).toContain('data-highlight="fuzzy"');
+        // Same classes, verbatim. (The marked TEXT may differ — the fuzzy
+        // locator trims its window to word boundaries — so the comparison is
+        // on the paint, not on the whole markup.)
+        const classOf = (html: string) => html.match(/<mark[^>]*class="([^"]*)"/)?.[1];
+        expect(classOf(fuzzy)).toBeDefined();
+        expect(classOf(fuzzy)).toBe(classOf(exact));
     });
 
     it('preserves the answer text exactly, marked or not', () => {
