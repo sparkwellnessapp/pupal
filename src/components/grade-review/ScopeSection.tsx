@@ -9,12 +9,17 @@ import { CheckRow } from './CheckRow';
 import { FeedbackCard } from './FeedbackCard';
 import {
     RV_ANSWER_LABEL,
+    RV_BREAKDOWN_COUNT,
+    RV_BREAKDOWN_HIDE,
+    RV_BREAKDOWN_SHOW,
     RV_ANSWER_INHERITED,
     RV_ANSWER_INHERITED_ANON,
     RV_ANSWER_NONE,
     RV_ANSWER_UNAVAILABLE,
     RV_FB_TITLE,
     RV_QUESTION_TOGGLE,
+    RV_QUOTE_ALL,
+    RV_QUOTE_ALL_TITLE,
     RV_SCOPE_EXCLUDED,
     RV_SCOPE_FAILED,
     RV_SCOPE_FAILED_CHIP,
@@ -54,6 +59,23 @@ export interface ScopeSectionProps {
     onCycle: (terminalId: string, checkId: string) => void;
     onRevert: (terminalId: string, checkId: string) => void;
     onPin: (checkId: string) => void;
+    /**
+     * [S3] The criterion whose union is pinned, if any. Kept separate from
+     * `pinnedCheckId` rather than folded into one prop: the two are different
+     * kinds of selection (one row vs. a whole box), and a single string would
+     * make the caller re-encode the discriminant the pin already carries.
+     */
+    pinnedTerminalId?: string | null;
+    /** [S3] Light every span this criterion's checks would light, at once. */
+    onPinCriterion?: (terminalId: string) => void;
+    /**
+     * [S4] Is this criterion's breakdown open? Asked as a FUNCTION rather than
+     * passed as a set, because the surface merges two sources — the once-per-
+     * test opening state and her own toggles since — and resolving that here
+     * would put the merge in two places.
+     */
+    isCriterionOpen?: (terminalId: string) => boolean;
+    onToggleCriterion?: (terminalId: string) => void;
     onNoteChange: (terminalId: string, checkId: string, note: string) => void;
     onNoteClose: () => void;
     onFeedbackChange: (scopeId: string, text: string) => void;
@@ -83,6 +105,11 @@ export function ScopeSection({
     openNoteCheckId, feedbackBusy, feedbackEdited = false, subject = null,
     onFocusCheck, onHoverCheck, onCycle, onRevert, onPin, onNoteChange, onNoteClose,
     onFeedbackChange, onFeedbackRegenerate, onShowScan, onRetry,
+    pinnedTerminalId = null, onPinCriterion,
+    // Default OPEN: a caller that does not participate in the disclosure (a
+    // test, a future embed) gets the pre-S4 surface rather than a page of
+    // headers with no way to open them.
+    isCriterionOpen = () => true, onToggleCriterion,
     feedbackOffer = null, onAcceptFeedbackOffer, onDismissFeedbackOffer,
 }: ScopeSectionProps) {
     const failed = scope.gradedBy === 'failed';
@@ -205,15 +232,108 @@ export function ScopeSection({
             )}
 
             <div>
-                {scope.criteria.map((criterion) => (
+                {scope.criteria.map((criterion) => {
+                    const open = isCriterionOpen(criterion.terminalId);
+                    const panelId = `breakdown-${criterion.terminalId}`;
+                    const pinnedHere = pinnedTerminalId === criterion.terminalId;
+                    const hasBreakdown = criterion.checks.length > 0;
+                    return (
                     <div
                         key={criterion.terminalId}
                         data-terminal-id={criterion.terminalId}
+                        data-expanded={hasBreakdown ? (open ? 'true' : 'false') : undefined}
                         className="mb-2.5 overflow-hidden rounded-grade-ctl border border-grade-line"
                     >
                         <div className="flex items-center justify-between gap-2.5 bg-grade-bar
                             px-3.5 py-2 text-gr-body font-semibold">
-                            <span>{criterion.description}</span>
+                            {/*
+                              * [S4] The disclosure. A real <button aria-expanded
+                              * aria-controls>, not <details>: the keyboard walk
+                              * (S5) has to OPEN a criterion programmatically to
+                              * focus a check inside it, and `details` fights
+                              * that — plus its marker cannot be styled RTL
+                              * without fighting the platform too.
+                              *
+                              * It wraps the chevron and the description only.
+                              * The quote button must stay OUTSIDE it: a button
+                              * inside a button is invalid HTML, and browsers
+                              * resolve it by dropping one of them.
+                              */}
+                            {hasBreakdown ? (
+                                <button
+                                    type="button"
+                                    aria-expanded={open}
+                                    aria-controls={panelId}
+                                    aria-label={open
+                                        ? RV_BREAKDOWN_HIDE(criterion.description)
+                                        : RV_BREAKDOWN_SHOW(criterion.description)}
+                                    data-breakdown-for={criterion.terminalId}
+                                    onClick={() => onToggleCriterion?.(criterion.terminalId)}
+                                    className="flex min-w-0 flex-1 items-center gap-2 text-start
+                                        font-semibold text-inherit"
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        className={[
+                                            'shrink-0 text-grade-pencil transition-transform',
+                                            'motion-reduce:transition-none',
+                                            // RTL: closed points INTO the page
+                                            // (leftward); open points down.
+                                            open ? 'rotate-90' : 'rotate-180',
+                                        ].join(' ')}
+                                    >
+                                        ▸
+                                    </span>
+                                    <span className="min-w-0">{criterion.description}</span>
+                                </button>
+                            ) : (
+                                <span className="min-w-0 flex-1">{criterion.description}</span>
+                            )}
+
+                            {!open && hasBreakdown && (
+                                <span className="shrink-0 whitespace-nowrap text-gr-meta
+                                    font-normal text-grade-pencil-2">
+                                    {RV_BREAKDOWN_COUNT(criterion.checks.length)}
+                                </span>
+                            )}
+
+                            {/*
+                              * [S3] The criterion's own quote button: the UNION
+                              * of its checks' spans. It exists on the same rule
+                              * as the per-check button — only when a mark will
+                              * actually be painted — but taken over the checks:
+                              * one that can be highlighted is enough for the
+                              * union to have something to show. A criterion
+                              * whose every quote was not_found gets no button,
+                              * for the reason its rows get none.
+                              */}
+                            {onPinCriterion && criterion.checks.some((c) => c.canHighlight) ? (
+                                <button
+                                    type="button"
+                                    title={RV_QUOTE_ALL_TITLE}
+                                    // It is a TOGGLE, and `aria-pressed` is what
+                                    // a screen reader announces as its state —
+                                    // the teal fill says "lit" to the eye alone.
+                                    aria-pressed={pinnedHere}
+                                    data-terminal-quote={criterion.terminalId}
+                                    data-pinned={pinnedHere ? 'true' : 'false'}
+                                    onClick={() => onPinCriterion(criterion.terminalId)}
+                                    className={[
+                                        'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap',
+                                        'rounded-full border py-1 pe-2.5 ps-2.5 text-gr-meta',
+                                        'font-medium text-primary-700 transition-all hover:bg-primary-50',
+                                        pinnedHere
+                                            ? 'border-grade-teal-line bg-primary-100 opacity-100'
+                                            : 'border-grade-line bg-grade-card opacity-85',
+                                    ].join(' ')}
+                                >
+                                    <span aria-hidden="true" className="font-serif text-gr-quote
+                                        leading-none text-primary-600">
+                                        ❝
+                                    </span>
+                                    {RV_QUOTE_ALL}
+                                </button>
+                            ) : null}
                             <span
                                 dir="ltr"
                                 className={[
@@ -228,36 +348,41 @@ export function ScopeSection({
                             </span>
                         </div>
 
-                        {criterion.checks.length === 0 ? (
+                        {!hasBreakdown ? (
                             <p className="border-t border-grade-line-2 px-3.5 py-2.5
                                 text-gr-meta text-grade-pencil">
                                 {RV_SCOPE_FAILED_CHIP}
                             </p>
-                        ) : criterion.checks.map((check) => (
-                            <CheckRow
-                                key={check.check_id}
-                                check={check}
-                                effectiveVerdict={check.verdict}
-                                overridden={check.overridden}
-                                awarded={check.awarded}
-                                outOf={check.outOf}
-                                focused={focusedCheckId === check.check_id}
-                                pinned={pinnedCheckId === check.check_id}
-                                note={check.note}
-                                noteOpen={openNoteCheckId === check.check_id}
-                                evidenceDisputed={check.evidenceDisputed}
-                                onFocus={() => onFocusCheck(check.check_id)}
-                                onHover={(h) => onHoverCheck(check.check_id, h)}
-                                onCycle={() => onCycle(check.terminalId, check.check_id)}
-                                onRevert={() => onRevert(check.terminalId, check.check_id)}
-                                onPin={() => onPin(check.check_id)}
-                                onNoteChange={(note) =>
-                                    onNoteChange(check.terminalId, check.check_id, note)}
-                                onNoteClose={onNoteClose}
-                            />
-                        ))}
+                        ) : open ? (
+                            <div id={panelId}>
+                                {criterion.checks.map((check) => (
+                                    <CheckRow
+                                        key={check.check_id}
+                                        check={check}
+                                        effectiveVerdict={check.verdict}
+                                        overridden={check.overridden}
+                                        awarded={check.awarded}
+                                        outOf={check.outOf}
+                                        focused={focusedCheckId === check.check_id}
+                                        pinned={pinnedCheckId === check.check_id}
+                                        note={check.note}
+                                        noteOpen={openNoteCheckId === check.check_id}
+                                        evidenceDisputed={check.evidenceDisputed}
+                                        onFocus={() => onFocusCheck(check.check_id)}
+                                        onHover={(h) => onHoverCheck(check.check_id, h)}
+                                        onCycle={() => onCycle(check.terminalId, check.check_id)}
+                                        onRevert={() => onRevert(check.terminalId, check.check_id)}
+                                        onPin={() => onPin(check.check_id)}
+                                        onNoteChange={(note) =>
+                                            onNoteChange(check.terminalId, check.check_id, note)}
+                                        onNoteClose={onNoteClose}
+                                    />
+                                ))}
+                            </div>
+                        ) : null}
                     </div>
-                ))}
+                    );
+                })}
             </div>
 
             <FeedbackCard

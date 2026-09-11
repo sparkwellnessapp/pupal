@@ -7,11 +7,12 @@ import path from 'node:path';
 import { GradeReviewSurface } from './GradeReviewSurface';
 import { ancestorPaths, type WireDraft } from '@/utils/grade-review-model';
 import type { NumericPolicy } from '@/lib/pricing';
-import { cycleVerdict } from '@/utils/verdict-cycle';
+import { cycleVerdict, type OverlayTerminals } from '@/utils/verdict-cycle';
 import { initialCursor, queueState } from '@/utils/grade-review-cursor';
 import {
     RV_ANSWER_INHERITED, RV_ANSWER_NONE, RV_ANSWER_UNAVAILABLE, RV_CHIP_FUZZY, RV_CHIP_NOT_FOUND, RV_FB_ABSENT, RV_FB_FRESH,
     RV_NO_CHECKS, RV_QUOTE, RV_SCOPE_FAILED,
+    RV_QUOTE_ALL,
 } from '@/copy/grade-review';
 
 /**
@@ -136,12 +137,63 @@ function render(over: Partial<React.ComponentProps<typeof GradeReviewSurface>> =
     );
 }
 
+/**
+ * [S4] An overlay in which she has touched ONE check in every criterion.
+ *
+ * Used to open every breakdown through the PRODUCT'S OWN RULE — a criterion she
+ * has already decided re-opens when she returns to a part-reviewed test — and
+ * not through a test-only hook. That keeps these assertions honest: if the
+ * re-entry rule ever breaks, the tests that rely on it fail rather than sailing
+ * past on a back door SSR gave them.
+ */
+function overlayTouchingEveryCriterion(draft: WireDraft): OverlayTerminals {
+    let overlay: OverlayTerminals = {};
+    for (const scope of draft.scope_outcomes ?? []) {
+        for (const criterion of scope.criterion_outcomes ?? []) {
+            const leaves = criterion.sub_criterion_outcomes?.length
+                ? criterion.sub_criterion_outcomes
+                : [criterion];
+            for (const leaf of leaves) {
+                const terminalId = ('sub_criterion_id' in leaf && leaf.sub_criterion_id)
+                    || criterion.criterion_id;
+                const first = leaf.checks?.[0];
+                if (first) {
+                    overlay = cycleVerdict(overlay, terminalId, first.check_id, first.verdict);
+                }
+            }
+        }
+    }
+    return overlay;
+}
+
+/** The same draft `render()` uses by default — so an overlay built from it fits. */
+const DAN = readFixture('draft_dan_basiuk.json');
+
 describe('GradeReviewSurface renders a real published draft', () => {
     const html = render();
 
-    it('renders every scope, with a checklist under each', () => {
+    it('renders every scope, and folds each criterion behind a disclosure [S4]', () => {
         expect(html).toContain('data-scope-id="q1.א"');
-        expect(html.match(/data-check-id=/g)?.length).toBeGreaterThan(20);
+        // Every criterion offers a way in…
+        expect((html.match(/data-breakdown-for=/g) ?? []).length).toBeGreaterThan(0);
+        // …and at least one starts CLOSED, so the page does not open with every
+        // row showing. (Criteria carrying a marker open themselves — D1.)
+        expect(html).toContain('data-expanded="false"');
+        // Fewer than HALF the checks are on screen. (`× 4` here was nearly
+        // vacuous: 38 boxes × 4 = 152, against one visible row.)
+        const totalChecks = (DAN.scope_outcomes ?? []).flatMap((sc) =>
+            (sc.criterion_outcomes ?? []).flatMap((co) => [
+                ...(co.checks ?? []),
+                ...(co.sub_criterion_outcomes ?? []).flatMap((l) => l.checks ?? []),
+            ])).length;
+        expect(totalChecks).toBeGreaterThan(20);
+        expect((html.match(/data-check-id=/g) ?? []).length).toBeLessThan(totalChecks / 2);
+    });
+
+    it('re-opens the criteria she had already decided, and renders their rows', () => {
+        const open = render({ overlay: overlayTouchingEveryCriterion(DAN) });
+        expect((open.match(/data-check-id=/g) ?? []).length).toBeGreaterThan(20);
+        expect(open).not.toContain('data-expanded="false"');
     });
 
     it('shows Vivi\'s total in PENCIL while nothing is overridden', () => {
@@ -213,9 +265,13 @@ describe('GradeReviewSurface renders a real published draft', () => {
         expect(html_math).toContain('data-answer-dir="rtl"');
     });
 
-    it('offers the quote button, and the scope nav', () => {
-        expect(html).toContain(RV_QUOTE);
+    it('offers both quote buttons, and the scope nav', () => {
+        // The criterion-level button lives in the HEADER, so it is reachable
+        // without opening anything — that is the point of putting it there.
+        expect(html).toContain(RV_QUOTE_ALL);
         expect(html).toContain('data-nav-scope="q1.א"');
+        // The per-check one travels with the breakdown it belongs to.
+        expect(render({ overlay: overlayTouchingEveryCriterion(DAN) })).toContain(RV_QUOTE);
     });
 
     /**
@@ -287,29 +343,47 @@ describe('the states that carry the honesty', () => {
     });
 
     it('offers a button exactly for the checks whose quote is IN the answer', () => {
-        // The positive half of the same rule, driven by an answer we control:
-        // one quote present, one absent, one `not_found`. The affordance must
-        // appear once — over the span it can actually jump to.
+        // The positive half of the same rule, driven by an answer we control.
+        // Three checks, one of each outcome:
+        //
+        //   fuzzy,     quote PRESENT  -> the one button
+        //   not_found, quote PRESENT  -> still none (see below)
+        //   exact,     quote MISSING  -> none; nothing to jump to
+        //
+        // The `not_found` row is the interesting one, and this test used to
+        // assert the OPPOSITE by accident: it took `checks[0]` as "the present
+        // quote" without noticing that check is the not_found one, so it pinned
+        // «an invented-credit check gets a highlight button». That contradicts
+        // this module's own stated rule — not_found means NO MARK AT ALL and no
+        // quote button — and it was reachable for real, because the client's
+        // fuzzy floor (0.6) is looser than the server's certification (0.85).
+        // `canHighlight` now asks the SAME eligibility rule the resolver
+        // applies, so the button and the highlight can no longer disagree.
         const first = (synthetic.scope_outcomes ?? [])[0];
-        const quote = first?.criterion_outcomes?.[0]?.checks?.[0]?.quote;
-        expect(typeof quote).toBe('string');
+        const checks = first!.criterion_outcomes![0].checks!;
+        const notFound = checks.find((c) => c.quote_status === 'not_found')!;
+        const fuzzy = checks.find((c) => c.quote_status === 'fuzzy')!;
+        expect(typeof notFound.quote).toBe('string');
+        expect(typeof fuzzy.quote).toBe('string');
 
         const html = render({
             draft: {
                 ...synthetic,
                 scope_outcomes: [{
                     ...first,
+                    // BOTH quotes are genuinely in the text, verbatim.
                     student_answer: {
-                        text: `before\n${quote}\nafter`,
+                        text: ['before', notFound.quote, fuzzy.quote, 'after'].join('\n'),
                         source: 'own',
                         inherited_from: null,
                     },
                     criterion_outcomes: [{
                         ...first.criterion_outcomes![0],
                         checks: [
-                            first.criterion_outcomes![0].checks![0],
+                            notFound,
+                            fuzzy,
                             {
-                                ...first.criterion_outcomes![0].checks![0],
+                                ...fuzzy,
                                 check_id: 'absent-quote',
                                 quote: 'int nothingLikeThis = 0 ;',
                                 quote_status: 'exact',
@@ -517,8 +591,14 @@ describe('readOnly — a signed test cannot be edited', () => {
     });
 
     it('still renders the checklist so she can see what was signed', () => {
-        const html = render({ approved: true, readOnly: true });
-        expect(html.match(/data-check-id=/g)?.length).toBeGreaterThan(10);
+        // A signed test folds like any other (D1 is uniform); opening it is
+        // what shows the record. The overlay is the one the route hydrates
+        // from the approved draft's own teacher_overrides.
+        const html = render({
+            approved: true, readOnly: true,
+            overlay: overlayTouchingEveryCriterion(DAN),
+        });
+        expect((html.match(/data-check-id=/g) ?? []).length).toBeGreaterThan(10);
     });
 });
 
@@ -596,5 +676,35 @@ describe('the approve button obeys the gate before the server does [OD-R1]', () 
     it('does not block a clean draft', () => {
         const html = render({ draft: readFixture('draft_dan_basiuk.json') });
         expect(html).not.toContain('data-blocked="true"');
+    });
+});
+
+describe('the criterion-level quote button [S3]', () => {
+    // Read here rather than shared from the honesty block: a describe's const
+    // is not in scope across blocks, and hoisting it to file level would
+    // parse the fixture for every suite that never touches it.
+    const synthetic = readFixture('draft_SYNTHETIC_edge_cases.json');
+
+    it('offers the union button on a criterion whose checks can be highlighted', () => {
+        // `render()` with no override, deliberately: it attaches the REAL graded
+        // answers (`withRealAnswers`). Passing the raw fixture pairs real checks
+        // with a fabricated answer, `canHighlight` is false everywhere, and no
+        // union button can exist — which is correct, and is exactly the case the
+        // second test below asserts. The label differs from the per-check one, so
+        // the two families are distinguishable on screen and in this assertion.
+        const html = render();
+        const buttons = (html.match(/data-terminal-quote=/g) ?? []).length;
+        expect(buttons).toBeGreaterThan(0);
+        expect(html).toContain(RV_QUOTE_ALL);
+        // Every one renders unpinned on first paint — nothing is lit until she clicks.
+        expect(html).not.toMatch(/data-terminal-quote="[^"]*" data-pinned="true"/);
+    });
+
+    it('offers NO union button when none of the criterion\'s quotes can be placed', () => {
+        // Same rule as the per-check button, taken over the checks: an
+        // invented-credit criterion has nothing to show, so it shows nothing.
+        // (`synthetic` pairs the fixture with an answer containing none of its quotes.)
+        const html = render({ draft: synthetic });
+        expect(html.match(/data-terminal-quote=/g) ?? []).toHaveLength(0);
     });
 });

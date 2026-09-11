@@ -31,11 +31,16 @@ const MULTILINE_QUOTE = [
     'private int durationInMinutes ;',
 ].join('\n');
 
+// `kind: 'none'` used to be how "paint nothing" was said. In the plural shape
+// that IS the empty span list, so the call sites below are unchanged.
 const render = (quote: string | null, kind: 'exact' | 'fuzzy' | 'none' = 'exact') =>
     renderToStaticMarkup(
         <AnswerBlock
             answer={ANSWER}
-            highlight={{ quote, kind, pinned: true }}
+            highlight={{
+                spans: quote && kind !== 'none' ? [{ quote, kind }] : [],
+                pinned: true,
+            }}
             subject="computer_science"
         />,
     );

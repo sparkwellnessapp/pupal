@@ -163,35 +163,41 @@ describe('evidence highlight', () => {
     ];
     const byId = new Map(checks.map((c) => [c.check_id, c]));
     const scope = new Set(checks.map((c) => c.check_id));
+    // `pin` is written here as a bare CHECK id, which is what every case below
+    // means; the helper lifts it into the S2 target shape. Criterion pins are
+    // exercised separately, at the bottom of this block.
     const source = (
         over: Partial<{ hover: string | null; pin: string | null; focus: string | null }> = {},
     ) => ({
-        hover: over.hover ?? null, pin: over.pin ?? null, focus: over.focus ?? null,
+        hover: over.hover ?? null,
+        pin: over.pin ? { kind: 'check' as const, id: over.pin } : null,
+        focus: over.focus ?? null,
     });
 
     it('paints a solid mark for an exact quote', () => {
         expect(resolveHighlight(source({ focus: 'k-exact' }), byId, scope))
-            .toEqual({ quote: 'return name;', kind: 'exact', pinned: false });
+            .toEqual({ spans: [{ quote: 'return name;', kind: 'exact' }], pinned: false });
     });
 
     it('paints a fuzzy quote as fuzzy — found, so credit stands', () => {
-        expect(resolveHighlight(source({ focus: 'k-fuzzy' }), byId, scope).kind).toBe('fuzzy');
+        expect(resolveHighlight(source({ focus: 'k-fuzzy' }), byId, scope).spans[0].kind)
+            .toBe('fuzzy');
     });
 
     /** The invented-credit case: nothing was found, so nothing is painted. */
     it('paints NOTHING for not_found, rather than guessing a region', () => {
-        expect(resolveHighlight(source({ focus: 'k-missing' }), byId, scope).quote).toBeNull();
-        expect(resolveHighlight(source({ pin: 'k-missing' }), byId, scope).kind).toBe('none');
+        expect(resolveHighlight(source({ focus: 'k-missing' }), byId, scope).spans).toEqual([]);
+        expect(resolveHighlight(source({ pin: 'k-missing' }), byId, scope).spans).toEqual([]);
     });
 
     it('paints nothing when the check has no quote at all', () => {
-        expect(resolveHighlight(source({ focus: 'k-none' }), byId, scope).quote).toBeNull();
+        expect(resolveHighlight(source({ focus: 'k-none' }), byId, scope).spans).toEqual([]);
     });
 
     it('never lights another scope\'s answer, even on a repeated span', () => {
         const otherScope = new Set(['someone-else']);
         expect(resolveHighlight(source({ focus: 'k-exact' }), byId, otherScope))
-            .toEqual({ quote: null, kind: 'none', pinned: false });
+            .toEqual({ spans: [], pinned: false });
     });
 
     describe('quote-button-pin-hover-focus-precedence: hover ?? pin ?? focus', () => {
@@ -210,7 +216,7 @@ describe('evidence highlight', () => {
         });
 
         it('falls back to focus when the pin is released (Esc)', () => {
-            expect(resolveHighlight(source({ pin: null, focus: 'k-fuzzy' }), byId, scope).kind)
+            expect(resolveHighlight(source({ pin: null, focus: 'k-fuzzy' }), byId, scope).spans[0].kind)
                 .toBe('fuzzy');
         });
     });
@@ -255,7 +261,7 @@ describe('evidence highlight', () => {
 
         it('marks only the FIRST occurrence — a citation, not a highlighter sweep', () => {
             const ranges = markRangesFor('a x a x a', 'x');
-            expect(ranges).toEqual([{ line: 0, start: 2, end: 3 }]);
+            expect(ranges).toEqual([{ line: 0, start: 2, end: 3, kind: 'exact' }]);
         });
 
         it('treats the quote as literal text, never as a regex', () => {
@@ -286,14 +292,14 @@ describe('evidence highlight', () => {
             const line = '    public string getName() { return name; }';
             const ranges = markRangesFor(line, 'return name;');
             expect(segmentsForLine(line, ranges)).toEqual([
-                { text: '    public string getName() { ', marked: false },
-                { text: 'return name;', marked: true },
-                { text: ' }', marked: false },
+                { text: '    public string getName() { ', marked: false, kind: null },
+                { text: 'return name;', marked: true, kind: 'exact' },
+                { text: ' }', marked: false, kind: null },
             ]);
         });
 
         it('is the identity when the line carries no range', () => {
-            expect(segmentsForLine('abc', [])).toEqual([{ text: 'abc', marked: false }]);
+            expect(segmentsForLine('abc', [])).toEqual([{ text: 'abc', marked: false, kind: null }]);
         });
 
         it('never loses or duplicates a character of the line', () => {
@@ -303,10 +309,10 @@ describe('evidence highlight', () => {
         });
 
         it('clamps a range that overruns the line rather than throwing', () => {
-            expect(segmentsForLine('abc', [{ line: 0, start: 1, end: 99 }]))
+            expect(segmentsForLine('abc', [{ line: 0, start: 1, end: 99, kind: 'exact' }]))
                 .toEqual([
-                    { text: 'a', marked: false },
-                    { text: 'bc', marked: true },
+                    { text: 'a', marked: false, kind: null },
+                    { text: 'bc', marked: true, kind: 'exact' },
                 ]);
         });
     });
