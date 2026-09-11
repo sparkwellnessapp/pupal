@@ -705,5 +705,5 @@ test('R2 — the queue line carries the batch ETA for the test being graded',
         await installGradeReviewMocks(page, { feedState: 'running' });
         await page.goto(REVIEW);
         await expect(page.locator('[data-total]')).toBeVisible();
-        await expect(page.getByText(/מנוקד עכשיו, עוד כ-2 דקות/)).toBeVisible();
+        await expect(page.getByText(/נבדק עכשיו, עוד כ-2 דקות/)).toBeVisible();
     });

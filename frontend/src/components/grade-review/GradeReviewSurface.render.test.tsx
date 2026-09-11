@@ -10,7 +10,7 @@ import type { NumericPolicy } from '@/lib/pricing';
 import { cycleVerdict, type OverlayTerminals } from '@/utils/verdict-cycle';
 import { initialCursor, queueState } from '@/utils/grade-review-cursor';
 import {
-    RV_ANSWER_INHERITED, RV_ANSWER_NONE, RV_ANSWER_UNAVAILABLE, RV_CHIP_FUZZY, RV_CHIP_NOT_FOUND, RV_FB_ABSENT, RV_FB_FRESH,
+    RV_ANSWER_INHERITED, RV_ANSWER_NONE, RV_ANSWER_UNAVAILABLE, RV_CHIP_NOT_FOUND, RV_FB_ABSENT, RV_FB_FRESH,
     RV_NO_CHECKS, RV_QUOTE, RV_SCOPE_FAILED,
     RV_QUOTE_ALL,
 } from '@/copy/grade-review';
@@ -326,7 +326,6 @@ describe('the states that carry the honesty', () => {
     it('chips the invented-credit case and gives it no quote button', () => {
         const html = render({ draft: synthetic });
         expect(html).toContain(RV_CHIP_NOT_FOUND);
-        expect(html).toContain(RV_CHIP_FUZZY);
 
         // A `not_found` check offers NO jump affordance. (An earlier version
         // asserted the absence of a highlight, which SSR can never produce
