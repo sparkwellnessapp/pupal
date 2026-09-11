@@ -7,7 +7,6 @@ import { formatPoints } from '@/utils/points-display';
 import { VerdictButton, VERDICT_GLYPH } from './VerdictButton';
 import {
     RV_CHIP_DISPUTED,
-    RV_CHIP_FUZZY,
     RV_CHIP_NOT_FOUND,
     RV_COUNTED_OF,
     RV_NOTE_PLACEHOLDER,
@@ -102,8 +101,6 @@ export function CheckRow({
     const chips = [
         check.quote_status === 'not_found'
             && { key: 'not_found', tone: 'look' as const, label: RV_CHIP_NOT_FOUND },
-        check.quote_status === 'fuzzy'
-            && { key: 'fuzzy', tone: 'look' as const, label: RV_CHIP_FUZZY },
         evidenceDisputed
             && { key: 'disputed', tone: 'red' as const, label: RV_CHIP_DISPUTED },
     ].filter(Boolean) as { key: string; tone: 'look' | 'red'; label: string }[];

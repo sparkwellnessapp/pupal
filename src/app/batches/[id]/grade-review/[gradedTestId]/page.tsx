@@ -465,7 +465,7 @@ export default function GradeReviewPage() {
         ? { version: (feedItem?.version ?? 1) > 1 ? (feedItem?.version as number) : null }
         : null;
 
-    /** R2 — «(מנוקד עכשיו, עוד כ-2 דקות)»: the batch's own ETA, minutes-granular. */
+    /** R2 — «(נבדק עכשיו, עוד כ-2 דקות)»: the batch's own ETA, minutes-granular. */
     const queueEta = etaText(batch?.eta ?? null, {
         firstLanding: DASH_ETA_REMAINING,
         remaining: DASH_ETA_REMAINING,
