@@ -41,7 +41,7 @@ const navItems: NavItem[] = [
         href: '/',
         label: 'דף הבית',
         icon: <Home size={20} />,
-        description: 'חזור לדף הבית',
+        description: 'חזרה לדף הבית',
     },
     {
         href: '/my-rubrics',
@@ -62,12 +62,11 @@ const navItems: NavItem[] = [
         label: LIST_TITLE,
         icon: <Layers size={20} />,
     },
-    {
-        href: '/my-graded-tests',
-        label: 'מבחנים בדוקים',
-        icon: <ClipboardCheck size={20} />,
-        description: 'צפה בתוצאות הבדיקה',
-    },
+    /* §5.7 — `מבחנים בדוקים` is NOT a second section: it is the same objects
+       at a different zoom level, and two sidebar entries for one thing is how
+       a teacher ends up asking which of them her work is in. It is a TAB
+       inside `המבחנים שלי` now (components/batch/ExamsTabs.tsx); the route is
+       untouched, so every existing link still resolves. */
 ];
 
 // Profile Dropdown Component

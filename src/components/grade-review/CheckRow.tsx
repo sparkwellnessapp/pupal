@@ -2,9 +2,10 @@
 
 import { useEffect, useRef } from 'react';
 
-import type { Verdict } from '@/lib/pricing';
+import type { NumericPolicy, Verdict } from '@/lib/pricing';
 import { formatPoints } from '@/utils/points-display';
-import { VerdictButton, VERDICT_GLYPH } from './VerdictButton';
+import { VerdictButton, glyphFor } from './VerdictButton';
+import { PointsInput } from './PointsInput';
 import {
     RV_CHIP_DISPUTED,
     RV_CHIP_NOT_FOUND,
@@ -15,6 +16,10 @@ import {
     RV_ORIG_REVERT,
     RV_QUOTE,
     RV_QUOTE_TITLE,
+    RV_TARIFF_MARK,
+    RV_TARIFF_NONE,
+    RV_TARIFF_ONCE,
+    RV_TARIFF_UP_TO,
 } from '@/copy/grade-review';
 
 /**
@@ -29,6 +34,17 @@ import {
  * model's prose reasoning (v5 has none; the check text plus `basis_he` IS the
  * reasoning), and any audit chip (reserved out of v1 by ruling R-8 — built when
  * the audit spec lands, not shipped dark).
+ *
+ * [OD-R2] The points column is EDITABLE (`PointsInput`) on a credit row: she
+ * may type the amount this row earns instead of cycling the glyph. A
+ * `note_only` row keeps a static figure — it never moves points.
+ *
+ * A TARIFF ROW IS A DEDUCTION, and it says so (ruling 2026-09-13). It used to
+ * borrow the credit row's grammar — «0 / 0.5» beside a ✓, «−0.5 / 0.5» beside a
+ * ✗ — which read as «fully correct, got nothing» and «negative points granted»
+ * (graded_test 3438b7a2, 2026-09-13). Now it carries a «הורדה» chip, reads
+ * «ללא הורדה» when clean and «−0.5» when charged with «עד 0.5» as its ceiling,
+ * toggles ✓ ↔ ✗ only, and has no points field: a yes/no has nothing to type.
  */
 
 export interface CheckRowCheck {
@@ -42,6 +58,10 @@ export interface CheckRowCheck {
      * renderer could not place — a button that landed nowhere.
      */
     canHighlight: boolean;
+    /** [OD-R2] She typed this row's amount herself. */
+    pointsTyped: boolean;
+    /** [OD-R2] The criterion above carries a typed total; this row is display only. */
+    underPin: boolean;
     text: string;
     kind: 'required' | 'tariff' | 'note_only' | 'counted';
     /** The model's one-line Hebrew basis, rendered small under the text. */
@@ -78,6 +98,13 @@ export interface CheckRowProps {
     note: string | null;
     noteOpen: boolean;
     evidenceDisputed: boolean;
+    /** [OD-R2] The rubric's grid — the live refusal validates against it. */
+    policy: NumericPolicy;
+    readOnly?: boolean;
+    /** [OD-R2] The points field is open on this row. */
+    pointsEditing?: boolean;
+    onPointsEditing?: (editing: boolean) => void;
+    onPointsCommit?: (amount: string) => void;
     onFocus: () => void;
     onHover: (hovering: boolean) => void;
     onCycle: () => void;
@@ -89,7 +116,8 @@ export interface CheckRowProps {
 
 export function CheckRow({
     check, effectiveVerdict, overridden, awarded, outOf, focused, pinned,
-    note, noteOpen, evidenceDisputed,
+    note, noteOpen, evidenceDisputed, policy, readOnly = false,
+    pointsEditing = false, onPointsEditing, onPointsCommit,
     onFocus, onHover, onCycle, onRevert, onPin, onNoteChange, onNoteClose,
 }: CheckRowProps) {
     const noteRef = useRef<HTMLInputElement | null>(null);
@@ -98,18 +126,33 @@ export function CheckRow({
         if (noteOpen) noteRef.current?.focus();
     }, [noteOpen]);
 
+    const isTariff = check.kind === 'tariff';
     const chips = [
+        isTariff
+            && { key: 'tariff', tone: 'plain' as const, label: RV_TARIFF_MARK },
         check.quote_status === 'not_found'
             && { key: 'not_found', tone: 'look' as const, label: RV_CHIP_NOT_FOUND },
         evidenceDisputed
-            && { key: 'disputed', tone: 'red' as const, label: RV_CHIP_DISPUTED },
-    ].filter(Boolean) as { key: string; tone: 'look' | 'red'; label: string }[];
+            && { key: 'disputed', tone: 'mine' as const, label: RV_CHIP_DISPUTED },
+    ].filter(Boolean) as { key: string; tone: 'look' | 'mine' | 'plain'; label: string }[];
+
+    // The deduction as the row states it. A charged member of a charge-once
+    // group that another member already paid contributes nothing and must not
+    // read as «no deduction» — the defect WAS charged, once, elsewhere.
+    const fired = effectiveVerdict !== 'met';
+    const charged = awarded.startsWith('-');
+    const tariffFigure = !fired ? RV_TARIFF_NONE
+        : charged ? `−${formatPoints(awarded.slice(1))}`
+            : RV_TARIFF_ONCE;
 
     return (
         <div
             data-check-id={check.check_id}
             data-focused={focused ? 'true' : 'false'}
             data-overridden={overridden ? 'true' : 'false'}
+            data-points-typed={check.pointsTyped ? 'true' : 'false'}
+            data-under-pin={check.underPin ? 'true' : 'false'}
+            data-check-kind={check.kind}
             tabIndex={-1}
             onClick={onFocus}
             onMouseEnter={() => onHover(true)}
@@ -126,6 +169,7 @@ export function CheckRow({
             <VerdictButton
                 verdict={effectiveVerdict}
                 overridden={overridden}
+                kind={check.kind}
                 onCycle={onCycle}
             />
 
@@ -141,7 +185,7 @@ export function CheckRow({
                     <div className="mt-1.5 text-gr-label text-grade-pencil">
                         {RV_ORIG_PREFIX}{' '}
                         <s className="text-grade-pencil">
-                            {VERDICT_GLYPH[check.aiVerdict]}
+                            {glyphFor(check.aiVerdict, check.kind)}
                             {check.aiAwarded == null
                                 ? null
                                 : ` · ${formatPoints(check.aiAwarded)}`}
@@ -165,18 +209,22 @@ export function CheckRow({
                                 data-chip={chip.key}
                                 className={[
                                     'whitespace-nowrap rounded-full border px-2.5 py-0.5 text-gr-chip',
-                                    chip.tone === 'red'
-                                        ? 'border-grade-red-line bg-grade-red-100 text-grade-red'
-                                        : 'border-grade-amber-200 bg-grade-amber-100 text-grade-amber',
+                                    chip.tone === 'mine'
+                                        ? 'border-grade-teal-line bg-primary-50 text-primary-700'
+                                        : chip.tone === 'plain'
+                                            ? 'border-grade-line bg-grade-paper text-grade-ink-2'
+                                            : 'border-grade-amber-200 bg-grade-amber-100 text-grade-amber',
                                 ].join(' ')}
                             >
-                                <span
-                                    aria-hidden="true"
-                                    className={[
-                                        'me-1.5 inline-block h-dot w-dot rounded-full relative top-px',
-                                        chip.tone === 'red' ? 'bg-grade-red' : 'bg-grade-amber-dot',
-                                    ].join(' ')}
-                                />
+                                {chip.tone === 'plain' ? null : (
+                                    <span
+                                        aria-hidden="true"
+                                        className={[
+                                            'me-1.5 inline-block h-dot w-dot rounded-full relative top-px',
+                                            chip.tone === 'mine' ? 'bg-primary-600' : 'bg-grade-amber-dot',
+                                        ].join(' ')}
+                                    />
+                                )}
                                 {chip.label}
                             </span>
                         ))}
@@ -184,7 +232,7 @@ export function CheckRow({
                 ) : null}
 
                 {noteOpen ? (
-                    <div className="mt-1.5 border-s-2 border-grade-red ps-2 text-gr-body">
+                    <div className="mt-1.5 border-s-2 border-primary-600 ps-2 text-gr-body">
                         <input
                             ref={noteRef}
                             defaultValue={note ?? ''}
@@ -204,7 +252,7 @@ export function CheckRow({
                         />
                     </div>
                 ) : note ? (
-                    <div className="mt-1.5 border-s-2 border-grade-red ps-2 text-gr-body
+                    <div className="mt-1.5 border-s-2 border-primary-600 ps-2 text-gr-body
                         text-grade-ink-2">
                         {note}
                     </div>
@@ -250,15 +298,46 @@ export function CheckRow({
             <div
                 dir="ltr"
                 className={[
-                    'self-start pt-2 text-left text-gr-num font-light leading-none',
+                    'relative self-start pt-2 text-left text-gr-num font-light leading-none',
                     '[unicode-bidi:isolate] [font-variant-numeric:tabular-nums]',
-                    overridden ? 'font-medium text-grade-red' : 'text-grade-pencil',
+                    // her decision is TURQUOISE (ruling 2026-09-13); red means ✗
+                    overridden ? 'font-medium text-primary-700' : 'text-grade-pencil',
+                    // Under a criterion pin the row's figure is what its verdict
+                    // is WORTH, not what counts — the criterion carries the number.
+                    check.underPin ? 'opacity-60' : '',
                 ].join(' ')}
             >
-                {formatPoints(awarded)}
-                <small className="text-gr-sm text-grade-pencil-2">
-                    {' '}/ {formatPoints(outOf)}
-                </small>
+                {isTariff ? (
+                    <span
+                        data-tariff-figure={!fired ? 'none' : charged ? 'charged' : 'once'}
+                        className={!fired ? 'text-gr-meta' : ''}
+                    >
+                        {tariffFigure}
+                        <small className="block pt-1 text-gr-sm text-grade-pencil-2">
+                            {RV_TARIFF_UP_TO(formatPoints(outOf))}
+                        </small>
+                    </span>
+                ) : check.kind === 'note_only' ? (
+                    <>
+                        {formatPoints(awarded)}
+                        <small className="text-gr-sm text-grade-pencil-2">
+                            {' '}/ {formatPoints(outOf)}
+                        </small>
+                    </>
+                ) : (
+                    <PointsInput
+                        target="check"
+                        value={awarded}
+                        max={outOf}
+                        policy={policy}
+                        typed={check.pointsTyped}
+                        overridden={overridden}
+                        readOnly={readOnly}
+                        editing={pointsEditing}
+                        onEditingChange={(editing) => onPointsEditing?.(editing)}
+                        onCommit={(amount) => onPointsCommit?.(amount)}
+                    />
+                )}
             </div>
         </div>
     );

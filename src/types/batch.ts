@@ -38,6 +38,10 @@ export interface BatchTranscriptionItem {
   /** B6: the FROZEN contract's answers — present only when approved; the
    *  read-only review hydrates from these, never from the draft. */
   approved_answers?: GradeAnswerInputItem[] | null
+  /** [§5.3C] Page-1 thumbnail for the triage card — a RELATIVE path, usable
+   *  only through the api seam (see fetchPageImageObjectUrl). Absent/null when
+   *  the draft reports no pages: no thumbnail, never a broken-image glyph. */
+  page1_image_url?: string | null
   // Populated once a GradedTest row exists:
   graded_test_id: string | null
   graded_test_status: string | null
@@ -125,6 +129,14 @@ export interface BatchDetailResponse {
   started_at: string | null
   completed_at: string | null
   created_at: string
+  /** [§5.3B] Is this her EARLIEST batch — the ONE input to the first-batch
+   *  explainer. A server fact rather than browser state, so it cannot reset on
+   *  a second device. A boolean and not an ordinal because this endpoint is the
+   *  3-second poll target and the ordinal cost a full COUNT per tick for a
+   *  value only ever compared to 1. Optional, read as `?? true`: a payload from
+   *  a backend that predates the field shows the explanation rather than
+   *  withholding it — too often is the recoverable direction. */
+  is_first_batch?: boolean
   rollup: BatchRollup
   transcriptions: BatchTranscriptionItem[]
   /** B3: queued/running documents in doc_priority order (post-reap). */

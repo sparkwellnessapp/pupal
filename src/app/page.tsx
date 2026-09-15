@@ -88,6 +88,11 @@ import {
 } from 'lucide-react';
 import {
   UPLOAD_CLASS_HINT,
+  UPLOAD_BACK,
+  UPLOAD_CTA_HELPER,
+  UPLOAD_RUBRIC_CHANGE,
+  UPLOAD_RUBRIC_LINE,
+  UPLOAD_SUBTITLE,
   UPLOAD_BUSY_LINK,
   UPLOAD_BUSY_NOTICE,
   UPLOAD_CREATE_ERROR,
@@ -123,7 +128,9 @@ function BackButton({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       className="flex items-center gap-2 text-gray-500 hover:text-gray-700"
     >
-      חזור
+      {/* §4 swap table: «חזור» is a masculine imperative aimed at a reader who
+          is always «את». «חזרה» is the neutral noun and needs no gender. */}
+      {UPLOAD_BACK}
       <ArrowRight size={18} />
     </button>
   );
@@ -1653,16 +1660,34 @@ export default function Home() {
             {gradingStep === 'upload_batch' && selectedRubric && (
               <div className="max-w-2xl mx-auto animate-fade-in">
                 <div className="bg-white rounded-xl shadow-lg p-8">
-                  {/* Rubric info */}
-                  <div className="mb-6 p-4 bg-primary-50 border border-primary-200 rounded-lg text-center">
-                    <h3 className="font-medium text-primary-800">{selectedRubric.name || 'מחוון ללא שם'}</h3>
+                  {/* §5.2 — the rubric, named, with a way back to change it.
+                      She is about to commit thirty papers; what they will be
+                      graded against belongs on THIS page, not two screens
+                      back. */}
+                  <div
+                    className="mb-6 p-4 bg-primary-50 border border-primary-200 rounded-lg text-center"
+                    data-testid="upload-rubric-line"
+                  >
+                    {/* The change link sits OUTSIDE the heading: a button inside
+                        an <h3> becomes part of its accessible name, so the
+                        heading would announce itself as «המחוון: … שינוי». */}
+                    <h3 className="font-medium text-primary-800">
+                      {UPLOAD_RUBRIC_LINE(selectedRubric.name || 'מחוון ללא שם')}
+                    </h3>
+                    <button
+                      onClick={handleBackToRubricSelect}
+                      className="text-sm font-normal text-primary-600 underline"
+                      data-testid="upload-rubric-change"
+                    >
+                      {UPLOAD_RUBRIC_CHANGE}
+                    </button>
                     <p className="text-sm text-primary-600">{selectedRubric.total_questions ?? 0} שאלות · {selectedRubric.total_points} נקודות</p>
                   </div>
 
                   <div className="text-center mb-6">
                     <ClipboardCheck className="mx-auto text-primary-500 mb-3" size={48} />
                     <h2 className="text-xl font-semibold">העלאת מבחנים</h2>
-                    <p className="text-gray-500 mt-1">העלי את כל מבחני התלמידים לבדיקה</p>
+                    <p className="text-gray-500 mt-1">{UPLOAD_SUBTITLE}</p>
                   </div>
 
                   {/* U2/B5: the editable composed batch name — sent at create. */}
@@ -1734,24 +1759,35 @@ export default function Home() {
                       navigates. There is no in-flight state to render here any
                       more, and no explicit continue - the dashboard's lane is
                       where the transfers are watched. */}
-                  <div className="mt-6 flex items-center justify-between">
+                  <div className="mt-6 flex items-start justify-between gap-4">
                     <BackButton onClick={handleBackToRubricSelect} />
-                    <button
-                      onClick={handleGradeAsBatch}
-                      disabled={testFiles.length === 0 || batchUploading}
-                      title={testFiles.length === 0 ? UPLOAD_CTA_DISABLED_REASON : undefined}
-                      data-testid="upload-cta"
-                      className="flex items-center gap-2 bg-primary-500 text-white px-6 py-2 rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
-                    >
-                      {batchUploading ? (
-                        <><Loader2 size={18} className="animate-spin" /> {UPLOAD_UPLOADING}</>
-                      ) : (
-                        <>
-                          <ClipboardCheck size={18} />
-                          {UPLOAD_CTA(testFiles.length)}
-                        </>
-                      )}
-                    </button>
+                    <div className="text-left">
+                      <button
+                        onClick={handleGradeAsBatch}
+                        disabled={testFiles.length === 0 || batchUploading}
+                        title={testFiles.length === 0 ? UPLOAD_CTA_DISABLED_REASON : undefined}
+                        data-testid="upload-cta"
+                        className="flex items-center gap-2 bg-primary-500 text-white px-6 py-2 rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
+                      >
+                        {batchUploading ? (
+                          <><Loader2 size={18} className="animate-spin" /> {UPLOAD_UPLOADING}</>
+                        ) : (
+                          <>
+                            <ClipboardCheck size={18} />
+                            {UPLOAD_CTA(testFiles.length)}
+                          </>
+                        )}
+                      </button>
+                      {/* §5.2 — ONE sentence that sets the whole model before
+                          she starts: who does what, in what order, and where
+                          her turn comes. */}
+                      <p
+                        className="mt-2 max-w-sm text-xs leading-relaxed text-gray-500"
+                        data-testid="upload-cta-helper"
+                      >
+                        {UPLOAD_CTA_HELPER}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

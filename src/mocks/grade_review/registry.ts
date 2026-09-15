@@ -75,6 +75,10 @@ export const PRESENT_FIXTURES: readonly string[] = [
     ...BATCH_FEED_STATES.map((s) => `batch_feed_${s}.json`),
     'draft_SYNTHETIC_edge_cases.json',
     'pricing_vectors.json',
+    // [OD-R2] the typed-amount half of the pricer seam — its own file, since
+    // the AI-only set is generated from an eval run this repo cannot replay
+    // (`scripts/gen_typed_points_vectors.py` derives these from the drafts).
+    'pricing_vectors_typed.json',
     'MANIFEST.json',
 ];
 

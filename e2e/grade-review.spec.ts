@@ -707,3 +707,189 @@ test('R2 — the queue line carries the batch ETA for the test being graded',
         await expect(page.locator('[data-total]')).toBeVisible();
         await expect(page.getByText(/נבדק עכשיו, עוד כ-2 דקות/)).toBeVisible();
     });
+
+/**
+ * [OD-R2, owner ruling 2026-09-13] Typed points — on a check row and on the
+ * criterion row. The vitest suites pin the reducers and the pricer; these pin
+ * the half only a browser can: the field opens, the refusal shows LIVE, the
+ * figures up the tree follow, and the overlay that leaves for the server
+ * carries her number with the verdict it implies.
+ */
+test.describe('typed points [OD-R2]', () => {
+    const firstRow = (page: Page) => page.locator('[data-check-id]').first();
+    const rowPoints = (page: Page) => firstRow(page).locator('button[data-points-target="check"]');
+    const input = (page: Page) => page.locator('input[data-points-input]');
+    const draftSave = (page: Page) => page.waitForRequest(
+        (r) => r.method() === 'PATCH' && r.url().includes('/draft'));
+
+    test('typing on a check row re-prices the row, the criterion and the total, and travels', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await openAllBreakdowns(page);
+        const total = page.locator('[data-total]');
+        const before = await total.textContent();
+
+        await rowPoints(page).click();
+        await expect(input(page)).toBeFocused();
+        await input(page).fill('0');
+        await input(page).press('Enter');
+
+        await expect(input(page)).toHaveCount(0);
+        await expect(firstRow(page)).toHaveAttribute('data-points-typed', 'true');
+        await expect(firstRow(page)).toHaveAttribute('data-overridden', 'true');
+        // a typed zero is ✗ — the glyph follows the number (OD-3 b)
+        await expect(firstRow(page).locator('[data-verdict]')).toHaveAttribute('data-verdict', 'not_met');
+        await expect(total).toHaveAttribute('data-overridden', 'true');
+        expect(await total.textContent()).not.toBe(before);
+
+        const saved = draftSave(page);
+        await page.keyboard.press('Control+s');
+        const body = (await saved).postDataJSON();
+        const checkId = await firstRow(page).getAttribute('data-check-id');
+        const decisions = Object.values(body.overrides.terminals as Record<string, {
+            check_id: string; verdict: string; points_awarded?: string;
+        }[]>).flat();
+        expect(decisions).toContainEqual(expect.objectContaining(
+            { check_id: checkId, verdict: 'not_met', points_awarded: '0' }));
+        expect(body.overrides.terminal_points).toEqual({});
+    });
+
+    test('the refusal shows LIVE above the ceiling and off the grid, and nothing commits', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await openAllBreakdowns(page);
+
+        const crit = page.locator('button[data-points-target="criterion"]').first();
+        const before = await crit.textContent();
+        await crit.click();
+        const max = (await input(page).locator('..').locator('small').textContent())!.replace(/[^\d.]/g, '');
+        const tooMany = String(Number(max) + 1);
+        await input(page).fill(tooMany);
+        // no Enter yet — the popover is already there
+        const alert = page.locator('[data-points-error]');
+        await expect(alert).toHaveAttribute('data-points-error', 'over_max');
+        await expect(alert).toHaveText(
+            `לא ניתן להעניק ${tooMany} נקודות לקריטריון עם מקסימום ${max} נקודות`);
+        // Enter on a refused number does nothing: the field stays, the number does not land
+        await input(page).press('Enter');
+        await expect(input(page)).toHaveCount(1);
+
+        await input(page).fill('0.3');
+        await expect(alert).toHaveAttribute('data-points-error', 'off_grid');
+        await expect(alert).toContainText('בקפיצות של 0.25');
+
+        await input(page).press('Escape');
+        await expect(input(page)).toHaveCount(0);
+        await expect(crit).toHaveText(before!);
+        await expect(page.locator('[data-criterion-typed]')).toHaveCount(0);
+    });
+
+    test('typing on the criterion pins it; deciding a row beneath releases the pin (OD-2 b)', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await openAllBreakdowns(page);
+
+        const crit = page.locator('button[data-points-target="criterion"]').first();
+        await crit.click();
+        await input(page).fill('0');
+        await input(page).press('Enter');
+
+        const terminalId = await page.locator('[data-criterion-points]').first()
+            .getAttribute('data-criterion-points');
+        await expect(page.locator(`[data-criterion-typed="${terminalId}"]`)).toBeVisible();
+        await expect(firstRow(page)).toHaveAttribute('data-under-pin', 'true');
+        await expect(page.locator('[data-total]')).toHaveAttribute('data-overridden', 'true');
+
+        const saved = draftSave(page);
+        await page.keyboard.press('Control+s');
+        const body = (await saved).postDataJSON();
+        expect(body.overrides.terminal_points).toEqual(
+            { [terminalId!]: expect.objectContaining({ points_awarded: '0' }) });
+
+        // Space on the row beneath is a decision: the pin goes
+        await firstRow(page).click();
+        await page.keyboard.press('Space');
+        await expect(page.locator(`[data-criterion-typed="${terminalId}"]`)).toHaveCount(0);
+        await expect(firstRow(page)).toHaveAttribute('data-under-pin', 'false');
+    });
+
+    test('the pin has its own revert', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await openAllBreakdowns(page);
+        const crit = page.locator('button[data-points-target="criterion"]').first();
+        const before = await crit.textContent();
+        await crit.click();
+        await input(page).fill('0');
+        await input(page).press('Enter');
+        await expect(crit).not.toHaveText(before!);
+        await page.locator('[data-criterion-points-revert]').first().click();
+        await expect(page.locator('[data-criterion-typed]')).toHaveCount(0);
+        await expect(crit).toHaveText(before!);
+    });
+
+    test('Enter on the focused row opens its field; Esc closes it without a change', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await openAllBreakdowns(page);
+        await firstRow(page).click();
+        await expect(firstRow(page)).toHaveAttribute('data-focused', 'true');
+        await page.keyboard.press('Enter');
+        await expect(input(page)).toBeFocused();
+        // keys inside the field belong to the field: Space types, it does not cycle
+        await page.keyboard.press('Escape');
+        await expect(input(page)).toHaveCount(0);
+        await expect(firstRow(page)).toHaveAttribute('data-overridden', 'false');
+    });
+
+    test('an approved test offers no field at all', async ({ page }) => {
+        await installGradeReviewMocks(page, { approved: true });
+        await page.goto(REVIEW);
+        await expect(page.locator('[data-total]')).toBeVisible();
+        await expect(page.locator('button[data-points-target]')).toHaveCount(0);
+        await expect(page.locator('[data-points-target="criterion"]').first()).toBeVisible();
+    });
+});
+
+/**
+ * A deduction row (ruling 2026-09-13): its own grammar, a two-state toggle,
+ * and no points field. The production case that drove it (graded_test
+ * 3438b7a2) showed «0 / 0.5» beside a ✓ and «−0.5 / 0.5» beside a ✗.
+ */
+test.describe('deduction rows', () => {
+    test('a tariff row says הורדה, toggles ✓ ↔ ✗ only, and has no field', async ({ page }) => {
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await openAllBreakdowns(page);
+        const row = page.locator('[data-check-id][data-check-kind="tariff"]').first();
+        await expect(row).toBeVisible();
+        await expect(row.locator('[data-chip="tariff"]')).toHaveText('הורדה');
+        await expect(row.locator('button[data-points-target]')).toHaveCount(0);
+        await expect(row.locator('[data-tariff-figure]')).toContainText('עד ');
+
+        const verdict = row.locator('[data-verdict]');
+        const before = await verdict.getAttribute('data-verdict');
+        await verdict.click();
+        const after = await verdict.getAttribute('data-verdict');
+        expect(after).not.toBe(before);
+        expect(after).not.toBe('partially_met');
+        await expect(row).toHaveAttribute('data-overridden', 'true');
+        // the figure reads as a deduction, never as «points granted»
+        const figure = row.locator('[data-tariff-figure]');
+        if (after === 'not_met') {
+            await expect(figure).toHaveAttribute('data-tariff-figure', /charged|once/);
+            await expect(figure).not.toContainText('/');
+        } else {
+            await expect(figure).toHaveAttribute('data-tariff-figure', 'none');
+            await expect(figure).toContainText('ללא הורדה');
+        }
+        // and a second press returns to Vivi's verdict — two states, no ½
+        await verdict.click();
+        await expect(verdict).toHaveAttribute('data-verdict', before!);
+        await expect(row).toHaveAttribute('data-overridden', 'false');
+        // Enter on a focused tariff row opens nothing
+        await row.click();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('input[data-points-input]')).toHaveCount(0);
+    });
+});

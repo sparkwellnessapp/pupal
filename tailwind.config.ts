@@ -16,6 +16,9 @@ const config: Config = {
         // F3: the returned exam's page. One A4 at the mockup's own size; the
         // aspect (1/1.41) does the rest, so this is the ONLY page dimension.
         page: '660px',
+        // §5.6: the end state's hero — one signed page, large enough to
+        // recognise as HERS and small enough to sit inside the card.
+        'hero-page': '300px',
         tip: '300px',        // the (i) explainer's width (mockup `.tip`)
       },
       /**
@@ -182,8 +185,12 @@ const config: Config = {
         // The one teal value the ramp lacks is the hairline these chips and
         // banners draw, so only THAT lands here.
         //
-        // The ink grammar (§0.3) made literal: grade.pencil* = "Vivi proposes",
-        // grade.red = "the teacher decided", and nothing else is ever red.
+        // The ink grammar (owner ruling 2026-09-13): the VERDICT carries its
+        // colour — green ✓, yellow ½, red ✗ — and a mark the TEACHER made is
+        // turquoise (`primary`). grade.pencil* stays "Vivi proposes" for the
+        // figures. Red no longer means "the teacher" anywhere on the review
+        // surface; it means "wrong" (and, elsewhere, "failed"). The stamp on
+        // the returned exam keeps its own red — it is the student's artefact.
         grade: {
           canvas: '#FFFAF2',      // == globals.css --background
           bar: '#FBF9F3',
@@ -204,7 +211,11 @@ const config: Config = {
           'violet-line': '#DCCBFB',
           'violet-ink': '#4C1D95',
 
-          red: '#C8102E',         // teacher red: overrides, the total, the stamp
+          red: '#C8102E',         // ✗ / failed; the stamp on the returned exam
+          green: '#15803D',       // ✓
+          'green-100': '#DCFCE7',
+          yellow: '#CA8A04',      // ½
+          'yellow-100': '#FEF9C3',
           'red-100': '#FDE8EA',
           'red-line': '#F5C2C8',
 

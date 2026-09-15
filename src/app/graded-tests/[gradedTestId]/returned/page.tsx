@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * המבחן המוחזר — the returned-exam preview (spec §2, §4.3).
+ * המבחן החתום — the signed-exam preview (spec §2, §4.3).
+ * The product term was «המבחן המוחזר» until 2026-09-14.
  *
  * /graded-tests/[gradedTestId]/returned?batch=<batchId>
  *
@@ -204,7 +205,7 @@ export default function ReturnedExamPage() {
         const url = URL.createObjectURL(result.blob);
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.download = `${payload?.student_name ?? 'מבחן'}_מוחזר.pdf`;
+        anchor.download = `${payload?.student_name ?? 'מבחן'}_חתום.pdf`;
         anchor.click();
         // Firefox starts a blob: download asynchronously; revoking on the same
         // tick aborts it. Ten seconds is the conventional margin — a URL that

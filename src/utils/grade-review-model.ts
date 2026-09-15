@@ -44,7 +44,10 @@ import {
     findOverride,
     isOverridden,
     overriddenCheckIds,
-    type OverlayTerminals,
+    terminalPointsFor,
+    typedCheckPoints,
+    typedPointsFor,
+    type Overlay,
 } from './verdict-cycle';
 import { basisHash, feedbackState, type FeedbackState } from './feedback-staleness';
 import { RV_BLOCK_GENERIC, RV_BLOCK_LLM_FAILURE } from '@/copy/grade-review';
@@ -158,6 +161,10 @@ export interface ReviewCheck {
     /** After the overlay. */
     verdict: Verdict;
     overridden: boolean;
+    /** [OD-R2] She typed this row's amount herself. */
+    pointsTyped: boolean;
+    /** [OD-R2] The criterion above carries a typed total; this row is display only. */
+    underPin: boolean;
     note: string | null;
     evidenceDisputed: boolean;
     awarded: string;
@@ -170,7 +177,11 @@ export interface ReviewCriterion {
     description: string;
     awarded: string;
     possible: string;
+    /** What Vivi alone would have awarded this terminal — the struck-through proposal. */
+    aiAwarded: string;
     overridden: boolean;
+    /** [OD-R2] She typed the criterion's total herself; the rows beneath were not priced. */
+    pointsTyped: boolean;
     checks: ReviewCheck[];
 }
 
@@ -347,24 +358,31 @@ const terminalIdOf = (criterion: WireCriterion, leaf: WireLeaf): string =>
  */
 function approvalBlockers(
     draft: WireDraft,
-    overlay: OverlayTerminals,
+    overlay: Overlay,
 ): ApprovalBlocker[] {
     const errors = (draft.annotations ?? []).filter(
         (a) => (a.severity ?? '').toUpperCase() === 'ERROR');
     if (errors.length === 0) return [];
 
     const decided = overriddenCheckIds(overlay);
-    const checksByScope = new Map<string, string[]>();
+    // [OD-R2] an amount typed on the criterion row decides that whole terminal
+    // (mirrors `_llm_failure_resolved_by_teacher`): nothing beneath it is priced,
+    // so nothing beneath it can carry an unread machine zero.
+    const pinned = new Set(Object.keys(overlay.terminalPoints));
+    const checksByScope = new Map<string, { id: string; terminalId: string }[]>();
     for (const scope of draft.scope_outcomes ?? []) {
         checksByScope.set(scopeIdOf(scope), leavesOf(scope).flatMap(
-            ({ leaf }) => (leaf.checks ?? []).map((c) => c.check_id)));
+            ({ criterion, leaf }) => (leaf.checks ?? []).map((c) => ({
+                id: c.check_id, terminalId: terminalIdOf(criterion, leaf),
+            }))));
     }
 
     return errors.flatMap((annotation): ApprovalBlocker[] => {
         const scopeId = annotation.target_id ?? null;
         if (annotation.annotation_type === 'llm_failure' && scopeId) {
             const checks = checksByScope.get(scopeId) ?? [];
-            if (checks.length > 0 && checks.every((id) => decided.has(id))) return [];
+            if (checks.length > 0
+                && checks.every((c) => decided.has(c.id) || pinned.has(c.terminalId))) return [];
             return [{ scopeId, message: RV_BLOCK_LLM_FAILURE(scopeId) }];
         }
         return [{ scopeId, message: annotation.message || RV_BLOCK_GENERIC }];
@@ -374,7 +392,7 @@ function approvalBlockers(
 /** The scope's checks in document order — the vector `basis_hash` covers. */
 export function scopeBasisChecks(
     scope: WireScope,
-    overlay: OverlayTerminals,
+    overlay: Overlay,
 ): { check_id: string; verdict: Verdict }[] {
     return leavesOf(scope).flatMap(({ criterion, leaf }) => {
         const terminalId = terminalIdOf(criterion, leaf);
@@ -387,7 +405,7 @@ export function scopeBasisChecks(
 
 export interface BuildOptions {
     draft: WireDraft;
-    overlay: OverlayTerminals;
+    overlay: Overlay;
     policy: NumericPolicy;
     questions: readonly QuestionText[];
     /** Feedback targets she has edited herself — never called stale. */
@@ -445,19 +463,28 @@ export function buildReviewModel(options: BuildOptions): ReviewModel {
                 })),
             };
         });
-        const priced = priceScopeChecksDetailed(terminals, policy, decided);
+        // [OD-R2] the amounts she typed in this scope, per check and per
+        // terminal — inputs to the same pricer, beside her verdicts.
+        const typedHere: Record<string, string> = {};
+        const pinsHere: Record<string, string> = {};
+        for (const { criterion, leaf } of leaves) {
+            const terminalId = terminalIdOf(criterion, leaf);
+            Object.assign(typedHere, typedCheckPoints(overlay, terminalId));
+            const pin = terminalPointsFor(overlay, terminalId);
+            if (pin !== null) pinsHere[terminalId] = pin;
+        }
+        const priced = priceScopeChecksDetailed(terminals, policy, decided, typedHere, pinsHere);
         // Per-row numbers: scope-wide, so a tariff shows its DEDUCTION and a
         // charge-group duplicate honestly shows nothing.
-        const contributions = priceScopeCheckContributions(terminals, policy, decided);
+        const contributions = priceScopeCheckContributions(terminals, policy, decided, typedHere);
         // What Vivi alone would have contributed — the struck-through proposal.
-        const aiContributions = priceScopeCheckContributions(
-            leaves.map(({ criterion: c, leaf: l }) => ({
-                terminal_id: terminalIdOf(c, l),
-                points_possible: l.points_possible,
-                checks: l.checks ?? [],
-            })),
-            policy,
-        );
+        const aiTerminals: ScopeTerminal[] = leaves.map(({ criterion: c, leaf: l }) => ({
+            terminal_id: terminalIdOf(c, l),
+            points_possible: l.points_possible,
+            checks: l.checks ?? [],
+        }));
+        const aiContributions = priceScopeCheckContributions(aiTerminals, policy);
+        const aiPriced = priceScopeChecksDetailed(aiTerminals, policy);
 
         const byTerminal = new Map<string, ReviewCriterion>();
         let scopeOverridden = false;
@@ -523,6 +550,8 @@ export function buildReviewModel(options: BuildOptions): ReviewModel {
                     aiAwarded,
                     verdict,
                     overridden,
+                    pointsTyped: typedPointsFor(overlay, terminalId, check.check_id) !== null,
+                    underPin: pinsHere[terminalId] !== undefined,
                     note: override?.teacher_comment ?? null,
                     evidenceDisputed: Boolean(override?.evidence_disputed),
                     awarded,
@@ -531,12 +560,16 @@ export function buildReviewModel(options: BuildOptions): ReviewModel {
                 };
             });
 
+            const pinnedHere = pinsHere[terminalId] !== undefined;
+            if (pinnedHere) scopeOverridden = true;
             byTerminal.set(terminalId, {
                 terminalId,
                 description: leaf.description || criterion.description || terminalId,
                 awarded: priced[terminalId]?.awarded ?? '0',
                 possible: leaf.points_possible,
-                overridden: checks.some((c) => c.overridden),
+                aiAwarded: aiPriced[terminalId]?.awarded ?? '0',
+                overridden: pinnedHere || checks.some((c) => c.overridden),
+                pointsTyped: pinnedHere,
                 checks,
             });
         }

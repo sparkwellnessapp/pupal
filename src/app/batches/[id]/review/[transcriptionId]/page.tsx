@@ -16,7 +16,7 @@
  *
  * P3 behaviors owned here:
  *  - R5 counters: primary `{i} מתוך {F} לעיון` (flagged position — omitted on
- *    clean items) + secondary `מבחן {k} מתוך {T} במקבץ`.
+ *    clean items) + secondary `מבחן {k} מתוך {T}`.
  *  - R3 keyboard: ONE window keydown listener → the pure keymap reducer
  *    (ArrowLeft=הבא in RTL; composition and open modals never act; editables
  *    keep only Ctrl+S / Ctrl+Enter). Main region focused per item mount.
@@ -51,6 +51,7 @@ import { useReviewItemState } from '@/components/batch-review/useReviewItemState
 import {
     flagReasonLabel,
     INTERSTITIAL_BACK,
+    REVIEW_ITEM_NOT_FOUND,
     MOBILE_REVIEW_INTERSTITIAL,
     POSITION_PRIMARY,
     POSITION_SECONDARY,
@@ -128,7 +129,7 @@ export default function BatchItemReviewPage() {
             <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6">
                 <p className="text-red-600">{error}</p>
                 <Link href={`/batches/${batchId}`} className="text-primary-600 underline">
-                    חזרה לסיכום המקבץ
+                    {INTERSTITIAL_BACK}
                 </Link>
             </div>
         );
@@ -147,9 +148,9 @@ export default function BatchItemReviewPage() {
         // item is always locatable; only a genuinely foreign id lands here.)
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6">
-                <p className="text-gray-700">המבחן המבוקש לא נמצא במקבץ הזה</p>
+                <p className="text-gray-700">{REVIEW_ITEM_NOT_FOUND}</p>
                 <Link href={`/batches/${batchId}`} className="text-primary-600 underline">
-                    חזרה לסיכום המקבץ
+                    {INTERSTITIAL_BACK}
                 </Link>
             </div>
         );
@@ -535,7 +536,7 @@ function ReviewItemView({ batchId, item, position, counters }: {
                                     className="flex items-center gap-1 px-3 py-2 rounded-lg bg-primary-500 text-white hover:bg-primary-600 transition-colors"
                                     data-testid="exit-to-dashboard"
                                 >
-                                    חזרה לסיכום המקבץ
+                                    {INTERSTITIAL_BACK}
                                     <ChevronLeft size={18} />
                                 </button>
                             )}

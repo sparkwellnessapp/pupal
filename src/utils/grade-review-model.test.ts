@@ -14,7 +14,9 @@ import {
     type WireDraft,
     type WireScope,
 } from './grade-review-model';
-import { cycleVerdict, type OverlayTerminals } from './verdict-cycle';
+import {
+    cycleVerdict, emptyOverlay, setCheckPoints, setTerminalPoints, type Overlay,
+} from './verdict-cycle';
 import { basisHash } from './feedback-staleness';
 import type { NumericPolicy } from '@/lib/pricing';
 
@@ -57,7 +59,7 @@ const scope = (over: Partial<WireScope> = {}): WireScope => ({
 const draftOf = (scopes: WireScope[], feedback?: WireDraft['feedback']): WireDraft =>
     ({ scope_outcomes: scopes, feedback, plan_version: 'hobby_tvshow/v5' });
 
-const build = (draft: WireDraft, overlay: OverlayTerminals = {}, extra = {}) =>
+const build = (draft: WireDraft, overlay: Overlay = emptyOverlay(), extra = {}) =>
     buildReviewModel({
         draft, overlay, policy: POLICY, questions: [], ...extra,
     });
@@ -180,7 +182,7 @@ describe('the review model', () => {
 
         // ✓ → ✗ on a 2-point check.
         const overlay = cycleVerdict(
-            cycleVerdict({}, 'q1.א.c0', 'q1.א.c0.k1', 'met'),
+            cycleVerdict(emptyOverlay(), 'q1.א.c0', 'q1.א.c0.k1', 'met'),
             'q1.א.c0', 'q1.א.c0.k1', 'met',
         );
         // met → not_met → partially_met after two cycles: 2 + 1 = 3.
@@ -192,7 +194,7 @@ describe('the review model', () => {
     });
 
     it('keeps Vivi\'s proposal beside the teacher\'s verdict', () => {
-        const overlay = cycleVerdict({}, 'q1.א.c0', 'q1.א.c0.k1', 'met');
+        const overlay = cycleVerdict(emptyOverlay(), 'q1.א.c0', 'q1.א.c0.k1', 'met');
         const check = build(draftOf([scope()]), overlay).scopes[0].criteria[0].checks[0];
         expect(check.aiVerdict).toBe('met');        // provenance, never overwritten
         expect(check.verdict).toBe('not_met');      // her decision
@@ -255,7 +257,7 @@ describe('the review model', () => {
                 scopes: { 'q1.א': { text: 'כל הכבוד', basis_hash: basisHash(checksVector) } },
                 summary: { text: 'סיכום', basis_hash: basisHash(checksVector) },
             });
-            const overlay = cycleVerdict({}, 'q1.א.c0', 'q1.א.c0.k1', 'met');
+            const overlay = cycleVerdict(emptyOverlay(), 'q1.א.c0', 'q1.א.c0.k1', 'met');
             const model = build(draft, overlay);
             expect(model.scopes[0].feedback.state).toBe('stale');
             expect(model.summary.state).toBe('stale');
@@ -272,7 +274,7 @@ describe('the review model', () => {
                 scopes: { 'q1.א': { text: 'כל הכבוד', basis_hash: basisHash(checksVector) } },
                 summary: { text: 's', basis_hash: basisHash(checksVector) },
             });
-            const overlay = cycleVerdict({}, 'q1.א.c0', 'q1.א.c0.k1', 'met');
+            const overlay = cycleVerdict(emptyOverlay(), 'q1.א.c0', 'q1.א.c0.k1', 'met');
             const model = buildReviewModel({
                 draft, overlay, policy: POLICY, questions: [],
                 editedFeedback: new Set(['q1.א']),
@@ -283,7 +285,7 @@ describe('the review model', () => {
         });
 
         it('hashes the EFFECTIVE vector, in document order', () => {
-            const overlay = cycleVerdict({}, 'q1.א.c0', 'q1.א.c0.k1', 'met');
+            const overlay = cycleVerdict(emptyOverlay(), 'q1.א.c0', 'q1.א.c0.k1', 'met');
             expect(scopeBasisChecks(scope(), overlay)).toEqual([
                 { check_id: 'q1.א.c0.k1', verdict: 'not_met' },
                 { check_id: 'q1.א.c0.k2', verdict: 'met' },
@@ -433,14 +435,14 @@ describe('approval blockers [OD-R1] — she must never be sent into a 422', () =
         // Both checks live on one terminal, so they accumulate on one entry —
         // exactly how the surface builds the overlay click by click.
         const overlay = cycleVerdict(
-            cycleVerdict({}, 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met'),
+            cycleVerdict(emptyOverlay(), 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met'),
             'q2.ב.c0', 'q2.ב.c0.k2', 'not_met');
         expect(build(draftWith(withChecksScope, [llmFailure()]), overlay).blockers)
             .toEqual([]);
     });
 
     it('still BLOCKS when only some of the checks are decided', () => {
-        const partial = cycleVerdict({}, 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met');
+        const partial = cycleVerdict(emptyOverlay(), 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met');
         expect(build(draftWith(withChecksScope, [llmFailure()]), partial).blockers)
             .toHaveLength(1);
     });
@@ -453,7 +455,7 @@ describe('approval blockers [OD-R1] — she must never be sent into a 422', () =
             criterion_id: 'q2.ב.c0', description: 'סעיף',
             points_possible: '4', points_awarded: '0', checks: null,
         }] as WireScope['criterion_outcomes']);
-        const anywhere = cycleVerdict({}, 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met');
+        const anywhere = cycleVerdict(emptyOverlay(), 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met');
         expect(build(draftWith(checkless, [llmFailure()]), anywhere).blockers)
             .toHaveLength(1);
     });
@@ -463,7 +465,7 @@ describe('approval blockers [OD-R1] — she must never be sent into a 422', () =
             severity: 'error', annotation_type: 'closed_world_violation',
             target_id: 'q2.ב', message: 'לא ניתן לאשר',
         };
-        const decided = cycleVerdict({}, 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met');
+        const decided = cycleVerdict(emptyOverlay(), 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met');
         expect(build(draftWith(withChecksScope, [other]), decided).blockers)
             .toHaveLength(1);
     });
@@ -481,5 +483,76 @@ describe('approval blockers [OD-R1] — she must never be sent into a 422', () =
         // the shape production actually produced.
         const model = build(readFixture('draft_din_ezra.json') as WireDraft);
         expect(model.blockers.map((b) => b.scopeId)).toEqual(['q2.ב']);
+    });
+});
+
+describe('typed amounts in the model [OD-R2]', () => {
+    const T = 'q1.א.c0';
+    const K1 = 'q1.א.c0.k1';
+    const K2 = 'q1.א.c0.k2';
+
+    it('a typed check amount is the row\'s figure and rolls up through the criterion to the total', () => {
+        const model = build(draftOf([scope()]),
+            setCheckPoints(emptyOverlay(), T, K1, '0.5', '2', 'met'));
+        const criterion = model.scopes[0].criteria[0];
+        const row = criterion.checks.find((c) => c.check_id === K1)!;
+        expect(row.awarded).toBe('0.5');
+        expect(row.aiAwarded).toBe('2');
+        expect(row.verdict).toBe('partially_met');          // derived from the number
+        expect(row.overridden).toBe(true);
+        expect(row.pointsTyped).toBe(true);
+        expect(row.underPin).toBe(false);
+        expect(criterion.awarded).toBe('2.5');
+        expect(criterion.aiAwarded).toBe('4.00');
+        expect(criterion.pointsTyped).toBe(false);
+        expect(criterion.overridden).toBe(true);
+        expect(model.scopes[0].awarded).toBe('2.5');
+        expect(model.total).toBe('2.5');
+        expect(model.anyOverride).toBe(true);
+    });
+
+    it('a criterion pin is the criterion\'s figure; the rows beneath keep their own and go under-pin', () => {
+        const model = build(draftOf([scope()]),
+            setTerminalPoints(emptyOverlay(), T, '1.25', () => 'met'));
+        const criterion = model.scopes[0].criteria[0];
+        expect(criterion.awarded).toBe('1.25');
+        expect(criterion.pointsTyped).toBe(true);
+        expect(criterion.overridden).toBe(true);
+        for (const row of criterion.checks) {
+            expect(row.underPin).toBe(true);
+            expect(row.awarded).toBe('2');                  // what its verdict is worth
+            expect(row.overridden).toBe(false);
+        }
+        expect(model.total).toBe('1.25');
+        expect(model.anyOverride).toBe(true);
+    });
+
+    it('a typed amount is not evidence-gated, like a verdict override', () => {
+        const draft = draftOf([scope({
+            criterion_outcomes: [{
+                ...scope().criterion_outcomes![0],
+                checks: [{ ...scope().criterion_outcomes![0].checks![0], quote_status: 'not_found' },
+                         scope().criterion_outcomes![0].checks![1]],
+            }],
+        })]);
+        expect(build(draft).scopes[0].criteria[0].awarded).toBe('2.00');   // Vivi's met earns nothing
+        const typed = build(draft, setCheckPoints(emptyOverlay(), T, K1, '2', '2', 'met'));
+        expect(typed.scopes[0].criteria[0].awarded).toBe('4.00');
+    });
+
+    it('a pin resolves an llm_failure blocker on its scope, mirroring the gate', () => {
+        const failed = draftOf([scope({ graded_by: 'failed' })]);
+        (failed as WireDraft).annotations = [{
+            severity: 'error', annotation_type: 'llm_failure', target_id: 'q1.א', message: 'crash',
+        }];
+        expect(build(failed).blockers).toHaveLength(1);
+        // one check decided, one not: still blocked
+        expect(build(failed, cycleVerdict(emptyOverlay(), T, K1, 'met')).blockers).toHaveLength(1);
+        // the criterion pinned: every check beneath is decided by it
+        expect(build(failed, setTerminalPoints(emptyOverlay(), T, '2', () => 'met')).blockers)
+            .toEqual([]);
+        // and K2 typed + K1 cycled: decided one by one
+        const both = setCheckPoints(cycleVerdict(emptyOverlay(), T, K1, 'met'), T, K2, '1', '2', 'met');
+        expect(build(failed, both).blockers).toEqual([]);
     });
 });

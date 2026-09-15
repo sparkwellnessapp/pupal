@@ -20,7 +20,6 @@ import { listGradingBatches } from '@/lib/api';
 import {
     BATCH_FALLBACK_NAME,
     BATCH_LOAD_ERROR,
-    batchStatusLabel,
     LIST_EMPTY,
     LIST_EMPTY_CTA,
     LIST_NEW_BATCH,
@@ -30,41 +29,11 @@ import {
     META_TESTS,
 } from '@/copy/batch';
 import { SegmentBar } from '@/components/batch/SegmentBar';
+import { ExamsTabs } from '@/components/batch/ExamsTabs';
+import { StageChipView } from '@/components/batch/StageStepper';
+import { deriveBatchStage } from '@/utils/batch-stage';
 import { listActionLine, listBarSegments } from '@/utils/batch-list';
 import type { BatchListItem } from '@/types/batch';
-
-/**
- * [Stage A fix] The label takes the SAME inputs the detail page gives it.
- *
- * It used to pass `transcribing` alone, so a batch whose files were still
- * arriving rendered the amber «ממתין להחלטות» — "awaiting your decisions" —
- * directly above this same component's own action line saying «4 קבצים
- * בהעלאה». The copy module's note on that branch says it must never claim she
- * is holding the batch up; the list was the one surface still doing it.
- * `activeJobs` is deliberately NOT threaded: the list payload carries `rollup`
- * and nothing else, so there is no honest value to pass. For a jobs-era batch
- * `rollup.transcribing` already counts the queued and running jobs, which is
- * the same population.
- */
-function StatusBadge({ status, transcribing, uploading }: {
-    status: string;
-    transcribing: number;
-    uploading: number;
-}) {
-    const map: Record<string, string> = {
-        in_progress: 'bg-amber-100 text-amber-700',
-        completed: 'bg-green-100 text-green-700',
-        partially_completed: 'bg-orange-100 text-orange-700',
-        failed: 'bg-red-100 text-red-700',
-        pending: 'bg-gray-100 text-gray-500',
-    };
-    // Labels come from the C1 copy module (F3) — one home, both surfaces.
-    return (
-        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${map[status] ?? 'bg-gray-100 text-gray-500'}`}>
-            {batchStatusLabel(status, { transcribing, uploading })}
-        </span>
-    );
-}
 
 /** The action line's hue follows its meaning: amber = she owes a decision. */
 const ACTION_CLS: Record<string, string> = {
@@ -78,6 +47,13 @@ const ACTION_CLS: Record<string, string> = {
 function BatchRow({ batch }: { batch: BatchListItem }) {
     const action = listActionLine(batch.rollup);
     const segments = listBarSegments(batch.rollup);
+    // §5.1 — the SAME derivation the detail page uses, from the same payload
+    // shape. The list used to run its own label + its own colour map, which is
+    // how a batch whose files were still arriving showed «ממתין להחלטות»
+    // directly above this row's own «4 קבצים בהעלאה». One function, both
+    // surfaces. `active_jobs` is not on the list payload and is not faked:
+    // `rollup.transcribing` already counts the same population there.
+    const stage = deriveBatchStage(batch);
     const meta = [
         batch.rubric_name ? `${META_RUBRIC_PREFIX} ${batch.rubric_name}` : null,
         batch.class_name,
@@ -110,11 +86,7 @@ function BatchRow({ batch }: { batch: BatchListItem }) {
                         ))}
                     </div>
                 </div>
-                <StatusBadge
-                    status={batch.status}
-                    transcribing={batch.rollup.transcribing}
-                    uploading={batch.rollup.uploading ?? 0}
-                />
+                <StageChipView stage={stage} />
             </div>
 
             {/* L1: the mini honesty bar — same primitive as D2, legend-less. */}
@@ -151,6 +123,7 @@ export default function BatchListPage() {
     return (
         <SidebarLayout>
             <div className="max-w-4xl mx-auto">
+                <ExamsTabs active="batches" />
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h1 className="text-2xl font-bold text-batch-ink">{LIST_TITLE}</h1>

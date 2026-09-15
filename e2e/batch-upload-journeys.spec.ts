@@ -136,13 +136,16 @@ test('upload-journey (U1) — one path: a single file becomes a batch of one and
 
     // B5: the name field arrives composed (rubric · he-IL date; no class picked).
     const nameInput = page.getByTestId('batch-name-input');
-    await expect(nameInput).toHaveValue(/^מחוון בדיקה · \d{1,2}\.\d{1,2}\.\d{4}$/);
+    // §5.2: the rubric is named «מחוון בדיקה» and the leading «מחוון» is
+    // STRIPPED from the title — the subtitle on the batch page still carries
+    // the full rubric name, so only the doubled word disappears.
+    await expect(nameInput).toHaveValue(/^בדיקה · \d{1,2}\.\d{1,2}\.\d{4}$/);
 
     // The CTA is disabled (with its reason) until a file lands — AM3 singular after one.
     await expect(page.getByTestId('upload-cta')).toBeDisabled();
     await expect(page.getByTestId('upload-cta')).toHaveAttribute('title', 'בחרי לפחות קובץ PDF אחד כדי להתחיל');
     await page.setInputFiles('input[type=file]', [pdfPayload('a.pdf')]);
-    await expect(page.getByTestId('upload-cta')).toHaveText(/התחלת תמלול \(מבחן אחד\)/);
+    await expect(page.getByTestId('upload-cta')).toHaveText(/שליחה לוויוי \(מבחן אחד\)/);
 
     await page.getByTestId('upload-cta').click();
 
@@ -153,7 +156,7 @@ test('upload-journey (U1) — one path: a single file becomes a batch of one and
     // carried a client-generated UUID idempotency key.
     expect(state.createBodies).toHaveLength(1);
     expect(state.createBodies[0].rubric_id).toBe('r1');
-    expect(String(state.createBodies[0].name)).toMatch(/^מחוון בדיקה · \d{1,2}\.\d{1,2}\.\d{4}$/);
+    expect(String(state.createBodies[0].name)).toMatch(/^בדיקה · \d{1,2}\.\d{1,2}\.\d{4}$/);
     const ids = state.appendIds.get('a.pdf') ?? [];
     expect(ids).toHaveLength(1);
     expect(ids[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
@@ -181,7 +184,7 @@ test('inline-states (U3/U4) — the SAME invariants, now on the dashboard lane',
     await page.setInputFiles('input[type=file]', [
         pdfPayload('good.pdf'), pdfPayload('bad.pdf'), pdfPayload('flaky.pdf'),
     ]);
-    await expect(page.getByTestId('upload-cta')).toHaveText(/התחלת תמלול \(3 מבחנים\)/);
+    await expect(page.getByTestId('upload-cta')).toHaveText(/שליחה לוויוי \(3 מבחנים\)/);
     await page.getByTestId('upload-cta').click();
 
     // THE Stage B claim: she leaves at once, and the transfers survive the
@@ -305,5 +308,5 @@ test('form-truths (U2) — dup chip, >50 truncation notice, LTR sizes', async ({
         Array.from({ length: 49 }, (_, i) => pdfPayload(`bulk${i}.pdf`)));
     await expect(page.getByTestId('truncation-notice')).toHaveText('נבחרו יותר מ-50 קבצים — נכללו 50 הראשונים');
     await expect(page.getByTestId('upload-row')).toHaveCount(50);
-    await expect(page.getByTestId('upload-cta')).toHaveText(/התחלת תמלול \(50 מבחנים\)/);
+    await expect(page.getByTestId('upload-cta')).toHaveText(/שליחה לוויוי \(50 מבחנים\)/);
 });

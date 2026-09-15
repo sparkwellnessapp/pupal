@@ -4,19 +4,20 @@ import Link from 'next/link';
 
 import type { ReviewScope } from '@/utils/grade-review-model';
 import type { QueueState } from '@/utils/grade-review-cursor';
-import { formatPoints } from '@/utils/points-display';
+import { formatPoints, subtractPoints } from '@/utils/points-display';
 import { StampSvg } from './StampSvg';
 import { RevisionMenu, type RevisionMenuProps } from './RevisionMenu';
 import {
     RV_APPROVE,
+    RV_APPROVE_HELPER,
     RV_APPROVING,
+    RV_DEDUCTION,
     RV_KEYS_ALL,
     RV_KEYS_REST,
-    RV_KEY_MARKER,
+    RV_KEY_APPROVE,
     RV_KEY_MOVE,
-    RV_KEY_REVERT,
-    RV_KEY_VERDICT,
     RV_LOOK_COUNT,
+    RV_NAV_LEGEND,
     RV_MINI_THUMB_TITLE,
     RV_NAV_HEADING,
     RV_NAV_NEXT,
@@ -144,7 +145,7 @@ export function ReviewTopBar({
                         className={[
                             'text-gr-total [font-variant-numeric:tabular-nums]',
                             '[unicode-bidi:isolate]',
-                            anyOverride ? 'font-normal text-grade-red' : 'text-grade-pencil',
+                            anyOverride ? 'font-normal text-primary-700' : 'text-grade-pencil',
                         ].join(' ')}
                     >
                         {formatPoints(total)}
@@ -206,13 +207,45 @@ export function ScopeNav({
     activeScopeId: string | null;
     onJump: (scopeId: string) => void;
 }) {
+    const anyMarker = scopes.some((s) => (markersByScope[s.scopeId] ?? 0) > 0);
     return (
         <nav className="sticky top-scope-nav hidden flex-col gap-0.5 rail:flex">
             <div className="mx-2.5 mb-1.5 text-gr-chip tracking-wide text-grade-pencil">
                 {RV_NAV_HEADING}
             </div>
+            {/* §5.5 — the legend. Rendered only when a dot exists, because a
+                legend for a symbol that is not on screen is furniture. Its
+                wording is the TRUE semantics of the marker (see RV_NAV_LEGEND):
+                "Vivi could not verify this by itself", never "less confident",
+                which would describe a number this surface does not have. */}
+            {anyMarker ? (
+                <p
+                    data-nav-legend
+                    className="mx-2.5 mb-1.5 flex items-start gap-1.5 text-gr-chip
+                        leading-snug text-grade-pencil"
+                >
+                    <span aria-hidden="true" className="mt-1 inline-block h-dot w-dot
+                        flex-none rounded-full bg-grade-amber-dot" />
+                    {RV_NAV_LEGEND}
+                </p>
+            ) : null}
             {scopes.map((scope) => {
                 const markerCount = markersByScope[scope.scopeId] ?? 0;
+                // §5.5 — «where did he lose points» is her first read, and the
+                // dots do not answer it (1.א carries one at 8/8). Computed from
+                // the model's own already-priced figures, so it cannot disagree
+                // with the pair beside it; absent when nothing was lost.
+                //
+                // An EXCLUDED scope has none to lose. On a «choose 4 of 6» the
+                // two unchosen questions read 0/25, and a bare subtraction
+                // stamps «−25» on each — a 50-point deduction on work the exam
+                // never asked for, in red, next to the sentence that says it was
+                // not counted. Unchosen members are EXCLUDED, not zeroed
+                // (CLAUDE.md §5, selection_scoring), and the rail has to say the
+                // same thing as the section it indexes.
+                const deduction = scope.gradedBy === 'excluded_by_selection'
+                    ? null
+                    : subtractPoints(scope.possible, scope.awarded);
                 return (
                 <button
                     key={scope.scopeId}
@@ -237,17 +270,30 @@ export function ScopeNav({
                             />
                         ) : null}
                     </span>
-                    <span
-                        dir="ltr"
-                        className={[
-                            'text-gr-meta [font-variant-numeric:tabular-nums]',
-                            '[unicode-bidi:isolate]',
-                            scope.overridden
-                                ? 'font-medium text-grade-red'
-                                : 'font-light text-grade-pencil',
-                        ].join(' ')}
-                    >
-                        {formatPoints(scope.awarded)}/{formatPoints(scope.possible)}
+                    <span className="flex items-baseline gap-1.5">
+                        {deduction ? (
+                            <span
+                                dir="ltr"
+                                data-nav-deduction
+                                className="text-gr-chip text-grade-red
+                                    [font-variant-numeric:tabular-nums]
+                                    [unicode-bidi:isolate]"
+                            >
+                                {RV_DEDUCTION(deduction)}
+                            </span>
+                        ) : null}
+                        <span
+                            dir="ltr"
+                            className={[
+                                'text-gr-meta [font-variant-numeric:tabular-nums]',
+                                '[unicode-bidi:isolate]',
+                                scope.overridden
+                                    ? 'font-medium text-primary-700'
+                                    : 'font-light text-grade-pencil',
+                            ].join(' ')}
+                        >
+                            {formatPoints(scope.awarded)}/{formatPoints(scope.possible)}
+                        </span>
                     </span>
                 </button>
                 );
@@ -292,12 +338,18 @@ export function ReviewBottomBar({
                             : saveState === 'saving' ? RV_SAVING
                                 : `${RV_SAVED} ✓`}
                     </span>
+                    {/* §5.5 — TWO hints by default. A row of six shortcuts is
+                        how a first-timer learns to read none of them; the rest
+                        fold under «כל המקשים». The approve hint names `Ctrl ↵`,
+                        which is the key that actually approves here — a bare
+                        Enter opens the points field (OD-R2), and a hint that
+                        names the wrong key makes the product look broken. */}
+                    <span className="hidden desk:inline">
+                        <Kbd>Ctrl ↵</Kbd> {RV_KEY_APPROVE}
+                    </span>
                     <span className="hidden desk:inline">
                         <Kbd>↓</Kbd><Kbd>↑</Kbd> {RV_KEY_MOVE}
                     </span>
-                    <span className="hidden desk:inline"><Kbd>Space</Kbd> {RV_KEY_VERDICT}</span>
-                    <span className="hidden desk:inline"><Kbd>⌫</Kbd> {RV_KEY_REVERT}</span>
-                    <span className="hidden desk:inline"><Kbd>F</Kbd> {RV_KEY_MARKER}</span>
                     <button
                         type="button"
                         onClick={onShowKeys}
@@ -308,25 +360,35 @@ export function ReviewBottomBar({
                     </button>
                 </div>
 
-                <button
-                    type="button"
-                    onClick={blocked ? onBlocked : onApprove}
-                    disabled={!canApprove || approving}
-                    data-blocked={blocked ? 'true' : undefined}
-                    aria-describedby={blocked ? 'approve-blocked' : undefined}
-                    className={[
-                        `inline-flex items-center gap-2 rounded-grade-ctl border
-                         border-primary-600 bg-primary-600 px-4 py-2.5 text-gr-body
-                         font-medium text-white disabled:opacity-50`,
-                        blocked
-                            ? 'opacity-50'
-                            : 'hover:border-primary-700 hover:bg-primary-700',
-                    ].join(' ')}
-                >
-                    {approving ? RV_APPROVING : RV_APPROVE}
-                    <kbd className="rounded border border-white/35 bg-white/20 px-1.5
-                        py-px font-mono text-gr-sm">Ctrl ↵</kbd>
-                </button>
+                <div className="flex items-center gap-3">
+                    {/* §5.5 — what pressing it DOES, beside the thing that does
+                        it. She is legally accountable for the number; she is
+                        entitled to know it is about to be written onto the
+                        paper the student gets back. */}
+                    <span className="hidden text-gr-meta text-grade-pencil desk:inline"
+                        data-approve-helper>
+                        {RV_APPROVE_HELPER}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={blocked ? onBlocked : onApprove}
+                        disabled={!canApprove || approving}
+                        data-blocked={blocked ? 'true' : undefined}
+                        aria-describedby={blocked ? 'approve-blocked' : undefined}
+                        className={[
+                            `inline-flex items-center gap-2 rounded-grade-ctl border
+                             border-primary-600 bg-primary-600 px-4 py-2.5 text-gr-body
+                             font-medium text-white disabled:opacity-50`,
+                            blocked
+                                ? 'opacity-50'
+                                : 'hover:border-primary-700 hover:bg-primary-700',
+                        ].join(' ')}
+                    >
+                        {approving ? RV_APPROVING : RV_APPROVE}
+                        <kbd className="rounded border border-white/35 bg-white/20 px-1.5
+                            py-px font-mono text-gr-sm">Ctrl ↵</kbd>
+                    </button>
+                </div>
             </div>
         </div>
     );

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { formatPoints, formatPointsPair } from './points-display';
+import { formatPoints, formatPointsPair, subtractPoints } from './points-display';
 
 /**
  * The display half of the pricing seam. The EXACT value travels; only what
@@ -60,3 +60,38 @@ describe('formatPoints', () => {
         expect(formatPoints('123456789.50')).toBe('123456789.5');
     });
 });
+
+// ---------------------------------------------------------------------------
+// §5.5 — the deduction. «Where did he lose points» is her first read, and the
+// amber dots do not answer it (a full-marks question can carry one).
+// ---------------------------------------------------------------------------
+
+describe('subtractPoints', () => {
+    it('reports what was lost, trimmed', () => {
+        expect(subtractPoints('10', '7.5')).toBe('2.5')
+        expect(subtractPoints('12.00', '8.00')).toBe('4')
+        expect(subtractPoints('3', '2.75')).toBe('0.25')
+    })
+
+    it('renders NOTHING when nothing was lost — the row stays quiet', () => {
+        expect(subtractPoints('8', '8')).toBeNull()
+        expect(subtractPoints('8.00', '8')).toBeNull()
+    })
+
+    it('never reports a NEGATIVE deduction from an over-awarded row', () => {
+        // The pricer clamps, but a clamped row can still reach a render, and
+        // «−-2» beside a grade is worse than no figure at all.
+        expect(subtractPoints('5', '7')).toBeNull()
+    })
+
+    it('is exact — no float round-trip', () => {
+        // 0.3 - 0.1 through Number is 0.19999999999999998.
+        expect(subtractPoints('0.3', '0.1')).toBe('0.2')
+    })
+
+    it('renders no deduction for an input it cannot parse, rather than a guess', () => {
+        expect(subtractPoints('לא ידוע', '3')).toBeNull()
+        expect(subtractPoints(null, '3')).toBeNull()
+        expect(subtractPoints('3', undefined)).toBeNull()
+    })
+})

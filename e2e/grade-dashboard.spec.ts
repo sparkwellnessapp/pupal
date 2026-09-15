@@ -28,6 +28,12 @@ async function settled(page: import('@playwright/test').Page) {
     await page.locator('[data-grade-dashboard]').waitFor();
     const cards = page.locator('[data-pile-card]');
     await expect(cards.first()).toBeVisible();
+    // Thumbnails load LAZILY (usePageThumbnails, 300px of runway). In the
+    // `complete` state the §5.6 celebration card sits above the pile and pushes
+    // it past that runway, so nothing fetches until something scrolls — and a
+    // fullPage screenshot of unfetched thumbnails is a photograph of empty
+    // frames. Scrolling first is what a teacher does; it is not a workaround.
+    await cards.first().scrollIntoViewIfNeeded();
     // NOT one image per card: `page1_image_url` is null when the transcription
     // has no page 1, and that card is meant to render with no image at all
     // rather than a broken-image glyph. Wait for whatever images exist.
@@ -150,7 +156,7 @@ test('download-modal-explicit-exclusions: D9 — the download modal names its ex
         // complete = 4 approved + 1 failed. The failed test is named on its own
         // line with its own remedy — calling it "not yet approved" would send
         // her looking for a review that cannot exist.
-        await expect(modal.locator('[data-failed-line]')).toContainText('נכשל בניקוד');
+        await expect(modal.locator('[data-failed-line]')).toContainText('נכשל בבדיקה');
         await expect(modal).not.toContainText('עדיין לא אושר');
         // «DownloadModal from the manifest» (spec §2): the numbers she confirms
         // against are the SERVER's, once they arrive — the feed's count is only
@@ -189,17 +195,17 @@ test('D6 — a failed card\'s «ניסיון נוסף» retries the grade from t
 
         const failed = page.locator('[data-pile-card][data-card-state="failed"]').first();
         await expect(failed).toBeVisible();
-        await failed.getByText('ניסיון נוסף').click();
+        await failed.getByText('נסי שוב').click();
 
         await expect.poll(() => posts.some((u) => u.includes('/retry'))).toBe(true);
-        await expect(page.getByText(/נשלח לניקוד חוזר/).first()).toBeVisible();
+        await expect(page.getByText(/נשלח לבדיקה חוזרת/).first()).toBeVisible();
         // …and we did NOT navigate away to the review route.
         await expect(page).toHaveURL(new RegExp(`/batches/${BATCH_ID}$`));
         // The card now SAYS it was sent and stops offering the same click — the
         // successor is a new row the feed cannot show, so a second «ניסיון נוסף»
         // would 409 on the now non-leaf row.
         await expect(failed.locator('[data-card-retried]')).toBeVisible();
-        await expect(failed.getByText('ניסיון נוסף')).toHaveCount(0);
+        await expect(failed.getByText('נסי שוב')).toHaveCount(0);
     });
 
 /** D6 — a revision of a signed test says its signature is gone. */
@@ -209,7 +215,7 @@ test('D6 — a revision draft reads «גרסה n · לא נחתם»', async ({ p
     const card = page.locator('[data-pile-card="44444444-4444-4444-8444-000000000000"]');
     await expect(card.locator('[data-card-revision]')).toContainText('גרסה 2 · לא נחתם');
     // APPENDED to the state caption, not replacing it (mockup `card()` appends).
-    await expect(card).toContainText('נחת · מוכן לבדיקה');
+    await expect(card).toContainText('מוכן · מחכה לאישור שלך');
 });
 
 /** D6 — the grading card's caption says what is happening to THIS test. */
@@ -217,7 +223,7 @@ test('D6 — a grading card is captioned «מנוקד עכשיו»', async ({ pa
     await installGradeReviewMocks(page, { feedState: 'running' });
     await page.goto(DASH);
     const grading = page.locator('[data-pile-card][data-card-state="grading"]').first();
-    await expect(grading).toContainText('מנוקד עכשיו');
+    await expect(grading).toContainText('נבדק עכשיו');
 });
 
 test('mobile-dashboard-glanceable-review-interstitial: D10 — the dashboard stays glanceable on a phone', async ({ page }) => {

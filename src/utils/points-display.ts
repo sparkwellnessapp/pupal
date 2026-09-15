@@ -15,6 +15,8 @@
  * how `0.1 + 0.2` gets onto a screen.
  */
 
+import { cmp, dec, sub, toString, type Dec } from '@/lib/decimal';
+
 export function formatPoints(value: string | null | undefined): string {
     if (value == null || value === '') return '';
     const text = String(value).trim();
@@ -35,4 +37,32 @@ export function formatPoints(value: string | null | undefined): string {
 /** «7.5 / 10» — the pair, both trimmed, in one place. */
 export function formatPointsPair(awarded: string, possible: string): string {
     return `${formatPoints(awarded)} / ${formatPoints(possible)}`;
+}
+
+/**
+ * §5.5 — what was LOST, trimmed for display. `null` when nothing was.
+ *
+ * The subtraction rides the pricer's own exact decimal (`lib/decimal.ts`), not
+ * `Number`: these are the strings the server froze, and `0.1 + 0.2` reaching a
+ * screen through a float round-trip is the exact failure that module exists to
+ * prevent. It DERIVES nothing new — `possible` and `awarded` are already on the
+ * model — so it cannot disagree with the pair rendered beside it.
+ *
+ * A non-numeric or negative result yields `null`: the honest response to an
+ * input this function does not understand is to render no deduction, never a
+ * figure it cannot stand behind.
+ */
+export function subtractPoints(
+    possible: string | null | undefined,
+    awarded: string | null | undefined,
+): string | null {
+    if (possible == null || awarded == null) return null;
+    let diff: Dec;
+    try {
+        diff = sub(dec(String(possible)), dec(String(awarded)));
+    } catch {
+        return null;
+    }
+    if (cmp(diff, dec('0')) <= 0) return null;
+    return formatPoints(toString(diff));
 }

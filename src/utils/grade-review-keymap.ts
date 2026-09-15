@@ -14,8 +14,11 @@
  * ── CENSUS C, the reconciliation §5 asks for ───────────────────────────────
  * ONE deliberate divergence from the transcription map, asserted in the test
  * file so it cannot drift into an accident: bare `Enter` approves there; here
- * it does NOTHING. Space cycles verdicts on this surface, so a hand resting
- * one key over would sign a grade. §5 lists Ctrl/⌘+↵ and only that.
+ * it NEVER approves. Space cycles verdicts on this surface, so a hand resting
+ * one key over would sign a grade. §5 lists Ctrl/⌘+↵ and only that. Since
+ * OD-R2 a bare Enter OPENS THE POINTS EDITOR on the focused row — a field, not
+ * a signature; the worst a stray Enter can do is show her an input she can
+ * Esc out of.
  *
  * Ctrl/⌘+S was the second divergence and is no longer one. OD-F7, ruled
  * 2026-08-31: bind it. This surface autosaves, so the key has nothing of its
@@ -48,7 +51,9 @@ export type GradeKeyAction =
     | 'disputeEvidence'
     | 'approve'
     | 'save'
-    | 'release';
+    | 'release'
+    /** [OD-R2] Enter: type the points on the focused row. */
+    | 'editPoints';
 
 export interface GradeKeyInput {
     /** `event.key` — the produced character (layout-dependent). */
@@ -69,13 +74,13 @@ export interface GradeKeyResolution {
 }
 
 /** Actions that commit something. Never fired by auto-repeat. */
-const DECIDING: ReadonlySet<GradeKeyAction> = new Set<GradeKeyAction>(['cycleVerdict', 'revert', 'approve']);
+const DECIDING: ReadonlySet<GradeKeyAction> = new Set<GradeKeyAction>(['cycleVerdict', 'revert', 'approve', 'editPoints']);
 // `save` is deliberately NOT deciding: a held Ctrl+S flushing twice is a
 // no-op, and suppressing it would let the browser dialog through on the repeat.
 
 /** Keys the browser would otherwise act on. */
 const SWALLOW: ReadonlySet<GradeKeyAction> = new Set<GradeKeyAction>([
-    'cycleVerdict', 'revert', 'nextCheck', 'prevCheck', 'approve', 'save',
+    'cycleVerdict', 'revert', 'nextCheck', 'prevCheck', 'approve', 'save', 'editPoints',
 ]);
 
 const LETTERS: Readonly<Record<string, GradeKeyAction>> = {
@@ -105,6 +110,8 @@ function bare(input: GradeKeyInput): GradeKeyAction | null {
             return 'cycleVerdict';
         case 'Backspace':
             return 'revert';
+        case 'Enter':
+            return 'editPoints';
         default:
             break;
     }

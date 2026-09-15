@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
+import { AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { GradedTestReviewPanel } from '@/components/GradedTestReviewPanel';
 import { GradeDashboard } from '@/components/grade-review/GradeDashboard';
@@ -34,7 +34,6 @@ import {
     createStudent,
     ClassroomConflictError,
     getBatch,
-    getRubric,
     getGradedTest,
     renameBatch,
     retryBatchJob,
@@ -53,7 +52,6 @@ import {
     BATCH_FALLBACK_NAME,
     BATCH_LOAD_ERROR,
     BATCH_NOT_FOUND,
-    batchStatusLabel,
     DISMISS_NOTICE_LABEL,
     META_CREATED,
     META_RUBRIC_PREFIX,
@@ -61,28 +59,29 @@ import {
     RETRY_ERROR,
     SKIP_NOTICE,
     SKIP_REASON_FRAGMENTS,
+    STRIP_TRANSCRIPTIONS_APPROVED,
     UPLOAD_FAILURES_NOTICE,
 } from '@/copy/batch';
-import { StatusChip, type ChipHue } from '@/components/batch/StatusChip';
 import { SegmentBar } from '@/components/batch/SegmentBar';
 import { IdentityWave, type PillView, type PillStatus } from '@/components/batch/IdentityWave';
 import { GhostZone } from '@/components/batch/GhostZone';
 import { UploadLane } from '@/components/batch/UploadLane';
 import { useUploadQueue } from '@/contexts/UploadQueueProvider';
-import { CleanPanel } from '@/components/batch/CleanPanel';
-import { NeedsEyesQueue } from '@/components/batch/NeedsEyesQueue';
+import { TranscriptionTriage } from '@/components/batch/TranscriptionTriage';
+import { CompletedStageStrip } from '@/components/batch/CompletedStageStrip';
+import { FirstBatchExplainer } from '@/components/batch/FirstBatchExplainer';
+import { StageChipView, StageStepper } from '@/components/batch/StageStepper';
 import { FailedZone } from '@/components/batch/FailedZone';
 import { GradingLane } from '@/components/batch/GradingLane';
-import { CompletionHero } from '@/components/batch/CompletionHero';
 import { normalizeName, partitionItems } from '@/utils/batch-partition';
 import { assignZones, isIdentityPending } from '@/utils/zone-assignment';
+import { deriveBatchStage } from '@/utils/batch-stage';
 import {
     barSegments,
-    completionReached,
     pollCadenceMs,
     relativeTimeHe,
-    selectHeadline,
     sessionCompletionMinutes,
+    signOffReached,
 } from '@/utils/batch-dashboard';
 import { computeReviewOrder } from '@/utils/batch-review-cursor';
 import { takeSkipNotice, takeUploadFailures } from '@/utils/skip-notice';
@@ -92,12 +91,15 @@ import { SHOW_GRADING_LANE, USE_GRADE_REVIEW_MODULE } from '@/lib/flags';
 // Grade-review section — per-test rows opening the S9 panel (pre-redesign
 // machinery kept; chips migrated onto the F8 primitive)
 // ---------------------------------------------------------------------------
-function GradeReviewSection({ batch, batchId, onRefresh }: {
+function GradeReviewSection({ batch, batchId, onRefresh, durationMinutes }: {
     batch: BatchDetailResponse;
     batchId: string;
     /** The page's own refetch — a retry inserts a new pending row the poll will
      *  show, but she should not have to wait a tick to see it. */
     onRefresh: () => Promise<void>;
+    /** §5.6 — «מהעלאה ועד החתימה האחרונה». Frozen by the page when it watched
+     *  the last signature land; null on a revisit, and then omitted. */
+    durationMinutes: number | null;
 }) {
     const router = useRouter();
     // Hooks before the early returns below.
@@ -177,7 +179,7 @@ function GradeReviewSection({ batch, batchId, onRefresh }: {
             const url = URL.createObjectURL(blob);
             const anchor = document.createElement('a');
             anchor.href = url;
-            anchor.download = `${batch.name ?? 'מקבץ'}_מבחנים_מוחזרים.zip`;
+            anchor.download = `${batch.name ?? 'מבחן'}_מבחנים_חתומים.zip`;
             anchor.click();
             // Firefox starts a blob: download asynchronously; revoking on the same
             // tick aborts it. Ten seconds is the conventional margin — the cost
@@ -207,6 +209,7 @@ function GradeReviewSection({ batch, batchId, onRefresh }: {
             onDownload={() => { void downloadZip(); }}
             loadManifest={loadManifest}
             retriedIds={retriedIds}
+            durationMinutes={durationMinutes}
         />
     );
 }
@@ -286,26 +289,20 @@ export default function BatchDetailPage() {
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const mountedRef = useRef(true);
     const authDeadRef = useRef(false);
-    // The rubric's subject key (migration 027): direction of the clean-panel
-    // answer peeks (Phase 3b). Context only — a failed fetch leaves today's ltr.
-    const [rubricSubject, setRubricSubject] = useState<string | null>(null);
-    const rubricIdForSubject = batch?.rubric_id ?? null;
-    useEffect(() => {
-        if (!rubricIdForSubject) return;
-        let alive = true;
-        getRubric(rubricIdForSubject)
-            .then((r) => { if (alive) setRubricSubject((r as { subject?: string | null }).subject ?? null); })
-            .catch(() => { /* direction context only */ });
-        return () => { alive = false; };
-    }, [rubricIdForSubject]);
+    // [§5.3C] The rubric-subject fetch is GONE with the clean panel's inline
+    // answer peek, which was its only consumer (it set the text direction of
+    // the peeked code). The triage cards show a page image and a sentence, not
+    // answer text, so the request would have been a round trip per batch load
+    // for a value nothing reads. The review surface fetches its own.
 
     // D4 — pill state keyed by NORMALIZED name (survives payload replacement)
     const [pillStates, setPillStates] = useState<Record<string, { value: string; status: PillStatus }>>({});
     const [bulkBusy, setBulkBusy] = useState(false);
-    const [sessionCreated, setSessionCreated] = useState(0);
+    // [§5.1F] The session's new-student tally went with `CompletionHero`,
+    // which was its only reader. Incrementing a number nothing renders is the
+    // kind of state that survives a redesign and confuses the next reader.
 
-    // D5 — keyed by transcription_id
-    const [cleanExpanded, setCleanExpanded] = useState<ReadonlySet<string>>(new Set());
+    // D5 — keyed by transcription_id. `cleanExpanded` went with the row peek.
     const [cleanShowAll, setCleanShowAll] = useState(false);
     const [accepting, setAccepting] = useState<ReadonlySet<string>>(new Set());
     const [cleanBulkBusy, setCleanBulkBusy] = useState(false);
@@ -414,13 +411,20 @@ export default function BatchDetailPage() {
         return () => clearTimeout(t);
     }, [batch]);
 
-    // D10 — freeze the duration the moment completion is first observed.
-    // C2: only when THIS session watched it complete; a revisit omits the line
-    // rather than reporting a week as minutes (see sessionCompletionMinutes).
+    // §5.1F — freeze the duration the moment the LAST SIGNATURE is observed.
+    //
+    // D10 froze it at transcription approval, which is where the mid-flow hero
+    // used to fire; the statistic moved to the end state with the celebration,
+    // so its trigger moved too — «מהעלאה ועד החתימה האחרונה» has to be clocked
+    // from the signature it names.
+    //
+    // C2's honesty rule is unchanged: only when THIS session watched it happen.
+    // A teacher opening a week-old finished batch sees no duration rather than
+    // «10080 דקות» on the one screen that exists to feel good.
     const sawIncompleteRef = useRef(false);
     useEffect(() => {
         if (!batch) return;
-        if (!completionReached(batch)) { sawIncompleteRef.current = true; return; }
+        if (!signOffReached(batch)) { sawIncompleteRef.current = true; return; }
         if (completionMinutes !== null) return;
         const minutes = sessionCompletionMinutes(
             batch.created_at, Date.now(), sawIncompleteRef.current,
@@ -452,7 +456,6 @@ export default function BatchDetailPage() {
         [batch],
     );
     const activeJobs = batch?.active_jobs ?? [];
-    const complete = batch ? completionReached(batch) : false;
 
     const pillViews: PillView[] = useMemo(
         () => partition.identityPills.map(p => {
@@ -483,7 +486,6 @@ export default function BatchDetailPage() {
             await createStudent({ full_name: name });
             if (!mountedRef.current) return;
             setPillStates(prev => ({ ...prev, [key]: { value, status: 'done' } }));
-            setSessionCreated(n => n + 1);
         } catch (err) {
             if (!mountedRef.current) return;
             if (err instanceof ClassroomConflictError) {
@@ -600,24 +602,10 @@ export default function BatchDetailPage() {
     }
 
     const rollup = batch.rollup;
-    // [Stage A] Files still on the wire are in-flight for BOTH the label and
-    // the hue: an uploading batch is 'בתמלול'-blue (work is moving) rather than
-    // 'ממתין להחלטות'-amber, which would tell her something is waiting on her
-    // when nothing is.
-    const uploadingNow = rollup.uploading ?? 0;
-    const statusLabel = batchStatusLabel(batch.status, {
-        transcribing: rollup.transcribing,
-        activeJobs: activeJobs.length,
-        uploading: uploadingNow,
-    });
-    const statusHue: ChipHue =
-        batch.status === 'completed' ? 'green'
-        : batch.status === 'failed' ? 'red'
-        : batch.status === 'in_progress'
-            && (uploadingNow > 0 || rollup.transcribing > 0 || activeJobs.length > 0) ? 'blue'
-        : 'amber';
-
-    const headline = selectHeadline(partition, rollup);
+    // §5.1 — ONE derivation. The chip, the turn line and the stepper are three
+    // renderings of this value; nothing on this page forms a second opinion
+    // about what stage the batch is in.
+    const stage = deriveBatchStage(batch);
     const segments = barSegments(partition, rollup);
 
     // ZC-1 (owner-ruled 2026-08-22): zone membership comes from ONE exhaustive
@@ -643,7 +631,24 @@ export default function BatchDetailPage() {
         ? String(zones.cleanRows[0].transcription_id)
         : null;
 
-    const showWave = !complete && (pillViews.length > 0 || partition.unmatchedItems.length > 0);
+    // §5.1E — the transcription stage is BEHIND her exactly when the STAGE says
+    // so. Read from `stage.step`, not re-derived: the first version tested
+    // `activeJobs.length === 0` for "nothing is still being read", which is
+    // blind on a legacy (pre-016) batch — those carry no job rows, so a batch
+    // with `rollup.transcribing > 0` and no jobs collapsed to «התמלולים אושרו ✓»
+    // over documents Vivi was still reading. `deriveBatchStage` already counts
+    // BOTH populations (`movingOf`); one derivation, no second opinion.
+    //
+    // `zones.approved.length > 0` stays as the strip's own precondition — its
+    // label counts approved transcriptions and must not claim zero.
+    const stageDoneSteps: ReadonlyArray<typeof stage.step> = ['grade', 'sign', 'download'];
+    const transcriptionStageDone =
+        stageDoneSteps.includes(stage.step) && zones.approved.length > 0;
+
+    const showWave = !transcriptionStageDone
+        && (pillViews.length > 0 || partition.unmatchedItems.length > 0);
+    // §5.3B — her FIRST batch, as a server fact (see FirstBatchExplainer).
+    const isFirstBatch = batch.is_first_batch ?? true;
 
     return (
         <SidebarLayout>
@@ -695,16 +700,17 @@ export default function BatchDetailPage() {
                             <button
                                 onClick={startRename}
                                 className="text-[13px] text-batch-faint hover:text-batch-teal-ink"
-                                aria-label="שינוי שם המקבץ"
+                                aria-label="שינוי שם המבחן"
                                 data-testid="rename-pencil"
                             >
                                 ✎
                             </button>
                         )}
-                        <StatusChip hue={statusHue} data-testid="batch-status-chip">{statusLabel}</StatusChip>
-                        <button onClick={refresh} className="rounded-lg p-1.5 text-batch-faint hover:bg-surface-100" aria-label="רענון">
-                            <RefreshCw size={15} />
-                        </button>
+                        <StageChipView stage={stage} />
+                        {/* §5.1D — the manual refresh icon is GONE. The page
+                            polls while anything is moving, so an icon offering
+                            to refresh told her she might have to, which is the
+                            opposite of the thing it did. */}
                     </div>
                     {renameError && <p className="mt-1 text-xs text-batch-red-ink">{renameError}</p>}
                     <p className="mt-1 text-[13px] text-batch-muted">
@@ -737,17 +743,17 @@ export default function BatchDetailPage() {
                         </div>
                     )}
 
+                    {/* §5.1A/B — the stepper and the turn line. Whose turn it
+                        is, and what she is looking at, on every state of the
+                        page. Both read from ONE derived value. */}
+                    <div className="mt-4">
+                        <StageStepper stage={stage} />
+                    </div>
+
                     {/* D2 — honesty bar */}
                     <div className="mt-4">
                         <SegmentBar segments={segments} />
                     </div>
-
-                    {/* D3 — headline */}
-                    {headline && !complete && (
-                        <div className="mt-4 text-[18.5px] font-semibold tracking-tight text-batch-ink" data-testid="headline">
-                            {headline}
-                        </div>
-                    )}
                 </div>
 
                 {/* [Stage B] Her files arriving. OUTSIDE the complete/
@@ -766,24 +772,21 @@ export default function BatchDetailPage() {
                     />
                 )}
 
-                {complete ? (
-                    <>
-                        <CompletionHero
-                            total={rollup.total}
-                            approvedTranscriptions={zones.approved.length}
-                            durationMinutes={completionMinutes}
-                            sessionCreatedStudents={sessionCreated}
-                        />
-                        {SHOW_GRADING_LANE && <GradingLane
-                            variant="completed"
-                            draftCount={rollup.draft}
-                            gradingCount={rollup.grading}
-                            onOpenGrades={() => gradesRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                        />}
-                        <FailedZone failures={batch.transcription_failures ?? []} onRetry={retryJob} retryBusy={retryBusy} />
-                    </>
+                {/* §5.1E — the ACTIVE stage sits at the top of the body and a
+                    finished one collapses to a strip. While transcriptions are
+                    still being decided, the triage leads and the documents Vivi
+                    is still reading sit UNDER it: the further-along work is the
+                    work she can act on. */}
+                {transcriptionStageDone ? (
+                    <CompletedStageStrip
+                        label={STRIP_TRANSCRIPTIONS_APPROVED(zones.approved.length)}
+                        items={zones.approved}
+                        batchId={batchId}
+                        testId="transcriptions-approved-strip"
+                    />
                 ) : (
                     <>
+                        {isFirstBatch && <FirstBatchExplainer batchId={batchId} />}
                         {showWave && (
                             <IdentityWave
                                 pills={pillViews}
@@ -798,40 +801,30 @@ export default function BatchDetailPage() {
                                 onBulkCreate={onBulkCreate}
                             />
                         )}
-                        <GhostZone
-                            jobs={activeJobs}
-                            onRetry={retryJob}
-                            retryBusy={retryBusy}
-                        />
-                        <CleanPanel
-                            items={zones.cleanRows}
+                        <TranscriptionTriage
+                            eyesRows={eyesRows}
+                            cleanRows={zones.cleanRows}
+                            batchId={batchId}
+                            selectionGroups={batch.selection_groups ?? []}
+                            firstReviewId={firstReviewId}
+                            sampleCleanId={manualReviewId}
                             acceptableCount={zones.cleanRows.filter(i => i.matched_student_id).length}
                             pendingCount={zones.cleanRows.filter(isIdentityPending).length}
-                            batchId={batchId}
-                            subject={rubricSubject}
-                            expanded={cleanExpanded}
-                            onToggle={id => setCleanExpanded(prev => {
-                                const n = new Set(prev);
-                                if (n.has(id)) n.delete(id); else n.add(id);
-                                return n;
-                            })}
-                            showAll={cleanShowAll}
-                            onShowAll={() => setCleanShowAll(true)}
                             accepting={accepting}
                             bulkBusy={cleanBulkBusy}
                             onAcceptAll={() => void onAcceptAll()}
                             skipNotice={skipNotice}
-                            manualReviewId={manualReviewId}
+                            showAll={cleanShowAll}
+                            onShowAll={() => setCleanShowAll(true)}
                             newIds={newIds}
+                            isFirstBatch={isFirstBatch}
                         />
-                        <NeedsEyesQueue
-                            rows={eyesRows}
-                            batchId={batchId}
-                            selectionGroups={batch.selection_groups ?? []}
-                            firstReviewId={firstReviewId}
-                            newIds={newIds}
+                        <GhostZone
+                            jobs={activeJobs}
+                            onRetry={retryJob}
+                            retryBusy={retryBusy}
+                            batchTotal={rollup.total}
                         />
-                        <FailedZone failures={batch.transcription_failures ?? []} onRetry={retryJob} retryBusy={retryBusy} />
                         {SHOW_GRADING_LANE && <GradingLane
                             variant="subordinate"
                             draftCount={rollup.draft}
@@ -841,8 +834,15 @@ export default function BatchDetailPage() {
                     </>
                 )}
 
+                <FailedZone failures={batch.transcription_failures ?? []} onRetry={retryJob} retryBusy={retryBusy} />
+
                 <div ref={gradesRef}>
-                    <GradeReviewSection batch={batch} batchId={batchId} onRefresh={refresh} />
+                    <GradeReviewSection
+                        batch={batch}
+                        batchId={batchId}
+                        onRefresh={refresh}
+                        durationMinutes={completionMinutes}
+                    />
                 </div>
             </div>
         </SidebarLayout>

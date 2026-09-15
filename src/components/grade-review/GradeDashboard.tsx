@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
-    attentionLine, downloadSummary, etaText, rollupOf, sessionSummary, stepsLine,
-    type BatchEta, type DownloadSummary, type GradedItem,
+    attentionLine, downloadSummary, etaMinutes, etaText, rollupOf, sessionSummary,
+    stepsLine, type BatchEta, type DownloadSummary, type GradedItem,
 } from '@/utils/grade-dashboard';
 
 /** The server's answer to «what will the ZIP hold». */
@@ -17,16 +17,19 @@ export interface ManifestLike {
 }
 import {
     DASH_ATTENTION_MARKERS, DASH_ATTENTION_OPEN, DASH_ATTENTION_PREFIX,
-    DASH_CONTINUE, DASH_DONE_BANNER, DASH_DONE_WITH_FAILURES, DASH_DOWNLOAD,
-    DASH_DOWNLOAD_ALL, DASH_ETA_LANDING, DASH_ETA_REMAINING, DASH_ETA_UNKNOWN,
+    DASH_CONTINUE, DASH_DONE_WITH_FAILURES, DASH_DOWNLOAD,
+    DASH_ETA_LANDING, DASH_ETA_REMAINING, DASH_ETA_UNKNOWN,
+    DASH_GRADING_COUNTER, DASH_GRADING_FIRST_ETA, DASH_GRADING_REST_ETA,
+    DASH_GRADING_START_NOW, DASH_HEADING_GRADING,
     DASH_STEP_APPROVE, DASH_STEP_AUDIT, DASH_STEP_AUDIT_DONE, DASH_STEP_GRADING,
     DASH_SUB, DASH_TITLE,
 } from '@/copy/grade-review';
 import { DownloadModal } from './DownloadModal';
 import { Pile } from './Pile';
+import { SignedCompletion } from './SignedCompletion';
 
 /**
- * לוח המקבץ — the grade-review dashboard (spec §4.1, D1–D10).
+ * The grade-review dashboard (spec §4.1, D1–D10).
  *
  * It answers three questions and nothing else: **how far along is this batch,
  * which test needs me most, and which one am I looking at.** Everything the
@@ -84,12 +87,21 @@ export interface GradeDashboardProps {
     loadManifest?: () => Promise<ManifestLike>;
     /** Failed tests she has already sent back to grading this session (D6). */
     retriedIds?: ReadonlySet<string>;
+    /**
+     * §5.1F/§5.6 — «מהעלאה ועד החתימה האחרונה», in minutes, or null.
+     *
+     * Frozen by the PAGE at the moment it observed the last signature, and null
+     * on a revisit: a teacher opening a finished batch next week must not read
+     * her evening as «10080 דקות» on the one screen built to feel good. The
+     * line is omitted, never estimated (C2's rule, §3.5a).
+     */
+    durationMinutes?: number | null;
 }
 
 export function GradeDashboard({
     items, batchTotal, auditStatus, eta, subtitle, startedAt, completedAt,
     onOpenReview, onOpenPreview, onRetry, onContinue, onDownload, loadManifest,
-    retriedIds,
+    retriedIds, durationMinutes = null,
 }: GradeDashboardProps) {
     const [downloadOpen, setDownloadOpen] = useState(false);
     const [manifestSummary, setManifestSummary] = useState<DownloadSummary | null>(null);
@@ -163,6 +175,24 @@ export function GradeDashboard({
         unknown: DASH_ETA_UNKNOWN,
     });
 
+    /**
+     * §5.4 — the grading counter, and the conditional that was wrong.
+     *
+     * «אפשר להתחיל לבדוק כבר עכשיו» rode along with the ETA sentence, so it was
+     * shown with ZERO tests ready: an invitation to start something that does
+     * not exist. It is now gated on `done > 0`, and when nothing has landed the
+     * line says WHEN the first one will instead.
+     */
+    const minutesLeft = etaMinutes(eta);
+    const gradingActive = !complete && !gradingDone;
+    // §5.4/§6 — the download is HIDDEN until at least one test is signed. A
+    // «(0)» on a download button is an offer of nothing.
+    //
+    // And hidden again at the END, where `SignedCompletion` carries it as the
+    // card's own primary CTA: two identical buttons a hundred pixels apart make
+    // her wonder which one is the real download.
+    const canDownload = rollup.approved > 0 && !complete;
+
     return (
         <section data-grade-dashboard className="font-assistant">
             {/* D1 */}
@@ -176,30 +206,28 @@ export function GradeDashboard({
                     ) : null}
                 </div>
                 <div className="flex flex-wrap justify-end gap-2.5">
-                    <button
-                        type="button"
-                        data-download
-                        onClick={() => setDownloadOpen(true)}
-                        className={[
-                            'inline-flex items-center gap-2 rounded-grade-ctl border px-4 py-2',
-                            'text-gr-body font-medium transition-colors',
-                            complete
-                                ? 'border-primary-600 bg-primary-600 text-white hover:bg-primary-700'
-                                : 'border-grade-line bg-grade-card text-grade-ink hover:border-grade-pencil-2',
-                        ].join(' ')}
-                    >
-                        {complete
-                            ? DASH_DOWNLOAD_ALL(summary.included)
-                            : (
-                                <>
-                                    {DASH_DOWNLOAD}
-                                    <span className="rounded-full border border-grade-line
-                                        bg-grade-bar px-2 text-gr-chip text-grade-ink-2">
-                                        {summary.included}
-                                    </span>
-                                </>
+                    {canDownload && (
+                        <button
+                            type="button"
+                            data-download
+                            onClick={() => setDownloadOpen(true)}
+                            className={[
+                                'inline-flex items-center gap-2 rounded-grade-ctl border px-4 py-2',
+                                'text-gr-body font-medium transition-colors',
+                                complete
+                                    ? 'border-primary-600 bg-primary-600 text-white hover:bg-primary-700'
+                                    : 'border-grade-line bg-grade-card text-grade-ink hover:border-grade-pencil-2',
+                            ].join(' ')}
+                        >
+                            {DASH_DOWNLOAD}
+                            {!complete && (
+                                <span className="rounded-full border border-grade-line
+                                    bg-grade-bar px-2 text-gr-chip text-grade-ink-2">
+                                    {summary.included}
+                                </span>
                             )}
-                    </button>
+                        </button>
+                    )}
                     {!complete && firstReviewable ? (
                         <button
                             type="button"
@@ -252,24 +280,41 @@ export function GradeDashboard({
                     </span>
                 ))}
             </div>
-            {eta_ ? (
+            {/* §5.4 — the stage in one heading and one counter. The «start
+                now» half appears ONLY when something is actually ready. */}
+            {gradingActive ? (
+                <div className="mb-5 mt-2.5" data-testid="grading-stage-line">
+                    <p className="text-gr-h2 text-grade-ink">{DASH_HEADING_GRADING}</p>
+                    <p data-eta className="mt-1 text-gr-body text-grade-ink-2">
+                        {rollup.landed > 0 ? (
+                            <>
+                                {DASH_GRADING_COUNTER(rollup.landed, rollup.total)}
+                                {minutesLeft !== null
+                                    ? DASH_GRADING_REST_ETA(minutesLeft) : ''}
+                                {' · '}
+                                <span className="text-primary-700">{DASH_GRADING_START_NOW}</span>
+                            </>
+                        ) : (
+                            DASH_GRADING_FIRST_ETA(minutesLeft)
+                        )}
+                    </p>
+                </div>
+            ) : eta_ ? (
                 <p data-eta className="mb-5 mt-2 text-gr-body text-grade-ink-2">{eta_}</p>
             ) : <div className="mb-3.5" />}
 
             {/* D3 — one slot */}
             {attention.kind === 'done' ? (
-                <div
-                    data-attention="done"
-                    className="mb-5 flex items-center justify-between gap-3 rounded-grade-ctl
-                        border border-grade-teal-line bg-primary-50 px-4 py-2.5
-                        text-gr-body text-primary-700"
-                >
-                    <span>
-                        {DASH_DONE_BANNER(session.approved, session.minutes)}
-                        {session.failed > 0
-                            ? ` ${DASH_DONE_WITH_FAILURES(session.failed)}` : ''}
-                    </span>
-                </div>
+                <SignedCompletion
+                    approved={session.approved}
+                    failed={session.failed}
+                    durationMinutes={durationMinutes}
+                    heroItem={items.find((i) => i.status === 'approved') ?? null}
+                    onOpenPreview={onOpenPreview}
+                    onDownload={() => setDownloadOpen(true)}
+                    failuresLine={session.failed > 0
+                        ? DASH_DONE_WITH_FAILURES(session.failed) : null}
+                />
             ) : attention.kind === 'worst' && attention.item ? (
                 <div
                     data-attention="worst"

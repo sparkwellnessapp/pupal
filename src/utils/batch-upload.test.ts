@@ -10,6 +10,7 @@ import {
   initQueue,
   isDrained,
   landedCount,
+  stripRubricPrefix,
   nextToStart,
   UPLOAD_CONCURRENCY,
   uploadQueueReducer,
@@ -44,6 +45,24 @@ describe('composeBatchName (B5)', () => {
     expect(composeBatchName('מתכונת קיץ', null, date)).toBe('מתכונת קיץ · 18.8.2026')
     expect(composeBatchName('מתכונת קיץ', undefined, date)).toBe('מתכונת קיץ · 18.8.2026')
     expect(composeBatchName('מתכונת קיץ', '  ', date)).toBe('מתכונת קיץ · 18.8.2026')
+  })
+
+  // §5.2 — the doubled word. Teachers name rubric files «מחוון יסודות…», so
+  // the title read «מחוון יסודות…» with «מחוון: מחוון יסודות…» beneath it.
+  it('strips a LEADING מחוון from the title', () => {
+    expect(composeBatchName('מחוון יסודות מדעי המחשב', 'יא׳3', date))
+      .toBe('יסודות מדעי המחשב · יא׳3 · 18.8.2026')
+    expect(stripRubricPrefix('מחוון: יסודות')).toBe('יסודות')
+  })
+
+  it('never touches מחוון INSIDE a name', () => {
+    expect(stripRubricPrefix('מבחן לפי מחוון משרד החינוך'))
+      .toBe('מבחן לפי מחוון משרד החינוך')
+  })
+
+  it('leaves a name that is NOTHING but the word alone — a bare date is worse', () => {
+    expect(stripRubricPrefix('מחוון')).toBe('מחוון')
+    expect(composeBatchName('מחוון', null, date)).toBe('מחוון · 18.8.2026')
   })
 })
 

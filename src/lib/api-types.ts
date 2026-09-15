@@ -1981,7 +1981,7 @@ export interface components {
         ApproveRequest: {
             /** Client Total */
             client_total?: number | string | null;
-            overrides: components["schemas"]["GradedTestOverrides"];
+            overrides: components["schemas"]["GradedTestOverrides-Input"];
         };
         /**
          * AuthResponse
@@ -2690,6 +2690,8 @@ export interface components {
             teacher_comment?: string | null;
             /** Text */
             text: string;
+            /** Typed Points */
+            typed_points?: string | null;
             /**
              * Was Overridden
              * @default false
@@ -2795,6 +2797,8 @@ export interface components {
              * @enum {string}
              */
             terminal_kind: "criterion" | "sub_criterion";
+            /** Typed Points */
+            typed_points?: string | null;
             /** Was Overridden */
             was_overridden: boolean;
         };
@@ -3306,7 +3310,7 @@ export interface components {
             scope_outcomes: components["schemas"]["ScopeOutcome"][];
             /** Served Models */
             served_models?: string[] | null;
-            teacher_overrides?: components["schemas"]["GradedTestOverrides"];
+            teacher_overrides?: components["schemas"]["GradedTestOverrides-Output"];
             /** Total Cached Input Tokens */
             total_cached_input_tokens?: number | null;
             /**
@@ -3431,15 +3435,42 @@ export interface components {
          *     keeps the AI's record. A terminal maps to a LIST because a terminal has
          *     several checks and she may decide any subset of them.
          */
-        GradedTestOverrides: {
+        "GradedTestOverrides-Input": {
             /** Feedback */
             feedback?: {
                 [key: string]: string;
             };
             stamp_position?: components["schemas"]["StampPosition"] | null;
+            /** Terminal Points */
+            terminal_points?: {
+                [key: string]: components["schemas"]["TerminalPointsOverride-Input"];
+            };
             /** Terminals */
             terminals?: {
-                [key: string]: components["schemas"]["TeacherOverride"][];
+                [key: string]: components["schemas"]["TeacherOverride-Input"][];
+            };
+        };
+        /**
+         * GradedTestOverrides
+         * @description The teacher's working copy, laid over the draft — never mutating it.
+         *
+         *     SPARSE: only what she touched appears, so everything she did not look at
+         *     keeps the AI's record. A terminal maps to a LIST because a terminal has
+         *     several checks and she may decide any subset of them.
+         */
+        "GradedTestOverrides-Output": {
+            /** Feedback */
+            feedback?: {
+                [key: string]: string;
+            };
+            stamp_position?: components["schemas"]["StampPosition"] | null;
+            /** Terminal Points */
+            terminal_points?: {
+                [key: string]: components["schemas"]["TerminalPointsOverride-Output"];
+            };
+            /** Terminals */
+            terminals?: {
+                [key: string]: components["schemas"]["TeacherOverride-Output"][];
             };
         };
         /**
@@ -4256,7 +4287,7 @@ export interface components {
             client_totals?: {
                 [key: string]: number | string;
             } | null;
-            overrides: components["schemas"]["GradedTestOverrides"];
+            overrides: components["schemas"]["GradedTestOverrides-Input"];
         };
         /**
          * SaveOntologyDraftRequest
@@ -4896,15 +4927,24 @@ export interface components {
          * TeacherOverride
          * @description The teacher's decision on ONE check.
          *
-         *     An override is a VERDICT, not a number. Points are derived from verdicts by
-         *     `app/services/pricing.py`, in one direction, everywhere — so there is no
-         *     `points_awarded` here and no second pricing path to keep in agreement.
+         *     An override is a VERDICT — and, since OD-R2 (owner ruling 2026-09-13,
+         *     reversing R-2 branch B of 2026-09-01), optionally a NUMBER as well.
+         *     `points_awarded` is the amount she TYPED for this check: the credit earned
+         *     on a `required` / `counted` check, the deduction charged on a `tariff`
+         *     check. It is an INPUT to the one pricer (`app/services/pricing.py`), never
+         *     a second derivation: client and server still price the same overlay through
+         *     the same arithmetic and compare totals, which is the property R-2 existed
+         *     to protect. What R-2 assumed — that she never needs to type a number — is
+         *     what the owner reversed; the engineering rule survives intact.
          *
-         *     (R-2, owner ruling: decide by count. The production count of unapproved
-         *     v3-era drafts carrying an overlay was 0 — in fact `graded_tests` was empty —
-         *     so the simple branch applies with no legacy path and no data migration.)
+         *     When `points_awarded` is present the verdict is DERIVED from it
+         *     (`pricing.verdict_for_amount`: full → met, zero → not_met, between →
+         *     partially_met; the reverse sense for a tariff) and the gate refuses a
+         *     client that sends any other verdict, so the glyph and the number can never
+         *     contradict each other on her screen (OD-3 b). `note_only` checks never
+         *     move points and cannot carry an amount.
          */
-        TeacherOverride: {
+        "TeacherOverride-Input": {
             /** Check Id */
             check_id: string;
             /**
@@ -4917,6 +4957,8 @@ export interface components {
              * @default false
              */
             evidence_disputed: boolean;
+            /** Points Awarded */
+            points_awarded?: number | string | null;
             /** Teacher Comment */
             teacher_comment?: string | null;
             /**
@@ -4924,6 +4966,92 @@ export interface components {
              * @enum {string}
              */
             verdict: "met" | "partially_met" | "not_met";
+        };
+        /**
+         * TeacherOverride
+         * @description The teacher's decision on ONE check.
+         *
+         *     An override is a VERDICT — and, since OD-R2 (owner ruling 2026-09-13,
+         *     reversing R-2 branch B of 2026-09-01), optionally a NUMBER as well.
+         *     `points_awarded` is the amount she TYPED for this check: the credit earned
+         *     on a `required` / `counted` check, the deduction charged on a `tariff`
+         *     check. It is an INPUT to the one pricer (`app/services/pricing.py`), never
+         *     a second derivation: client and server still price the same overlay through
+         *     the same arithmetic and compare totals, which is the property R-2 existed
+         *     to protect. What R-2 assumed — that she never needs to type a number — is
+         *     what the owner reversed; the engineering rule survives intact.
+         *
+         *     When `points_awarded` is present the verdict is DERIVED from it
+         *     (`pricing.verdict_for_amount`: full → met, zero → not_met, between →
+         *     partially_met; the reverse sense for a tariff) and the gate refuses a
+         *     client that sends any other verdict, so the glyph and the number can never
+         *     contradict each other on her screen (OD-3 b). `note_only` checks never
+         *     move points and cannot carry an amount.
+         */
+        "TeacherOverride-Output": {
+            /** Check Id */
+            check_id: string;
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at?: string;
+            /**
+             * Evidence Disputed
+             * @default false
+             */
+            evidence_disputed: boolean;
+            /** Points Awarded */
+            points_awarded?: string | null;
+            /** Teacher Comment */
+            teacher_comment?: string | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "met" | "partially_met" | "not_met";
+        };
+        /**
+         * TerminalPointsOverride
+         * @description Her typed amount for a WHOLE terminal (leaf criterion / sub-criterion),
+         *     [OD-R2]. It replaces the terminal's derived award outright, in
+         *     `[0, points_possible]` on the rubric's grid — the gate refuses anything else.
+         *
+         *     LAST TOUCH WINS (OD-2 b): the client drops this record when she edits a
+         *     check beneath the criterion, and drops the check-level amounts when she
+         *     types here. The server does not reject the two coexisting — a stale client
+         *     could send both — it lets THIS one win, because the number on the criterion
+         *     row is the one she can see while the folded rows beneath it may not be.
+         */
+        "TerminalPointsOverride-Input": {
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at?: string;
+            /** Points Awarded */
+            points_awarded: number | string;
+        };
+        /**
+         * TerminalPointsOverride
+         * @description Her typed amount for a WHOLE terminal (leaf criterion / sub-criterion),
+         *     [OD-R2]. It replaces the terminal's derived award outright, in
+         *     `[0, points_possible]` on the rubric's grid — the gate refuses anything else.
+         *
+         *     LAST TOUCH WINS (OD-2 b): the client drops this record when she edits a
+         *     check beneath the criterion, and drops the check-level amounts when she
+         *     types here. The server does not reject the two coexisting — a stale client
+         *     could send both — it lets THIS one win, because the number on the criterion
+         *     row is the one she can see while the folded rows beneath it may not be.
+         */
+        "TerminalPointsOverride-Output": {
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at?: string;
+            /** Points Awarded */
+            points_awarded: string;
         };
         /** TranscribeResponse */
         TranscribeResponse: {
