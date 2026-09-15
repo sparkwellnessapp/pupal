@@ -22,7 +22,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -67,6 +67,7 @@ from ...schemas.transcription import (
 )
 from ...services.batch_triage import FlagVerdict, compute_flag_verdict, match_student
 from ...services.selection_expectation import answer_space_groups
+from ...services.thumbnail import page_image_path
 from ...services.returned_exam_store import (
     ReturnedExamUnavailable,
     returned_exam_pdf,
@@ -1110,8 +1111,8 @@ async def returned_exams_zip(
                             detail="אין מבחנים מוכנים להורדה עדיין")
 
     buffer.seek(0)
-    stem = unicodedata.normalize("NFC", (batch.name or "מקבץ").strip())
-    filename = f"{stem}_מוחזרים.zip"
+    stem = unicodedata.normalize("NFC", (batch.name or "מבחן").strip())
+    filename = f"{stem}_חתומים.zip"
     return StreamingResponse(
         buffer, media_type="application/zip",
         headers={"Content-Disposition":
@@ -1217,6 +1218,12 @@ async def get_batch(
                 reasons=verdict.reasons,
             ),
             approved_answers=_approved_answers(t),
+            # [§5.3C] Costs no query: `draft` is already parsed above, and the
+            # page count is the same figure the page route range-checks — so
+            # the card can never be offered a url the route would 404.
+            page1_image_url=(
+                page_image_path(t.id, 1) if (draft.page_count or 0) >= 1 else None
+            ),
             graded_test_id=gt.id if gt else None,
             graded_test_status=gt.status if gt else None,
             total_score=str(gt.total_score) if gt and gt.total_score is not None else None,
@@ -1290,6 +1297,25 @@ async def get_batch(
     }
     graded_feed, graded_eta = _build_graded_feed(
         list(graded_tests), scope_count, page_counts)
+    # [§5.3B] Is this her FIRST batch? A server fact, so the explainer cannot
+    # reappear on her second device or vanish because she cleared her browser.
+    #
+    # An EXISTS with LIMIT 1, not a COUNT: this endpoint is the 3-second poll
+    # target, and counting every batch she owns on every tick to compare the
+    # result against 1 is a full scan for a constant. The tie-break on `id`
+    # makes two batches created in the same instant deterministic — without it
+    # both would read as 'first' and the explainer would show twice.
+    earlier_exists = (await db.execute(
+        select(GradingBatch.id).where(
+            GradingBatch.user_id == current_user.id,
+            or_(
+                GradingBatch.created_at < batch.created_at,
+                and_(GradingBatch.created_at == batch.created_at,
+                     GradingBatch.id < batch.id),
+            ),
+        ).limit(1)
+    )).scalar_one_or_none()
+    is_first_batch = earlier_exists is None
     return BatchDetailResponse(
         selection_groups=selection_groups,
         transcription_failures=failure_items,
@@ -1304,6 +1330,7 @@ async def get_batch(
         started_at=batch.started_at.isoformat() if batch.started_at else None,
         completed_at=batch.completed_at.isoformat() if batch.completed_at else None,
         created_at=batch.created_at.isoformat(),
+        is_first_batch=is_first_batch,
         rollup=rollup,
         transcriptions=test_items,
         graded_tests=graded_feed,
@@ -1341,7 +1368,6 @@ def _build_graded_feed(graded_tests, rubric_contract_scope_count: int,
     from app.schemas.batch import BatchEta, BatchGradedItem
     from app.services.eta import estimate_eta
     from app.services.look_count import look_count
-    from app.services.thumbnail import page_image_path
     from app.schemas.graded_test_draft import GradedTestDraft
 
     page_counts = page_counts or {}

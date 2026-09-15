@@ -19,6 +19,7 @@ type Check = ReviewScope['criteria'][number]['checks'][number];
 const check = (over: Partial<Check> & { check_id: string }): Check => ({
     text: 'בדיקה', kind: 'required', canHighlight: false,
     aiVerdict: 'met', aiAwarded: '1', verdict: 'met', overridden: false,
+    pointsTyped: false, underPin: false,
     note: null, evidenceDisputed: false, awarded: '1', outOf: '1',
     terminalId: 'c1', ...over,
 } as Check);
@@ -32,7 +33,7 @@ const scope = (criteria: ReviewScope['criteria']): ReviewScope => ({
 
 const criterion = (terminalId: string, checks: Check[]) => ({
     terminalId, description: `קריטריון ${terminalId}`,
-    awarded: '1', possible: '1', overridden: false, checks,
+    awarded: '1', possible: '1', aiAwarded: '1', overridden: false, pointsTyped: false, checks,
 });
 
 const marker = (over: Partial<ReviewMarker>): ReviewMarker => ({
@@ -66,6 +67,12 @@ describe('initialExpandedTerminals — collapsed, except where her eyes are need
     it('opens one she has already decided herself', () => {
         const touched = criterion('c1', [check({ check_id: 'c1.k1', overridden: true })]);
         expect(initialExpandedTerminals([scope([touched])], []))
+            .toEqual(new Set(['c1']));
+    });
+
+    it('opens one whose total she typed herself [OD-R2]', () => {
+        const pinned = { ...criterion('c1', [check({ check_id: 'c1.k1' })]), pointsTyped: true };
+        expect(initialExpandedTerminals([scope([pinned])], []))
             .toEqual(new Set(['c1']));
     });
 

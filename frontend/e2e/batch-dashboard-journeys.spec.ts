@@ -100,9 +100,9 @@ test('identity wave: pill edit → bulk create → poll convergence; mixed item 
 
     await page.goto(`/batches/${SEED_BATCH_ID}`);
 
-    // The wave leads (cold start): headline + 3 pills.
+    // The wave leads (cold start): its own zone title + 3 pills.
     await expect(page.getByTestId('zone-identity-wave')).toBeVisible();
-    await expect(page.getByTestId('headline')).toContainText('ויוי זיהתה 3 תלמידים חדשים');
+    await expect(page.getByTestId('zone-identity-wave')).toContainText('3 שמות חדשים');
 
     // Fix a spelling IN PLACE — the bulk must post the CURRENT value.
     const pill = page.getByTestId('pill-נועה שריד').locator('input');
@@ -126,7 +126,7 @@ test('identity wave: pill edit → bulk create → poll convergence; mixed item 
     const eyes = page.getByTestId('zone-eyes');
     await expect(eyes).toBeVisible();
     await expect(eyes).toContainText('רוני אלקיים');
-    await expect(eyes).toContainText('תוכן לא קריא [?] · 1');
+    await expect(eyes).toContainText('כתב יד לא ברור במקום אחד');
 });
 
 // ---------------------------------------------------------------------------
@@ -240,7 +240,11 @@ test('polling stops when every state is terminal', async ({ page }) => {
     });
 
     await page.goto(`/batches/${SEED_BATCH_ID}`);
-    await expect(page.getByTestId('completion-hero')).toBeVisible();
+    // [§5.1F] The anchor is the CHIP, not a celebration card: this batch has
+    // every transcription approved and no graded feed at all, and the one
+    // celebration in the flow belongs to the last SIGNATURE. What this journey
+    // is really about is the poll stopping, and the chip is what says so.
+    await expect(page.getByTestId('batch-status-chip')).toHaveText('הושלם');
     const settled = batchCalls;                      // entry fetch (+StrictMode pair)
     await page.waitForTimeout(7000);                 // two would-be 3s ticks
     expect(batchCalls).toBe(settled);                // cadence: STOP
@@ -324,7 +328,7 @@ test('D5 bulk accept: skipped surfaced verbatim, dimming, poll reconciliation', 
     });
 
     await page.goto(`/batches/${SEED_BATCH_ID}`);
-    await expect(page.getByTestId('clean-accept-all')).toHaveText('אשרי את כולם (2)');
+    await expect(page.getByTestId('clean-accept-all')).toHaveText('אישור 2 המבחנים');
 
     await page.getByTestId('clean-accept-all').click();
 
@@ -340,7 +344,7 @@ test('D5 bulk accept: skipped surfaced verbatim, dimming, poll reconciliation', 
 
     // F4: the server's skip is surfaced VERBATIM (AM3 singular form).
     await expect(page.getByTestId('clean-skip-notice')).toHaveText(
-        'מבחן אחד דולג — סומנו לעיון. הוא ממתין לעיון.',
+        'מבחן אחד דולג — סומנו לבדיקה. הוא ממתין לבדיקה שלך.',
     );
 
     // Reconciliation by the refetch: t1 approved (gone), t2 now a needs-eyes
@@ -402,7 +406,7 @@ test('D7: a finishing ghost becomes a highlighted clean row on the next poll', a
     // real clean row carrying the arrival highlight (keyed as a NEW id).
     await expect(page.getByTestId('zone-ghosts')).toBeHidden({ timeout: 10_000 });
     await expect(page.getByTestId('clean-row')).toHaveCount(2);
-    const landed = page.getByTestId('clean-row').filter({ hasText: 'חדש.pdf' });
+    const landed = page.getByTestId('clean-row').filter({ hasText: 'עומר גלבר' });
     await expect(landed).toHaveCount(1);
     await expect(landed).toHaveClass(/bg-batch-teal-soft/);
 });
@@ -444,25 +448,25 @@ test('ZC-1 v2 — identity-pending items home in CLEAN: sum intact, bulk count h
     // דן בסיוק homes in the CLEAN panel: his extracted name shows, the amber
     // chip says WHY he is not yet bulk-acceptable, and the row carries the
     // panel's per-item entry (reachability, ZC-1's original complaint).
-    const danRow = page.getByTestId('clean-row').filter({ hasText: 'דן בסיוק.pdf' });
+    const danRow = page.getByTestId('clean-row').filter({ hasText: 'דן בסיוק' });
     await expect(danRow).toHaveCount(1);
     await expect(danRow).toContainText('דן בסיוק');
     await expect(danRow).toContainText('תלמיד חדש - טרם נוצר');
 
     // The BULK COUNT is honest: only the matched item (איתי כתב) is counted —
     // the button never claims items the server would refuse.
-    await expect(page.getByTestId('clean-accept-all')).toHaveText('אשרי את המבחן (1)');
+    await expect(page.getByTestId('clean-accept-all')).toHaveText('אישור המבחן');
     await expect(page.getByTestId('clean-pending-note'))
         .toHaveText('מבחן אחד ממתין ליצירת תלמיד — צרי אותו בזיהוי התלמידים למעלה');
 
     // The zone title, walk CTA and bar legend all count the SAME eyes set.
-    await expect(page.getByTestId('zone-eyes').getByText('דורשים עיון — 4')).toBeVisible();
-    await expect(page.getByTestId('eyes-start-walk')).toHaveText('התחילי סבב עיון (4)');
+    await expect(page.getByTestId('zone-eyes').getByText('דורשים מבט שלך (4)')).toBeVisible();
+    await expect(page.getByTestId('eyes-start-walk')).toHaveText('בדיקה (4)');
     const legendEyes = page.getByTestId('segment-bar').first()
-        .locator('span', { hasText: 'דורשים עיון' }).locator('b');
+        .locator('span', { hasText: 'דורשים מבט' }).locator('b');
     await expect(legendEyes).toHaveText('4');
     const legendClean = page.getByTestId('segment-bar').first()
-        .locator('span', { hasText: 'נקיים' }).locator('b');
+        .locator('span', { hasText: 'מוכנים לאישור' }).locator('b');
     await expect(legendClean).toHaveText('2');
 
     // The wave still shows the pills — an ACCELERATOR overlay, never a home.

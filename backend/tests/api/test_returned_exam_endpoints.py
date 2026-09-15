@@ -321,7 +321,7 @@ def test_zip_contains_approved_current_exams_only(
 
     names = zipfile.ZipFile(BytesIO(r.content)).namelist()
     assert len(names) == 1, f"the archive holds more than the manifest promised: {names}"
-    assert "דן בסיוק" in names[0] and names[0].endswith("_מוחזר.pdf")
+    assert "דן בסיוק" in names[0] and names[0].endswith("_חתום.pdf")
     assert "לא אושר" not in " ".join(names), (
         "an unapproved test was handed to a student")
 

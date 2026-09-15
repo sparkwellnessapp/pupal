@@ -17,7 +17,8 @@ import {
     type WireDraft,
 } from '@/utils/grade-review-model';
 import {
-    cycleVerdict, revert, setNote, toggleEvidenceDisputed, type OverlayTerminals,
+    cycleVerdict, revert, revertTerminalPoints, setCheckPoints, setNote,
+    setTerminalPoints, toggleEvidenceDisputed, type Overlay,
 } from '@/utils/verdict-cycle';
 import {
     resolveHighlight, type HighlightableCheck, type PinTarget,
@@ -65,8 +66,8 @@ export interface GradeReviewSurfaceProps {
     /** The rubric's subject key (Phase 3a) — answer islands render prose/code by it. */
     subject?: string | null;
     policy: NumericPolicy;
-    overlay: OverlayTerminals;
-    onOverlayChange: (next: OverlayTerminals) => void;
+    overlay: Overlay;
+    onOverlayChange: (next: Overlay) => void;
     feedbackOverrides: Record<string, string>;
     onFeedbackChange: (target: string, text: string) => void;
     onFeedbackRegenerate: (target: string) => void;
@@ -143,6 +144,11 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
     const [pin, setPin] = useState<PinTarget | null>(null);
     const [hover, setHover] = useState<string | null>(null);
     const [openNote, setOpenNote] = useState<string | null>(null);
+    // [OD-R2] The one open points field, if any — a check row or a criterion.
+    // Owned here so Enter on the focused row and a click on a number cannot
+    // open two fields at once.
+    const [editingPoints, setEditingPoints] = useState<
+        { kind: 'check' | 'criterion'; id: string } | null>(null);
     const [editedFeedback, setEdited] = useState<ReadonlySet<string>>(new Set());
 
     const model = useMemo(() => buildReviewModel({
@@ -386,7 +392,8 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
     }, [markers, lastMarkerKey, focusCheck, expandCriterion, knownTerminals]);
 
     const withFocused = useCallback((fn: (terminalId: string, checkId: string,
-        aiVerdict: Parameters<typeof cycleVerdict>[3]) => OverlayTerminals) => {
+        aiVerdict: Parameters<typeof cycleVerdict>[3],
+        kind: Parameters<typeof cycleVerdict>[4]) => Overlay) => {
         // A DECIDING action needs a row she can see. Navigation may keep the
         // caret on a folded row (so ↓ resumes from where she was); a verdict
         // may not be changed there.
@@ -394,7 +401,7 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         if (target === null) return;
         const check = flatChecks.find((c) => c.check_id === target);
         if (!check) return;
-        onOverlayChange(fn(check.terminalId, check.check_id, check.aiVerdict));
+        onOverlayChange(fn(check.terminalId, check.check_id, check.aiVerdict, check.kind));
     }, [readOnly, focus, flatChecks, onOverlayChange, visibleCheck]);
 
     /**
@@ -508,7 +515,7 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                 case 'nextTest': if (canNext) onNext(); break;
                 case 'prevTest': if (canPrev) onPrev(); break;
                 case 'cycleVerdict':
-                    withFocused((t, c, ai) => cycleVerdict(overlay, t, c, ai));
+                    withFocused((t, c, ai, kind) => cycleVerdict(overlay, t, c, ai, kind));
                     break;
                 case 'revert':
                     withFocused((t, c) => revert(overlay, t, c));
@@ -520,9 +527,17 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                     break;
                 case 'approve': onApprove(); break;
                 case 'save': onSaveNow(); break;
+                case 'editPoints': {
+                    // [OD-R2] Enter types the points on the row she can SEE —
+                    // the same visibility rule a verdict obeys.
+                    const row = visibleCheck(readOnly ? null : focus);
+                    if (row !== null) setEditingPoints({ kind: 'check', id: row });
+                    break;
+                }
                 case 'release':
                     setPin(null);
                     setOpenNote(null);
+                    setEditingPoints(null);
                     if (inEditable) target?.blur();
                     break;
                 default: break;
@@ -531,8 +546,8 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [overlay, focus, canNext, canPrev, onNext, onPrev, onApprove, onSaveNow,
-        stepCheck, goToNextMarker, withFocused, approved, readOnly, model.renderable,
-        model.blockers.length, showBlockers, modalOpen]);
+        stepCheck, goToNextMarker, withFocused, visibleCheck, approved, readOnly,
+        model.renderable, model.blockers.length, showBlockers, modalOpen]);
 
     if (!model.renderable) {
         return (
@@ -619,6 +634,30 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                                 }}
                                 isCriterionOpen={isCriterionOpen}
                                 onToggleCriterion={toggleCriterion}
+                                policy={policy}
+                                readOnly={readOnly}
+                                editingPoints={editingPoints}
+                                onEditPoints={setEditingPoints}
+                                onCheckPointsCommit={(t, c, amount) => {
+                                    if (readOnly) return;
+                                    const found = flatChecks.find((k) => k.check_id === c);
+                                    if (!found) return;
+                                    // `outOf` IS the row's ceiling (`points`); a
+                                    // tariff row never reaches here — it has no field.
+                                    if (found.kind === 'tariff') return;
+                                    onOverlayChange(setCheckPoints(
+                                        overlay, t, c, amount, found.outOf, found.aiVerdict));
+                                    setFocus(c);
+                                }}
+                                onCriterionPointsCommit={(t, amount) => {
+                                    if (readOnly) return;
+                                    onOverlayChange(setTerminalPoints(overlay, t, amount,
+                                        (id) => flatChecks.find((k) => k.check_id === id)
+                                            ?.aiVerdict ?? 'met'));
+                                }}
+                                onCriterionPointsRevert={(t) => {
+                                    if (!readOnly) onOverlayChange(revertTerminalPoints(overlay, t));
+                                }}
                                 openNoteCheckId={openNote}
                                 feedbackBusy={feedbackBusy}
                                 feedbackEdited={editedFeedback.has(scope.scopeId)}
@@ -630,8 +669,8 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                                     if (readOnly) return;
                                     const found = flatChecks.find((k) => k.check_id === c);
                                     if (found) {
-                                        onOverlayChange(
-                                            cycleVerdict(overlay, t, c, found.aiVerdict));
+                                        onOverlayChange(cycleVerdict(
+                                            overlay, t, c, found.aiVerdict, found.kind));
                                     }
                                     setFocus(c);
                                 }}

@@ -95,3 +95,58 @@ test('folded criterion', async ({ page }) => {
     await page.locator('[data-scope-id]').first()
         .screenshot({ path: `${ART}/vp-scope-folded.png` });
 });
+
+/**
+ * [OD-R2] The editable figure and its live refusal — captured with the field
+ * open and a number above the ceiling, so the popover is in the frame.
+ */
+test('typed points — the field and the live refusal', async ({ page }) => {
+    await installGradeReviewMocks(page);
+    await page.goto(REVIEW);
+    await page.locator('[data-breakdown-for]').first().waitFor();
+
+    // open the first criterion's breakdown so a check row is in the frame too
+    const first = page.locator('[data-breakdown-for]').first();
+    if ((await first.getAttribute('aria-expanded')) === 'false') await first.click();
+    const terminalId = await first.getAttribute('data-breakdown-for');
+
+    // type on the first check row and commit, so one red typed figure is visible
+    const row = page.locator(`[data-terminal-id="${terminalId}"] [data-check-id]`).first();
+    await row.locator('button[data-points-target="check"]').click();
+    await page.locator('input[data-points-input]').fill('0');
+    await page.locator('input[data-points-input]').press('Enter');
+    await expect(row).toHaveAttribute('data-points-typed', 'true');
+
+    // then open the criterion's field with a refused number
+    await page.locator(`[data-criterion-points="${terminalId}"] button`).click();
+    const input = page.locator('input[data-points-input]');
+    const max = (await input.locator('..').locator('small').textContent())!.replace(/[^\d.]/g, '');
+    await input.fill(String(Number(max) + 2));
+    await expect(page.locator('[data-points-error]')).toHaveAttribute('data-points-error', 'over_max');
+    await page.waitForTimeout(200);
+
+    await page.locator(`[data-terminal-id="${terminalId}"]`)
+        .screenshot({ path: `${ART}/vp-typed-points.png` });
+});
+
+/** A deduction row (ruling 2026-09-13), clean and charged, in the new ink. */
+test('deduction row — its own grammar and the verdict colours', async ({ page }) => {
+    await installGradeReviewMocks(page);
+    await page.goto(REVIEW);
+    await page.locator('[data-breakdown-for]').first().waitFor();
+    const ids: string[] = await page.locator('[data-breakdown-for]').evaluateAll(
+        (els) => els.filter((el) => el.getAttribute('aria-expanded') === 'false')
+            .map((el) => el.getAttribute('data-breakdown-for') as string));
+    for (const id of ids) await page.locator(`[data-breakdown-for="${id}"]`).click();
+
+    const row = page.locator('[data-check-id][data-check-kind="tariff"]').first();
+    await row.scrollIntoViewIfNeeded();
+    const terminalId = await row.evaluate(
+        (el) => el.closest('[data-terminal-id]')!.getAttribute('data-terminal-id'));
+    // charge the deduction so the criterion shows one clean and one charged state
+    await row.locator('[data-verdict]').click();
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(200);
+    await page.locator(`[data-terminal-id="${terminalId}"]`)
+        .screenshot({ path: `${ART}/vp-deduction-row.png` });
+});

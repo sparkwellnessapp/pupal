@@ -76,6 +76,12 @@ def answer_space_groups(
         if numbers:
             groups.append(AnswerSpaceSelectionGroup(
                 choose_k=g.choose_k, question_numbers=numbers,
+                # Display-only, and carried rather than dropped since the
+                # transcription card's completeness sentence has to say WHICH
+                # choice a clause is about once a rubric has two groups. It
+                # participates in no rule here: `expected_empty_keys` below
+                # never reads it.
+                label=g.label,
             ))
     return groups
 

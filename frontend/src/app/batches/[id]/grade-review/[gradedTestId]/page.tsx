@@ -43,7 +43,7 @@ import {
     advanceAfterApprove, queueState, step, type GradeCursor,
 } from '@/utils/grade-review-cursor';
 import { buildReviewModel, type WireDraft } from '@/utils/grade-review-model';
-import type { OverlayTerminals } from '@/utils/verdict-cycle';
+import { emptyOverlay, type Overlay } from '@/utils/verdict-cycle';
 import type { NumericPolicy } from '@/lib/pricing';
 import {
     DASH_ETA_REMAINING, DASH_ETA_UNKNOWN,
@@ -80,7 +80,7 @@ export default function GradeReviewPage() {
 
     const [payload, setPayload] = useState<GradedTestPayload | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [overlay, setOverlay] = useState<OverlayTerminals>({});
+    const [overlay, setOverlay] = useState<Overlay>(emptyOverlay);
     const [feedbackOverrides, setFeedbackOverrides] = useState<Record<string, string>>({});
     const [saveState, setSaveState] = useState<SaveState>('saved');
     const [approving, setApproving] = useState(false);
@@ -133,8 +133,8 @@ export default function GradeReviewPage() {
      */
     const editGenerationRef = useRef(0);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const latestRef = useRef<{ overlay: OverlayTerminals; feedback: Record<string, string> }>({
-        overlay: {}, feedback: {},
+    const latestRef = useRef<{ overlay: Overlay; feedback: Record<string, string> }>({
+        overlay: emptyOverlay(), feedback: {},
     });
     latestRef.current = { overlay, feedback: feedbackOverrides };
 
@@ -143,7 +143,7 @@ export default function GradeReviewPage() {
         let alive = true;
         setPayload(null);
         setLoadError(null);
-        setOverlay({});
+        setOverlay(emptyOverlay());
         setFeedbackOverrides({});
         setFeedbackOffers({});
         setStampPressed(false);
@@ -176,7 +176,13 @@ export default function GradeReviewPage() {
                 // Her previous working copy rides INSIDE the draft; hydrating it
                 // is not dirt — only a keystroke is (the Δ14 rule, inherited).
                 const stored = typed.draft?.teacher_overrides;
-                if (stored?.terminals) setOverlay(stored.terminals as OverlayTerminals);
+                if (stored?.terminals || stored?.terminal_points) {
+                    setOverlay({
+                        terminals: (stored.terminals ?? {}) as Overlay['terminals'],
+                        // [OD-R2] her criterion-row amounts ride beside the checks
+                        terminalPoints: (stored.terminal_points ?? {}) as Overlay['terminalPoints'],
+                    });
+                }
                 if (stored?.feedback) setFeedbackOverrides(stored.feedback);
             })
             .catch(() => { if (alive) setLoadError(RV_LOAD_ERROR); });
@@ -189,7 +195,8 @@ export default function GradeReviewPage() {
     }, [params.gradedTestId]);
 
     const buildOverlayPayload = useCallback((): GradeReviewOverlay => ({
-        terminals: latestRef.current.overlay as GradeReviewOverlay['terminals'],
+        terminals: latestRef.current.overlay.terminals as GradeReviewOverlay['terminals'],
+        terminal_points: latestRef.current.overlay.terminalPoints as GradeReviewOverlay['terminal_points'],
         feedback: latestRef.current.feedback,
     }), []);
 

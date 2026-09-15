@@ -53,6 +53,17 @@ class BatchTranscriptionItem(BaseModel):
     # Answers only, to keep the payload lean; None on parse failure (per-item
     # degradation, never batch-fatal).
     approved_answers: Optional[list[GradeAnswerInputItem]] = None
+    # [§5.3C] Page-1 thumbnail for the triage card — the SAME relative path,
+    # the same variant token and the same immutable cache as the graded-test
+    # pile's (`BatchGradedItem.page1_image_url`). The page-image route is keyed
+    # by TRANSCRIPTION, so it already serves this document long before a
+    # graded_tests row exists; minting the url here rather than in the client
+    # is what keeps the variant token server-owned (see services/thumbnail.py:
+    # an un-pinned url is legal but gets a 60-second cache instead of a year).
+    # None when the draft reports no pages — degrade by OMISSION, never a url
+    # known to 404, which renders as a broken-image glyph and reads as "this
+    # test is damaged".
+    page1_image_url: Optional[str] = None
     # Populated once a GradedTest row exists for this transcription:
     graded_test_id: Optional[UUID] = None
     graded_test_status: Optional[str] = None
@@ -223,6 +234,24 @@ class BatchDetailResponse(BaseModel):
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
     created_at: str
+    #: [§5.3B] Is this the EARLIEST batch this teacher ever created?
+    #:
+    #: The only thing it drives is the first-batch explainer, which must appear
+    #: once and never again — so the fact has to be a property of the DATA, not
+    #: of browser storage that a second device or a cleared cache would reset.
+    #:
+    #: A BOOLEAN, not the ordinal R14 proposed, and the reason is cost: this
+    #: endpoint is the 3-second poll target, and an ordinal means a full
+    #: `COUNT(*)` over every batch she owns on every tick — for a value that is
+    #: constant for the life of the row and is only ever compared to 1. The
+    #: question actually being asked is «does an earlier one exist», which is an
+    #: EXISTS that stops at the first hit. If a real ordinal is ever wanted, it
+    #: arrives then, with a reason and a cheaper trigger than a poll.
+    #:
+    #: Defaults to True so a client reading a payload from a backend that
+    #: predates the field shows the explanation rather than withholding it —
+    #: too often is the recoverable direction.
+    is_first_batch: bool = True
     rollup: BatchRollup
     transcriptions: list[BatchTranscriptionItem]
     # B3: in-flight documents (queued/running), doc_priority order, built

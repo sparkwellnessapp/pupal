@@ -193,13 +193,17 @@ def test_zip_names_are_nfc_and_path_safe():
     """Hebrew composed differently on macOS and Linux unzips to two different
     files. NFC once, at the boundary; and a student name with a slash must not
     escape the archive."""
-    from app.services.returned_exam import zip_entry_name
+    from app.services.returned_exam import ZIP_ENTRY_SUFFIX, zip_entry_name
     import unicodedata
 
     decomposed = unicodedata.normalize("NFD", "דן בסיוק")
     name = zip_entry_name("מבחן 1", decomposed)
     assert name == unicodedata.normalize("NFC", name)
-    assert name.endswith("_מוחזר.pdf")
+    # The suffix is asserted through the CONSTANT, not a second spelling of it:
+    # `unique_zip_entry_names` slices it off by LENGTH to build its dedupe stem,
+    # so two spellings would silently truncate a student's name on a collision.
+    assert name.endswith(ZIP_ENTRY_SUFFIX)
+    assert ZIP_ENTRY_SUFFIX == "_חתום.pdf"    # §5.6: the product term is המבחן החתום
 
     assert "/" not in zip_entry_name("a/b", "c/d")
     assert "\\" not in zip_entry_name("a\b", "c\d")

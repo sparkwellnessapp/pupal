@@ -678,12 +678,15 @@ async def save_draft_overrides(
     rubric_contract = GradingRubricContract.model_validate(rubric.contract_json)
 
     # [PR-G5] Gate the OVERLAY (terminals + checks), then RE-PRICE on the
-    # server. There is nothing to bound or round any more: an override is a
-    # verdict and the pricer derives the number, clamping and snapping.
+    # server. A verdict override has nothing to bound or round — the pricer
+    # derives its number. [OD-R2] An amount she TYPED is gated here exactly as
+    # at approval (ceiling, grid, verdict it implies), so a refusal reaches her
+    # while she is still on the row, not after she has reviewed the whole test.
     from ...services.graded_test_contract_compiler import (
         GateViolation,
         _build_terminal_index,
         _price_by_scope,
+        typed_points_violations,
     )
     terminal_index, branch_criterion_ids = _build_terminal_index(draft)
     precision = rubric_contract.numeric_policy.precision
@@ -714,6 +717,8 @@ async def save_draft_overrides(
                              f"'{decision.check_id}', which is not a check of that "
                              f"terminal in this draft."),
                 ))
+    violations.extend(typed_points_violations(
+        terminal_index, branch_criterion_ids, body.overrides, precision))
 
     if violations:
         raise HTTPException(
@@ -951,7 +956,7 @@ async def get_returned_exam(
                 status_code=404, detail="לא נמצאה הסריקה המקורית") from exc
         raise HTTPException(
             status_code=422,
-            detail="לא הצלחנו להפיק את המבחן המוחזר") from exc
+            detail="לא הצלחנו להפיק את המבחן החתום") from exc
 
     return Response(content=pdf, media_type="application/pdf")
 

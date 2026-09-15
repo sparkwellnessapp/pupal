@@ -15,9 +15,10 @@ import type { ReviewMarker } from './review-markers';
  *   1. A MARKER, from `review-markers.ts` — the same set `F` walks and the
  *      amber dot counts. Forking a second "needs eyes" predicate is exactly the
  *      duplication §0.4 forbids, and the two would drift within a sprint.
- *   2. HER OWN WORK — a check she overrode, or evidence she disputed. Not a
- *      marker (markers are derived from the DRAFT; these come from the
- *      overlay), but hiding what she already decided is its own kind of wrong.
+ *   2. HER OWN WORK — a check she overrode, evidence she disputed, or a total
+ *      she typed on the criterion itself (OD-R2). Not a marker (markers are
+ *      derived from the DRAFT; these come from the overlay), but hiding what
+ *      she already decided is its own kind of wrong.
  *
  * ⚠ THIS IS AN OPENING STATE, COMPUTED ONCE PER TEST — NEVER A LIVE DERIVATION.
  * Clause 2 reads the overlay, which changes as she works. Recomputed on every
@@ -38,6 +39,7 @@ export function initialExpandedTerminals(
     for (const scope of scopes) {
         for (const criterion of scope.criteria) {
             const wanted = marked.has(criterion.terminalId)
+                || criterion.pointsTyped
                 || criterion.checks.some((check) => marked.has(check.check_id)
                     || check.overridden
                     || check.evidenceDisputed);

@@ -45,21 +45,55 @@ class StampPosition(BaseModel):
 class TeacherOverride(BaseModel):
     """The teacher's decision on ONE check.
 
-    An override is a VERDICT, not a number. Points are derived from verdicts by
-    `app/services/pricing.py`, in one direction, everywhere — so there is no
-    `points_awarded` here and no second pricing path to keep in agreement.
+    An override is a VERDICT — and, since OD-R2 (owner ruling 2026-09-13,
+    reversing R-2 branch B of 2026-09-01), optionally a NUMBER as well.
+    `points_awarded` is the amount she TYPED for this check: the credit earned
+    on a `required` / `counted` check, the deduction charged on a `tariff`
+    check. It is an INPUT to the one pricer (`app/services/pricing.py`), never
+    a second derivation: client and server still price the same overlay through
+    the same arithmetic and compare totals, which is the property R-2 existed
+    to protect. What R-2 assumed — that she never needs to type a number — is
+    what the owner reversed; the engineering rule survives intact.
 
-    (R-2, owner ruling: decide by count. The production count of unapproved
-    v3-era drafts carrying an overlay was 0 — in fact `graded_tests` was empty —
-    so the simple branch applies with no legacy path and no data migration.)
+    When `points_awarded` is present the verdict is DERIVED from it
+    (`pricing.verdict_for_amount`: full → met, zero → not_met, between →
+    partially_met; the reverse sense for a tariff) and the gate refuses a
+    client that sends any other verdict, so the glyph and the number can never
+    contradict each other on her screen (OD-3 b). `note_only` checks never
+    move points and cannot carry an amount.
     """
     check_id: str
     verdict: Literal["met", "partially_met", "not_met"]
+    # [OD-R2] her typed amount; None means "priced from the verdict as before".
+    points_awarded: Optional[Decimal] = None
     # ALPHA-GAP A-1 (D-3): no `selected_level`; alpha adds it beside `units_correct` for leveled checks.
     # ALPHA-GAP A-9 (D-4b): deductions / follow-through are overridden by verdict only; alpha models them.
     teacher_comment: Optional[str] = None      # the "H" note; no new field
     evidence_disputed: bool = False
     decided_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_serializer("points_awarded")
+    def _sd(self, v: Optional[Decimal]) -> Optional[str]:
+        return None if v is None else str(v)
+
+
+class TerminalPointsOverride(BaseModel):
+    """Her typed amount for a WHOLE terminal (leaf criterion / sub-criterion),
+    [OD-R2]. It replaces the terminal's derived award outright, in
+    `[0, points_possible]` on the rubric's grid — the gate refuses anything else.
+
+    LAST TOUCH WINS (OD-2 b): the client drops this record when she edits a
+    check beneath the criterion, and drops the check-level amounts when she
+    types here. The server does not reject the two coexisting — a stale client
+    could send both — it lets THIS one win, because the number on the criterion
+    row is the one she can see while the folded rows beneath it may not be.
+    """
+    points_awarded: Decimal
+    decided_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_serializer("points_awarded")
+    def _sd(self, v: Decimal) -> str:
+        return str(v)
 
 
 class GradedTestOverrides(BaseModel):
@@ -76,6 +110,9 @@ class GradedTestOverrides(BaseModel):
 
     # terminal_id -> her decisions on that terminal's checks
     terminals: Dict[str, List[TeacherOverride]] = Field(default_factory=dict)
+    # [OD-R2] terminal_id -> the amount she typed on the criterion row itself.
+    # A real typed map, not a sentinel check id inside `terminals` (§0.4).
+    terminal_points: Dict[str, TerminalPointsOverride] = Field(default_factory=dict)
     # scope_id | "summary" -> her edited feedback text
     feedback: Dict[str, str] = Field(default_factory=dict)
     stamp_position: Optional[StampPosition] = None
@@ -85,6 +122,17 @@ class GradedTestOverrides(BaseModel):
 
     def all_check_ids(self) -> List[str]:
         return [o.check_id for lst in self.terminals.values() for o in lst]
+
+    def typed_check_points(self, terminal_id: str) -> Dict[str, Decimal]:
+        """[OD-R2] check_id → the amount she typed, for one terminal."""
+        return {o.check_id: o.points_awarded
+                for o in self.overrides_for(terminal_id)
+                if o.points_awarded is not None}
+
+    def terminal_point(self, terminal_id: str) -> Optional[Decimal]:
+        """[OD-R2] the amount she typed on the criterion row, if any."""
+        pin = self.terminal_points.get(terminal_id)
+        return None if pin is None else pin.points_awarded
 
 
 # ---------------------------------------------------------------------------

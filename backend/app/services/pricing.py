@@ -7,9 +7,14 @@ selection-scoring incident (§5) happened because two places derived the same
 number and drifted, so a teacher reviewed one percentage and a different one
 froze into the immutable contract. One arithmetic, one direction of derivation.
 
-Points are DERIVED from verdicts, never stored as an input. An override is a
-verdict on a check (R-2 branch B — the production count of legacy overlays was
-0, so there is no `points_awarded` path and no dual-path pricer).
+Points are DERIVED, never copied from a stored number. An override is a
+verdict on a check (R-2 branch B, 2026-09-01) and — since OD-R2 (owner ruling
+2026-09-13) — may also carry an amount she TYPED, on a check or on a whole
+terminal. A typed amount is an INPUT to this one pricer, exactly like a
+verdict: it replaces the contribution the verdict would have derived, and both
+sides of the seam still price the same overlay through this same arithmetic
+and compare. There is still no dual-path pricer; there is one pricer with one
+more kind of decision.
 
 Two rules in here are policy, not arithmetic, and both are deliberate:
 
@@ -27,7 +32,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Dict, Iterable, List, Literal, Mapping, Optional, Sequence, Set, Tuple
 
 from app.schemas.graded_test_draft import Check
 
@@ -70,6 +75,27 @@ def counted_units(check: Check) -> Optional[int]:
     return max(0, min(n, int(check.units_correct)))
 
 
+Verdict = Literal["met", "partially_met", "not_met"]
+
+
+def typed_maximum(check: Check) -> Decimal:
+    """[OD-R2] The ceiling a typed amount on this check may reach: the credit
+    at stake. Only required/counted checks take a typed amount — a tariff is a
+    yes/no deduction (owner ruling 2026-09-13) decided by its verdict alone,
+    and the gate refuses an amount on one."""
+    return check.points
+
+
+def verdict_for_amount(amount: Decimal, maximum: Decimal) -> Verdict:
+    """[OD-R2 / OD-3 b] The verdict a typed amount IMPLIES — one glyph, one
+    number, never contradicting each other: the full amount is `met`, zero is
+    `not_met`, anything between is `partially_met`. A zero-point check typed to
+    zero is `met` — the full (empty) amount, not a refusal."""
+    if amount == maximum:
+        return "met"
+    return "not_met" if amount == 0 else "partially_met"
+
+
 def _credited(check: Check, overridden: bool) -> bool:
     """Whether a `required` check may earn its points at all."""
     if check.verdict not in ("met", "partially_met"):
@@ -79,13 +105,30 @@ def _credited(check: Check, overridden: bool) -> bool:
     return check.quote_status in _VERIFIED
 
 
+def _group(check: Check) -> str:
+    return check.charge_group or f"__solo__{check.check_id}"
+
+
 def price_scope_checks_detailed(
     terminals: ScopeTerminals,
     precision: Decimal,
     overridden_check_ids: Optional[Set[str]] = None,
+    typed_check_points: Optional[Mapping[str, Decimal]] = None,
+    terminal_points: Optional[Mapping[str, Decimal]] = None,
 ) -> Dict[str, TerminalPrice]:
-    """Price every terminal in ONE scope from its checks. Pure."""
+    """Price every terminal in ONE scope from its checks. Pure.
+
+    [OD-R2] `typed_check_points` (check_id → amount) replaces that check's
+    derived contribution on a required/counted check — a tariff is decided by
+    its verdict alone (ruling 2026-09-13) and an amount keyed to one is
+    ignored here, having been refused at the gate. `terminal_points`
+    (terminal_id → amount) replaces the terminal's whole award and its checks
+    are not consulted at all. Both are gated upstream (bounds + grid), so the
+    snap here is a no-op on valid input and a belt on anything else.
+    """
     overridden = overridden_check_ids or frozenset()
+    typed = typed_check_points or {}
+    pins = terminal_points or {}
 
     # charge-once pre-pass, scope-wide: per group, the first firing check in
     # document order pays the MAX amount fired anywhere in that group.
@@ -95,7 +138,7 @@ def price_scope_checks_detailed(
         for check in checks:
             if check.kind != "tariff" or not _fired(check):
                 continue
-            group = check.charge_group or f"__solo__{check.check_id}"
+            group = _group(check)
             first_firing.setdefault(group, check.check_id)
             amount = check.tariff or Decimal("0")
             if amount > group_amount.get(group, Decimal("0")):
@@ -103,9 +146,21 @@ def price_scope_checks_detailed(
 
     out: Dict[str, TerminalPrice] = {}
     for tid, possible, checks in terminals:
+        if tid in pins:
+            # [OD-R2] her number for the whole terminal; the rows beneath it are
+            # display only until she touches one (last touch wins, OD-2 b).
+            amount = pins[tid]
+            out[tid] = TerminalPrice(
+                awarded=_snap(amount, Decimal("0"), possible, precision), raw=amount)
+            continue
         earned = Decimal("0")
         deducted = Decimal("0")
         for check in checks:
+            if check.check_id in typed and check.kind in ("required", "counted"):
+                # [OD-R2] her amount, in place of the verdict's derivation. Not
+                # evidence-gated: she decided (see the module doc).
+                earned += typed[check.check_id]
+                continue
             if check.kind == "required":
                 if not _credited(check, check.check_id in overridden):
                     continue
@@ -126,7 +181,7 @@ def price_scope_checks_detailed(
             elif check.kind == "tariff":
                 if not _fired(check):
                     continue
-                group = check.charge_group or f"__solo__{check.check_id}"
+                group = _group(check)
                 if first_firing.get(group) == check.check_id:
                     deducted += group_amount[group]
             # note_only never moves points — the rubric's «לציין, לא להוריד»
@@ -140,10 +195,15 @@ def price_scope_checks(
     terminals: ScopeTerminals,
     precision: Decimal,
     overridden_check_ids: Optional[Set[str]] = None,
+    typed_check_points: Optional[Mapping[str, Decimal]] = None,
+    terminal_points: Optional[Mapping[str, Decimal]] = None,
 ) -> Dict[str, Decimal]:
     """The awards only — the common case."""
     return {tid: p.awarded for tid, p in
-            price_scope_checks_detailed(terminals, precision, overridden_check_ids).items()}
+            price_scope_checks_detailed(
+                terminals, precision, overridden_check_ids,
+                typed_check_points=typed_check_points,
+                terminal_points=terminal_points).items()}
 
 
 def apply_overlay(checks: Sequence[Check],
@@ -163,3 +223,9 @@ def apply_overlay(checks: Sequence[Check],
         touched.add(check.check_id)
         effective.append(check.model_copy(update={"verdict": override.verdict}))
     return effective, touched
+
+
+def typed_points_of(overrides: Iterable) -> Dict[str, Decimal]:
+    """[OD-R2] check_id → the amount she typed, from one terminal's overrides."""
+    return {o.check_id: o.points_awarded for o in (overrides or [])
+            if getattr(o, "points_awarded", None) is not None}

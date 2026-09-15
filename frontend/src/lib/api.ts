@@ -2147,9 +2147,13 @@ export async function acceptOneTranscription(
 // terminal-level overlay, and one function cannot speak both shapes honestly.
 // The old pair retires with that panel.
 
-/** The verdict-level overlay (`GradedTestOverrides`, PR-G5). */
+/**
+ * The overlay (`GradedTestOverrides`, PR-G5 + OD-R2). The generated schema
+ * now splits Input from Output because typed amounts serialise as strings;
+ * this is what the client SENDS, so it is the Input side.
+ */
 export type GradeReviewOverlay =
-  components['schemas']['GradedTestOverrides'];
+  components['schemas']['GradedTestOverrides-Input'];
 export type GradeReviewDraftResponse =
   components['schemas']['GradedTestDraftResponse'];
 export type GradeReviewApprovedResponse =

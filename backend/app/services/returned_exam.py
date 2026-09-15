@@ -496,8 +496,17 @@ def manifest_partition(rows: Sequence[ExamRow]) -> Dict[str, List[ExamRow]]:
             "excluded_unavailable": unavailable}
 
 
+#: The product term, ONCE. «המבחן המוחזר» became «המבחן החתום» (ruled
+#: 2026-09-14): the name has to say what makes the document trustworthy, which
+#: is her signature and not the direction it travels. The suffix is a constant
+#: because `unique_zip_entry_names` below slices it off by LENGTH to build a
+#: dedupe stem — two spellings of it, and a collision would silently produce
+#: `…_חתום_2_מוחזר.pdf` or worse, truncate a student's name.
+ZIP_ENTRY_SUFFIX = "_חתום.pdf"
+
+
 def zip_entry_name(batch_name: Optional[str], student_name: Optional[str]) -> str:
-    """`{batch}_{student}_מוחזר.pdf`, NFC.
+    """`{exam}_{student}_חתום.pdf`, NFC.
 
     NFC once, at the boundary: Hebrew composed one way on macOS and another on
     Linux unzips to two files that look identical and are not. Path separators
@@ -510,7 +519,8 @@ def zip_entry_name(batch_name: Optional[str], student_name: Optional[str]) -> st
             text = text.replace(bad, "-")
         return text[:80]
 
-    return f"{clean(batch_name, 'מקבץ')}_{clean(student_name, 'ללא שם')}_מוחזר.pdf"
+    return (f"{clean(batch_name, 'מבחן')}_{clean(student_name, 'ללא שם')}"
+            f"{ZIP_ENTRY_SUFFIX}")
 
 
 
@@ -681,7 +691,7 @@ def unique_zip_entry_names(batch_name: Optional[str],
         count = seen.get(name, 0)
         seen[name] = count + 1
         if count:
-            stem = name[:-len("_מוחזר.pdf")]
-            name = f"{stem}_{count + 1}_מוחזר.pdf"
+            stem = name[:-len(ZIP_ENTRY_SUFFIX)]
+            name = f"{stem}_{count + 1}{ZIP_ENTRY_SUFFIX}"
         out.append(name)
     return out

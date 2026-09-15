@@ -2,14 +2,18 @@
  * THE client pricing mirror (PR spec §3, phase F0) — a faithful port of
  * `backend/app/services/pricing.py`.
  *
- * Points are DERIVED from verdicts, in one direction, everywhere. The teacher
- * never types a number: she decides a verdict on a check and the points follow.
- * This module is what lets the review surface re-price instantly under her
- * hand; the server prices the same way on `PATCH /draft` and `/approve` and
- * compares. If the two ever disagree, both sides fail the shared vectors
- * together — that is the seam working, and it is why this file exists instead
- * of a second, convenient arithmetic (CLAUDE.md §5: the selection-scoring
- * incident happened because one number had two derivations).
+ * Points are DERIVED, in one direction, everywhere. She decides a verdict on a
+ * check and the points follow — and, since OD-R2 (owner ruling 2026-09-13,
+ * reversing R-2 branch B), she may also TYPE an amount, on a check or on a
+ * whole criterion. A typed amount is an INPUT to this same pricer, exactly
+ * like a verdict: it replaces the contribution the verdict would have derived.
+ * There is still one arithmetic. This module is what lets the review surface
+ * re-price instantly under her hand; the server prices the same way on
+ * `PATCH /draft` and `/approve` and compares. If the two ever disagree, both
+ * sides fail the shared vectors together — that is the seam working, and it is
+ * why this file exists instead of a second, convenient arithmetic (CLAUDE.md
+ * §5: the selection-scoring incident happened because one number had two
+ * derivations).
  *
  * TWO RULES IN HERE ARE POLICY, NOT ARITHMETIC — both carried over verbatim:
  *
@@ -139,11 +143,16 @@ export interface TerminalPrice {
     raw: string;
 }
 
-/** The teacher's decision on one check (`TeacherOverride`, PR-G5). */
+/** The teacher's decision on one check (`TeacherOverride`, PR-G5 + OD-R2). */
 export interface CheckOverride {
     check_id: string;
     verdict: Verdict;
+    /** [OD-R2] The amount she typed on this check, if she did. */
+    points_awarded?: string | null;
 }
+
+/** [OD-R2] check_id → typed amount; terminal_id → typed amount. */
+export type TypedPoints = Readonly<Record<string, string>>;
 
 const VERIFIED: readonly (QuoteStatus | null | undefined)[] = ['exact', 'fuzzy'];
 const ZERO = dec('0');
@@ -190,6 +199,30 @@ function countedCredit(check: PricingCheck): Dec | null {
     if (units === null) return null;
     const n = check.unit_count || 1;
     return divideContext(mul(points(check), dec(units)), dec(n));
+}
+
+/**
+ * [OD-R2] `pricing.py::typed_maximum` — the ceiling a typed amount on this
+ * check may reach: the credit at stake. Only required/counted checks take a
+ * typed amount; a tariff is a yes/no deduction (ruling 2026-09-13) and is
+ * decided by its verdict alone.
+ */
+export function typedMaximum(check: Pick<PricingCheck, 'kind' | 'points'>): string {
+    return decToString(points(check as PricingCheck));
+}
+
+/**
+ * [OD-R2 / OD-3 b] `pricing.py::verdict_for_amount` — the verdict a typed
+ * amount IMPLIES, so one glyph and one number never contradict each other:
+ * the full amount is `met`, zero is `not_met`, anything between is
+ * `partially_met`. A zero-point check typed to zero is `met` — the full
+ * (empty) amount.
+ */
+export function verdictForAmount(amount: string, maximum: string): Verdict {
+    const a = dec(amount);
+    const m = dec(maximum);
+    if (cmp(a, m) === 0) return 'met';
+    return cmp(a, ZERO) === 0 ? 'not_met' : 'partially_met';
 }
 
 /** Tariffs are binary: `partially_met` is coerced to fired. */
@@ -247,21 +280,14 @@ function snap(value: Dec, lo: Dec, hi: Dec, precision: Dec): Dec {
 }
 
 /**
- * Price every terminal in ONE scope from its checks. Pure.
- *
- * Scope-wide by signature, not by convenience: charge-once dedup cannot be
- * computed a terminal at a time.
+ * The charge-once pre-pass, scope-wide: per group, the first firing check in
+ * document order pays the MAX amount fired anywhere in that group. A tariff
+ * is decided by its verdict alone (a typed amount never reaches it — ruling
+ * 2026-09-13), so this pass reads verdicts only.
  */
-export function priceScopeChecksDetailed(
+function chargeGroups(
     terminals: readonly ScopeTerminal[],
-    policy: NumericPolicy,
-    overriddenCheckIds?: ReadonlySet<string>,
-): Record<string, TerminalPrice> {
-    const overridden = overriddenCheckIds ?? new Set<string>();
-    const grid = dec(gridOf(policy));
-
-    // charge-once pre-pass, scope-wide: per group, the first firing check in
-    // document order pays the MAX amount fired anywhere in that group.
+): { firstFiring: Map<string, string>; groupAmount: Map<string, Dec> } {
     const firstFiring = new Map<string, string>();
     const groupAmount = new Map<string, Dec>();
     for (const terminal of terminals) {
@@ -276,12 +302,58 @@ export function priceScopeChecksDetailed(
             }
         }
     }
+    return { firstFiring, groupAmount };
+}
+
+/**
+ * Price every terminal in ONE scope from its checks. Pure.
+ *
+ * Scope-wide by signature, not by convenience: charge-once dedup cannot be
+ * computed a terminal at a time.
+ *
+ * [OD-R2] `typedCheckPoints` (check_id → amount) replaces that check's derived
+ * contribution on a required/counted check (a tariff is never typed).
+ * `terminalPoints` (terminal_id → amount) replaces the terminal's whole award;
+ * its checks are not consulted at all. Both are gated before they get here
+ * (`utils/points-entry.ts`, and the server), so the snap is a no-op on valid
+ * input and a belt on anything else.
+ */
+export function priceScopeChecksDetailed(
+    terminals: readonly ScopeTerminal[],
+    policy: NumericPolicy,
+    overriddenCheckIds?: ReadonlySet<string>,
+    typedCheckPoints?: TypedPoints,
+    terminalPoints?: TypedPoints,
+): Record<string, TerminalPrice> {
+    const overridden = overriddenCheckIds ?? new Set<string>();
+    const typed = typedCheckPoints ?? {};
+    const pins = terminalPoints ?? {};
+    const grid = dec(gridOf(policy));
+    const { firstFiring, groupAmount } = chargeGroups(terminals);
 
     const out: Record<string, TerminalPrice> = {};
     for (const terminal of terminals) {
+        const pin = pins[terminal.terminal_id];
+        if (pin !== undefined) {
+            // [OD-R2] her number for the whole terminal; the rows beneath it
+            // are display only until she touches one (last touch wins, OD-2 b).
+            const amount = dec(pin);
+            out[terminal.terminal_id] = {
+                awarded: decToString(snap(amount, ZERO, dec(terminal.points_possible), grid)),
+                raw: decToString(amount),
+            };
+            continue;
+        }
         let earned = ZERO;
         let deducted = ZERO;
         for (const check of terminal.checks) {
+            const typedHere = typed[check.check_id];
+            if (typedHere !== undefined && (check.kind === 'required' || check.kind === 'counted')) {
+                // [OD-R2] her amount, in place of the verdict's derivation.
+                // Not evidence-gated: she decided.
+                earned = add(earned, dec(typedHere));
+                continue;
+            }
             if (check.kind === 'required') {
                 if (!credited(check, overridden.has(check.check_id))) continue;
                 earned = check.verdict === 'met'
@@ -326,35 +398,31 @@ export function priceScopeChecksDetailed(
  *
  * Contributions are the raw, pre-clamp truth: they sum to the terminal's `raw`,
  * not necessarily to its `awarded` (a clamp at 0 is visible as the difference).
+ *
+ * [OD-R2] A typed check amount IS its contribution. A criterion PIN is not
+ * consulted here at all: the rows beneath a pinned criterion keep showing what
+ * their own verdicts are worth, so she can see what the pin overrode — the
+ * criterion's number is the one carrying her decision (and the red ink).
  */
 export function priceScopeCheckContributions(
     terminals: readonly ScopeTerminal[],
     policy: NumericPolicy,
     overriddenCheckIds?: ReadonlySet<string>,
+    typedCheckPoints?: TypedPoints,
 ): Record<string, string> {
     const overridden = overriddenCheckIds ?? new Set<string>();
+    const typed = typedCheckPoints ?? {};
     gridOf(policy);            // validate the policy on this path too
-
-    const firstFiring = new Map<string, string>();
-    const groupAmount = new Map<string, Dec>();
-    for (const terminal of terminals) {
-        for (const check of terminal.checks) {
-            if (check.kind !== 'tariff' || !fired(check)) continue;
-            const group = groupOf(check);
-            if (!firstFiring.has(group)) firstFiring.set(group, check.check_id);
-            const amount = tariffAmount(check);
-            const current = groupAmount.get(group);
-            if (current === undefined || cmp(amount, current) > 0) {
-                groupAmount.set(group, amount);
-            }
-        }
-    }
+    const { firstFiring, groupAmount } = chargeGroups(terminals);
 
     const out: Record<string, string> = {};
     for (const terminal of terminals) {
         for (const check of terminal.checks) {
             let value = ZERO;
-            if (check.kind === 'required') {
+            const typedHere = typed[check.check_id];
+            if (typedHere !== undefined && (check.kind === 'required' || check.kind === 'counted')) {
+                value = dec(typedHere);
+            } else if (check.kind === 'required') {
                 if (credited(check, overridden.has(check.check_id))) {
                     value = check.verdict === 'met'
                         ? points(check)
@@ -381,8 +449,11 @@ export function priceScopeChecks(
     terminals: readonly ScopeTerminal[],
     policy: NumericPolicy,
     overriddenCheckIds?: ReadonlySet<string>,
+    typedCheckPoints?: TypedPoints,
+    terminalPoints?: TypedPoints,
 ): Record<string, string> {
-    const detailed = priceScopeChecksDetailed(terminals, policy, overriddenCheckIds);
+    const detailed = priceScopeChecksDetailed(
+        terminals, policy, overriddenCheckIds, typedCheckPoints, terminalPoints);
     const out: Record<string, string> = {};
     for (const [id, price] of Object.entries(detailed)) out[id] = price.awarded;
     return out;
@@ -413,4 +484,15 @@ export function applyOverlay(
         effective.push({ ...check, verdict: override.verdict });
     }
     return { effective, touched };
+}
+
+/** [OD-R2] `pricing.py::typed_points_of` — check_id → the amount she typed. */
+export function typedPointsOf(
+    overrides: readonly CheckOverride[] | undefined | null,
+): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const o of overrides ?? []) {
+        if (o.points_awarded != null) out[o.check_id] = o.points_awarded;
+    }
+    return out;
 }

@@ -136,17 +136,32 @@ def test_compose_with_no_overlay_reproduces_the_grading_pricer():
 # the overlay shape (R-2 branch B)
 # ---------------------------------------------------------------------------
 
-def test_override_is_a_verdict_on_a_check_with_no_points_path():
-    from app.schemas.graded_test_draft import GradedTestOverrides, TeacherOverride
+def test_an_override_is_a_verdict_that_may_carry_a_typed_amount():
+    """[OD-R2, owner ruling 2026-09-13] reverses R-2 branch B's «a verdict, not
+    a number»: `points_awarded` is back, OPTIONAL, as her typed amount. The
+    engineering rule R-2 protected survives — there is still ONE pricer and the
+    amount is an input to it, so this test pins the shape rather than the
+    absence."""
+    from app.schemas.graded_test_draft import (
+        GradedTestOverrides, TeacherOverride, TerminalPointsOverride)
 
-    assert "points_awarded" not in TeacherOverride.model_fields, (
-        "R-2 branch B: production count is 0, so there is ONE representation of "
-        "an override and no dual-path pricer")
+    fields = TeacherOverride.model_fields
+    assert "points_awarded" in fields and not fields["points_awarded"].is_required()
     for required in ("check_id", "verdict"):
-        assert TeacherOverride.model_fields[required].is_required()
+        assert fields[required].is_required()
 
     ov = GradedTestOverrides()
-    assert ov.terminals == {} and ov.feedback == {} and ov.stamp_position is None
+    assert ov.terminals == {} and ov.terminal_points == {}
+    assert ov.feedback == {} and ov.stamp_position is None
+
+    # Decimals travel as strings, like every other points field on the wire
+    typed = TeacherOverride(check_id="k", verdict="partially_met",
+                            points_awarded=Decimal("2.5")).model_dump(mode="json")
+    assert typed["points_awarded"] == "2.5"
+    pin = TerminalPointsOverride(points_awarded=Decimal("3")).model_dump(mode="json")
+    assert pin["points_awarded"] == "3"
+    assert TeacherOverride(check_id="k", verdict="met").model_dump(mode="json")[
+        "points_awarded"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -225,3 +240,72 @@ def test_revert_clears_the_override_and_its_note():
     assert t.checks[0].was_overridden is False
     assert t.checks[0].teacher_comment is None
     assert t.final_points_awarded == t.ai_points_awarded == Decimal("5")
+
+
+# ---------------------------------------------------------------------------
+# [OD-R2, 2026-09-13] typed amounts — one more kind of decision, same pricer
+# ---------------------------------------------------------------------------
+
+def test_a_typed_amount_replaces_the_verdict_derivation_on_a_credit_check():
+    """Her number stands in for what the verdict would have derived — here
+    partially_met would have earned 2 of 4; she typed 3."""
+    from app.services.pricing import price_scope_checks
+
+    got = price_scope_checks(
+        [("t1", Decimal("4"), [_check("t1.k1", points="4", verdict="partially_met")])],
+        PRECISION, overridden_check_ids={"t1.k1"},
+        typed_check_points={"t1.k1": Decimal("3")})
+    assert got["t1"] == Decimal("3")
+
+
+def test_a_typed_amount_is_not_evidence_gated():
+    """Same rule as a verdict override: she has the paper in front of her."""
+    from app.services.pricing import price_scope_checks
+
+    got = price_scope_checks(
+        [("t1", Decimal("4"), [_check("t1.k1", points="4", verdict="met",
+                                      quote_status="not_found")])],
+        PRECISION, overridden_check_ids={"t1.k1"},
+        typed_check_points={"t1.k1": Decimal("4")})
+    assert got["t1"] == Decimal("4")
+
+
+def test_a_typed_amount_on_a_tariff_is_ignored_by_the_pricer():
+    """Owner ruling 2026-09-13: a deduction is yes/no, decided by its verdict.
+    The gate refuses a typed amount on a tariff; the pricer must not grow a
+    path for one either."""
+    from app.services.pricing import price_scope_checks
+
+    got = price_scope_checks(
+        [("t1", Decimal("5"), [_check("t1.k1", points="5", verdict="met"),
+                               _check("t1.k2", kind="tariff", tariff="2",
+                                      verdict="not_met")])],
+        PRECISION, overridden_check_ids={"t1.k2"},
+        typed_check_points={"t1.k2": Decimal("0.5")})
+    assert got["t1"] == Decimal("3")
+
+
+def test_a_terminal_amount_replaces_the_whole_terminal():
+    """Typed on the criterion row: the checks beneath are not priced at all."""
+    from app.services.pricing import price_scope_checks, price_scope_checks_detailed
+
+    terms = [("t1", Decimal("4"), [_check("t1.k1", points="4", verdict="not_met"),
+                                   _check("t1.k2", kind="tariff", tariff="1",
+                                          verdict="not_met")])]
+    got = price_scope_checks(terms, PRECISION, terminal_points={"t1": Decimal("2.5")})
+    assert got["t1"] == Decimal("2.5")
+    detailed = price_scope_checks_detailed(
+        terms, PRECISION, terminal_points={"t1": Decimal("2.5")})["t1"]
+    assert detailed.raw == Decimal("2.5"), "her number, verbatim, not a re-derivation"
+
+
+def test_verdict_for_amount_full_zero_and_between():
+    """OD-3 (b): the glyph is DERIVED from the number."""
+    from app.services.pricing import verdict_for_amount as v
+
+    assert v(Decimal("4"), Decimal("4")) == "met"
+    assert v(Decimal("0"), Decimal("4")) == "not_met"
+    assert v(Decimal("1"), Decimal("4")) == "partially_met"
+    assert v(Decimal("12"), Decimal("12")) == "met"
+    # a zero-point check typed to zero is the full (empty) amount, not a refusal
+    assert v(Decimal("0"), Decimal("0")) == "met"

@@ -559,3 +559,188 @@ def test_a_scope_with_no_evidence_freezes_none_rather_than_inventing_one():
     judgement the approval gate is entitled to make."""
     contract = compile_graded_test(_draft(), _no_ov(), _rubric_contract())
     assert contract.scope_outcomes[0].student_answer is None
+
+
+# ---------------------------------------------------------------------------
+# [OD-R2, owner ruling 2026-09-13] typed amounts at the gate and in the freeze
+# ---------------------------------------------------------------------------
+
+def _typed(terminal_id: str, check_id: str, amount: str, verdict: str):
+    """An amount she typed on a check, with the verdict it implies."""
+    from app.schemas.graded_test_draft import GradedTestOverrides, TeacherOverride
+    return GradedTestOverrides(terminals={
+        terminal_id: [TeacherOverride(check_id=check_id, verdict=verdict,
+                                      points_awarded=Decimal(amount))]})
+
+
+def _pinned(terminal_id: str, amount: str):
+    """An amount she typed on the criterion row itself."""
+    from app.schemas.graded_test_draft import GradedTestOverrides, TerminalPointsOverride
+    return GradedTestOverrides(terminal_points={
+        terminal_id: TerminalPointsOverride(points_awarded=Decimal(amount))})
+
+
+def _kinds(exc_info):
+    return [v.violation_kind for v in exc_info.value.violations]
+
+
+def test_a_typed_check_amount_freezes_as_her_number_with_its_marker():
+    # the default leaf: q1.c0 out of 5, one check partially_met at 0.8 → AI 4
+    contract = compile_graded_test(
+        _draft(), _typed("q1.c0", "q1.c0.k1", "3", "partially_met"), _rubric_contract())
+
+    t = contract.scope_outcomes[0].terminal_outcomes[0]
+    assert t.final_points_awarded == Decimal("3")
+    assert t.ai_points_awarded == Decimal("4"), "the AI's record stands"
+    assert t.was_overridden is True
+    assert t.typed_points is None, "she typed on the CHECK, not on the criterion"
+    check = t.checks[0]
+    assert check.typed_points == Decimal("3") and check.was_overridden is True
+    assert check.final_verdict == "partially_met" and check.ai_verdict == "partially_met"
+    # the marker travels as a string, like every other Decimal on the wire
+    dumped = contract.model_dump(mode="json")
+    assert dumped["scope_outcomes"][0]["terminal_outcomes"][0]["checks"][0][
+        "typed_points"] == "3"
+    assert dumped["scope_outcomes"][0]["terminal_outcomes"][0]["typed_points"] is None
+
+
+def test_a_typed_terminal_amount_freezes_as_the_terminal_and_its_checks_are_not_priced():
+    contract = compile_graded_test(_draft(), _pinned("q1.c0", "1.25"), _rubric_contract())
+
+    t = contract.scope_outcomes[0].terminal_outcomes[0]
+    assert t.final_points_awarded == Decimal("1.25")
+    assert t.typed_points == Decimal("1.25")
+    assert t.was_overridden is True
+    # the row beneath carries no decision of its own
+    assert t.checks[0].was_overridden is False and t.checks[0].typed_points is None
+    assert t.checks[0].final_verdict == t.checks[0].ai_verdict
+
+
+def test_the_gate_refuses_a_typed_amount_above_its_ceiling():
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(_draft(), _typed("q1.c0", "q1.c0.k1", "6", "met"),
+                            _rubric_contract())
+    assert "out_of_bounds" in _kinds(exc_info)
+
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(_draft(), _pinned("q1.c0", "5.5"), _rubric_contract())
+    assert "out_of_bounds" in _kinds(exc_info)
+
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(_draft(), _pinned("q1.c0", "-0.25"), _rubric_contract())
+    assert "out_of_bounds" in _kinds(exc_info)
+
+
+def test_the_gate_refuses_an_off_grid_amount_rather_than_snapping_it():
+    """OD-4 (a): 3.3 on a 0.25 grid is HER number, and snapping it would freeze
+    a value she did not type (FC). Refused on both shapes."""
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(_draft(), _typed("q1.c0", "q1.c0.k1", "3.3", "partially_met"),
+                            _rubric_contract())
+    assert _kinds(exc_info) == ["off_grid"]
+
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(_draft(), _pinned("q1.c0", "3.3"), _rubric_contract())
+    assert _kinds(exc_info) == ["off_grid"]
+
+    # and the same number on a coarser rubric is fine when it fits the grid
+    contract = compile_graded_test(_draft(), _pinned("q1.c0", "2.5"),
+                                   _rubric_contract(precision="0.5"))
+    assert contract.scope_outcomes[0].terminal_outcomes[0].final_points_awarded == Decimal("2.5")
+
+
+def test_the_gate_refuses_a_verdict_that_contradicts_the_amount():
+    """OD-3 (b): the verdict is derived from the amount. A client that sends
+    another one is wrong, and wrong loudly."""
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(_draft(), _typed("q1.c0", "q1.c0.k1", "5", "partially_met"),
+                            _rubric_contract())
+    assert _kinds(exc_info) == ["verdict_mismatch"]
+
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(_draft(), _typed("q1.c0", "q1.c0.k1", "0", "met"),
+                            _rubric_contract())
+    assert _kinds(exc_info) == ["verdict_mismatch"]
+
+    # the implied verdicts pass
+    for amount, verdict in (("5", "met"), ("0", "not_met"), ("2.5", "partially_met")):
+        compile_graded_test(_draft(), _typed("q1.c0", "q1.c0.k1", amount, verdict),
+                            _rubric_contract())
+
+
+def test_the_gate_refuses_an_amount_on_a_note_only_check():
+    from app.schemas.graded_test_draft import Check
+
+    leaf = _leaf_criterion()
+    note = Check(check_id="q1.c0.k2", text="לציין", kind="note_only",
+                 points=Decimal("0"), partial_fraction=Decimal("0.5"),
+                 verdict="not_met", basis_he="", confidence=0.8)
+    object.__setattr__(leaf, "checks", [*leaf.checks, note])
+    draft = _draft([_scope(criterion_outcomes=[leaf])])
+
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(draft, _typed("q1.c0", "q1.c0.k2", "0", "met"),
+                            _rubric_contract())
+    assert _kinds(exc_info) == ["not_priceable"]
+
+
+def test_the_gate_refuses_a_typed_amount_on_a_tariff_and_its_verdict_still_deducts():
+    """Owner ruling 2026-09-13: a deduction is yes/no. Nothing to type; the
+    verdict decides it, and a ✗ deducts the whole tariff."""
+    from app.schemas.graded_test_draft import Check
+
+    leaf = _leaf_criterion(points_possible="5", points_awarded="5")
+    tariff = Check(check_id="q1.c0.k2", text="שם שגוי", kind="tariff",
+                   points=Decimal("0"), tariff=Decimal("2"),
+                   partial_fraction=Decimal("0.5"), verdict="met",
+                   basis_he="", confidence=0.8)
+    object.__setattr__(leaf, "checks", [*leaf.checks, tariff])
+    draft = _draft([_scope(criterion_outcomes=[leaf])])
+
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(draft, _typed("q1.c0", "q1.c0.k2", "0.5", "partially_met"),
+                            _rubric_contract())
+    assert _kinds(exc_info) == ["not_priceable"]
+
+    contract = compile_graded_test(draft, _ov("q1.c0", "q1.c0.k2", "not_met"), _rubric_contract())
+    t = contract.scope_outcomes[0].terminal_outcomes[0]
+    assert t.final_points_awarded == Decimal("3") and t.ai_points_awarded == Decimal("5")
+    got = {c.check_id: c for c in t.checks}
+    assert got["q1.c0.k2"].typed_points is None and got["q1.c0.k2"].final_verdict == "not_met"
+
+
+def test_the_gate_refuses_a_terminal_amount_on_a_branch_or_unknown_terminal():
+    draft = _draft([_scope(criterion_outcomes=[_leaf_criterion(), _branch_criterion()])])
+
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(draft, _pinned("q1.c1", "1"), _rubric_contract())
+    assert _kinds(exc_info) == ["branch_criterion"]
+
+    with pytest.raises(GateError) as exc_info:
+        compile_graded_test(draft, _pinned("nowhere", "1"), _rubric_contract())
+    assert _kinds(exc_info) == ["closed_world"]
+
+    # its sub-criteria ARE terminals and take a pin
+    contract = compile_graded_test(draft, _pinned("q1.c1.s0", "1"), _rubric_contract())
+    subs = {t.terminal_id: t for s in contract.scope_outcomes for t in s.terminal_outcomes}
+    assert subs["q1.c1.s0"].typed_points == Decimal("1")
+
+
+def test_a_terminal_amount_resolves_an_llm_failure_on_its_scope():
+    """OD-R1's bar is «every check decided». An amount typed on the criterion
+    row decides the whole terminal — nothing beneath it is priced, so nothing
+    beneath it can carry an unread machine zero."""
+    draft = _draft(
+        scope_outcomes=[_scope(criterion_outcomes=[
+            _leaf_criterion("q1.c0"), _leaf_criterion("q1.c1")])],
+        annotations=[_failed_scope_ann()])
+
+    with pytest.raises(GateError):
+        compile_graded_test(draft, _pinned("q1.c0", "2"), _rubric_contract())
+
+    from app.schemas.graded_test_draft import GradedTestOverrides, TerminalPointsOverride
+    both = GradedTestOverrides(terminal_points={
+        "q1.c0": TerminalPointsOverride(points_awarded=Decimal("2")),
+        "q1.c1": TerminalPointsOverride(points_awarded=Decimal("5"))})
+    contract = compile_graded_test(draft, both, _rubric_contract())
+    assert contract.total_score == Decimal("7")

@@ -569,3 +569,76 @@ def test_opened_at_is_set_once_by_the_owner_and_never_restamped(client, graded_d
     stamp_2 = second.json().get("opened_at")
     assert stamp_1, "the owner's first GET did not stamp opened_at"
     assert stamp_2 == stamp_1, "opened_at was re-stamped — it is not a last-access time"
+
+
+# ---------------------------------------------------------------------------
+# [OD-R2, owner ruling 2026-09-13] typed amounts over the wire
+# ---------------------------------------------------------------------------
+
+def test_patch_refuses_a_typed_amount_above_the_ceiling(client, graded_draft):
+    """The same refusal the client shows live (OD-4 a), enforced where it
+    counts: `/draft` is where her number first lands on the server."""
+    gid, headers = graded_draft
+    resp = client.patch(
+        f"/api/v0/grading/graded_test/{gid}/draft",
+        json={"overrides": {"terminals": {"q1.c0": [
+            {"check_id": "q1.c0.k1", "verdict": "met", "points_awarded": "6"}]}}},
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    kinds = [v["violation_kind"] for v in resp.json()["detail"]["gate_violations"]]
+    assert kinds == ["out_of_bounds"]
+
+    resp = client.patch(
+        f"/api/v0/grading/graded_test/{gid}/draft",
+        json={"overrides": {"terminal_points": {"q1.c0": {"points_awarded": "3.3"}}}},
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    kinds = [v["violation_kind"] for v in resp.json()["detail"]["gate_violations"]]
+    assert kinds == ["off_grid"]
+
+
+def test_patch_prices_typed_amounts_and_approve_freezes_them(client, graded_draft):
+    gid, headers = graded_draft
+    from decimal import Decimal as _D
+
+    # a check-level amount: 3 of 5, verdict implied partially_met
+    resp = client.patch(
+        f"/api/v0/grading/graded_test/{gid}/draft",
+        json={"overrides": {"terminals": {"q1.c0": [
+            {"check_id": "q1.c0.k1", "verdict": "partially_met", "points_awarded": "3"}]}}},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert _D(str(data["effective_totals"]["q1.c0"])) == _D("3")
+    saved = data["draft"]["teacher_overrides"]["terminals"]["q1.c0"][0]
+    assert saved["points_awarded"] == "3"
+    # the AI's record is untouched
+    assert data["draft"]["scope_outcomes"][0]["criterion_outcomes"][0]["points_awarded"] == "4"
+
+    # then she types on the criterion row instead: the pin wins
+    resp = client.patch(
+        f"/api/v0/grading/graded_test/{gid}/draft",
+        json={"overrides": {"terminal_points": {"q1.c0": {"points_awarded": "1.25"}}}},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert _D(str(data["effective_totals"]["q1.c0"])) == _D("1.25")
+    assert data["draft"]["teacher_overrides"]["terminal_points"]["q1.c0"]["points_awarded"] == "1.25"
+
+    # approve with the total she saw → the contract carries her number and its marker
+    resp = client.post(
+        f"/api/v0/grading/graded_test/{gid}/approve",
+        json={"overrides": {"terminal_points": {"q1.c0": {"points_awarded": "1.25"}}},
+              "client_total": "1.25"},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    terminal = resp.json()["contract"]["scope_outcomes"][0]["terminal_outcomes"][0]
+    assert _D(terminal["final_points_awarded"]) == _D("1.25")
+    assert terminal["typed_points"] == "1.25"
+    assert terminal["was_overridden"] is True
+    assert terminal["checks"][0]["typed_points"] is None

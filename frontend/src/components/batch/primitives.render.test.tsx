@@ -37,7 +37,7 @@ describe('SegmentBar', () => {
     expect(html).toContain('width:50%')
     // Legend labels come from C1
     expect(html).toContain('אושרו')
-    expect(html).toContain('דורשים עיון')
+    expect(html).toContain('דורשים מבט')
     expect(html).toContain('בתמלול')
     // Shimmer is motion-safe only (reduced-motion kills it)
     expect(html).toContain('motion-safe:animate-shimmer')

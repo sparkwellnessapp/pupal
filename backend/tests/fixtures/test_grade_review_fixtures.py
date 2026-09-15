@@ -79,6 +79,25 @@ def test_pricing_vectors_match_the_drafts_they_came_from():
             f"draft says {awarded[key]}")
 
 
+def test_typed_points_vectors_regenerate_clean():
+    """[OD-R2] `pricing_vectors_typed.json` is the typed-amount half of the
+    seam: the same published drafts under a typed overlay, priced by the real
+    pricer. Regenerated in memory here and compared byte-for-byte, so a pricer
+    change that moves a number cannot leave the frontend mirror validated
+    against a stale one."""
+    import sys
+    sys.path.insert(0, str(FIX.parents[2] / "scripts"))
+    import gen_typed_points_vectors as gen
+
+    drafts, precision = gen.load_inputs()
+    expected = gen.render(gen.vectors_from_drafts(drafts, precision))
+    assert (FIX / "pricing_vectors_typed.json").read_text(encoding="utf-8") == expected, (
+        "pricing_vectors_typed.json is stale — run scripts/gen_typed_points_vectors.py")
+    vectors = json.loads(expected)
+    kinds = {v["case"].rsplit(":", 1)[1] for v in vectors}
+    assert kinds == {"typed_credit", "terminal_pin"}
+
+
 def test_manifest_states_provenance_and_the_coverage_gap():
     """A fixture set that quietly lacks an edge case stops testing the thing it
     exists to test. The manifest has to say so out loud."""

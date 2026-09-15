@@ -147,7 +147,7 @@ test('keyboard-only-walk — arrows, modal trap, approve ×3, interstitial, bulk
 
     // Enter from the dashboard's סבב עיון — keyboard, not mouse.
     await page.goto(`/batches/${SEED_BATCH_ID}`);
-    const entry = page.getByRole('link', { name: /התחילי סבב עיון/ });
+    const entry = page.getByTestId('eyes-start-walk');
     await entry.focus();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/review\/f1$/);
@@ -175,7 +175,7 @@ test('keyboard-only-walk — arrows, modal trap, approve ×3, interstitial, bulk
     // R4 auto-advance: f1 → f2 (next unapproved flagged), focus re-landed.
     await expect(page).toHaveURL(/\/review\/f2$/);
     await expect(page.getByTestId('review-main')).toBeFocused();
-    await expect(page.getByTestId('position-primary')).toHaveText('2 מתוך 3 לעיון');
+    await expect(page.getByTestId('position-primary')).toHaveText('2 מתוך 3 לבדיקה');
 
     await page.keyboard.press('Enter');
     await page.keyboard.press('Enter');
@@ -188,9 +188,9 @@ test('keyboard-only-walk — arrows, modal trap, approve ×3, interstitial, bulk
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('review-interstitial')).toBeVisible();
     await expect(page.getByText('כל המבחנים שסומנו נבדקו')).toBeVisible();
-    await expect(page.getByText('נשאר מבחן נקי אחד — לאשר אותו?')).toBeVisible();
+    await expect(page.getByText('נשאר מבחן אחד שנקרא בביטחון מלא — לאשר אותו?')).toBeVisible();
     await expect(page.getByTestId('interstitial-bulk')).toBeFocused();
-    await expect(page.getByTestId('interstitial-bulk')).toHaveText('אשרי את המבחן (1)');
+    await expect(page.getByTestId('interstitial-bulk')).toHaveText('אישור המבחן');
     expect(state.acceptCalls).toEqual(['f1', 'f2', 'f3']);
 
     // Enter → bulk accept_clean; the server skips c1 → the notice lands ON
@@ -198,7 +198,7 @@ test('keyboard-only-walk — arrows, modal trap, approve ×3, interstitial, bulk
     // stranding in a closed modal.
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(new RegExp(`/batches/${SEED_BATCH_ID}$`));
-    await expect(page.getByText('מבחן אחד דולג — נערכו ידנית. הוא ממתין לעיון.')).toBeVisible();
+    await expect(page.getByText('מבחן אחד דולג — נערכו ידנית. הוא ממתין לבדיקה שלך.')).toBeVisible();
     expect(state.acceptCleanBodies).toHaveLength(1);
     expect(state.acceptCleanBodies[0].items).toEqual([{ transcription_id: 'c1', student_id: 's1' }]);
 });
@@ -212,12 +212,12 @@ test('clean-walk (R12) — בדיקה ידנית enters at the first clean; acce
     ]);
 
     await page.goto(`/batches/${SEED_BATCH_ID}`);
-    await page.getByRole('link', { name: 'בדיקה ידנית' }).click();
+    await page.getByTestId('clean-manual-review').click();
     await expect(page).toHaveURL(/\/review\/c1$/);
 
     // Clean item: no flagged-position primary; whole-batch secondary only.
     await expect(page.getByTestId('position-primary')).toHaveCount(0);
-    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 2 מתוך 3 במקבץ');
+    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 2 מתוך 3');
 
     // Accept c1 → the walk stays in the CLEAN partition: c2, not f1.
     await page.getByRole('button', { name: 'אישור תמלול' }).first().click();
@@ -329,7 +329,7 @@ test('accept-refetch-decoupling (R11) — accept-200 + refetch-500: accepted sta
     ]);
 
     await page.goto(`/batches/${SEED_BATCH_ID}/review/f1`);
-    await expect(page.getByTestId('position-primary')).toHaveText('1 מתוך 2 לעיון');
+    await expect(page.getByTestId('position-primary')).toHaveText('1 מתוך 2 לבדיקה');
 
     // The accept succeeds; the refetch right after it fails.
     state.refetchFail = true;

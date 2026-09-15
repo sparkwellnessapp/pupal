@@ -105,3 +105,28 @@ def test_selection_free_contract_and_missing_contract_yield_empty():
     assert answer_space_groups(_contract_json(["q1"], [])) == []
     assert answer_space_groups(None) == []
     assert answer_space_groups({}) == []
+
+def test_answer_space_groups_carries_the_teachers_own_label():
+    """[§5.3D] `label` is DISPLAY-ONLY and must survive the translation.
+
+    The completeness sentence prefixes each clause with her own wording when a
+    rubric has more than one selection group — «"ענו על 2 מתוך 3 בחלק א": …» —
+    and the only honest name for a choice is the one she wrote. The translation
+    to answer space used to DROP it, so a two-group rubric produced two clauses
+    with nothing to tell them apart.
+    """
+    cj = _contract_json(
+        ["q1", "q2", "q3", "q4"],
+        [
+            {"choose_k": 1, "of_question_ids": ["q1", "q2"],
+             "label": "ענו על 1 מתוך 2 בחלק א"},
+            # A group the teacher never labelled: the surface omits the prefix
+            # rather than inventing «קבוצה 2», so None must arrive as None.
+            {"choose_k": 1, "of_question_ids": ["q3", "q4"]},
+        ],
+    )
+    groups = answer_space_groups(cj)
+    assert [g.label for g in groups] == ["ענו על 1 מתוך 2 בחלק א", None]
+    # …and the translation it already did is untouched.
+    assert [g.question_numbers for g in groups] == [[1, 2], [3, 4]]
+    assert [g.choose_k for g in groups] == [1, 1]

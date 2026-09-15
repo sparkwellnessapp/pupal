@@ -178,10 +178,10 @@ test('batch-review-walkthrough — edit, save, arrows, persisted edit, accept-mi
     await page.goto(`/batches/${BATCH_ID}`);
     await expect(page.getByTestId('zone-eyes')).toBeVisible();
     expect(await page.locator('textarea').count()).toBe(0);           // the blind inline editor is gone
-    await expect(page.getByRole('link', { name: 'פתחי לעיון' }).first()).toBeVisible();
+    await expect(page.getByTestId('eyes-row').first()).toBeVisible();
 
     // Drill into the flagged item (b — first of the frozen order).
-    await page.getByRole('link', { name: 'פתחי לעיון' }).first().click();
+    await page.getByTestId('eyes-row').first().click();
     await expect(page).toHaveURL(new RegExp(`/batches/${BATCH_ID}/review/b$`));
     await expect(page.getByText('1 מתוך 3')).toBeVisible();
 

@@ -1349,3 +1349,75 @@ def test_internal_grading_run_auth_and_dispatch(client):
     assert resp.status_code == 200
     assert resp.json()["ran"] is True
     runner_mock.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
+# Grading-flow clarity pass — the three wire fields the batch detail grew.
+#
+# They are ADDITIVE and OPTIONAL, which is exactly why they needed tests of
+# their own: every pre-existing assertion passes without ever looking at them,
+# so a typo in the path builder, a `is_first_batch` that answers False for a
+# teacher's only batch, or a `label` Pydantic quietly drops would all ship
+# green. The client fixtures that render them are payloads WE wrote, so
+# nothing else in the suite proves the server sends them at all.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.integration
+def test_detail_carries_a_page1_thumbnail_url_per_transcription(
+        client, user_a, rubric_a, headers_a):
+    """[§5.3C] The triage card's page-1 image, minted server-side.
+
+    The url must be the SAME shape the graded pile already uses — the page
+    route is transcription-keyed, so it serves a document long before a
+    graded_tests row exists — and it must carry the variant token, without
+    which the route answers a 60-second cache instead of a year.
+    """
+    user_id = user_a["user"]["id"]
+    rubric_id = rubric_a["rubric_id"]
+    draft_json = _clean_draft().model_dump(mode="json")
+
+    batch_id = asyncio.run(_insert_batch_row(user_id, rubric_id, test_count=1))
+    asyncio.run(_insert_transcription_batch(user_id, rubric_id, batch_id, draft_json))
+
+    resp = client.get(f"/api/v0/batches/{batch_id}", headers=headers_a)
+    assert resp.status_code == 200
+    item = resp.json()["transcriptions"][0]
+
+    url = item["page1_image_url"]
+    assert url is not None, "a draft with pages must carry a thumbnail url"
+    assert url.startswith(f"/api/v0/transcriptions/{item['transcription_id']}/pages/1/image")
+    assert "?v=" in url, "the variant token is what makes the immutable cache honest"
+
+    asyncio.run(_delete_batch_cascade(batch_id))
+
+
+@pytest.mark.integration
+def test_detail_says_whether_this_is_her_first_batch(
+        client, user_a, rubric_a, headers_a):
+    """[§5.3B] The explainer's ONE input, and it must not be browser state.
+
+    The first batch says True; a batch created after it says False. Asserted in
+    that order because the bug worth catching is the constant — a field that
+    answers True for everything shows the explanation forever.
+    """
+    user_id = user_a["user"]["id"]
+    rubric_id = rubric_a["rubric_id"]
+
+    first_id = asyncio.run(_insert_batch_row(user_id, rubric_id, test_count=1))
+    resp = client.get(f"/api/v0/batches/{first_id}", headers=headers_a)
+    assert resp.status_code == 200
+    assert resp.json()["is_first_batch"] is True
+
+    second_id = asyncio.run(_insert_batch_row(user_id, rubric_id, test_count=1))
+    resp = client.get(f"/api/v0/batches/{second_id}", headers=headers_a)
+    assert resp.status_code == 200
+    assert resp.json()["is_first_batch"] is False, (
+        "a later batch is not her first — the explainer must not return")
+
+    # …and the earlier one still says True: this is a property of the ROW, not
+    # a 'have you seen it yet' flag that the newest batch consumes.
+    resp = client.get(f"/api/v0/batches/{first_id}", headers=headers_a)
+    assert resp.json()["is_first_batch"] is True
+
+    asyncio.run(_delete_batch_cascade(first_id))
+    asyncio.run(_delete_batch_cascade(second_id))

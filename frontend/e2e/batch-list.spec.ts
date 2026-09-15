@@ -63,18 +63,20 @@ test('list-populated (L1) — names, mini honesty bar, action line, zero אצו�
     ]);
 
     await page.goto('/batches');
-    await expect(page.getByRole('heading', { name: 'המקבצים שלי' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'המבחנים שלי' })).toBeVisible();
     await expect(page.getByTestId('batch-row')).toHaveCount(3);
 
     // OD4: the word אצווה must not appear anywhere on the page.
     expect(await page.locator('body').innerText()).not.toContain('אצווה');
+    // [§2.3 / OD-1] `מקבץ` is the code word and never reaches a screen.
+    expect(await page.locator('body').innerText()).not.toContain('מקבץ');
 
     // B4's names finally drawn (this surface dropped them for the whole project).
     await expect(page.getByText('מחוון: מתכונת 1 — שאלון 899371').first()).toBeVisible();
     await expect(page.getByText('יא׳3').first()).toBeVisible();
 
     // Fallback name for a null-named batch — C1's builder, not a local literal.
-    await expect(page.getByText(/^מקבץ b0000000$/)).toBeVisible();
+    await expect(page.getByText(/^מבחן b0000000$/)).toBeVisible();
 
     // The mini honesty bar renders per row (legend-less), replacing the old
     // single green approved/total fill.
@@ -83,7 +85,7 @@ test('list-populated (L1) — names, mini honesty bar, action line, zero אצו�
     // Action lines, one per row, precedence respected.
     const actions = page.getByTestId('list-action-line');
     // Ruling 1: needs-eyes is the sharp signal, §3.2 verbatim.
-    await expect(actions.nth(0)).toHaveText('5 דורשים עיון');
+    await expect(actions.nth(0)).toHaveText('5 דורשים מבט');
     await expect(actions.nth(1)).toHaveText('הכל אושר ✓');          // complete
     await expect(actions.nth(2)).toHaveText('3 בתמלול');            // still arriving
 
@@ -98,8 +100,8 @@ test('list-empty (L1) — honest empty state with its CTA', async ({ page }) => 
 
     await page.goto('/batches');
     await expect(page.getByTestId('list-empty')).toBeVisible();
-    await expect(page.getByText('אין מקבצים עדיין')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'צרי מקבץ ראשון' })).toBeVisible();
+    await expect(page.getByText('אין מבחנים עדיין')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'העלי מבחן ראשון' })).toBeVisible();
     await expect(page.getByTestId('batch-row')).toHaveCount(0);
 });
 
@@ -110,15 +112,43 @@ test('sidebar-entry (L2) — the section is reachable, and stays lit on its desc
     // The entry exists at all (before P5 the list was reachable only from a
     // batch you had already opened).
     await page.goto('/');
-    const entry = page.getByRole('link', { name: 'המקבצים שלי' });
+    const nav = page.getByRole('navigation');
+    const entry = nav.getByRole('link', { name: 'המבחנים שלי' });
     await expect(entry).toBeVisible();
     await entry.click();
     await expect(page).toHaveURL(/\/batches$/);
 
     // Lit on the section root…
-    await expect(page.getByRole('link', { name: 'המקבצים שלי' })).toHaveClass(/bg-primary-100/);
+    await expect(nav.getByRole('link', { name: 'המבחנים שלי' })).toHaveClass(/bg-primary-100/);
 
     // …and STILL lit one level deep (strict equality would go dark here).
+    // SCOPED TO THE NAV: since the §5.7 fold the batch page's breadcrumb
+    // back-link carries the section name too, which is the point — they are
+    // one section, and an unscoped role query now matches both.
     await page.goto('/batches/b0000000-0000-0000-0000-00000000000a');
-    await expect(page.getByRole('link', { name: 'המקבצים שלי' })).toHaveClass(/bg-primary-100/);
+    await expect(nav.getByRole('link', { name: 'המבחנים שלי' })).toHaveClass(/bg-primary-100/);
+});
+
+test('§5.7 fold — one section, two zoom levels, and no second sidebar entry', async ({ page }) => {
+    await seedAuth(page);
+    await install(page, [listItem()]);
+
+    await page.goto('/batches');
+    const nav = page.getByRole('navigation');
+    // `מבחנים בדוקים` is no longer a sidebar entry — two entries for one
+    // set of objects is how a teacher ends up asking which holds her work.
+    await expect(nav.getByRole('link', { name: 'מבחנים בדוקים' })).toHaveCount(0);
+
+    // It is a TAB inside the section, and the route it points at still works.
+    const tabs = page.getByTestId('exams-tabs');
+    await expect(tabs.getByRole('link', { name: 'לפי מבחן' })).toHaveAttribute('aria-current', 'page');
+    // The graded-tests list is an ARRAY; the shared `install` answers `{}` for
+    // everything it does not know, and `[].filter` on an object white-screens.
+    await page.route('**/api/v0/grading/graded_tests*', (route) =>
+        fulfillJson(route, []));
+    await tabs.getByRole('link', { name: 'כל המבחנים הבדוקים' }).click();
+    await expect(page).toHaveURL(/\/my-graded-tests$/);
+    await expect(page.getByTestId('exams-tabs')
+        .getByRole('link', { name: 'כל המבחנים הבדוקים' }))
+        .toHaveAttribute('aria-current', 'page');
 });

@@ -9,12 +9,16 @@ Gate does NOT re-fire rubric point-sum invariants on awarded points — those
 constrain possible points, not awarded points, and were validated at rubric-compile
 time (S6). Re-firing them here would wrongly reject legitimate partial credit.
 
-Five gate checks (in order):
+Gate checks (in order):
   1. CW — no override keys referencing branch criterion IDs (only leaves are overridable)
   2. CW — no override keys referencing unknown terminal IDs (closed-world)
-  3. Bounds — every effective points_awarded ∈ [0, terminal.points_possible]
-  4. Precision — every overridden award rounded to numeric_policy.precision (not rejected)
-  5. Annotations — no error-severity annotations in draft.annotations
+  3. CW-3 — every overridden check id is a real check of that terminal
+  4. [OD-R2] Typed amounts — a number she typed (on a check or on a whole
+     terminal) is within its ceiling, on the rubric's grid, not on a note_only
+     check, and carries the verdict it implies. REFUSED, never snapped: this is
+     a consuming path (§3.5a) and the number is hers.
+  5. Annotations — no unresolved error-severity annotations in draft.annotations
+Bounds on the DERIVED award are re-checked after pricing as a belt (§0.5).
 """
 from __future__ import annotations
 
@@ -48,6 +52,10 @@ class GateViolation:
         "closed_world",
         "out_of_bounds",
         "error_annotation",
+        # [OD-R2] a typed amount the gate refuses
+        "off_grid",            # not a multiple of numeric_policy.precision
+        "not_priceable",       # an amount on a note_only check
+        "verdict_mismatch",    # the verdict sent is not the one the amount implies
     ]
     message: str
 
@@ -163,13 +171,113 @@ def _llm_failure_resolved_by_teacher(
         for terminal_id, decisions in overrides.terminals.items()
         for decision in decisions
     }
+    # [OD-R2] an amount typed on the criterion row decides that whole terminal:
+    # its checks are not priced at all, so there is nothing left unread there.
+    pinned = set(overrides.terminal_points)
     required = [
         (info.terminal_id, check.check_id)
         for info in terminal_index.values()
         if _scope_target_id(info.scope_key) == ann.target_id
         for check in (info.checks or [])
     ]
-    return bool(required) and all(key in decided for key in required)
+    return bool(required) and all(
+        key in decided or key[0] in pinned for key in required)
+
+
+def _on_grid(amount: Decimal, precision: Decimal) -> bool:
+    return (amount / precision) == (amount / precision).to_integral_value()
+
+
+def typed_points_violations(
+    terminal_index: Dict[str, _TerminalInfo],
+    branch_criterion_ids: Set[str],
+    overrides: GradedTestOverrides,
+    precision: Decimal,
+) -> List[GateViolation]:
+    """[OD-R2] Gate every amount she typed. Shared by `/draft` and `/approve`.
+
+    Refuse, never repair: an out-of-range or off-grid number is HER number, and
+    snapping it would freeze a value she did not type (FC). The client shows
+    the same refusal live while she types (OD-4 a), so reaching here means a
+    client that did not.
+    """
+    from app.services.pricing import typed_maximum, verdict_for_amount
+
+    out: List[GateViolation] = []
+
+    for tid, pin in overrides.terminal_points.items():
+        if tid in branch_criterion_ids:
+            out.append(GateViolation(
+                terminal_id=tid, violation_kind="branch_criterion",
+                message=(f"'{tid}' is a branch criterion (has sub-criteria); type "
+                         "the amount on its sub-criteria instead.")))
+            continue
+        info = terminal_index.get(tid)
+        if info is None:
+            out.append(GateViolation(
+                terminal_id=tid, violation_kind="closed_world",
+                message=(f"Typed points on '{tid}', which is not a known terminal "
+                         "in this graded test.")))
+            continue
+        amount = pin.points_awarded
+        if amount < 0 or amount > info.points_possible:
+            out.append(GateViolation(
+                terminal_id=tid, violation_kind="out_of_bounds",
+                message=(f"Typed {amount} points on '{tid}', whose maximum is "
+                         f"{info.points_possible}.")))
+        elif not _on_grid(amount, precision):
+            out.append(GateViolation(
+                terminal_id=tid, violation_kind="off_grid",
+                message=(f"Typed {amount} points on '{tid}'; points are given in "
+                         f"steps of {precision}.")))
+
+    for tid, decisions in overrides.terminals.items():
+        info = terminal_index.get(tid)
+        if info is None or tid in branch_criterion_ids:
+            continue                          # already refused as closed_world / branch
+        by_id = {c.check_id: c for c in (info.checks or [])}
+        for decision in decisions:
+            if decision.points_awarded is None:
+                continue
+            check = by_id.get(decision.check_id)
+            if check is None:
+                continue                      # already refused as closed_world
+            amount = decision.points_awarded
+            if check.kind == "note_only":
+                out.append(GateViolation(
+                    terminal_id=tid, violation_kind="not_priceable",
+                    message=(f"Typed {amount} points on '{check.check_id}', a "
+                             "note_only check — it never moves points.")))
+                continue
+            if check.kind == "tariff":
+                # owner ruling 2026-09-13: a deduction is yes/no. There is no
+                # half state and nothing to type — the verdict decides it.
+                out.append(GateViolation(
+                    terminal_id=tid, violation_kind="not_priceable",
+                    message=(f"Typed {amount} points on '{check.check_id}', a "
+                             "tariff — a deduction is decided by its verdict alone.")))
+                continue
+            maximum = typed_maximum(check)
+            if amount < 0 or amount > maximum:
+                out.append(GateViolation(
+                    terminal_id=tid, violation_kind="out_of_bounds",
+                    message=(f"Typed {amount} points on '{check.check_id}', whose "
+                             f"maximum is {maximum}.")))
+                continue
+            if not _on_grid(amount, precision):
+                out.append(GateViolation(
+                    terminal_id=tid, violation_kind="off_grid",
+                    message=(f"Typed {amount} points on '{check.check_id}'; points "
+                             f"are given in steps of {precision}.")))
+                continue
+            implied = verdict_for_amount(amount, maximum)
+            if decision.verdict != implied:
+                out.append(GateViolation(
+                    terminal_id=tid, violation_kind="verdict_mismatch",
+                    message=(f"'{check.check_id}' carries {amount} points, which "
+                             f"implies '{implied}', but the verdict sent is "
+                             f"'{decision.verdict}'.")))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -252,6 +360,11 @@ def compile_graded_test(
                     ),
                 ))
 
+    # Check 4 [OD-R2]: every amount she typed is within its ceiling, on the
+    # grid, and carries the verdict it implies.
+    violations.extend(typed_points_violations(
+        terminal_index, branch_criterion_ids, overrides, precision))
+
     # Check 5: no UNRESOLVED error-severity annotations in draft
     for ann in draft.annotations:
         if ann.severity != AnnotationSeverity.ERROR:
@@ -290,6 +403,7 @@ def compile_graded_test(
     for info in terminal_index.values():
         decisions = overrides.overrides_for(info.terminal_id)
         by_check = {d.check_id: d for d in decisions}
+        terminal_typed = overrides.terminal_point(info.terminal_id)
         final = final_prices.get(info.terminal_id, info.ai_points_awarded)
         ai_award = ai_prices.get(info.terminal_id, info.ai_points_awarded)
         was_overridden = final != ai_award
@@ -316,6 +430,7 @@ def compile_graded_test(
             was_overridden=was_overridden,
             teacher_comment=teacher_comment,
             final_points_awarded=final,
+            typed_points=terminal_typed,
             # [PR-G1] mirror the checks. No verdict overlay exists until PR-G5,
             # so final == ai here; the provenance SHAPE is what freezes.
             checks=([ContractCheck(
@@ -328,6 +443,9 @@ def compile_graded_test(
                                    if c.check_id in by_check else False),
                 teacher_comment=(by_check[c.check_id].teacher_comment
                                  if c.check_id in by_check else None),
+                # [OD-R2, OD-5] the amount she typed, when she did
+                typed_points=(by_check[c.check_id].points_awarded
+                              if c.check_id in by_check else None),
             ) for c in info.checks] if info.checks else None),
         )
         scope_terminals[info.scope_key].append(terminal)
@@ -422,8 +540,12 @@ def _price_by_scope(draft, terminal_index, overrides, precision):
 
     v3 drafts carry no checks; those terminals keep their stored award and
     cannot be verdict-overridden, so both sides fall back to the draft.
+
+    [OD-R2] Her typed amounts ride into the SAME call: per check via
+    `typed_check_points`, per terminal via `terminal_points`. The AI side never
+    sees them — `ai_points_awarded` stays what Vivi alone would have priced.
     """
-    from app.services.pricing import apply_overlay, price_scope_checks
+    from app.services.pricing import apply_overlay, price_scope_checks, typed_points_of
 
     ai_prices, final_prices, effective, touched = {}, {}, {}, set()
     by_scope = {}
@@ -432,20 +554,27 @@ def _price_by_scope(draft, terminal_index, overrides, precision):
 
     for _key, infos in by_scope.items():
         ai_terms, final_terms = [], []
+        typed, pins = {}, {}
         for info in infos:
             if not info.checks:
                 continue
-            eff, ids = apply_overlay(info.checks,
-                                     overrides.overrides_for(info.terminal_id))
+            decisions = overrides.overrides_for(info.terminal_id)
+            eff, ids = apply_overlay(info.checks, decisions)
             effective[info.terminal_id] = eff
             touched |= ids
+            typed.update(typed_points_of(decisions))
+            pin = overrides.terminal_point(info.terminal_id)
+            if pin is not None:
+                pins[info.terminal_id] = pin
             ai_terms.append((info.terminal_id, info.points_possible, info.checks))
             final_terms.append((info.terminal_id, info.points_possible, eff))
         if not ai_terms:
             continue
         ai_prices.update(price_scope_checks(ai_terms, precision))
         final_prices.update(price_scope_checks(final_terms, precision,
-                                               overridden_check_ids=touched))
+                                               overridden_check_ids=touched,
+                                               typed_check_points=typed,
+                                               terminal_points=pins))
     return ai_prices, final_prices, effective, touched
 
 

@@ -77,6 +77,14 @@ class AnswerSpaceSelectionGroup(BaseModel):
     persisted (the rubric contract stays the single source)."""
     choose_k: int
     question_numbers: List[int]
+    #: The teacher's OWN wording for this group («ענו על 4 מתוך 6 שאלות»),
+    #: carried verbatim from `SelectionGroup.label`. Display-only, in no
+    #: invariant — it exists because the transcription card's completeness
+    #: sentence has to name WHICH choice it is talking about when a rubric has
+    #: more than one group, and the only honest name is hers. `None` when the
+    #: contract carried none: the surface then omits the prefix rather than
+    #: inventing «קבוצה 1» (FC — never a value the teacher did not write).
+    label: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------

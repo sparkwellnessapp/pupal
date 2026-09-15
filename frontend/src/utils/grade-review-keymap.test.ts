@@ -77,7 +77,18 @@ describe('grade-review keymap — PR spec §5', () => {
     it('approves ONLY on Ctrl/⌘ + Enter — never on a bare Enter', () => {
         expect(resolveKeyAction(press({ key: 'Enter', code: 'Enter', ctrlOrMeta: true })))
             .toMatchObject({ action: 'approve' });
-        expect(resolveKeyAction(press({ key: 'Enter', code: 'Enter' }))).toBeNull();
+        expect(resolveKeyAction(press({ key: 'Enter', code: 'Enter' })))
+            .not.toMatchObject({ action: 'approve' });
+    });
+
+    it('opens the points editor on a bare Enter, swallowed, never on auto-repeat [OD-R2]', () => {
+        // A field, not a signature: the worst a stray Enter can do is show her
+        // an input she can Esc out of.
+        expect(resolveKeyAction(press({ key: 'Enter', code: 'Enter' })))
+            .toEqual({ action: 'editPoints', preventDefault: true });
+        expect(resolveKeyAction(press({ key: 'Enter', code: 'Enter', repeat: true }))).toBeNull();
+        // and it is inert inside a field — the field owns its own Enter
+        expect(resolveKeyAction(press({ key: 'Enter', code: 'Enter', inEditable: true }))).toBeNull();
     });
 
     it('releases on Esc', () => {
@@ -174,7 +185,9 @@ describe('census C — reconciliation with the transcription review keymap', () 
         // cycles verdicts here, so a hand resting one key over would sign a
         // grade. §5 lists Ctrl/⌘+↵ and only that.
         expect(t({ ...base, key: 'Enter' })).toBe('approve');
-        expect(resolveKeyAction(press({ key: 'Enter', code: 'Enter' }))).toBeNull();
+        // [OD-R2] here it opens the points editor — a field, not a signature.
+        expect(resolveKeyAction(press({ key: 'Enter', code: 'Enter' })))
+            .toMatchObject({ action: 'editPoints' });
     });
 
     it('AGREES on Ctrl+S after OD-F7 (both save; here it flushes the autosave)', () => {

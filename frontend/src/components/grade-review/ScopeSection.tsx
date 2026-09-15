@@ -4,6 +4,13 @@ import type { ReviewScope } from '@/utils/grade-review-model';
 import type { Highlight } from '@/utils/evidence-highlight';
 import type { FeedbackState } from '@/utils/feedback-staleness';
 import { formatPoints } from '@/utils/points-display';
+import type { NumericPolicy } from '@/lib/pricing';
+import { PointsInput } from './PointsInput';
+import {
+    RV_CRIT_TYPED as CRIT_TYPED,
+    RV_ORIG_PREFIX as ORIG_PREFIX,
+    RV_ORIG_REVERT as ORIG_REVERT,
+} from '@/copy/grade-review';
 import { AnswerBlock } from './AnswerBlock';
 import { CheckRow } from './CheckRow';
 import { FeedbackCard } from './FeedbackCard';
@@ -76,6 +83,18 @@ export interface ScopeSectionProps {
      */
     isCriterionOpen?: (terminalId: string) => boolean;
     onToggleCriterion?: (terminalId: string) => void;
+    /**
+     * [OD-R2] Typed points. The rubric's grid drives the live refusal; the
+     * editing target is owned by the surface so that Enter on the focused row
+     * and a click on a number resolve to the same one open field.
+     */
+    policy: NumericPolicy;
+    readOnly?: boolean;
+    editingPoints?: { kind: 'check' | 'criterion'; id: string } | null;
+    onEditPoints?: (target: { kind: 'check' | 'criterion'; id: string } | null) => void;
+    onCheckPointsCommit?: (terminalId: string, checkId: string, amount: string) => void;
+    onCriterionPointsCommit?: (terminalId: string, amount: string) => void;
+    onCriterionPointsRevert?: (terminalId: string) => void;
     onNoteChange: (terminalId: string, checkId: string, note: string) => void;
     onNoteClose: () => void;
     onFeedbackChange: (scopeId: string, text: string) => void;
@@ -106,6 +125,8 @@ export function ScopeSection({
     onFocusCheck, onHoverCheck, onCycle, onRevert, onPin, onNoteChange, onNoteClose,
     onFeedbackChange, onFeedbackRegenerate, onShowScan, onRetry,
     pinnedTerminalId = null, onPinCriterion,
+    policy, readOnly = false, editingPoints = null, onEditPoints,
+    onCheckPointsCommit, onCriterionPointsCommit, onCriterionPointsRevert,
     // Default OPEN: a caller that does not participate in the disclosure (a
     // test, a future embed) gets the pre-S4 surface rather than a page of
     // headers with no way to open them.
@@ -133,7 +154,7 @@ export function ScopeSection({
                     data-scope-points
                     className={[
                         'text-gr-pts [font-variant-numeric:tabular-nums] [unicode-bidi:isolate]',
-                        scope.overridden ? 'font-normal text-grade-red' : 'text-grade-pencil',
+                        scope.overridden ? 'font-normal text-primary-700' : 'text-grade-pencil',
                     ].join(' ')}
                 >
                     {formatPoints(scope.awarded)} / {formatPoints(scope.possible)}
@@ -336,17 +357,58 @@ export function ScopeSection({
                             ) : null}
                             <span
                                 dir="ltr"
+                                data-criterion-points={criterion.terminalId}
                                 className={[
-                                    'min-w-tariff text-left text-gr-crit font-light leading-none',
+                                    'relative min-w-tariff text-left text-gr-crit font-light leading-none',
                                     '[font-variant-numeric:tabular-nums] [unicode-bidi:isolate]',
-                                    criterion.overridden
-                                        ? 'font-medium text-grade-red'
-                                        : 'text-grade-pencil',
                                 ].join(' ')}
                             >
-                                {formatPoints(criterion.awarded)} / {formatPoints(criterion.possible)}
+                                {/* [OD-R2] the criterion's total, editable: an amount
+                                    typed here replaces the whole terminal's award. */}
+                                <PointsInput
+                                    target="criterion"
+                                    size="crit"
+                                    value={criterion.awarded}
+                                    max={criterion.possible}
+                                    policy={policy}
+                                    typed={criterion.pointsTyped}
+                                    overridden={criterion.overridden}
+                                    readOnly={readOnly || !hasBreakdown}
+                                    editing={editingPoints?.kind === 'criterion'
+                                        && editingPoints.id === criterion.terminalId}
+                                    onEditingChange={(editing) => onEditPoints?.(
+                                        editing ? { kind: 'criterion', id: criterion.terminalId } : null)}
+                                    onCommit={(amount) =>
+                                        onCriterionPointsCommit?.(criterion.terminalId, amount)}
+                                />
                             </span>
                         </div>
+
+                        {criterion.pointsTyped ? (
+                            <div
+                                data-criterion-typed={criterion.terminalId}
+                                className="flex flex-wrap items-center gap-1 border-t
+                                    border-grade-line-2 px-3.5 py-1.5 text-gr-label text-grade-pencil"
+                            >
+                                <span className="text-primary-700">{CRIT_TYPED}</span>
+                                <span aria-hidden="true">·</span>
+                                {ORIG_PREFIX}{' '}
+                                <s className="text-grade-pencil">{formatPoints(criterion.aiAwarded)}</s>
+                                {!readOnly ? (
+                                    <>
+                                        <span aria-hidden="true">·</span>
+                                        <button
+                                            type="button"
+                                            data-criterion-points-revert={criterion.terminalId}
+                                            onClick={() => onCriterionPointsRevert?.(criterion.terminalId)}
+                                            className="text-primary-700 underline underline-offset-link"
+                                        >
+                                            {ORIG_REVERT}
+                                        </button>
+                                    </>
+                                ) : null}
+                            </div>
+                        ) : null}
 
                         {!hasBreakdown ? (
                             <p className="border-t border-grade-line-2 px-3.5 py-2.5
@@ -359,6 +421,14 @@ export function ScopeSection({
                                     <CheckRow
                                         key={check.check_id}
                                         check={check}
+                                        policy={policy}
+                                        readOnly={readOnly}
+                                        pointsEditing={editingPoints?.kind === 'check'
+                                            && editingPoints.id === check.check_id}
+                                        onPointsEditing={(editing) => onEditPoints?.(
+                                            editing ? { kind: 'check', id: check.check_id } : null)}
+                                        onPointsCommit={(amount) => onCheckPointsCommit?.(
+                                            criterion.terminalId, check.check_id, amount)}
                                         effectiveVerdict={check.verdict}
                                         overridden={check.overridden}
                                         awarded={check.awarded}

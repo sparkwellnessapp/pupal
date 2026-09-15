@@ -8,7 +8,7 @@ import {
     DASH_CARD_ALT, DASH_CARD_APPROVED, DASH_CARD_DRAFT, DASH_CARD_FAILED,
     DASH_CARD_GRADING, DASH_CARD_GRADING_CAPTION, DASH_CARD_LANDED, DASH_CARD_MARKED,
     DASH_CARD_NO_NAME, DASH_CARD_PENDING, DASH_CARD_RETRIED, DASH_CARD_RETRY,
-    DASH_CARD_STALE_VERSION, DASH_PILE_EMPTY,
+    DASH_CARD_SCORE_TITLE, DASH_CARD_STALE_VERSION, DASH_PILE_EMPTY, DONE_PREVIEW,
 } from '@/copy/grade-review';
 import { StampSvg } from './StampSvg';
 import { usePageThumbnails } from './usePageThumbnails';
@@ -135,6 +135,21 @@ export function Pile({ items, retriedIds, onOpenReview, onOpenPreview, onRetry }
                                         <span
                                             dir="ltr"
                                             data-card-score
+                                            /* §5.4 asks for «{score} · הצעת
+                                               ויוי» on the card. The words are
+                                               the TITLE rather than a second
+                                               visible line: on a 150px card the
+                                               label would crowd out the student
+                                               name, and the attribution is
+                                               already carried visually by the
+                                               ink grammar this module
+                                               documents — a grey number is
+                                               Vivi's proposal, a red stamp is
+                                               her signature. The title keeps it
+                                               available to a hover and to a
+                                               screen reader, where "4" alone
+                                               says nothing about whose it is. */
+                                            title={DASH_CARD_SCORE_TITLE}
                                             /* The scrim is not decoration. The
                                                number sits on a PHOTOGRAPH of
                                                handwriting, and a real scan has
@@ -174,6 +189,7 @@ export function Pile({ items, retriedIds, onOpenReview, onOpenPreview, onRetry }
                                 version={item.version}
                                 retried={retried}
                                 onRetry={() => onRetry(item)}
+                                onPreview={() => onOpenPreview(item)}
                             />
                         </button>
                     </div>
@@ -223,13 +239,18 @@ function captionText(
 }
 
 function Caption({
-    state, markers, version, retried, onRetry,
+    state, markers, version, retried, onRetry, onPreview,
 }: {
     state: PileCardState;
     markers: number | null | undefined;
     version?: number;
     retried: boolean;
     onRetry: () => void;
+    /** §5.6 — a signed card gets an EXPLICIT «תצוגה מקדימה», not a hidden
+     *  click target on the thumbnail. `role="link"` rather than a nested
+     *  <button>, which is invalid inside the card's own button — the same
+     *  shape the failed-retry control above already uses. */
+    onPreview: () => void;
 }) {
     const base = 'mt-0.5 text-gr-meta';
     const suffix = revisionSuffix(state, version);
@@ -270,7 +291,20 @@ function Caption({
         );
     }
     if (state === 'approved') {
-        return <div className={`${base} text-primary-700`}>{DASH_CARD_APPROVED}</div>;
+        return (
+            <div className={`${base} text-primary-700`}>
+                {DASH_CARD_APPROVED} ·{' '}
+                <span
+                    role="link"
+                    tabIndex={-1}
+                    data-card-preview
+                    onClick={(e) => { e.stopPropagation(); onPreview(); }}
+                    className="cursor-pointer underline underline-offset-link"
+                >
+                    {DONE_PREVIEW}
+                </span>
+            </div>
+        );
     }
     return (
         <div className={`${base} text-grade-pencil`}>

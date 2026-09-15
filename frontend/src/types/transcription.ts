@@ -56,6 +56,11 @@ export interface TranscriptionDraft {
 export interface AnswerSpaceSelectionGroup {
     choose_k: number;
     question_numbers: number[];
+    /** The teacher's OWN wording for the choice («ענו על 4 מתוך 6 שאלות»),
+     *  carried verbatim from the contract. Display-only, in no rule. Absent or
+     *  null when the rubric carried none — the completeness sentence then omits
+     *  the prefix instead of inventing a name for her choice. */
+    label?: string | null;
 }
 
 export interface TranscribeResponse {

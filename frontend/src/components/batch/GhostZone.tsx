@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 
 import { ZoneCard } from '@/components/batch/ZoneCard';
 import {
+    GHOST_ALMOST_THERE,
     GHOST_MORE_QUEUED,
     GHOST_QUEUED,
     GHOST_RETRY,
@@ -43,12 +44,17 @@ export function GhostZone({
     jobs,
     onRetry,
     retryBusy,
+    batchTotal = 0,
 }: {
     jobs: ActiveJobItem[];
     /** Optional: the single-test surface passes no retry, and then a stuck
      *  ghost simply renders its honest label without an action. */
     onRetry?: (jobId: string) => void;
     retryBusy?: ReadonlySet<string>;
+    /** §5.3A: «כמעט שם» is TRUE only when this is the last of several. On a
+     *  batch of one it describes the whole thing as a remainder, and with two
+     *  left it is simply false. The rule lives beside the sentence it gates. */
+    batchTotal?: number;
 }) {
     // The clock only needs to tick for rows that show one, and a stuck row
     // shows none — so a dashboard whose only ghost has overrun stops
@@ -69,8 +75,20 @@ export function GhostZone({
         <ZoneCard
             testId="zone-ghosts"
             dotClass="bg-batch-blue"
-            title={ZONE_GHOSTS_TITLE(jobs.length)}
-            sub={ZONE_GHOSTS_SUB}
+            title={ZONE_GHOSTS_TITLE()}
+            sub={
+                <>
+                    {ZONE_GHOSTS_SUB}
+                    {batchTotal >= 2 && jobs.length === 1 && (
+                        <span
+                            className="ms-1.5 font-medium text-batch-blue-ink"
+                            data-testid="ghost-almost-there"
+                        >
+                            {GHOST_ALMOST_THERE}
+                        </span>
+                    )}
+                </>
+            }
         >
             <div className="border-t border-batch-line-soft">
                 {visible.map((j) => {

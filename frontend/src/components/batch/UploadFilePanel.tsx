@@ -19,13 +19,16 @@
  */
 
 import { useRef, useState } from 'react';
-import { Check, FileText, Loader2, Upload, X } from 'lucide-react';
+import { FileText, Upload, X } from 'lucide-react';
 
 import {
     UPLOAD_CLEAR_ALL,
     UPLOAD_DROPZONE,
     UPLOAD_DUP_CHIP,
-    UPLOAD_RETRY,
+    UPLOAD_FILES_SUMMARY,
+    UPLOAD_SCAN_HELP,
+    UPLOAD_SCAN_HELP_CLOSE,
+    UPLOAD_SCAN_HELP_LINK,
     UPLOAD_SKIPPED_SUMMARY,
     UPLOAD_TRUNCATION_NOTICE,
 } from '@/copy/batch';
@@ -34,11 +37,12 @@ import {
     detectDuplicates,
     formatMB,
     type ExcludedFile,
-    type UploadItemState,
 } from '@/utils/batch-upload';
-import { filesCount } from '@/utils/hebrew-plural';
 
-const MAX_FILES = 50;
+/** Mirrors the server's `MAX_DECLARED_TEST_COUNT` — the bound she can reach
+ *  through the UI is the bound the server enforces. Rendered, never retyped
+ *  into a sentence. */
+export const MAX_FILES = 50;
 
 export function UploadFilePanel({
     files,
@@ -53,6 +57,7 @@ export function UploadFilePanel({
     const [dragOver, setDragOver] = useState(false);
     const [excluded, setExcluded] = useState<ExcludedFile[]>([]);
     const [truncated, setTruncated] = useState(false);
+    const [helpOpen, setHelpOpen] = useState(false);
 
     const locked = disabled;
     const dups = detectDuplicates(files);
@@ -100,7 +105,7 @@ export function UploadFilePanel({
                 }`}
             >
                 <Upload className="mx-auto text-gray-400 mb-2" size={28} />
-                <p className="text-sm text-gray-600">{UPLOAD_DROPZONE}</p>
+                <p className="text-sm text-gray-600">{UPLOAD_DROPZONE(MAX_FILES)}</p>
                 <input
                     ref={inputRef}
                     type="file"
@@ -115,13 +120,37 @@ export function UploadFilePanel({
                 />
             </div>
 
+            {/* §5.2 — the scanning help. Three lines, and the third is the one
+                she needs: image formats are refused today (OD-5), and a
+                dropzone that silently rejects her phone photo teaches her the
+                product is broken. */}
+            <div className="mt-2 text-center">
+                <button
+                    type="button"
+                    onClick={() => setHelpOpen((open) => !open)}
+                    className="text-[13px] text-primary-600 hover:underline"
+                    data-testid="scan-help-toggle"
+                    aria-expanded={helpOpen}
+                >
+                    {helpOpen ? UPLOAD_SCAN_HELP_CLOSE : UPLOAD_SCAN_HELP_LINK}
+                </button>
+            </div>
+            {helpOpen && (
+                <ul
+                    className="mt-2 space-y-1 rounded-lg border border-surface-200 bg-surface-50 px-4 py-3 text-[13px] text-gray-600"
+                    data-testid="scan-help"
+                >
+                    {UPLOAD_SCAN_HELP.map((line) => <li key={line}>{line}</li>)}
+                </ul>
+            )}
+
             {/* U2: the §3.2 truncation notice — never a silent slice */}
             {truncated && (
                 <div
                     className="mt-3 px-3 py-2 rounded-lg bg-batch-amber-soft border border-batch-amber-line text-batch-amber-ink text-sm"
                     data-testid="truncation-notice"
                 >
-                    {UPLOAD_TRUNCATION_NOTICE}
+                    {UPLOAD_TRUNCATION_NOTICE(MAX_FILES)}
                 </div>
             )}
 
@@ -142,8 +171,10 @@ export function UploadFilePanel({
                 <div className="mt-4">
                     {/* Aggregate line + clear-all */}
                     <div className="flex items-center justify-between mb-2">
+                        {/* She counts STUDENTS, not files — one PDF is one
+                            test, and that is the rule the page is teaching. */}
                         <span className="text-sm text-gray-600">
-                            {filesCount(files.length)} · <span dir="ltr">{formatMB(totalBytes)}</span>
+                            {UPLOAD_FILES_SUMMARY(files.length)} · <span dir="ltr">{formatMB(totalBytes)}</span>
                         </span>
                         {!locked && (
                             <button

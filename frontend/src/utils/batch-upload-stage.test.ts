@@ -4,11 +4,11 @@ import {
   barSegments,
   completionReached,
   pollCadenceMs,
-  selectHeadline,
   uploadingCount,
 } from './batch-dashboard'
+import { deriveBatchStage } from './batch-stage'
 import { listActionLine, listBarSegments } from './batch-list'
-import { batchStatusLabel } from '@/copy/batch'
+import { CHIP_TRANSCRIBING, CHIP_UPLOADING, CHIP_WAITING_APPROVAL } from '@/copy/batch'
 import type { Partition } from './batch-partition'
 
 /**
@@ -227,56 +227,47 @@ describe('listActionLine', () => {
 })
 
 // ---------------------------------------------------------------------------
-// The status chip
+// The chip and the turn line, through their ONE derivation (§5.1).
+//
+// `batchStatusLabel` and `selectHeadline` are gone. Stage A's claims about
+// them are not: they are re-asserted here against `deriveBatchStage`, which
+// is what those screens read now. Deleting the claims with the functions
+// would have retired the evidence for a defect, not the defect.
 // ---------------------------------------------------------------------------
 
-describe('batchStatusLabel', () => {
+describe('deriveBatchStage — the upload stage', () => {
+  const stageOf = (over: Record<string, number>) =>
+    deriveBatchStage({ status: 'in_progress', rollup: rollup(over) as never })
+
   it('says בהעלאה when the only thing happening is files arriving', () => {
-    expect(batchStatusLabel('in_progress', { uploading: 3 })).toBe('בהעלאה')
+    expect(stageOf({ uploading: 3, total: 3 }).chip.label).toBe(CHIP_UPLOADING)
   })
 
-  it('prefers בתמלול when documents are actually being read', () => {
-    expect(batchStatusLabel('in_progress', { uploading: 3, transcribing: 1 }))
-      .toBe('בתמלול')
+  it('prefers the reading stage when documents are actually being read', () => {
+    expect(stageOf({ uploading: 3, transcribing: 1, total: 4 }).chip.label)
+      .toBe(CHIP_TRANSCRIBING)
   })
 
   it('never claims she is holding the batch up while files are in transit', () => {
-    // The pre-Stage-A answer for this shape was 'ממתין להחלטות'.
-    expect(batchStatusLabel('in_progress', { uploading: 2 }))
-      .not.toBe('ממתין להחלטות')
+    // The pre-Stage-A answer for this shape was «ממתין להחלטות».
+    const stage = stageOf({ uploading: 2, total: 2 })
+    expect(stage.chip.label).not.toBe(CHIP_WAITING_APPROVAL)
+    expect(stage.turnLine).not.toContain('תורך')
   })
 
-  it('is unchanged when nothing is in flight at all', () => {
-    expect(batchStatusLabel('in_progress', {})).toBe('ממתין להחלטות')
-  })
-})
-
-// ---------------------------------------------------------------------------
-// The headline
-// ---------------------------------------------------------------------------
-
-describe('selectHeadline', () => {
   it('reports the upload tail when nothing else is pending', () => {
-    expect(selectHeadline(emptyPartition(), rollup({ uploading: 3, total: 3 })))
-      .toBe('3 קבצים עדיין בהעלאה')
+    expect(stageOf({ uploading: 3, total: 3 }).turnLine)
+      .toBe('עכשיו: המבחנים בהעלאה')
   })
 
-  it('does not claim "כמעט שם" for an upload that may have barely started', () => {
-    const headline = selectHeadline(emptyPartition(), rollup({ uploading: 9, total: 10 }))
-    expect(headline).not.toContain('כמעט שם')
-  })
-
-  it('lets the transcription tail win when both are moving', () => {
-    expect(selectHeadline(emptyPartition(), rollup({
-      uploading: 1, transcribing: 1, total: 2,
-    }))).toContain('בתמלול')
+  it('does not claim «כמעט שם» for an upload that may have barely started', () => {
+    expect(stageOf({ uploading: 9, total: 10 }).turnLine).not.toContain('כמעט שם')
   })
 
   it('does not announce completion while files are still arriving', () => {
-    const p = emptyPartition()
-    ;(p.approved as unknown[]).push({})
-    expect(selectHeadline(p, rollup({ uploading: 4, approved: 1, total: 5 })))
-      .toBe('4 קבצים עדיין בהעלאה')
+    const stage = stageOf({ uploading: 4, approved: 1, total: 5 })
+    expect(stage.chip.label).toBe(CHIP_UPLOADING)
+    expect(stage.turnLine).not.toContain('סיימת')
   })
 })
 

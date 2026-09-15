@@ -19,6 +19,7 @@ import {
     ArrowRight,
 } from 'lucide-react';
 import { SidebarLayout } from '@/components/SidebarLayout';
+import { ExamsTabs } from '@/components/batch/ExamsTabs';
 import { GradedTestReviewPanel } from '@/components/GradedTestReviewPanel';
 import {
     listGradedTests,
@@ -415,10 +416,12 @@ export default function MyGradedTestsPage() {
                     </div>
                 )}
 
+                <ExamsTabs active="graded" />
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">המבחנים שנבדקו</h1>
-                        <p className="text-gray-500 mt-1">צפה בכל תוצאות הבדיקה</p>
+                        <h1 className="text-2xl font-bold text-gray-900">המבחנים שלי</h1>
+                        <p className="text-gray-500 mt-1">כל המבחנים הבדוקים, מכל המבחנים שהעלית</p>
                     </div>
                     <Link
                         href="/"

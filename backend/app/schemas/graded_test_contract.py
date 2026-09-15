@@ -70,8 +70,14 @@ class ContractCheck(BaseModel):
     was_overridden: bool = False
     evidence_disputed: bool = False
     teacher_comment: Optional[str] = None
+    # [OD-R2, OD-5] The amount she TYPED on this check, when she did; None when
+    # the check was priced from its verdict. Kept beside `final_verdict` (which
+    # is derived from it) so the eval suite can tell "she disagreed with the
+    # tariff" from "she disagreed with the verdict" — different calibration
+    # signals that a bare `was_overridden` collapses.
+    typed_points: Optional[Decimal] = None
 
-    @field_serializer("tariff")
+    @field_serializer("tariff", "typed_points")
     def _sd(self, v: Optional[Decimal]) -> Optional[str]:
         return None if v is None else str(v)
 
@@ -97,10 +103,18 @@ class ContractTerminalOutcome(BaseModel):
     was_overridden: bool                    # True iff teacher changed the points
     teacher_comment: Optional[str] = None
     final_points_awarded: Decimal           # authoritative: override if present, else AI
+    # [OD-R2, OD-5] The amount she typed on the criterion row itself, when she
+    # did. When present it IS `final_points_awarded`; the checks beneath were
+    # not priced.
+    typed_points: Optional[Decimal] = None
 
     @field_serializer("points_possible", "ai_points_awarded", "final_points_awarded")
     def _sd(self, v: Decimal) -> str:
         return str(v)
+
+    @field_serializer("typed_points")
+    def _sd_typed(self, v: Optional[Decimal]) -> Optional[str]:
+        return None if v is None else str(v)
 
 
 class ContractScopeAnswer(BaseModel):
