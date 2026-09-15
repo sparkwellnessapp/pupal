@@ -81,14 +81,14 @@ describe('listActionLine — one line per §3.2, precedence top-down', () => {
 
   it('needs-eyes wins and reads §3.2 verbatim — the sharp signal, not a paraphrase', () => {
     expect(listActionLine(rollup({ transcribed: 5, needs_eyes: 4, approved: 1, total: 6 })))
-      .toEqual({ kind: 'eyes', text: '4 דורשים עיון' })
+      .toEqual({ kind: 'eyes', text: '4 דורשים מבט' })
     expect(listActionLine(rollup({ transcribed: 1, needs_eyes: 1, total: 1 })))
-      .toEqual({ kind: 'eyes', text: 'מבחן אחד דורש עיון' })   // AM3
+      .toEqual({ kind: 'eyes', text: 'מבחן אחד דורש מבט' })   // AM3
   })
 
   it('all-clean-but-unapproved still owes her a bulk accept (pending, not done)', () => {
     expect(listActionLine(rollup({ transcribed: 5, needs_eyes: 0, total: 5 })))
-      .toEqual({ kind: 'pending', text: '5 ממתינים להחלטה' })
+      .toEqual({ kind: 'pending', text: '5 מבחנים ממתינים לך' })
   })
 
   it('a batch whose work is entirely in grading is NOT "all approved"', () => {
@@ -124,7 +124,7 @@ describe('degrade by omission — needs_eyes === null (owner ruling, closeout)',
 
   it('omits the needs-eyes ACTION LINE too, falling back to the merged count', () => {
     expect(listActionLine(rollup({ transcribed: 6, needs_eyes: null, total: 6 })))
-      .toEqual({ kind: 'pending', text: '6 ממתינים להחלטה' })
+      .toEqual({ kind: 'pending', text: '6 מבחנים ממתינים לך' })
   })
 
   it('a null count never reads as "all clear"', () => {

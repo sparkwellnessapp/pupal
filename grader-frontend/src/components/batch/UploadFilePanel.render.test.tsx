@@ -29,11 +29,11 @@ function render(files: File[]) {
 describe('UploadFilePanel — U2 render', () => {
     it('renders the §3.2 dropzone line and LTR MB sizes', () => {
         const html = render([pdf('a.pdf', 3.2 * 1024 * 1024)]);
-        expect(html).toContain('גררי לכאן קבצי PDF או לחצי לבחירה (עד 50 קבצים)');
+        expect(html).toContain('קובץ אחד לכל תלמיד');
         expect(html).toContain('3.2 MB');
         expect(html).toContain('dir="ltr"');
-        expect(html).toContain('קובץ אחד');           // AM3 aggregate singular
-        expect(html).toContain('נקי הכל');            // U2, feminine (OD5)
+        expect(html).toContain('מבחן אחד');           // AM3 aggregate singular
+        expect(html).toContain('הסרת הכל');            // U2, feminine (OD5)
     });
 
     it('marks later (name, size) duplicates with the advisory chip', () => {

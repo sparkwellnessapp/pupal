@@ -98,6 +98,26 @@ function walk(dir, out = []) {
 
 const files = walk(SRC)
 const onGatedSurface = (rel) => BLOCKING_SURFACES.some((s) => rel.startsWith(s))
+const onClaritySurface = (rel) => CLARITY_SURFACES.some((s) => rel.startsWith(s))
+
+/**
+ * The §2.3 word, as its own word — but Hebrew ATTACHES its function words, and
+ * a boundary that demands a non-letter in front is blind to every one of them.
+ *
+ * Found by a red-state probe: injecting «המקבץ הושלם — בלי דגלים, נחת» into
+ * the copy module flagged `דגלים` and `נחת` and sailed straight past `המקבץ`,
+ * because the character before it is `ה`. That is not an edge case — it is how
+ * the word appears in almost every real sentence («במקבץ», «למקבץ»,
+ * «מהמקבץ»), and nearly every instance this pass removed by hand had that
+ * shape — so the gate would have caught none of them.
+ *
+ * An optional run of the inseparable prefixes (ה ב ו כ ל מ ש) may therefore
+ * precede the word. The TRAILING lookahead is unchanged and still does the real
+ * work: it is what keeps `נקוד` from matching inside `נקודות`.
+ */
+const HEB_PREFIXES = 'הבוכלמש'
+const wholeWord = (w) =>
+  new RegExp(`(^|[^${HEB}])[${HEB_PREFIXES}]{0,2}${w}(?=[^${HEB}]|$)`, 'u')
 
 /**
  * Comments are NOT UI, and this codebase documents its own copy laws in
@@ -156,7 +176,54 @@ const MASCULINE = [
 
 const STATUS_ENUMS = ['in_progress', 'partially_completed']
 
-const findings = { batchWord: [], statusText: [], sizes: [], masculineBlocking: [], masculineDebt: [] }
+/**
+ * §2.3 — THE VOCABULARY GATE (grading-flow clarity pass).
+ *
+ * The words below are the CODEBASE's, not the teacher's, and each one was
+ * observed on a real screen during the Sept 14 walkthrough. They are banned on
+ * the batch-flow surfaces only — `אצווה` stays banned everywhere (its own gate
+ * above), and a word like `ניקוד` is legitimate on a RUBRIC surface, where it
+ * means the point allocation she herself wrote.
+ *
+ * Anchored the same way the imperative list is: a Hebrew letter immediately
+ * before or after the word means it is a DIFFERENT word — `נקודות` contains
+ * `נקוד`, `נחתם` (signed) contains `נחת` (landed), `מוחזרת` is fine in prose
+ * that is not about the product term. Without the anchors this gate would flag
+ * its own vocabulary and train the dismissal reflex it exists to prevent.
+ */
+const CLARITY_BANNED = [
+  ['דגל', 'סימון'],
+  ['דגלים', 'סימונים'],
+  ['נחת', 'מוכן'],
+  ['נחתו', 'מוכנים'],
+  ['ינחתו', 'יהיו מוכנים'],
+  ['מוחזר', 'חתום'],
+  ['מוחזרים', 'חתומים'],
+  ['מנקדת', 'בודקת'],
+  ['ניקוד', 'ציון'],
+  ['החלטות', 'אישור / חתימה'],
+  ['מקבץ', 'מבחן'],
+  ['מקבצים', 'מבחנים'],
+]
+
+/** The surfaces §2.3 governs — the batch flow, upload through download. */
+const CLARITY_SURFACES = [
+  join('src', 'app', 'batches'),
+  join('src', 'app', 'graded-tests'),
+  join('src', 'components', 'batch'),
+  join('src', 'components', 'batch-review'),
+  join('src', 'components', 'grade-review'),
+  join('src', 'copy', 'batch.ts'),
+  join('src', 'copy', 'grade-review.ts'),
+  join('src', 'utils', 'batch-'),
+  join('src', 'utils', 'transcription-completeness'),
+  join('src', 'utils', 'triage-reason'),
+]
+
+const findings = {
+  batchWord: [], statusText: [], sizes: [],
+  masculineBlocking: [], masculineDebt: [], clarity: [],
+}
 
 for (const file of files) {
   const rel = relative(ROOT, file)
@@ -184,6 +251,17 @@ for (const file of files) {
       findings.sizes.push([at, code])
     }
 
+    // §2.3 — codebase vocabulary on a teacher-facing batch surface. Only
+    // inside a string or a JSX text node: the word in a comment is this
+    // file's own rulebook, and `strip` has already removed those anyway.
+    if (onClaritySurface(rel) && /["'`>]/.test(line)) {
+      for (const [word, better] of CLARITY_BANNED) {
+        if (wholeWord(word).test(line)) {
+          findings.clarity.push([at, `${code}   → ${better}`])
+        }
+      }
+    }
+
     for (const [masc, fem] of MASCULINE) {
       // src/data is DATA, not UI: the Ministry school export contains
       // «מתי"א זבולון-אשר», whose city name matches the `אשר` imperative. A gate
@@ -209,8 +287,10 @@ show('2. raw status enum as text (F3) [BLOCKING]', findings.statusText)
 show('3. un-isolated file sizes (§3.1) [BLOCKING]', findings.sizes)
 show('4a. masculine imperatives on batch + grade-review surfaces (OD5) [BLOCKING]', findings.masculineBlocking)
 show('4b. masculine imperatives elsewhere — INHERITED DEBT (reported, not blocking)', findings.masculineDebt)
+show('5. codebase vocabulary on a batch-flow surface (§2.3) [BLOCKING]', findings.clarity)
 
 const blocking = findings.batchWord.length + findings.statusText.length
   + findings.sizes.length + findings.masculineBlocking.length
+  + findings.clarity.length
 console.log(`\n${blocking === 0 ? 'COPY GATES PASS' : `COPY GATES FAIL — ${blocking} blocking hit(s)`}`)
 process.exit(blocking === 0 ? 0 : 1)

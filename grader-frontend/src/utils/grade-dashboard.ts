@@ -180,6 +180,21 @@ export function stepsLine(
 }
 
 /** Minutes granularity — she does not act on seconds. */
+/**
+ * The ETA in whole minutes, or `null` when the server would not commit to a
+ * figure. ONE arithmetic, two consumers (`etaText` here and the turn line in
+ * `batch-stage.ts`) — a second rounding rule elsewhere is how the dashboard and
+ * the header come to quote her different numbers for the same wait.
+ *
+ * Round UP: "about 1 minute" that turns out to be 90 seconds is a small lie in
+ * the direction that makes her wait; rounding down is the one that makes the
+ * product look late.
+ */
+export function etaMinutes(eta: BatchEta | null | undefined): number | null {
+    if (!eta || eta.kind === 'unknown' || eta.seconds == null) return null;
+    return Math.max(1, Math.ceil(eta.seconds / 60));
+}
+
 export function etaText(
     eta: BatchEta | null | undefined,
     labels: {
@@ -189,11 +204,8 @@ export function etaText(
     },
 ): string | null {
     if (!eta) return null;
-    if (eta.kind === 'unknown' || eta.seconds == null) return labels.unknown;
-    // Round UP: "about 1 minute" that turns out to be 90 seconds is a small
-    // lie in the direction that makes her wait; rounding down is the one that
-    // makes the product look late.
-    const minutes = Math.max(1, Math.ceil(eta.seconds / 60));
+    const minutes = etaMinutes(eta);
+    if (minutes === null) return labels.unknown;
     return eta.kind === 'first_landing'
         ? labels.firstLanding(minutes)
         : labels.remaining(minutes);

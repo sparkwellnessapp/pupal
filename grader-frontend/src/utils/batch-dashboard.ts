@@ -4,16 +4,6 @@
  * D6 chip counters · D7 elapsed formatter · D12 poll cadence · D10
  * completion trigger. Components stay thin; every rule lives here.
  */
-import {
-  HEADLINE_ALL_APPROVED,
-  HEADLINE_CLAUSE_SEP,
-  HEADLINE_CLEAN_READY,
-  HEADLINE_IDENTITY,
-  HEADLINE_IDENTITY_TRANSCRIBING_TAIL,
-  HEADLINE_LAST_TRANSCRIBING,
-  HEADLINE_NEEDS_EYES,
-  HEADLINE_UPLOADING,
-} from '@/copy/batch'
 import type { Partition } from '@/utils/batch-partition'
 import { isIdentityPending } from './zone-assignment'
 import { answerTargetId } from '@/utils/review-flags'
@@ -61,49 +51,18 @@ interface DraftLike {
 }
 
 // ---------------------------------------------------------------------------
-// D3 — headline (§3.2 precedence, top-down)
+// D3's headline is GONE (§5.1B).
+//
+// `selectHeadline` said the same KIND of thing as the turn line — "here is what
+// is happening and what you can do" — derived separately, rendered two lines
+// apart. Whichever she read first, the other was redundant at best and
+// contradicting at worst. The turn line (`batch-stage.ts::deriveBatchStage`) is
+// now the only sentence of its kind on the page, and it is derived from the
+// same value as the chip and the stepper, so the three cannot drift.
+//
+// The identity clause the headline carried is not lost: `IdentityWave` states
+// it in its own title and sub-line, beside the pills it is about.
 // ---------------------------------------------------------------------------
-
-export function selectHeadline(p: Partition, rollup: RollupLike): string | null {
-  // 1. Identity wave: named new students take the stage.
-  if (p.identityPills.length > 0) {
-    const base = HEADLINE_IDENTITY(p.identityPills.length)
-    return rollup.transcribing > 0
-      ? base + HEADLINE_IDENTITY_TRANSCRIBING_TAIL
-      : base
-  }
-
-  // 2. Steady: what's waiting on HER (honesty: touched-clean + unmatched
-  //    identity items count as needing her eyes), then the clean group.
-  const pendingN = p.identityOnly.filter(isIdentityPending).length
-  const eyes = p.contentFlagged.length + (p.identityOnly.length - pendingN)
-    + p.touchedClean.length
-  const clean = p.clean.length + pendingN
-  if (eyes > 0 || clean > 0) {
-    const clauses: string[] = []
-    if (eyes > 0) clauses.push(HEADLINE_NEEDS_EYES(eyes))
-    if (clean > 0) clauses.push(HEADLINE_CLEAN_READY(clean))
-    return clauses.join(HEADLINE_CLAUSE_SEP)
-  }
-
-  // 3. Only the arrival tail remains. Transcription first — those documents are
-  //    further along, and she is closer to being able to act on them. Uploading
-  //    ranks BELOW everything she can already do something about: files on the
-  //    wire ask nothing of her.
-  if (rollup.transcribing > 0) {
-    return HEADLINE_LAST_TRANSCRIBING(rollup.transcribing)
-  }
-  if (uploadingCount(rollup) > 0) {
-    return HEADLINE_UPLOADING(uploadingCount(rollup))
-  }
-
-  // 4. Everything terminal-approved.
-  if (p.approved.length > 0 && rollup.total > 0) {
-    return HEADLINE_ALL_APPROVED(rollup.total)
-  }
-
-  return null
-}
 
 // ---------------------------------------------------------------------------
 // D2 — honesty bar segments (RTL start→: approved · clean · eyes · moving ·
@@ -237,6 +196,22 @@ export function completionReached(batch: BatchLike): boolean {
     r.transcribed === 0 &&
     (batch.active_jobs ?? []).length === 0
   )
+}
+
+/**
+ * §5.1F — the flow's ONE celebration fires here, and nowhere else.
+ *
+ * `completionReached` above is TRANSCRIPTION completion: it was what triggered
+ * the green-check hero, four steps before the flow ends. The end state is every
+ * graded test SIGNED, which is the only moment the teacher is actually done.
+ *
+ * `approved` is the count of approved graded tests and `total` the batch's
+ * denominator, so a batch with one document still in transcription can never
+ * satisfy this — which is the property that makes it safe to celebrate on.
+ */
+export function signOffReached(batch: BatchLike & { rollup: RollupLike }): boolean {
+  const r = batch.rollup
+  return r.total > 0 && r.approved >= r.total
 }
 
 /** 3s while transcription decisions are pending (D10 trigger false); 5s while

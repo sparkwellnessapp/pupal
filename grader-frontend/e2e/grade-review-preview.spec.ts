@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { BATCH_ID, TEST_A, installGradeReviewMocks } from './gradeReviewFixtures';
 
 /**
- * F3 — המבחן המוחזר, driven in a real browser.
+ * F3 — המבחן החתום, driven in a real browser.
  *
  * The two journeys the spec names by hand are here:
  * `preview-drag-stamp-apply-to-batch` and `appendix-toggle-with-info`, plus the
@@ -30,7 +30,7 @@ test('P1–P4 — the preview renders from the approved contract', async ({ page
     await page.goto(PREVIEW);
     await settled(page);
 
-    await expect(page.locator('h1')).toContainText('המבחן המוחזר');
+    await expect(page.locator('h1')).toContainText('המבחן החתום');
     // P2: six scan pages + the appendix pages the content actually needs.
     const strip = page.locator('[data-strip-page]');
     expect(await strip.count()).toBeGreaterThan(6);
@@ -86,7 +86,7 @@ test('preview-drag-stamp-apply-to-batch: stamp-drag-persists-and-shows-apply-lin
 
         // «Apply to all» → the batch default, carrying the DROPPED position.
         await page.locator('[data-apply-all]').click();
-        await expect(page.getByText('המיקום הוחל על כל המבחנים במקבץ')).toBeVisible();
+        await expect(page.getByText('המיקום הוחל על כל המבחנים שהעלית יחד')).toBeVisible();
         expect(patches.some((u) => /\/batches\/[^/]+$/.test(u))).toBe(true);
     });
 
@@ -134,7 +134,7 @@ test('appendix-toggle-with-info: the (i) explains the batch-wide switch before s
         const tip = page.locator('[data-breakdown-tip]');
         await expect(tip).toBeVisible();
         // The first sentence is the whole point: this is not a per-test switch.
-        await expect(tip).toContainText('חל על כל המבחנים במקבץ');
+        await expect(tip).toContainText('חל על כל המבחנים שהעלית יחד');
         await page.screenshot({ path: `${ART}/preview-toggle-info.png` });
     });
 

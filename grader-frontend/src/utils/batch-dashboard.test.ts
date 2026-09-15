@@ -1,8 +1,9 @@
 /**
- * P2 — dashboard selectors (zero-mock): selectHeadline (D3, §3.2 precedence),
+ * P2 — dashboard selectors (zero-mock):
  * barSegments (D2), the D6 chip counters, the D7 elapsed formatter, the D12
- * cadence selector, and the D10 completion trigger. All §3.2 strings come
- * from the C1 copy module — tests assert through it, never inline copies.
+ * cadence selector, the D10 transcription-completion trigger and the §5.1F
+ * sign-off trigger. All strings come from the C1 copy module — tests assert
+ * through it, never inline copies.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -13,7 +14,7 @@ import {
   formatElapsed,
   missingAnswersCount,
   pollCadenceMs,
-  selectHeadline,
+  signOffReached,
   unclearCount,
 } from '@/utils/batch-dashboard'
 import { partitionItems, type PartitionItem } from '@/utils/batch-partition'
@@ -45,67 +46,15 @@ const rollup = (over: Record<string, number> = {}) => ({
 })
 
 // ---------------------------------------------------------------------------
-// D3 — selectHeadline, §3.2 precedence top-down
+// D3's `selectHeadline` suite is GONE with the function (§5.1B).
+//
+// The headline said the same KIND of thing as the turn line, derived
+// separately and rendered two lines apart. The turn line is now the only
+// sentence of its kind on the page and is covered, row by row, in
+// `batch-stage.test.ts` — one derivation, one suite. Leaving this one here
+// would have been two green suites over two screens that disagreed.
 // ---------------------------------------------------------------------------
 
-describe('selectHeadline (§3.2 precedence)', () => {
-  it('identity wave wins, with the still-transcribing suffix', () => {
-    const p = partitionItems([identity('a', 'נועה שריד'), identity('b', 'איתי כהן')])
-    expect(selectHeadline(p, rollup({ transcribing: 3, total: 5 }))).toBe(
-      'ויוי זיהתה 2 תלמידים חדשים בכתב היד — בדקי את האיות וצרי את כולם. השאר בדרך.',
-    )
-  })
-
-  it('identity wave without transcribing omits the suffix (AM3 singular)', () => {
-    const p = partitionItems([identity('a', 'נועה שריד')])
-    expect(selectHeadline(p, rollup({ total: 1 }))).toBe(
-      'ויוי זיהתה תלמיד חדש בכתב היד — בדקי את האיות וצרי אותו.',
-    )
-  })
-
-  it('steady: both clauses', () => {
-    const p = partitionItems([flagged('f1'), flagged('f2'), item('c1'), item('c2'), item('c3')])
-    expect(selectHeadline(p, rollup({ total: 5 }))).toBe(
-      '2 מבחנים צריכים את העיניים שלך · 3 מוכנים לאישור מרוכז',
-    )
-  })
-
-  it('steady: clause omitted when its count is 0 (AM3 singular)', () => {
-    const onlyFlagged = partitionItems([flagged('f1')])
-    expect(selectHeadline(onlyFlagged, rollup({ total: 1 }))).toBe(
-      'מבחן אחד צריך את העיניים שלך',
-    )
-    const onlyClean = partitionItems([item('c1'), item('c2')])
-    expect(selectHeadline(onlyClean, rollup({ total: 2 }))).toBe(
-      '2 מוכנים לאישור מרוכז',
-    )
-  })
-
-  it('touchedClean counts toward "needs your eyes" (honesty over flattery)', () => {
-    const p = partitionItems([item('tc', { review: { answers: [] } })])
-    expect(selectHeadline(p, rollup({ total: 1 }))).toBe(
-      'מבחן אחד צריך את העיניים שלך',
-    )
-  })
-
-  it('only transcribing left', () => {
-    const p = partitionItems([approved('a1')])
-    expect(selectHeadline(p, rollup({ transcribing: 4, total: 5 }))).toBe(
-      'כמעט שם — 4 מבחנים אחרונים בתמלול',
-    )
-  })
-
-  it('all terminal → the completion line over the batch total', () => {
-    const p = partitionItems([approved('a1'), approved('a2')])
-    expect(selectHeadline(p, rollup({ total: 2, approved: 2 }))).toBe(
-      'סיימת — כל 2 המבחנים אושרו',
-    )
-  })
-
-  it('empty batch → null (no headline invented)', () => {
-    expect(selectHeadline(partitionItems([]), rollup())).toBeNull()
-  })
-})
 
 // ---------------------------------------------------------------------------
 // D2 — barSegments
@@ -301,5 +250,33 @@ describe('E1 (closeout) — nothing promises grading it cannot deliver', () => {
     // A deliberate, reversible ruling — not an accident. When grading works,
     // flipping this returns the lane WITH its zero-guard intact.
     expect(SHOW_GRADING_LANE).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// §5.1F — the sign-off trigger: the ONE moment the flow celebrates.
+// ---------------------------------------------------------------------------
+
+describe('signOffReached (§5.1F)', () => {
+  const batch = (over: Record<string, number>) => ({ rollup: rollup(over) })
+
+  it('fires only when every test in the batch is SIGNED', () => {
+    expect(signOffReached(batch({ total: 3, approved: 3 }))).toBe(true)
+  })
+
+  it('does NOT fire on transcription completion — the mid-flow hero this replaced', () => {
+    // Every transcription approved, every grade still a draft. `completionReached`
+    // says true here, which is exactly why it could not be the celebration trigger.
+    const transcriptionsDone = batch({ total: 3, draft: 3 })
+    expect(completionReached(transcriptionsDone)).toBe(true)
+    expect(signOffReached(transcriptionsDone)).toBe(false)
+  })
+
+  it('does not fire while one signature is outstanding', () => {
+    expect(signOffReached(batch({ total: 3, approved: 2, draft: 1 }))).toBe(false)
+  })
+
+  it('an empty batch is not a finished one', () => {
+    expect(signOffReached(batch({ total: 0, approved: 0 }))).toBe(false)
   })
 })

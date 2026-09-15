@@ -176,7 +176,7 @@ for (const cell of CELLS) {
                 // D11: every review route below `desk` yields the honest
                 // interstitial + back link.
                 await expect(page.getByTestId('mobile-review-interstitial')).toBeVisible();
-                await expect(page.getByRole('link', { name: 'חזרה לסיכום המקבץ' })).toBeVisible();
+                await expect(page.getByRole('link', { name: 'חזרה לסיכום המבחן' })).toBeVisible();
             }
             await page.screenshot({
                 path: `e2e/review-artifacts/P3/review-${cell.name}-${vp.w}x${vp.h}.png`,

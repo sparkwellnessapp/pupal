@@ -1,21 +1,26 @@
 'use client';
 
-import type { Verdict } from '@/lib/pricing';
-import { RV_VERDICT_TITLE } from '@/copy/grade-review';
+import type { CheckKind, Verdict } from '@/lib/pricing';
+import { RV_VERDICT_TITLE, RV_VERDICT_TITLE_TARIFF } from '@/copy/grade-review';
 
 /**
  * The verdict control (R7/R8) — ✓ / ½ / ✗, one click or Space to cycle.
  *
- * THE INK GRAMMAR, made mechanical (§0.3): teal ✓, violet ½, grey ✗ are Vivi
- * PROPOSING. The instant the teacher decides something different the glyph goes
- * TEACHER RED and gains a ring — the same red as the stamp and the total, and
- * red appears nowhere else on this surface. She can see what she has touched
- * from across the room, which is what makes a thirty-paper evening reviewable.
+ * THE INK GRAMMAR (owner ruling 2026-09-13, replacing the pencil/violet/red
+ * scheme): every ✓ is GREEN, every ½ is YELLOW, every ✗ is RED — the verdict
+ * itself carries its colour, so a glance down the column reads the grade. A
+ * verdict SHE decided is TURQUOISE (the product's own primary) with a ring:
+ * her marks stand out from Vivi's proposals across the room, and red no
+ * longer means "the teacher" anywhere on this surface — it means "wrong".
  *
- * There is NO numeric input anywhere in this module. She judges a requirement
- * met, half met or not met; the pricer turns that into points. Letting her type
- * a number would put two derivations of one figure on the same screen — the
- * §5 catastrophe — and would ask her to do the arithmetic Vivi exists to remove.
+ * A TARIFF (a deduction, ruling 2026-09-13) is BINARY: ✓ means no deduction,
+ * ✗ means deducted. There is no half state — the pricer coerces `partially_met`
+ * to fired, and a ½ glyph that silently deducted the full amount was the trap
+ * the ruling removed. A legacy `partially_met` on a tariff therefore RENDERS
+ * as ✗, which is what it prices as; the next press takes it to ✓.
+ *
+ * Points on a credit row are typeable beside this control (OD-R2); a tariff
+ * row is toggle-only, because a yes/no has no number to type.
  */
 
 const GLYPH: Readonly<Record<Verdict, string>> = {
@@ -26,33 +31,44 @@ const GLYPH: Readonly<Record<Verdict, string>> = {
     not_met: '✗',
 };
 
-/** Proposal colours. Overridden state overrides all three. */
+/** The glyph a verdict shows on a row of this kind — a tariff has no ½. */
+export function glyphFor(verdict: Verdict, kind: CheckKind = 'required'): string {
+    if (kind === 'tariff' && verdict === 'partially_met') return GLYPH.not_met;
+    return GLYPH[verdict];
+}
+
+/** Proposal colours: the verdict carries its own. */
 const PROPOSAL_TONE: Readonly<Record<Verdict, string>> = {
-    met: 'text-primary-600',
-    partially_met: 'text-grade-violet',
-    not_met: 'text-grade-pencil-2',
+    met: 'text-grade-green',
+    partially_met: 'text-grade-yellow',
+    not_met: 'text-grade-red',
 };
 
 export interface VerdictButtonProps {
     verdict: Verdict;
     /** She decided something different from Vivi. */
     overridden: boolean;
+    /** A tariff row toggles between two states and never shows ½. */
+    kind?: CheckKind;
     onCycle: () => void;
     disabled?: boolean;
 }
 
 export function VerdictButton({
-    verdict, overridden, onCycle, disabled = false,
+    verdict, overridden, kind = 'required', onCycle, disabled = false,
 }: VerdictButtonProps) {
+    const shown = kind === 'tariff' && verdict === 'partially_met' ? 'not_met' : verdict;
+    const title = kind === 'tariff' ? RV_VERDICT_TITLE_TARIFF : RV_VERDICT_TITLE;
     return (
         <button
             type="button"
             // The control is a CYCLE, so the label says what pressing it does,
             // not what it currently shows — a screen reader hearing only "✓"
             // would have no idea it is actionable.
-            aria-label={`${GLYPH[verdict]} — ${RV_VERDICT_TITLE}`}
-            title={RV_VERDICT_TITLE}
+            aria-label={`${GLYPH[shown]} — ${title}`}
+            title={title}
             data-verdict={verdict}
+            data-verdict-shown={shown}
             data-overridden={overridden ? 'true' : 'false'}
             disabled={disabled}
             onClick={(event) => { event.stopPropagation(); onCycle(); }}
@@ -61,11 +77,11 @@ export function VerdictButton({
                 'text-gr-body font-bold leading-none transition-colors',
                 'disabled:cursor-not-allowed disabled:opacity-40',
                 overridden
-                    ? 'border-decided border-grade-red text-grade-red ring-decided ring-grade-red-100'
-                    : `border-hairline border-current ${PROPOSAL_TONE[verdict]}`,
+                    ? 'border-decided border-primary-600 text-primary-600 ring-decided ring-primary-100'
+                    : `border-hairline border-current ${PROPOSAL_TONE[shown]}`,
             ].join(' ')}
         >
-            {GLYPH[verdict]}
+            {GLYPH[shown]}
         </button>
     );
 }

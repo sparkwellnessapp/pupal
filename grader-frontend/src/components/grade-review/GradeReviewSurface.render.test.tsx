@@ -7,7 +7,9 @@ import path from 'node:path';
 import { GradeReviewSurface } from './GradeReviewSurface';
 import { ancestorPaths, type WireDraft } from '@/utils/grade-review-model';
 import type { NumericPolicy } from '@/lib/pricing';
-import { cycleVerdict, type OverlayTerminals } from '@/utils/verdict-cycle';
+import {
+    cycleVerdict, emptyOverlay, setCheckPoints, setTerminalPoints, type Overlay,
+} from '@/utils/verdict-cycle';
 import { initialCursor, queueState } from '@/utils/grade-review-cursor';
 import {
     RV_ANSWER_INHERITED, RV_ANSWER_NONE, RV_ANSWER_UNAVAILABLE, RV_CHIP_NOT_FOUND, RV_FB_ABSENT, RV_FB_FRESH,
@@ -112,7 +114,7 @@ function render(over: Partial<React.ComponentProps<typeof GradeReviewSurface>> =
             draft={withRealAnswers(readFixture('draft_dan_basiuk.json'), 'dan_basiuk')}
             questions={[{ question_id: 'q1', sub_question_id: null, text: 'הגדירו את המחלקה Hobby ואת התכונות שלה, ואז כתבו בנאי.' }]}
             policy={POLICY}
-            overlay={{}}
+            overlay={emptyOverlay()}
             onOverlayChange={noop}
             feedbackOverrides={{}}
             onFeedbackChange={noop}
@@ -146,8 +148,8 @@ function render(over: Partial<React.ComponentProps<typeof GradeReviewSurface>> =
  * re-entry rule ever breaks, the tests that rely on it fail rather than sailing
  * past on a back door SSR gave them.
  */
-function overlayTouchingEveryCriterion(draft: WireDraft): OverlayTerminals {
-    let overlay: OverlayTerminals = {};
+function overlayTouchingEveryCriterion(draft: WireDraft): Overlay {
+    let overlay: Overlay = emptyOverlay();
     for (const scope of draft.scope_outcomes ?? []) {
         for (const criterion of scope.criterion_outcomes ?? []) {
             const leaves = criterion.sub_criterion_outcomes?.length
@@ -210,7 +212,7 @@ describe('GradeReviewSurface renders a real published draft', () => {
             ? criterion.sub_criterion_outcomes[0] : criterion;
         const terminalId = leaf.sub_criterion_id || criterion.criterion_id;
         const check = leaf.checks![0];
-        const overlay = cycleVerdict({}, terminalId, check.check_id, check.verdict);
+        const overlay = cycleVerdict(emptyOverlay(), terminalId, check.check_id, check.verdict);
 
         const overridden = render({ overlay });
         expect(overridden).toContain('אחרי השינויים שלך');
@@ -295,7 +297,7 @@ describe('GradeReviewSurface renders a real published draft', () => {
         const check = leaf.checks![0];
 
         const moved = render({
-            overlay: cycleVerdict({}, terminalId, check.check_id, check.verdict),
+            overlay: cycleVerdict(emptyOverlay(), terminalId, check.check_id, check.verdict),
         });
         expect(moved).toContain('data-feedback-state="stale"');
         expect(moved).toContain('נכתב לפני השינוי שלך');
@@ -645,8 +647,7 @@ describe('the summary cannot go stale — because the wire carries no basis', ()
         const leaf = criterion.sub_criterion_outcomes?.length
             ? criterion.sub_criterion_outcomes[0] : criterion;
         const html = render({
-            overlay: cycleVerdict(
-                {},
+            overlay: cycleVerdict(emptyOverlay(),
                 leaf.sub_criterion_id || criterion.criterion_id,
                 leaf.checks![0].check_id,
                 leaf.checks![0].verdict,
@@ -705,5 +706,81 @@ describe('the criterion-level quote button [S3]', () => {
         // (`synthetic` pairs the fixture with an answer containing none of its quotes.)
         const html = render({ draft: synthetic });
         expect(html.match(/data-terminal-quote=/g) ?? []).toHaveLength(0);
+    });
+});
+
+
+describe('typed points reach the DOM [OD-R2]', () => {
+    const firstLeaf = () => {
+        const criterion = DAN.scope_outcomes![0].criterion_outcomes![0];
+        const leaf = criterion.sub_criterion_outcomes?.length
+            ? criterion.sub_criterion_outcomes[0] : criterion;
+        const terminalId = leaf.sub_criterion_id || criterion.criterion_id;
+        return { terminalId, check: leaf.checks![0] };
+    };
+
+    it('renders every points figure as an editable control on a draft', () => {
+        const html = render({ overlay: overlayTouchingEveryCriterion(DAN) });
+        expect(html).toContain('data-points-target="criterion"');
+        expect(html).toContain('data-points-target="check"');
+        expect(html).toContain('data-points-editing="false"');
+    });
+
+    it('renders them as plain text on an approved (read-only) test', () => {
+        const html = render({ overlay: overlayTouchingEveryCriterion(DAN), readOnly: true, approved: true });
+        expect(html).not.toContain('data-points-editing');
+        expect(html).toContain('data-points-target="criterion"');
+    });
+
+    it('marks a typed check row and paints it red', () => {
+        const { terminalId, check } = firstLeaf();
+        const html = render({ overlay: setCheckPoints(
+            emptyOverlay(), terminalId, check.check_id, '0', check.points ?? '0', check.verdict) });
+        expect(html).toContain(`data-check-id="${check.check_id}" data-focused="false" data-overridden="true" data-points-typed="true"`);
+        expect(html).toContain('data-points-typed="true"');
+    });
+
+    it('marks a pinned criterion, shows its provenance line, and mutes the rows beneath', () => {
+        const { terminalId } = firstLeaf();
+        const html = render({ overlay: setTerminalPoints(emptyOverlay(), terminalId, '0', () => 'met') });
+        expect(html).toContain(`data-criterion-typed="${terminalId}"`);
+        expect(html).toContain(`data-criterion-points-revert="${terminalId}"`);
+        expect(html).toContain('data-under-pin="true"');
+        expect(html).toContain('data-total');
+        expect(html).toContain('data-overridden="true"');
+    });
+});
+
+describe('the ink grammar (ruling 2026-09-13): verdicts carry their colour, her marks are turquoise', () => {
+    it('paints ✓ green, ✗ red and ½ yellow when Vivi proposes them', () => {
+        const html = render({ overlay: overlayTouchingEveryCriterion(DAN) });
+        expect(html).toContain('text-grade-green');
+        expect(html).toContain('text-grade-red');
+        // every proposal glyph carries one of the three tones
+        expect(html).not.toMatch(/data-overridden="false" class="[^"]*text-grade-pencil-2[^"]*"/);
+    });
+
+    it('paints a verdict she decided turquoise, with a ring — never red', () => {
+        const { terminalId, check } = (() => {
+            const criterion = DAN.scope_outcomes![0].criterion_outcomes![0];
+            const leaf = criterion.sub_criterion_outcomes?.length
+                ? criterion.sub_criterion_outcomes[0] : criterion;
+            return { terminalId: leaf.sub_criterion_id || criterion.criterion_id, check: leaf.checks![0] };
+        })();
+        const html = render({ overlay: cycleVerdict(emptyOverlay(), terminalId, check.check_id, check.verdict) });
+        const decided = html.match(/<button[^>]*data-overridden="true"[^>]*>/)![0];
+        expect(decided).toContain('border-primary-600');
+        expect(decided).toContain('ring-primary-100');
+        expect(decided).not.toContain('grade-red');
+    });
+
+    it('a tariff row carries the הורדה chip and its own figure, and no points field', () => {
+        const html = render({ overlay: overlayTouchingEveryCriterion(DAN) });
+        expect(html).toContain('data-check-kind="tariff"');
+        expect(html).toContain('data-chip="tariff"');
+        expect(html).toContain('data-tariff-figure=');
+        const tariffRow = html.slice(html.indexOf('data-check-kind="tariff"'));
+        const rowEnd = tariffRow.indexOf('data-check-id=');
+        expect(tariffRow.slice(0, rowEnd > 0 ? rowEnd : undefined)).not.toContain('data-points-target="check"');
     });
 });

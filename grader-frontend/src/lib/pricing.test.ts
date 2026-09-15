@@ -5,11 +5,16 @@ import path from 'node:path';
 
 import {
     applyOverlay,
+    typedMaximum,
+    typedPointsOf,
+    verdictForAmount,
     priceScopeChecks,
+    priceScopeCheckContributions,
     priceScopeChecksDetailed,
     type NumericPolicy,
     type PricingCheck,
     type ScopeTerminal,
+    type Verdict,
 } from './pricing';
 
 /**
@@ -98,8 +103,8 @@ describe('pricer-parity — the §1.7 vectors, byte for byte', () => {
     });
 
     it('records what the observed cohort CANNOT cover, so growth is loud', () => {
-        // PR-G5 has not published overlay vectors yet (MANIFEST.json `pending`).
-        // When it does, this fails and the mirror gets verified against them.
+        // The AI-only set carries no overlay by construction; the overlay half
+        // of the seam is `pricing_vectors_typed.json` (OD-R2), verified below.
         const withOverlay = vectors.filter((v) => Object.keys(v.overlay ?? {}).length > 0);
         expect(withOverlay.map((v) => v.case)).toEqual([]);
 
@@ -422,5 +427,123 @@ describe('pricer-parity — counted (PLAN COMPILER v2, C3; mirrors tests/agents/
     it('is evidence-gated like a required check', () => {
         expect(one(terminal(counted({ verdict: 'partially_met', units_correct: 15, quote_status: 'not_found' }))))
             .toEqual({ t: '0' });
+    });
+});
+
+// ── [OD-R2] typed amounts — the overlay half of the seam ───────────────────
+
+interface TypedVector extends Vector {
+    overlay: {
+        terminals?: Record<string, {
+            check_id: string; verdict: Verdict; points_awarded?: string | null;
+        }[]>;
+        terminal_points?: Record<string, { points_awarded: string }>;
+    };
+}
+
+const typedVectors: TypedVector[] = JSON.parse(
+    readFileSync(path.join(FIXTURES, 'pricing_vectors_typed.json'), 'utf-8'));
+
+describe('pricer-parity — the typed-amount vectors, byte for byte [OD-R2]', () => {
+    it('covers the two overlay shapes on the real drafts (a tariff is never typed)', () => {
+        const kinds = new Set(typedVectors.map((v) => v.case.split(':').pop()));
+        expect(kinds).toEqual(new Set(['typed_credit', 'terminal_pin']));
+        expect(typedVectors.length).toBeGreaterThan(300);
+    });
+
+    it('reproduces every published typed vector exactly', () => {
+        const wrong: string[] = [];
+        for (const v of typedVectors) {
+            const overrides = v.overlay.terminals?.[v.terminal_id] ?? [];
+            const { effective, touched } = applyOverlay(v.checks, overrides);
+            const pin = v.overlay.terminal_points?.[v.terminal_id]?.points_awarded;
+            const got = priceScopeChecks(
+                [{ terminal_id: v.terminal_id, points_possible: v.points_possible, checks: effective }],
+                POLICY,
+                touched,
+                typedPointsOf(overrides),
+                pin === undefined ? undefined : { [v.terminal_id]: pin },
+            )[v.terminal_id];
+            if (got !== v.expected_points_awarded) {
+                wrong.push(`${v.case}: got ${got}, want ${v.expected_points_awarded}`);
+            }
+        }
+        expect(wrong).toEqual([]);
+    });
+
+    it('every typed vector carries the verdict its amount implies (OD-3 b)', () => {
+        for (const v of typedVectors) {
+            for (const o of v.overlay.terminals?.[v.terminal_id] ?? []) {
+                if (o.points_awarded == null) continue;
+                const check = v.checks.find((c) => c.check_id === o.check_id)!;
+                expect(check.kind).not.toBe('tariff');
+                expect(o.verdict).toBe(verdictForAmount(o.points_awarded, typedMaximum(check)));
+            }
+        }
+    });
+});
+
+/** 1:1 with the [OD-R2] block of backend `test_pricing_composition.py`. */
+describe('pricer-parity — typed amounts, the rules the vectors cannot show [OD-R2]', () => {
+    const one = (
+        t: ScopeTerminal[], ids?: Set<string>,
+        typed?: Record<string, string>, pins?: Record<string, string>,
+    ) => priceScopeChecks(t, POLICY, ids, typed, pins);
+
+    it('a typed amount replaces the verdict derivation on a credit check', () => {
+        // partially_met would earn 2 of 4; she typed 3
+        expect(one(
+            [{ terminal_id: 't1', points_possible: '4',
+               checks: [check('t1.k1', { points: '4', verdict: 'partially_met' })] }],
+            new Set(['t1.k1']), { 't1.k1': '3' },
+        )).toEqual({ t1: '3.00' });
+    });
+
+    it('a typed amount is not evidence gated', () => {
+        expect(one(
+            [{ terminal_id: 't1', points_possible: '4',
+               checks: [check('t1.k1', { points: '4', verdict: 'met', quote_status: 'not_found' })] }],
+            new Set(['t1.k1']), { 't1.k1': '4' },
+        )).toEqual({ t1: '4.00' });
+    });
+
+    it('a typed amount on a tariff is IGNORED by the pricer — a tariff is decided by its verdict', () => {
+        // The gate refuses it before it gets here; the pricer must not invent a
+        // path for it either (ruling 2026-09-13: a deduction is yes/no).
+        expect(one(
+            [{ terminal_id: 't1', points_possible: '5', checks: [
+                check('t1.k1', { points: '5', verdict: 'met' }),
+                check('t1.k2', { kind: 'tariff', tariff: '2', verdict: 'not_met' }),
+            ] }],
+            new Set(['t1.k2']), { 't1.k2': '0.5' },
+        )).toEqual({ t1: '3.00' });
+    });
+
+    it('a terminal amount replaces the whole terminal, raw carried verbatim', () => {
+        const terms: ScopeTerminal[] = [{ terminal_id: 't1', points_possible: '4', checks: [
+            check('t1.k1', { points: '4', verdict: 'not_met' }),
+            check('t1.k2', { kind: 'tariff', tariff: '1', verdict: 'not_met' }),
+        ] }];
+        expect(one(terms, undefined, undefined, { t1: '2.5' })).toEqual({ t1: '2.5' });
+        expect(priceScopeChecksDetailed(terms, POLICY, undefined, undefined, { t1: '2.5' }).t1.raw)
+            .toBe('2.5');
+    });
+
+    it('verdictForAmount: full is met, zero is not_met, between is partially_met', () => {
+        expect(verdictForAmount('4', '4')).toBe('met');
+        expect(verdictForAmount('0', '4')).toBe('not_met');
+        expect(verdictForAmount('1', '4')).toBe('partially_met');
+        expect(verdictForAmount('12', '12')).toBe('met');
+        expect(verdictForAmount('0', '0')).toBe('met');
+    });
+
+    it('a typed amount is its own contribution; a pin leaves the rows\' figures alone', () => {
+        const terms: ScopeTerminal[] = [{ terminal_id: 't1', points_possible: '4', checks: [
+            check('t1.k1', { points: '4', verdict: 'partially_met' }),
+        ] }];
+        expect(priceScopeCheckContributions(terms, POLICY, new Set(['t1.k1']), { 't1.k1': '3' }))
+            .toEqual({ 't1.k1': '3' });
+        // no typed map: the row shows what its verdict is worth even under a pin
+        expect(priceScopeCheckContributions(terms, POLICY)).toEqual({ 't1.k1': '2.0' });
     });
 });

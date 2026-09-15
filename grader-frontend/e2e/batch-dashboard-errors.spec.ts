@@ -41,7 +41,8 @@ test('transient poll failure shows a banner over live content, then clears', asy
     // raw enum never does. (P2 moved the label from the meta line into the
     // chip — assertion follows the redesigned header.)
     await expect(page.getByText('מקבץ בדיקה')).toBeVisible();
-    await expect(page.getByTestId('batch-status-chip')).toHaveText('בתמלול');
+    await expect(page.getByTestId('batch-status-chip')).toHaveText('ממתין לאישור שלך');
+    await expect(page.getByTestId('turn-line')).toContainText('ויוי עדיין קוראת');
     await expect(page.getByText(/in_progress/)).toHaveCount(0);
 
     // The failed poll (≈3s in) surfaces as a banner — content stays alive.

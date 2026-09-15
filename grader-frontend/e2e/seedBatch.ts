@@ -187,6 +187,8 @@ export interface SeedBatchOpts {
     failures?: ReturnType<typeof seedFailure>[];
     selection_groups?: unknown[];
     activeJobs?: ReturnType<typeof seedActiveJob>[];
+    gradedTests?: unknown[];
+    isFirstBatch?: boolean;
     rubricName?: string | null;
     className?: string | null;
 }
@@ -214,6 +216,10 @@ export function seedBatch(opts: SeedBatchOpts = {}) {
         selection_groups: opts.selection_groups ?? [],
         transcription_failures: opts.failures ?? [],
         active_jobs: opts.activeJobs ?? [],
+        graded_tests: opts.gradedTests ?? [],
+        // §5.3B: not her first batch unless a fixture says so, so the
+        // explainer does not have to be dismissed in every unrelated spec.
+        is_first_batch: opts.isFirstBatch ?? false,
     };
 }
 
@@ -315,6 +321,99 @@ export function completedBatch() {
             seedItem('t2', { status: 'approved', gradedTestStatus: 'draft' }),
             seedItem('t3', { status: 'approved', gradedTestStatus: 'grading' }),
         ],
-        rollup: { approved: 3, total: 3, draft: 2, grading: 1 },
+        rollup: { approved_transcription: 3, total: 3, draft: 2, grading: 1 },
+        // [§5.4] The grading half, so this cell exercises the stage it is in:
+        // two drafts waiting on her signature and one still being graded. The
+        // rollup's `approved` is the count of SIGNED GRADES and is 0 here — it
+        // used to say 3, which is what let the mid-flow hero fire.
+        gradedTests: [
+            { graded_test_id: 'gt1', student_name: 'דנה לוי', status: 'draft',
+              version: 1, landed_at: minutesAgo(8), total_awarded: '88', look_count: 0,
+              returned_exam_state: 'none', page1_image_url: null },
+            { graded_test_id: 'gt2', student_name: 'יובל כץ', status: 'draft',
+              version: 1, landed_at: minutesAgo(6), total_awarded: '74', look_count: 2,
+              returned_exam_state: 'none', page1_image_url: null },
+            { graded_test_id: 'gt3', student_name: 'טל גורבן', status: 'grading',
+              version: 1, look_count: null, returned_exam_state: 'none',
+              page1_image_url: null },
+        ],
+    });
+}
+
+// ---------------------------------------------------------------------------
+// §5.6 — the END state: every graded test SIGNED.
+//
+// Distinct from `completedBatch`, which is every TRANSCRIPTION approved — four
+// steps earlier. Both fixtures exist because the pair is the claim: exactly
+// one celebration in the flow, and it fires here and nowhere else.
+// ---------------------------------------------------------------------------
+export function signedOffBatch() {
+    const gradedTests = ['t1', 't2', 't3'].map((id, i) => ({
+        graded_test_id: `g${id}`,
+        student_id: `s${i + 1}`,
+        student_name: ['דנה לוי', 'יובל כץ', 'טל גורבן'][i],
+        status: 'approved',
+        version: 1,
+        landed_at: minutesAgo(20),
+        opened_at: minutesAgo(12),
+        total_awarded: ['88', '74', '91'][i],
+        look_count: 0,
+        audit_touched: 'none',
+        returned_exam_state: 'ready',
+        page1_image_url: `/api/v0/transcriptions/${id}/pages/1/image?v=600x72@110`,
+    }));
+    return seedBatch({
+        status: 'completed',
+        items: ['t1', 't2', 't3'].map((id) => seedItem(id, { status: 'approved' })),
+        rollup: { approved: 3, total: 3, approved_transcription: 3 },
+        gradedTests,
+    });
+}
+
+// ---------------------------------------------------------------------------
+// §6 — THE MIXED STATE, at the size a real class is.
+//
+// Thirty papers with every stage of the flow live at once: 13 still at the
+// transcription gate (3 needing a look, 10 read with confidence), 17 already
+// accepted — of which 5 are still being graded, 7 are graded drafts awaiting
+// her signature, and 5 are signed. The arithmetic closes: 13 + 5 + 7 + 5 = 30.
+//
+// It exists because every conditional in §6 is only interesting here. At n=1
+// each sentence has one form and no clause competes with another; at n=30 with
+// four stages live the chip has to pick ONE of them, the turn line has to name
+// a different one, and the download has to appear for the 5 signed without
+// claiming the 25 that are not.
+// ---------------------------------------------------------------------------
+export function mixedThirtyBatch() {
+    const flagged = ['m1', 'm2', 'm3'].map((id, i) => seedItem(id, {
+        filename: `סריקה_${i + 1}.pdf`,
+        suggestion: ['נועה לוי', null, 'איתי כהן'][i],
+        reasons: [['unparseable'], ['student_unmatched'], ['missing_answers']][i],
+        ...(i === 1 ? {} : { matchedStudentId: `s${i}`, matchedStudentName: ['נועה לוי', '', 'איתי כהן'][i] }),
+    }));
+    const clean = Array.from({ length: 10 }, (_, i) => seedItem(`c${i}`, {
+        filename: `מבחן_${i + 1}.pdf`,
+        matchedStudentId: `sc${i}`,
+        matchedStudentName: `תלמידה ${i + 1}`,
+    }));
+    const gradedTests = Array.from({ length: 12 }, (_, i) => ({
+        graded_test_id: `g${i}`,
+        student_name: `תלמיד ${i + 1}`,
+        status: i < 5 ? 'approved' : 'draft',
+        version: 1,
+        landed_at: minutesAgo(20 - i),
+        total_awarded: String(70 + i),
+        look_count: i === 6 ? 3 : 0,
+        audit_touched: 'none',
+        returned_exam_state: i < 5 ? 'ready' : 'none',
+        page1_image_url: `/api/v0/transcriptions/55555555-5555-4555-8555-00000000000${i % 5}/pages/1/image?v=600x72@110`,
+    }));
+    return seedBatch({
+        items: [...flagged, ...clean],
+        rollup: {
+            transcribed: 13, needs_eyes: 3, approved_transcription: 17,
+            grading: 5, draft: 7, approved: 5, total: 30,
+        },
+        gradedTests,
     });
 }

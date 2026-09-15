@@ -110,8 +110,8 @@ test('prefix-stable: entry order survives arrow navigation and flipped verdicts 
     // Enter at the first item of the entry order (flagged-first → 'b').
     await page.goto(`/batches/${SEED_BATCH_ID}/review/b`);
     await expect(page.getByText('b.pdf')).toBeVisible();
-    await expect(page.getByTestId('position-primary')).toHaveText('1 מתוך 1 לעיון');
-    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 1 מתוך 3 במקבץ');
+    await expect(page.getByTestId('position-primary')).toHaveText('1 מתוך 1 לבדיקה');
+    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 1 מתוך 3');
 
     // b → a (entry order position 2; a reshuffled order would go b → c).
     await page.getByRole('button', { name: 'הבא' }).click();
@@ -119,13 +119,13 @@ test('prefix-stable: entry order survives arrow navigation and flipped verdicts 
     await expect(page.getByText('a.pdf')).toBeVisible();
     // Clean item: the flagged-position primary is OMITTED (R5).
     await expect(page.getByTestId('position-primary')).toHaveCount(0);
-    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 2 מתוך 3 במקבץ');
+    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 2 מתוך 3');
 
     // a → c (last item): next becomes the guarded dashboard exit (R8: a
     // button through flushIfDirty, no longer a bare link).
     await page.getByRole('button', { name: 'הבא' }).click();
     await expect(page).toHaveURL(new RegExp(`/batches/${SEED_BATCH_ID}/review/c$`));
-    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 3 מתוך 3 במקבץ');
+    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 3 מתוך 3');
     await expect(page.getByTestId('exit-to-dashboard')).toBeVisible();
 
     // c → a → b backwards, still entry order.
@@ -133,7 +133,7 @@ test('prefix-stable: entry order survives arrow navigation and flipped verdicts 
     await expect(page).toHaveURL(new RegExp(`/batches/${SEED_BATCH_ID}/review/a$`));
     await page.getByRole('button', { name: 'הקודם' }).click();
     await expect(page).toHaveURL(new RegExp(`/batches/${SEED_BATCH_ID}/review/b$`));
-    await expect(page.getByTestId('position-primary')).toHaveText('1 מתוך 1 לעיון');
+    await expect(page.getByTestId('position-primary')).toHaveText('1 מתוך 1 לבדיקה');
 
     // The remount detector: one StrictMode mount pair, nothing more — and no
     // poll (nothing in flight). A remount per arrow would push this to 10.
@@ -170,27 +170,27 @@ test('append-only: late arrivals join at the boundary (flagged) and tail (clean)
     const state = await installMocks(page, (call) => (call <= 2 ? entry() : appended()));
 
     await page.goto(`/batches/${SEED_BATCH_ID}/review/b`);
-    await expect(page.getByTestId('position-primary')).toHaveText('1 מתוך 1 לעיון');
-    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 1 מתוך 2 במקבץ');
+    await expect(page.getByTestId('position-primary')).toHaveText('1 מתוך 1 לבדיקה');
+    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 1 מתוך 2');
 
     // The poll (5s) merges the arrivals: existing prefix untouched, counters
     // bump — the ONLY signal (OD2). b keeps slot 1 of a now-2-wide flagged
     // partition; the batch total grows 2 → 4.
-    await expect(page.getByTestId('position-primary')).toHaveText('1 מתוך 2 לעיון', { timeout: 10_000 });
-    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 1 מתוך 4 במקבץ');
+    await expect(page.getByTestId('position-primary')).toHaveText('1 מתוך 2 לבדיקה', { timeout: 10_000 });
+    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 1 מתוך 4');
 
     // Placement proof: b's NEXT is the appended flagged 'd' (boundary insert),
     // not the entry-order clean 'a'.
     await page.getByRole('button', { name: 'הבא' }).click();
     await expect(page).toHaveURL(new RegExp(`/review/d$`));
-    await expect(page.getByTestId('position-primary')).toHaveText('2 מתוך 2 לעיון');
+    await expect(page.getByTestId('position-primary')).toHaveText('2 מתוך 2 לבדיקה');
 
     // d → a (the entry clean, undisturbed) → e (the appended clean, at the tail).
     await page.getByRole('button', { name: 'הבא' }).click();
     await expect(page).toHaveURL(new RegExp(`/review/a$`));
     await page.getByRole('button', { name: 'הבא' }).click();
     await expect(page).toHaveURL(new RegExp(`/review/e$`));
-    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 4 מתוך 4 במקבץ');
+    await expect(page.getByTestId('position-secondary')).toHaveText('מבחן 4 מתוך 4');
     await expect(page.getByTestId('exit-to-dashboard')).toBeVisible();
 
     // Poll teardown: the tick that delivered transcribing=0 must be the LAST

@@ -18,7 +18,9 @@ import {
     WAVE_PRIMARY,
     WAVE_UNMATCHED_PILL,
     ZONE_WAVE_SUB,
+    ZONE_WAVE_SUB_UNMATCHED_ONLY,
     ZONE_WAVE_TITLE,
+    ZONE_WAVE_TITLE_UNMATCHED_ONLY,
     NO_FILENAME,
 } from '@/copy/batch';
 
@@ -50,22 +52,34 @@ export function IdentityWave({
     onBulkCreate: () => void;
 }) {
     const pending = pills.filter((p) => p.status === 'idle' || p.status === 'error');
+    /**
+     * [§6, n=0] The zone renders for UNMATCHED items too — documents whose
+     * student name could not be read at all — and those produce no pills. With
+     * none, the title claimed «0 שמות חדשים» over a button offering to create
+     * «0 תלמידים»: two zero-counts announcing work that does not exist, on the
+     * screen this pass exists to make legible. The pills half of the header is
+     * hidden when there are no pills; the unmatched list below still renders,
+     * which is the only reason the zone is on screen at all.
+     */
+    const hasPills = pills.length > 0;
     return (
         <ZoneCard
             testId="zone-identity-wave"
             className="border-[1.5px] !border-primary-500 bg-gradient-to-b from-[#F2FBF9] to-white"
             dotClass="bg-primary-500"
-            title={ZONE_WAVE_TITLE(pills.length)}
-            sub={ZONE_WAVE_SUB}
+            title={hasPills ? ZONE_WAVE_TITLE(pills.length) : ZONE_WAVE_TITLE_UNMATCHED_ONLY}
+            sub={hasPills ? ZONE_WAVE_SUB : ZONE_WAVE_SUB_UNMATCHED_ONLY}
             actions={
-                <button
-                    onClick={onBulkCreate}
-                    disabled={bulkBusy || pending.length === 0}
-                    className="rounded-[10px] bg-primary-500 px-4 py-2 font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
-                    data-testid="wave-bulk-create"
-                >
-                    {WAVE_PRIMARY(pending.length)}
-                </button>
+                hasPills ? (
+                    <button
+                        onClick={onBulkCreate}
+                        disabled={bulkBusy || pending.length === 0}
+                        className="rounded-[10px] bg-primary-500 px-4 py-2 font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
+                        data-testid="wave-bulk-create"
+                    >
+                        {WAVE_PRIMARY(pending.length)}
+                    </button>
+                ) : null
             }
         >
             <div className="flex flex-wrap gap-2 px-5 pb-4 pt-1.5">

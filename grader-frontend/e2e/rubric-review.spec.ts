@@ -82,7 +82,11 @@ test.describe('rubric mirror — the render half (PR-5 S2)', () => {
         // Carry-through: the CTA lands her on upload-tests with THIS rubric selected.
         await page.getByRole('button', { name: 'המשיכי לבדיקת מבחנים' }).click();
         await expect(page.getByText('העלאת מבחנים')).toBeVisible();
-        await expect(page.getByRole('heading', { name: 'employee_course_select1' })).toBeVisible();
+        // [§5.2] The rubric line now names ITSELF — «המחוון: …» — because she
+        // is about to commit thirty papers against it and the bare name did not
+        // say what it was. The carry-through claim is unchanged: THIS rubric.
+        await expect(page.getByRole('heading',
+            { name: 'המחוון: employee_course_select1' })).toBeVisible();
     });
 
     test('mirror is editable: a criterion points cell opens an input and commits (E-3 cascade)', async ({ page }) => {
