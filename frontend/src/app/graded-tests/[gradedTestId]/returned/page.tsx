@@ -4,7 +4,11 @@
  * המבחן החתום — the signed-exam preview (spec §2, §4.3).
  * The product term was «המבחן המוחזר» until 2026-09-14.
  *
- * /graded-tests/[gradedTestId]/returned?batch=<batchId>
+ * /graded-tests/[gradedTestId]/returned?batch=<batchId>&student=<studentId>
+ *
+ * `student` (student-profile PR OD-9) is the RETURN context when she came from
+ * a profile: it decides only where «back» goes (`resolveReturnContext`) and
+ * never what is shown. `batch` keeps its two jobs regardless.
  *
  * ── WHY THE BATCH ID IS A QUERY PARAM AND NOT A PATH SEGMENT ─────────────
  * The spec puts this route outside `/batches/`, because an approved exam is a
@@ -43,6 +47,7 @@ import {
 } from '@/lib/api';
 import { surfaceError } from '@/lib/errorSurface';
 import { ReturnedExamPreview } from '@/components/grade-review/ReturnedExamPreview';
+import { resolveReturnContext } from '@/utils/return-context';
 import type { GradedTestContract } from '@/utils/returned-exam';
 import {
     PV_LOADING, PV_LOAD_FAILED, PV_NOT_APPROVED_BODY, PV_NOT_APPROVED_CTA,
@@ -55,6 +60,7 @@ export default function ReturnedExamPage() {
     const search = useSearchParams();
     const router = useRouter();
     const batchId = search.get('batch');
+    const studentParam = search.get('student');
 
     const [payload, setPayload] = useState<GradeReviewApprovedResponse | null>(null);
     const [batch, setBatch] = useState<BatchDetailResponse | null>(null);
@@ -245,8 +251,14 @@ export default function ReturnedExamPage() {
         );
     }
 
+    const back = resolveReturnContext(
+        { student: studentParam, batch: batchId }, payload.student_name ?? '');
+
     return (
         <ReturnedExamPreview
+            backHref={back.href}
+            backLabel={back.label}
+            studentHref={payload.student_id ? `/my-classroom/students/${payload.student_id}` : null}
             studentName={payload.student_name ?? ''}
             examName={batch?.rubric_name ?? batch?.name ?? ''}
             className={batch?.class_name ?? null}

@@ -19,6 +19,9 @@ export const RV_TOTAL_PROPOSAL = (possible: string) => `מתוך ${possible} · 
 export const RV_TOTAL_MINE = (possible: string) => `מתוך ${possible} · אחרי השינויים שלך`
 export const RV_NAV_PREV = 'הקודם'
 export const RV_NAV_NEXT = 'הבא'
+/** The way OUT of the module, beside «הבא» — the only other exit was the
+ *  browser's back button. Names the dashboard by what she calls it. */
+export const RV_NAV_TO_BATCH = 'חזרה לכל המבחנים'
 export const RV_MINI_THUMB_TITLE = 'המבחן החתום'
 
 /** «כיתה · מס׳ 12 · מבחן 7 מתוך 30 · מוכן לפני 6 דקות» */
@@ -190,6 +193,10 @@ export const RV_TARIFF_NONE = 'ללא הורדה'
 export const RV_TARIFF_UP_TO = (y: string) => `עד ${y}`
 export const RV_TARIFF_ONCE = 'נספרה פעם אחת'
 export const RV_VERDICT_TITLE_TARIFF = 'הורדה כן / לא (Space)'
+/** An UNVERIFIED credit verdict (2026-09-15): Vivi's ✓ whose quote she could not
+ *  find in the answer — priced at 0 until the teacher confirms it. */
+export const RV_VERDICT_TITLE_UNVERIFIED = 'ויוי סימנה ✓ אך לא אימתה את הציטוט — לחיצה מאשרת (Space)'
+export const RV_ORIG_CONFIRMED = 'אישרת למרות שהציטוט לא אומת'
 export const RV_POINTS_OFF_GRID = (x: string, step: string) =>
     `לא ניתן להעניק ${x} נקודות — הנקודות ניתנות בקפיצות של ${step}`
 export const RV_POINTS_NEGATIVE = (x: string) =>
@@ -465,8 +472,13 @@ export const DASH_RETRY_STARTED = (name: string) => `${name} נשלח לבדיק
 export const DASH_RETRY_FAILED = 'לא הצלחנו לשלוח לבדיקה חוזרת — נסי שוב'
 
 // ── P1–P8 · המבחן החתום ──────────────────────────────────────────────────
-export const PV_TITLE = (student: string) => `המבחן החתום · ${student}`
-/** «6 עמודי מבחן + 2 עמודי משוב · נחתם 29.8.2026, 20:31 · גרסה 1» */
+export const PV_TITLE = (student: string) => `${PV_TITLE_PREFIX} · ${student}`
+/** The title's first half, when the student's name is rendered as a LINK to
+ *  the profile (student-profile PR OD-2) and cannot be one string. */
+export const PV_TITLE_PREFIX = 'המבחן החתום'
+/** «6 עמודי מבחן + 2 עמודי משוב · בדיקה אושרה ב29.8.2026, 20:31 · גרסה 1»
+ *  OD-14: the moment she approved the grading reads «בדיקה אושרה ב…» wherever
+ *  its timestamp is shown — here and on the profile row. It was «נחתם …». */
 export const PV_SUB = (scanPages: number, appendixPages: number,
                        signedAt: string | null, version: number | null) =>
     [
@@ -477,7 +489,7 @@ export const PV_SUB = (scanPages: number, appendixPages: number,
         scanPages > 0
             ? `${examPagesCount(scanPages)} + ${feedbackPagesCount(appendixPages)}`
             : feedbackPagesCount(appendixPages),
-        signedAt ? `נחתם ${signedAt}` : null,
+        signedAt ? `בדיקה אושרה ב${signedAt}` : null,
         version != null ? `גרסה ${version}` : null,
     ].filter(Boolean).join(' · ')
 

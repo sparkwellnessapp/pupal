@@ -4,8 +4,10 @@
 export interface StudentResponse {
   id: string;
   full_name: string;
-  notes: string | null;
   created_at: string;
+  /** [student-profile PR, LST-4] Approved tests, one per chain — the roster's
+   *  badge and the profile's count, from ONE server-side definition. */
+  signed_tests_count: number;
 }
 
 export interface StudentDetailResponse extends StudentResponse {
@@ -37,12 +39,10 @@ export interface SubjectMatterOption {
 
 export interface CreateStudentBody {
   full_name: string;
-  notes?: string;
 }
 
 export interface UpdateStudentBody {
   full_name?: string;
-  notes?: string;
 }
 
 export interface CreateClassBody {

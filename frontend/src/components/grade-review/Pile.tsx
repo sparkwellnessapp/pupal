@@ -54,9 +54,13 @@ export interface PileProps {
     onOpenReview: (item: GradedItem) => void;
     onOpenPreview: (item: GradedItem) => void;
     onRetry: (item: GradedItem) => void;
+    /** [student-profile PR OD-2] The student's name opens the profile. */
+    onOpenStudent?: (item: GradedItem) => void;
 }
 
-export function Pile({ items, retriedIds, onOpenReview, onOpenPreview, onRetry }: PileProps) {
+export function Pile({
+    items, retriedIds, onOpenReview, onOpenPreview, onRetry, onOpenStudent,
+}: PileProps) {
     const { register, urlFor } = usePageThumbnails();
 
     if (items.length === 0) {
@@ -181,7 +185,23 @@ export function Pile({ items, retriedIds, onOpenReview, onOpenPreview, onRetry }
                             </div>
 
                             <div className="mt-2 text-gr-body font-semibold leading-tight">
-                                {name}
+                                {onOpenStudent && item.student_id ? (
+                                    /* [student-profile PR OD-2] `role="link"`,
+                                       not a nested <a> — invalid inside the
+                                       card's own button (UI-5); the same shape
+                                       as the retry and preview controls below.
+                                       Inert while the card itself is disabled
+                                       (pending/grading), as those are. */
+                                    <span
+                                        role="link"
+                                        tabIndex={-1}
+                                        data-card-student
+                                        onClick={(e) => { e.stopPropagation(); onOpenStudent(item); }}
+                                        className="cursor-pointer hover:text-primary-700 hover:underline"
+                                    >
+                                        {name}
+                                    </span>
+                                ) : name}
                             </div>
                             <Caption
                                 state={state}
