@@ -102,6 +102,10 @@ class GradedTestApprovedResponse(BaseModel):
     id: UUID
     status: str
     student_name: str
+    #: [student-profile PR, OD-2] The returned page links the student's name to
+    #: the profile; the name alone cannot address it. `graded_tests.student_id`
+    #: is NOT NULL, so this is never absent for a real row.
+    student_id: Optional[UUID] = None
     filename: Optional[str] = None
     total_score: Optional[Decimal] = None
     total_possible: Optional[Decimal] = None

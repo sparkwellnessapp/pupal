@@ -330,6 +330,11 @@ def test_approve_happy_path_atomic_freeze(client, graded_draft):
     # asserts encoded the pre-PR-3 re-sum semantics.
     assert _D(contract["total_possible"]) == _D("100")
     assert float(contract["percentage"]) == 0.0   # 0 of 100
+    # LST-3 SingleGradeSource (student-profile PR): the ROW's dedicated columns
+    # are written from the contract in the same commit, and the wire's
+    # top-level totals are those columns — so column == contract, always.
+    assert _D(data["total_score"]) == _D(contract["total_score"])
+    assert _D(data["total_possible"]) == _D(contract["total_possible"])
 
     # Provenance: teacher override is reflected
     terminal = contract["scope_outcomes"][0]["terminal_outcomes"][0]
