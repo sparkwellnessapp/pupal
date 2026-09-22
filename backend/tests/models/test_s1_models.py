@@ -120,14 +120,16 @@ def test_app_boots():
 
 def test_student_round_trip(session):
     user = make_user(session)
-    s = Student(user_id=user.id, full_name="Alice", notes="top student")
+    s = Student(user_id=user.id, full_name="Alice")
     session.add(s)
     session.commit()
 
     fetched = session.get(Student, s.id)
     assert fetched.full_name == "Alice"
-    assert fetched.notes == "top student"
     assert fetched.user_id == user.id
+    # [student-profile PR, OD-3 / UI-4] migration 031 dropped the column; the
+    # model must not map it, or every INSERT names a column that is gone.
+    assert "notes" not in Student.__table__.columns
 
 
 def test_class_round_trip(session):
