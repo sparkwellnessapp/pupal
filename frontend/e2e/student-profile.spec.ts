@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
@@ -235,6 +235,11 @@ test('profile: a student with nothing attributable deletes and lands on the rost
 // ── mockup parity captures (§6.0, UI-6) ────────────────────────────────────
 
 const MOCKUP_DIR = path.resolve(__dirname, '../../vivi-student-profile-mockup');
+/** The artboards are Noam's design export at the repo root — NOT a tracked
+ *  file, so a fresh clone (and CI) does not have them. The captures are
+ *  evidence for a human comparison, not a regression gate: absent, they skip
+ *  and say why, rather than failing a checkout that is otherwise green. */
+const MOCKUP_PRESENT = existsSync(MOCKUP_DIR);
 
 function mockupHtml(name: string): string {
     // The artboards are design-canvas exports with `{{accent}}`/`{{stamp}}`
@@ -248,6 +253,7 @@ function mockupHtml(name: string): string {
 
 for (const [name, width, height] of [['Main', 1440, 1000], ['Roster', 1440, 900], ['Empty', 1000, 560]] as const) {
     test(`the ${name} artboard, for side-by-side comparison`, async ({ page }) => {
+        test.skip(!MOCKUP_PRESENT, `no mockup export at ${MOCKUP_DIR}`);
         await page.setViewportSize({ width, height });
         await page.setContent(mockupHtml(name));
         await page.waitForTimeout(300);
