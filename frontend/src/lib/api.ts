@@ -188,7 +188,6 @@ export interface ExtractedCriterion {
   criterion_description: string;
   total_points: number;
   reduction_rules: ReductionRule[];
-  notes?: string | null;
   raw_text?: string | null;
   extraction_confidence: 'high' | 'medium' | 'low';
 
@@ -1534,6 +1533,22 @@ export async function updateStudent(id: string, body: UpdateStudentBody): Promis
 
 export async function deleteStudent(id: string): Promise<void> {
   await _classroomFetch(`${API_BASE}/api/v0/classroom/students/${id}`, { method: 'DELETE' });
+}
+
+/** [student-profile PR §5.4] The server's machine code for the interim refusal:
+ *  anything still references her (a grading, a scan). The copy is the client's. */
+export const STUDENT_HAS_DATA = 'student_has_data';
+
+export type SignedTestsResponse = components['schemas']['SignedTestsResponse'];
+export type SignedTestItem = components['schemas']['SignedTestItem'];
+
+/**
+ * [student-profile PR §5.1–5.3] Every APPROVED test of a student, one row per
+ * chain, newest upload first. Named for the invariant it carries (M-A1).
+ */
+export async function getStudentSignedTests(id: string): Promise<SignedTestsResponse> {
+  const res = await _classroomFetch(`${API_BASE}/api/v0/classroom/students/${id}/signed-tests`);
+  return res.json();
 }
 
 // Classes

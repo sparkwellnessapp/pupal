@@ -550,6 +550,32 @@ export interface paths {
         patch: operations["update_student_api_v0_classroom_students__student_id__patch"];
         trace?: never;
     };
+    "/api/v0/classroom/students/{student_id}/signed-tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Student Signed Tests
+         * @description [student-profile PR §5.1–5.3] Every APPROVED test of this student, one
+         *     row per chain, newest upload first — the profile's rows.
+         *
+         *     Named for the invariant it carries (M-A1): `signed-tests` cannot quietly
+         *     grow drafts. The definition lives in ONE place, `student_signed_tests`,
+         *     and the roster badge and the header count derive from the same leaves
+         *     (LST-4). Cross-tenant is 404 (LST-5), like every classroom read.
+         */
+        get: operations["get_student_signed_tests_api_v0_classroom_students__student_id__signed_tests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v0/grading/extract-rubric-v2": {
         parameters: {
             query?: never;
@@ -1974,6 +2000,8 @@ export interface components {
         AnswerSpaceSelectionGroup: {
             /** Choose K */
             choose_k: number;
+            /** Label */
+            label?: string | null;
             /** Question Numbers */
             question_numbers: number[];
         };
@@ -2072,6 +2100,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Is First Batch
+             * @default true
+             */
+            is_first_batch: boolean;
             /** Name */
             name?: string | null;
             rollup: components["schemas"]["BatchRollup"];
@@ -2310,6 +2343,8 @@ export interface components {
             matched_student_id?: string | null;
             /** Matched Student Name */
             matched_student_name?: string | null;
+            /** Page1 Image Url */
+            page1_image_url?: string | null;
             review?: components["schemas"]["TranscriptionReview"] | null;
             /** Student Name Suggestion */
             student_name_suggestion?: string | null;
@@ -2815,8 +2850,6 @@ export interface components {
         CreateStudentRequest: {
             /** Full Name */
             full_name: string;
-            /** Notes */
-            notes?: string | null;
         };
         /**
          * Criterion
@@ -3221,6 +3254,8 @@ export interface components {
             rubric_contract_stale: boolean;
             /** Status */
             status: string;
+            /** Student Id */
+            student_id?: string | null;
             /** Student Name */
             student_name: string;
             /** Total Cost Usd */
@@ -4594,6 +4629,68 @@ export interface components {
             permission: "view" | "edit";
         };
         /**
+         * SignedTestExam
+         * @description The exam event, in the form המבחנים שלי already renders it (M-A4):
+         *     the STORED batch name when there is one, and the parts the client's own
+         *     composer falls back to. `batch_id` is null for a single-flow test.
+         */
+        SignedTestExam: {
+            /** Batch Id */
+            batch_id?: string | null;
+            /** Class Name */
+            class_name?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Rubric Name */
+            rubric_name?: string | null;
+            /**
+             * Uploaded At
+             * Format: date-time
+             */
+            uploaded_at: string;
+        };
+        /** SignedTestItem */
+        SignedTestItem: {
+            /**
+             * Approved At
+             * Format: date-time
+             */
+            approved_at: string;
+            exam: components["schemas"]["SignedTestExam"];
+            /**
+             * Graded Test Id
+             * Format: uuid
+             */
+            graded_test_id: string;
+            thumbnail: components["schemas"]["SignedTestThumbnail"];
+            /** Total Possible */
+            total_possible?: string | null;
+            /** Total Score */
+            total_score?: string | null;
+        };
+        /**
+         * SignedTestThumbnail
+         * @description What the shared page-1 component needs (OD-8): the SAME page-1 resource
+         *     the pile cards fetch through the authorized seam (FA-4 — a relative path,
+         *     never a bare URL an `<img>` could load), and the stamp position already
+         *     RESOLVED (overlay → batch default → null), so a row needs one image and
+         *     no per-row detail call.
+         */
+        SignedTestThumbnail: {
+            /** Page1 Image Url */
+            page1_image_url?: string | null;
+            stamp_position?: components["schemas"]["StampPosition"] | null;
+        };
+        /** SignedTestsResponse */
+        SignedTestsResponse: {
+            /** Signed Tests */
+            signed_tests: components["schemas"]["SignedTestItem"][];
+            /** Signed Tests Count */
+            signed_tests_count: number;
+            /** Truncated */
+            truncated: boolean;
+        };
+        /**
          * SignupPendingResponse
          * @description [024] What signup returns now: NOT a session.
          *
@@ -4731,8 +4828,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /** Notes */
-            notes?: string | null;
+            /**
+             * Signed Tests Count
+             * @default 0
+             */
+            signed_tests_count: number;
         };
         /** StudentMini */
         StudentMini: {
@@ -4744,7 +4844,12 @@ export interface components {
              */
             id: string;
         };
-        /** StudentResponse */
+        /**
+         * StudentResponse
+         * @description No `notes` (OD-3 / UI-4): the field was removed from the product, and a
+         *     body that still sends it is IGNORED, not rejected (Pydantic's default
+         *     `extra='ignore'` — an older client must not start failing on save).
+         */
         StudentResponse: {
             /**
              * Created At
@@ -4758,8 +4863,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /** Notes */
-            notes?: string | null;
+            /**
+             * Signed Tests Count
+             * @default 0
+             */
+            signed_tests_count: number;
         };
         /**
          * SubCriterion
@@ -5328,8 +5436,6 @@ export interface components {
         UpdateStudentRequest: {
             /** Full Name */
             full_name?: string | null;
-            /** Notes */
-            notes?: string | null;
         };
         /**
          * UpdateSubjectMattersRequest
@@ -6413,6 +6519,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_student_signed_tests_api_v0_classroom_students__student_id__signed_tests_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedTestsResponse"];
                 };
             };
             /** @description Validation Error */
