@@ -64,19 +64,78 @@ test('a malformed student parameter is ignored, never followed', async ({ page }
     await expect(page.locator('[data-back-link]')).toHaveAttribute('href', `/batches/${BATCH_ID}`);
 });
 
-test('the dashboard card name opens the profile; the review panel offers no link', async ({ page }) => {
+test('the dashboard card name is a real link to the profile, outside the card button (UI-5)', async ({ page }) => {
     await installGradeReviewMocks(page);
     await page.goto(`/batches/${BATCH_ID}`);
     await page.locator('[data-pile-card]').first().waitFor();
 
-    // Any card whose own button is live: the name inside it is the link. (A
-    // pending/grading card's button is disabled and swallows the click — the
-    // same as its retry/preview controls; OD-2 asks for the name, not a
-    // guarantee on cards that are not hers to open yet.)
-    const name = page.locator('[data-pile-card] button:not([disabled]) [data-card-student]').first();
-    await expect(name).toBeVisible();
-    await name.click();
+    // Structure first: a real <a>, never inside the card's button, and no
+    // button anywhere contains an interactive descendant.
+    const names = page.locator('[data-pile-card] a[data-card-student]');
+    expect(await names.count()).toBeGreaterThan(0);
+    expect(await page.locator('[data-pile-card] button a, [data-pile-card] button [role="link"], '
+        + '[data-pile-card] button button').count()).toBe(0);
+    await expect(names.first()).toHaveAttribute('href', `/my-classroom/students/${FIXTURE_STUDENT_ID}`);
+
+    await names.first().click();
     await expect(page).toHaveURL(new RegExp(`/my-classroom/students/${FIXTURE_STUDENT_ID}$`));
+});
+
+test('the name link stays live on a card whose own action is disabled', async ({ page }) => {
+    await installGradeReviewMocks(page);
+    await page.goto(`/batches/${BATCH_ID}`);
+    await page.locator('[data-pile-card]').first().waitFor();
+
+    const inert = page.locator('[data-pile-card]:has(button[data-card-action][disabled])').first();
+    await expect(inert).toBeVisible();
+    await inert.locator('a[data-card-student]').click();
+    await expect(page).toHaveURL(new RegExp(`/my-classroom/students/${FIXTURE_STUDENT_ID}$`));
+});
+
+test('the card\'s primary action is unchanged for keyboard and screen readers', async ({ page }) => {
+    await installGradeReviewMocks(page);
+    await page.goto(`/batches/${BATCH_ID}`);
+    const card = page.locator('[data-pile-card][data-card-state="landed_marked"]').first();
+    await card.waitFor();
+
+    // Screen reader: still ONE button per card, named by the student and the
+    // card's state — the name link is announced separately, as a link.
+    const action = card.locator('button[data-card-action]');
+    await expect(action).toHaveCount(1);
+    // Read the student's name off the card (see the first test's note).
+    const name = (await card.locator('a[data-card-student]').innerText()).trim();
+    await expect(action).toHaveAccessibleName(new RegExp(`^${name} — `));
+    await expect(card.getByRole('link', { name })).toHaveCount(1);
+
+    // Keyboard: the button comes BEFORE the name in the tab order, and Enter
+    // on it opens the review exactly as it did.
+    await action.focus();
+    await page.keyboard.press('Tab');
+    await expect(card.locator('a[data-card-student]')).toBeFocused();
+    await action.focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/grade-review\//);
+});
+
+test('a click anywhere on the card outside the name still opens the card', async ({ page }) => {
+    await installGradeReviewMocks(page);
+    await page.goto(`/batches/${BATCH_ID}`);
+    const card = page.locator('[data-pile-card][data-card-state="landed_marked"]').first();
+    await card.waitFor();
+    // The caption line sits under the stretched layer, not inside the button:
+    // a click there is the card's, exactly as before the restructure.
+    // The pile sits low on a 900px page; a raw mouse click does not scroll.
+    await card.scrollIntoViewIfNeeded();
+    const caption = card.locator('button[data-card-action] + div + div');
+    const box = (await caption.boundingBox())!;
+    // What is actually under the pointer is the card's own button (its ::after),
+    // not the caption text — asserted, so the click below cannot pass by luck.
+    const hit = await page.evaluate(([x, y]) =>
+        document.elementFromPoint(x, y)?.hasAttribute('data-card-action') ?? false,
+        [box.x + 4, box.y + box.height / 2]);
+    expect(hit).toBe(true);
+    await page.mouse.click(box.x + 4, box.y + box.height / 2);
+    await expect(page).toHaveURL(/\/grade-review\//);
 });
 
 test('the review module offers no link to the profile (OD-2)', async ({ page }) => {

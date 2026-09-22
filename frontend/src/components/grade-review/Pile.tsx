@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { formatPoints } from '@/utils/points-display';
 import {
     pileCardState, pileCardTarget, type GradedItem, type PileCardState,
@@ -54,12 +56,16 @@ export interface PileProps {
     onOpenReview: (item: GradedItem) => void;
     onOpenPreview: (item: GradedItem) => void;
     onRetry: (item: GradedItem) => void;
-    /** [student-profile PR OD-2] The student's name opens the profile. */
-    onOpenStudent?: (item: GradedItem) => void;
+    /**
+     * [student-profile PR OD-2] Where the student's name goes — the profile.
+     * An HREF, not a callback: the name is a real `<a>`, so it opens in a new
+     * tab, shows its URL, and is announced as a link. Null → plain text.
+     */
+    studentHref?: (item: GradedItem) => string | null;
 }
 
 export function Pile({
-    items, retriedIds, onOpenReview, onOpenPreview, onRetry, onOpenStudent,
+    items, retriedIds, onOpenReview, onOpenPreview, onRetry, studentHref,
 }: PileProps) {
     const { register, urlFor } = usePageThumbnails();
 
@@ -85,6 +91,8 @@ export function Pile({
                 const thumb = urlFor(item.page1_image_url);
                 const markers = item.look_count;
                 const retried = retriedIds?.has(item.graded_test_id) ?? false;
+                const profile = studentHref?.(item) ?? null;
+                const actionDisabled = target === null || (target === 'retry' && retried);
 
                 const open = () => {
                     if (target === 'review') onOpenReview(item);
@@ -93,18 +101,34 @@ export function Pile({
                 };
 
                 return (
+                    /* [student-profile PR, UI-5] A STRETCHED card, the roster's
+                       pattern. The card's action is a button whose ::after
+                       covers the whole card; the student's name is a SIBLING
+                       <a> layered above that layer (relative z-10), never a
+                       child of the button. A button's children are
+                       presentational — assistive tech never exposes a link
+                       inside one — and an <a> there is invalid HTML, so the
+                       first version's `role="link"` span failed whichever way
+                       it was built. The button keeps its accessible name, its
+                       place first in the tab order and its Enter/Space, so the
+                       card's primary action is unchanged for keyboard and
+                       screen-reader users; the name link stays live while the
+                       card's own action is disabled (pending / grading). */
                     <div
                         key={item.graded_test_id}
                         data-pile-card={item.graded_test_id}
                         data-card-state={state}
+                        className="relative"
                     >
                         <button
                             type="button"
-                            disabled={target === null || (target === 'retry' && retried)}
+                            data-card-action
+                            disabled={actionDisabled}
                             onClick={open}
                             aria-label={`${name} — ${captionText(state, markers, item.version, retried)}`}
-                            className="block w-full rounded-grade-sm text-start outline-none
-                                focus-visible:ring-decided focus-visible:ring-primary-600
+                            className="group block w-full rounded-grade-sm text-start outline-none
+                                after:absolute after:inset-0 after:rounded-grade-sm after:content-['']
+                                focus-visible:after:ring-decided focus-visible:after:ring-primary-600
                                 disabled:cursor-default"
                         >
                             <div
@@ -113,7 +137,7 @@ export function Pile({
                                     'relative aspect-[1/1.32] overflow-hidden rounded-grade-sm',
                                     'border border-grade-line bg-grade-paper shadow-grade',
                                     'transition-transform',
-                                    target ? 'hover:-translate-y-0.5' : '',
+                                    target ? 'group-hover:-translate-y-0.5' : '',
                                     TONE[state],
                                 ].join(' ')}
                             >
@@ -183,35 +207,29 @@ export function Pile({
                                     </span>
                                 ) : null}
                             </div>
-
-                            <div className="mt-2 text-gr-body font-semibold leading-tight">
-                                {onOpenStudent && item.student_id ? (
-                                    /* [student-profile PR OD-2] `role="link"`,
-                                       not a nested <a> — invalid inside the
-                                       card's own button (UI-5); the same shape
-                                       as the retry and preview controls below.
-                                       Inert while the card itself is disabled
-                                       (pending/grading), as those are. */
-                                    <span
-                                        role="link"
-                                        tabIndex={-1}
-                                        data-card-student
-                                        onClick={(e) => { e.stopPropagation(); onOpenStudent(item); }}
-                                        className="cursor-pointer hover:text-primary-700 hover:underline"
-                                    >
-                                        {name}
-                                    </span>
-                                ) : name}
-                            </div>
-                            <Caption
-                                state={state}
-                                markers={markers}
-                                version={item.version}
-                                retried={retried}
-                                onRetry={() => onRetry(item)}
-                                onPreview={() => onOpenPreview(item)}
-                            />
                         </button>
+
+                        <div className="mt-2 text-gr-body font-semibold leading-tight">
+                            {profile ? (
+                                <Link
+                                    href={profile}
+                                    data-card-student
+                                    className="relative z-10 rounded-sm hover:text-primary-700
+                                        hover:underline focus-visible:outline-none
+                                        focus-visible:ring-2 focus-visible:ring-primary-600"
+                                >
+                                    {name}
+                                </Link>
+                            ) : name}
+                        </div>
+                        <Caption
+                            state={state}
+                            markers={markers}
+                            version={item.version}
+                            retried={retried}
+                            onRetry={() => onRetry(item)}
+                            onPreview={() => onOpenPreview(item)}
+                        />
                     </div>
                 );
             })}
@@ -267,9 +285,12 @@ function Caption({
     retried: boolean;
     onRetry: () => void;
     /** §5.6 — a signed card gets an EXPLICIT «תצוגה מקדימה», not a hidden
-     *  click target on the thumbnail. `role="link"` rather than a nested
-     *  <button>, which is invalid inside the card's own button — the same
-     *  shape the failed-retry control above already uses. */
+     *  click target on the thumbnail. It and the failed card's «נסי שוב» are
+     *  mouse shortcuts to the SAME action the card's own button performs, so
+     *  keyboard and screen-reader users lose nothing by their `tabIndex={-1}`.
+     *  Since the stretched-card restructure they are no longer inside that
+     *  button; `relative z-10` lifts them above its ::after so they stay
+     *  clickable. */
     onPreview: () => void;
 }) {
     const base = 'mt-0.5 text-gr-meta';
@@ -293,7 +314,7 @@ function Caption({
                     role="link"
                     tabIndex={-1}
                     onClick={(e) => { e.stopPropagation(); onRetry(); }}
-                    className="cursor-pointer underline underline-offset-link"
+                    className="relative z-10 cursor-pointer underline underline-offset-link"
                 >
                     {DASH_CARD_RETRY}
                 </span>
@@ -319,7 +340,7 @@ function Caption({
                     tabIndex={-1}
                     data-card-preview
                     onClick={(e) => { e.stopPropagation(); onPreview(); }}
-                    className="cursor-pointer underline underline-offset-link"
+                    className="relative z-10 cursor-pointer underline underline-offset-link"
                 >
                     {DONE_PREVIEW}
                 </span>
