@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ApiError } from '@/lib/api';
@@ -10,7 +11,7 @@ import {
     PV_DOWNLOAD_FAILED, PV_DOWNLOAD_PREPARING, PV_EDIT, PV_HINT_APPENDIX,
     PV_HINT_SCAN, PV_HINT_STAMP, PV_HINT_STAMP_AUTO, PV_REAPPROVE, PV_STALE, PV_STAMP_SAVED,
     PV_STAMP_SAVE_FAILED, PV_STRIP_APPENDIX, PV_STRIP_SCAN, PV_SUB, PV_TITLE,
-    PV_TOGGLE_FAILED, PV_TOGGLE_OFF, PV_TOGGLE_ON,
+    PV_TITLE_PREFIX, PV_TOGGLE_FAILED, PV_TOGGLE_OFF, PV_TOGGLE_ON,
 } from '@/copy/grade-review';
 import {
     buildAppendix, formatSignedAt, formatSignedDate, isReturnedExamStale,
@@ -20,7 +21,7 @@ import {
 import { formatPoints } from '@/utils/points-display';
 import { AppendixPage } from './AppendixPage';
 import { BreakdownToggle } from './BreakdownToggle';
-import { StampDrag } from './StampDrag';
+import { StampedPage } from './StampedPage';
 import { StampSvg } from './StampSvg';
 
 /**
@@ -68,6 +69,15 @@ export interface ReturnedExamPreviewProps {
      * write to a batch, and one we had to guess is worse than one absent.
      */
     batchScoped?: boolean;
+    /**
+     * [student-profile PR §6.5, OD-9] Where «back» goes — resolved by the
+     * route from TYPED context (`?student=` → the profile, `?batch=` → the
+     * dashboard, else המבחנים שלי), never from a free-form path.
+     */
+    backHref?: string;
+    backLabel?: string;
+    /** [OD-2] The student's profile; the name in the title links to it. */
+    studentHref?: string | null;
 
     onStampCommit: (next: StampPosition) => Promise<void>;
     /** Takes the position EXPLICITLY: the parent's copy is one render behind
@@ -89,11 +99,11 @@ export function ReturnedExamPreview(props: ReturnedExamPreviewProps) {
     const {
         studentName, examName, className, teacherName, signedAt, version,
         contract, scanPages, stampPosition, includeCriteria, returnedExamState,
-        batchScoped = true, onStampCommit, onApplyStampToBatch, onIncludeCriteriaChange,
+        batchScoped = true, backHref, backLabel, studentHref,
+        onStampCommit, onApplyStampToBatch, onIncludeCriteriaChange,
         onEditReview, onDownload, onReapprove,
     } = props;
 
-    const pageRef = useRef<HTMLDivElement | null>(null);
     const [current, setCurrent] = useState(0);
     const [pendingToggle, setPendingToggle] = useState(false);
     const [optimisticCriteria, setOptimisticCriteria] = useState<boolean | null>(null);
@@ -175,8 +185,31 @@ export function ReturnedExamPreview(props: ReturnedExamPreviewProps) {
             {/* ── P1 · header + toolbar ─────────────────────────────────── */}
             <div className="mb-appx-foot flex flex-wrap items-center justify-between gap-4">
                 <div>
+                    {backHref ? (
+                        <Link
+                            href={backHref}
+                            data-back-link
+                            className="mb-1.5 inline-flex items-center gap-1 text-gr-meta
+                                text-primary-700 hover:underline"
+                        >
+                            <span aria-hidden="true">›</span>
+                            {backLabel}
+                        </Link>
+                    ) : null}
                     <h1 className="text-gr-pv-h1 text-grade-ink">
-                        {PV_TITLE(studentName)}
+                        {studentHref ? (
+                            <>
+                                {PV_TITLE_PREFIX}
+                                {' · '}
+                                <Link
+                                    href={studentHref}
+                                    data-student-link
+                                    className="hover:text-primary-700 hover:underline"
+                                >
+                                    {studentName}
+                                </Link>
+                            </>
+                        ) : PV_TITLE(studentName)}
                     </h1>
                     <div className="text-gr-rtl text-grade-pencil">
                         {PV_SUB(scanPages.length, appendixPages.length,
@@ -295,31 +328,18 @@ export function ReturnedExamPreview(props: ReturnedExamPreviewProps) {
 
                 <div>
                     {entry?.kind === 'scan' ? (
-                        <div
-                            ref={pageRef}
+                        // THE stamped page — the same component the student
+                        // profile draws at 96 px (UI-2). P3: the stamp lives
+                        // on page 1 and nowhere else.
+                        <StampedPage
                             data-page-view="scan"
-                            className="relative mx-auto aspect-[1/1.41] w-full max-w-page
-                                overflow-hidden rounded border border-grade-line
-                                bg-grade-paper shadow-grade"
-                        >
-                            {scanPages[entry.number - 1] ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={scanPages[entry.number - 1] as string}
-                                    alt=""
-                                    className="absolute inset-0 h-full w-full object-contain"
-                                />
-                            ) : null}
-                            {/* P3 — the stamp lives on page 1 and nowhere else. */}
-                            {entry.number === 1 ? (
-                                <StampDrag
-                                    position={effectiveStamp}
-                                    score={score}
-                                    onCommit={handleStampCommit}
-                                    pageRef={pageRef}
-                                />
-                            ) : null}
-                        </div>
+                            className="mx-auto w-full max-w-page"
+                            imageUrl={scanPages[entry.number - 1] ?? null}
+                            stamped={entry.number === 1}
+                            score={score}
+                            stampPosition={effectiveStamp}
+                            onStampCommit={handleStampCommit}
+                        />
                     ) : entry ? (
                         <AppendixPage
                             appendix={appendix}

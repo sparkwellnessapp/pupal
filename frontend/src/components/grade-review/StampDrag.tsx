@@ -44,13 +44,22 @@ export interface StampDragProps {
     position: StampPosition | null;
     /** The score the stamp bears. */
     score: string;
-    /** Fired once per drag, with the position to persist. */
-    onCommit: (next: StampPosition) => void;
+    /** Fired once per drag, with the position to persist. Absent in read-only. */
+    onCommit?: (next: StampPosition) => void;
     /** The page element this stamp lives inside; used for the geometry. */
     pageRef: React.RefObject<HTMLElement>;
+    /**
+     * [student-profile PR, UI-2] The profile's thumbnail draws the SAME stamp
+     * at the SAME spot but must not offer a drag: a 96 px page is a fact she
+     * reads, not a control. Read-only keeps the geometry and drops the
+     * handlers, the role and the grab cursor.
+     */
+    readOnly?: boolean;
 }
 
-export function StampDrag({ position, score, onCommit, pageRef }: StampDragProps) {
+export function StampDrag({
+    position, score, onCommit, pageRef, readOnly = false,
+}: StampDragProps) {
     const ref = useRef<HTMLDivElement | null>(null);
     /** The page's rendered box. Null until measured — see the effect. */
     const [box, setBox] = useState<{ width: number; height: number } | null>(null);
@@ -118,7 +127,7 @@ export function StampDrag({ position, score, onCommit, pageRef }: StampDragProps
         setDragging(null);
         // A gesture that went nowhere leaves the stored position exactly as it
         // was — including leaving an auto corner auto. See DRAG_THRESHOLD_PX.
-        if (!grab || !moved || !dragging || !box) return;
+        if (!grab || !moved || !dragging || !box || !onCommit) return;
         onCommit(stampPositionFromDrag(dragging.left, dragging.top, box.width, box.height));
     }, [box, dragging, onCommit]);
 
@@ -130,6 +139,21 @@ export function StampDrag({ position, score, onCommit, pageRef }: StampDragProps
     const resting = stampBox(position, box.width, box.height);
     const left = dragging?.left ?? resting.left;
     const top = dragging?.top ?? resting.top;
+
+    if (readOnly) {
+        return (
+            <div
+                ref={ref}
+                data-stamp-drag
+                data-measured="true"
+                data-readonly
+                style={{ left, top, width: resting.size, height: resting.size }}
+                className="absolute select-none"
+            >
+                <StampSvg score={score} size={resting.size} className="h-full w-full" />
+            </div>
+        );
+    }
 
     return (
         <div
