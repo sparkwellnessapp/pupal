@@ -43,6 +43,7 @@ from app.schemas.ontology_types import GradingRubricContract
 from app.services.gradable_compiler import compile as compile_gradable_test
 from app.services.selection_scoring import ScopeScore, score_with_selection
 from app.agents.grader.grader import effective_scope_concurrency
+from app.tracing import student_data_run
 from app.services.grader_selection import build_grader, grader_kind_for
 from app.services.plan_build_runner import resolve_plan_for_grade
 
@@ -184,7 +185,10 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
                              subject=rubric_contract.subject)
         budget = _row_budget_s(len(gradable_test.scopes))
         try:
-            draft = await asyncio.wait_for(agent.grade(gradable_test), timeout=budget)
+            # [OD-B2] the grader's prompts carry the student's answers.
+            with student_data_run(graded_test_id=graded_test.id,
+                                  transcription_id=graded_test.transcription_id):
+                draft = await asyncio.wait_for(agent.grade(gradable_test), timeout=budget)
         except asyncio.TimeoutError as exc:
             raise GradingBudgetExceeded(
                 f"grading exceeded its row budget of {budget:.0f}s for "
@@ -225,7 +229,9 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
         # annotation. Losing a graded test because a sentence could not be
         # written is the opposite of review-first, not guess.
         from app.agents.feedback.runner import attach_feedback
-        draft = await attach_feedback(draft)
+        with student_data_run(graded_test_id=graded_test.id,
+                              transcription_id=graded_test.transcription_id):
+            draft = await attach_feedback(draft)
 
         if scoring.excluded:
             draft = draft.model_copy(update={
