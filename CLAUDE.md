@@ -442,7 +442,7 @@ Established once, copied everywhere (the rubric endpoints are the reference impl
 Next.js 14 App Router + TypeScript + Tailwind, RTL Hebrew, Vercel.
 
 > **⚠️ CANON — repo layout & deploy (verified PR-4).** GitHub: **`github.com/sparkwellnessapp/pupal`** (public). Two branches matter:
-> - **`main`** — the working branch. Its committed tree is the **`grader-frontend/`** directory (the deployable Next.js app) + `grader-vision-update`. It does **NOT** track `backend/` or the local `frontend/` working copy — those live in the working tree only.
+> - **`main`** — the working branch and the PR base. Since 2026-09 it carries the **full tree** at the root: `backend/`, `frontend/` (the dev source), `grader-frontend/` (the deploy mirror), `docs/`, `CLAUDE.md`. `grader-vision-update/` is gone. (Verified 2026-09-22: `origin/main` and `origin/perf/rubric-extraction-latency` were the same commit.)
 > - **`frontend-deployment`** — the branch **Vercel builds** (its *root* IS the Next.js app). It is a **git subtree of `main:grader-frontend/`** (identical tree hash), maintained by `git subtree push`. There is **no `grader-frontend` branch** — that name refers to the *directory*.
 >
 > **`frontend/` is the canonical dev source; `grader-frontend/` is its DEPLOY MIRROR.** Develop in `frontend/`; never hand-edit `grader-frontend/` (it is overwritten). **To deploy the frontend:**
@@ -591,46 +591,35 @@ npm install && npm run dev
 
 ## 12.5 Repository & deployment layout — READ THIS BEFORE YOU `git push`
 
-> **⚠️ ADDENDUM (2026-08, batch-review PR): the "rename trap" below is RESOLVED on `perf/rubric-extraction-latency`** — commit `d47018a` snapshotted the full working tree, so `frontend/`, `backend/`, `CLAUDE.md`, and `BACKLOG.md` are all TRACKED there; ordinary `git add <paths>` + commit is the workflow on that branch. `grader-frontend/` is the **stale pre-PR deploy mirror** (received zero writes from the batch-review PR; flagged for deletion — BACKLOG **B-21** — pending confirmation of the live Vercel wiring below). The pre-snapshot description that follows still governs `main`'s layout and the deploy flows until the branch lands.
+**`main` carries the full tree, and it is the PR base** (verified 2026-09-22). `git ls-tree origin/main`
+lists `backend/`, `frontend/`, `grader-frontend/`, `docs/` and `CLAUDE.md`; the old two-directory layout
+(`grader-frontend/` + `grader-vision-update/`) and its "rename trap" are HISTORY — a session that re-applies
+the old copy-into-`grader-frontend/`-only discipline to `main` is reading a stale briefing.
+`perf/rubric-extraction-latency` was the branch that first snapshotted the full tree; it and `main` pointed at
+the same commit on that date, so a feature branch is cut from `main` and ordinary `git add <paths>` + commit
+is the workflow.
 
-The git layout does **not** match this working tree, and a naive `git add -A` will
-**delete the backend from the repo**. Internalize this before pushing anything.
-
-**The repo.** `.git` lives at `vivi-codebase/.git`; remote is
-`github.com/sparkwellnessapp/pupal.git`. Two branches matter:
-
-| Branch | Layout | Who builds it | Push frontend how |
-|---|---|---|---|
-| `main` | two tracked dirs at repo root: **`grader-frontend/`** (the Next.js app) + **`grader-vision-update/`** (the FastAPI backend) | reference/source-of-record | copy changed files into `grader-frontend/…` and commit **only those paths** |
-| `frontend-deployment` | a **subtree split**: the Next.js app at the **repo ROOT**, no backend | **Vercel builds THIS branch** (root dir = `/`) | put the same files at the **root** of that branch (use a temporary `git worktree`) — fast-forward only |
-
-**The rename trap (why `git add -A` is dangerous).** This local working tree renamed the two
-tracked dirs to **`frontend/`** and **`backend/`** and that rename was **never committed**. So
-`git status` on `main` shows *all 139 tracked files as deleted* and the real code as *untracked*.
-Never `git add -A` / `git commit -a`. Instead:
-- **To ship a frontend change to `main`:** `cp` each changed file from `frontend/…` to the matching
-  `grader-frontend/…` path, `git add grader-frontend/<those files>`, verify
-  `git diff --cached --name-only` shows **only** `grader-frontend/…` (backend untouched: `grader-vision-update`
-  should still have its ~99 files in HEAD), then commit + `git push origin main`.
-- **To ship the same change to `frontend-deployment`:** `git worktree add <tmp> frontend-deployment`,
-  copy the files to the **root** of that worktree (not under `grader-frontend/`), commit, confirm it is a
-  fast-forward (`git merge-base --is-ancestor origin/frontend-deployment HEAD`), `git push origin
-  frontend-deployment`, then `git worktree remove <tmp>`.
-- Skip `node_modules`, `.next`, `.env*`, `.vercel`, `*.tsbuildinfo` (all gitignored anyway).
-- Gate before pushing: `npx tsc --noEmit` + `npx vitest run` + `npx next build` all clean.
-
-**The backend does NOT deploy from git.** `grader-vision-update/` on `main` is a stale reference copy;
-production backend ships via `gcloud run deploy --source=.` from the local `backend/` tree to Cloud Run
-(service `gradervision-backend`, project `gen-lang-client-0438328890`, region `europe-west1`). See the
-PR-1 deploy checklist for the full env/secret flags.
+**What production runs, and how to check before any deploy.**
+- **Backend** does NOT deploy from git: `gcloud run deploy gradervision-backend --source <dir>/backend`
+  uploads a DIRECTORY. Whatever sits in that directory ships — including uncommitted work from other PRs in a
+  shared working tree. **Deploy from a clean `git worktree` of the branch you mean to ship**, never from a
+  working tree carrying unrelated edits. The live revision's source is recoverable: its
+  `run.googleapis.com/build-source-location` annotation names a zip in
+  `gs://run-sources-gen-lang-client-0438328890-europe-west1/`; diff it against the branch with
+  `diff -rq --strip-trailing-cr` (a Windows upload carries CRLF, so a plain diff reports every file). On
+  2026-09-22 revision `00047` was content-identical to `main:backend`.
+- **Frontend**: Vercel builds `frontend-deployment`, a subtree of `grader-frontend/`. The live build is the
+  `build-sha` meta tag on `https://www.vivi-assistant.com`; compare it with `origin/frontend-deployment` and
+  `origin/main:grader-frontend`'s tree hash. Ship by mirroring `frontend/` → `grader-frontend/`, committing,
+  and `git subtree push --prefix grader-frontend origin frontend-deployment`.
+- **Order when a PR carries a migration that removes something the old code reads** (031 dropped
+  `students.notes`): backend first, verify healthy, THEN apply the migration. After it lands, rolling back to
+  a revision older than the PR breaks that revision's reads — a rollback is no longer free.
+- Skip `node_modules`, `.next`, `.env*`, `.vercel`, `*.tsbuildinfo` (all gitignored anyway). Gate before
+  pushing: `npx tsc --noEmit` + `npx vitest run` + `npx next build` all clean.
 
 **Vercel env:** the deployed frontend needs `NEXT_PUBLIC_API_URL` set for production, or `api.ts` falls
-back to `http://localhost:8080` and the live site silently calls localhost. Project root dir on Vercel is
-the repo root of `frontend-deployment`.
-
-**This file (`CLAUDE.md`) and `BACKLOG.md` are untracked** working-tree context — they are not in either
-tracked subtree and are not pushed by the frontend flow. Edit them in place; they load into every agent
-session from the working tree.
+back to `http://localhost:8080` and the live site silently calls localhost.
 
 ---
 
