@@ -688,3 +688,64 @@ def test_notes_is_absent_from_every_response_and_ignored_on_every_request(client
     listed = client.get("/api/v0/classroom/students", headers=headers_a).json()["students"]
     assert all("notes" not in s for s in listed)
     assert all("signed_tests_count" in s for s in listed)
+
+
+# ---------------------------------------------------------------------------
+# Part A item 4 — ONE page 1 for a test, whichever surface draws it
+# ---------------------------------------------------------------------------
+
+@pytest.mark.integration
+def test_a_batched_tests_page_1_is_the_same_resource_on_the_profile_the_pile_and_the_returned_page(
+        client, headers_a, user_a, rubric_a):
+    """The profile resolves page 1 from the transcription's own `draft_json`;
+    the returned page resolves it through the batch payload; the pile reads the
+    batch feed. For a BATCHED test all three must name the same page.
+
+    Three facts, each necessary:
+      1. profile == pile, as strings — both are minted server-side by
+         `thumbnail.page_image_path`, so one function feeds both.
+      2. the returned page asks for `/api/v0/transcriptions/{tid}/pages/1/image`
+         (`frontend/src/lib/api.ts::transcriptionPagePath`, pinned there too),
+         which is that same path WITHOUT the `?v=` pin, for the same
+         transcription the approved payload names.
+      3. the unpinned route serves the CURRENT variant — exactly the one the
+         pin names — so the bytes are the same; only the cache promise differs
+         (a year `immutable` when pinned, 60 s when not).
+    """
+    from app.services import thumbnail
+
+    uid, rid = user_a["user"]["id"], rubric_a["rubric_id"]
+    sid = _student(client, headers_a, f"עמוד 1 {uuid.uuid4().hex[:6]}")
+
+    async def seed():
+        b = await _batch(uid, rid, name="עמוד ראשון")
+        t = await _transcription(uid, rid, batch_id=b, page_count=4)
+        g = await _graded(uid, rid, t, sid, status="approved", batch_id=b)
+        return b, t, g
+    batch_id, transcription_id, graded_id = asyncio.run(seed())
+
+    profile_path = next(
+        r["thumbnail"]["page1_image_url"] for r in _get(client, headers_a, sid)["signed_tests"]
+        if r["graded_test_id"] == graded_id)
+
+    feed = client.get(f"/api/v0/batches/{batch_id}", headers=headers_a)
+    assert feed.status_code == 200, feed.text
+    pile_path = next(g["page1_image_url"] for g in feed.json()["graded_tests"]
+                     if g["graded_test_id"] == graded_id)
+
+    approved = client.get(f"/api/v0/grading/graded_test/{graded_id}", headers=headers_a)
+    assert approved.status_code == 200, approved.text
+    returned_page_path = f"/api/v0/transcriptions/{approved.json()['transcription_id']}/pages/1/image"
+
+    # 1
+    assert profile_path == pile_path
+    # 2
+    base, _, query = profile_path.partition("?")
+    assert base == returned_page_path
+    assert approved.json()["transcription_id"] == transcription_id
+    # 3
+    token = query.removeprefix("v=")
+    pinned_variant, pinned = thumbnail.resolve_variant(token)
+    unpinned_variant, unpinned_is_pinned = thumbnail.resolve_variant(None)
+    assert pinned is True and unpinned_is_pinned is False
+    assert pinned_variant == unpinned_variant

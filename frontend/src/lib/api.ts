@@ -2273,8 +2273,19 @@ export async function fetchTranscriptionPageObjectUrl(
   transcriptionId: string,
   pageNumber: number,
 ): Promise<string> {
-  return fetchPageImageObjectUrl(
-    `/api/v0/transcriptions/${transcriptionId}/pages/${pageNumber}/image`);
+  return fetchPageImageObjectUrl(transcriptionPagePath(transcriptionId, pageNumber));
+}
+
+/**
+ * The page route the returned exam requests. It is the server-minted
+ * `thumbnail.page_image_path` WITHOUT its `?v=` pin, and the route serves the
+ * current variant to an unpinned request — so this and the pile / profile
+ * thumbnail are one resource with one set of bytes; only the cache promise
+ * differs. Pinned on both sides (student-profile PR, Part A item 4):
+ * `student-profile.test.ts` here and `test_student_profile.py::test_a_batched_…`.
+ */
+export function transcriptionPagePath(transcriptionId: string, pageNumber: number): string {
+  return `/api/v0/transcriptions/${transcriptionId}/pages/${pageNumber}/image`;
 }
 
 /**

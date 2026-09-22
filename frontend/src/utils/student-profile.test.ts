@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { CL_SIGNED_COUNT } from '@/copy/classroom'
+import { transcriptionPagePath } from '@/lib/api'
 import { examEventTitle } from './exam-event'
 import { resolveReturnContext, returnedExamHref } from './return-context'
 
@@ -75,5 +76,14 @@ describe('examEventTitle (M-A4 / FA-5) — the ONE composer', () => {
     it('a single-flow test has only its rubric to be named by', () => {
         expect(examEventTitle({ batch_id: null, name: null, rubric_name: 'Hobby' })).toBe('Hobby')
         expect(examEventTitle({ batch_id: null, name: null, rubric_name: null })).toBe('')
+    })
+})
+
+describe('transcriptionPagePath (Part A item 4) — one page 1 per test', () => {
+    it('is the server-minted page path without its ?v= pin', () => {
+        // The backend twin asserts the profile/pile path, minus its query,
+        // equals exactly this string for the same transcription.
+        expect(transcriptionPagePath('t-1', 1)).toBe('/api/v0/transcriptions/t-1/pages/1/image')
+        expect(transcriptionPagePath('t-1', 3)).toBe('/api/v0/transcriptions/t-1/pages/3/image')
     })
 })
