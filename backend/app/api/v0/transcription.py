@@ -152,7 +152,7 @@ async def transcribe(
     except Exception as exc:
         logger.error(f"transcribe_one failed: {exc}", exc_info=True)
         from ...services.net_diag import diagnose_transport_failure
-        await diagnose_transport_failure(f"single-flow transcription of {file.filename}", exc)
+        await diagnose_transport_failure(f"single-flow transcription for rubric {rubric_id}", exc)
         raise HTTPException(status_code=502, detail="שגיאה בתמלול — נסה שנית")
 
     # Reload the row (committed by transcribe_one) to build the response

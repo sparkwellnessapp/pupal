@@ -300,10 +300,10 @@ def render_appendix_pdf(student_name: str,
         pages += 1
     writer.close()
     if more:
-        # Truncated. Say so in the log with the student's own page count — a
-        # silently short appendix looks complete to everyone who receives it.
-        logger.warning("appendix_truncated_at_page_cap",
-                       extra={"student_name": student_name, "pages": pages})
+        # Truncated. Say so in the log with the page count — a silently short
+        # appendix looks complete to everyone who receives it. [OD-B4] Never
+        # the student's name; the caller's graded-test id is what joins it.
+        logger.warning("appendix_truncated_at_page_cap pages=%d", pages)
     return buffer.getvalue()
 
 

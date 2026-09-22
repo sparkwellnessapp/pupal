@@ -166,7 +166,7 @@ async def extract_rubric_docx(
         if len(file_bytes) == 0:
             raise HTTPException(status_code=400, detail="Empty file uploaded")
         
-        logger.info(f"[v3] Extracting: {file.filename}, {len(file_bytes)} bytes, subject={subject}")
+        logger.info(f"[v3] Extracting: {len(file_bytes)} bytes, subject={subject}")
         
         # Import v3 pipeline
         from ...services.docx_v3.pipeline import (
@@ -289,7 +289,7 @@ async def extract_rubric_v2(
             ExtractionConfig,
         )
         
-        logger.info(f"[v2/v3] Extracting: {file.filename}, auto_save={auto_save}")
+        logger.info(f"[v2/v3] Extracting: auto_save={auto_save}")
         
         config = ExtractionConfig(subject="computer_science", locale="he-IL")
         rubric_name = name or (file.filename or "rubric").replace('.docx', '').replace('.DOCX', '')
@@ -407,7 +407,7 @@ async def preview_student_test_pdf(
         if len(pdf_bytes) == 0:
             raise HTTPException(status_code=400, detail="Empty file uploaded")
         
-        logger.info(f"Processing student test preview: {file.filename}, size: {len(pdf_bytes)} bytes")
+        logger.info(f"Processing student test preview: size: {len(pdf_bytes)} bytes")
         
         # Generate page previews
         preview_data = generate_pdf_previews(pdf_bytes)

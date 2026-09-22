@@ -108,7 +108,7 @@ async def transcribe_one(
             user_id=user_id, batch_id=batch_id, doc_priority=doc_priority,
             spec_source=spec_source, t_start=t_start,
             upload_task=upload_task, object_path=object_path,
-            subject=subject,
+            subject=subject, log_id=obj_id,
         )
     except BaseException:
         # Don't leave the upload dangling past this call's lifetime.
@@ -120,7 +120,7 @@ async def _join_upload_with_retry(
     upload_task: "asyncio.Task[None]",
     pdf_bytes: bytes,
     object_path: str,
-    filename: str | None,
+    log_id: str,
 ) -> None:
     """Await the overlapped source-PDF upload; on failure, re-attempt the
     upload itself up to _UPLOAD_EXTRA_ATTEMPTS times.
@@ -142,7 +142,7 @@ async def _join_upload_with_retry(
     for attempt in range(1, _UPLOAD_EXTRA_ATTEMPTS + 1):
         logger.warning(
             "GCS upload of %s failed (%s) — re-attempting upload only (%d/%d)",
-            filename, last_exc, attempt, _UPLOAD_EXTRA_ATTEMPTS,
+            log_id, last_exc, attempt, _UPLOAD_EXTRA_ATTEMPTS,
         )
         await asyncio.sleep(_UPLOAD_RETRY_BACKOFF_S * attempt)
         try:
@@ -150,13 +150,13 @@ async def _join_upload_with_retry(
                 gcs.upload_bytes, pdf_bytes, object_path, "application/pdf"
             )
             logger.info("GCS upload of %s recovered on re-attempt %d",
-                        filename, attempt)
+                        log_id, attempt)
             return
         except Exception as exc:
             last_exc = exc
 
     from .net_diag import diagnose_transport_failure
-    await diagnose_transport_failure(f"GCS upload of {filename}", last_exc)
+    await diagnose_transport_failure(f"GCS upload of {log_id}", last_exc)
     raise last_exc
 
 
@@ -170,6 +170,7 @@ async def run_pipeline_and_build_draft(
     subject: str = "computer_science",
     deadline_seconds: float | None = None,
     budget_started_at: float | None = None,
+    log_id: str | None = None,
 ):
     """The engine-dispatch core, shared by BOTH entry shapes:
       * transcribe_one (single flow) — bytes from the request, upload overlapped;
@@ -201,8 +202,12 @@ async def run_pipeline_and_build_draft(
         )
         if not spec_source:
             raise ValueError("Rubric has no draft/contract json to build the exam spec from")
+        # [OD-B4] The pipeline prefixes every line with its doc id, so it gets
+        # the caller's opaque id — never the filename, which is the student's
+        # name as often as not. The filename goes only to the identity pass.
         trust_run, name_suggestion = await transcribe_two_phase(
-            pdf_bytes, filename or "upload.pdf", spec_source,
+            pdf_bytes, log_id or "upload", spec_source,
+            filename=filename,
             doc_priority=doc_priority, subject=subject,
             deadline_seconds=deadline_seconds,
             budget_started_at=budget_started_at,
@@ -262,17 +267,19 @@ async def _pipeline_and_persist(
     upload_task: "asyncio.Task[None]",
     object_path: str,
     subject: str = "computer_science",
+    log_id: str = "upload",
 ) -> str:
     draft = await run_pipeline_and_build_draft(
         pdf_bytes=pdf_bytes, filename=filename, spec_source=spec_source,
         doc_priority=doc_priority, t_start=t_start, subject=subject,
+        log_id=log_id,
     )
     duration_ms = draft.transcription_duration_ms
 
     # Join the GCS upload that has been running since before the pipeline
     # started — on the happy path it finished long ago. Still no DB held.
     # A failed upload is re-attempted ON ITS OWN — never the pipeline.
-    await _join_upload_with_retry(upload_task, pdf_bytes, object_path, filename)
+    await _join_upload_with_retry(upload_task, pdf_bytes, object_path, log_id)
     gcs_uri = f"gs://{settings.gcs_bucket_name}/{object_path}"
 
     # Session 2: fresh checkout just for the INSERT + commit.
