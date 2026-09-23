@@ -228,8 +228,10 @@ async def test_am_b4_a_cross_tenant_reference_is_refused_by_the_database(graph):
 # ---------------------------------------------------------------------------
 
 async def test_every_table_with_an_fk_path_to_the_student_graph_is_covered_by_the_plan():
-    """A future table referencing any of them fails here until the plan covers it."""
-    from app.services.erasure import COVERED_TABLES
+    """A future table referencing any of them fails here until the plan covers
+    it — by purging it, or (graded_test_pdfs, ruled 2026-09-23) by treating it
+    as DEAD: refused on, asserted empty."""
+    from app.services.erasure import DEAD_TABLES, PURGED_TABLES
 
     edges = {(r["table_name"], r["ref_table"]) for r in await _fk_columns()}
     reach = {"students", "graded_tests", "transcriptions"}
@@ -238,5 +240,5 @@ async def test_every_table_with_an_fk_path_to_the_student_graph_is_covered_by_th
         if not more:
             break
         reach |= more
-    uncovered = sorted(reach - set(COVERED_TABLES))
+    uncovered = sorted(reach - set(PURGED_TABLES) - set(DEAD_TABLES))
     assert uncovered == [], f"tables that reach a student but the plan never deletes from: {uncovered}"

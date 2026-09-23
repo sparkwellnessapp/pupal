@@ -81,7 +81,6 @@ class Graph:
     def expected_rows(self) -> dict[str, set[uuid.UUID]]:
         return {
             "class_memberships": {self.class_id},
-            "graded_test_pdfs": set(self.pdf_ids),
             "graded_tests": {self.g[k] for k in self.g if k.split("_")[0] in self.student_keys},
             "transcription_jobs": {self.j[k] for k in self.j if k.split("_")[0] in self.student_keys},
             "transcriptions": {self.t[k] for k in self.student_keys},

@@ -54,11 +54,11 @@ def test_her_name_is_deleted_with_her_row():
 
 
 def test_every_deleted_with_row_column_lives_in_a_table_the_plan_deletes_from():
-    from app.services.erasure import COVERED_TABLES, PII_REGISTRY, Disposition
+    from app.services.erasure import PII_REGISTRY, PURGED_TABLES, Disposition
 
     stray = sorted(k for k, d in PII_REGISTRY.items()
                    if d in (Disposition.DELETED_WITH_ROW, Disposition.OBJECT_POINTER)
-                   and k[0] not in COVERED_TABLES)
+                   and k[0] not in PURGED_TABLES)
     assert stray == []
 
 
@@ -71,10 +71,12 @@ def test_the_only_in_place_scrub_is_the_batch_failure_ledger():
         [("grading_batches", "transcription_failures")]
 
 
-def test_the_legacy_tables_are_asserted_empty_never_purged():
-    """OD-B1, ruled: the purge does not reference them; verify_purged asserts
-    they stay empty."""
-    from app.services.erasure import PII_REGISTRY, Disposition
+def test_the_dead_tables_are_asserted_empty_never_purged():
+    """OD-B1, ruled: the purge does not delete from them; verify_purged asserts
+    they stay empty. graded_test_pdfs joined them on 2026-09-23 — empty, and
+    nothing writes to it."""
+    from app.services.erasure import DEAD_TABLES, PII_REGISTRY, PURGED_TABLES, Disposition
 
-    legacy = {t for (t, _), d in PII_REGISTRY.items() if d is Disposition.LEGACY_ASSERTED_EMPTY}
-    assert legacy == {"grading_sessions", "raw_graded_tests"}
+    dead = {t for (t, _), d in PII_REGISTRY.items() if d is Disposition.LEGACY_ASSERTED_EMPTY}
+    assert dead == set(DEAD_TABLES) == {"grading_sessions", "raw_graded_tests", "graded_test_pdfs"}
+    assert not set(DEAD_TABLES) & set(PURGED_TABLES)

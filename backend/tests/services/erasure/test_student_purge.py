@@ -19,6 +19,8 @@ Named invariants under test:
   PRV-10 Consistency         the two selections of her graded tests must agree (AM-B5)
   PRV-11 PrefixSafety        (plan level) an object outside the allow-list refuses
   PRV-12 SharedObjects       an object another row still needs refuses
+  OD-B1  the dead tables — the legacy pair and graded_test_pdfs — are asserted
+         empty by verify; a graded_test_pdfs row under her grade refuses the plan
   OD-B3  the soft-delete window is reported, not hidden
   OD-B6  unassigned scans are counted in verify + audit, never deleted
   census E  a pre-jobs-era batch is excluded from the recount, and reported
@@ -143,8 +145,10 @@ REFUSALS = [
      lambda g: point_scan_at(g, "beta", bucket="some-other-bucket"), "unknown_bucket"),
     ("a scan path outside the allow-list (PRV-11)",
      lambda g: point_scan_at(g, "beta", path="tests/x.pdf"), "unsafe_target"),
-    ("a graded-test PDF outside the allow-list (PRV-11; no family exists for it)",
-     lambda g: add_pdf(g, "beta", f"graded_pdfs/{g.g['beta']}.pdf"), "unsafe_target"),
+    # graded_test_pdfs is DEAD (ruled 2026-09-23): the path below is inside an
+    # allowed family on purpose — the refusal is about the table, not PRV-11.
+    ("a graded_test_pdfs row under her grade (a dead table)",
+     lambda g: add_pdf(g, "beta", f"returned_exams/{g.g['beta']}/k-legacy.pdf"), "dead_table_rows"),
 ]
 
 
@@ -335,10 +339,23 @@ async def test_every_purge_ends_with_a_clean_verify_that_reports_the_soft_delete
     assert report.clean is True
     assert all(n == 0 for n in report.rows_remaining.values())
     assert report.objects_remaining == frozenset()
-    assert report.legacy_tables_empty is True                      # OD-B1
+    assert report.legacy_tables_empty is True                      # OD-B1, graded_test_pdfs
     assert report.soft_deleted_count == len(plan.objects)          # OD-B3
     week = datetime.now(timezone.utc) + timedelta(days=7)
     assert abs((report.restorable_until - week).total_seconds()) < 120
+
+
+async def test_verify_asserts_the_dead_tables_stay_empty(graph, store):
+    """A graded_test_pdfs row that is NOT hers blocks nothing — the plan never
+    touches the table — but verify asserts the WHOLE table stays empty, like
+    the legacy tables (OD-B1, ruled 2026-09-23), so the report is not clean."""
+    await add_pdf(graph, "delta", f"returned_exams/{graph.g['delta']}/k-legacy.pdf")
+    store.live |= graph.objects
+    result = await _purge(graph, store)
+
+    assert result.verify.legacy_tables_empty is False
+    assert result.verify.clean is False
+    assert (await row_counts(graph))["graded_test_pdfs"] == 1       # never purged
 
 
 async def test_verify_and_the_audit_line_carry_the_unassigned_count_and_never_a_name(

@@ -2,7 +2,7 @@
 
 **Phase B0 deliverable** of `PR_student_profile.md` §11. **Gate: migration 032, and anything that deletes, waits for Noam's sign-off on this version.** Commit (1), the red tests, proceeds in parallel (ruling 2026-09-22).
 
-**Author:** Claude · **v1:** 2026-09-22 · **v2 read dates:** 2026-09-22/23 · **Status:** v2, awaiting sign-off
+**Author:** Claude · **v1:** 2026-09-22 · **v2 read dates:** 2026-09-22/23 · **Status:** v2, **signed off 2026-09-23**. The rulings are recorded in place where they change a row, and collected in §21.
 
 **What was read.** Production Postgres (Supabase `ngkqawsyqqbhqthgdkpk`, eu-central-1, ledger head **030**) with SELECT-only queries; every GCP project this account can see (33, via `gcloud projects list`) and every bucket in each; the code at **`origin/main` 2232f3d** (rows 5, 6, 9, 10, 13 re-read there, as ruled); the providers' current published terms, fetched 2026-09-22; the LangSmith workspace through its API. Where a fact could not be read, the row says **UNVERIFIED**, names who can read it, and names what is missing.
 
@@ -27,7 +27,7 @@ SELECT COUNT(*) FROM grading_batches;     -- 15
 | Rows 5, 6, 9, 10, 13 | Re-read on `main`. Line numbers corrected; the `delete_student` guard on main checks graded tests only (Part A widens it). `next.config` does declare `images.remotePatterns` (v1 said none), but for `http://localhost` only. |
 | Row 7 | Retention per provider with links; `GOOGLE_CLOUD_LOCATION`; the pre-GA question answered; live Vertex cache setting read. |
 | Row 8 | **Corrected.** v1 said P2's prompts reach LangSmith. They do not: only the grader and feedback calls are traced. Retention tier, region, copies and the deletion proof recorded. |
-| Row 11, 14 | Still **UNVERIFIED** — the Management API token in `backend/.env` answers **401** and the CLI is not logged in. **I need an access token from Noam.** |
+| Row 11, 14 | **Closed at sign-off** (Noam, 2026-09-23): PITR is off, and there are no Edge Functions. No token needed. |
 | New | A (every project and bucket, the dump located), B (shared objects), C (historical orphans), D (consistency), E (`test_count` eras), F (DELETE paths beyond `app/`), rulings OD-B1..B8, amendments AM-B1/B4/B5/B6, PRV-8/10/11/12. |
 | New decisions | **OD-B9** (three more database archives, one of them after launch) and **OD-B10** (students' work in the two public repositories). |
 
@@ -119,7 +119,7 @@ Patterns: `%name%`, `%student_name%`, `%filename%`, `%gcs%`, `%object_path%`, `%
 | `transcriptions.student_name` | her name | deleted with the row |
 | `transcriptions.filename` | a filename, often her name | deleted with the row |
 | `transcription_jobs.source_filename` | a filename, often her name | deleted with the row, never NULLed |
-| `graded_test_pdfs.filename` | a filename | deleted with the row (0 rows) |
+| `graded_test_pdfs.filename` | a filename | **dead table** (ruled 2026-09-23): asserted empty, never purged — see §3 |
 | `grading_sessions.student_name`, `.filename` | legacy | OD-B1: not referenced; `verify_purged` asserts the table is empty |
 | `raw_graded_tests.student_name`, `.filename` | legacy | OD-B1: same |
 | `raw_rubrics.name`, `.source_filename` | teacher's document, legacy | out of scope; empty |
@@ -140,7 +140,7 @@ Patterns: `%name%`, `%student_name%`, `%filename%`, `%gcs%`, `%object_path%`, `%
 | `transcriptions.draft_json` / `contract_json` / `review_json` | her handwriting, transcribed | deleted with the row |
 | `transcriptions.gcs_uri` / `gcs_bucket` / `gcs_object_path` | → the scan | row deleted; object deleted from **the row's own** `gcs_bucket` |
 | `transcription_jobs.source_gcs_object_path` | → the same scan | row deleted; object deleted once (PRV-12) |
-| `graded_test_pdfs.gcs_*` | → a signed exam PDF | row + object (0 rows) |
+| `graded_test_pdfs.gcs_*` | → a signed exam PDF | **dead table**, as above |
 | `grading_batches.transcription_failures` (jsonb) | `{filename, …}` of failed uploads | scrubbed in place; **0 batches carry entries** (E) |
 | `grading_batches.stamp_position_default` (jsonb) | no student data | untouched |
 | `grading_plans.plan_json` / `skeleton_json` | rubric algebra | untouched |
@@ -150,6 +150,8 @@ Patterns: `%name%`, `%student_name%`, `%filename%`, `%gcs%`, `%object_path%`, `%
 ## 3. Postgres — the legacy tables (OD-B1, ruled)
 
 `grading_sessions` 0 rows, `raw_graded_tests` 0, `raw_rubrics` 0; nothing in `app/` constructs them. **Ruling:** the purge does not reference them; `verify_purged` asserts they stay empty; they are dropped in a later cleanup PR.
+
+**`graded_test_pdfs` joins them (ruled 2026-09-23).** It is empty and nothing writes to it, so it is dead. The purge never deletes from it. A row under one of her graded tests makes the plan **refuse** (`dead_table_rows`): a live writer would be news, and refusing is the right signal. `verify_purged` asserts the whole table stays empty, like the legacy tables, and it is dropped with them (OD-B1). PRV-11 therefore keeps exactly three patterns.
 
 ---
 
@@ -198,13 +200,9 @@ SELECT gcs_bucket, COUNT(*) FROM graded_test_pdfs GROUP BY 1;  -- no rows
 
 All four are under the bucket's 7-day soft-delete policy. No lifecycle rule ages them out.
 
-- **The ruled one (`vivi_premigration_20260822.dump`).** Confirmed a pre-2026-08-23 copy. **Not deleted yet**, because "anything that deletes waits for v2 sign-off". On sign-off:
-  ```
-  gcloud storage rm gs://grader-vision-pdfs-0438328890/db-archive/vivi_premigration_20260822.dump \
-      --project gen-lang-client-0438328890
-  ```
-  It stays restorable for 7 days after that (OD-B3), and I will record the restorable-until date.
-- **The other three** are the subject of **OD-B9** (row 18). The September 11 pair is the notable one. It postdates launch preparation, holds **more student rows than production does today** (18 students now, 21 then), and so keeps data that production has since deleted. Any future purge will miss it.
+- **All four are kept (OD-B9, ruled 2026-09-23).** This reverses the 2026-09-22 ruling on the pre-migration dump: **the `gcloud storage rm` is not run.** PITR is off (row 11), so these archives are the point-in-time restore points. Revisit together with the privacy page.
+- Recorded, not a blocker: the September 11 pair holds **more student rows than production does today** (21 students then, 18 now), so it keeps data production has since deleted, and no purge reaches it.
+- **A fifth joins them before 032:** a `pg_dump` of production to `db-archive/`, as before the database move and before the wipe (§20).
 
 ---
 
@@ -284,27 +282,29 @@ Training exclusion: Noam confirms all three process under terms that exclude tra
 
 The [Generative AI Preview Products terms](https://cloud.google.com/terms/genai-preview-products) (last modified 2026-08-31) list **Gemini 3.1 Pro** among the models exempt from the "evaluation and testing only" restriction. **So for this model, pre-GA status does not change data handling: the Cloud Data Processing Addendum applies, by Google's own documentation.** The exemption rests on a documentation statement Google can change. If Vivi moves to another preview model, this check must be repeated, because the default for pre-GA is **no data processing terms at all**.
 
+**Ruled 2026-09-23:** the Vertex cache setting and the pre-GA check are recorded; no change.
+
 ---
 
 ## 8. LangSmith (H, OD-B2)
 
 - **What is traced.** Only LangChain calls: the grader and the feedback agent (row 7). The two-phase transcription engine (P1, identity, strike check, P2) calls its SDKs directly. **Page images never reach LangSmith. P1 has no trace at all.**
-- **The rollback caveat.** The legacy engine (`TRANSCRIPTION_ENGINE=legacy`, the documented rollback) decorates its vision calls with `@traceable` (`app/services/handwriting_transcription_service.py:152, 351, 449, 1049, …`), and their arguments are the **base64 page images** (`images_b64`, `page_b64`). **A rollback to the legacy engine would send scans to LangSmith.** It needs tracing off, or the same tagging, before it is ever used again.
+- **The rollback caveat.** The legacy engine (`TRANSCRIPTION_ENGINE=legacy`, the documented rollback) decorates its vision calls with `@traceable` (`app/services/handwriting_transcription_service.py:152, 351, 449, 1049, …`), and their arguments are the **base64 page images** (`images_b64`, `page_b64`). **A rollback to the legacy engine would send scans to LangSmith.** It needs tracing off, or the same tagging, before it is ever used again. **Recorded; no change** (ruled 2026-09-23).
 - **Project, tier, region.** Production `LANGCHAIN_PROJECT=lang-projects`, retention tier **`shortlived`** (base, **14 days**, the shortest available); the workspace default is also `shortlived`. Endpoint `api.smith.langchain.com`, so the data is in the **US** region. ([Data retention](https://docs.langchain.com/langsmith/data-purging-compliance): base 14 days; extended tier capped at 180 days from 2026-09-14.)
 - **Copies.** The workspace has **no datasets, no annotation queues and no automation rules**, so no production trace has been copied anywhere that would outlive it. Keeping it that way (OD-B2) is a workspace policy; code cannot enforce it.
-- **Local development writes to the same project.** `backend/.env` also carries `LANGCHAIN_PROJECT=lang-projects`. Recommendation: rename the local project (for example `vivi-dev`) so production traces are the only thing in `lang-projects`.
+- **Local development wrote to the same project.** `backend/.env` carried `LANGCHAIN_PROJECT=lang-projects`. **Renamed to `vivi-dev`** (ruled 2026-09-23), so `lang-projects` holds production traces only.
 - **Tagging (OD-B2, shipped as its own PR, `feat/langsmith-student-run-metadata`).** Every grading and feedback run carries `graded_test_id` and `transcription_id` metadata and the `student-data` tag.
 - **The deletion proof, and what it found.**
   1. Two tagged runs in a dedicated dev project `vivi-erasure-proof`, created with the real helper: a TARGET and a CONTROL.
   2. `POST /api/v1/runs/delete` **by metadata** answered **403 "bulk run deletes are not enabled"** on this workspace.
   3. The same endpoint **by trace id** (`session_id` + `trace_ids`) answered **202 "Run deletes queued"** (2026-09-22).
-  4. **Not yet gone.** At 22:08 UTC on 2026-09-22 the target was still readable and the control still present. LangSmith's documentation states that the delete job **runs on the weekend**, with no confirmation. **I will re-check after the weekend (Monday 2026-09-28)**, then delete the dev project.
+  4. **Not yet gone.** At 22:08 UTC on 2026-09-22 the target was still readable and the control still present. LangSmith's documentation states that the delete job **runs on the weekend**, with no confirmation. **Re-check on Monday 2026-09-28** (ruled), then delete `vivi-erasure-proof`. A two-hour poll on 2026-09-22 found the target still present and the control intact, as the weekly job predicts.
 - **The runbook this makes true.** For an explicit erasure request:
   1. **Find** by metadata: `list_runs(project_name="lang-projects", filter='and(eq(metadata_key, "graded_test_id"), eq(metadata_value, "<id>"))')`, and the same for `transcription_id`.
   2. **Delete** by trace id: `POST /api/v1/runs/delete {session_id, trace_ids}`, up to 1000 per request.
   3. **Verify** by re-querying after the weekend job.
 
-  Deleting by metadata, as ruled, needs LangSmith to enable bulk deletes on the workspace. **That is a support request for Noam.** Until then the find-then-delete-by-id form is the working path. Either way, the 14-day tier expires every trace before most erasure requests could be processed.
+  **Ruled 2026-09-23: no support request.** Deleting by metadata stays disabled on this workspace (403); the runbook is find by metadata, then delete by trace id, as above. The 14-day tier expires every trace before most erasure requests could be processed anyway.
 
 ---
 
@@ -323,14 +323,13 @@ The [Generative AI Preview Products terms](https://cloud.google.com/terms/genai-
 
 ---
 
-## 11. Database backups (H) — UNVERIFIED, token needed
+## 11. Database backups (H) — closed
 
-**I lack an access token.** The `SUPABASE_ACCESS_TOKEN` in `backend/.env` answers **401** on `GET https://api.supabase.com/v1/projects/ngkqawsyqqbhqthgdkpk/database/backups`, and Supabase CLI 2.110.0 is not logged in. **Noam: please provide a Management API token** (Account → Access Tokens). With it I will read:
+**PITR is off** (Noam, 2026-09-23). Daily-backup retention no longer gates anything; Noam reads it from the dashboard when he decides on PITR. No access token is needed.
 
-- `GET /v1/projects/ngkqawsyqqbhqthgdkpk/database/backups`: whether PITR is on, its window, and the daily-backup list and retention;
-- the plan's encryption-at-rest statement. Supabase encrypts storage at rest, but the ruling makes "encrypted" conditional on this row, so it stays out of the sentence until it is read.
+Two consequences are recorded where they act: the `db-archive/` dumps are the point-in-time restore points and are kept (OD-B9, §4a), and a production dump precedes 032 (§20).
 
-Whatever the answer, a purged student's rows persist in every backup taken before the purge until it ages out. That is `{N}` in OD-B5.
+Whatever the retention, a purged student's rows persist in every backup taken before the purge until it ages out. That is `{N}` in OD-B5, which stays a draft.
 
 ---
 
@@ -364,7 +363,7 @@ Each teardown's rows were read at its fixture, not guessed from its name.
 
 **Two helpers break (12 call sites):**
 
-| Where | Deletes | Breaks under 032 because | Fix in the 032 commit |
+| Where | Deletes | Breaks under 032 because | Fix — ruled 2026-09-23: a small PR to **main**, before 032 |
 |---|---|---|---|
 | `tests/api/test_batch_grading.py:527` `_delete_batch_cascade` (called at `:602`, `:723`) | a batch created through the real append flow | named for the cascade it relies on: the batch's jobs (#11) and transcriptions (#15) now refuse | delete the batch's subtrees explicitly, children first |
 | `tests/api/test_revision_flows.py:319` `_delete_row_cascade` (10 call sites, `:362`–`:603`) | **one** row of a revision chain (R2, or R1 at `:578`) | its chain neighbour still references it: R1's `regraded_to_id` (#5, checked at commit) or R2's `regraded_from_id` (#4) | delete the **whole chain in one statement** |
@@ -392,15 +391,15 @@ Each teardown's rows were read at its fixture, not guessed from its name.
 | `backend/migrations/007`, `008` | `DROP TABLE … CASCADE` | historical, already applied |
 | eval suites, conftests, CI | — | no deletes found |
 
-**Never exempted (ruling F).** The two fixes make the deletion explicit in dependency order. Neither loosens a constraint. The survivors depend on having no dependents, so a fixture that later adds one fails loudly, which is the point. The proof is not this reading. The 032 commit runs the full suite against a database that has 032 applied.
+**Never exempted (ruling F).** The two fixes make the deletion explicit in dependency order, which passes under today's cascades and under 032 alike. Neither loosens a constraint. The survivors depend on having no dependents, so a fixture that later adds one fails loudly, which is the point.
 
-**Operational note.** Vivi-Test is **shared** by every branch. Applying 031 there broke main-based branches (`UndefinedColumn notes`), and I restored it. 032 on Vivi-Test will break every **main-based** branch's cascade-reliant teardowns in the same way. Apply it there only on the commit that fixes them, and tell whoever else is running the suite.
+**Why the fix goes to main (ruled 2026-09-23).** Vivi-Test is **shared** by every branch; applying 031 there broke the main-based ones (`UndefinedColumn notes`). So the helper fixes land on main in their own PR, and 032 is applied to Vivi-Test only after that PR merges and every active branch has rebased.
 
 ---
 
 ## 14. Supabase triggers, functions, policies, jobs (H)
 
-Unchanged from v1: one trigger, unrelated (`update_rubrics_updated_at`); one function; no RLS; no policies; no `pg_cron`. Database webhooks would appear as triggers, and none exist. **Edge Functions: UNVERIFIED**, blocked on the same missing token (`supabase functions list --project-ref ngkqawsyqqbhqthgdkpk`).
+Unchanged from v1: one trigger, unrelated (`update_rubrics_updated_at`); one function; no RLS; no policies; no `pg_cron`. Database webhooks would appear as triggers, and none exist. **Edge Functions: none** (Noam, 2026-09-23). Closed.
 
 ---
 
@@ -421,7 +420,7 @@ UPDATE grading_batches b
    AND EXISTS (SELECT 1 FROM transcription_jobs j WHERE j.batch_id = b.id);
 ```
 
-**Recommendation: exclude pre-jobs-era batches explicitly.** A batch with zero jobs is not recomputed, and the plan reports it by id as `legacy_count_batches`. The jobs-count expression would zero such a batch, and its true count is unrecoverable. There are 0 today, so the rule costs nothing and cannot surprise. Counts are recomputed from rows, never decremented. Batch rows are locked `FOR UPDATE` in id order before the recompute (AM-B6), and a batch is never auto-deleted.
+**Ruled 2026-09-23 (as recommended): exclude pre-jobs-era batches explicitly.** A batch with zero jobs is not recomputed, and the plan reports it by id as `legacy_count_batches`. The jobs-count expression would zero such a batch, and its true count is unrecoverable. There are 0 today, so the rule costs nothing and cannot surprise. Counts are recomputed from rows, never decremented. Batch rows are locked `FOR UPDATE` in id order before the recompute (AM-B6), and a batch is never auto-deleted.
 
 ---
 
@@ -442,15 +441,17 @@ A cache key, not an FK. It names `returned_exams/{graded_test_id}/{key}.pdf`, an
 | ID | Decision | Status |
 |---|---|---|
 | **OD-B1** | Legacy tables: not referenced; `verify_purged` asserts empty; drop later | **Ruled** |
-| **OD-B2** | LangSmith: keep tracing, tag every student-data run, shortest tier, no copies, manual runbook | **Ruled.** Tagging PR pushed; tier already shortest; no copies. Metadata-delete needs LangSmith support (row 8); proof pending the weekend job. |
+| **OD-B2** | LangSmith: keep tracing, tag every student-data run, shortest tier, no copies, manual runbook | **Ruled.** Tagging PR merged with the sign-off; tier already shortest; no copies; no support request — find by metadata, delete by trace id (row 8); the proof is re-checked 2026-09-28. |
 | **OD-B3** | GCS soft delete: keep 7 days; verify reports count and restorable-until | **Ruled** |
-| **OD-B4** | Logs: ids, not filenames | **Ruled.** PR pushed; the 30-day clock starts at its deploy. |
-| **OD-B5** | Privacy sentence | **Ruled**; placeholders below |
+| **OD-B4** | Logs: ids, not filenames | **Ruled.** PR merged with the sign-off; the 30-day clock starts at its deploy. |
+| **OD-B5** | Privacy sentence | **A draft.** The privacy page is not being written now; the sentence stays below with its placeholders, and no further work is done on it (2026-09-23). |
 | **OD-B6** | Unassigned scans: counted in verify and audit, not shown | **Ruled** |
 | **OD-B7** | Historical orphans | **Ruled.** Sweep list is empty (5b). |
-| **OD-B8** | Never-assigned retention: 90 days after last activity | **Ruled** (follow-up PR) |
-| **OD-B9** | **The three other archives** (4a) | **Open.** Recommendation below. |
-| **OD-B10** | **Students' work in the public repositories** | **Open.** Recommendation below. |
+| **OD-B8** | Never-assigned retention: 90 days after last activity | **A named follow-up, not scheduled** (2026-09-23). |
+| **OD-B9** | The database archives (4a) | **Ruled 2026-09-23: keep all four**, the pre-migration dump included (reversing 2026-09-22). PITR is off, so they are the restore points. Revisit with the privacy page. |
+| **OD-B10** | Students' work in the public repositories | **Closed, no action** (2026-09-23). |
+
+*The two recommendations below are kept as submitted; the rulings above supersede them.*
 
 > **OD-B9 — the other three database archives. Recommendation: delete all three on the same terms as the ruled one.**
 > The ruling's reasoning ("production has run on the migrated schema for a month, and Supabase keeps its own backups; a frozen copy of every student row has no remaining use") applies to `vivi_precleanup_20260823.dump` word for word: it was taken 33 seconds after the ruled dump. It applies with more force to the September 11 pair. That pair holds **data production has since deleted** (21 students then, 18 now), and it sits in the same bucket the purge lists, outside every prefix the purge may touch (PRV-11). If there is an operational reason to keep the September 11 export (a pre-launch audit, say), then it needs an owner and an expiry date, and OD-B5 must name it. Otherwise no purge can make the privacy sentence true while it exists.
@@ -470,13 +471,13 @@ A cache key, not an FK. It names `returned_exams/{graded_test_id}/{key}.pdf`, an
 | Placeholder | Value | Source |
 |---|---|---|
 | `{M}` | **14** | LangSmith `shortlived` tier (row 8) |
-| `{N}` | **UNVERIFIED** | row 11; needs the token. "Encrypted" also waits on row 11. |
+| `{N}` | **not read** | row 11: PITR is off; daily-backup retention is not read because nothing gates on it. "Encrypted" stays out until it is read. |
 | `{X}` | **90**, once OD-B8 ships | OD-B8. The sentence is omitted until then. |
 | "7 days" | 7 | GCS soft delete (row 4) |
 | "30 days, file names only" | 30 | row 9; **dropped 30 days after OD-B4 deploys** |
 | "their retention terms" | Anthropic 30 days; OpenAI 30 days; Google 24 h cache + up to 90 days if flagged | row 7. Not spelled out in the sentence, but linked from the privacy page. |
 
-**The sentence is not publishable yet.** It is false while OD-B9 and OD-B10 stand, and `{N}` is unread.
+**The sentence is a draft and is not being published** (2026-09-23).
 
 ---
 
@@ -490,6 +491,8 @@ A cache key, not an FK. It names `returned_exams/{graded_test_id}/{key}.pdf`, an
 - **PRV-10 Consistency.** No row references a student or transcription of another user, and every graded test's `student_id` equals its transcription's. Enforced by AM-B4 and by the plan's equality assertion.
 - **PRV-11 PrefixSafety.** Every storage target matches one of `^thumbs/[0-9a-f-]{36}/$`, `^returned_exams/[0-9a-f-]{36}/$`, `^transcriptions/[0-9a-f-]{36}/[0-9a-f-]{36}\.pdf$`, **and** names a bucket in the known set, before any storage call. Anything else raises. An empty or `None` id, a missing trailing slash, and a foreign bucket each raise with **zero** storage calls. **Checked against production:** all 39 scan paths, all 38 transcription ids and all 22 graded-test ids fit the allow-list, so it refuses nothing that exists today.
 - **PRV-12 SharedObjects.** An object is deleted only if every row referencing it is in the plan; otherwise the purge refuses and reports.
+- **`graded_test_pdfs` is a dead table** (2026-09-23): never purged, refused on (`dead_table_rows`), asserted empty by `verify_purged`, dropped with the legacy tables. PRV-11 keeps three patterns.
+- **Names accepted** (2026-09-23): `app.services.erasure`, `*_tenant_fkey`, `*_id_user_id_key`.
 
 **Two things the implementation must not do** (ruling 2026-09-22):
 1. It must not delete the student row first and let the constraints do the rest. That makes PRV-6 a lie.
@@ -497,10 +500,30 @@ A cache key, not an FK. It names `returned_exams/{graded_test_id}/{key}.pdf`, an
 
 ---
 
-## 20. What must be true before 032 and anything that deletes
+## 20. The path to 032 (ruled 2026-09-23)
 
-1. Noam signs off this v2.
-2. OD-B9 and OD-B10 are ruled. Neither blocks 032, but the sentence waits on both.
-3. Row 11 and row 14 are read, which needs the token.
-4. 032 is generated from a **fresh** read of row 1's query against production at deploy time, and query D is re-run **immediately before** it (AM-B4: stop if it finds violations).
-5. The F teardowns are made explicit **in the same commit** as 032. Vivi-Test is migrated only at that commit.
+1. **Teardown helpers on main first.** `_delete_batch_cascade` and `_delete_row_cascade` (F) are fixed in a small PR to main: explicit deletes in dependency order, which pass under today's cascades and under 032.
+2. **Vivi-Test gets 032 only after that PR merges and every active branch has rebased.**
+3. **031 reaches production before 032** (the Part A deploy).
+4. **How 032 is written.** Postgres cannot alter an FK's `ON DELETE` action in place, so 032 **drops and re-creates each FK under its existing name**, in **one transaction**. #5 (`regraded_to_id`) is re-declared `DEFERRABLE INITIALLY DEFERRED`; the pin test stays green. It is generated from a **fresh** read of row 1's query at deploy time, and it also adds AM-B4's uniques and `*_tenant_fkey` constraints.
+5. **Immediately before applying it to production:** re-run query D (AM-B4: stop on any violation), then `pg_dump` production to `db-archive/`. PITR is off, so that dump is the restore point.
+
+---
+
+## 21. Sign-off — 2026-09-23
+
+Census v2 is signed off. Migration 032 and Part B commits 2–5 may proceed, gated only as §20 states.
+
+| Item | Ruling |
+|---|---|
+| OD-B9 | Keep all four archives, the pre-migration dump included; the `rm` is not run. Revisit with the privacy page. |
+| OD-B10 | No action; closed. |
+| OD-B5 | The privacy page is not being written now; the sentence stays a draft with its placeholders. |
+| OD-B8 | A named follow-up, not scheduled. |
+| Row 11 | PITR is off. Daily-backup retention gates nothing; Noam reads it when he decides on PITR. Closed. |
+| Row 14 | No Edge Functions. Closed. |
+| LangSmith | No support request; the runbook is find by metadata, delete by trace id. Re-check the queued deletion on 2026-09-28, then delete `vivi-erasure-proof`. Local project renamed `vivi-dev`. The legacy-engine caveat is recorded, no change. |
+| Vertex cache, pre-GA | Recorded, no change. |
+| Commit (1) | Names accepted. PRV-11: no fourth pattern. `graded_test_pdfs` is dead: refused on, asserted empty, dropped with the legacy tables. Row 15's `legacy_count_batches` accepted. |
+| Vivi-Test | Teardown helpers fixed on main first; 032 on Vivi-Test only after that merges and branches rebase. |
+| 032 | Drop and re-create each FK under its name, in one transaction; #5 stays deferred; generated from a fresh read; query D re-run first; production dumped to `db-archive/` first; 031 goes before it. |
