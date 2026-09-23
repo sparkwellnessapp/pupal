@@ -317,14 +317,37 @@ async def _fetch_row(graded_test_id: str) -> dict:
 
 
 async def _delete_row_cascade(graded_test_id: str) -> None:
-    """Delete a graded_test row (and its orphaned student/transcription siblings)."""
+    """Delete the whole revision chain a graded_test row belongs to, then the
+    scan and the student the insert helpers made for it.
+
+    Explicit and in dependency order, so it leans on no ON DELETE action:
+    migration 032 turns the chain self-FKs' SET NULL into NO ACTION
+    (docs/PURGE_CENSUS.md §13 F, §20), under which deleting ONE row of a chain
+    fails — its neighbour still points at it (`regraded_from_id` at once,
+    `regraded_to_id` at commit). The chain therefore goes in ONE statement;
+    NO ACTION checks at statement end. The same statements pass under today's
+    rules, where the old one-row delete left the successor behind. The name is
+    historical; a second call for a chain already gone is a no-op.
+    """
     from tests.api.test_batch_grading import _fresh_loop_session
-    from app.models.grading import GradedTest
-    from sqlalchemy import delete
+    from sqlalchemy import text
     import uuid
 
     async with _fresh_loop_session() as db:
-        await db.execute(delete(GradedTest).where(GradedTest.id == uuid.UUID(graded_test_id)))
+        row = (await db.execute(
+            text("SELECT transcription_id, student_id FROM graded_tests WHERE id = :g"),
+            {"g": uuid.UUID(graded_test_id)})).first()
+        if row is None:
+            return
+        t, s = row
+        await db.execute(text("DELETE FROM graded_tests WHERE transcription_id = :t"), {"t": t})
+        await db.execute(text("DELETE FROM transcription_jobs WHERE transcription_id = :t"), {"t": t})
+        await db.execute(text("DELETE FROM transcriptions WHERE id = :t"), {"t": t})
+        if s is not None:
+            await db.execute(text(
+                "DELETE FROM students WHERE id = :s"
+                " AND NOT EXISTS (SELECT 1 FROM transcriptions WHERE student_id = :s)"
+                " AND NOT EXISTS (SELECT 1 FROM graded_tests WHERE student_id = :s)"), {"s": s})
         await db.commit()
 
 

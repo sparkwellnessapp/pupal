@@ -525,11 +525,30 @@ async def _insert_transcription_batch(
 
 
 async def _delete_batch_cascade(batch_id: str) -> None:
-    from app.models.grading import GradingBatch
-    from sqlalchemy import delete
+    """Delete a batch and everything filed under it, children first.
 
+    Explicit and in dependency order, so it leans on no ON DELETE action:
+    migration 032 turns the cascades and SET NULLs out of the student-data
+    tables into NO ACTION (docs/PURGE_CENSUS.md §13 F, §20). The same
+    statements pass under today's rules. The name is historical.
+
+    Graded tests go first, as WHOLE chains in ONE statement — every chain of a
+    scan in the batch, and every chain a row of the batch belongs to — because
+    a chain's rows point at each other and NO ACTION checks at statement end.
+    Then the jobs, the scans, and the batch. Students are left alone, as they
+    always were: a batch never owned them.
+    """
+    from sqlalchemy import text
+
+    b = uuid.UUID(batch_id)
     async with _fresh_loop_session() as db:
-        await db.execute(delete(GradingBatch).where(GradingBatch.id == uuid.UUID(batch_id)))
+        await db.execute(text(
+            "DELETE FROM graded_tests WHERE transcription_id IN ("
+            " SELECT id FROM transcriptions WHERE batch_id = :b"
+            " UNION SELECT transcription_id FROM graded_tests WHERE batch_id = :b)"), {"b": b})
+        await db.execute(text("DELETE FROM transcription_jobs WHERE batch_id = :b"), {"b": b})
+        await db.execute(text("DELETE FROM transcriptions WHERE batch_id = :b"), {"b": b})
+        await db.execute(text("DELETE FROM grading_batches WHERE id = :b"), {"b": b})
         await db.commit()
 
 
