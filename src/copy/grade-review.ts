@@ -465,8 +465,13 @@ export const DASH_RETRY_STARTED = (name: string) => `${name} נשלח לבדיק
 export const DASH_RETRY_FAILED = 'לא הצלחנו לשלוח לבדיקה חוזרת — נסי שוב'
 
 // ── P1–P8 · המבחן החתום ──────────────────────────────────────────────────
-export const PV_TITLE = (student: string) => `המבחן החתום · ${student}`
-/** «6 עמודי מבחן + 2 עמודי משוב · נחתם 29.8.2026, 20:31 · גרסה 1» */
+export const PV_TITLE = (student: string) => `${PV_TITLE_PREFIX} · ${student}`
+/** The title's first half, when the student's name is rendered as a LINK to
+ *  the profile (student-profile PR OD-2) and cannot be one string. */
+export const PV_TITLE_PREFIX = 'המבחן החתום'
+/** «6 עמודי מבחן + 2 עמודי משוב · בדיקה אושרה ב29.8.2026, 20:31 · גרסה 1»
+ *  OD-14: the moment she approved the grading reads «בדיקה אושרה ב…» wherever
+ *  its timestamp is shown — here and on the profile row. It was «נחתם …». */
 export const PV_SUB = (scanPages: number, appendixPages: number,
                        signedAt: string | null, version: number | null) =>
     [
@@ -477,7 +482,7 @@ export const PV_SUB = (scanPages: number, appendixPages: number,
         scanPages > 0
             ? `${examPagesCount(scanPages)} + ${feedbackPagesCount(appendixPages)}`
             : feedbackPagesCount(appendixPages),
-        signedAt ? `נחתם ${signedAt}` : null,
+        signedAt ? `בדיקה אושרה ב${signedAt}` : null,
         version != null ? `גרסה ${version}` : null,
     ].filter(Boolean).join(' · ')
 

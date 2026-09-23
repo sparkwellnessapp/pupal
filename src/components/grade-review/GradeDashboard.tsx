@@ -74,6 +74,8 @@ export interface GradeDashboardProps {
     onOpenReview: (item: GradedItem) => void;
     onOpenPreview: (item: GradedItem) => void;
     onRetry: (item: GradedItem) => void;
+    /** [student-profile PR OD-2] Where a card's name links — the profile. */
+    studentHref?: (item: GradedItem) => string | null;
     onContinue: (item: GradedItem) => void;
     onDownload: () => void;
     /**
@@ -100,7 +102,7 @@ export interface GradeDashboardProps {
 
 export function GradeDashboard({
     items, batchTotal, auditStatus, eta, subtitle, startedAt, completedAt,
-    onOpenReview, onOpenPreview, onRetry, onContinue, onDownload, loadManifest,
+    onOpenReview, onOpenPreview, onRetry, studentHref, onContinue, onDownload, loadManifest,
     retriedIds, durationMinutes = null,
 }: GradeDashboardProps) {
     const [downloadOpen, setDownloadOpen] = useState(false);
@@ -347,6 +349,7 @@ export function GradeDashboard({
                 onOpenReview={onOpenReview}
                 onOpenPreview={onOpenPreview}
                 onRetry={onRetry}
+                studentHref={studentHref}
             />
 
             {/* D9 */}
