@@ -165,23 +165,32 @@ def _insert_transcription_sync(
 
 
 def _cleanup_batch(batch_id: str, transcription_ids: list[str]) -> None:
-    """Delete graded_tests → transcriptions → batch (FK-order agnostic)."""
+    """Delete a batch and everything filed under it, children first.
+
+    Explicit and in dependency order, so it leans on no ON DELETE action:
+    migration 032 turns the cascades out of the student-data tables into NO
+    ACTION (docs/PURGE_CENSUS.md §13 F, §20). Six modules import this helper for
+    batches that DO have jobs, which the old version left to the
+    transcription_jobs.batch_id CASCADE. Graded tests go first as whole chains
+    in ONE statement, then the jobs, the scans, the batch. The same statements
+    pass under today's rules.
+    """
     sync_url = settings.database_url.replace("+asyncpg", "+psycopg2")
     engine = sqlalchemy.create_engine(sync_url)
+    params = {"b": batch_id, "t": list(transcription_ids)}
+    scans = ("SELECT id FROM transcriptions WHERE batch_id = CAST(:b AS uuid)"
+             " OR id = ANY(CAST(:t AS uuid[]))")
     with engine.connect() as conn:
-        for tid in transcription_ids:
-            conn.execute(
-                sqlalchemy.text("DELETE FROM graded_tests WHERE transcription_id = :id"),
-                {"id": tid},
-            )
-            conn.execute(
-                sqlalchemy.text("DELETE FROM transcriptions WHERE id = :id"),
-                {"id": tid},
-            )
-        conn.execute(
-            sqlalchemy.text("DELETE FROM grading_batches WHERE id = :id"),
-            {"id": batch_id},
-        )
+        conn.execute(sqlalchemy.text(
+            "DELETE FROM graded_tests WHERE transcription_id IN ("
+            f" {scans} UNION"
+            " SELECT transcription_id FROM graded_tests WHERE batch_id = CAST(:b AS uuid))"), params)
+        conn.execute(sqlalchemy.text(
+            "DELETE FROM transcription_jobs WHERE batch_id = CAST(:b AS uuid)"
+            f" OR transcription_id IN ({scans})"), params)
+        conn.execute(sqlalchemy.text(f"DELETE FROM transcriptions WHERE id IN ({scans})"), params)
+        conn.execute(sqlalchemy.text(
+            "DELETE FROM grading_batches WHERE id = CAST(:b AS uuid)"), params)
         conn.commit()
     engine.dispose()
 
