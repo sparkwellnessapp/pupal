@@ -138,8 +138,6 @@ export const COVERAGE_GAPS: Readonly<Record<string, string>> = {
         'a spec bug.',
 };
 
-export const FIXTURE_DIR_FROM_FRONTEND = '../backend/tests/fixtures/grade_review';
-
 /** Dev route path for one fixture file. */
 export function fixtureUrl(name: string): string {
     return `/api/dev-fixtures/grade_review/${name}`;
