@@ -2,11 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { NextResponse } from 'next/server';
 
-import {
-    FIXTURE_DIR_FROM_FRONTEND,
-    PENDING_FIXTURES,
-    PRESENT_FIXTURES,
-} from '@/mocks/grade_review/registry';
+import { PENDING_FIXTURES, PRESENT_FIXTURES } from '@/mocks/grade_review/registry';
 
 /**
  * DEV ONLY. Serves the §1.7 fixtures to the browser straight off disk, so the
@@ -53,7 +49,16 @@ export async function GET(
         );
     }
 
-    const file = path.resolve(process.cwd(), FIXTURE_DIR_FROM_FRONTEND, name);
+    // THE DIRECTORY IS A LITERAL, IN THIS FILE, ON PURPOSE (2026-09-23). Next's
+    // file tracer decides what this route's Vercel function carries by reading
+    // this call statically. With the directory imported as a constant it could
+    // not tell which folder was read, so it packed the WHOLE project — `.next/
+    // cache` included, which Vercel restores and which grows every build — and
+    // the function crossed Vercel's 250 MB limit (259 MB) and failed every
+    // deploy. A literal lets it trace `../backend/…/grade_review/*` alone, and
+    // that folder is not in the deploy checkout, so the function carries nothing.
+    // `scripts/check-function-size.mjs` fails the build if this ever regresses.
+    const file = path.join(process.cwd(), '../backend/tests/fixtures/grade_review', name);
     try {
         const body = await readFile(file, 'utf-8');
         return new NextResponse(body, {
