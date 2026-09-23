@@ -139,3 +139,148 @@ body {
   .animate-fade-in,
   .animate-pulse-soft { animation: none !important; }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   בדיקת ציונים — THE SIDE-BY-SIDE SCOPE CARD
+   ═══════════════════════════════════════════════════════════════════════════
+
+   One grid definition, two `grid-template-areas` variants at one viewport
+   breakpoint (LAY-3). It lives here rather than as a chain of Tailwind variants
+   for exactly that reason: the invariant is "there is ONE grid", and a
+   duplicated class list is how a second one arrives without anyone deciding to
+   add it.
+
+   WHY THIS YIELDS CO-VISIBILITY WITH NO JAVASCRIPT (LAY-1). The grid row's
+   height is max(pane, criteria). When the criteria are taller, the pane pins
+   for (criteriaHeight − paneHeight) px of scroll and is then pushed out by the
+   row's own bottom edge — which is also what makes LAY-2 true by construction:
+   a pane is a DOM child of its card and cannot appear beside another scope's
+   criteria. When the criteria are shorter, the row is exactly pane-height and
+   both move together.
+
+   ⚠ WHY THE STRIP IS NOT A GRID AREA. A grid item's containing block IS its
+   grid area, and `position: sticky` confines an element to its containing
+   block — so a strip alone in an auto-sized row has ZERO travel and never
+   pins, however correct the `top` looks. The strip is therefore a plain block
+   child of the card, whose containing block is the whole card, and it pins
+   until the card's bottom edge pushes it out (OD-3). The pane has the opposite
+   property and keeps its grid area: that area is the row it SHARES with the
+   criteria, which is exactly the travel LAY-1 needs.
+
+   THE OTHER STICKY TRAPS, all checked on this tree:
+     · a sticky grid item needs `align-self: start`, or it stretches to fill the
+       row and has nothing left to move through;
+     · `overflow` anywhere between the pane and the page scroll container kills
+       it silently — the grade-review route is deliberately NOT inside
+       SidebarLayout, whose main wrapper is `overflow-hidden`;
+     · the scrolling flex child needs `min-height: 0`;
+     · `dvh`, not `vh`.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.gr-review {
+  /* Measured into these at runtime by the surface's ResizeObserver (§5.4).
+     The defaults are the real measurements, so SSR, a browser without RO, and
+     the first paint before the observer fires all lay out correctly rather
+     than collapsing the pane to nothing. */
+  --gr-topbar-h: 78px;
+  --gr-actionbar-h: 62px;
+  --gr-strip-h: theme('spacing.strip');
+  --gr-gutter: 12px;
+  --gr-card-pad: theme('spacing.6');   /* == the card's own px-6 */
+}
+
+/* OD-3 — the strip spans the card and carries exactly what the card header
+   carried before: title and score. Full-bleed across the card's padding so
+   nothing shows at its sides while the criteria scroll beneath it. */
+.gr-card__strip {
+  position: sticky;
+  top: var(--gr-topbar-h);
+  z-index: 20;
+  height: var(--gr-strip-h);
+  margin-block-end: var(--gr-gutter);
+  margin-inline: calc(-1 * var(--gr-card-pad));
+  padding-inline: var(--gr-card-pad);
+}
+
+.gr-card__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'pane'
+    'criteria';
+  column-gap: var(--gr-card-pad);
+  row-gap: var(--gr-gutter);
+}
+
+.gr-card__pane     { grid-area: pane; min-width: 0; }
+.gr-card__criteria { grid-area: criteria; min-width: 0; }
+
+/* The pane's internal scroll. In one column it keeps today's fixed cap (M-5):
+   a full-viewport sticky pane there would hide the criteria entirely. */
+.gr-card__pane-body {
+  overflow: auto;
+  overscroll-behavior: contain;          /* M-3 — never kick the page */
+  max-height: theme('spacing.answer-max');
+}
+
+/* The keyboard brings a ROW into view; a click on an evidence button brings the
+   PANE into view (OD-A11). Both are `block: 'nearest'`, so these margins are
+   what keep the result clear of the bars — and the two need DIFFERENT margins,
+   which is why they are two rules. */
+.gr-row-scroll {
+  scroll-margin-top: calc(
+    var(--gr-topbar-h) + var(--gr-strip-h) + var(--gr-gutter));
+  scroll-margin-bottom: calc(var(--gr-actionbar-h) + var(--gr-gutter));
+}
+
+/* The pane's own margins. In ONE column it is a static 340px box in a long
+   page, so it needs both: land below the strip, and clear of the action bar. */
+.gr-card__pane {
+  scroll-margin-top: calc(
+    var(--gr-topbar-h) + var(--gr-strip-h) + var(--gr-gutter));
+  scroll-margin-bottom: calc(var(--gr-actionbar-h) + var(--gr-gutter));
+}
+
+@media (min-width: theme('screens.split')) {
+  /* M-10's kill switch is the one thing that can hold a card at one column
+     above the breakpoint. One boolean, one attribute, one rule — no second
+     component tree and no JS-selected layout (LAY-3). */
+  .gr-review:not([data-review-layout='stacked']) .gr-card__cols {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    /* RTL: column 1 is inline-start, i.e. the RIGHT edge — criteria beside the
+       sidebar where her hand rests, the answer at the left (OD-4). */
+    grid-template-areas: 'criteria pane';
+  }
+
+  .gr-review:not([data-review-layout='stacked']) .gr-card__pane {
+    align-self: start;
+    position: sticky;
+    top: calc(var(--gr-topbar-h) + var(--gr-strip-h) + var(--gr-gutter));
+    max-height: calc(
+      100dvh - var(--gr-topbar-h) - var(--gr-strip-h)
+      - var(--gr-actionbar-h) - 2 * var(--gr-gutter));
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+    /* ⚠ AND THE BOTTOM SCROLL-MARGIN GOES BACK TO ZERO, deliberately. The cap
+       directly above ALREADY ends the pane above the action bar, so restating
+       the bar as a margin makes the pane's scroll-margin box exactly
+       viewport-height — 133 + 693 + 74 = 900 on a 900px screen — and a box
+       sitting precisely on that boundary is one rounding error away from
+       `block: 'nearest'` deciding that a fully visible pane needs scrolling.
+       Zeroed, the box is 74px clear and the click is the reliable no-op OD-A11
+       claims it is. One column still needs the margin: nothing else there
+       keeps the pane off the action bar. */
+    scroll-margin-bottom: 0;
+  }
+
+  /* LAY-4 — the cap above already subtracts the action bar, and the body takes
+     whatever the pinned header leaves, so the last line of a fully scrolled
+     answer is never underneath it. */
+  .gr-review:not([data-review-layout='stacked']) .gr-card__pane-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+}

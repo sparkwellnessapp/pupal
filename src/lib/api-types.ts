@@ -2738,6 +2738,11 @@ export interface components {
             /** Check Id */
             check_id: string;
             /**
+             * Evidence Confirmed
+             * @default false
+             */
+            evidence_confirmed: boolean;
+            /**
              * Evidence Disputed
              * @default false
              */
@@ -5123,6 +5128,11 @@ export interface components {
              */
             decided_at?: string;
             /**
+             * Evidence Confirmed
+             * @default false
+             */
+            evidence_confirmed: boolean;
+            /**
              * Evidence Disputed
              * @default false
              */
@@ -5166,6 +5176,11 @@ export interface components {
              * Format: date-time
              */
             decided_at?: string;
+            /**
+             * Evidence Confirmed
+             * @default false
+             */
+            evidence_confirmed: boolean;
             /**
              * Evidence Disputed
              * @default false

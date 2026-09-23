@@ -19,7 +19,7 @@ type Check = ReviewScope['criteria'][number]['checks'][number];
 const check = (over: Partial<Check> & { check_id: string }): Check => ({
     text: 'בדיקה', kind: 'required', canHighlight: false,
     aiVerdict: 'met', aiAwarded: '1', verdict: 'met', overridden: false,
-    pointsTyped: false, underPin: false,
+    pointsTyped: false, underPin: false, unverified: false, evidenceConfirmed: false,
     note: null, evidenceDisputed: false, awarded: '1', outOf: '1',
     terminalId: 'c1', ...over,
 } as Check);

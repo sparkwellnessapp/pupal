@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+    useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState,
+} from 'react';
 
 /**
  * A layout effect on the client, a plain effect on the server. React warns
@@ -9,6 +11,17 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
  * noise in every SSR render test, so the standard isomorphic alias is used.
  */
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
+/**
+ * OD-9 — every scroll this surface commands is instant under
+ * `prefers-reduced-motion: reduce`. Read at call time, not once: the setting
+ * can change under a live session, and a cached answer would outlive it.
+ */
+function prefersReducedMotion(): boolean {
+    return typeof window !== 'undefined'
+        && typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
 
 import type { NumericPolicy } from '@/lib/pricing';
 import {
@@ -23,6 +36,11 @@ import {
 import {
     resolveHighlight, type HighlightableCheck, type PinTarget,
 } from '@/utils/evidence-highlight';
+import {
+    HOVER_INTENT_MS, initialHighlightState, reduce as reduceHighlight,
+    revealScrollTop, type HighlightEvent, type HighlightState,
+} from '@/utils/grade-review-highlight-machine';
+import { REVIEW_LAYOUT_STACKED } from '@/lib/flags';
 import {
     markerCountByScope, nextMarker as nextMarkerAfter, reviewMarkers,
 } from '@/utils/review-markers';
@@ -138,11 +156,32 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         onNotice, modalOpen = false,
     } = props;
 
+    /**
+     * The CARET — the row Space, ⌫, N and Enter act on.
+     *
+     * Not a highlight source. Every path that moves it dispatches `KEY_NAV` as
+     * well, so the selection follows it through one writer (HL-7) and "what is
+     * lit" stays `hovered ?? selected` and nothing else (HL-1).
+     */
     const [focus, setFocus] = useState<string | null>(null);
-    // ONE pin, of either kind (S2). A criterion pin replaces a check pin and
-    // vice versa — see `PinTarget` for why that is the ruling.
-    const [pin, setPin] = useState<PinTarget | null>(null);
-    const [hover, setHover] = useState<string | null>(null);
+    /**
+     * WHAT IS LIT, AND WHY — the whole highlight machine, in one reducer.
+     *
+     * `hasQuotes` rides a ref rather than a dependency so `dispatch` keeps a
+     * stable identity across renders: the window listeners below are attached
+     * once, and a reducer rebuilt on every model change would re-attach them on
+     * every keystroke. The reducer ITSELF stays pure — the injected dep is the
+     * seam, which is what makes the table in `grade-review-highlight-machine
+     * .test.ts` a test of the real thing.
+     */
+    const hasQuotesRef = useRef<(target: PinTarget) => boolean>(() => false);
+    const [hl, dispatch] = useReducer(
+        (state: HighlightState, event: HighlightEvent) =>
+            reduceHighlight(state, event, { hasQuotes: hasQuotesRef.current }),
+        initialHighlightState,
+    );
+    const hlRef = useRef(hl);
+    hlRef.current = hl;
     const [openNote, setOpenNote] = useState<string | null>(null);
     // [OD-R2] The one open points field, if any — a check row or a criterion.
     // Owned here so Enter on the focused row and a click on a number cannot
@@ -193,6 +232,40 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         }
         return map;
     }, [model]);
+    /** Which answer a criterion's union belongs to — what `reveal` scrolls. */
+    const scopeOfTerminal = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const scope of model.scopes) {
+            for (const criterion of scope.criteria) map.set(criterion.terminalId, scope.scopeId);
+        }
+        return map;
+    }, [model]);
+
+    /**
+     * Which rows can actually light the answer.
+     *
+     * From `canHighlight` — the client's own verdict against the real answer —
+     * and NOT from `quote_status`, which is the server's under its own
+     * normalisation and says "yes" for spans this render cannot place. That is
+     * the same rule the quote button renders on, so a row that offers no button
+     * is inert to the pointer too (OD-12), by construction rather than by two
+     * places agreeing.
+     */
+    const quotable = useMemo(() => {
+        const checks = new Set<string>();
+        const terminals = new Set<string>();
+        for (const check of flatChecks) {
+            if (!check.canHighlight) continue;
+            checks.add(check.check_id);
+            terminals.add(check.terminalId);
+        }
+        return { checks, terminals };
+    }, [flatChecks]);
+    hasQuotesRef.current = useCallback((target: PinTarget) => (
+        target.kind === 'check'
+            ? quotable.checks.has(target.id)
+            : quotable.terminals.has(target.id)
+    ), [quotable]);
 
     /** R9: every marker kind, not just the evidence ones. */
     const markers = useMemo(() => reviewMarkers(draft as never), [draft]);
@@ -309,55 +382,42 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         return terminalId !== undefined && isCriterionOpen(terminalId) ? id : null;
     }, [terminalOf, isCriterionOpen]);
 
-    const scrollRowIntoView = (el: HTMLElement) => {
-        // Focus follows the eye: the row scrolls into view only when it is not
-        // already there, so arrow-walking a visible list does not jitter.
-        const rect = el.getBoundingClientRect();
-        if (rect.top < 170 || rect.bottom > window.innerHeight - 70) {
-            el.scrollIntoView({ block: 'center' });
-        }
-    };
+    /**
+     * The same guard, for a highlight target — and it now covers the SELECTION
+     * as well as the hover.
+     *
+     * A folded row is one she cannot see, and its quote button is not on screen
+     * to say what is lit; a mark left burning for it is a highlight with no
+     * visible owner, which P4 rates worse than no highlight at all. A CRITERION
+     * target needs no guard: its header always renders, open or closed.
+     *
+     * Returned BY REFERENCE when it passes, because `resolveHighlight` tells
+     * "the selection lit this" from "a hover on the selected row" by identity.
+     */
+    const visibleTarget = useCallback((target: PinTarget | null): PinTarget | null => {
+        if (target === null) return null;
+        if (target.kind === 'criterion') return target;
+        return visibleCheck(target.id) === null ? null : target;
+    }, [visibleCheck]);
 
     /**
-     * [S5] A row the walk is about to focus may be behind a fold — scroll it
-     * once it EXISTS, not before.
+     * [S5] A row the walk is about to focus may be behind a fold.
      *
      * Since S4 the checklist is collapsed by default, so ↓/↑ and F can target a
-     * check that is not in the DOM yet. The old code queried for it in the same
-     * tick as `setFocus` and simply found nothing: focus went nowhere, and the
-     * next Space would have cycled a verdict on a row she could not see. A row
-     * already on screen is handled synchronously, exactly as before; only a
-     * row behind a fold defers to the commit that paints it.
+     * check that is not in the DOM yet: the old code queried for it in the same
+     * tick as `setFocus`, found nothing, and left the caret nowhere — the next
+     * Space would have cycled a verdict on a row she could not see. Opening the
+     * box and asking for the scroll are now the SAME commit, and the request is
+     * consumed after it (§6.3), by which time the row has painted. That is why
+     * the one-shot deferral ref this used to need is gone (OD-A7): the request
+     * IS the deferral, and there is one row-scroller instead of two.
      */
-    const pendingScrollRef = useRef<string | null>(null);
-
-    const focusCheck = useCallback((checkId: string) => {
+    const selectCheck = useCallback((checkId: string) => {
         setFocus(checkId);
-        if (typeof document === 'undefined') return;
-        const el = document.querySelector<HTMLElement>(
-            `[data-check-id="${CSS.escape(checkId)}"]`);
-        if (el) { scrollRowIntoView(el); return; }
-        // Behind a fold: open the owning criterion and scroll on the paint.
         const terminalId = terminalOf.get(checkId);
         if (terminalId) expandCriterion(terminalId);
-        pendingScrollRef.current = checkId;
+        dispatch({ type: 'KEY_NAV', target: { kind: 'check', id: checkId } });
     }, [terminalOf, expandCriterion]);
-
-    useIsomorphicLayoutEffect(() => {
-        // ONE SHOT. Whatever else happens, the pending id is consumed on the
-        // first commit after it was set. Left armed, it survived a clamped ↓ at
-        // the last row (same focus, so no commit) and fired on her NEXT click
-        // on any disclosure — scrolling the page to an unrelated check.
-        const checkId = pendingScrollRef.current;
-        if (checkId === null || typeof document === 'undefined') return;
-        pendingScrollRef.current = null;
-        if (checkId !== focus) return;                     // she has moved on
-        const el = document.querySelector<HTMLElement>(
-            `[data-check-id="${CSS.escape(checkId)}"]`);
-        if (el) scrollRowIntoView(el);
-        // `toggled` is the commit that paints the row; `focus` covers the case
-        // where the expand was a no-op and the focus change is the only commit.
-    }, [toggled, focus]);
 
     const stepCheck = useCallback((delta: 1 | -1) => {
         if (!flatChecks.length) return;
@@ -365,15 +425,21 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         const next = at === -1
             ? (delta === 1 ? 0 : flatChecks.length - 1)
             : Math.min(flatChecks.length - 1, Math.max(0, at + delta));
-        focusCheck(flatChecks[next].check_id);
-    }, [flatChecks, focus, focusCheck]);
+        const nextId = flatChecks[next].check_id;
+        // CLAMPED AT AN END — she is already there. Before the requests existed
+        // this was silently free (`setFocus` to the same id commits nothing);
+        // now it would bump `seq`, re-scroll the row and re-reveal a pane she
+        // may have scrolled by hand. A walk that cannot move must move nothing.
+        if (nextId === focus) return;
+        selectCheck(nextId);
+    }, [flatChecks, focus, selectCheck]);
 
     const goToNextMarker = useCallback(() => {
         const target = nextMarkerAfter(markers, lastMarkerKey);
         if (!target) return;
         setLastMarkerKey(target.key);
         if (target.kind === 'check') {
-            focusCheck(target.id);
+            selectCheck(target.id);
             return;
         }
         // A scope-level marker (a failed or unanswered question, a clamped
@@ -385,15 +451,36 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         // a closed box that hides it keeps the letter of that and not the point.
         // Only a REAL terminal, though — a failed/unanswered question anchors
         // on the scope id, and recording that as "expanded" would be junk state.
-        if (knownTerminals.has(target.id)) expandCriterion(target.id);
         setFocus(target.id);
+        if (knownTerminals.has(target.id)) {
+            expandCriterion(target.id);
+            // [F7] A terminal marker names a row that CAN be lit, so it selects
+            // like any other — the reducer refuses it on its own if the
+            // criterion has no placeable span.
+            //
+            // AND KEY_NAV'S OWN SCROLL IS THE ONLY ONE HERE. This branch used to
+            // ALSO scroll the section to the top, so a smooth page scroll began
+            // in the handler and an instant `nearest` scroll landed on top of it
+            // one commit later — the second cancels the first and she sees a
+            // lurch to a position neither of them meant. One scroller per
+            // branch; this one aims at the criterion itself, which is a strictly
+            // better answer to «take me to the thing needing my eyes» than the
+            // top of its question.
+            dispatch({ type: 'KEY_NAV', target: { kind: 'criterion', id: target.id } });
+            return;
+        }
+        // A scope-anchored marker (a failed or unanswered question) names no row
+        // at all: it selects nothing — pointing the pane at some other
+        // criterion's evidence would be worse than pointing it nowhere (M-8) —
+        // and the section itself is the only thing there is to scroll to.
         document.getElementById(`scope-${target.scopeId}`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, [markers, lastMarkerKey, focusCheck, expandCriterion, knownTerminals]);
+    }, [markers, lastMarkerKey, selectCheck, expandCriterion, knownTerminals]);
 
     const withFocused = useCallback((fn: (terminalId: string, checkId: string,
         aiVerdict: Parameters<typeof cycleVerdict>[3],
-        kind: Parameters<typeof cycleVerdict>[4]) => Overlay) => {
+        kind: Parameters<typeof cycleVerdict>[4],
+        unverified: boolean) => Overlay) => {
         // A DECIDING action needs a row she can see. Navigation may keep the
         // caret on a folded row (so ↓ resumes from where she was); a verdict
         // may not be changed there.
@@ -401,13 +488,14 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         if (target === null) return;
         const check = flatChecks.find((c) => c.check_id === target);
         if (!check) return;
-        onOverlayChange(fn(check.terminalId, check.check_id, check.aiVerdict, check.kind));
+        onOverlayChange(fn(
+            check.terminalId, check.check_id, check.aiVerdict, check.kind, check.unverified));
     }, [readOnly, focus, flatChecks, onOverlayChange, visibleCheck]);
 
     /**
-     * Pin a target, or release it when it is already pinned.
+     * Select a target, or release it when it is already selected.
      *
-     * ONE implementation for both kinds. The scroll-to-answer and the toast are
+     * ONE implementation for both kinds. The toast and the bring-into-view are
      * the same promise whichever button was pressed, and a second copy of this
      * for criteria is how the two would drift.
      *
@@ -419,41 +507,245 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
     const toggleTarget = useCallback((
         target: PinTarget, scopeId: string | undefined,
     ) => {
-        // The side effects sit OUTSIDE the state updater on purpose: React may
-        // invoke an updater twice (StrictMode does, in dev), and a toast fired
-        // twice or a scroll commanded twice is a bug the updater form invites.
-        // `pin` is a dependency, so this closure is never stale.
-        const willPin = !(pin && pin.kind === target.kind && pin.id === target.id);
-        setPin(willPin ? target : null);
-        // Only a CHECK is a focusable row. A criterion pin leaves the caret
-        // where she left it rather than inventing a focus for a header.
+        // The side effects sit OUTSIDE the reducer on purpose: a reducer may be
+        // invoked twice (StrictMode does, in dev), and a toast fired twice is a
+        // bug that form invites. `hlRef` is read, not closed over, so this is
+        // never stale however the callback is memoised.
+        const current = hlRef.current.selected;
+        const willSelect = !(current && current.kind === target.kind
+            && current.id === target.id);
+        dispatch({ type: 'EVIDENCE_CLICKED', target });
+        // Only a CHECK is a focusable row. A criterion selection leaves the
+        // caret where she left it rather than inventing a focus for a header.
         if (target.kind === 'check') setFocus(target.id);
-        if (!willPin) return;
+        if (!willSelect) return;
 
         // The criterion lights several spans; the singular notice would describe
         // one of them and leave her hunting for the rest.
         onNotice(target.kind === 'criterion' ? RV_QUOTES_PINNED : RV_QUOTE_PINNED);
 
-        // BRING THE ANSWER INTO VIEW — on the CLICK, and only then.
+        // BRING THE PANE INTO VIEW — on the CLICK, and only then (OD-A11).
         //
-        // The quote button sits in the checklist, BELOW the answer it cites, so
-        // the answer is usually off-screen above and the toast was the only
-        // evidence anything had happened. This lives in the click handler
-        // because a click is the one unambiguous signal of intent: deriving it
-        // from highlight state made the page jump on HOVER and on keyboard
-        // focus, which paint a highlight too. It scrolls to THIS target's own
-        // scope, never to the last-highlighted one.
+        // At two columns this is a NO-OP by construction: LAY-1 guarantees the
+        // pane is on screen whenever a criterion row of its scope is, and
+        // `block: 'nearest'` scrolls nothing that is already fully visible. It
+        // earns its keep in the one-column band (941–1179 px), where the answer
+        // sits above a long checklist and the toast used to be the only evidence
+        // that anything had happened.
         //
-        // `scroll-mt-scope` on the answer keeps it clear of the sticky bar;
-        // without it `block: 'start'` lands the answer behind the header.
+        // A click is the one unambiguous signal of intent, which is why this
+        // lives here and not in `reveal`: deriving it from highlight state made
+        // the page jump on HOVER and on keyboard focus, and HL-3 exists to keep
+        // that impossible. It targets THIS scope's own pane, never the
+        // last-highlighted one.
         if (!scopeId || typeof document === 'undefined') return;
-        document.querySelector(`[data-answer-for="${CSS.escape(scopeId)}"]`)
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, [pin, onNotice]);
+        document.querySelector(`[data-answer-pane="${CSS.escape(scopeId)}"]`)
+            ?.scrollIntoView({
+                behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'nearest',
+            });
+    }, [onNotice]);
 
     const togglePin = useCallback((checkId: string) => {
         toggleTarget({ kind: 'check', id: checkId }, scopeOf.get(checkId));
     }, [toggleTarget, scopeOf]);
+
+    /**
+     * REVEAL — scroll ONE pane body to the first span of a target (HL-3).
+     *
+     * `scrollIntoView` is refused here on principle: it scrolls every scrollable
+     * ancestor, the page included, and a hover that moves the page is the exact
+     * feedback loop this design exists to close. One element's `scrollTop`, and
+     * nothing else.
+     *
+     * The spans are read from the DOM rather than recomputed, which is why this
+     * runs POST-COMMIT: the marks of `displayed` exist only after React has
+     * painted the state that made them displayed.
+     */
+    const reveal = useCallback((target: PinTarget) => {
+        if (typeof document === 'undefined') return;
+        const scopeId = target.kind === 'check'
+            ? scopeOf.get(target.id) : scopeOfTerminal.get(target.id);
+        if (!scopeId) return;
+        const body = document.querySelector<HTMLElement>(
+            `[data-answer-for="${CSS.escape(scopeId)}"]`);
+        if (!body) return;
+        // OD-13 — every span of the target is lit; the FIRST in DOM order is
+        // the one revealed. OD-12 — no spans means nothing to show, and the
+        // honest response is to leave the pane exactly where it is.
+        const first = body.querySelector<HTMLElement>('mark');
+        if (!first) return;
+        // `clientTop` is the border width: `clientHeight`, `scrollHeight` and
+        // `scrollTop` are all measured from the PADDING box, so the span's
+        // offset has to be measured from there too.
+        const bodyTop = body.getBoundingClientRect().top + body.clientTop;
+        const markBox = first.getBoundingClientRect();
+        const top = revealScrollTop({
+            spanTop: markBox.top - bodyTop + body.scrollTop,
+            spanBottom: markBox.bottom - bodyTop + body.scrollTop,
+            scrollTop: body.scrollTop,
+            clientHeight: body.clientHeight,
+            scrollHeight: body.scrollHeight,
+        });
+        if (top === null) return;                 // already comfortably in view
+        body.scrollTo({ top, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    }, [scopeOf, scopeOfTerminal]);
+
+    /**
+     * The ONLY code here that may move the page, and it is unreachable from
+     * hover (HL-6: reversions never scroll, and no hover event issues this).
+     *
+     * `block: 'nearest'` plus the `gr-row-scroll` margins — which subtract the
+     * top bar, the card's strip and the action bar — is today's "scroll it only
+     * when it is not already there", said natively instead of by hand.
+     * Instant, not smooth: arrow-walking a checklist through a 300 ms animation
+     * per row is how a keyboard surface starts to feel broken.
+     */
+    const bringRowIntoView = useCallback((target: PinTarget) => {
+        if (typeof document === 'undefined') return;
+        // The criterion's HEADER, not its box: a box with a dozen checks plus
+        // the two bar margins is taller than the viewport, and `nearest` does
+        // nothing at all when both of an element's edges fall outside it.
+        const selector = target.kind === 'check'
+            ? `[data-check-id="${CSS.escape(target.id)}"]`
+            : `[data-terminal-row="${CSS.escape(target.id)}"]`;
+        document.querySelector<HTMLElement>(selector)
+            ?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+    }, []);
+
+    // ── the requests, consumed post-commit (§6.3) ──────────────────────────
+    // The ROW effect is declared FIRST and therefore runs first, which is what
+    // `scrollRowReq.seq < revealReq.seq` records: bring the row into view, then
+    // show its evidence.
+    useIsomorphicLayoutEffect(() => {
+        if (hl.scrollRowReq) bringRowIntoView(hl.scrollRowReq.target);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hl.scrollRowReq?.seq]);
+
+    useIsomorphicLayoutEffect(() => {
+        if (hl.revealReq) reveal(hl.revealReq.target);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hl.revealReq?.seq]);
+
+    /**
+     * HL-5 — the intent delay. `ROW_ENTERED` arms this and nothing else; a
+     * pointer sweeping down the list never rests long enough to fire it, so a
+     * sweep changes nothing at all.
+     *
+     * Keyed on the target's IDENTITY, which the reducer keeps stable while she
+     * rests (`ROW_ENTERED` returns the same state object for a row already
+     * pending), so the timer is started once per row rather than per pixel.
+     */
+    useEffect(() => {
+        const pending = hl.pendingHover;
+        if (pending === null) return;
+        const timer = setTimeout(
+            () => dispatch({ type: 'HOVER_INTENT_FIRED', target: pending }), HOVER_INTENT_MS);
+        return () => clearTimeout(timer);
+    }, [hl.pendingHover]);
+
+    /**
+     * HL-4 — arming, and AM-1's disarm.
+     *
+     * Both listeners are EDGE-TRIGGERED: `pointermove` fires per pixel and
+     * `scroll` per frame, and dispatching on each would run the reducer
+     * thousands of times a second for no change.
+     *
+     * The synthetic-move guard is not paranoia. Browsers dispatch a `pointermove`
+     * at the SAME coordinates once a scroll settles, to refresh `:hover` — arming
+     * on that would defeat AM-1 silently, and the wheel-with-a-stationary-pointer
+     * case would highlight whatever slid beneath her.
+     *
+     * `pointermove` is attached IN THE CAPTURE PHASE and `scroll` is not, and
+     * the asymmetry is load-bearing in both directions:
+     *
+     *   · React 18 attaches its synthetic handlers to the ROOT CONTAINER, so a
+     *     bubbling window listener runs AFTER the row's own handler for the very
+     *     same event. Arming there would leave the first move after a page
+     *     scroll inert — the row would ask to be hovered while hover was still
+     *     disarmed, and nothing would trigger it until the pointer moved again.
+     *     Capture puts the arming first, where it belongs.
+     *   · `scroll` does NOT bubble, so a non-capture window listener hears only
+     *     the page. In capture it would also hear a PANE's own internal scroll —
+     *     that is, the reveal a hover just asked for would disarm the hover that
+     *     asked for it, once per frame of a smooth scroll.
+     */
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        let lastX = Number.NaN;
+        let lastY = Number.NaN;
+        const onPointerMove = (event: PointerEvent) => {
+            if (event.clientX === lastX && event.clientY === lastY) return;
+            lastX = event.clientX;
+            lastY = event.clientY;
+            if (hlRef.current.hoverArmed) return;
+            dispatch({ type: 'POINTER_MOVED', pointerType: event.pointerType });
+        };
+        const onScroll = () => {
+            const state = hlRef.current;
+            if (!state.hoverArmed && state.hovered === null
+                && state.pendingHover === null) return;
+            dispatch({ type: 'PAGE_SCROLLED' });
+        };
+        window.addEventListener('pointermove', onPointerMove, { passive: true, capture: true });
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => {
+            window.removeEventListener('pointermove', onPointerMove, { capture: true });
+            window.removeEventListener('scroll', onScroll);
+        };
+    }, []);
+
+    /**
+     * A different test — a different highlight, and a pane that starts at the
+     * top. The route remounts per `gradedTestId`, so this is belt-and-braces
+     * rather than the mechanism; it is also what makes `TEST_CHANGED` reachable
+     * if the surface is ever driven without a remount.
+     */
+    useEffect(() => { dispatch({ type: 'TEST_CHANGED' }); }, [draft]);
+
+    /**
+     * §5.4 — the two bar heights the sticky chain is built from. The strip's is
+     * a constant (see `spacing.strip`); these two are not, so they are measured
+     * rather than assumed: a revision menu or a two-line identity moves the top
+     * bar, and a wrong number puts the strip under it or leaves a gap.
+     */
+    const surfaceRef = useRef<HTMLDivElement | null>(null);
+    useIsomorphicLayoutEffect(() => {
+        // A LAYOUT effect, for the same reason the keydown listener below is
+        // one: a passive effect runs after PAINT, so the first frame would be
+        // laid out against the stylesheet's defaults and then jump — with the
+        // strip sitting UNDER the top bar for that frame whenever the real bar
+        // is taller. Reading layout is exactly what this effect is for.
+        if (typeof window === 'undefined') return;
+        const root = surfaceRef.current;
+        if (!root) return;
+        // Scoped to THIS surface: both bars are its own children, and a global
+        // query would happily measure someone else's.
+        const bars = [
+            ['[data-review-topbar]', '--gr-topbar-h'],
+            ['[data-review-actionbar]', '--gr-actionbar-h'],
+        ] as const;
+        const measure = () => {
+            for (const [selector, prop] of bars) {
+                const height = root.querySelector<HTMLElement>(selector)?.offsetHeight ?? 0;
+                // ZERO IS NOT A MEASUREMENT. Below `desk` the whole module is
+                // `display: none` (N6's honest mobile interstitial), so every
+                // bar measures 0 — and writing that would collapse the sticky
+                // chain to nothing, to be repaired only if a resize happened to
+                // follow. An unmeasurable bar keeps the stylesheet's default.
+                if (height > 0) root.style.setProperty(prop, `${Math.round(height)}px`);
+            }
+        };
+        measure();
+        if (typeof ResizeObserver === 'undefined') return;
+        // `border-box`, because `offsetHeight` IS a border-box measurement: a
+        // content-box observer would sleep through a border or padding change.
+        const observer = new ResizeObserver(measure);
+        for (const [selector] of bars) {
+            const el = root.querySelector<HTMLElement>(selector);
+            if (el) observer.observe(el, { box: 'border-box' });
+        }
+        return () => observer.disconnect();
+    }, [model.renderable]);
 
     // ── the single keydown listener ────────────────────────────────────────
     // `useLayoutEffect`, NOT `useEffect`: a passive effect attaches after PAINT,
@@ -515,7 +807,8 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                 case 'nextTest': if (canNext) onNext(); break;
                 case 'prevTest': if (canPrev) onPrev(); break;
                 case 'cycleVerdict':
-                    withFocused((t, c, ai, kind) => cycleVerdict(overlay, t, c, ai, kind));
+                    withFocused((t, c, ai, kind, unverified) =>
+                        cycleVerdict(overlay, t, c, ai, kind, undefined, unverified));
                     break;
                 case 'revert':
                     withFocused((t, c) => revert(overlay, t, c));
@@ -534,12 +827,17 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                     if (row !== null) setEditingPoints({ kind: 'check', id: row });
                     break;
                 }
-                case 'release':
-                    setPin(null);
+                case 'release': {
+                    // Esc lets go of the selection the same way a second press
+                    // of its own button does — one release path, so the two
+                    // cannot disagree about what "released" means.
+                    const selected = hlRef.current.selected;
+                    if (selected) dispatch({ type: 'EVIDENCE_CLICKED', target: selected });
                     setOpenNote(null);
                     setEditingPoints(null);
                     if (inEditable) target?.blur();
                     break;
+                }
                 default: break;
             }
         };
@@ -566,7 +864,14 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
     const activeScopeId = (focus ? scopeOf.get(focus) : null) ?? visibleScopeId;
 
     return (
-        <div className="pb-24">
+        <div
+            ref={surfaceRef}
+            // `gr-review` carries the sticky chain's custom properties; the
+            // attribute is M-10's kill switch, and the ONLY thing that can hold
+            // the scope cards at one column above the breakpoint.
+            className="gr-review pb-24"
+            data-review-layout={REVIEW_LAYOUT_STACKED ? 'stacked' : undefined}
+        >
             <ReviewTopBar
                 studentName={studentName}
                 meta={identityMeta}
@@ -602,26 +907,26 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                     {model.scopes.map((scope) => {
                         const scopeCheckIds = new Set(
                             scope.criteria.flatMap((c) => c.checks.map((k) => k.check_id)));
-                        // Transient means THIS answer is lit by a hover. Precedence
-                        // is per answer (see activeTarget), so a hover in another
-                        // scope neither lights this one nor marks it transient —
-                        // a global flag here suppressed a pinned answer's centre-
-                        // scroll whenever the mouse rested on any row elsewhere.
-                        const hoverHere = hover !== null && scopeCheckIds.has(hover)
-                            ? visibleCheck(hover) : null;
                         return (
                             <ScopeSection
                                 key={scope.scopeId}
                                 scope={scope}
+                                // HL-1 — ONE derived value decides what is lit,
+                                // here and on every other card. A folded row
+                                // paints nothing whichever slot named it (P4):
+                                // its quote button is not on screen to say what
+                                // the mark belongs to.
                                 highlight={resolveHighlight(
-                                    // A folded row paints nothing (see visibleCheck);
-                                    // the PIN is a deliberate act and stays lit.
-                                    { hover: visibleCheck(hover), pin, focus: visibleCheck(focus) },
+                                    {
+                                        hover: visibleTarget(hl.hovered),
+                                        selected: visibleTarget(hl.selected),
+                                    },
                                     checksById, scopeCheckIds)}
-                                highlightTransient={hoverHere !== null}
                                 focusedCheckId={focus}
-                                pinnedCheckId={pin?.kind === 'check' ? pin.id : null}
-                                pinnedTerminalId={pin?.kind === 'criterion' ? pin.id : null}
+                                pinnedCheckId={hl.selected?.kind === 'check'
+                                    ? hl.selected.id : null}
+                                pinnedTerminalId={hl.selected?.kind === 'criterion'
+                                    ? hl.selected.id : null}
                                 // The scope is in closure, so no terminal→scope
                                 // index is needed to tell toggleTarget where to
                                 // scroll — the section knows which answer is its own.
@@ -662,15 +967,34 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                                 feedbackBusy={feedbackBusy}
                                 feedbackEdited={editedFeedback.has(scope.scopeId)}
                                 subject={subject}
-                                onFocusCheck={focusCheck}
-                                onHoverCheck={(id, hovering) =>
-                                    setHover(hovering ? id : null)}
+                                onFocusCheck={selectCheck}
+                                /*
+                                 * EDGE-TRIGGERED at the source. The row fires
+                                 * this on every `pointermove` (OD-A6), and the
+                                 * reducer would no-op anyway — but dispatching
+                                 * per pixel makes React run the reducer
+                                 * thousands of times a second for nothing, so
+                                 * the current state is consulted first.
+                                 */
+                                onHoverTarget={(target, hovering) => {
+                                    const state = hlRef.current;
+                                    if (hovering) {
+                                        if ((state.pendingHover?.kind === target.kind
+                                            && state.pendingHover.id === target.id)
+                                            || (state.hovered?.kind === target.kind
+                                                && state.hovered.id === target.id)) return;
+                                        dispatch({ type: 'ROW_ENTERED', target });
+                                        return;
+                                    }
+                                    dispatch({ type: 'ROW_LEFT', target });
+                                }}
                                 onCycle={(t, c) => {
                                     if (readOnly) return;
                                     const found = flatChecks.find((k) => k.check_id === c);
                                     if (found) {
                                         onOverlayChange(cycleVerdict(
-                                            overlay, t, c, found.aiVerdict, found.kind));
+                                            overlay, t, c, found.aiVerdict, found.kind,
+                                            undefined, found.unverified));
                                     }
                                     setFocus(c);
                                 }}
