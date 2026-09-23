@@ -72,6 +72,30 @@ def jobs_execution_mode() -> str:
     return settings.jobs_execution_mode or settings.extraction_execution_mode
 
 
+async def drain_inline_jobs(timeout: Optional[float] = None) -> list[str]:
+    """Wait for every inline job started on THIS event loop; return the names
+    of those still running after `timeout` seconds, which are cancelled.
+
+    For the TEST HARNESS (tests/api/conftest.py), where inline mode is how jobs
+    run: a job a test started must finish inside that test. Left running, it
+    kept issuing statements into the NEXT test — the root cause of the roster
+    statement-count flake (student-profile PR). Jobs of another event loop are
+    left alone: they cannot be awaited from here, and they end with their loop.
+    """
+    loop = asyncio.get_running_loop()
+    pending = [t for t in _INLINE_TASKS if not t.done() and t.get_loop() is loop]
+    if not pending:
+        return []
+    _, still_running = await asyncio.wait(pending, timeout=timeout)
+    for task in still_running:
+        task.cancel()
+    if still_running:
+        # A cancelled task needs its own turn to unwind; wait for it, so that
+        # nothing of this test is still running when the drain returns.
+        await asyncio.wait(still_running, timeout=5)
+    return sorted(task.get_name() for task in still_running)
+
+
 def _run_url(kind: JobKind, job_id: UUID) -> str:
     base = (settings.service_base_url or "").rstrip("/")
     if not base:
@@ -109,6 +133,14 @@ def _enqueue_cloud_task(kind: JobKind, job_id: UUID) -> None:
     logger.info("%s_enqueued", kind.label, extra={"job_id": str(job_id)})
 
 
+# Inline jobs in flight. The event loop keeps only a WEAK reference to a task,
+# so an un-held fire-and-forget task can be garbage-collected mid-run (the
+# asyncio docs' own warning); holding it here until it finishes closes that.
+# It is also what lets the test harness wait for a job its test started,
+# instead of letting it run on into the next test (drain_inline_jobs).
+_INLINE_TASKS: set[asyncio.Task] = set()
+
+
 async def enqueue_job(kind: JobKind, job_id: UUID) -> None:
     """Hand a queued job to the execution substrate. Call AFTER the job row is
     committed — the task handler loads it by id in its own session."""
@@ -116,7 +148,9 @@ async def enqueue_job(kind: JobKind, job_id: UUID) -> None:
     if mode == "inline":
         # LOCAL DEV ONLY (see config.py).
         runner = kind.inline_runner()
-        asyncio.create_task(runner(job_id))
+        task = asyncio.create_task(runner(job_id), name=f"{kind.label}:{job_id}")
+        _INLINE_TASKS.add(task)
+        task.add_done_callback(_INLINE_TASKS.discard)
         logger.info("%s_inline", kind.label, extra={"job_id": str(job_id)})
         return
     if mode == "cloud_tasks":

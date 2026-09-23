@@ -43,6 +43,32 @@ def client():
         yield c
 
 
+INLINE_JOB_BOUND_S = 120
+
+
+@pytest.fixture(autouse=True)
+def _inline_jobs_finish_inside_their_test(request):
+    """A job a test started (inline mode: a rubric compile kicks a plan build,
+    an accept kicks a grade) runs on the app's event loop, not the test's. Left
+    alone it outlived its test and issued statements into the next one — the
+    root cause of the roster statement-count flake. So every test that used the
+    app waits here for the jobs it started. A job still running after the bound
+    is cancelled AND fails the test: a job that never finishes is a finding,
+    not something to hide."""
+    yield
+    if "client" not in request.fixturenames:
+        return
+    client = request.getfixturevalue("client")
+    if getattr(client, "portal", None) is None:
+        return
+    from app.services.cloud_tasks_service import drain_inline_jobs
+
+    stragglers = client.portal.call(drain_inline_jobs, INLINE_JOB_BOUND_S)
+    assert not stragglers, (
+        f"inline jobs were still running {INLINE_JOB_BOUND_S} s after their test "
+        f"ended and were cancelled: {stragglers}")
+
+
 def _signup(client: TestClient, tag: str) -> dict:
     """A usable, signed-in user.
 
