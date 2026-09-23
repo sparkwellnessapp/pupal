@@ -16,15 +16,15 @@ import { SidebarLayout } from '@/components/SidebarLayout';
 import { StudentPicker } from '@/components/StudentPicker';
 import { ConfirmDialog, InlineError } from '@/components/classroom/ConfirmDialog';
 import { StudentAvatar } from '@/components/classroom/StudentAvatar';
+import { StudentDeleteDialog } from '@/components/classroom/StudentDeleteDialog';
 import { StudentNameDialog } from '@/components/classroom/StudentNameDialog';
-import { CL_DELETE_BLOCKED, CL_DELETE_STUDENT, CL_EDIT_NAME, CL_SIGNED_COUNT } from '@/copy/classroom';
+import { CL_DELETE_STUDENT, CL_EDIT_NAME, CL_SIGNED_COUNT } from '@/copy/classroom';
 import {
     listStudents,
     listClasses,
     getClassDetail,
     createStudent,
     updateStudent,
-    deleteStudent,
     createClass,
     updateClass,
     deleteClass,
@@ -32,7 +32,6 @@ import {
     removeStudentFromClass,
     listSubjectMatters,
     ClassroomConflictError,
-    STUDENT_HAS_DATA,
 } from '@/lib/api';
 import type {
     StudentResponse,
@@ -63,10 +62,8 @@ function StudentsTab() {
     const [editError, setEditError] = useState<string | null>(null);
     const [editLoading, setEditLoading] = useState(false);
 
-    // Delete confirm
+    // Delete — the purge dialog (Part B §15)
     const [deleteTarget, setDeleteTarget] = useState<StudentResponse | null>(null);
-    const [deleteLoading, setDeleteLoading] = useState(false);
-    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -109,28 +106,6 @@ function StudentsTab() {
             setEditError(err instanceof ClassroomConflictError ? err.detail : 'שגיאה בעדכון התלמיד/ה');
         } finally {
             setEditLoading(false);
-        }
-    };
-
-    const handleDelete = async () => {
-        if (!deleteTarget) return;
-        setDeleteLoading(true);
-        setDeleteError(null);
-        try {
-            await deleteStudent(deleteTarget.id);
-            setStudents(prev => prev.filter(s => s.id !== deleteTarget.id));
-            setDeleteTarget(null);
-        } catch (err) {
-            // [student-profile PR §5.4, M-A2] The interim refusal: the server
-            // answers a machine code, and the sentence is ours — until Part B's
-            // purge replaces both.
-            if (err instanceof ClassroomConflictError && err.detail === STUDENT_HAS_DATA) {
-                setDeleteError(CL_DELETE_BLOCKED);
-            } else {
-                setDeleteError(err instanceof ClassroomConflictError ? err.detail : 'שגיאה במחיקת התלמיד/ה');
-            }
-        } finally {
-            setDeleteLoading(false);
         }
     };
 
@@ -205,7 +180,7 @@ function StudentsTab() {
                                         <Pencil size={16} />
                                     </button>
                                     <button
-                                        onClick={() => { setDeleteTarget(s); setDeleteError(null); }}
+                                        onClick={() => setDeleteTarget(s)}
                                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                         title={CL_DELETE_STUDENT}
                                         aria-label={CL_DELETE_STUDENT}
@@ -246,16 +221,15 @@ function StudentsTab() {
                 />
             )}
 
-            {/* Delete confirm */}
+            {/* Delete — the purge (Part B §15) */}
             {deleteTarget && (
-                <ConfirmDialog
-                    title="מחיקת תלמיד/ה"
-                    body={`למחוק את "${deleteTarget.full_name}"? הפעולה אינה הפיכה.`}
-                    confirmLabel="מחיקה"
-                    onConfirm={handleDelete}
+                <StudentDeleteDialog
+                    student={deleteTarget}
                     onCancel={() => setDeleteTarget(null)}
-                    loading={deleteLoading}
-                    error={deleteError}
+                    onDeleted={() => {
+                        setStudents(prev => prev.filter(x => x.id !== deleteTarget.id));
+                        setDeleteTarget(null);
+                    }}
                 />
             )}
         </div>

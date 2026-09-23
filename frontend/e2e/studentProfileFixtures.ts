@@ -87,8 +87,11 @@ export const ONE_SIGNED_TEST = [
 ];
 
 export interface ProfileMockOptions {
-    /** Students the interim delete refuses (409 `student_has_data`). */
-    deleteRefused?: readonly string[];
+    /** Students with a grade in flight: the preview reports a blocker, DELETE
+     *  answers 409 `grading_in_progress` (PRV-5). */
+    deleteInFlight?: readonly string[];
+    /** Students with drafts or scans but no signed test (the `data_only` case). */
+    withUnsignedData?: readonly string[];
 }
 
 export async function installProfileMocks(page: Page, opts: ProfileMockOptions = {}): Promise<{
@@ -96,7 +99,8 @@ export async function installProfileMocks(page: Page, opts: ProfileMockOptions =
 }> {
     await seedAuth(page);
     const deleted: string[] = [];
-    const refused = new Set(opts.deleteRefused ?? [STUDENTS.profile.id]);
+    const inFlight = new Set(opts.deleteInFlight ?? []);
+    const unsigned = new Set(opts.withUnsignedData ?? []);
 
     const json = (body: unknown, status = 200) => ({
         status, contentType: 'application/json', body: JSON.stringify(body),
@@ -127,6 +131,20 @@ export async function installProfileMocks(page: Page, opts: ProfileMockOptions =
             return route.fulfill({ status: 200, contentType: 'image/svg+xml', body: syntheticPageSvg(seed) });
         }
 
+        const preview = path.match(/\/classroom\/students\/([^/]+)\/purge-preview$/);
+        if (preview) {
+            const known = Object.values(STUDENTS).find((s) => s.id === preview[1]);
+            if (!known) return route.fulfill(json({ detail: 'Student not found' }, 404));
+            const n = known.signed_tests_count;
+            const purgeCase = n > 0 ? 'signed_tests' : unsigned.has(known.id) ? 'data_only' : 'nothing';
+            return route.fulfill(json({
+                student_id: known.id, case: purgeCase, signed_tests_count: n,
+                blockers: inFlight.has(known.id) ? 1 : 0,
+                counts: { class_memberships: 0, graded_tests: n, transcription_jobs: n, transcriptions: n },
+                objects: { transcriptions: n, thumbs: n, returned_exams: 0 },
+            }));
+        }
+
         const signed = path.match(/\/classroom\/students\/([^/]+)\/signed-tests$/);
         if (method === 'GET' && signed) {
             const id = signed[1];
@@ -149,9 +167,15 @@ export async function installProfileMocks(page: Page, opts: ProfileMockOptions =
             const known = Object.values(STUDENTS).find((s) => s.id === id);
             if (!known) return route.fulfill(json({ detail: 'Student not found' }, 404));
             if (method === 'DELETE') {
-                if (refused.has(id)) return route.fulfill(json({ detail: 'student_has_data' }, 409));
+                if (inFlight.has(id)) {
+                    return route.fulfill(json({ detail: 'grading_in_progress', count: 1 }, 409));
+                }
                 deleted.push(id);
-                return route.fulfill({ status: 204, body: '' });
+                return route.fulfill(json({
+                    verify: { clean: true, rows_remaining: {}, objects_remaining: 0, soft_deleted_count: 0,
+                              restorable_until: null, legacy_tables_empty: true },
+                    rows_deleted: { students: 1 }, objects_deleted: 0, failures: 0,
+                }));
             }
             if (method === 'PATCH') {
                 const body = req.postDataJSON() as { full_name?: string };

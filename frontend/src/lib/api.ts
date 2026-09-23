@@ -1531,13 +1531,42 @@ export async function updateStudent(id: string, body: UpdateStudentBody): Promis
   return res.json();
 }
 
-export async function deleteStudent(id: string): Promise<void> {
-  await _classroomFetch(`${API_BASE}/api/v0/classroom/students/${id}`, { method: 'DELETE' });
+/** [Part B §12] The purge plan for a student, COUNTED — what the Delete dialog
+ *  states before she confirms. `case` picks its copy (§15). */
+export type PurgePreview = components['schemas']['PurgePreviewResponse'];
+
+export async function getStudentPurgePreview(id: string): Promise<PurgePreview> {
+  const res = await _classroomFetch(`${API_BASE}/api/v0/classroom/students/${id}/purge-preview`);
+  return res.json();
 }
 
-/** [student-profile PR §5.4] The server's machine code for the interim refusal:
- *  anything still references her (a grading, a scan). The copy is the client's. */
-export const STUDENT_HAS_DATA = 'student_has_data';
+/** [Part B §12, M-B4] DELETE's 200 body: the purge's verify report, in counts.
+ *  Hand-written: the route answers a plain dict, so the schema is untyped. */
+export interface PurgeReport {
+  verify: {
+    clean: boolean;
+    rows_remaining: Record<string, number>;
+    objects_remaining: number;
+    soft_deleted_count: number;
+    restorable_until: string | null;
+    legacy_tables_empty: boolean;
+  } | null;
+  rows_deleted: Record<string, number>;
+  objects_deleted: number;
+  failures: number;
+}
+
+/** The privacy-complete purge (Part B). 409s arrive as ClassroomConflictError
+ *  with a machine code — GRADING_IN_PROGRESS or PURGE_REFUSED; the copy is ours. */
+export async function deleteStudent(id: string): Promise<PurgeReport> {
+  const res = await _classroomFetch(`${API_BASE}/api/v0/classroom/students/${id}`, { method: 'DELETE' });
+  return res.json();
+}
+
+/** A grade or job of hers is in flight (PRV-5): nothing was touched. */
+export const GRADING_IN_PROGRESS = 'grading_in_progress';
+/** The plan could not promise a correct purge: nothing was touched. */
+export const PURGE_REFUSED = 'purge_refused';
 
 export type SignedTestsResponse = components['schemas']['SignedTestsResponse'];
 export type SignedTestItem = components['schemas']['SignedTestItem'];

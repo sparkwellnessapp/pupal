@@ -246,16 +246,22 @@ def test_7a_class_delete_guard(client, headers_a, class_a, rubric_a, user_a):
         engine.dispose()
 
 
-def test_7b_student_delete_guard(client, headers_a, student_a, rubric_a, user_a):
+def test_7b_student_delete_guard(client, headers_a, rubric_a, user_a):
     """PRV-5 NoDeleteMidGrade: while a grade of hers is in flight, DELETE answers
     409 `grading_in_progress` and touches nothing (Part B; this was §5.4's
     interim `student_has_data` guard). The seed is CONSISTENT — her approved
     scan, in the configured bucket, under a PRV-11 path — so it is the blocker
-    that answers, not a refusal of a malformed graph."""
+    that answers, not a refusal of a malformed graph. Her OWN student: the
+    session's `student_a` collects grades from other tests' seeds that name her
+    on scans that do not (PRV-10), and the purge rightly refuses THAT graph."""
     from app.config import settings
     from app.models.transcription import Transcription
     from app.models.grading import GradedTest
 
+    created = client.post("/api/v0/classroom/students",
+                          json={"full_name": f"בדיקה בתהליך {uuid4().hex[:6]}"}, headers=headers_a)
+    assert created.status_code == 201, created.text
+    student_a = created.json()
     transcription_id = uuid4()
     graded_test_id = uuid4()
     path = f"transcriptions/{user_a['user']['id']}/{uuid4()}.pdf"
@@ -312,6 +318,7 @@ def test_7b_student_delete_guard(client, headers_a, student_a, rubric_a, user_a)
                 )
             )
         engine.dispose()
+        client.delete(f"/api/v0/classroom/students/{student_a['id']}", headers=headers_a)
 
 
 def test_8_student_delete_happy_path(client, headers_a):

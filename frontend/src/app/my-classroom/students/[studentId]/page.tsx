@@ -23,20 +23,21 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { ConfirmDialog, InlineError } from '@/components/classroom/ConfirmDialog';
+import { InlineError } from '@/components/classroom/ConfirmDialog';
 import { StudentAvatar } from '@/components/classroom/StudentAvatar';
+import { StudentDeleteDialog } from '@/components/classroom/StudentDeleteDialog';
 import { StudentNameDialog } from '@/components/classroom/StudentNameDialog';
 import { StampedPage } from '@/components/grade-review/StampedPage';
 import { usePageThumbnails } from '@/components/grade-review/usePageThumbnails';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import {
-    CL_APPROVED_AT, CL_BREADCRUMB_ROOT, CL_BREADCRUMB_SEP, CL_DELETE_BLOCKED,
+    CL_APPROVED_AT, CL_BREADCRUMB_ROOT, CL_BREADCRUMB_SEP,
     CL_DELETE_STUDENT, CL_EDIT_NAME, CL_EMPTY_BODY, CL_EMPTY_TITLE, CL_GRADE_OF,
     CL_LOAD_FAILED, CL_NOT_FOUND, CL_SIGNED_COUNT, CL_SIGNED_SECTION, CL_THUMB_ALT,
     CL_TRUNCATED,
 } from '@/copy/classroom';
 import {
-    ApiError, ClassroomConflictError, STUDENT_HAS_DATA, deleteStudent, getStudent,
+    ApiError, ClassroomConflictError, getStudent,
     getStudentSignedTests, updateStudent, type SignedTestItem, type SignedTestsResponse,
 } from '@/lib/api';
 import type { StudentDetailResponse } from '@/types/classroom';
@@ -63,11 +64,8 @@ export default function StudentProfilePage() {
     const [editLoading, setEditLoading] = useState(false);
     const [editError, setEditError] = useState<string | null>(null);
 
+    /** Part B §15 — the purge dialog; it asks the server what would be deleted. */
     const [confirmDelete, setConfirmDelete] = useState(false);
-    const [deleteLoading, setDeleteLoading] = useState(false);
-    const [deleteError, setDeleteError] = useState<string | null>(null);
-    /** §5.4 — the interim refusal, shown in place instead of a dialog. */
-    const [deleteBlocked, setDeleteBlocked] = useState(false);
 
     const { register, urlFor } = usePageThumbnails();
 
@@ -111,40 +109,6 @@ export default function StudentProfilePage() {
             setEditLoading(false);
         }
     }, [student]);
-
-    const onDeleteClick = useCallback(() => {
-        // Interim (§5.4, M-A2): a student with signed tests cannot be deleted
-        // yet. The trash says so in place rather than opening a dialog that
-        // can only end in a refusal.
-        if ((signed?.signed_tests_count ?? 0) > 0) {
-            setDeleteBlocked(true);
-            return;
-        }
-        setDeleteError(null);
-        setConfirmDelete(true);
-    }, [signed]);
-
-    const onDelete = useCallback(async () => {
-        if (!student) return;
-        setDeleteLoading(true);
-        setDeleteError(null);
-        try {
-            await deleteStudent(student.id);
-            toast.success('המחיקה הושלמה');
-            router.replace(ROSTER);
-        } catch (err) {
-            // Drafts and scans exist without a signed test: the server is the
-            // one that knows, and its code maps to the same sentence.
-            if (err instanceof ClassroomConflictError && err.detail === STUDENT_HAS_DATA) {
-                setConfirmDelete(false);
-                setDeleteBlocked(true);
-            } else {
-                setDeleteError(err instanceof ClassroomConflictError ? err.detail : 'שגיאה במחיקת התלמיד/ה');
-            }
-        } finally {
-            setDeleteLoading(false);
-        }
-    }, [router, student]);
 
     const countText = signed ? CL_SIGNED_COUNT(signed.signed_tests_count) : null;
 
@@ -204,33 +168,15 @@ export default function StudentProfilePage() {
                                 <button
                                     type="button"
                                     aria-label={CL_DELETE_STUDENT}
-                                    title={signed.signed_tests_count > 0 ? CL_DELETE_BLOCKED : CL_DELETE_STUDENT}
-                                    data-blocked={signed.signed_tests_count > 0 ? 'true' : undefined}
-                                    aria-describedby={deleteBlocked ? 'delete-blocked' : undefined}
+                                    title={CL_DELETE_STUDENT}
                                     data-delete-student
-                                    onClick={onDeleteClick}
-                                    className={[
-                                        'p-2 rounded-lg transition-colors',
-                                        signed.signed_tests_count > 0
-                                            ? 'text-gray-300 hover:text-gray-400 cursor-not-allowed'
-                                            : 'text-gray-400 hover:text-red-600 hover:bg-red-50',
-                                    ].join(' ')}
+                                    onClick={() => setConfirmDelete(true)}
+                                    className="p-2 rounded-lg transition-colors text-gray-400 hover:text-red-600 hover:bg-red-50"
                                 >
                                     <Trash2 size={18} />
                                 </button>
                             </div>
                         </header>
-
-                        {deleteBlocked ? (
-                            <p
-                                id="delete-blocked"
-                                role="status"
-                                data-delete-blocked
-                                className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800"
-                            >
-                                {CL_DELETE_BLOCKED}
-                            </p>
-                        ) : null}
 
                         {/* Rows */}
                         <section aria-label={CL_SIGNED_SECTION} className="mt-8">
@@ -282,14 +228,11 @@ export default function StudentProfilePage() {
                 ) : null}
 
                 {confirmDelete && student ? (
-                    <ConfirmDialog
-                        title="מחיקת תלמיד/ה"
-                        body={`למחוק את "${student.full_name}"? הפעולה אינה הפיכה.`}
-                        confirmLabel="מחיקה"
-                        onConfirm={onDelete}
+                    <StudentDeleteDialog
+                        student={student}
                         onCancel={() => setConfirmDelete(false)}
-                        loading={deleteLoading}
-                        error={deleteError}
+                        // §15: from the profile, go to the roster first.
+                        onDeleted={() => router.replace(ROSTER)}
                     />
                 ) : null}
             </div>

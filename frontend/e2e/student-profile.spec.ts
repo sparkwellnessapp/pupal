@@ -76,13 +76,24 @@ test('roster: Tab reaches the name link and Enter opens the profile', async ({ p
     await expect(page).toHaveURL(new RegExp(href!));
 });
 
-test('roster: the interim delete refuses in her words, not the server\'s code', async ({ page }) => {
-    await installProfileMocks(page);
+test('roster: deleting a student with signed tests needs her full name typed (Part B §15)', async ({ page }) => {
+    const { deleted } = await installProfileMocks(page);
     await page.goto('/my-classroom');
-    await page.locator(`[data-student-card="${STUDENTS.profile.id}"]`).getByLabel('מחיקת תלמיד/ה').click();
-    await page.getByRole('dialog').getByRole('button', { name: 'מחיקה' }).click();
-    await expect(page.getByRole('dialog')).toContainText('אי אפשר עדיין למחוק תלמיד/ה עם מבחנים משויכים.');
-    await expect(page.getByRole('dialog')).not.toContainText('student_has_data');
+    const card = page.locator(`[data-student-card="${STUDENTS.profile.id}"]`);
+    await card.getByLabel('מחיקת תלמיד/ה').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('heading')).toHaveText(`למחוק את ${STUDENTS.profile.full_name}?`);
+    await expect(dialog.locator('strong')).toHaveText('3 המבחנים הבדוקים');
+    const confirm = dialog.getByRole('button', { name: 'מחיקה לצמיתות' });
+    await expect(confirm).toBeDisabled();
+    const input = dialog.getByLabel('כדי לאשר, הקלידי את השם המלא');
+    await input.fill('מאיה');                               // a prefix is not the name
+    await expect(confirm).toBeDisabled();
+    await input.fill(` ${STUDENTS.profile.full_name} `);     // trimmed equality
+    await confirm.click();
+    await expect(page.getByText('המחיקה הושלמה')).toBeVisible();
+    await expect(card).toHaveCount(0);
+    expect(deleted).toEqual([STUDENTS.profile.id]);
 });
 
 // ── the profile (§6.2) ─────────────────────────────────────────────────────
@@ -204,30 +215,38 @@ test('profile: a missing or foreign student goes back to the roster with a word'
     await expect(page.getByText('התלמיד/ה לא נמצא/ה')).toBeVisible();
 });
 
-test('profile: the interim delete — refused in place with signed tests, refused by the server without', async ({ page }) => {
-    // Moran has signed tests: the trash says so in place, no dialog.
-    await installProfileMocks(page, { deleteRefused: [STUDENTS.profile.id, STUDENTS.zero.id] });
+test('profile: a grade in flight — the dialog says so and deletes nothing (PRV-5)', async ({ page }) => {
+    const { deleted } = await installProfileMocks(page, { deleteInFlight: [STUDENTS.profile.id] });
     await page.goto(PROFILE(STUDENTS.profile.id));
     await page.locator('[data-signed-test]').first().waitFor();
     await page.locator('[data-delete-student]').click();
-    await expect(page.locator('[data-delete-blocked]')).toHaveText('אי אפשר עדיין למחוק תלמיד/ה עם מבחנים משויכים.');
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText(`ויוי עדיין בודקת מבחן של ${STUDENTS.profile.full_name}. נסי שוב בעוד רגע.`);
+    await dialog.getByLabel('כדי לאשר, הקלידי את השם המלא').fill(STUDENTS.profile.full_name);
+    await expect(dialog.getByRole('button', { name: 'מחיקה לצמיתות' })).toBeDisabled();
+    expect(deleted).toEqual([]);
+});
 
-    // Itay K. has none signed — but a draft (the server knows): dialog → 409 → the same sentence.
+test('profile: drafts or scans without a signed test — the data-only case still needs the name', async ({ page }) => {
+    const { deleted } = await installProfileMocks(page, { withUnsignedData: [STUDENTS.zero.id] });
     await page.goto(PROFILE(STUDENTS.zero.id));
     await page.locator('[data-profile-empty]').waitFor();
     await page.locator('[data-delete-student]').click();
-    await page.getByRole('dialog').getByRole('button', { name: 'מחיקה' }).click();
-    await expect(page.locator('[data-delete-blocked]')).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(PROFILE(STUDENTS.zero.id)));
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('יימחקו לצמיתות גם הסריקות והבדיקות שטרם אושרו.');
+    await dialog.getByLabel('כדי לאשר, הקלידי את השם המלא').fill(STUDENTS.zero.full_name);
+    await dialog.getByRole('button', { name: 'מחיקה לצמיתות' }).click();
+    await expect(page).toHaveURL(/\/my-classroom$/);
+    expect(deleted).toEqual([STUDENTS.zero.id]);
 });
 
 test('profile: a student with nothing attributable deletes and lands on the roster', async ({ page }) => {
-    const { deleted } = await installProfileMocks(page, { deleteRefused: [] });
+    const { deleted } = await installProfileMocks(page);
     await page.goto(PROFILE(STUDENTS.zero.id));
     await page.locator('[data-profile-empty]').waitFor();
     await page.locator('[data-delete-student]').click();
-    await page.getByRole('dialog').getByRole('button', { name: 'מחיקה' }).click();
+    await expect(page.getByRole('dialog')).toContainText('הפעולה אינה הפיכה.');
+    await page.getByRole('dialog').getByRole('button', { name: 'מחיקה', exact: true }).click();
     await expect(page).toHaveURL(/\/my-classroom$/);
     expect(deleted).toEqual([STUDENTS.zero.id]);
 });

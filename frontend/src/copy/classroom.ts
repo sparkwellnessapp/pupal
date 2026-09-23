@@ -40,8 +40,26 @@ export const CL_NOT_FOUND = 'התלמיד/ה לא נמצא/ה'
 export const CL_TRUNCATED = (shown: number, total: number) =>
     `מוצגים ${shown} מתוך ${total} המבחנים הבדוקים`
 
-// ── the interim delete (§5.4 / M-A2, until Part B's purge) ─────────────────
-export const CL_DELETE_BLOCKED = 'אי אפשר עדיין למחוק תלמיד/ה עם מבחנים משויכים.'
+// ── the purge dialog (Part B §15; the Delete artboard) ─────────────────────
+export const CL_PURGE_TITLE = (name: string) => `למחוק את ${name}?`
+/** «יימחקו לצמיתות גם **3 המבחנים הבדוקים** — …»: the count is the bold span. */
+export const CL_PURGE_SIGNED_LEAD = 'יימחקו לצמיתות גם '
+export const CL_PURGE_SIGNED_COUNT = (n: number) =>
+    n === 1 ? 'המבחן הבדוק' : `${n} המבחנים הבדוקים`
+export const CL_PURGE_SIGNED_TAIL = ' — הסריקות, הבדיקות והקבצים להורדה. אי אפשר לבטל את הפעולה.'
+export const CL_PURGE_DATA_ONLY = 'יימחקו לצמיתות גם הסריקות והבדיקות שטרם אושרו. אי אפשר לבטל את הפעולה.'
+export const CL_PURGE_NOTHING = 'הפעולה אינה הפיכה.'
+export const CL_PURGE_TYPE_NAME = 'כדי לאשר, הקלידי את השם המלא'
+export const CL_PURGE_CONFIRM = 'מחיקה לצמיתות'
+export const CL_PURGE_CONFIRM_PLAIN = 'מחיקה'
+export const CL_PURGE_CANCEL = 'ביטול'
+export const CL_PURGE_CLOSE = 'סגירה'
+/** §14: 409 grading_in_progress — nothing was touched. */
+export const CL_PURGE_BLOCKED = (name: string) => `ויוי עדיין בודקת מבחן של ${name}. נסי שוב בעוד רגע.`
+/** 409 purge_refused — the plan could not promise a correct purge; nothing was touched. */
+export const CL_PURGE_REFUSED = (name: string) => `אי אפשר למחוק את ${name} כרגע. פני אלינו ונבדוק.`
+export const CL_PURGE_LOAD_FAILED = 'לא הצלחנו לבדוק מה יימחק — נסי שוב'
+export const CL_PURGE_DONE = 'המחיקה הושלמה'
 
 // ── the returned page's way back (§6.5, OD-9) ──────────────────────────────
 export const CL_BACK_TO_STUDENT = (name: string) => `חזרה אל ${name}`
