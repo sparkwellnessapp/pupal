@@ -162,7 +162,7 @@ async def run_transcription_job(job_id: UUID) -> bool:
                 draft = await run_pipeline_and_build_draft(
                     pdf_bytes=pdf_bytes, filename=filename,
                     spec_source=spec_source, doc_priority=doc_priority,
-                    subject=subject,
+                    subject=subject, log_id=str(job_id),
                     deadline_seconds=budget_s,
                     budget_started_at=t0,
                 )
@@ -180,14 +180,14 @@ async def run_transcription_job(job_id: UUID) -> bool:
                 needed = _DOC_RERUN_BACKOFF_S + _DOC_RERUN_MIN_BUDGET_S
                 if elapsed + needed > budget_s:
                     logger.warning(
-                        "transcription transport failure (%s) on %s — NOT "
+                        "transcription transport failure (%s) on job %s — NOT "
                         "re-running: %.0fs of the %.0fs budget already spent",
-                        exc.kind.value, filename, elapsed, budget_s)
+                        exc.kind.value, job_id, elapsed, budget_s)
                     raise
                 logger.warning(
                     "transcription transport failure (%s) — re-running "
-                    "document once (%.0fs of %.0fs budget spent): %s",
-                    exc.kind.value, elapsed, budget_s, filename)
+                    "document once (%.0fs of %.0fs budget spent): job %s",
+                    exc.kind.value, elapsed, budget_s, job_id)
                 await asyncio.sleep(_DOC_RERUN_BACKOFF_S)
 
         # Terminal success — ONE transaction: the transcriptions INSERT and
@@ -228,8 +228,8 @@ async def run_transcription_job(job_id: UUID) -> bool:
             await db.commit()
             logger.info(
                 "transcription_created transcription_id=%s job_id=%s "
-                "batch_id=%s file=%s duration_ms=%s wall_s=%.0f",
-                transcription.id, job_id, batch_id, filename,
+                "batch_id=%s duration_ms=%s wall_s=%.0f",
+                transcription.id, job_id, batch_id,
                 draft.transcription_duration_ms, time.monotonic() - t0,
             )
         return True
@@ -240,8 +240,8 @@ async def run_transcription_job(job_id: UUID) -> bool:
         # about the teacher's network — a "local-no-internet" verdict here would
         # send her to check her WiFi over a fault that is entirely ours. The
         # source PDF is in GCS, so the retry costs her nothing.
-        logger.warning("transcription_job_budget_exceeded job_id=%s file=%s: %s",
-                       job_id, filename, exc)
+        logger.warning("transcription_job_budget_exceeded job_id=%s: %s",
+                       job_id, exc)
         try:
             await _fail_job(job_id, exc, None)
         except Exception:

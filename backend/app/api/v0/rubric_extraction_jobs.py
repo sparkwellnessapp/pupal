@@ -259,10 +259,9 @@ async def submit_extraction_job(
 
     await db.refresh(job)
     await _enqueue_or_fail(db, job.id)
-    # NB: 'filename' is a reserved LogRecord attribute — never use it as an
-    # extra key (it raises KeyError inside logging and 500s the request).
-    logger.info("extraction_job_submitted",
-                extra={"job_id": str(job.id), "source_filename": filename})
+    # [OD-B4] the job id only. (NB: 'filename' is also a reserved LogRecord
+    # attribute — as an `extra` key it raises KeyError and 500s the request.)
+    logger.info("extraction_job_submitted job_id=%s", job.id)
     return SubmitJobResponse(job_id=job.id, status="queued", reused=False)
 
 

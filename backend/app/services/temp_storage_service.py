@@ -79,7 +79,7 @@ class TempStorageService:
         async with aiofiles.open(file_path, 'wb') as f:
             await f.write(pdf_bytes)
         
-        logger.info(f"Stored PDF: upload_id={upload_id}, size={size_mb:.2f}MB, original={original_filename}")
+        logger.info(f"Stored PDF: upload_id={upload_id}, size={size_mb:.2f}MB")
         
         return upload_id
     

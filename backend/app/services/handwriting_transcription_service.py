@@ -914,7 +914,7 @@ class HandwritingTranscriptionService:
             TranscriptionResult with student name and answers
         """
         logger.info(f"=" * 60)
-        logger.info(f"TRANSCRIBING: {filename}")
+        logger.info("TRANSCRIBING (legacy engine)")
         logger.info(f"Provider: {self.vlm_provider.name}")
         if answered_question_numbers:
             logger.info(f"Answered questions: {answered_question_numbers}")

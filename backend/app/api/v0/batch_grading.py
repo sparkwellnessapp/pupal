@@ -694,9 +694,10 @@ async def append_batch_file(
     except Exception:
         # NB: `filename` is a reserved LogRecord attribute — never use it as
         # an `extra` key (it raises KeyError from inside the logger).
-        logger.exception("batch_append_upload_failed", extra={
-            "batch_id": str(batch_id), "source_filename": file.filename,
-        })
+        # [OD-B4] ids only — the filename is the student's name as often as
+        # not. The message carries them because `extra` renders nowhere here.
+        logger.exception("batch_append_upload_failed batch_id=%s object=%s",
+                         batch_id, object_path)
         raise HTTPException(
             502, f"ההעלאה של {file.filename or 'הקובץ'} נכשלה — נסי שוב")
 

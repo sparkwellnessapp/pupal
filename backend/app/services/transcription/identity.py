@@ -144,11 +144,16 @@ async def extract_student_name(
     filename: str | None,
     provider: VLMProvider,
     *,
+    doc_id: str = "identity",
     scheduler=None,
     provider_key: str = "",
     doc_priority: int = 0,
 ) -> str | None:
     """Best-effort student-name hint from page-1 header ink, else filename.
+
+    `filename` is an INPUT (the model judges it; the fallback reads it) and is
+    never logged. `doc_id` is what the logs and the scheduler name the document
+    by — an opaque id, never the filename (OD-B4).
 
     Never raises; None on any failure or when no plausible name exists.
 
@@ -159,7 +164,7 @@ async def extract_student_name(
     scheduler's transport retry (one concept, one place)."""
     try:
         return await asyncio.wait_for(
-            _extract(pdf_bytes, filename, provider,
+            _extract(pdf_bytes, filename, provider, doc_id=doc_id,
                      scheduler=scheduler, provider_key=provider_key,
                      doc_priority=doc_priority),
             timeout=TOTAL_TIMEOUT_S,
@@ -169,15 +174,18 @@ async def extract_student_name(
         # filename, but a starved/timed-out call never got to judge anything.
         fallback = plausible_name_from_filename(filename)
         if fallback is not None:
+            # [OD-B4] Neither the filename nor the name read from it is
+            # logged: both are the student's name. The doc id joins this line
+            # to its job row.
             logger.warning(
-                "identity pass failed for %s — using filename fallback %r",
-                filename, fallback)
+                "identity pass failed for %s — using the filename fallback",
+                doc_id)
             return fallback
         logger.warning("identity pass failed for %s — no name suggestion",
-                       filename, exc_info=True)
+                       doc_id, exc_info=True)
         try:
             from ..net_diag import diagnose_transport_failure
-            await diagnose_transport_failure(f"identity pass for {filename}", exc)
+            await diagnose_transport_failure(f"identity pass for {doc_id}", exc)
         except Exception:
             pass
         return None
@@ -188,6 +196,7 @@ async def _extract(
     filename: str | None,
     provider: VLMProvider,
     *,
+    doc_id: str = "identity",
     scheduler=None,
     provider_key: str = "",
     doc_priority: int = 0,
@@ -207,7 +216,7 @@ async def _extract(
 
     if scheduler is not None:
         res = (await scheduler.submit(provider_key, doc_priority, make_call,
-                                      doc_id=filename or "identity")
+                                      doc_id=doc_id)
                ).response
     else:
         res = await make_call()
@@ -221,6 +230,6 @@ async def _extract(
         # that is a judgment ("no name, filename implausible"), not a
         # failure. Respect it; no code override.
         return None
-    logger.info("identity pass: %r (source=%s) for %s",
-                name.strip(), data.get("source"), filename)
+    logger.info("identity pass: name found (source=%s) for %s",
+                data.get("source"), doc_id)
     return name.strip()

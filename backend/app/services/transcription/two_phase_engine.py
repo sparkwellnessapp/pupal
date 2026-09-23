@@ -176,6 +176,7 @@ async def transcribe_two_phase(
     doc_id: str,
     rubric_draft_json: dict,
     *,
+    filename: str | None = None,
     doc_priority: int = 0,
     subject: str = "computer_science",
     deadline_seconds: float | None = None,
@@ -190,8 +191,13 @@ async def transcribe_two_phase(
     The identity pass (identity.py) runs CONCURRENTLY with the pipeline —
     P1's prompt deliberately excludes the student identity block, so the name
     travels this separate channel. It never raises and never delays the doc
-    (own timeout; pipeline is the long pole). doc_id is the original filename,
-    which doubles as the identity pass's fallback source."""
+    (own timeout; pipeline is the long pole).
+
+    `doc_id` names the document IN LOGS and in the scheduler's lines — an opaque
+    id (the job id, or the scan's object id), NEVER the filename (OD-B4):
+    teachers name files after students, and every pipeline line is prefixed
+    with it. `filename` is passed separately, only to the identity pass, which
+    reads it as the fallback source of the student's name."""
     from dataclasses import replace as _replace
 
     from app.subjects import get_profile
@@ -222,7 +228,8 @@ async def transcribe_two_phase(
         run_with_trust(pipeline, pdf_bytes, doc_id, spec,
                        doc_priority=doc_priority),
         extract_student_name(
-            pdf_bytes, doc_id, providers[PROD_CONFIG.p1_model_key],
+            pdf_bytes, filename, providers[PROD_CONFIG.p1_model_key],
+            doc_id=doc_id,
             scheduler=scheduler, provider_key=PROD_CONFIG.p1_model_key,
             doc_priority=doc_priority,
         ),
