@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReviewScope } from '@/utils/grade-review-model';
-import type { Highlight } from '@/utils/evidence-highlight';
+import type { Highlight, PinTarget } from '@/utils/evidence-highlight';
 import type { FeedbackState } from '@/utils/feedback-staleness';
 import { formatPoints } from '@/utils/points-display';
 import type { NumericPolicy } from '@/lib/pricing';
@@ -35,14 +35,32 @@ import {
 } from '@/copy/grade-review';
 
 /**
- * One question, in the fixed order R4 specifies:
+ * One question — a sticky STRIP over two columns, PANE and CRITERIA.
  *
- *   title + points → ▸ השאלה (collapsed) → the answer → the checklist → feedback
+ *   strip     the card's sticky header: title + points (OD-3). A plain block
+ *             child, NOT a grid area: a grid item is confined to its own grid
+ *             area, so a strip in a row of its own height could never move.
+ *   pane      the student's answer — pinned beside its own criteria, scrolling
+ *             internally, released only when those criteria end (OD-1)
+ *   criteria  ▸ השאלה, the checklist, and what the student will be told
  *
- * The order is not decoration. She reads the answer, then judges it against the
- * checks, then reads what the student will be told — the same sequence she
- * would follow on paper. Putting the checklist first would have her judging
- * before reading.
+ * ── WHY THE ANSWER MOVED BESIDE THE CHECKS ────────────────────────────────
+ * Stacked, one verdict cost a six-step round trip from about the third
+ * criterion on: read the criterion → click the quote button → the page scrolls
+ * up to the answer → read the span → scroll back down hunting for the turquoise
+ * button → re-read the criterion, which has faded. At ~30 exams × ~6 scopes ×
+ * ~5–10 criteria, that is 1,000–2,000 verdicts a batch; a few seconds each is
+ * an hour. Co-visibility is a PER-SCOPE invariant, not a page property, and
+ * that is what the sticky pane inside this card buys (LAY-1, LAY-2).
+ *
+ * THE READING ORDER IS UNCHANGED, and the DOM order is normative (M-6):
+ * strip → pane → criteria is the one-column visual order, so the tab order
+ * matches the screen there, and she still reads the answer, judges it against
+ * the checks, then reads the feedback — the sequence she would follow on paper.
+ *
+ * Everything the grid does not place — «▸ השאלה», the failed/excluded notices,
+ * the per-scope feedback — sits in the CRITERIA column (OD-A10): question
+ * first, feedback last, which is that same order in both modes.
  *
  * OD-F3 (ruled 2026-08-31): the question is COLLAPSED, with a one-sentence
  * preview and a `…` so she can tell at a glance whether it is the question she
@@ -52,7 +70,6 @@ import {
 export interface ScopeSectionProps {
     scope: ReviewScope;
     highlight: Highlight;
-    highlightTransient: boolean;
     focusedCheckId: string | null;
     pinnedCheckId: string | null;
     openNoteCheckId: string | null;
@@ -62,7 +79,15 @@ export interface ScopeSectionProps {
     /** The rubric's subject key — decides prose-vs-code and direction of the answer (Phase 3a). */
     subject?: string | null;
     onFocusCheck: (checkId: string) => void;
-    onHoverCheck: (checkId: string, hovering: boolean) => void;
+    /**
+     * The pointer entered, moved within, or left a hoverable row.
+     *
+     * ONE callback for both kinds of row (§6.5): a check row shows its own
+     * span, a criterion header shows the union its button would. Rows with
+     * nothing to paint register no handlers at all (OD-12), so the reducer's
+     * `hasQuotes` guard is a belt, not the only strap.
+     */
+    onHoverTarget: (target: PinTarget, hovering: boolean) => void;
     onCycle: (terminalId: string, checkId: string) => void;
     onRevert: (terminalId: string, checkId: string) => void;
     onPin: (checkId: string) => void;
@@ -120,9 +145,9 @@ function preview(text: string): string {
 }
 
 export function ScopeSection({
-    scope, highlight, highlightTransient, focusedCheckId, pinnedCheckId,
+    scope, highlight, focusedCheckId, pinnedCheckId,
     openNoteCheckId, feedbackBusy, feedbackEdited = false, subject = null,
-    onFocusCheck, onHoverCheck, onCycle, onRevert, onPin, onNoteChange, onNoteClose,
+    onFocusCheck, onHoverTarget, onCycle, onRevert, onPin, onNoteChange, onNoteClose,
     onFeedbackChange, onFeedbackRegenerate, onShowScan, onRetry,
     pinnedTerminalId = null, onPinCriterion,
     policy, readOnly = false, editingPoints = null, onEditPoints,
@@ -147,8 +172,12 @@ export function ScopeSection({
                 failed ? 'border-grade-red' : 'border-grade-line',
             ].join(' ')}
         >
-            <header className="mb-1.5 flex items-baseline justify-between gap-3">
-                <h2 className="text-gr-h2">{scope.title}</h2>
+            {/* OD-3 — the strip spans both columns and carries exactly what the
+                card header carried before: title and score. Opaque, so the
+                criteria pass BEHIND it rather than through it. */}
+            <header className="gr-card__strip flex items-center justify-between gap-3
+                bg-grade-card">
+                <h2 className="min-w-0 truncate text-gr-h2">{scope.title}</h2>
                 <div
                     dir="ltr"
                     data-scope-points
@@ -161,6 +190,81 @@ export function ScopeSection({
                 </div>
             </header>
 
+            {/* THE TWO COLUMNS. One grid, two `grid-template-areas` variants
+                (LAY-3); the strip above is deliberately OUTSIDE it, because a
+                sticky grid item is confined to its own grid area and a strip in
+                a row of its own height would never move. */}
+            <div className="gr-card__cols">
+            {/* THE PANE — the reference surface. It stays put, and when it moves
+                it moves WITHIN ITSELF (P2). `data-answer-pane` is what a click
+                on an evidence button brings into view; `data-answer-for`, on the
+                body inside, is what `reveal` scrolls. */}
+            <div className="gr-card__pane" data-answer-pane={scope.scopeId}>
+                {/* `flex-none`, like the notice and the empty state below it: at
+                    two columns the pane is a column flex box with a max-height,
+                    and everything that is not the answer must keep its size so
+                    the ANSWER is the only thing that gives. */}
+                <div className="mb-1 flex flex-none items-center justify-between text-gr-label
+                    text-grade-pencil">
+                    <span>{RV_ANSWER_LABEL}</span>
+                    <button
+                        type="button"
+                        onClick={() => onShowScan(scope.scopeId)}
+                        className="text-primary-700 underline underline-offset-link"
+                    >
+                        {RV_SHOW_SCAN}
+                    </button>
+                </div>
+
+                {/*
+                  * [EVD-1] ONE switch over the server-resolved evidence. There is
+                  * no `scope.answer && !skipped` compound here any more: that
+                  * expression let a falsy answer outvote a real grade, which is how
+                  * a 12/12 scope with a verbatim quotation rendered «the student
+                  * did not answer».
+                  */}
+                {scope.answer.kind === 'own' || scope.answer.kind === 'inherited' ? (
+                    <>
+                        {scope.answer.kind === 'inherited' && (
+                            <p
+                                data-answer-inherited
+                                className="mb-1.5 flex-none text-gr-meta text-grade-ink-2"
+                            >
+                                {scope.answer.from
+                                    ? RV_ANSWER_INHERITED(scope.answer.from)
+                                    : RV_ANSWER_INHERITED_ANON}
+                            </p>
+                        )}
+                        <AnswerBlock
+                            scopeId={scope.scopeId}
+                            answer={scope.answer.text}
+                            highlight={highlight}
+                            subject={subject}
+                        />
+                    </>
+                ) : (
+                    <p
+                        data-answer-missing
+                        data-answer-state={scope.answer.kind}
+                        className="flex-none rounded-grade-ctl border border-grade-amber-200
+                            bg-grade-amber-50 px-4 py-3 text-gr-body text-grade-amber-ink"
+                    >
+                        <span
+                            aria-hidden="true"
+                            className="me-1.5 inline-block h-dot w-dot rounded-full
+                                bg-grade-amber-dot relative top-px"
+                        />
+                        {/* «missing» accuses; «unavailable» admits. Never swap them. */}
+                        {scope.answer.kind === 'missing'
+                            ? RV_ANSWER_NONE
+                            : RV_ANSWER_UNAVAILABLE}
+                    </p>
+                )}
+            </div>
+
+            {/* THE CRITERIA COLUMN — where her hand rests and her eyes read.
+                Never sticky (OD-1); it is what scrolls the page. */}
+            <div className="gr-card__criteria">
             {failed ? (
                 <p className="mb-3 flex items-center gap-3 text-gr-body text-grade-red">
                     {RV_SCOPE_FAILED}
@@ -181,7 +285,7 @@ export function ScopeSection({
             ) : null}
 
             {scope.questionText ? (
-                <details className="my-1 text-gr-meta text-grade-ink-2">
+                <details className="mb-2.5 mt-1 text-gr-meta text-grade-ink-2">
                     <summary className="inline-flex cursor-pointer list-none items-center gap-1.5
                         text-grade-pencil marker:content-['']">
                         <span aria-hidden="true">▸</span>
@@ -194,79 +298,74 @@ export function ScopeSection({
                 </details>
             ) : null}
 
-            <div className="mb-1 mt-2.5 flex items-center justify-between text-gr-label
-                text-grade-pencil">
-                <span>{RV_ANSWER_LABEL}</span>
-                <button
-                    type="button"
-                    onClick={() => onShowScan(scope.scopeId)}
-                    className="text-primary-700 underline underline-offset-link"
-                >
-                    {RV_SHOW_SCAN}
-                </button>
-            </div>
-
-            {/*
-              * [EVD-1] ONE switch over the server-resolved evidence. There is
-              * no `scope.answer && !skipped` compound here any more: that
-              * expression let a falsy answer outvote a real grade, which is how
-              * a 12/12 scope with a verbatim quotation rendered «the student
-              * did not answer».
-              */}
-            {scope.answer.kind === 'own' || scope.answer.kind === 'inherited' ? (
-                <>
-                    {scope.answer.kind === 'inherited' && (
-                        <p
-                            data-answer-inherited
-                            className="mb-1.5 text-gr-meta text-grade-ink-2"
-                        >
-                            {scope.answer.from
-                                ? RV_ANSWER_INHERITED(scope.answer.from)
-                                : RV_ANSWER_INHERITED_ANON}
-                        </p>
-                    )}
-                    <AnswerBlock
-                        scopeId={scope.scopeId}
-                        answer={scope.answer.text}
-                        highlight={highlight}
-                        transient={highlightTransient}
-                        subject={subject}
-                    />
-                </>
-            ) : (
-                <p
-                    data-answer-missing
-                    data-answer-state={scope.answer.kind}
-                    className="mb-3.5 rounded-grade-ctl border border-grade-amber-200
-                        bg-grade-amber-50 px-4 py-3 text-gr-body text-grade-amber-ink"
-                >
-                    <span
-                        aria-hidden="true"
-                        className="me-1.5 inline-block h-dot w-dot rounded-full
-                            bg-grade-amber-dot relative top-px"
-                    />
-                    {/* «missing» accuses; «unavailable» admits. Never swap them. */}
-                    {scope.answer.kind === 'missing'
-                        ? RV_ANSWER_NONE
-                        : RV_ANSWER_UNAVAILABLE}
-                </p>
-            )}
-
             <div>
                 {scope.criteria.map((criterion) => {
                     const open = isCriterionOpen(criterion.terminalId);
                     const panelId = `breakdown-${criterion.terminalId}`;
                     const pinnedHere = pinnedTerminalId === criterion.terminalId;
                     const hasBreakdown = criterion.checks.length > 0;
+                    // §6.5 — the hover surface is the WHOLE header row, not the
+                    // button in it, and it exists on the same rule the button
+                    // does: only where a mark will actually be painted (OD-12).
+                    const unionHoverable = criterion.checks.some((c) => c.canHighlight);
+                    const unionTarget: PinTarget = {
+                        kind: 'criterion', id: criterion.terminalId,
+                    };
+                    const hoverUnion = unionHoverable
+                        ? (hovering: boolean) => onHoverTarget(unionTarget, hovering)
+                        : undefined;
                     return (
                     <div
                         key={criterion.terminalId}
                         data-terminal-id={criterion.terminalId}
                         data-expanded={hasBreakdown ? (open ? 'true' : 'false') : undefined}
-                        className="mb-2.5 overflow-hidden rounded-grade-ctl border border-grade-line"
+                        className="mb-2.5 overflow-hidden rounded-grade-ctl
+                            border border-grade-line"
                     >
-                        <div className="flex items-center justify-between gap-2.5 bg-grade-bar
-                            px-3.5 py-2 text-gr-body font-semibold">
+                        <div
+                            /*
+                             * THE CRITERION'S OWN ROW: the hover surface, the
+                             * keyboard's scroll target and the scroll margin are
+                             * all THIS element, deliberately. They used to be
+                             * the whole box, which is wrong twice: a box with a
+                             * dozen checks plus the bar margins is taller than
+                             * the viewport, and `block: 'nearest'` does NOTHING
+                             * when both edges are outside — so F would stop at a
+                             * marker it never scrolled to.
+                             */
+                            data-terminal-row={criterion.terminalId}
+                            // `pointer*`, not `mouse*`, and TOUCH never hovers: a
+                            // tap would otherwise arm the intent timer and light
+                            // a row she only meant to press.
+                            //
+                            // `onPointerMove` as well as `onPointerEnter`,
+                            // deliberately (OD-A6): the boundary events fire
+                            // BEFORE the move that re-arms hover after a page
+                            // scroll, so enter alone leaves a re-armed pointer
+                            // resting on a row with nothing to trigger it. The
+                            // reducer no-ops once the row is already pending or
+                            // shown, so this costs one guarded call per pixel and
+                            // no render.
+                            onPointerEnter={hoverUnion
+                                && ((e) => { if (e.pointerType !== 'touch') hoverUnion(true); })}
+                            onPointerMove={hoverUnion
+                                && ((e) => { if (e.pointerType !== 'touch') hoverUnion(true); })}
+                            onPointerLeave={hoverUnion && (() => hoverUnion(false))}
+                            // WRAPS rather than crushes. Beside a pane the
+                            // criteria column is half as wide as it used to be,
+                            // and this row carries four things: the description,
+                            // the check count, the union's quote button (whose
+                            // full label OD-8 keeps) and the points. Held on one
+                            // line at 1180px the description was squeezed to
+                            // ~110px and broke «סעיף א: כותרת ותכונות המחלקה
+                            // Hobby» across four lines. The basis below is the
+                            // width at which the trailing controls drop to a
+                            // second line instead — the same vocabulary, still
+                            // legible at the breakpoint the layout starts at.
+                            className="gr-row-scroll flex flex-wrap items-center justify-between
+                            gap-x-2.5 gap-y-1.5 bg-grade-bar px-3.5 py-2 text-gr-body
+                            font-semibold"
+                        >
                             {/*
                               * [S4] The disclosure. A real <button aria-expanded
                               * aria-controls>, not <details>: the keyboard walk
@@ -290,8 +389,8 @@ export function ScopeSection({
                                         : RV_BREAKDOWN_SHOW(criterion.description)}
                                     data-breakdown-for={criterion.terminalId}
                                     onClick={() => onToggleCriterion?.(criterion.terminalId)}
-                                    className="flex min-w-0 flex-1 items-center gap-2 text-start
-                                        font-semibold text-inherit"
+                                    className="flex min-w-0 flex-1 basis-56 items-center gap-2
+                                        text-start font-semibold text-inherit"
                                 >
                                     <span
                                         aria-hidden="true"
@@ -308,7 +407,9 @@ export function ScopeSection({
                                     <span className="min-w-0">{criterion.description}</span>
                                 </button>
                             ) : (
-                                <span className="min-w-0 flex-1">{criterion.description}</span>
+                                <span className="min-w-0 flex-1 basis-56">
+                                    {criterion.description}
+                                </span>
                             )}
 
                             {!open && hasBreakdown && (
@@ -439,7 +540,8 @@ export function ScopeSection({
                                         noteOpen={openNoteCheckId === check.check_id}
                                         evidenceDisputed={check.evidenceDisputed}
                                         onFocus={() => onFocusCheck(check.check_id)}
-                                        onHover={(h) => onHoverCheck(check.check_id, h)}
+                                        onHover={(h) => onHoverTarget(
+                                            { kind: 'check', id: check.check_id }, h)}
                                         onCycle={() => onCycle(check.terminalId, check.check_id)}
                                         onRevert={() => onRevert(check.terminalId, check.check_id)}
                                         onPin={() => onPin(check.check_id)}
@@ -467,6 +569,8 @@ export function ScopeSection({
                 onAcceptOffer={() => onAcceptFeedbackOffer?.(scope.scopeId)}
                 onDismissOffer={() => onDismissFeedbackOffer?.(scope.scopeId)}
             />
+            </div>
+            </div>
         </section>
     );
 }

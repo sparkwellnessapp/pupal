@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    confirmVerdict,
     cycleVerdict,
     effectiveVerdict,
+    isConfirmed,
     emptyOverlay,
     isOverridden,
     overriddenCheckIds,
@@ -159,5 +161,45 @@ describe('verdict-cycle — typed amounts [OD-R2]', () => {
     it('overriddenCheckIds lists typed checks too — they skip evidence gating', () => {
         const o = setCheckPoints(emptyOverlay(), T, K1, '1', '3', 'met', now);
         expect([...overriddenCheckIds(o)]).toEqual([K1]);
+    });
+});
+
+describe('verdict-cycle — an unverified ✓ is confirmed, not cycled (2026-09-15)', () => {
+    it('the first press on an unverified row CONFIRMS Vivi\'s verdict as hers', () => {
+        const o = cycleVerdict(emptyOverlay(), T, K1, 'met', 'required', now, true);
+        expect(o.terminals[T]?.[0]).toMatchObject(
+            { check_id: K1, verdict: 'met', evidence_confirmed: true });
+        expect(isConfirmed(o, T, K1)).toBe(true);
+        expect(isOverridden(o, T, K1, 'met')).toBe(true);       // her decision: turquoise
+        expect([...overriddenCheckIds(o)]).toEqual([K1]);        // the pricer credits it
+    });
+
+    it('a confirmation survives the empty-record rule and ⌫ withdraws it', () => {
+        let o = confirmVerdict(emptyOverlay(), T, K1, 'met', now);
+        o = setNote(o, T, K1, 'x', 'met', now);
+        o = setNote(o, T, K1, '', 'met', now);
+        expect(o.terminals[T]?.[0]).toMatchObject({ evidence_confirmed: true });
+        expect(revert(o, T, K1).terminals[T]).toBeUndefined();
+    });
+
+    it('cycling on from a confirmed row is an ordinary cycle, and coming back round confirms again', () => {
+        let o = cycleVerdict(emptyOverlay(), T, K1, 'met', 'required', now, true);   // confirm ✓
+        o = cycleVerdict(o, T, K1, 'met', 'required', now, true);                    // ✗
+        expect(o.terminals[T]?.[0]).toMatchObject({ verdict: 'not_met' });
+        expect(o.terminals[T]?.[0].evidence_confirmed ?? false).toBe(false);
+        o = cycleVerdict(o, T, K1, 'met', 'required', now, true);                    // ½
+        expect(effectiveVerdict(o, T, K1, 'met')).toBe('partially_met');
+        o = cycleVerdict(o, T, K1, 'met', 'required', now, true);                    // ✓, hers
+        expect(o.terminals[T]?.[0]).toMatchObject({ verdict: 'met', evidence_confirmed: true });
+    });
+
+    it('a verified row is untouched by the flag: Space still cycles', () => {
+        const o = cycleVerdict(emptyOverlay(), T, K1, 'met', 'required', now, false);
+        expect(effectiveVerdict(o, T, K1, 'met')).toBe('not_met');
+    });
+
+    it('confirming releases a criterion pin like any other decision (OD-2 b)', () => {
+        const pinned = setTerminalPoints(emptyOverlay(), T, '2', () => 'met', now);
+        expect(terminalPointsFor(confirmVerdict(pinned, T, K1, 'met', now), T)).toBeNull();
     });
 });

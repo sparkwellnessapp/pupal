@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-    activeCheckId,
     activeTarget,
     markRangesFor,
     markRangesForAll,
@@ -197,21 +196,21 @@ describe('resolveHighlight — the pin union [S2]', () => {
     const byId = new Map(CHECKS.map((c) => [c.check_id, c]));
     const scope = new Set(CHECKS.map((c) => c.check_id));
     const source = (over: Partial<HighlightSource> = {}): HighlightSource =>
-        ({ hover: null, pin: null, focus: null, ...over });
+        ({ hover: null, selected: null, ...over });
     const criterion = (id: string) => ({ kind: 'criterion' as const, id });
     const check = (id: string) => ({ kind: 'check' as const, id });
 
     it('lights EXACTLY what its own rows would light — the whole point', () => {
         // The user-facing promise, stated as an identity rather than a hope:
         // the criterion's union is the concatenation of its checks' own pins.
-        const union = resolveHighlight(source({ pin: criterion('c1') }), byId, scope);
+        const union = resolveHighlight(source({ selected: criterion('c1') }), byId, scope);
         const perCheck = ['c1.k1', 'c1.k2', 'c1.k3'].flatMap((id) =>
-            resolveHighlight(source({ pin: check(id) }), byId, scope).spans);
+            resolveHighlight(source({ selected: check(id) }), byId, scope).spans);
         expect(union.spans).toEqual(perCheck);
     });
 
     it('ignores checks belonging to a DIFFERENT criterion in the same scope', () => {
-        const lit = resolveHighlight(source({ pin: criterion('c1') }), byId, scope);
+        const lit = resolveHighlight(source({ selected: criterion('c1') }), byId, scope);
         expect(lit.spans.map((s) => s.quote)).toEqual(['hobbyName', 'isSportive']);
         expect(lit.spans.map((s) => s.quote)).not.toContain('return name;');
     });
@@ -220,7 +219,7 @@ describe('resolveHighlight — the pin union [S2]', () => {
         // The same guard the check branch has, for the same reason: repeated
         // text must not make question 2 light question 1's answer.
         const elsewhere = new Set(['c2.k1']);
-        expect(resolveHighlight(source({ pin: criterion('c1') }), byId, elsewhere).spans)
+        expect(resolveHighlight(source({ selected: criterion('c1') }), byId, elsewhere).spans)
             .toEqual([]);
     });
 
@@ -230,39 +229,41 @@ describe('resolveHighlight — the pin union [S2]', () => {
             quote_status: 'not_found',
         } as HighlightableCheck]]);
         expect(resolveHighlight(
-            source({ pin: criterion('x') }), invented, new Set(['x.k1'])).spans).toEqual([]);
+            source({ selected: criterion('x') }), invented, new Set(['x.k1'])).spans).toEqual([]);
     });
 
     it('draws a criterion pin as PINNED, and not while the mouse is elsewhere', () => {
-        expect(resolveHighlight(source({ pin: criterion('c1') }), byId, scope).pinned)
+        expect(resolveHighlight(source({ selected: criterion('c1') }), byId, scope).pinned)
             .toBe(true);
         // Hover is the most momentary intent and outranks the pin, so the
         // persistent underline must not flicker on beneath the mouse.
         const hovered = resolveHighlight(
-            source({ hover: 'c2.k1', pin: criterion('c1') }), byId, scope);
+            source({ hover: check('c2.k1'), selected: criterion('c1') }), byId, scope);
         expect(hovered.pinned).toBe(false);
         expect(hovered.spans.map((s) => s.quote)).toEqual(['return name;']);
     });
 
-    it('falls back to FOCUS when the criterion pin is released (Esc)', () => {
-        const lit = resolveHighlight(source({ pin: null, focus: 'c2.k1' }), byId, scope);
-        expect(lit.spans.map((s) => s.quote)).toEqual(['return name;']);
-        expect(lit.pinned).toBe(false);
+    it('goes dark when the criterion selection is released (Esc)', () => {
+        // There is no third slot to fall back to: the caret stopped being a
+        // highlight source with the side-by-side PR, and P4 prefers nothing
+        // over a highlight belonging to a row she is no longer looking at.
+        expect(resolveHighlight(source(), byId, scope)).toEqual({ spans: [], pinned: false });
     });
 
-    it('activeTarget keeps the precedence: hover, then pin, then focus', () => {
-        expect(activeTarget(source({ hover: 'h', pin: criterion('c1'), focus: 'f' })))
+    it('activeTarget keeps the precedence: hover, then selected', () => {
+        expect(activeTarget(source({ hover: check('h'), selected: criterion('c1') })))
             .toEqual(check('h'));
-        expect(activeTarget(source({ pin: criterion('c1'), focus: 'f' })))
+        expect(activeTarget(source({ selected: criterion('c1') })))
             .toEqual(criterion('c1'));
-        expect(activeTarget(source({ focus: 'f' }))).toEqual(check('f'));
+        expect(activeTarget(source({ selected: check('f') }))).toEqual(check('f'));
         expect(activeTarget(source())).toBeNull();
     });
 
-    it('activeCheckId reports NO check while a criterion is pinned', () => {
-        // Callers that mean "which ROW is lit" must not be handed a terminal id.
-        expect(activeCheckId(source({ pin: criterion('c1') }))).toBeNull();
-        expect(activeCheckId(source({ pin: check('c1.k1') }))).toBe('c1.k1');
+    it('a hovered CRITERION lights the same union its button would', () => {
+        // The header is a hover surface too (§6.5), and the union it shows must
+        // be the one its click would select — not a subset, not a single span.
+        expect(resolveHighlight(source({ hover: criterion('c1') }), byId, scope).spans)
+            .toEqual(resolveHighlight(source({ selected: criterion('c1') }), byId, scope).spans);
     });
 });
 
@@ -350,12 +351,14 @@ describe('precedence is PER ANSWER [highlight review]', () => {
     const scopeA = new Set(A.map((c) => c.check_id));
     const scopeB = new Set(B.map((c) => c.check_id));
     const source = (over: Partial<HighlightSource> = {}): HighlightSource =>
-        ({ hover: null, pin: null, focus: null, ...over });
+        ({ hover: null, selected: null, ...over });
 
-    it('a pin in one answer SURVIVES a hover in another', () => {
-        // Globally resolved, the hover won everywhere and question 1's pinned
+    it('a selection in one answer SURVIVES a hover in another', () => {
+        // Globally resolved, the hover won everywhere and question 1's selected
         // union went dark while the mouse rested on a row in question 2.
-        const src = source({ pin: { kind: 'check', id: 'a.k1' }, hover: 'b.k1' });
+        const src = source({
+            selected: { kind: 'check', id: 'a.k1' }, hover: { kind: 'check', id: 'b.k1' },
+        });
         const inA = resolveHighlight(src, byId, scopeA);
         const inB = resolveHighlight(src, byId, scopeB);
         expect(inA.spans.map((s) => s.quote)).toEqual(['hobbyName']);
@@ -364,25 +367,31 @@ describe('precedence is PER ANSWER [highlight review]', () => {
         expect(inB.pinned).toBe(false);                 // a hover, transient
     });
 
-    it('a focus in one answer lights it even while another answer holds the pin', () => {
-        const src = source({ pin: { kind: 'criterion', id: 'a' }, focus: 'b.k1' });
+    it('a hover in one answer lights it while another answer holds the selection', () => {
+        const src = source({
+            selected: { kind: 'criterion', id: 'a' }, hover: { kind: 'check', id: 'b.k1' },
+        });
         expect(resolveHighlight(src, byId, scopeA).pinned).toBe(true);
         const inB = resolveHighlight(src, byId, scopeB);
         expect(inB.spans.map((s) => s.quote)).toEqual(['return name;']);
         expect(inB.pinned).toBe(false);
     });
 
-    it('within ONE answer, hover still outranks the pin — and is never drawn as pinned', () => {
-        const src = source({ pin: { kind: 'check', id: 'a.k1' }, hover: 'a.k1' });
+    it('within ONE answer, hover still outranks the selection — never drawn pinned', () => {
+        const src = source({
+            selected: { kind: 'check', id: 'a.k1' }, hover: { kind: 'check', id: 'a.k1' },
+        });
         const inA = resolveHighlight(src, byId, scopeA);
         expect(inA.spans.map((s) => s.quote)).toEqual(['hobbyName']);
         expect(inA.pinned).toBe(false);
     });
 
     it('activeTarget honours the membership it is given', () => {
-        const src = source({ hover: 'b.k1', pin: { kind: 'check', id: 'a.k1' } });
+        const src = source({
+            hover: { kind: 'check', id: 'b.k1' }, selected: { kind: 'check', id: 'a.k1' },
+        });
         const onlyA = (t: { id: string }) => t.id.startsWith('a');
-        expect(activeTarget(src, onlyA)).toBe(src.pin);  // by reference
+        expect(activeTarget(src, onlyA)).toBe(src.selected);  // by reference
         expect(activeTarget(src)).toEqual({ kind: 'check', id: 'b.k1' });
     });
 });

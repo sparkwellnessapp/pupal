@@ -12,6 +12,13 @@ const config: Config = {
       maxWidth: {
         document: '52rem',   // the mirror's content column
         review: '1180px',    // the grade-review content column (mockup)
+        // OD-4 + M-9 — the side-by-side review's content column. The two
+        // 50/50 columns consume what was empty margin, and the cap stops a
+        // 2560px screen putting a criterion ~1,300px from its own quotation:
+        // co-visibility includes PROXIMITY. The top and action bars take the
+        // same width at the same breakpoint, or the chrome reads narrower
+        // than the content it frames.
+        'review-wide': '1600px',
         modal: '520px',      // the mockup's own modal width
         // F3: the returned exam's page. One A4 at the mockup's own size; the
         // aspect (1/1.41) does the rest, so this is the ONLY page dimension.
@@ -36,6 +43,11 @@ const config: Config = {
         'mini-thumb': '47px',
         'scope-nav': '132px', // the nav's sticky offset
         'answer-max': '340px',
+        // OD-3 — the scope card's sticky strip. A CONSTANT on purpose: the
+        // pane's sticky offset is measured from it, and the titles it carries
+        // («שאלה 1.ב») are short by construction, so a ResizeObserver here
+        // would buy nothing but a second moving part (§5.4, OD-A12).
+        strip: '44px',
         'fb-min': '54px',
         gutter: '22px',      // the code island's line-number gutter
         // ── F3 · the returned exam (mockup `.pv`, `.pg`, `.appxdoc`) ──────
@@ -65,6 +77,10 @@ const config: Config = {
       },
       screens: {
         rail: '1100px',      // the rail appears at/above this width (else it collapses)
+        // OD-5 — at/above this the scope card is two columns (answer beside
+        // its own criteria); below it the SAME grid reflows to one. A viewport
+        // media query, not a container query (M-7).
+        split: '1180px',
         // P3/D11 — the mockup's own review breakpoint: below it the review
         // module yields to the honest mobile interstitial; the kbd legend
         // keys off it too. CSS-only (logged decision 4).

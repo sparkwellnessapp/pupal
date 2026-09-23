@@ -6,7 +6,7 @@ import path from 'node:path';
 import { sha256Hex } from '@/lib/sha256';
 import { answerLines, detectAnswerMode, isHebrewLine } from './answer-mode';
 import {
-    activeCheckId,
+    activeTarget,
     resolveHighlight,
     markRangesFor,
     segmentsForLine,
@@ -152,7 +152,7 @@ describe('answer-mode-detection', () => {
 });
 
 // ===========================================================================
-// evidence-highlight-exact-fuzzy-notfound / quote-button-pin-hover-focus
+// evidence-highlight-exact-fuzzy-notfound / hover-outranks-selection
 // ===========================================================================
 describe('evidence highlight', () => {
     const checks: HighlightableCheck[] = [
@@ -163,61 +163,62 @@ describe('evidence highlight', () => {
     ];
     const byId = new Map(checks.map((c) => [c.check_id, c]));
     const scope = new Set(checks.map((c) => c.check_id));
-    // `pin` is written here as a bare CHECK id, which is what every case below
-    // means; the helper lifts it into the S2 target shape. Criterion pins are
-    // exercised separately, at the bottom of this block.
+    // Both slots are written here as bare CHECK ids, which is what every case
+    // below means; the helper lifts them into the S2 target shape. Criterion
+    // targets are exercised separately, in `evidence-highlight.test.ts`.
     const source = (
-        over: Partial<{ hover: string | null; pin: string | null; focus: string | null }> = {},
+        over: Partial<{ hover: string | null; selected: string | null }> = {},
     ) => ({
-        hover: over.hover ?? null,
-        pin: over.pin ? { kind: 'check' as const, id: over.pin } : null,
-        focus: over.focus ?? null,
+        hover: over.hover ? { kind: 'check' as const, id: over.hover } : null,
+        selected: over.selected ? { kind: 'check' as const, id: over.selected } : null,
     });
 
     it('paints a solid mark for an exact quote', () => {
-        expect(resolveHighlight(source({ focus: 'k-exact' }), byId, scope))
-            .toEqual({ spans: [{ quote: 'return name;', kind: 'exact' }], pinned: false });
+        expect(resolveHighlight(source({ selected: 'k-exact' }), byId, scope))
+            .toEqual({ spans: [{ quote: 'return name;', kind: 'exact' }], pinned: true });
     });
 
     it('paints a fuzzy quote as fuzzy — found, so credit stands', () => {
-        expect(resolveHighlight(source({ focus: 'k-fuzzy' }), byId, scope).spans[0].kind)
+        expect(resolveHighlight(source({ selected: 'k-fuzzy' }), byId, scope).spans[0].kind)
             .toBe('fuzzy');
     });
 
     /** The invented-credit case: nothing was found, so nothing is painted. */
     it('paints NOTHING for not_found, rather than guessing a region', () => {
-        expect(resolveHighlight(source({ focus: 'k-missing' }), byId, scope).spans).toEqual([]);
-        expect(resolveHighlight(source({ pin: 'k-missing' }), byId, scope).spans).toEqual([]);
+        expect(resolveHighlight(source({ selected: 'k-missing' }), byId, scope).spans).toEqual([]);
+        expect(resolveHighlight(source({ hover: 'k-missing' }), byId, scope).spans).toEqual([]);
     });
 
     it('paints nothing when the check has no quote at all', () => {
-        expect(resolveHighlight(source({ focus: 'k-none' }), byId, scope).spans).toEqual([]);
+        expect(resolveHighlight(source({ selected: 'k-none' }), byId, scope).spans).toEqual([]);
     });
 
     it('never lights another scope\'s answer, even on a repeated span', () => {
         const otherScope = new Set(['someone-else']);
-        expect(resolveHighlight(source({ focus: 'k-exact' }), byId, otherScope))
+        expect(resolveHighlight(source({ selected: 'k-exact' }), byId, otherScope))
             .toEqual({ spans: [], pinned: false });
     });
 
-    describe('quote-button-pin-hover-focus-precedence: hover ?? pin ?? focus', () => {
-        it('prefers hover over pin over focus', () => {
-            expect(activeCheckId(source({ hover: 'h', pin: 'p', focus: 'f' }))).toBe('h');
-            expect(activeCheckId(source({ pin: 'p', focus: 'f' }))).toBe('p');
-            expect(activeCheckId(source({ focus: 'f' }))).toBe('f');
-            expect(activeCheckId(source())).toBeNull();
+    describe('displayed = hover ?? selected [HL-1]', () => {
+        it('prefers hover over selection', () => {
+            expect(activeTarget(source({ hover: 'h', selected: 'p' })))
+                .toEqual({ kind: 'check', id: 'h' });
+            expect(activeTarget(source({ selected: 'p' })))
+                .toEqual({ kind: 'check', id: 'p' });
+            expect(activeTarget(source())).toBeNull();
         });
 
         it('draws the pinned underline only when the mouse is away', () => {
-            expect(resolveHighlight(source({ pin: 'k-exact' }), byId, scope).pinned).toBe(true);
-            // Hovering the pinned check must not flicker the underline on.
-            expect(resolveHighlight(source({ hover: 'k-exact', pin: 'k-exact' }), byId, scope)
-                .pinned).toBe(false);
+            expect(resolveHighlight(source({ selected: 'k-exact' }), byId, scope).pinned)
+                .toBe(true);
+            // Hovering the selected check must not flicker the underline on.
+            expect(resolveHighlight(
+                source({ hover: 'k-exact', selected: 'k-exact' }), byId, scope).pinned)
+                .toBe(false);
         });
 
-        it('falls back to focus when the pin is released (Esc)', () => {
-            expect(resolveHighlight(source({ pin: null, focus: 'k-fuzzy' }), byId, scope).spans[0].kind)
-                .toBe('fuzzy');
+        it('goes dark when the selection is released (Esc)', () => {
+            expect(resolveHighlight(source(), byId, scope).spans).toEqual([]);
         });
     });
 
