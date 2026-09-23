@@ -190,6 +190,10 @@ export const RV_TARIFF_NONE = 'ללא הורדה'
 export const RV_TARIFF_UP_TO = (y: string) => `עד ${y}`
 export const RV_TARIFF_ONCE = 'נספרה פעם אחת'
 export const RV_VERDICT_TITLE_TARIFF = 'הורדה כן / לא (Space)'
+/** An UNVERIFIED credit verdict (2026-09-15): Vivi's ✓ whose quote she could not
+ *  find in the answer — priced at 0 until the teacher confirms it. */
+export const RV_VERDICT_TITLE_UNVERIFIED = 'ויוי סימנה ✓ אך לא אימתה את הציטוט — לחיצה מאשרת (Space)'
+export const RV_ORIG_CONFIRMED = 'אישרת למרות שהציטוט לא אומת'
 export const RV_POINTS_OFF_GRID = (x: string, step: string) =>
     `לא ניתן להעניק ${x} נקודות — הנקודות ניתנות בקפיצות של ${step}`
 export const RV_POINTS_NEGATIVE = (x: string) =>

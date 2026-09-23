@@ -87,9 +87,17 @@ export function ReviewTopBar({
     stampPressed = false, revision, thumbUrl = null,
 }: ReviewTopBarProps) {
     return (
-        <div className="sticky top-0 z-40 -mx-6 mb-4 border-b border-grade-line
-            bg-grade-canvas/90 px-6 pb-2.5 pt-3 backdrop-blur">
-            <div className="mx-auto flex max-w-review items-center justify-between gap-4">
+        <div
+            // OD-A12: the scope card's strip pins directly beneath this bar and
+            // the pane beneath that, so its height is a LAYOUT INPUT. It is
+            // measured (ResizeObserver, §5.4) rather than assumed, because the
+            // revision menu and a two-line identity both change it.
+            data-review-topbar
+            className="sticky top-0 z-40 -mx-6 mb-4 border-b border-grade-line
+            bg-grade-canvas/90 px-6 pb-2.5 pt-3 backdrop-blur"
+        >
+            <div className="mx-auto flex max-w-review items-center justify-between gap-4
+                split:max-w-review-wide">
                 <button
                     type="button"
                     onClick={onPrev}
@@ -189,7 +197,8 @@ export function QueueLine({ queue, eta }: { queue: QueueState; eta: string | nul
     if (!parts.length) return null;
 
     return (
-        <p className="mx-auto mt-2 max-w-review text-center text-gr-meta text-grade-pencil">
+        <p className="mx-auto mt-2 max-w-review text-center text-gr-meta text-grade-pencil
+            split:max-w-review-wide">
             {parts.join(RV_QUEUE_SEP)}
         </p>
     );
@@ -324,9 +333,15 @@ export function ReviewBottomBar({
     onShowKeys: () => void;
 }) {
     return (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-grade-line
-            bg-grade-bar px-6 py-2.5">
-            <div className="mx-auto flex max-w-review items-center justify-between gap-4">
+        <div
+            // OD-A12: the pane's height cap subtracts this bar, so LAY-4 holds
+            // (the last line of a fully scrolled answer is never under it).
+            data-review-actionbar
+            className="fixed inset-x-0 bottom-0 z-50 border-t border-grade-line
+            bg-grade-bar px-6 py-2.5"
+        >
+            <div className="mx-auto flex max-w-review items-center justify-between gap-4
+                split:max-w-review-wide">
                 <div className="flex flex-wrap items-center gap-4 text-gr-meta text-grade-pencil">
                     <span
                         data-save-state={saveState}

@@ -535,7 +535,12 @@ export default function GradeReviewPage() {
                 </Link>
             </div>
 
-            <main className="mx-auto hidden max-w-[1180px] px-6 pb-24 pt-6 desk:block">
+            {/* OD-4 — the two columns consume what was empty margin above the
+                breakpoint, capped by M-9. `ReviewTopBar`/`ReviewBottomBar` take
+                the SAME width at the SAME breakpoint, or the chrome reads
+                narrower than the content it frames. */}
+            <main className="mx-auto hidden max-w-review px-6 pb-24 pt-6
+                split:max-w-review-wide desk:block">
                 <GradeReviewSurface
                     draft={payload.draft}
                     questions={questions}
