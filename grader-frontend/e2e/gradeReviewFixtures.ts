@@ -30,6 +30,8 @@ export const NUMERIC_POLICY = {
 export const TEST_A = '44444444-4444-4444-8444-000000000000';
 export const TEST_B = '44444444-4444-4444-8444-000000000001';
 export const BATCH_ID = '11111111-1111-4111-8111-111111111111';
+/** The student behind TEST_A — the profile's id, a well-formed UUID. */
+export const FIXTURE_STUDENT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4';
 
 /**
  * ONE mapping from graded-test id to the student it belongs to.
@@ -222,6 +224,9 @@ function batchPayload(
         transcriptionRow('t-b', TEST_B, 'din_ezra.pdf', HEBREW_NAME.din_ezra,
             answersFor('din_ezra'), '64.25'),
     ];
+    // [student-profile PR OD-2] every card's name opens a profile; the
+    // published feed predates the field, so every row points at one student here.
+    for (const item of feed.graded_tests ?? []) item.student_id = FIXTURE_STUDENT_ID;
     if (staleReturnedExam) {
         for (const item of feed.graded_tests ?? []) {
             if (item.graded_test_id === TEST_A) item.returned_exam_state = 'stale';
@@ -265,7 +270,7 @@ function batchPayload(
  * governs shapes — a payload nobody agreed to. The shape here (bytes at a path)
  * is fully specified; only the pixels are stood in for.
  */
-function syntheticPageSvg(seed: number): string {
+export function syntheticPageSvg(seed: number): string {
     // The mockup's own LCG, so the strokes look the same.
     let state = (seed * 9301 + 49297) % 233280;
     const rnd = () => { state = (state * 9301 + 49297) % 233280; return state / 233280; };
@@ -383,6 +388,8 @@ export async function installGradeReviewMocks(
                 const payload = readApproved(who);
                 return route.fulfill(json({
                     ...payload, id, transcription_id: id === TEST_B ? 't-b' : 't-a',
+                    // [student-profile PR OD-2] the title links the name to the profile.
+                    student_id: FIXTURE_STUDENT_ID,
                     // [EVD-1] as above — the approved payload's DRAFT is what the
                     // review surface renders.
                     draft: withGradedAnswers(

@@ -1,28 +1,30 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
     Users,
-    BookOpen,
     Plus,
     Pencil,
     Trash2,
     Loader2,
-    AlertCircle,
     X,
-    Check,
     GraduationCap,
     UserPlus,
 } from 'lucide-react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { StudentPicker } from '@/components/StudentPicker';
+import { ConfirmDialog, InlineError } from '@/components/classroom/ConfirmDialog';
+import { StudentAvatar } from '@/components/classroom/StudentAvatar';
+import { StudentDeleteDialog } from '@/components/classroom/StudentDeleteDialog';
+import { StudentNameDialog } from '@/components/classroom/StudentNameDialog';
+import { CL_DELETE_STUDENT, CL_EDIT_NAME, CL_SIGNED_COUNT } from '@/copy/classroom';
 import {
     listStudents,
     listClasses,
     getClassDetail,
     createStudent,
     updateStudent,
-    deleteStudent,
     createClass,
     updateClass,
     deleteClass,
@@ -38,68 +40,8 @@ import type {
     SubjectMatterOption,
 } from '@/types/classroom';
 
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
-
-function InlineError({ message, onClose }: { message: string; onClose?: () => void }) {
-    return (
-        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            <AlertCircle size={16} className="shrink-0" />
-            <span className="flex-1">{message}</span>
-            {onClose && (
-                <button onClick={onClose} className="text-red-400 hover:text-red-600">
-                    <X size={14} />
-                </button>
-            )}
-        </div>
-    );
-}
-
-function ConfirmDialog({
-    title,
-    body,
-    confirmLabel,
-    onConfirm,
-    onCancel,
-    loading,
-    error,
-}: {
-    title: string;
-    body: string;
-    confirmLabel: string;
-    onConfirm: () => void;
-    onCancel: () => void;
-    loading?: boolean;
-    error?: string | null;
-}) {
-    return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full">
-                <h3 className="font-semibold text-gray-900 mb-2 text-right">{title}</h3>
-                <p className="text-gray-600 text-sm mb-4 text-right">{body}</p>
-                {error && <InlineError message={error} />}
-                <div className="flex gap-3 justify-end mt-4">
-                    <button
-                        onClick={onCancel}
-                        disabled={loading}
-                        className="px-4 py-2 text-sm text-gray-700 border border-surface-300 rounded-lg hover:bg-surface-50"
-                    >
-                        ביטול
-                    </button>
-                    <button
-                        onClick={onConfirm}
-                        disabled={loading}
-                        className="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 flex items-center gap-2"
-                    >
-                        {loading && <Loader2 size={14} className="animate-spin" />}
-                        {confirmLabel}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
+/** The profile route (student-profile PR OD-1). */
+const studentHref = (id: string) => `/my-classroom/students/${id}`;
 
 // ---------------------------------------------------------------------------
 // Students tab
@@ -110,24 +52,18 @@ function StudentsTab() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Create modal
+    // Create dialog
     const [showCreate, setShowCreate] = useState(false);
-    const [createName, setCreateName] = useState('');
-    const [createNotes, setCreateNotes] = useState('');
     const [createError, setCreateError] = useState<string | null>(null);
     const [createLoading, setCreateLoading] = useState(false);
 
-    // Edit modal
+    // Edit dialog
     const [editStudent, setEditStudent] = useState<StudentResponse | null>(null);
-    const [editName, setEditName] = useState('');
-    const [editNotes, setEditNotes] = useState('');
     const [editError, setEditError] = useState<string | null>(null);
     const [editLoading, setEditLoading] = useState(false);
 
-    // Delete confirm
+    // Delete — the purge dialog (Part B §15)
     const [deleteTarget, setDeleteTarget] = useState<StudentResponse | null>(null);
-    const [deleteLoading, setDeleteLoading] = useState(false);
-    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -144,53 +80,32 @@ function StudentsTab() {
 
     useEffect(() => { load(); }, [load]);
 
-    const handleCreate = async () => {
-        if (!createName.trim()) return;
+    const handleCreate = async (fullName: string) => {
         setCreateLoading(true);
         setCreateError(null);
         try {
-            const s = await createStudent({ full_name: createName.trim(), notes: createNotes.trim() || undefined });
+            const s = await createStudent({ full_name: fullName });
             setStudents(prev => [...prev, s].sort((a, b) => a.full_name.localeCompare(b.full_name, 'he')));
             setShowCreate(false);
-            setCreateName('');
-            setCreateNotes('');
         } catch (err) {
-            setCreateError(err instanceof ClassroomConflictError ? err.detail : 'שגיאה ביצירת התלמיד');
+            setCreateError(err instanceof ClassroomConflictError ? err.detail : 'שגיאה ביצירת התלמיד/ה');
         } finally {
             setCreateLoading(false);
         }
     };
 
-    const handleEdit = async () => {
-        if (!editStudent || !editName.trim()) return;
+    const handleEdit = async (fullName: string) => {
+        if (!editStudent) return;
         setEditLoading(true);
         setEditError(null);
         try {
-            const updated = await updateStudent(editStudent.id, {
-                full_name: editName.trim(),
-                notes: editNotes.trim() || undefined,
-            });
+            const updated = await updateStudent(editStudent.id, { full_name: fullName });
             setStudents(prev => prev.map(s => s.id === updated.id ? updated : s));
             setEditStudent(null);
         } catch (err) {
-            setEditError(err instanceof ClassroomConflictError ? err.detail : 'שגיאה בעדכון התלמיד');
+            setEditError(err instanceof ClassroomConflictError ? err.detail : 'שגיאה בעדכון התלמיד/ה');
         } finally {
             setEditLoading(false);
-        }
-    };
-
-    const handleDelete = async () => {
-        if (!deleteTarget) return;
-        setDeleteLoading(true);
-        setDeleteError(null);
-        try {
-            await deleteStudent(deleteTarget.id);
-            setStudents(prev => prev.filter(s => s.id !== deleteTarget.id));
-            setDeleteTarget(null);
-        } catch (err) {
-            setDeleteError(err instanceof ClassroomConflictError ? err.detail : 'שגיאה במחיקת התלמיד');
-        } finally {
-            setDeleteLoading(false);
         }
     };
 
@@ -207,7 +122,7 @@ function StudentsTab() {
             <div className="flex items-center justify-between mb-4">
                 <span className="text-sm text-gray-500">{students.length} תלמידים</span>
                 <button
-                    onClick={() => { setShowCreate(true); setCreateName(''); setCreateNotes(''); setCreateError(null); }}
+                    onClick={() => { setShowCreate(true); setCreateError(null); }}
                     className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium"
                 >
                     <Plus size={16} />
@@ -219,148 +134,102 @@ function StudentsTab() {
                 <div className="text-center py-16 text-gray-400">
                     <Users size={48} className="mx-auto mb-3 opacity-30" />
                     <p className="text-lg font-medium mb-1">אין תלמידים עדיין</p>
-                    <p className="text-sm">לחץ על "תלמיד חדש" להוספת תלמיד</p>
+                    <p className="text-sm">לחצי על &quot;תלמיד חדש&quot; להוספת תלמיד/ה</p>
                 </div>
             ) : (
                 <div className="space-y-2">
-                    {students.map(s => (
-                        <div key={s.id} className="bg-white rounded-xl border border-surface-200 px-5 py-4 flex items-center gap-4">
-                            <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
-                                <Users size={16} className="text-primary-600" />
+                    {students.map(s => {
+                        const badge = CL_SIGNED_COUNT(s.signed_tests_count);
+                        return (
+                            /* [student-profile PR §6.1, UI-5] The whole card is the
+                               click target, but NOT an <a> wrapping buttons (invalid,
+                               and it breaks assistive tech). The NAME is the link;
+                               its ::after stretches over the card; the pencil and
+                               the trash sit ABOVE that layer (relative + z-10), so
+                               they keep working and never navigate. Tab reaches the
+                               link, Enter opens the profile. */
+                            <div
+                                key={s.id}
+                                data-student-card={s.id}
+                                className="relative bg-white rounded-xl border border-surface-200 px-5 py-4 flex items-center gap-4
+                                    transition-colors hover:border-primary-300 focus-within:border-primary-300"
+                            >
+                                <StudentAvatar />
+                                <div className="flex-1 min-w-0">
+                                    <Link
+                                        href={studentHref(s.id)}
+                                        data-student-link
+                                        className="block font-medium text-gray-900 truncate
+                                            after:absolute after:inset-0 after:rounded-xl after:content-['']
+                                            focus-visible:outline-none"
+                                    >
+                                        {s.full_name}
+                                    </Link>
+                                    {/* OD-12 / M-A5: the count, hidden at zero. */}
+                                    {badge ? (
+                                        <p data-signed-badge className="text-xs text-primary-700 mt-0.5">{badge}</p>
+                                    ) : null}
+                                </div>
+                                <div className="relative z-10 flex items-center gap-2">
+                                    <button
+                                        onClick={() => { setEditStudent(s); setEditError(null); }}
+                                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                        title={CL_EDIT_NAME}
+                                        aria-label={CL_EDIT_NAME}
+                                    >
+                                        <Pencil size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => setDeleteTarget(s)}
+                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title={CL_DELETE_STUDENT}
+                                        aria-label={CL_DELETE_STUDENT}
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 truncate">{s.full_name}</p>
-                                {s.notes && <p className="text-xs text-gray-500 truncate">{s.notes}</p>}
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => { setEditStudent(s); setEditName(s.full_name); setEditNotes(s.notes ?? ''); setEditError(null); }}
-                                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                                    title="עריכה"
-                                >
-                                    <Pencil size={16} />
-                                </button>
-                                <button
-                                    onClick={() => { setDeleteTarget(s); setDeleteError(null); }}
-                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="מחיקה"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
-            {/* Create modal */}
+            {/* Create dialog — one field (OD-3). */}
             {showCreate && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full">
-                        <div className="flex items-center justify-between mb-4">
-                            <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                            <h2 className="font-semibold text-gray-900">הוספת תלמיד</h2>
-                        </div>
-                        <div className="space-y-3">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1 text-right">שם מלא *</label>
-                                <input
-                                    type="text"
-                                    value={createName}
-                                    onChange={e => setCreateName(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && handleCreate()}
-                                    className="w-full px-4 py-2.5 border border-surface-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-right"
-                                    placeholder="שם התלמיד"
-                                    dir="rtl"
-                                    autoFocus
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1 text-right">הערות</label>
-                                <textarea
-                                    value={createNotes}
-                                    onChange={e => setCreateNotes(e.target.value)}
-                                    className="w-full px-4 py-2.5 border border-surface-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-right resize-none"
-                                    rows={2}
-                                    placeholder="הערות אופציונליות"
-                                    dir="rtl"
-                                />
-                            </div>
-                            {createError && <InlineError message={createError} onClose={() => setCreateError(null)} />}
-                        </div>
-                        <div className="flex gap-3 justify-start mt-5">
-                            <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-700 border border-surface-300 rounded-lg hover:bg-surface-50">ביטול</button>
-                            <button
-                                onClick={handleCreate}
-                                disabled={createLoading || !createName.trim()}
-                                className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 flex items-center gap-2"
-                            >
-                                {createLoading && <Loader2 size={14} className="animate-spin" />}
-                                הוסף
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <StudentNameDialog
+                    title="הוספת תלמיד/ה"
+                    submitLabel="הוספה"
+                    loading={createLoading}
+                    error={createError}
+                    onSubmit={handleCreate}
+                    onClose={() => setShowCreate(false)}
+                    onClearError={() => setCreateError(null)}
+                />
             )}
 
-            {/* Edit modal */}
+            {/* Edit dialog — one field (OD-3). */}
             {editStudent && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full">
-                        <div className="flex items-center justify-between mb-4">
-                            <button onClick={() => setEditStudent(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                            <h2 className="font-semibold text-gray-900">עריכת תלמיד</h2>
-                        </div>
-                        <div className="space-y-3">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1 text-right">שם מלא *</label>
-                                <input
-                                    type="text"
-                                    value={editName}
-                                    onChange={e => setEditName(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && handleEdit()}
-                                    className="w-full px-4 py-2.5 border border-surface-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-right"
-                                    dir="rtl"
-                                    autoFocus
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1 text-right">הערות</label>
-                                <textarea
-                                    value={editNotes}
-                                    onChange={e => setEditNotes(e.target.value)}
-                                    className="w-full px-4 py-2.5 border border-surface-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-right resize-none"
-                                    rows={2}
-                                    dir="rtl"
-                                />
-                            </div>
-                            {editError && <InlineError message={editError} onClose={() => setEditError(null)} />}
-                        </div>
-                        <div className="flex gap-3 justify-start mt-5">
-                            <button onClick={() => setEditStudent(null)} className="px-4 py-2 text-sm text-gray-700 border border-surface-300 rounded-lg hover:bg-surface-50">ביטול</button>
-                            <button
-                                onClick={handleEdit}
-                                disabled={editLoading || !editName.trim()}
-                                className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 flex items-center gap-2"
-                            >
-                                {editLoading && <Loader2 size={14} className="animate-spin" />}
-                                שמור
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <StudentNameDialog
+                    title="עריכת תלמיד/ה"
+                    submitLabel="שמירה"
+                    initialName={editStudent.full_name}
+                    loading={editLoading}
+                    error={editError}
+                    onSubmit={handleEdit}
+                    onClose={() => setEditStudent(null)}
+                    onClearError={() => setEditError(null)}
+                />
             )}
 
-            {/* Delete confirm */}
+            {/* Delete — the purge (Part B §15) */}
             {deleteTarget && (
-                <ConfirmDialog
-                    title="מחיקת תלמיד"
-                    body={`האם למחוק את "${deleteTarget.full_name}"? פעולה זו אינה הפיכה.`}
-                    confirmLabel="מחק"
-                    onConfirm={handleDelete}
+                <StudentDeleteDialog
+                    student={deleteTarget}
                     onCancel={() => setDeleteTarget(null)}
-                    loading={deleteLoading}
-                    error={deleteError}
+                    onDeleted={() => {
+                        setStudents(prev => prev.filter(x => x.id !== deleteTarget.id));
+                        setDeleteTarget(null);
+                    }}
                 />
             )}
         </div>
@@ -478,7 +347,15 @@ function ManageStudentsModal({
                                                     : <X size={14} />
                                                 }
                                             </button>
-                                            <span className="text-sm text-gray-800 flex-1 text-right">{s.full_name}</span>
+                                            {/* [student-profile PR OD-2 / FA-1] The class's student
+                                                list is an entry point to the profile. */}
+                                            <Link
+                                                href={studentHref(s.id)}
+                                                data-class-student-link
+                                                className="text-sm text-gray-800 flex-1 text-right hover:text-primary-700 hover:underline"
+                                            >
+                                                {s.full_name}
+                                            </Link>
                                         </div>
                                     ))}
                                 </div>
@@ -630,7 +507,7 @@ function ClassesTab() {
                 <div className="text-center py-16 text-gray-400">
                     <GraduationCap size={48} className="mx-auto mb-3 opacity-30" />
                     <p className="text-lg font-medium mb-1">אין כיתות עדיין</p>
-                    <p className="text-sm">לחץ על "כיתה חדשה" להוספת כיתה</p>
+                    <p className="text-sm">לחץ על &quot;כיתה חדשה&quot; להוספת כיתה</p>
                 </div>
             ) : (
                 <div className="space-y-2">

@@ -205,6 +205,9 @@ function GradeReviewSection({ batch, batchId, onRefresh, durationMinutes }: {
             onOpenReview={openReview}
             onContinue={openReview}
             onOpenPreview={openPreview}
+            // [student-profile PR OD-2] the name on a card → the profile.
+            studentHref={(item) =>
+                (item.student_id ? `/my-classroom/students/${item.student_id}` : null)}
             onRetry={(item) => { void retryTest(item); }}
             onDownload={() => { void downloadZip(); }}
             loadManifest={loadManifest}

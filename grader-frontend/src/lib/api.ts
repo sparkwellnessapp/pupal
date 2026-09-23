@@ -188,7 +188,6 @@ export interface ExtractedCriterion {
   criterion_description: string;
   total_points: number;
   reduction_rules: ReductionRule[];
-  notes?: string | null;
   raw_text?: string | null;
   extraction_confidence: 'high' | 'medium' | 'low';
 
@@ -1532,8 +1531,53 @@ export async function updateStudent(id: string, body: UpdateStudentBody): Promis
   return res.json();
 }
 
-export async function deleteStudent(id: string): Promise<void> {
-  await _classroomFetch(`${API_BASE}/api/v0/classroom/students/${id}`, { method: 'DELETE' });
+/** [Part B §12] The purge plan for a student, COUNTED — what the Delete dialog
+ *  states before she confirms. `case` picks its copy (§15). */
+export type PurgePreview = components['schemas']['PurgePreviewResponse'];
+
+export async function getStudentPurgePreview(id: string): Promise<PurgePreview> {
+  const res = await _classroomFetch(`${API_BASE}/api/v0/classroom/students/${id}/purge-preview`);
+  return res.json();
+}
+
+/** [Part B §12, M-B4] DELETE's 200 body: the purge's verify report, in counts.
+ *  Hand-written: the route answers a plain dict, so the schema is untyped. */
+export interface PurgeReport {
+  verify: {
+    clean: boolean;
+    rows_remaining: Record<string, number>;
+    objects_remaining: number;
+    soft_deleted_count: number;
+    restorable_until: string | null;
+    legacy_tables_empty: boolean;
+  } | null;
+  rows_deleted: Record<string, number>;
+  objects_deleted: number;
+  failures: number;
+}
+
+/** The privacy-complete purge (Part B). 409s arrive as ClassroomConflictError
+ *  with a machine code — GRADING_IN_PROGRESS or PURGE_REFUSED; the copy is ours. */
+export async function deleteStudent(id: string): Promise<PurgeReport> {
+  const res = await _classroomFetch(`${API_BASE}/api/v0/classroom/students/${id}`, { method: 'DELETE' });
+  return res.json();
+}
+
+/** A grade or job of hers is in flight (PRV-5): nothing was touched. */
+export const GRADING_IN_PROGRESS = 'grading_in_progress';
+/** The plan could not promise a correct purge: nothing was touched. */
+export const PURGE_REFUSED = 'purge_refused';
+
+export type SignedTestsResponse = components['schemas']['SignedTestsResponse'];
+export type SignedTestItem = components['schemas']['SignedTestItem'];
+
+/**
+ * [student-profile PR §5.1–5.3] Every APPROVED test of a student, one row per
+ * chain, newest upload first. Named for the invariant it carries (M-A1).
+ */
+export async function getStudentSignedTests(id: string): Promise<SignedTestsResponse> {
+  const res = await _classroomFetch(`${API_BASE}/api/v0/classroom/students/${id}/signed-tests`);
+  return res.json();
 }
 
 // Classes
@@ -2258,8 +2302,19 @@ export async function fetchTranscriptionPageObjectUrl(
   transcriptionId: string,
   pageNumber: number,
 ): Promise<string> {
-  return fetchPageImageObjectUrl(
-    `/api/v0/transcriptions/${transcriptionId}/pages/${pageNumber}/image`);
+  return fetchPageImageObjectUrl(transcriptionPagePath(transcriptionId, pageNumber));
+}
+
+/**
+ * The page route the returned exam requests. It is the server-minted
+ * `thumbnail.page_image_path` WITHOUT its `?v=` pin, and the route serves the
+ * current variant to an unpinned request — so this and the pile / profile
+ * thumbnail are one resource with one set of bytes; only the cache promise
+ * differs. Pinned on both sides (student-profile PR, Part A item 4):
+ * `student-profile.test.ts` here and `test_student_profile.py::test_a_batched_…`.
+ */
+export function transcriptionPagePath(transcriptionId: string, pageNumber: number): string {
+  return `/api/v0/transcriptions/${transcriptionId}/pages/${pageNumber}/image`;
 }
 
 /**
