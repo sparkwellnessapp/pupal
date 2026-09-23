@@ -441,6 +441,8 @@ def compile_graded_test(
                 was_overridden=c.check_id in by_check,
                 evidence_disputed=(by_check[c.check_id].evidence_disputed
                                    if c.check_id in by_check else False),
+                evidence_confirmed=(by_check[c.check_id].evidence_confirmed
+                                    if c.check_id in by_check else False),
                 teacher_comment=(by_check[c.check_id].teacher_comment
                                  if c.check_id in by_check else None),
                 # [OD-R2, OD-5] the amount she typed, when she did

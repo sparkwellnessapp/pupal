@@ -74,32 +74,97 @@ def _scope_target_id(scope: GradableScope) -> str:
     return scope.question_id
 
 
-def _best_substring_ratio(quote: str, text: str) -> float:
-    """
-    Sliding-window best-substring match ratio.
+# ── THE QUOTE CHECK IS AN ALIGNMENT, NOT A WINDOW (2026-09-15) ─────────────
+#
+# It used to slide a window ~1.25× the quote's length across the answer in
+# steps of a quarter of the quote's length and keep the best difflib ratio.
+# That measure had two defects that were GEOMETRY, not content:
+#
+#   * the stride: window starts fell only every |q|/4 characters, so a quote
+#     starting between two of them was always compared misaligned — with up to
+#     |q|/8 of its own characters cut off one end;
+#   * the width: difflib's ratio is 2M/(|q|+|window|), so a quote that was
+#     ENTIRELY inside its window could score at most 2/2.25 = 0.889. Against a
+#     0.85 bar that left 0.04 for any real difference at all.
+#
+# A student's inline comment inside a constructor (`// פעולה בונה`) plus a
+# stride miss scored a genuine, correctly-cited span at 0.845 — refused by
+# five thousandths — and a criterion she had actually earned priced at 0
+# (graded_test a0cd07ff, 2026-09-15). At the right alignment the same quote
+# scored 0.891. (difflib's autojunk also silently changed the arithmetic for
+# any window of 200+ characters, treating frequent characters as junk.)
+#
+# The replacement makes this CLASS of failure impossible rather than rarer:
+# the score is the OPTIMUM over every alignment, computed exactly by dynamic
+# programming (local alignment with free start and end in the answer). There
+# is no window to be wide or narrow and no stride to miss. Where the quote
+# sits in the answer cannot affect its score; only its CONTENT can.
+#
+#   score = max over alignments of
+#           ( matched quote chars  −  SKIP_COST × answer chars stepped over
+#             between matched chars ) / |quote|
+#
+# Read it as: what fraction of the quote's characters appear, in order, within
+# one stretch of the answer — with text the STUDENT wrote in between (a
+# comment, a blank line, a stray token) almost free, and text the MODEL added
+# or altered simply unmatched. An exact quote scores 1.0 (and is caught by the
+# substring test before we get here). A quote fabricated from common tokens
+# scattered across the answer fails, because every character of answer it
+# steps over costs it, and scattered matches step over many. The 0.85 bar
+# keeps its meaning — 85% of the quote must be there — and now means only that.
+#
+# THE ONE PARAMETER, AND WHERE IT COMES FROM. At the 0.85 bar a fully matched
+# quote can afford 0.15·|q| of penalty, so with SKIP_COST = 0.6 the alignment
+# may step over at most 0.15 / 0.6 = 25% of the quote's length of student
+# text — exactly the slack the old 1.25× window granted, now applied at the
+# best alignment instead of a guessed one. Both ends stay free, so a comment
+# at the END of a span costs nothing (the alignment stops before it). What it
+# refuses is STITCHING: two fragments cited as one span with half a quote's
+# worth of answer between them score ~0.7 — the fabrication signal the eval
+# suite's T1-STITCHED rule depends on (a cost of 0.1 let that through at 0.95).
+#
+# Cost: O(|q|·|answer|) per non-exact quote, in pure Python — ~0.3 s for a
+# 200-character quote against a 2 000-character answer. Only ~1% of quotes
+# reach it (the rest are exact substrings), so a test pays well under a second.
 
-    A short exact quote inside a long answer must NOT be scored as NOT_FOUND.
-    We slide a window of approximately quote-length across the text and return
-    the best SequenceMatcher ratio found.
-    """
-    q_len = len(quote)
-    if q_len == 0:
+_SKIP_COST = 0.6      # per answer character the alignment steps over inside the match
+_MISMATCH_COST = 1.0  # dominated by skip-both (0 + SKIP_COST); kept for readability
+
+
+def _coverage_score(quote: str, text: str) -> float:
+    """The best alignment score of `quote` inside `text`, in [0, 1]. Exact.
+
+    H[i][j] = best score of an alignment of quote[:i] ending at text[:j]:
+      match          H[i-1][j-1] + 1        (quote char found)
+      skip quote     H[i-1][j]              (quote char absent: earns nothing)
+      skip answer    H[i][j-1] − SKIP_COST  (student text inside the match)
+      restart        0                      (free start anywhere in the answer)
+    Skipping quote characters is free, so the last row dominates every other;
+    the free start and the max over the last row make both ends free in the
+    answer. Position-invariant by construction."""
+    n, m = len(quote), len(text)
+    if n == 0 or m == 0:
         return 0.0
-    if q_len >= len(text):
-        return difflib.SequenceMatcher(None, quote, text).ratio()
+    prev = [0.0] * (m + 1)
+    for i in range(1, n + 1):
+        qc = quote[i - 1]
+        cur = [0.0] * (m + 1)
+        for j in range(1, m + 1):
+            diag = prev[j - 1] + (1.0 if text[j - 1] == qc else -_MISMATCH_COST)
+            up = prev[j]
+            left = cur[j - 1] - _SKIP_COST
+            v = diag if diag > up else up
+            if left > v:
+                v = left
+            cur[j] = v if v > 0.0 else 0.0
+        prev = cur
+    return max(prev) / n
 
-    best = 0.0
-    step = max(1, q_len // 4)          # step ~25% of quote length
-    window_size = q_len + (q_len // 4)  # window slightly wider than quote
 
-    for i in range(0, len(text) - q_len + 1, step):
-        window = text[i : i + window_size]
-        r = difflib.SequenceMatcher(None, quote, window).ratio()
-        if r > best:
-            best = r
-            if best >= 0.85:
-                return best  # short-circuit once threshold is met
-    return best
+def _best_substring_ratio(quote: str, text: str) -> float:
+    """The quote's alignment score (see above). The name survives from the
+    windowed implementation because the v3 path records it as `ratio`."""
+    return _coverage_score(quote, text)
 
 
 def quote_match_status(quote_text: str, student_answer: str) -> Optional[QuoteValidationStatus]:

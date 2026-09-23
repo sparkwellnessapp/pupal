@@ -68,7 +68,17 @@ def render_scope_for_feedback(scope_outcome) -> str:
     for criterion in scope_outcome.criterion_outcomes:
         for leaf in (criterion.sub_criterion_outcomes or [criterion]):
             for check in (leaf.checks or []):
-                line = f"[{mark.get(check.verdict, check.verdict)}] {check.text}"
+                # A credit verdict whose span did not verify was REFUSED by the
+                # pricer (the invented-credit guard). Presenting it as «זוכה»
+                # here let the feedback say «written as required» over a 0 —
+                # three surfaces, three stories (graded_test a0cd07ff,
+                # 2026-09-15). The prose must describe what was priced.
+                refused = (check.kind in ("required", "counted")
+                           and check.verdict in ("met", "partially_met")
+                           and check.quote_status not in ("exact", "fuzzy"))
+                label = ("לא אומת — לא זוכה" if refused
+                         else mark.get(check.verdict, check.verdict))
+                line = f"[{label}] {check.text}"
                 if check.quote and check.quote_status in ("exact", "fuzzy"):
                     line += f"\n    מתוך התשובה: {check.quote}"
                 elif check.basis_he:
