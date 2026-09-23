@@ -13,7 +13,8 @@ Named invariants under test:
                            definition; the roster count is ONE grouped statement
   LST-5 OwnerScoped        every read is scoped by current_user.id; cross-tenant
                            is 404; a foreign graded_test never leaks
-  M-A2  interim delete     409 `student_has_data` while anything references her
+  (M-A2's interim 409 `student_has_data` is replaced by Part B's purge; its
+   cases live on in tests/api/test_student_purge_endpoints.py)
   OD-3 / UI-4              `notes` is gone from every response and ignored on input
 """
 from __future__ import annotations
@@ -631,41 +632,6 @@ def test_the_cap_truncates_the_list_but_never_the_count(client, headers_a, user_
 # ---------------------------------------------------------------------------
 # §5.4 / M-A2 — the interim delete
 # ---------------------------------------------------------------------------
-
-@pytest.mark.integration
-def test_interim_delete_refuses_a_student_with_only_a_draft(client, headers_a, user_a, rubric_a):
-    uid, rid = user_a["user"]["id"], rubric_a["rubric_id"]
-    sid = _student(client, headers_a, f"מחיקה {uuid.uuid4().hex[:6]}")
-
-    async def seed():
-        t = await _transcription(uid, rid)
-        await _graded(uid, rid, t, sid, status="draft")
-    asyncio.run(seed())
-
-    resp = client.delete(f"/api/v0/classroom/students/{sid}", headers=headers_a)
-    assert resp.status_code == 409, resp.text
-    assert resp.json() == {"detail": "student_has_data"}
-    assert client.get(f"/api/v0/classroom/students/{sid}", headers=headers_a).status_code == 200
-
-
-@pytest.mark.integration
-def test_interim_delete_refuses_a_student_referenced_only_by_a_scan(
-        client, headers_a, user_a, rubric_a):
-    uid, rid = user_a["user"]["id"], rubric_a["rubric_id"]
-    sid = _student(client, headers_a, f"מחיקה {uuid.uuid4().hex[:6]}")
-    asyncio.run(_approved_transcription(uid, rid, sid))
-
-    resp = client.delete(f"/api/v0/classroom/students/{sid}", headers=headers_a)
-    assert resp.status_code == 409, resp.text
-    assert resp.json() == {"detail": "student_has_data"}
-
-
-@pytest.mark.integration
-def test_a_student_with_nothing_attributable_deletes_as_before(client, headers_a):
-    sid = _student(client, headers_a, f"מחיקה {uuid.uuid4().hex[:6]}")
-    assert client.delete(f"/api/v0/classroom/students/{sid}", headers=headers_a).status_code == 204
-    assert client.get(f"/api/v0/classroom/students/{sid}", headers=headers_a).status_code == 404
-
 
 # ---------------------------------------------------------------------------
 # OD-3 / UI-4 — notes is gone

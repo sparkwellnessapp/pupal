@@ -45,12 +45,16 @@ def world(user_a):
 
     g = asyncio.run(seed_graph(user_id=uuid.UUID(user_a["user"]["id"])))
     store = FakeStorage(g.objects)
+    previous = app.dependency_overrides.get(get_purge_storage)
     app.dependency_overrides[get_purge_storage] = (
         lambda: GuardedStorage(store, known_buckets=frozenset({BUCKET})))
     try:
         yield g, store
     finally:
-        app.dependency_overrides.pop(get_purge_storage, None)
+        if previous is None:
+            app.dependency_overrides.pop(get_purge_storage, None)
+        else:
+            app.dependency_overrides[get_purge_storage] = previous
         asyncio.run(drop_graph(g))
 
 
@@ -141,6 +145,20 @@ def test_the_interim_student_has_data_409_is_gone(client, headers_a, world):
     resp = client.delete(STUDENT.format(id=drafts), headers=headers_a)
     assert resp.status_code == 200, resp.text
     assert resp.json()["verify"]["clean"] is True
+
+
+def test_a_student_whose_only_data_is_an_approved_scan_is_purged(client, headers_a, world):
+    """The interim guard refused this too (a scan with no grade still names
+    her). The purge takes the scan, its job and its objects."""
+    g, store = world
+    scan_only = asyncio.run(add_student(g, scan_only=True))
+
+    preview = client.get(PREVIEW.format(id=scan_only), headers=headers_a).json()
+    assert (preview["case"], preview["counts"]["transcriptions"]) == ("data_only", 1)
+    resp = client.delete(STUDENT.format(id=scan_only), headers=headers_a)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["verify"]["clean"] is True
+    assert resp.json()["rows_deleted"]["transcriptions"] == 1
 
 
 def test_a_student_with_nothing_attributable_is_deleted(client, headers_a, world):

@@ -542,7 +542,13 @@ export interface paths {
         get: operations["get_student_api_v0_classroom_students__student_id__get"];
         put?: never;
         post?: never;
-        /** Delete Student */
+        /**
+         * Delete Student
+         * @description [Part B §12, §14] Privacy-complete deletion: the purge, then its verify
+         *     report as the 200 body (M-B4). Replaces §5.4's interim `student_has_data`
+         *     409. 404 for another teacher's student (PRV-4); 409 `grading_in_progress`
+         *     while a grade or job of hers is in flight (PRV-5), touching nothing.
+         */
         delete: operations["delete_student_api_v0_classroom_students__student_id__delete"];
         options?: never;
         head?: never;
@@ -6536,11 +6542,13 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": unknown;
+                };
             };
             /** @description Validation Error */
             422: {

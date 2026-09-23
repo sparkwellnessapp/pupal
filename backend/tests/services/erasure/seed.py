@@ -308,16 +308,19 @@ async def point_scan_at(g: Graph, key: str, *, path: str | None = None,
         await db.commit()
 
 
-async def add_student(g: Graph, *, draft_only: bool = False) -> uuid.UUID:
-    """Another student of the same teacher: with nothing attributable, or with
-    one scan whose only grade is an unapproved draft (the dialog's two other
-    cases, PR §15)."""
+async def add_student(g: Graph, *, draft_only: bool = False, scan_only: bool = False) -> uuid.UUID:
+    """Another student of the same teacher: with nothing attributable, with one
+    scan whose only grade is an unapproved draft, or with one approved scan and
+    no grade at all (the dialog's cases, PR §15)."""
     from app.models.student import Student
 
     sid = uuid.uuid4()
     async with session() as db:
         db.add(Student(id=sid, user_id=g.user_id, full_name=f"תלמיד נוסף {uuid.uuid4().hex[:6]}"))
         await db.flush()
+        if scan_only:
+            await _add_scan(db, g, f"scan{len(g.extra_students)}", student_id=sid,
+                            batch_id=g.batch_id)
         if draft_only:
             key = f"draft{len(g.extra_students)}"
             await _add_scan(db, g, key, student_id=sid, batch_id=g.batch_id)

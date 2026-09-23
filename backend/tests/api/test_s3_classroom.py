@@ -247,12 +247,18 @@ def test_7a_class_delete_guard(client, headers_a, class_a, rubric_a, user_a):
 
 
 def test_7b_student_delete_guard(client, headers_a, student_a, rubric_a, user_a):
-    """Insert Transcription + GradedTest rows directly, then assert DELETE /students/{id} returns 409."""
+    """PRV-5 NoDeleteMidGrade: while a grade of hers is in flight, DELETE answers
+    409 `grading_in_progress` and touches nothing (Part B; this was §5.4's
+    interim `student_has_data` guard). The seed is CONSISTENT — her approved
+    scan, in the configured bucket, under a PRV-11 path — so it is the blocker
+    that answers, not a refusal of a malformed graph."""
+    from app.config import settings
     from app.models.transcription import Transcription
     from app.models.grading import GradedTest
 
     transcription_id = uuid4()
     graded_test_id = uuid4()
+    path = f"transcriptions/{user_a['user']['id']}/{uuid4()}.pdf"
     engine = _sync_engine()
 
     with engine.begin() as conn:
@@ -261,13 +267,15 @@ def test_7b_student_delete_guard(client, headers_a, student_a, rubric_a, user_a)
                 id=transcription_id,
                 user_id=UUID(user_a["user"]["id"]),
                 rubric_id=UUID(rubric_a["rubric_id"]),
-                student_id=None,  # constraint: student_id must be NULL when status='transcribed'
-                gcs_uri="gs://test-bucket/test-path.pdf",
-                gcs_bucket="test-bucket",
-                gcs_object_path="test-path.pdf",
+                student_id=UUID(student_a["id"]),
+                gcs_uri=f"gs://{settings.gcs_bucket_name}/{path}",
+                gcs_bucket=settings.gcs_bucket_name,
+                gcs_object_path=path,
                 filename="test.pdf",
-                draft_json=[],  # empty list, psycopg2 serializes JSONB automatically
-                status="transcribed",
+                draft_json=[],
+                contract_json={"answers": []},
+                approved_at=sqlalchemy.func.now(),
+                status="approved",
             )
         )
         conn.execute(
@@ -287,9 +295,10 @@ def test_7b_student_delete_guard(client, headers_a, student_a, rubric_a, user_a)
 
     try:
         resp = client.delete(f"/api/v0/classroom/students/{student_a['id']}", headers=headers_a)
-        assert resp.status_code == 409, (
-            f"Expected 409 (student has graded_tests), got {resp.status_code}: {resp.text}"
-        )
+        assert resp.status_code == 409, resp.text
+        assert resp.json() == {"detail": "grading_in_progress", "count": 1}
+        assert client.get(f"/api/v0/classroom/students/{student_a['id']}",
+                          headers=headers_a).status_code == 200
     finally:
         with engine.begin() as conn:
             conn.execute(
@@ -305,10 +314,6 @@ def test_7b_student_delete_guard(client, headers_a, student_a, rubric_a, user_a)
         engine.dispose()
 
 
-# ---------------------------------------------------------------------------
-# Test 8 — Delete happy path → 204; resource gone
-# ---------------------------------------------------------------------------
-
 def test_8_student_delete_happy_path(client, headers_a):
     resp = client.post(
         "/api/v0/classroom/students",
@@ -318,7 +323,9 @@ def test_8_student_delete_happy_path(client, headers_a):
     assert resp.status_code == 201
     student_id = resp.json()["id"]
 
-    assert client.delete(f"/api/v0/classroom/students/{student_id}", headers=headers_a).status_code == 204
+    resp = client.delete(f"/api/v0/classroom/students/{student_id}", headers=headers_a)
+    assert resp.status_code == 200, resp.text          # Part B: the purge, with its report (M-B4)
+    assert resp.json()["verify"]["clean"] is True
     assert client.get(f"/api/v0/classroom/students/{student_id}", headers=headers_a).status_code == 404
 
 

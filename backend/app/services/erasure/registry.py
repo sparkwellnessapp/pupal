@@ -7,7 +7,8 @@ column) is classified here, and `tests/services/erasure/test_pii_registry.py`
 set-compares this map with the live schema in BOTH directions. A new column
 matching a pattern fails that test until someone decides what the purge does
 with it; that decision is the point of the registry. Production and Vivi-Test
-catch the same 50 columns (read 2026-09-23).
+catch the same 50 columns (read 2026-09-23); migration 033 adds the 51st,
+the purge ledger's `object_name`.
 """
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ class Disposition(str, Enum):
     LEGACY_ASSERTED_EMPTY = "legacy_asserted_empty"  # a dead table: never purged, verify asserts empty
     OUT_OF_SCOPE = "out_of_scope"                    # the teacher's own data, or an institution's
     NO_STUDENT_DATA = "no_student_data"
+    PURGE_LEDGER = "purge_ledger"                    # written by the purge, cleared by its retry; ids only
 
 
 # The tables the plan DELETES from — dependency order is the executor's
@@ -87,6 +89,8 @@ PII_REGISTRY: dict[tuple[str, str], Disposition] = {
     ("rubric_share_tokens", "generated_pdf_gcs_path"): D.OUT_OF_SCOPE,
     ("users", "full_name"): D.OUT_OF_SCOPE,
     ("schools", "name"): D.OUT_OF_SCOPE,
+    # --- the purge's own ledger (033): an object path — ids only (PRV-11) --
+    ("purge_failures", "object_name"): D.PURGE_LEDGER,
     # --- no student data --------------------------------------------------
     ("grading_plans", "plan_json"): D.NO_STUDENT_DATA,           # rubric algebra only
     ("grading_plans", "skeleton_json"): D.NO_STUDENT_DATA,

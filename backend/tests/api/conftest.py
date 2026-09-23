@@ -43,6 +43,23 @@ def client():
         yield c
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _purge_storage_is_a_fake():
+    """The student purge lists and deletes OBJECTS (Part B). No API test may reach
+    the real bucket through it, so the one storage dependency is a guarded fake
+    for the whole session — the auth dependency never is (CLAUDE.md §9). A test
+    that needs to see the objects installs its own and restores this one."""
+    from app.config import settings
+    from app.services.erasure import GuardedStorage, get_purge_storage
+    from tests.services.erasure.fakes import FakeStorage
+
+    store = FakeStorage()
+    app.dependency_overrides[get_purge_storage] = lambda: GuardedStorage(
+        store, known_buckets=frozenset({settings.gcs_bucket_name}))
+    yield
+    app.dependency_overrides.pop(get_purge_storage, None)
+
+
 def _signup(client: TestClient, tag: str) -> dict:
     """A usable, signed-in user.
 
