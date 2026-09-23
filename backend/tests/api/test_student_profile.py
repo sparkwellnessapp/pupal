@@ -531,12 +531,16 @@ def test_another_users_student_is_404_and_a_foreign_row_never_leaks(
     assert client.get(SIGNED.format(id=sid_a)).status_code == 401
 
     async def seed():
-        # A row OWNED by user B that (illegitimately) names user A's student:
-        # the user_id scope, not the student FK, is what keeps it out.
+        # A row OWNED by user B that (illegitimately) names user A's student.
         rid_b = await _rubric(uid_b, "של ב")
         t = await _transcription(uid_b, rid_b)
         await _graded(uid_b, rid_b, t, sid_a, status="approved")
-    asyncio.run(seed())
+    # Since migration 032 (AM-B4, PRV-10) the DATABASE refuses that row:
+    # graded_tests_student_tenant_fkey. The leak this test guarded against is
+    # now unrepresentable, not merely filtered out by the user_id scope.
+    from sqlalchemy.exc import IntegrityError
+    with pytest.raises(IntegrityError):
+        asyncio.run(seed())
 
     payload = _get(client, headers_a, sid_a)
     assert payload["signed_tests"] == [] and payload["signed_tests_count"] == 0

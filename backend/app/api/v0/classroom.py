@@ -12,6 +12,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy import select, exists, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +33,7 @@ from ...schemas.classroom import (
     ClassResponse,
     CreateClassRequest,
     CreateStudentRequest,
+    PurgePreviewResponse,
     SignedTestExam,
     SignedTestItem,
     SignedTestsResponse,
@@ -41,6 +43,13 @@ from ...schemas.classroom import (
     StudentResponse,
     UpdateClassRequest,
     UpdateStudentRequest,
+)
+from ...services.erasure import (
+    GuardedStorage,
+    PurgeRefused,
+    StudentNotFound,
+    get_purge_storage,
+    plan_purge,
 )
 from ...services.student_signed_tests import (
     SignedTestRow,
@@ -189,6 +198,31 @@ async def delete_student(
     await db.delete(student)
     await db.commit()
     return Response(status_code=204)
+
+
+@router.get("/students/{student_id}/purge-preview", response_model=PurgePreviewResponse)
+async def get_student_purge_preview(
+    student_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    storage: GuardedStorage = Depends(get_purge_storage),
+):
+    """[Part B §12] The purge plan for this student, counted — what the Delete
+    dialog states before she confirms. An UNLOCKED read (AM-B6) that never
+    writes. Ownership is checked before any storage call (PRV-4: 404)."""
+    await get_owned_or_404(db, Student, student_id, current_user.id)
+    try:
+        plan = await plan_purge(db, user_id=current_user.id, student_id=student_id, storage=storage)
+    except StudentNotFound:
+        raise HTTPException(status_code=404, detail="Student not found")
+    except PurgeRefused as exc:
+        # An operator's problem, not hers: ids only in the log (OD-B4), the
+        # reason code on the wire.
+        logger.error("purge_refused student_id=%s reason=%s detail=%s",
+                     student_id, exc.reason, exc.detail)
+        return JSONResponse(status_code=409,
+                            content={"detail": "purge_refused", "reason": exc.reason})
+    return plan.summary()
 
 
 @router.get("/students/{student_id}/signed-tests", response_model=SignedTestsResponse)

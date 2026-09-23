@@ -19,7 +19,7 @@ transcriptions row, but is deliberately NOT in the CHECK (FK is SET NULL).
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, ForeignKeyConstraint, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -41,12 +41,12 @@ class TranscriptionJob(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True),
-                     ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+                     ForeignKey("users.id"), nullable=False)
     batch_id = Column(UUID(as_uuid=True),
-                      ForeignKey("grading_batches.id", ondelete="CASCADE"),
+                      ForeignKey("grading_batches.id"),
                       nullable=False, index=True)
     rubric_id = Column(UUID(as_uuid=True),
-                       ForeignKey("rubrics.id", ondelete="CASCADE"), nullable=False)
+                       ForeignKey("rubrics.id"), nullable=False)
     status = Column(String(20), nullable=False, default="queued")
 
     # Source document (durability: per-doc retry without re-upload)
@@ -60,7 +60,7 @@ class TranscriptionJob(Base):
 
     # Outcome
     transcription_id = Column(UUID(as_uuid=True),
-                              ForeignKey("transcriptions.id", ondelete="SET NULL"),
+                              ForeignKey("transcriptions.id"),
                               nullable=True)
     error_message = Column(Text, nullable=True)
     net_verdict = Column(String(30), nullable=True)
@@ -73,8 +73,17 @@ class TranscriptionJob(Base):
     updated_at = Column(DateTime(timezone=True), default=_utcnow,
                         onupdate=_utcnow, nullable=False)
 
+    # [032] every FK above is NO ACTION (AM-B1) — the purge DELETES a job with its
+    # scan, never nulls it (the SET NULL kept her filename and object path with
+    # nothing to find them by). AM-B4: a job's scan is its teacher's scan.
+    __table_args__ = (
+        ForeignKeyConstraint(["transcription_id", "user_id"],
+                             ["transcriptions.id", "transcriptions.user_id"],
+                             name="transcription_jobs_transcription_tenant_fkey"),
+    )
+
     batch = relationship("GradingBatch", back_populates="transcription_jobs")
-    transcription = relationship("Transcription")
+    transcription = relationship("Transcription", foreign_keys=[transcription_id])
 
     @property
     def is_active(self) -> bool:

@@ -361,12 +361,13 @@ Searched: `backend/tests/`, `backend/scripts/`, `backend/app/scripts/`, the thre
 
 Each teardown's rows were read at its fixture, not guessed from its name.
 
-**Two helpers break (12 call sites):**
+**Three helpers break.** v2 first read two, counting 12 call sites; running the full suite against a database with 032 applied found the third, and the counts are 15, 18 and six importing modules:
 
 | Where | Deletes | Breaks under 032 because | Fix — ruled 2026-09-23: a small PR to **main**, before 032 |
 |---|---|---|---|
-| `tests/api/test_batch_grading.py:527` `_delete_batch_cascade` (called at `:602`, `:723`) | a batch created through the real append flow | named for the cascade it relies on: the batch's jobs (#11) and transcriptions (#15) now refuse | delete the batch's subtrees explicitly, children first |
-| `tests/api/test_revision_flows.py:319` `_delete_row_cascade` (10 call sites, `:362`–`:603`) | **one** row of a revision chain (R2, or R1 at `:578`) | its chain neighbour still references it: R1's `regraded_to_id` (#5, checked at commit) or R2's `regraded_from_id` (#4) | delete the **whole chain in one statement** |
+| `tests/api/test_batch_grading.py:527` `_delete_batch_cascade` (15 call sites, `:602`–`:1423`) | a batch created through the real append flow | named for the cascade it relies on: the batch's jobs (#11) and transcriptions (#15) now refuse | delete the batch's subtrees explicitly, children first |
+| `tests/api/test_transcription_review.py` `_cleanup_batch` — imported by six modules (`accept_guards`, `b9_smoke`, `batch_exposure`, `batch_intake`, `batch_upload_declaration`, `needs_eyes`) | a batch, its scans and grades | it creates no jobs itself — the reading classed it a survivor — but its importers' batches DO have jobs, left to `transcription_jobs.batch_id` CASCADE (#11); 14 failures | every chain touching the batch, then the jobs, the scans, the batch |
+| `tests/api/test_revision_flows.py:319` `_delete_row_cascade` (18 call sites, `:362`–`:884`) | **one** row of a revision chain (R2, or R1 at `:578`) | its chain neighbour still references it: R1's `regraded_to_id` (#5, checked at commit) or R2's `regraded_from_id` (#4) | delete the **whole chain in one statement** |
 
 **The rest survive, because their deletes are already explicit and in dependency order:**
 
@@ -378,7 +379,6 @@ Each teardown's rows were read at its fixture, not guessed from its name.
 | `tests/api/test_s3_classroom.py:296, 301` | graded test, then transcription | already in order; no job was created |
 | `tests/api/test_transcription_endpoints.py:187` | **a rubric** | the request under test answers 400, so no row references the rubric |
 | `tests/api/test_transcription_page_render.py:113` | a transcription | its fixture creates no graded test and no job |
-| `tests/api/test_transcription_review.py:174-182` | graded tests → transcriptions → batch | already in order; these tests create no jobs |
 | `tests/services/test_onboarding_reask.py:70` | **users** | the users it makes own nothing |
 | `tests/services/test_plan_build_runner.py:201`, `tests/services/test_plan_kick.py:48` | `grading_plans`, then **a rubric** | no student row references these rubrics |
 
@@ -391,7 +391,7 @@ Each teardown's rows were read at its fixture, not guessed from its name.
 | `backend/migrations/007`, `008` | `DROP TABLE … CASCADE` | historical, already applied |
 | eval suites, conftests, CI | — | no deletes found |
 
-**Never exempted (ruling F).** The two fixes make the deletion explicit in dependency order, which passes under today's cascades and under 032 alike. Neither loosens a constraint. The survivors depend on having no dependents, so a fixture that later adds one fails loudly, which is the point.
+**Never exempted (ruling F).** The three fixes (PR `test/explicit-teardown-helpers`) make the deletion explicit in dependency order, which passes under today's cascades and under 032 alike. Neither loosens a constraint. The survivors depend on having no dependents, so a fixture that later adds one fails loudly, which is the point. **The reading was not the proof, and it was wrong once:** the proof is main's full suite run against a database with 032 applied.
 
 **Why the fix goes to main (ruled 2026-09-23).** Vivi-Test is **shared** by every branch; applying 031 there broke the main-based ones (`UndefinedColumn notes`). So the helper fixes land on main in their own PR, and 032 is applied to Vivi-Test only after that PR merges and every active branch has rebased.
 

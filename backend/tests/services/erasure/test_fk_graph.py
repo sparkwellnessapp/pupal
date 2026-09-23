@@ -46,7 +46,7 @@ FK_COLUMNS = """
            ARRAY(SELECT a.attname FROM unnest(c.confkey) WITH ORDINALITY k(n, i)
                    JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.n
                   ORDER BY k.i) AS ref_cols,
-           c.confdeltype
+           c.confdeltype::text AS confdeltype      -- "char" arrives as bytes otherwise
       FROM pg_constraint c
       JOIN pg_class src ON src.oid = c.conrelid
       JOIN pg_class dst ON dst.oid = c.confrelid
