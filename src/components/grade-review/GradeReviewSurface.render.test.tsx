@@ -192,6 +192,19 @@ describe('GradeReviewSurface renders a real published draft', () => {
         expect((html.match(/data-check-id=/g) ?? []).length).toBeLessThan(totalChecks / 2);
     });
 
+    it('offers the way back to the batch dashboard from the top bar, beside «הבא»', () => {
+        // Before this link the desktop module had no exit of its own while
+        // tests were left to review (the WaitCard shows only once the queue
+        // is exhausted). It is a real anchor to the batch route — the href the
+        // page passes — so it survives a stale in-memory router too.
+        const bar = html.slice(html.indexOf('data-review-topbar'), html.indexOf('data-scope-id'));
+        const anchor = bar.match(/<a [^>]*data-nav-batch[^>]*>/)?.[0] ?? '';
+        expect(anchor).toContain('href="/batches/x"');
+        expect(bar).toContain('חזרה לכל המבחנים');
+        // In the SAME column as «הבא»: the link precedes the button in the markup.
+        expect(bar.indexOf('data-nav-batch')).toBeLessThan(bar.indexOf('הבא<'));
+    });
+
     it('re-opens the criteria she had already decided, and renders their rows', () => {
         const open = render({ overlay: overlayTouchingEveryCriterion(DAN) });
         expect((open.match(/data-check-id=/g) ?? []).length).toBeGreaterThan(20);

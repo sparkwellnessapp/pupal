@@ -476,9 +476,7 @@ export const EXPLAINER_DISMISS = 'הבנתי'
  * UNDER A GROUP, COUNTS ONLY — never which questions are "missing". The student
  * chose; there is nothing to find.
  */
-/** §5.3D verbatim. The count is of LEAF KEYS — a question with three
- *  sub-questions contributes three — so they are סעיפים, never שאלות. */
-export const COMPLETE_ALL = (n: number) => `נמצאו תשובות לכל ${n} הסעיפים`
+export const COMPLETE_ALL = (n: number) => `נמצאו תשובות לכל ${n} השאלות`
 export const COMPLETE_MISSING = (found: number, total: number, keys: string) =>
   `נמצאו ${found} מתוך ${total} סעיפים — ${keys} לא נמצאו`
 export const COMPLETE_MISSING_PREFIX = (keys: string) => `${keys} לא נמצאו`

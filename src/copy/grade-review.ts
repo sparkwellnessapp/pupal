@@ -19,6 +19,9 @@ export const RV_TOTAL_PROPOSAL = (possible: string) => `מתוך ${possible} · 
 export const RV_TOTAL_MINE = (possible: string) => `מתוך ${possible} · אחרי השינויים שלך`
 export const RV_NAV_PREV = 'הקודם'
 export const RV_NAV_NEXT = 'הבא'
+/** The way OUT of the module, beside «הבא» — the only other exit was the
+ *  browser's back button. Names the dashboard by what she calls it. */
+export const RV_NAV_TO_BATCH = 'חזרה לכל המבחנים'
 export const RV_MINI_THUMB_TITLE = 'המבחן החתום'
 
 /** «כיתה · מס׳ 12 · מבחן 7 מתוך 30 · מוכן לפני 6 דקות» */

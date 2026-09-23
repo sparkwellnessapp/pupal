@@ -29,6 +29,24 @@ const EMPTY: StageRollup = {
     total: 0,
 }
 
+/**
+ * A rollup as the WIRE produces it: its parts account for its total.
+ *
+ * `uploading + not_received + transcribing + transcription_failed + transcribed
+ * + approved_transcription === total`, always, on a consistent server snapshot —
+ * every declared file is on the wire, dead on the wire, or a job; every job is
+ * queued/running, failed, or completed into a transcription that is awaiting
+ * her or past the gate. In particular a GRADED document has a gate-passed
+ * transcription behind it, so `approved_transcription` is never below
+ * `grading + draft + approved + failed`.
+ *
+ * The fixtures below carry that field for exactly that reason. They used to
+ * omit it (nothing read it), and a rollup that omits it describes a batch that
+ * cannot exist — which is the one shape `deriveBatchStage` now refuses to call
+ * done: a document the rollup cannot place is read as still MOVING (see the
+ * torn-snapshot test at the end of §5.1B). The only fixture that violates the
+ * identity on purpose is that one, and it is written out by hand.
+ */
 function batch(rollup: Partial<StageRollup>, extra: Partial<StageBatch> = {}): StageBatch {
     return {
         status: 'in_progress',
@@ -98,14 +116,14 @@ describe('§5.1C — the chip is a pure function of server state', () => {
     })
 
     it('graded drafts awaiting signature → ממתין לחתימה שלך', () => {
-        const s = deriveBatchStage(batch({ draft: 4, total: 4 }))
+        const s = deriveBatchStage(batch({ approved_transcription: 4, draft: 4, total: 4 }))
         expect(s.chip.label).toBe(CHIP_WAITING_SIGNATURE)
         expect(s.step).toBe('sign')
     })
 
     it('everything signed → הושלם', () => {
         const s = deriveBatchStage(
-            batch({ approved: 7, total: 7 }, { status: 'completed' }))
+            batch({ approved_transcription: 7, approved: 7, total: 7 }, { status: 'completed' }))
         expect(s.chip.label).toBe(CHIP_DONE)
         expect(s.step).toBe('download')
     })
@@ -200,47 +218,76 @@ describe('§5.1B — the turn line, one row at a time', () => {
 
     it('grading, nothing ready, with an ETA', () => {
         expect(deriveBatchStage(batch(
-            { grading: 8, total: 8 },
+            { approved_transcription: 8, grading: 8, total: 8 },
             { eta: { kind: 'first_landing', seconds: 150 } },
         )).turnLine).toBe('עכשיו: ויוי בודקת · הראשון יהיה מוכן בעוד כ-3 דקות')
     })
 
     it('grading, nothing ready, ETA unknown → the clause is dropped', () => {
         expect(deriveBatchStage(batch(
-            { grading: 8, total: 8 }, { eta: { kind: 'unknown', seconds: null } },
+            { approved_transcription: 8, grading: 8, total: 8 },
+            { eta: { kind: 'unknown', seconds: null } },
         )).turnLine).toBe('עכשיו: ויוי בודקת')
     })
 
     it('grading with some landed', () => {
         expect(deriveBatchStage(batch({
-            grading: 18, draft: 12, total: 30,
+            approved_transcription: 30, grading: 18, draft: 12, total: 30,
         })).turnLine).toBe('ויוי בודקת · 12 מתוך 30 מוכנים לאישור וחתימה שלך')
     })
 
     it('all graded, none signed', () => {
-        expect(deriveBatchStage(batch({ draft: 5, total: 5 })).turnLine)
+        expect(deriveBatchStage(batch({ approved_transcription: 5, draft: 5, total: 5 })).turnLine)
             .toBe('תורך: 5 מבחנים בדוקים מחכים לאישור וחתימה')
     })
 
     it('all graded, exactly one left', () => {
-        expect(deriveBatchStage(batch({ draft: 1, approved: 4, total: 5 })).turnLine)
+        expect(deriveBatchStage(batch({
+            approved_transcription: 5, draft: 1, approved: 4, total: 5,
+        })).turnLine)
             .toBe('תורך: מבחן אחד בדוק מחכה לאישור וחתימה')
     })
 
     it('all signed', () => {
         expect(deriveBatchStage(batch(
-            { approved: 30, total: 30 }, { status: 'completed' })).turnLine)
+            { approved_transcription: 30, approved: 30, total: 30 },
+            { status: 'completed' })).turnLine)
             .toBe('סיימת · 30 מבחנים חתומים')
     })
 
     it('a batch of one, signed', () => {
         expect(deriveBatchStage(batch(
-            { approved: 1, total: 1 }, { status: 'completed' })).turnLine)
+            { approved_transcription: 1, approved: 1, total: 1 },
+            { status: 'completed' })).turnLine)
             .toBe('סיימת · מבחן אחד חתום')
     })
 
     it('an empty batch announces no turn at all', () => {
         expect(deriveBatchStage(batch({})).turnLine).toBeNull()
+    })
+
+    it('THE TORN SNAPSHOT: a document the rollup cannot place is MOVING, never הושלם', () => {
+        // 2026-09-19, a single-test batch. The server built its rollup from
+        // several statements, each under its own snapshot, and the document
+        // landed between two of them: a completed job, no transcription row
+        // yet. Every count reads zero over a real paper — the exact shape of
+        // an EMPTY batch, one row up — and this fell through to «הורדה» /
+        // «הושלם» / no turn line while the poll stopped on the same zeros.
+        //
+        // Written by hand, not through `batch()`: this is the one rollup that
+        // is SUPPOSED to violate the accounting identity.
+        const torn: StageBatch = {
+            status: 'in_progress',
+            rollup: { ...EMPTY, total: 1 },
+            active_jobs: [],
+        }
+        const s = deriveBatchStage(torn)
+        expect(s.step).toBe('transcribe')
+        expect(s.chip.label).toBe(CHIP_TRANSCRIBING)
+        expect(s.turnLine).toBe('עכשיו: ויוי קוראת את כתב היד')
+        // …and the honest case that LOOKS identical is still told apart by
+        // its total: nothing declared, nothing owed, nothing moving.
+        expect(deriveBatchStage(batch({})).step).toBe('download')
     })
 })
 
@@ -249,7 +296,7 @@ describe('mixed states — the precedence rule (OD-7)', () => {
         // Six accepted and graded while four still await the transcription
         // gate. She is pointed at the gate that unblocks Vivi.
         const s = deriveBatchStage(batch({
-            transcribed: 4, needs_eyes: 1, draft: 6, total: 10,
+            transcribed: 4, needs_eyes: 1, approved_transcription: 6, draft: 6, total: 10,
         }))
         expect(s.chip.key).toBe('awaiting_approval')
         expect(s.turnLine).toBe('תורך: 4 מבחנים לאישור, מבחן אחד דורש מבט')
