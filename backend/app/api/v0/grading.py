@@ -1280,8 +1280,11 @@ async def regenerate_feedback(
     agent = FeedbackAgent(build_chat_model(settings.feedback_model_provider,
                                            settings.feedback_model_key),
                           model_version=settings.feedback_model_key)
-    block, _annotations = await agent.generate(
-        [(sid, render_scope_for_feedback(so)) for sid, so in scopes])
+    # [OD-B2] the feedback prompt carries the student's graded answers.
+    from ...tracing import student_data_run
+    with student_data_run(graded_test_id=row.id, transcription_id=row.transcription_id):
+        block, _annotations = await agent.generate(
+            [(sid, render_scope_for_feedback(so)) for sid, so in scopes])
     if block is None:
         raise HTTPException(status_code=502, detail="יצירת המשוב נכשלה. נסי שוב.")
 
