@@ -126,7 +126,7 @@ def student_a(client, headers_a):
     """Create a student owned by user A. Returns the create response JSON."""
     resp = client.post(
         "/api/v0/classroom/students",
-        json={"full_name": "תלמיד א", "notes": "test student"},
+        json={"full_name": "תלמיד א"},
         headers=headers_a,
     )
     assert resp.status_code == 201, f"Student creation failed: {resp.text}"

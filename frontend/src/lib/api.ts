@@ -188,7 +188,6 @@ export interface ExtractedCriterion {
   criterion_description: string;
   total_points: number;
   reduction_rules: ReductionRule[];
-  notes?: string | null;
   raw_text?: string | null;
   extraction_confidence: 'high' | 'medium' | 'low';
 
@@ -1536,6 +1535,22 @@ export async function deleteStudent(id: string): Promise<void> {
   await _classroomFetch(`${API_BASE}/api/v0/classroom/students/${id}`, { method: 'DELETE' });
 }
 
+/** [student-profile PR §5.4] The server's machine code for the interim refusal:
+ *  anything still references her (a grading, a scan). The copy is the client's. */
+export const STUDENT_HAS_DATA = 'student_has_data';
+
+export type SignedTestsResponse = components['schemas']['SignedTestsResponse'];
+export type SignedTestItem = components['schemas']['SignedTestItem'];
+
+/**
+ * [student-profile PR §5.1–5.3] Every APPROVED test of a student, one row per
+ * chain, newest upload first. Named for the invariant it carries (M-A1).
+ */
+export async function getStudentSignedTests(id: string): Promise<SignedTestsResponse> {
+  const res = await _classroomFetch(`${API_BASE}/api/v0/classroom/students/${id}/signed-tests`);
+  return res.json();
+}
+
 // Classes
 
 export async function listClasses(): Promise<{ classes: ClassResponse[] }> {
@@ -2258,8 +2273,19 @@ export async function fetchTranscriptionPageObjectUrl(
   transcriptionId: string,
   pageNumber: number,
 ): Promise<string> {
-  return fetchPageImageObjectUrl(
-    `/api/v0/transcriptions/${transcriptionId}/pages/${pageNumber}/image`);
+  return fetchPageImageObjectUrl(transcriptionPagePath(transcriptionId, pageNumber));
+}
+
+/**
+ * The page route the returned exam requests. It is the server-minted
+ * `thumbnail.page_image_path` WITHOUT its `?v=` pin, and the route serves the
+ * current variant to an unpinned request — so this and the pile / profile
+ * thumbnail are one resource with one set of bytes; only the cache promise
+ * differs. Pinned on both sides (student-profile PR, Part A item 4):
+ * `student-profile.test.ts` here and `test_student_profile.py::test_a_batched_…`.
+ */
+export function transcriptionPagePath(transcriptionId: string, pageNumber: number): string {
+  return `/api/v0/transcriptions/${transcriptionId}/pages/${pageNumber}/image`;
 }
 
 /**

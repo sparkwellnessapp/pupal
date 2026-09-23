@@ -24,6 +24,7 @@ from ...models.user import User
 from ...models.student import Student
 from ...models.classroom import Class, ClassMembership
 from ...models.grading import GradedTest, GradingBatch
+from ...models.transcription import Transcription
 from ...schemas.classroom import (
     AddStudentToClassRequest,
     ClassDetailResponse,
@@ -31,12 +32,23 @@ from ...schemas.classroom import (
     ClassResponse,
     CreateClassRequest,
     CreateStudentRequest,
+    SignedTestExam,
+    SignedTestItem,
+    SignedTestsResponse,
+    SignedTestThumbnail,
     StudentDetailResponse,
     StudentMini,
     StudentResponse,
     UpdateClassRequest,
     UpdateStudentRequest,
 )
+from ...services.student_signed_tests import (
+    SignedTestRow,
+    signed_tests_count,
+    signed_tests_counts,
+    signed_tests_for_student,
+)
+from ...services.thumbnail import page_image_path
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +68,6 @@ async def create_student(
     student = Student(
         user_id=current_user.id,
         full_name=body.full_name,
-        notes=body.notes,
     )
     db.add(student)
     try:
@@ -65,7 +76,8 @@ async def create_student(
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=409, detail="כבר קיים תלמיד בשם זה")
-    return StudentResponse.model_validate(student)
+    # A student who was just created has no history — no query needed to know.
+    return _student_response(student, signed_tests=0)
 
 
 @router.get("/students", response_model=dict)
@@ -90,7 +102,13 @@ async def list_students(
 
     result = await db.execute(stmt)
     students = result.scalars().all()
-    return {"students": [StudentResponse.model_validate(s) for s in students]}
+    # LST-4: the badge count for EVERY student in one grouped statement — the
+    # roster with forty students issues exactly as many statements as with one
+    # (pinned by test_student_profile's statement count).
+    counts = await signed_tests_counts(db, uid)
+    return {"students": [
+        _student_response(s, signed_tests=counts.get(s.id, 0)) for s in students
+    ]}
 
 
 @router.get("/students/{student_id}", response_model=StudentDetailResponse)
@@ -118,9 +136,9 @@ async def get_student(
     return StudentDetailResponse(
         id=student.id,
         full_name=student.full_name,
-        notes=student.notes,
         created_at=student.created_at,
         classes=classes,
+        signed_tests_count=await signed_tests_count(db, current_user.id, student.id),
     )
 
 
@@ -135,8 +153,6 @@ async def update_student(
 
     if body.full_name is not None:
         student.full_name = body.full_name
-    if body.notes is not None:
-        student.notes = body.notes
     student.updated_at = datetime.now(timezone.utc)
 
     try:
@@ -145,7 +161,8 @@ async def update_student(
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=409, detail="כבר קיים תלמיד בשם זה")
-    return StudentResponse.model_validate(student)
+    return _student_response(
+        student, signed_tests=await signed_tests_count(db, current_user.id, student.id))
 
 
 @router.delete("/students/{student_id}", status_code=204)
@@ -156,15 +173,45 @@ async def delete_student(
 ):
     student = await get_owned_or_404(db, Student, student_id, current_user.id)
 
-    has_tests = await db.scalar(
-        select(exists().where(GradedTest.student_id == student.id))
-    )
-    if has_tests:
-        raise HTTPException(status_code=409, detail="לא ניתן למחוק תלמיד עם מבחנים בדוקים")
+    # [student-profile PR §5.4, M-A2] THE INTERIM GUARD, until Part B's purge
+    # replaces it. Both FKs onto `students` are ON DELETE CASCADE, so without
+    # this check a delete would silently take her scans and gradings with it —
+    # rows gone, the objects in the bucket kept: the exact privacy failure
+    # Part B exists to do properly (PRV-1). Any row of EITHER kind refuses.
+    # The detail is a machine code, not a sentence: the client owns the copy.
+    has_data = await db.scalar(select(
+        exists().where(GradedTest.student_id == student.id)
+        | exists().where(Transcription.student_id == student.id)
+    ))
+    if has_data:
+        raise HTTPException(status_code=409, detail="student_has_data")
 
     await db.delete(student)
     await db.commit()
     return Response(status_code=204)
+
+
+@router.get("/students/{student_id}/signed-tests", response_model=SignedTestsResponse)
+async def get_student_signed_tests(
+    student_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """[student-profile PR §5.1–5.3] Every APPROVED test of this student, one
+    row per chain, newest upload first — the profile's rows.
+
+    Named for the invariant it carries (M-A1): `signed-tests` cannot quietly
+    grow drafts. The definition lives in ONE place, `student_signed_tests`,
+    and the roster badge and the header count derive from the same leaves
+    (LST-4). Cross-tenant is 404 (LST-5), like every classroom read.
+    """
+    await get_owned_or_404(db, Student, student_id, current_user.id)
+    result = await signed_tests_for_student(db, current_user.id, student_id)
+    return SignedTestsResponse(
+        signed_tests_count=result.count,
+        truncated=result.truncated,
+        signed_tests=[_signed_test_item(row) for row in result.rows],
+    )
 
 
 # =============================================================================
@@ -381,6 +428,40 @@ async def remove_student_from_class(
 # =============================================================================
 # Helpers
 # =============================================================================
+
+def _student_response(student: Student, *, signed_tests: int) -> StudentResponse:
+    return StudentResponse(
+        id=student.id,
+        full_name=student.full_name,
+        created_at=student.created_at,
+        signed_tests_count=signed_tests,
+    )
+
+
+def _signed_test_item(row: SignedTestRow) -> SignedTestItem:
+    gt = row.graded_test
+    return SignedTestItem(
+        graded_test_id=gt.id,
+        exam=SignedTestExam(
+            batch_id=row.batch_id,
+            name=row.batch_name,
+            rubric_name=row.rubric_name,
+            class_name=row.class_name,
+            uploaded_at=row.uploaded_at,
+        ),
+        approved_at=gt.approved_at,
+        total_score=gt.total_score,
+        total_possible=gt.total_possible,
+        thumbnail=SignedTestThumbnail(
+            # The SAME resource `BatchGradedItem.page1_image_url` names, minted
+            # by the same function — a scan with no rendered page offers none.
+            page1_image_url=(
+                page_image_path(gt.transcription_id, 1) if row.page_count >= 1 else None
+            ),
+            stamp_position=row.stamp_position,
+        ),
+    )
+
 
 def _class_to_response(school_class: Class, student_count: int) -> ClassResponse:
     """Build a ClassResponse from ORM model + derived student count."""

@@ -49,13 +49,13 @@ def test_1_unauthenticated_create_student_returns_401(client):
 def test_2_student_create_and_fetch(client, headers_a):
     resp = client.post(
         "/api/v0/classroom/students",
-        json={"full_name": "רחל כהן", "notes": "some notes"},
+        json={"full_name": "רחל כהן"},
         headers=headers_a,
     )
     assert resp.status_code == 201, resp.text
     data = resp.json()
     assert data["full_name"] == "רחל כהן"
-    assert data["notes"] == "some notes"
+    assert "notes" not in data  # [student-profile PR, OD-3] the field is gone
     assert "id" in data
     assert "user_id" not in data  # ownership never in response
 
