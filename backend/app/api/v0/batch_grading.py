@@ -822,6 +822,16 @@ async def list_batches(
 
     items = []
     for batch in batches:
+        # JOBS FIRST — the same load-bearing order as `get_batch`, for the same
+        # reason: a document lands as one commit (transcription INSERT + job
+        # `completed`), and each statement here has its own snapshot. Reading
+        # the jobs first means a job seen `completed` always has its
+        # transcription visible to the later read, so this list can never show
+        # a batch as further along than it is. (The list's chip is derived by
+        # the same client function as the dashboard's.)
+        jobs = (await db.execute(
+            select(TranscriptionJob).where(TranscriptionJob.batch_id == batch.id)
+        )).scalars().all()
         transcriptions = (await db.execute(
             select(Transcription).where(Transcription.batch_id == batch.id)
         )).scalars().all()
@@ -834,9 +844,6 @@ async def list_batches(
                 # would sum past the number of tests in the batch.
                 GradedTest.regraded_to_id.is_(None),
             )
-        )).scalars().all()
-        jobs = (await db.execute(
-            select(TranscriptionJob).where(TranscriptionJob.batch_id == batch.id)
         )).scalars().all()
         roster, selection_groups = verdict_inputs[batch.id]
         # Degrade by OMISSION: this batch's selection groups are unresolvable,
@@ -1145,6 +1152,34 @@ async def get_batch(
     if reaped:
         await db.commit()
 
+    # ⚠ JOBS FIRST, TRANSCRIPTIONS SECOND — the order is load-bearing.
+    #
+    # Postgres READ COMMITTED gives EACH STATEMENT its own snapshot, and the
+    # runner lands a document as ONE commit: the transcriptions INSERT and the
+    # job's `running → completed` flip together. So a request that read
+    # `transcriptions` first and `jobs` several round-trips later could see the
+    # world from both sides of that commit at once — no transcription row, yet
+    # a completed job. That rollup (`total 1 · transcribing 0 · transcribed 0`)
+    # is indistinguishable from "every document already passed the gate": the
+    # client stopped polling, the stepper jumped to «הורדה», the chip said
+    # «הושלם», and a single-test batch froze on a screen that was never true
+    # (2026-09-19, batch a7372d28 — the last poll completed 40 ms after the
+    # commit). With N ≥ 2 documents the same tear self-heals on the next tick,
+    # which is why it hid.
+    #
+    # Reading the jobs FIRST makes the harmful direction impossible: any
+    # snapshot that shows a job `completed` was taken after its commit, so
+    # every later statement sees its transcription too. The remaining tear
+    # (row visible, job still `running`) reads as "1 transcribing + 1
+    # transcribed" — the honest «ויוי מתמללת» — and corrects itself on the next
+    # poll. This relies on the runner's single-transaction invariant, which its
+    # own docstring and tests already make load-bearing.
+    jobs = list((await db.execute(
+        select(TranscriptionJob)
+        .where(TranscriptionJob.batch_id == batch_id)
+        .order_by(TranscriptionJob.doc_priority)
+    )).scalars().all())
+
     # Deterministic order (Δ10): without ORDER BY, Postgres row order is
     # unspecified and can change between polls — the review route's prev/next
     # cursor depends on this being stable. (created_at, id) = upload order.
@@ -1230,12 +1265,6 @@ async def get_batch(
             total_score=str(gt.total_score) if gt and gt.total_score is not None else None,
             total_possible=str(gt.total_possible) if gt and gt.total_possible is not None else None,
         ))
-
-    jobs = list((await db.execute(
-        select(TranscriptionJob)
-        .where(TranscriptionJob.batch_id == batch_id)
-        .order_by(TranscriptionJob.doc_priority)
-    )).scalars().all())
 
     # Failure cards: failed JOB rows (retryable — job_id present) for Cloud
     # Tasks batches; the read-only 015 ledger for legacy batches.

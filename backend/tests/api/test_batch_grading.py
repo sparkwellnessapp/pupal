@@ -920,6 +920,90 @@ class TestJobsBasedRollup:
         assert _derive_batch_status(r) == "failed"
 
 
+class TestRollupAccountingAndReadOrder:
+    """The two halves of the 2026-09-19 freeze (batch a7372d28).
+
+    A document lands as ONE commit — transcription INSERT + job `completed` —
+    but the detail endpoint read `transcriptions` first and `jobs` several
+    round-trips later, each statement under its own READ COMMITTED snapshot.
+    A poll straddling the commit saw a completed job with no transcription
+    row: `total 1 · transcribing 0 · transcribed 0`, which is count-for-count
+    the shape of "every document already passed the gate". The client
+    stopped polling and froze on «הושלם» over an unreviewed paper.
+
+    Two pins, one per half:
+      * the ACCOUNTING IDENTITY — on a consistent snapshot the rollup's parts
+        cover its denominator exactly, which is the premise the client's guard
+        (`unaccountedCount`, batch-dashboard.ts) now stands on;
+      * the READ ORDER — jobs before transcriptions in BOTH endpoints, so a
+        job seen `completed` always has its row visible to the later read.
+        A source-order guard, in the tradition of `test_users_auth` iterating
+        routes: the property is structural and no fixture can reach a torn
+        snapshot deterministically.
+    """
+
+    @staticmethod
+    def _parts(r) -> int:
+        return (r.uploading + r.not_received + r.transcribing
+                + r.transcription_failed + r.transcribed + r.approved_transcription)
+
+    @staticmethod
+    def _rollup(job_statuses, row_statuses, *, expected=None, quiet_for_minutes=0):
+        from datetime import datetime, timedelta, timezone
+        from types import SimpleNamespace
+        from app.api.v0.batch_grading import _build_rollup
+        now = datetime.now(timezone.utc)
+        appended = now - timedelta(minutes=quiet_for_minutes)
+        batch = SimpleNamespace(test_count=len(job_statuses), transcription_failures=[],
+                                expected_test_count=expected, created_at=appended)
+        jobs = [SimpleNamespace(status=s, created_at=appended) for s in job_statuses]
+        transcriptions = [SimpleNamespace(status=s) for s in row_statuses]
+        return _build_rollup(batch, transcriptions, [], jobs, now=now)
+
+    def test_parts_account_for_total_on_every_consistent_snapshot(self):
+        # Every job is queued/running, failed, or completed-into-a-row; every
+        # row is awaiting her or past the gate.
+        cases = [
+            (["queued", "running"], []),
+            (["completed"], ["transcribed"]),
+            (["completed", "completed"], ["transcribed", "approved"]),
+            (["failed", "completed", "running"], ["approved"]),
+            (["completed"] * 5, ["approved"] * 3 + ["transcribed"] * 2),
+        ]
+        for jobs, rows in cases:
+            r = self._rollup(jobs, rows)
+            assert self._parts(r) == r.total, (jobs, rows, r)
+
+    def test_declared_but_unlanded_files_are_accounted_for_too(self):
+        # Fresh declaration: the gap is `uploading`. Stale: it is `not_received`.
+        fresh = self._rollup(["completed"], ["transcribed"], expected=3)
+        assert fresh.uploading == 2 and self._parts(fresh) == fresh.total == 3
+        stale = self._rollup(["completed"], ["transcribed"], expected=3,
+                             quiet_for_minutes=10_000)
+        assert stale.not_received == 2 and self._parts(stale) == stale.total == 3
+
+    def test_the_torn_snapshot_is_exactly_what_the_identity_catches(self):
+        # The 14:00:59 poll: job completed, row not yet visible. The rollup
+        # itself cannot know — it only sums what it was handed — so this is the
+        # ONE shape whose parts fall short of its total, and the client reads
+        # that shortfall as "still moving" rather than as "done".
+        torn = self._rollup(["completed"], [])
+        assert torn.total == 1 and torn.transcribed == 0 and torn.transcribing == 0
+        assert self._parts(torn) == torn.total - 1
+
+    def test_both_endpoints_read_jobs_before_transcriptions(self):
+        import inspect
+        from app.api.v0 import batch_grading
+        for endpoint in (batch_grading.get_batch, batch_grading.list_batches):
+            src = inspect.getsource(endpoint)
+            jobs_at = src.index("select(TranscriptionJob)")
+            rows_at = src.index("select(Transcription)")
+            assert jobs_at < rows_at, (
+                f"{endpoint.__name__}: `transcriptions` is read before `jobs`; "
+                "a document landing between the two reads as a completed job "
+                "with no row — the 2026-09-19 freeze")
+
+
 @pytest.mark.integration
 def test_failure_ledger_atomic_append_and_batch_detail(client, user_a, rubric_a, headers_a):
     """LEGACY read path: pre-Cloud-Tasks batches carry migration-015 ledger
