@@ -119,7 +119,7 @@ describe('TranscriptionTriage', () => {
                 acceptableCount={1}
             />,
         )
-        expect(html).toContain('נמצאו תשובות לכל 2 הסעיפים')
+        expect(html).toContain('נמצאו תשובות לכל 2 השאלות')
         expect(html).not.toContain('2 עמודים · 2 תשובות')
     })
 

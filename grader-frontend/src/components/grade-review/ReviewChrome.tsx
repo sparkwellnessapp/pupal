@@ -22,6 +22,7 @@ import {
     RV_NAV_HEADING,
     RV_NAV_NEXT,
     RV_NAV_PREV,
+    RV_NAV_TO_BATCH,
     RV_QUEUE_GRADING,
     RV_QUEUE_NEXT,
     RV_QUEUE_SEP,
@@ -64,6 +65,14 @@ export interface ReviewTopBarProps {
     onNext: () => void;
     onOpenPreview: () => void;
     /**
+     * The batch dashboard, rendered as a small link ABOVE «הבא». Until it was
+     * added the module had no exit of its own: the WaitCard's link appears
+     * only once the queue is exhausted, and the interstitial only below
+     * `desk`, so on a desktop with tests left to review the only way back to
+     * the pile was the browser's own back button.
+     */
+    batchHref: string;
+    /**
      * Play the stamp coming down (R12). Set for one beat right after
      * `/approve` returns: the signature is the moment the grade becomes hers,
      * and it is the only animation on this surface that marks a commitment.
@@ -83,7 +92,7 @@ export interface ReviewTopBarProps {
 
 export function ReviewTopBar({
     studentName, meta, total, possible, anyOverride, approved,
-    canPrev, canNext, onPrev, onNext, onOpenPreview,
+    canPrev, canNext, onPrev, onNext, onOpenPreview, batchHref,
     stampPressed = false, revision, thumbUrl = null,
 }: ReviewTopBarProps) {
     return (
@@ -96,7 +105,11 @@ export function ReviewTopBar({
             className="sticky top-0 z-40 -mx-6 mb-4 border-b border-grade-line
             bg-grade-canvas/90 px-6 pb-2.5 pt-3 backdrop-blur"
         >
-            <div className="mx-auto flex max-w-review items-center justify-between gap-4
+            {/* `items-end`, not `items-center`: the end column is two rows
+                tall (the dashboard link over «הבא»), and centering it would
+                float «הבא» half a row below «הקודם». Bottom-aligned, the two
+                nav buttons share one baseline and the link sits above it. */}
+            <div className="mx-auto flex max-w-review items-end justify-between gap-4
                 split:max-w-review-wide">
                 <button
                     type="button"
@@ -165,18 +178,32 @@ export function ReviewTopBar({
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    onClick={onNext}
-                    disabled={!canNext}
-                    className="flex min-w-nav-btn items-center justify-center gap-2
-                        rounded-grade-ctl border border-grade-line bg-grade-card px-3.5 py-2
-                        text-gr-body text-grade-ink-2 hover:border-grade-pencil-2
-                        disabled:opacity-40"
-                >
-                    {RV_NAV_NEXT}
-                    <span aria-hidden="true" className="text-gr-arrow leading-none">‹</span>
-                </button>
+                {/* One column, the width of a nav button, so the link and «הבא»
+                    share an edge and neither can jitter the other. */}
+                <div className="flex min-w-nav-btn flex-col items-stretch gap-1.5">
+                    <Link
+                        href={batchHref}
+                        data-nav-batch
+                        className="flex items-center justify-center rounded-grade-ctl border
+                            border-primary-600 bg-primary-600 px-2.5 py-1 text-gr-chip
+                            font-medium leading-tight text-white
+                            hover:border-primary-700 hover:bg-primary-700"
+                    >
+                        {RV_NAV_TO_BATCH}
+                    </Link>
+                    <button
+                        type="button"
+                        onClick={onNext}
+                        disabled={!canNext}
+                        className="flex items-center justify-center gap-2
+                            rounded-grade-ctl border border-grade-line bg-grade-card px-3.5 py-2
+                            text-gr-body text-grade-ink-2 hover:border-grade-pencil-2
+                            disabled:opacity-40"
+                    >
+                        {RV_NAV_NEXT}
+                        <span aria-hidden="true" className="text-gr-arrow leading-none">‹</span>
+                    </button>
+                </div>
             </div>
         </div>
     );
