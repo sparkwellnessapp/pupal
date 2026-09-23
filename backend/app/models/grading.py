@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, String, Text, Integer, DateTime, ForeignKey,
+    Column, String, Text, Integer, DateTime, ForeignKey, ForeignKeyConstraint,
     Boolean, Float, Numeric, text,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -129,11 +129,13 @@ class GradedTest(Base):
     __tablename__ = "graded_tests"
 
     id                      = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id                 = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    rubric_id               = Column(UUID(as_uuid=True), ForeignKey("rubrics.id", ondelete="CASCADE"), nullable=False)
-    transcription_id        = Column(UUID(as_uuid=True), ForeignKey("transcriptions.id", ondelete="CASCADE"), nullable=False)
-    student_id              = Column(UUID(as_uuid=True), ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    batch_id                = Column(UUID(as_uuid=True), ForeignKey("grading_batches.id", ondelete="SET NULL"), nullable=True)
+    # [032] every FK of this table is NO ACTION (AM-B1): a delete out of it happens
+    # only when spelled out (docs/PURGE_CENSUS.md §1).
+    user_id                 = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    rubric_id               = Column(UUID(as_uuid=True), ForeignKey("rubrics.id"), nullable=False)
+    transcription_id        = Column(UUID(as_uuid=True), ForeignKey("transcriptions.id"), nullable=False)
+    student_id              = Column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=False)
+    batch_id                = Column(UUID(as_uuid=True), ForeignKey("grading_batches.id"), nullable=True)
     rubric_contract_version = Column(String(50), nullable=False)
     # [029] The OTHER half of the grading input. VER-2 pinned the rubric and
     # left the transcription identified only by `transcription_id`, so "what
@@ -161,8 +163,12 @@ class GradedTest(Base):
     returned_exam_key = Column(String(64), nullable=True)
     contract_json           = Column(JSONB(none_as_null=True), nullable=True)
     approved_at             = Column(DateTime(timezone=True), nullable=True)
-    regraded_from_id        = Column(UUID(as_uuid=True), ForeignKey("graded_tests.id", ondelete="SET NULL"), nullable=True)
-    regraded_to_id          = Column(UUID(as_uuid=True), ForeignKey("graded_tests.id", ondelete="SET NULL"), nullable=True)
+    regraded_from_id        = Column(UUID(as_uuid=True), ForeignKey("graded_tests.id"), nullable=True)
+    # DEFERRABLE INITIALLY DEFERRED since migration 010: extend_chain links R1
+    # to R2 before R2 exists (032 re-declares it, and keeps it).
+    regraded_to_id          = Column(UUID(as_uuid=True),
+                                     ForeignKey("graded_tests.id", deferrable=True, initially="DEFERRED"),
+                                     nullable=True)
     # Valid values: 'pending','grading','draft','approved','failed'
     # Enforced by DB CHECK graded_tests_status_consistency
     status                  = Column(String(20), nullable=False, default="pending")
@@ -182,10 +188,20 @@ class GradedTest(Base):
     created_at              = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at              = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
+    # [032, AM-B4] no graded test references another teacher's student or scan.
+    __table_args__ = (
+        ForeignKeyConstraint(["student_id", "user_id"], ["students.id", "students.user_id"],
+                             name="graded_tests_student_tenant_fkey"),
+        ForeignKeyConstraint(["transcription_id", "user_id"],
+                             ["transcriptions.id", "transcriptions.user_id"],
+                             name="graded_tests_transcription_tenant_fkey"),
+    )
+
     user          = relationship("User", back_populates="graded_tests")
     rubric        = relationship("Rubric", back_populates="graded_tests")
-    transcription = relationship("Transcription", back_populates="graded_tests")
-    student       = relationship("Student", back_populates="graded_tests")
+    transcription = relationship("Transcription", back_populates="graded_tests",
+                                 foreign_keys=[transcription_id])
+    student       = relationship("Student", back_populates="graded_tests", foreign_keys=[student_id])
     batch         = relationship("GradingBatch", back_populates="graded_tests", foreign_keys=[batch_id])
 
     # Self-referential revision chain — one-to-one doubly-linked list.

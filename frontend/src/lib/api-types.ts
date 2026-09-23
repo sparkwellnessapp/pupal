@@ -542,12 +542,40 @@ export interface paths {
         get: operations["get_student_api_v0_classroom_students__student_id__get"];
         put?: never;
         post?: never;
-        /** Delete Student */
+        /**
+         * Delete Student
+         * @description [Part B §12, §14] Privacy-complete deletion: the purge, then its verify
+         *     report as the 200 body (M-B4). Replaces §5.4's interim `student_has_data`
+         *     409. 404 for another teacher's student (PRV-4); 409 `grading_in_progress`
+         *     while a grade or job of hers is in flight (PRV-5), touching nothing.
+         */
         delete: operations["delete_student_api_v0_classroom_students__student_id__delete"];
         options?: never;
         head?: never;
         /** Update Student */
         patch: operations["update_student_api_v0_classroom_students__student_id__patch"];
+        trace?: never;
+    };
+    "/api/v0/classroom/students/{student_id}/purge-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Student Purge Preview
+         * @description [Part B §12] The purge plan for this student, counted — what the Delete
+         *     dialog states before she confirms. An UNLOCKED read (AM-B6) that never
+         *     writes. Ownership is checked before any storage call (PRV-4: 404).
+         */
+        get: operations["get_student_purge_preview_api_v0_classroom_students__student_id__purge_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v0/classroom/students/{student_id}/signed-tests": {
@@ -3905,6 +3933,40 @@ export interface components {
             pages?: components["schemas"]["PagePreview"][];
         };
         /**
+         * PurgePreviewResponse
+         * @description [Part B §12] What deleting this student would delete — the purge plan,
+         *     COUNTED. No object name and no filename crosses the wire, and unassigned
+         *     scans are absent: they are not hers, and the teacher has nothing to do
+         *     about them (OD-B6). `case` picks the Delete dialog's copy (PR §15).
+         */
+        PurgePreviewResponse: {
+            /**
+             * Blockers
+             * @description grades or jobs in flight — the purge answers 409 while > 0
+             */
+            blockers: number;
+            /**
+             * Case
+             * @enum {string}
+             */
+            case: "signed_tests" | "data_only" | "nothing";
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /** Objects */
+            objects: {
+                [key: string]: number;
+            };
+            /** Signed Tests Count */
+            signed_tests_count: number;
+            /**
+             * Student Id
+             * Format: uuid
+             */
+            student_id: string;
+        };
+        /**
          * Question
          * @description A question containing criteria for grading.
          *
@@ -6480,11 +6542,13 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": unknown;
+                };
             };
             /** @description Validation Error */
             422: {
@@ -6519,6 +6583,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_student_purge_preview_api_v0_classroom_students__student_id__purge_preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurgePreviewResponse"];
                 };
             };
             /** @description Validation Error */

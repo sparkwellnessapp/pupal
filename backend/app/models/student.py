@@ -12,7 +12,7 @@ class Student(Base):
     __tablename__ = "students"
 
     id         = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id    = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id    = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     full_name  = Column(String(255), nullable=False)
     # `notes` was dropped by migration 031 (student-profile PR, OD-3): the
     # profile is a ledger of facts and the roster card names, never judgements.
@@ -21,12 +21,16 @@ class Student(Base):
 
     __table_args__ = (
         UniqueConstraint("user_id", "full_name", name="students_unique_name_per_user"),
+        # [032, AM-B4] the target of the *_tenant_fkey constraints.
+        UniqueConstraint("id", "user_id", name="students_id_user_id_key"),
     )
 
     user              = relationship("User", back_populates="students")
     class_memberships = relationship("ClassMembership", back_populates="student", passive_deletes=True)
-    transcriptions    = relationship("Transcription", back_populates="student", passive_deletes=True)
-    graded_tests      = relationship("GradedTest", back_populates="student", passive_deletes=True)
+    transcriptions    = relationship("Transcription", back_populates="student", passive_deletes=True,
+                                 foreign_keys="Transcription.student_id")
+    graded_tests      = relationship("GradedTest", back_populates="student", passive_deletes=True,
+                                 foreign_keys="GradedTest.student_id")
 
     def __repr__(self):
         return f"<Student(id={self.id}, full_name={self.full_name})>"

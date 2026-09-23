@@ -10,6 +10,7 @@ from .student import Student
 from .classroom import Class, ClassMembership
 from .transcription import Transcription
 from .transcription_job import TranscriptionJob
+from .purge_failure import PurgeFailure
 
 __all__ = [
     # Grading models
@@ -36,6 +37,7 @@ __all__ = [
     # Transcription model
     "Transcription",
     "TranscriptionJob",
+    "PurgeFailure",
 ]
 from app.models.school import School  # noqa: F401,E402  [PR-G6]
 

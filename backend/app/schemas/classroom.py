@@ -6,7 +6,7 @@ user_id is never included in responses — ownership is implicit.
 """
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import Dict, List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_serializer
@@ -123,6 +123,19 @@ class SignedTestsResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Class schemas
 # ---------------------------------------------------------------------------
+
+class PurgePreviewResponse(BaseModel):
+    """[Part B §12] What deleting this student would delete — the purge plan,
+    COUNTED. No object name and no filename crosses the wire, and unassigned
+    scans are absent: they are not hers, and the teacher has nothing to do
+    about them (OD-B6). `case` picks the Delete dialog's copy (PR §15)."""
+    student_id: UUID
+    case: Literal["signed_tests", "data_only", "nothing"]
+    signed_tests_count: int
+    blockers: int = Field(..., description="grades or jobs in flight — the purge answers 409 while > 0")
+    counts: Dict[str, int]
+    objects: Dict[str, int]
+
 
 class ClassResponse(BaseModel):
     id: UUID

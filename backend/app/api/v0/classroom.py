@@ -12,6 +12,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy import select, exists, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +33,7 @@ from ...schemas.classroom import (
     ClassResponse,
     CreateClassRequest,
     CreateStudentRequest,
+    PurgePreviewResponse,
     SignedTestExam,
     SignedTestItem,
     SignedTestsResponse,
@@ -41,6 +43,15 @@ from ...schemas.classroom import (
     StudentResponse,
     UpdateClassRequest,
     UpdateStudentRequest,
+)
+from ...services.erasure import (
+    GuardedStorage,
+    PurgeBlocked,
+    PurgeRefused,
+    StudentNotFound,
+    get_purge_storage,
+    plan_purge,
+    purge_student,
 )
 from ...services.student_signed_tests import (
     SignedTestRow,
@@ -165,30 +176,55 @@ async def update_student(
         student, signed_tests=await signed_tests_count(db, current_user.id, student.id))
 
 
-@router.delete("/students/{student_id}", status_code=204)
+@router.delete("/students/{student_id}")
 async def delete_student(
     student_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    storage: GuardedStorage = Depends(get_purge_storage),
 ):
-    student = await get_owned_or_404(db, Student, student_id, current_user.id)
+    """[Part B §12, §14] Privacy-complete deletion: the purge, then its verify
+    report as the 200 body (M-B4). Replaces §5.4's interim `student_has_data`
+    409. 404 for another teacher's student (PRV-4); 409 `grading_in_progress`
+    while a grade or job of hers is in flight (PRV-5), touching nothing."""
+    await get_owned_or_404(db, Student, student_id, current_user.id)
+    await db.close()                      # the purge owns its session and transaction
+    try:
+        result = await purge_student(user_id=current_user.id, student_id=student_id, storage=storage)
+    except StudentNotFound:
+        raise HTTPException(status_code=404, detail="Student not found")
+    except PurgeBlocked as exc:
+        return JSONResponse(status_code=409, content={"detail": "grading_in_progress", "count": exc.count})
+    except PurgeRefused as exc:
+        logger.error("purge_refused student_id=%s reason=%s detail=%s",
+                     student_id, exc.reason, exc.detail)
+        return JSONResponse(status_code=409, content={"detail": "purge_refused", "reason": exc.reason})
+    return result.payload()
 
-    # [student-profile PR §5.4, M-A2] THE INTERIM GUARD, until Part B's purge
-    # replaces it. Both FKs onto `students` are ON DELETE CASCADE, so without
-    # this check a delete would silently take her scans and gradings with it —
-    # rows gone, the objects in the bucket kept: the exact privacy failure
-    # Part B exists to do properly (PRV-1). Any row of EITHER kind refuses.
-    # The detail is a machine code, not a sentence: the client owns the copy.
-    has_data = await db.scalar(select(
-        exists().where(GradedTest.student_id == student.id)
-        | exists().where(Transcription.student_id == student.id)
-    ))
-    if has_data:
-        raise HTTPException(status_code=409, detail="student_has_data")
 
-    await db.delete(student)
-    await db.commit()
-    return Response(status_code=204)
+@router.get("/students/{student_id}/purge-preview", response_model=PurgePreviewResponse)
+async def get_student_purge_preview(
+    student_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    storage: GuardedStorage = Depends(get_purge_storage),
+):
+    """[Part B §12] The purge plan for this student, counted — what the Delete
+    dialog states before she confirms. An UNLOCKED read (AM-B6) that never
+    writes. Ownership is checked before any storage call (PRV-4: 404)."""
+    await get_owned_or_404(db, Student, student_id, current_user.id)
+    try:
+        plan = await plan_purge(db, user_id=current_user.id, student_id=student_id, storage=storage)
+    except StudentNotFound:
+        raise HTTPException(status_code=404, detail="Student not found")
+    except PurgeRefused as exc:
+        # An operator's problem, not hers: ids only in the log (OD-B4), the
+        # reason code on the wire.
+        logger.error("purge_refused student_id=%s reason=%s detail=%s",
+                     student_id, exc.reason, exc.detail)
+        return JSONResponse(status_code=409,
+                            content={"detail": "purge_refused", "reason": exc.reason})
+    return plan.summary()
 
 
 @router.get("/students/{student_id}/signed-tests", response_model=SignedTestsResponse)
