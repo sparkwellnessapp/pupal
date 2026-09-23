@@ -428,6 +428,28 @@ describe('pricer-parity — counted (PLAN COMPILER v2, C3; mirrors tests/agents/
         expect(one(terminal(counted({ verdict: 'partially_met', units_correct: 15, quote_status: 'not_found' }))))
             .toEqual({ t: '0' });
     });
+
+    // graded_test 2d7369e6: the row read «7.058823529411764705882352941 / 12» beside
+    // a criterion reading «7 / 12», and the points field opened on that off-grid value.
+    it('the row shows the award on the grid, never the 28-digit quotient', () => {
+        const t = terminal(counted({ verdict: 'partially_met', units_correct: 10 }));
+        const detailed = priceScopeChecksDetailed(t, POLICY);
+        expect(detailed.t.raw).toBe('7.058823529411764705882352941');   // the terminal's raw is untouched
+        expect(priceScopeCheckContributions(t, POLICY)).toEqual({ 't.k1': detailed.t.awarded });
+        expect(detailed.t.awarded).toBe('7.00');
+    });
+
+    it('the row and the criterion agree at every count (V12: a counted check stands alone)', () => {
+        for (let k = 0; k <= 17; k += 1) {
+            const t = terminal(counted({ verdict: 'partially_met', units_correct: k }));
+            expect(priceScopeCheckContributions(t, POLICY)['t.k1']).toBe(one(t).t);
+        }
+    });
+
+    it('a count Vivi could not evidence still shows nothing on the row', () => {
+        const t = terminal(counted({ verdict: 'partially_met', units_correct: 10, quote_status: 'not_found' }));
+        expect(priceScopeCheckContributions(t, POLICY)).toEqual({ 't.k1': '0' });
+    });
 });
 
 // ── [OD-R2] typed amounts — the overlay half of the seam ───────────────────

@@ -399,6 +399,13 @@ export function priceScopeChecksDetailed(
  * Contributions are the raw, pre-clamp truth: they sum to the terminal's `raw`,
  * not necessarily to its `awarded` (a clamp at 0 is visible as the difference).
  *
+ * One exception: a `counted` check's figure is SNAPPED to the grid. Its raw is
+ * `points × units / unit_count`, a 28-digit quotient nobody wrote (12 × 10/17
+ * rendered as «7.058823529411764705882352941 / 12» on graded_test 2d7369e6,
+ * and seeded the points field with an amount its own grid check refuses).
+ * A counted check stands ALONE on its terminal (V12), so the snapped figure is
+ * exactly the terminal's `awarded` — the row and the criterion read one number.
+ *
  * [OD-R2] A typed check amount IS its contribution. A criterion PIN is not
  * consulted here at all: the rows beneath a pinned criterion keep showing what
  * their own verdicts are worth, so she can see what the pin overrode — the
@@ -412,7 +419,7 @@ export function priceScopeCheckContributions(
 ): Record<string, string> {
     const overridden = overriddenCheckIds ?? new Set<string>();
     const typed = typedCheckPoints ?? {};
-    gridOf(policy);            // validate the policy on this path too
+    const grid = dec(gridOf(policy));
     const { firstFiring, groupAmount } = chargeGroups(terminals);
 
     const out: Record<string, string> = {};
@@ -430,7 +437,9 @@ export function priceScopeCheckContributions(
                 }
             } else if (check.kind === 'counted') {
                 if (credited(check, overridden.has(check.check_id))) {
-                    value = countedCredit(check) ?? ZERO;
+                    const credit = countedCredit(check);
+                    // on the grid, like the terminal it stands alone on (see above)
+                    value = credit === null ? ZERO : snap(credit, ZERO, points(check), grid);
                 }
             } else if (check.kind === 'tariff' && fired(check)) {
                 const group = groupOf(check);
