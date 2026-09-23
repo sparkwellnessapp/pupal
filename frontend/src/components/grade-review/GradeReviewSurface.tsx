@@ -884,6 +884,7 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                 onPrev={onPrev}
                 onNext={onNext}
                 onOpenPreview={onOpenPreview}
+                batchHref={batchHref}
                 stampPressed={stampPressed}
                 revision={revision}
                 thumbUrl={thumbUrl}
