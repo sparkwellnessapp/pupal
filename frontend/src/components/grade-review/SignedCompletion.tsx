@@ -32,9 +32,10 @@ import { useState } from 'react';
 import {
     DASH_DONE_BANNER, DONE_DURATION, DONE_HERO_ALT, DONE_HERO_OPEN, DONE_PREVIEW,
     DONE_REFERRAL, DONE_REFERRAL_COPIED, DONE_REFERRAL_COPY, DONE_REFERRAL_FAILED,
-    DONE_TITLE, DASH_DOWNLOAD, DASH_CARD_NO_NAME,
+    DONE_TITLE, DASH_CARD_NO_NAME,
 } from '@/copy/grade-review';
 import type { GradedItem } from '@/utils/grade-dashboard';
+import { DownloadAllButton } from './DownloadAllButton';
 import { usePageThumbnails } from './usePageThumbnails';
 
 export interface SignedCompletionProps {
@@ -47,12 +48,15 @@ export interface SignedCompletionProps {
     heroItem: GradedItem | null;
     onOpenPreview: (item: GradedItem) => void;
     onDownload: () => void;
+    /** DL-1: the ZIP is in flight (see `GradeDashboard`'s prop). */
+    downloading?: boolean;
     /** «N מבחנים נכשלו בבדיקה…» — stated, never folded into the celebration. */
     failuresLine: string | null;
 }
 
 export function SignedCompletion({
     approved, durationMinutes, heroItem, onOpenPreview, onDownload, failuresLine,
+    downloading = false,
 }: SignedCompletionProps) {
     const { register, urlFor } = usePageThumbnails();
     const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle');
@@ -149,16 +153,12 @@ export function SignedCompletion({
             )}
 
             <div className="mt-5">
-                <button
-                    type="button"
-                    data-download
+                <DownloadAllButton
+                    busy={downloading}
                     onClick={onDownload}
-                    className="inline-flex items-center gap-2 rounded-grade-ctl border
-                        border-primary-600 bg-primary-600 px-5 py-2.5 text-gr-body
-                        font-medium text-white hover:bg-primary-700"
-                >
-                    {DASH_DOWNLOAD}
-                </button>
+                    className="rounded-grade-ctl border border-primary-600 bg-primary-600
+                        px-5 py-2.5 text-gr-body font-medium text-white hover:bg-primary-700"
+                />
             </div>
 
             <p className="mt-4 text-gr-meta text-grade-pencil" data-testid="done-referral">
