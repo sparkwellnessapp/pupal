@@ -38,7 +38,7 @@ import {
 } from '@/utils/evidence-highlight';
 import {
     HOVER_INTENT_MS, initialHighlightState, reduce as reduceHighlight,
-    revealScrollTop, type HighlightEvent, type HighlightState,
+    revealScrollTop, rowScrollDelta, type HighlightEvent, type HighlightState,
 } from '@/utils/grade-review-highlight-machine';
 import { REVIEW_LAYOUT_STACKED } from '@/lib/flags';
 import {
@@ -594,9 +594,10 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
      * The ONLY code here that may move the page, and it is unreachable from
      * hover (HL-6: reversions never scroll, and no hover event issues this).
      *
-     * `block: 'nearest'` plus the `gr-row-scroll` margins — which subtract the
-     * top bar, the card's strip and the action bar — is today's "scroll it only
-     * when it is not already there", said natively instead of by hand.
+     * `nearest` semantics plus the `gr-row-scroll` margins — which subtract the
+     * top bar, the card's strip and the action bar — is "scroll it only when it
+     * is not already there". Computed by hand: see `rowScrollDelta` for why the
+     * browser's own `block: 'nearest'` cannot be trusted with the margins.
      * Instant, not smooth: arrow-walking a checklist through a 300 ms animation
      * per row is how a keyboard surface starts to feel broken.
      */
@@ -608,8 +609,22 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         const selector = target.kind === 'check'
             ? `[data-check-id="${CSS.escape(target.id)}"]`
             : `[data-terminal-row="${CSS.escape(target.id)}"]`;
-        document.querySelector<HTMLElement>(selector)
-            ?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+        const row = document.querySelector<HTMLElement>(selector);
+        if (!row) return;
+        // `nearest` BY HAND (`rowScrollDelta`): the native one ignores the
+        // scroll margins whenever the row's own box is inside the window, so a
+        // row under the fixed action bar stayed there. The margins are still
+        // the `gr-row-scroll` ones — read, not restated.
+        const rect = row.getBoundingClientRect();
+        const style = getComputedStyle(row);
+        const delta = rowScrollDelta({
+            top: rect.top,
+            bottom: rect.bottom,
+            marginTop: parseFloat(style.scrollMarginTop) || 0,
+            marginBottom: parseFloat(style.scrollMarginBottom) || 0,
+            viewportHeight: window.innerHeight,
+        });
+        if (delta !== 0) window.scrollBy({ top: delta, behavior: 'auto' });
     }, []);
 
     // ── the requests, consumed post-commit (§6.3) ──────────────────────────
