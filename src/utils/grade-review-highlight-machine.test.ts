@@ -7,6 +7,7 @@ import {
     displayedTarget,
     reduce,
     revealScrollTop,
+    rowScrollDelta,
     type HighlightEvent,
     type HighlightState,
 } from './grade-review-highlight-machine';
@@ -212,6 +213,29 @@ describe('the machine — this surface\'s own cases [OD-A4..A6]', () => {
 
     it('the intent delay is the ruled 150 ms (OD-9)', () => {
         expect(HOVER_INTENT_MS).toBe(150);
+    });
+});
+
+describe('rowScrollDelta — the keyboard row scroll, `nearest` by hand', () => {
+    // 900px window, a 148px band on top (bar + strip + gutter), 76px below.
+    const ROW = { marginTop: 148, marginBottom: 76, viewportHeight: 900 };
+
+    it('leaves a row alone when it already sits between the bars', () => {
+        expect(rowScrollDelta({ ...ROW, top: 400, bottom: 460 })).toBe(0);
+        expect(rowScrollDelta({ ...ROW, top: 148, bottom: 824 - 600 })).toBe(0);
+    });
+
+    it('brings up a row INSIDE the window but under the fixed action bar (the Chrome case)', () => {
+        // box 807..866 is within 900, so native `nearest` did nothing
+        expect(rowScrollDelta({ ...ROW, top: 807, bottom: 866 })).toBe(866 + 76 - 900);
+    });
+
+    it('brings down a row under the top bar and strip', () => {
+        expect(rowScrollDelta({ ...ROW, top: 100, bottom: 160 })).toBe(100 - 148);
+    });
+
+    it('a row taller than the band shows its top', () => {
+        expect(rowScrollDelta({ ...ROW, top: 600, bottom: 1500 })).toBe(600 - 148);
     });
 });
 
