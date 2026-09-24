@@ -426,6 +426,26 @@ test('OD-11: ↓ across a scope boundary reveals in the NEW pane and leaves the 
         await expect(page.locator(`[data-check-id="${lastOfFirst}"][data-focused="true"]`))
             .toHaveCount(1);
 
+        // THE PRECONDITION, made certain: park the row ↓ will select HALF UNDER
+        // the action bar. Left to chance the row often already fit, and the
+        // test passed without the page ever having to move — which is how a
+        // `rounded overflow-hidden` criterion box that swallowed
+        // `scrollIntoView` shipped (found against production, 2026-09-23).
+        await page.evaluate((scope) => {
+            const next = Array.from(document.querySelectorAll<HTMLElement>('[data-check-id]'))
+                .find((el) => el.closest('[data-scope-id]')!.getAttribute('data-scope-id') !== scope)!;
+            const action = document.querySelector('[data-review-actionbar]')!.getBoundingClientRect();
+            const r = next.getBoundingClientRect();
+            window.scrollBy(0, r.top + r.height / 2 - action.top);
+        }, firstScope);
+        const parked = await page.evaluate((scope) => {
+            const next = Array.from(document.querySelectorAll<HTMLElement>('[data-check-id]'))
+                .find((el) => el.closest('[data-scope-id]')!.getAttribute('data-scope-id') !== scope)!;
+            const action = document.querySelector('[data-review-actionbar]')!.getBoundingClientRect();
+            return next.getBoundingClientRect().bottom > action.top + 1;
+        }, firstScope);
+        expect(parked).toBe(true);
+
         const before = await page.evaluate((id) => {
             const body = document.querySelector<HTMLElement>(`[data-answer-for="${id}"]`);
             return body ? body.scrollTop : 0;

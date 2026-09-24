@@ -282,3 +282,35 @@ export function revealScrollTop(geometry: RevealGeometry): number | null {
     const wanted = spanTop - clientHeight / REVEAL_FRACTION;
     return Math.min(Math.max(wanted, 0), maxScroll);
 }
+
+export interface RowGeometry {
+    /** The row's box in VIEWPORT coordinates (`getBoundingClientRect`). */
+    readonly top: number;
+    readonly bottom: number;
+    /** Its `scroll-margin-top` / `-bottom`: the top bar + strip, the action bar. */
+    readonly marginTop: number;
+    readonly marginBottom: number;
+    readonly viewportHeight: number;
+}
+
+/**
+ * How far the PAGE must scroll so a keyboard-selected row sits between the
+ * bars — `0` when it already does. `block: 'nearest'` semantics, computed by
+ * hand, because the browser's own does not hold here (found against
+ * production, 2026-09-23): Chrome's `scrollIntoView({ block: 'nearest' })`
+ * decides "already visible" on the row's BORDER box, so a row whose box is
+ * inside the window but under the FIXED action bar is left there, its
+ * `scroll-margin-bottom` never consulted. ↓ then selected a row she could not
+ * see. (`block: 'end'` does honour the margin — but always moves.)
+ *
+ * The smallest move that clears both bars; when the row plus its margins is
+ * taller than the window, its top wins, so the header of what she selected
+ * is what she sees.
+ */
+export function rowScrollDelta(row: RowGeometry): number {
+    const top = row.top - row.marginTop;
+    const bottom = row.bottom + row.marginBottom;
+    if (top >= 0 && bottom <= row.viewportHeight) return 0;
+    if (top < 0 || bottom - top > row.viewportHeight) return top;
+    return bottom - row.viewportHeight;
+}
