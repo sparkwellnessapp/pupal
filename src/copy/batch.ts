@@ -299,6 +299,13 @@ export const APPROVE_AND_CONTINUE = 'אישור והמשך'
 export const ANSWER_VIEW_SHOW_RAW = 'הצגת הטקסט המקורי'
 export const ANSWER_VIEW_SHOW_TABLE = 'הצגה כטבלה'
 export const ANSWER_VIEW_FLAGS_HIDDEN = 'שורות מסומנות מוצגות רק בטקסט המקורי'
+// Native table editing (2026-09-24): a cell edit never changes the grid (TBL-4).
+export const ANSWER_CELL_HINT_PIPE = 'התו | מפריד בין תאים, ולכן אי אפשר להקליד אותו בתוך תא'
+export const ANSWER_CELL_HINT_STRUCTURE =
+  'שינוי זה ישנה את מבנה הטבלה ולא יישמר — אפשר לערוך אותו בטקסט המקורי'
+export const ANSWER_CELL_ABSENT = 'אין תא כזה בטקסט המתומלל'
+export const ANSWER_CELL_LABEL = (row: number, col: number) => `תא בשורה ${row}, עמודה ${col}`
+export const ANSWER_TEXT_RUN_LABEL = 'טקסט התשובה'
 export const SOFT_REFETCH_NOTE = 'הרענון נכשל — הנתונים יתעדכנו בהמשך'
 export const INTERSTITIAL_TITLE = 'כל המבחנים שסומנו נבדקו'
 export const INTERSTITIAL_BODY = (n: number) =>
