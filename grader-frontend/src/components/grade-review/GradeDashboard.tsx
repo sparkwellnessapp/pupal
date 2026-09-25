@@ -17,13 +17,14 @@ export interface ManifestLike {
 }
 import {
     DASH_ATTENTION_MARKERS, DASH_ATTENTION_OPEN, DASH_ATTENTION_PREFIX,
-    DASH_CONTINUE, DASH_DONE_WITH_FAILURES, DASH_DOWNLOAD,
+    DASH_CONTINUE, DASH_DONE_WITH_FAILURES,
     DASH_ETA_LANDING, DASH_ETA_REMAINING, DASH_ETA_UNKNOWN,
     DASH_GRADING_COUNTER, DASH_GRADING_FIRST_ETA, DASH_GRADING_REST_ETA,
     DASH_GRADING_START_NOW, DASH_HEADING_GRADING,
     DASH_STEP_APPROVE, DASH_STEP_AUDIT, DASH_STEP_AUDIT_DONE, DASH_STEP_GRADING,
     DASH_SUB, DASH_TITLE,
 } from '@/copy/grade-review';
+import { DownloadAllButton } from './DownloadAllButton';
 import { DownloadModal } from './DownloadModal';
 import { Pile } from './Pile';
 import { SignedCompletion } from './SignedCompletion';
@@ -78,6 +79,10 @@ export interface GradeDashboardProps {
     studentHref?: (item: GradedItem) => string | null;
     onContinue: (item: GradedItem) => void;
     onDownload: () => void;
+    /** DL-1: the ZIP is being built and fetched. Owned by the caller, which
+     *  owns the fetch — so it survives the header button giving way to
+     *  `SignedCompletion` mid-download. */
+    downloading?: boolean;
     /**
      * D9: «DownloadModal from the manifest». Fetched when the modal opens; the
      * feed-derived count paints first and is REPLACED by the server's answer.
@@ -103,7 +108,7 @@ export interface GradeDashboardProps {
 export function GradeDashboard({
     items, batchTotal, auditStatus, eta, subtitle, startedAt, completedAt,
     onOpenReview, onOpenPreview, onRetry, studentHref, onContinue, onDownload, loadManifest,
-    retriedIds, durationMinutes = null,
+    retriedIds, durationMinutes = null, downloading = false,
 }: GradeDashboardProps) {
     const [downloadOpen, setDownloadOpen] = useState(false);
     const [manifestSummary, setManifestSummary] = useState<DownloadSummary | null>(null);
@@ -209,26 +214,18 @@ export function GradeDashboard({
                 </div>
                 <div className="flex flex-wrap justify-end gap-2.5">
                     {canDownload && (
-                        <button
-                            type="button"
-                            data-download
+                        <DownloadAllButton
+                            busy={downloading}
                             onClick={() => setDownloadOpen(true)}
-                            className={[
-                                'inline-flex items-center gap-2 rounded-grade-ctl border px-4 py-2',
-                                'text-gr-body font-medium transition-colors',
-                                complete
-                                    ? 'border-primary-600 bg-primary-600 text-white hover:bg-primary-700'
-                                    : 'border-grade-line bg-grade-card text-grade-ink hover:border-grade-pencil-2',
-                            ].join(' ')}
+                            className="rounded-grade-ctl border border-grade-line bg-grade-card
+                                px-4 py-2 text-gr-body font-medium text-grade-ink
+                                transition-colors hover:border-grade-pencil-2"
                         >
-                            {DASH_DOWNLOAD}
-                            {!complete && (
-                                <span className="rounded-full border border-grade-line
-                                    bg-grade-bar px-2 text-gr-chip text-grade-ink-2">
-                                    {summary.included}
-                                </span>
-                            )}
-                        </button>
+                            <span className="rounded-full border border-grade-line
+                                bg-grade-bar px-2 text-gr-chip text-grade-ink-2">
+                                {summary.included}
+                            </span>
+                        </DownloadAllButton>
                     )}
                     {!complete && firstReviewable ? (
                         <button
@@ -314,6 +311,7 @@ export function GradeDashboard({
                     heroItem={items.find((i) => i.status === 'approved') ?? null}
                     onOpenPreview={onOpenPreview}
                     onDownload={() => setDownloadOpen(true)}
+                    downloading={downloading}
                     failuresLine={session.failed > 0
                         ? DASH_DONE_WITH_FAILURES(session.failed) : null}
                 />

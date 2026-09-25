@@ -18,9 +18,10 @@ import { AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { GradedTestReviewPanel } from '@/components/GradedTestReviewPanel';
 import { GradeDashboard } from '@/components/grade-review/GradeDashboard';
+import { useZipDownload } from '@/components/grade-review/zip-download';
 import type { GradedItem } from '@/utils/grade-dashboard';
 import {
-    DASH_DOWNLOAD_FAILED, DASH_DOWNLOAD_STARTED, DASH_RETRY_FAILED, DASH_RETRY_STARTED,
+    DASH_RETRY_FAILED, DASH_RETRY_STARTED,
 } from '@/copy/grade-review';
 import {
     ApiError, fetchReturnedExamsManifest, fetchReturnedExamsZip,
@@ -108,6 +109,26 @@ function GradeReviewSection({ batch, batchId, onRefresh, durationMinutes }: {
     // Stable identity: the dashboard's manifest effect must key on the modal
     // opening, not on this function being re-created by every poll re-render.
     const loadManifest = useCallback(() => fetchReturnedExamsManifest(batchId), [batchId]);
+    /**
+     * D8/D9: the ZIP, as bytes through the seam (Bearer-authenticated — a plain
+     * link would 401). Approved-only is enforced server-side; the manifest the
+     * modal read is what told her so beforehand. The in-flight state, the
+     * double-click guard and every exit path live in `zip-download.ts` (DL-1..3).
+     */
+    const zip = useZipDownload(
+        () => fetchReturnedExamsZip(batchId),
+        (blob) => {
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `${batch.name ?? 'מבחן'}_מבחנים_חתומים.zip`;
+            anchor.click();
+            // Firefox starts a blob: download asynchronously; revoking on the same
+            // tick aborts it. Ten seconds is the conventional margin — the cost
+            // of a URL that lives ten seconds too long is nothing.
+            setTimeout(() => URL.revokeObjectURL(url), 10_000);
+        },
+    );
 
     /**
      * F1 — the grade-review dashboard (spec §4.1) replaces the pre-redesign
@@ -168,29 +189,6 @@ function GradeReviewSection({ batch, batchId, onRefresh, durationMinutes }: {
         }
     };
 
-    /**
-     * D8/D9: the ZIP, as bytes through the seam (Bearer-authenticated — a plain
-     * link would 401). Approved-only is enforced server-side; the manifest the
-     * modal read is what told her so beforehand.
-     */
-    const downloadZip = async () => {
-        try {
-            const blob = await fetchReturnedExamsZip(batchId);
-            const url = URL.createObjectURL(blob);
-            const anchor = document.createElement('a');
-            anchor.href = url;
-            anchor.download = `${batch.name ?? 'מבחן'}_מבחנים_חתומים.zip`;
-            anchor.click();
-            // Firefox starts a blob: download asynchronously; revoking on the same
-            // tick aborts it. Ten seconds is the conventional margin — the cost
-            // of a URL that lives ten seconds too long is nothing.
-            setTimeout(() => URL.revokeObjectURL(url), 10_000);
-            toast.success(DASH_DOWNLOAD_STARTED);
-        } catch (err) {
-            toast.error(err instanceof ApiError ? err.detail : DASH_DOWNLOAD_FAILED);
-        }
-    };
-
     return (
         <GradeDashboard
             items={items}
@@ -209,7 +207,8 @@ function GradeReviewSection({ batch, batchId, onRefresh, durationMinutes }: {
             studentHref={(item) =>
                 (item.student_id ? `/my-classroom/students/${item.student_id}` : null)}
             onRetry={(item) => { void retryTest(item); }}
-            onDownload={() => { void downloadZip(); }}
+            onDownload={zip.start}
+            downloading={zip.busy}
             loadManifest={loadManifest}
             retriedIds={retriedIds}
             durationMinutes={durationMinutes}
