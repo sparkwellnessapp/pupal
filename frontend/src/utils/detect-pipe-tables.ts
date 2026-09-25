@@ -30,8 +30,17 @@
  * FAITHFUL CAPTURE (§2). Ragged rows are padded at the END and never anywhere
  * else: where the missing cell BELONGS is unknowable from the text, and guessing
  * it is the silent relocation the product exists to refuse. Nothing here mutates
- * the answer — it is called at render, the textarea keeps the verbatim text, and
- * the accept payload never sees this module.
+ * the answer — it is called at render, and the accept payload never sees it.
+ *
+ * SPANS (native table editing, 2026-09-24). The derivation is `segmentAnswerSpans`:
+ * every segment, every cell and every prose body carries the BYTE SPAN of the
+ * answer string it was read from, so an edit can splice exactly that span and
+ * nothing else (TBL-2). `segmentAnswerText` / `detectPipeTables` are PROJECTIONS
+ * of it — the rendered grid and the editable grid are one derivation, never two
+ * that must agree. An end-padding cell is VIRTUAL: it owns no bytes, and says so.
+ * The whitespace grids come from `detectTableRuns`, UNCHANGED (the rubric mirror
+ * shares it); their line ranges are recovered from its own output shape, which its
+ * header guarantees ("concatenating the segments' source lines reproduces the input").
  */
 
 import { detectTableRuns } from './detect-table-runs';
@@ -39,6 +48,21 @@ import { detectTableRuns } from './detect-table-runs';
 export type AnswerSegment =
     | { kind: 'text'; text: string }
     | { kind: 'table'; rows: string[][]; hasHeader: boolean };
+
+export interface Span { start: number; end: number }
+
+/** One cell of a derived table. A real cell's span is its TRIMMED content; an
+ *  empty real cell is a zero-width span at its insertion point. */
+export type SpanCell =
+    | { virtual: false; text: string; start: number; end: number }
+    | { virtual: true; text: '' };
+
+export type SpanSegment =
+    /** `body` = the run without its blank edge lines (layout, not content); null when blank. */
+    | { kind: 'text'; start: number; end: number; body: Span | null }
+    | { kind: 'table'; start: number; end: number; rows: SpanCell[][]; hasHeader: boolean; grid: 'pipe' | 'whitespace' };
+
+type TableSpanSegment = Extract<SpanSegment, { kind: 'table' }>;
 
 const NUMERIC_ISH = /^-?\d+(\.\d+)?$/;
 /** A separator row (`|---|---|`) — a marker, never data. Mirrors markdown-parser. */
@@ -63,6 +87,37 @@ function isCandidate(line: string): boolean {
     return true;
 }
 
+// ── line index ──────────────────────────────────────────────────────────────
+
+interface Lines { lines: string[]; starts: number[] }
+
+function indexLines(text: string): Lines {
+    const lines = text.split('\n');
+    const starts: number[] = [];
+    let offset = 0;
+    for (const line of lines) {
+        starts.push(offset);
+        offset += line.length + 1;
+    }
+    return { lines, starts };
+}
+
+const lineEnd = (ix: Lines, i: number) => ix.starts[i] + ix.lines[i].length;
+
+/** One piece between two pipes → its trimmed content span, or its insertion point. */
+function cellSpan(line: string, offset: number, from: number, to: number): SpanCell {
+    const piece = line.slice(from, to);
+    const text = piece.trim();
+    if (text === '') {
+        // `|  |` → between the padding spaces, so a filled cell reads `| v |`.
+        const at = offset + from + Math.min(1, to - from);
+        return { virtual: false, text: '', start: at, end: at };
+    }
+    const lead = piece.length - piece.trimStart().length;
+    const start = offset + from + lead;
+    return { virtual: false, text, start, end: start + text.length };
+}
+
 /**
  * Split one row into cells.
  *
@@ -74,13 +129,22 @@ function isCandidate(line: string): boolean {
  * exactly 5 cells — a perfect rectangle. Stripping per-line collapses the
  * scaffold row to 3 and shears the grid.
  */
-function splitCells(line: string, stripEdges: boolean): string[] {
-    let s = line.trim();
+function splitCells(line: string, offset: number, stripEdges: boolean): SpanCell[] {
+    let a = line.length - line.trimStart().length;
+    let b = Math.max(a, line.trimEnd().length);
     if (stripEdges) {
-        if (s.startsWith('|')) s = s.slice(1);
-        if (s.endsWith('|')) s = s.slice(0, -1);
+        if (line[a] === '|' && a < b) a += 1;
+        if (b > a && line[b - 1] === '|') b -= 1;
     }
-    return s.split('|').map((c) => c.trim());
+    const cells: SpanCell[] = [];
+    let from = a;
+    for (let q = a; q <= b; q += 1) {
+        if (q === b || line[q] === '|') {
+            cells.push(cellSpan(line, offset, from, q));
+            from = q + 1;
+        }
+    }
+    return cells;
 }
 
 function shortCellRatio(rows: string[][]): number {
@@ -108,29 +172,143 @@ function inferHasHeader(rows: string[][], sawSeparator: boolean): boolean {
     return first.every((c) => !NUMERIC_ISH.test(c));
 }
 
-/** Build a table segment from a run's source lines, or null if it fails the bar. */
-function buildTable(runLines: string[]): { kind: 'table'; rows: string[][]; hasHeader: boolean } | null {
-    const sawSeparator = runLines.some(isSeparator);
-    const dataLines = runLines.filter((l) => !isSeparator(l));
-    if (dataLines.length < 2) return null;
+/** Build a table from the source lines [from, to), or null if it fails the bar. */
+function buildTable(ix: Lines, from: number, to: number): TableSpanSegment | null {
+    const idx = Array.from({ length: to - from }, (_, k) => from + k);
+    const sawSeparator = idx.some((i) => isSeparator(ix.lines[i]));
+    const data = idx.filter((i) => !isSeparator(ix.lines[i]));
+    if (data.length < 2) return null;
 
-    const stripEdges = dataLines.every((l) => {
-        const t = l.trim();
+    const stripEdges = data.every((i) => {
+        const t = ix.lines[i].trim();
         return t.startsWith('|') && t.endsWith('|');
     });
 
-    const raw = dataLines.map((l) => splitCells(l, stripEdges));
+    const raw = data.map((i) => splitCells(ix.lines[i], ix.starts[i], stripEdges));
     if (raw.some((cells) => cells.length < 2)) return null;
 
     const cols = Math.max(...raw.map((c) => c.length));
     if (cols < 2) return null;
-    // FC: pad at the END only. Never guess which column a short row is missing.
-    const rows = raw.map((cells) => [...cells, ...Array(cols - cells.length).fill('')]);
+    // FC: pad at the END only. Never guess which column a short row is missing —
+    // and the padding is VIRTUAL: it owns no bytes of the answer.
+    const rows: SpanCell[][] = raw.map((cells) => [
+        ...cells,
+        ...Array.from({ length: cols - cells.length }, (): SpanCell => ({ virtual: true, text: '' })),
+    ]);
+    const texts = rows.map((r) => r.map((c) => c.text));
 
-    if (shortCellRatio(rows) < SHORT_CELL_RATIO) return null;
+    if (shortCellRatio(texts) < SHORT_CELL_RATIO) return null;
 
-    return { kind: 'table', rows, hasHeader: inferHasHeader(rows, sawSeparator) };
+    return {
+        kind: 'table',
+        start: ix.starts[from],
+        end: lineEnd(ix, to - 1),
+        rows,
+        hasHeader: inferHasHeader(texts, sawSeparator),
+        grid: 'pipe',
+    };
 }
+
+type PipeRun = { kind: 'text'; from: number; to: number } | TableSpanSegment;
+
+/** The pipe pass over line indices. Order-preserving: the runs tile the lines. */
+function pipeRuns(ix: Lines): PipeRun[] {
+    const runs: PipeRun[] = [];
+    let bufFrom = -1;
+    const flushText = (to: number) => {
+        if (bufFrom >= 0) {
+            runs.push({ kind: 'text', from: bufFrom, to });
+            bufFrom = -1;
+        }
+    };
+
+    let i = 0;
+    while (i < ix.lines.length) {
+        if (isCandidate(ix.lines[i])) {
+            let j = i;
+            while (j < ix.lines.length && isCandidate(ix.lines[j])) j += 1;
+            const table = j - i >= 2 ? buildTable(ix, i, j) : null;
+            if (table) {
+                flushText(i);
+                runs.push(table);
+            } else if (bufFrom < 0) {
+                // Not a table — the run stays verbatim text.
+                bufFrom = i;
+            }
+            i = j;
+            continue;
+        }
+        if (bufFrom < 0) bufFrom = i;
+        i += 1;
+    }
+
+    flushText(ix.lines.length);
+    return runs;
+}
+
+/** A prose run's body: its lines minus the blank ones at either edge. */
+function proseBody(ix: Lines, from: number, to: number): Span | null {
+    let f = from;
+    while (f < to && ix.lines[f].trim() === '') f += 1;
+    if (f === to) return null;
+    let l = to - 1;
+    while (ix.lines[l].trim() === '') l -= 1;
+    // A CRLF line's `\r` is line structure, not her text.
+    const end = lineEnd(ix, l) - (ix.lines[l].endsWith('\r') ? 1 : 0);
+    return { start: ix.starts[f], end };
+}
+
+/** The whitespace pass (detectTableRuns, unchanged) over one pipe-text run. */
+function whitespaceRuns(text: string, ix: Lines, from: number, to: number): SpanSegment[] {
+    const segText = text.slice(ix.starts[from], lineEnd(ix, to - 1));
+    const out: SpanSegment[] = [];
+    let li = from;
+    for (const s of detectTableRuns(segText)) {
+        if (s.kind === 'prose') {
+            const n = s.text.split('\n').length;
+            out.push({ kind: 'text', start: ix.starts[li], end: lineEnd(ix, li + n - 1), body: proseBody(ix, li, li + n) });
+            li += n;
+            continue;
+        }
+        const rows: SpanCell[][] = s.rows.map((_, k) => {
+            const line = ix.lines[li + k];
+            return Array.from(line.matchAll(/\S+/g), (m): SpanCell => ({
+                virtual: false,
+                text: m[0],
+                start: ix.starts[li + k] + (m.index ?? 0),
+                end: ix.starts[li + k] + (m.index ?? 0) + m[0].length,
+            }));
+        });
+        out.push({
+            kind: 'table',
+            start: ix.starts[li],
+            end: lineEnd(ix, li + s.rows.length - 1),
+            rows,
+            hasHeader: s.hasHeader,
+            grid: 'whitespace',
+        });
+        li += s.rows.length;
+    }
+    return out;
+}
+
+/**
+ * THE derivation: the answer as ordered text and table segments, each carrying
+ * the byte spans it was read from. Pure; safe to call in render.
+ */
+export function segmentAnswerSpans(text: string): SpanSegment[] {
+    if (!text) return [];
+    const ix = indexLines(text);
+    return pipeRuns(ix).flatMap((run) =>
+        run.kind === 'table' ? [run] : whitespaceRuns(text, ix, run.from, run.to),
+    );
+}
+
+const projectTable = (t: TableSpanSegment): AnswerSegment => ({
+    kind: 'table',
+    rows: t.rows.map((r) => r.map((c) => c.text)),
+    hasHeader: t.hasHeader,
+});
 
 /**
  * Segment `text` into ordered text and pipe-table runs. Order-preserving: the
@@ -138,60 +316,28 @@ function buildTable(runLines: string[]): { kind: 'table'; rows: string[][]; hasH
  */
 export function detectPipeTables(text: string): AnswerSegment[] {
     if (!text) return [];
-    const lines = text.split('\n');
-    const segments: AnswerSegment[] = [];
-    let buf: string[] = [];
-
-    const flushText = () => {
-        if (buf.length > 0) {
-            segments.push({ kind: 'text', text: buf.join('\n') });
-            buf = [];
-        }
-    };
-
-    let i = 0;
-    while (i < lines.length) {
-        if (isCandidate(lines[i])) {
-            let j = i;
-            while (j < lines.length && isCandidate(lines[j])) j += 1;
-            const runLines = lines.slice(i, j);
-            const table = runLines.length >= 2 ? buildTable(runLines) : null;
-            if (table) {
-                flushText();
-                segments.push(table);
-            } else {
-                // Not a table — the run stays verbatim text.
-                buf.push(...runLines);
-            }
-            i = j;
-            continue;
-        }
-        buf.push(lines[i]);
-        i += 1;
-    }
-
-    flushText();
-    return segments;
+    const ix = indexLines(text);
+    return pipeRuns(ix).map((run) =>
+        run.kind === 'table'
+            ? projectTable(run)
+            : { kind: 'text', text: text.slice(ix.starts[run.from], lineEnd(ix, run.to - 1)) },
+    );
 }
 
 /**
  * The full answer-text segmentation: pipe tables first, then `detectTableRuns`
  * over what is left, so the WHITESPACE grids the same drafts carry (an array's
  * index row above its value row — `0 1 2 3 4 5 6 7` / `8 5 4 15 3 40 9 2`) are
- * recognized by the module that already owns that shape, unchanged.
+ * recognized by the module that already owns that shape, unchanged. A projection
+ * of `segmentAnswerSpans`.
  */
 export function segmentAnswerText(text: string): AnswerSegment[] {
-    return detectPipeTables(text).flatMap((seg) => {
-        if (seg.kind === 'table') return [seg];
-        return detectTableRuns(seg.text).map((s): AnswerSegment =>
-            s.kind === 'table'
-                ? { kind: 'table', rows: s.rows, hasHeader: s.hasHeader }
-                : { kind: 'text', text: s.text },
-        );
-    });
+    return segmentAnswerSpans(text).map((s): AnswerSegment =>
+        s.kind === 'table' ? projectTable(s) : { kind: 'text', text: text.slice(s.start, s.end) },
+    );
 }
 
 /** Does this answer contain anything worth rendering as a grid? */
 export function hasRenderableTable(text: string): boolean {
-    return segmentAnswerText(text).some((s) => s.kind === 'table');
+    return segmentAnswerSpans(text).some((s) => s.kind === 'table');
 }

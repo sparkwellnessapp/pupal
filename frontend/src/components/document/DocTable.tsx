@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { inferGridDir, type NestedTableBlock } from '@/utils/markdown-parser';
 
 /**
@@ -47,25 +47,36 @@ export interface DocTableProps {
      */
     hasHeader?: boolean;
     nestedTables?: NestedTableBlock[];
+    /**
+     * What goes INSIDE a cell (native table editing, 2026-09-24): the
+     * transcription surface passes an input per cell so the student's grid is
+     * edited in place without forking this markup (OD-7). `row` indexes `rows`
+     * (the header is row 0). Omitted ⇒ `<BidiText>`, byte-identical to before —
+     * pinned by DocTable.parity.test.tsx, because the rubric mirror never passes it.
+     */
+    renderCell?: (text: string, row: number, col: number) => ReactNode;
 }
 
-export function DocTable({ rows, dir: dirProp, hasHeader: hasHeaderProp, nestedTables = [] }: DocTableProps) {
+export function DocTable({ rows, dir: dirProp, hasHeader: hasHeaderProp, nestedTables = [], renderCell }: DocTableProps) {
     if (rows.length === 0) return null;
     const hasHeader = hasHeaderProp ?? rows.length >= 2;
     const header = hasHeader ? rows[0] : null;
     const dataRows = hasHeader ? rows.slice(1) : rows;
     const dir = dirProp ?? inferGridDir(rows);
     const align = dir === 'rtl' ? 'text-right' : 'text-left';
+    const firstDataRow = hasHeader ? 1 : 0;
+    const cell = (c: string, row: number, col: number) =>
+        renderCell ? renderCell(c, row, col) : <BidiText text={c} />;
     return (
         <div className="my-3 overflow-x-auto" dir={dir}>
             <table className="border-collapse text-doc-table w-full">
                 {header && <thead><tr>{header.map((c, i) => (
-                    <th key={i} className={`border border-surface-200 px-3 py-1.5 text-surface-500 font-medium ${align}`}><BidiText text={c} /></th>
+                    <th key={i} className={`border border-surface-200 px-3 py-1.5 text-surface-500 font-medium ${align}`}>{cell(c, 0, i)}</th>
                 ))}</tr></thead>}
                 <tbody>
                     {dataRows.map((row, ri) => (
                         <tr key={ri}>{row.map((c, ci) => (
-                            <td key={ci} className={`border border-surface-200 px-3 py-1.5 text-surface-800 align-top ${align}`}><BidiText text={c} /></td>
+                            <td key={ci} className={`border border-surface-200 px-3 py-1.5 text-surface-800 align-top ${align}`}>{cell(c, ri + firstDataRow, ci)}</td>
                         ))}</tr>
                     ))}
                 </tbody>
