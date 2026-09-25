@@ -146,6 +146,13 @@ export function TranscriptionReviewSurface({
     const [viewOverride, setViewOverride] = useState<Record<string, 'raw' | 'table'>>({});
     // The answer whose editor should take the caret: she clicked through to edit.
     const [focusKey, setFocusKey] = useState<string | null>(null);
+    /**
+     * The answer she is editing in the segmented view (native table editing,
+     * OD-5). While focus is inside it the view mode holds still: a keystroke that
+     * dissolves the last grid, or a flag that appears mid-edit, must not swap the
+     * card to the raw editor under her caret. It is re-decided when she leaves.
+     */
+    const [editingKey, setEditingKey] = useState<string | null>(null);
 
     // Δ9: eager first page, then background-warm the rest sequentially.
     useEffect(() => {
@@ -342,7 +349,17 @@ export function TranscriptionReviewSurface({
                         const tableAvailable = hasRenderableTable(currentText);
                         const viewMode = viewOverride[key]
                             ?? (tableAvailable && lineFlags.length === 0 ? 'table' : 'raw');
-                        const showTable = tableAvailable && viewMode === 'table';
+                        const showTable = editingKey === key || (tableAvailable && viewMode === 'table');
+                        // THE one write path for this answer (TBL-5): the raw editor,
+                        // a prose run and a table cell all land here, so Δ7's
+                        // dissolve-on-first-divergence holds whichever she used.
+                        const commitAnswer = (text: string) => {
+                            if (text !== answer.answer_text && !isDissolved(key)) {
+                                markDissolved(key);
+                                bumpDissolved((n) => n + 1);
+                            }
+                            onAnswerChange(key, text);
+                        };
                         const questionLabel = keyLabel(assignedKey);
                         // LIVE marker↔key mismatch — recomputed against the
                         // current text, so banners stay truthful through a
@@ -477,20 +494,17 @@ export function TranscriptionReviewSurface({
                                             text={currentText}
                                             flagCount={lineFlags.length}
                                             dir={subject === 'mathematics' ? 'rtl' : 'ltr'}
+                                            onChange={commitAnswer}
+                                            readOnly={readOnly}
+                                            onEditingChange={(on) => setEditingKey((prev) => (
+                                                on ? key : prev === key ? null : prev
+                                            ))}
                                         />
                                     ) : (
                                         <TranscribedTextEditor
                                             dir={subject === 'mathematics' ? 'rtl' : 'ltr'}
                                             value={currentText}
-                                            onChange={(text) => {
-                                                // Δ7: first divergence dissolves this answer's
-                                                // span flags for the session.
-                                                if (text !== answer.answer_text && !isDissolved(key)) {
-                                                    markDissolved(key);
-                                                    bumpDissolved((n) => n + 1);
-                                                }
-                                                onAnswerChange(key, text);
-                                            }}
+                                            onChange={commitAnswer}
                                             readOnly={readOnly}
                                             lineFlags={lineFlags}
                                             placeholder={emptyUnexplained ? EMPTY_ANSWER_PLACEHOLDER : undefined}
