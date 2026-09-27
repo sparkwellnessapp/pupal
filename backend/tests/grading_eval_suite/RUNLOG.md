@@ -2480,3 +2480,22 @@ second exam, not another dollar on this one.**
 - **hobby_tvshow** stage=both
   - route (Sonnet 5): $0.0692 · 9 calls · failed ['q2.א.c0'] · wall 36.7s · components {'q1.א.c0': ['כותרת המחלקה', 'הגדרת התכונות', 'כותרת הפעולה הבונה', 'גוף הפעולה הבונה - השמת ערכים'], 'q1.א.c1': ['כותרת המחלקה', 'הגדרת התכונות', 'כותרת הפעולה הבונה', 'גוף הבנאי - שיוך הפרמטרים לתכונות'], 'q2.א.c1': ['מימוש הפעולה הבונה - קליטת פרמטרים ועדכון name, channel', 'הפעולה הבונה - קביעת ערכי ברירת מחדל ל-rate ו-isOn', 'לולאה על מספר הצופים (numViewers)', 'קליטת דירוג מכל צופה', 'הוספת הדירוג הנקלט לתכונת rate הקיימת'], 'q2.ב.c3.s3': ['בדיקת תא לא ריק', 'צבירת הדירוג למערך הצוברים במקום הערוץ', 'שימוש בגישה ישירה לתכונה במקום GetRate']}
   - segment (Haiku 4.5): $0.1134 · 8 calls · clean first try 4 · retried 2 · substituted 1/81 · notes dropped 5 · validator 0 · expressible 188/190 · p50 18.0s max 28.0s · plan `hobby_tvshow/compiled-5cafe7d77698`
+
+## 2026-09-27 · GRADER v6 (options) · PHASE 0 CENSUS — STOP-1 (zero code, zero spend)
+
+- Spec: `PR_grader_v6_options.md` (repo root, untracked). Deliverable: `docs/GRADER_V6_CENSUS.md`.
+- **No model call, no run.** The P→Z baselines were recomputed at $0 with `tools/gates.py`
+  (`evaluate_run(write=False)`) over local run outputs:
+  - `20260830-130644` (PF-1): 44/147
+  - `20260831-154421`: 25/98
+  - `20260831-153958`: 26/98
+  - All three are hobby only, hand plan v5, grader-v5.3. Cost is $0.156–0.160/test, already above v6's G-C $0.15.
+- **No baseline exists under the production pin.** A3 (`20260908-194621`) was blocked before spend, and bagrut has never been graded under any config.
+- **STOP conditions fired (spec §12):**
+  - C-3 standalone deduction lines are **R-D**. Extraction drops them, e.g. bagrut
+    `markdowns/bagrut_899371.md:355`, which is in neither the contract nor the gold.
+  - C-8 `basis_he` feeds the feedback prompt, and `confidence` feeds the calibration ECE and the cascade router. Both are non-display consumers.
+  - C-4 production counts were not obtained, because the read was refused by the permission layer.
+- **Premise error:** PB-1..12 are bagrut GT rulings, not v5 prompt text. They are kept out of every prompt pending Q-5.
+- SetPeople = bagrut `q5.ב.c4` (R-A, −2/−3/−2 ungrouped, GT −2 once).
+- **Decision:** hold at STOP-1. Q-1..Q-21 await the owner.
