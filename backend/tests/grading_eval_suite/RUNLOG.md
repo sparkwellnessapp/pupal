@@ -2499,3 +2499,21 @@ second exam, not another dollar on this one.**
 - **Premise error:** PB-1..12 are bagrut GT rulings, not v5 prompt text. They are kept out of every prompt pending Q-5.
 - SetPeople = bagrut `q5.ב.c4` (R-A, −2/−3/−2 ungrouped, GT −2 once).
 - **Decision:** hold at STOP-1. Q-1..Q-21 await the owner.
+
+## 2026-09-27 · GRADER v6 (options) · STOP-1 RULED — tracks open
+
+- The owner accepted the census. Rulings are recorded in `docs/GRADER_V6_CENSUS.md` §1a.
+  - Amendments **AM-G1…AM-G12** and **A-1…A-6**.
+  - The spec carries them in §2.5 and inline. It stays untracked (2026-09-09 ruling).
+- **G-C re-ruled (AM-G11).** The target is $0.10/test and is aspirational: it never kills v6. It is pursued only through the bounded cost ladder AM-G12 (CL-1..CL-6, $20 cap, after the architecture eval is kill-clean). The $0.15 figure is retired.
+- **Pre-registered (Q-14):**
+  - planner: Sonnet 5, adaptive, effort high
+  - comparison planner: Opus 5.5, effort high
+  - explainer arms: Sonnet 5 no-thinking / Sonnet 5 adaptive effort low / Haiku 4.5
+  - P-v6-7: ≤ $0.10/test without CL-3..CL-5
+  - These go into PREDICTIONS.md before any Phase-6 spend.
+- **Inherited from `main` e760e35 (GATE-1 / CWV-1..6 / OD-4, same day):** the v6 verifier uses `strip_out_of_world`, and the v6 gate keeps `undecided_check`.
+- **Tracks:**
+  - A (v6 Phase 1, pure) starts now.
+  - B (instrument fixes + production-pin baseline) runs in parallel from a tree whose SUT is byte-identical to main. `_SUT_RELPATHS` includes `plan_schemas.py`/`pricer.py`, which Phase 1 extends.
+  - C (standalone deduction lines, census only) runs in its own worktree.

@@ -1,6 +1,7 @@
 # GRADER V6 CENSUS — Phase 0 of `PR_grader_v6_options.md` → STOP-1
 
-**Status: STOP.** Four STOP conditions that the spec names fire, and one of the spec's premises is false. The owner rules on §1 before Phase 1 writes a type.
+**Status: STOP-1 RULED (owner, 2026-09-27).** Census accepted. The rulings, amendments AM-G1…AM-G12 and additions A-1…A-6 are recorded in **§1a** and are authoritative; §1 below is kept as the record of what was asked. Phase 1 (Track A) and Track B are open; Track C runs separately. C-4b waits on AM-G10 (the read-only role).
+*(Original status: STOP. Four STOP conditions that the spec names fired, and one of the spec's premises was false.)*
 **Base:** `origin/main` @ `4f331e5` (2026-09-27), read in a clean worktree. Paths below are repo-relative. A few gitignored artefacts exist only in the shared working tree; they were read in place there and are marked **(untracked)**.
 **Method:** zero code, zero spend. **No production database was read**: the permission layer refused the read-only query (C-4, and Appendix D has the SQL). Every claim cites `path:line`. Where a fact could not be established, the text says so.
 
@@ -62,6 +63,96 @@ Grouped by the phase they block. **"Approve all recommendations"** is a valid si
 |---|---|---|
 | **Q-4** | **C-4 needs production reads**, and the permission layer refused them. Three things wait on them: the v3-era **STOP condition**, the **R-C scan** (a deduction row extracted as a *positive* criterion would be R-C), and the G4 parity **snapshot**. | Authorize the read-only queries in Appendix D (they run inside a `READ ONLY` transaction), or run them yourself. |
 | **Q-6** | **No baseline exists under the production pin.** A3 was blocked before spend because the compiled plan cannot express din `q2.א.c0` = 4. **Bagrut was never graded by any configuration.** The only Sonnet baselines are hobby-only, on the *hand* plan with grader-v5.3. Their cost, **$0.156–0.160 per test**, already exceeds G-C's **$0.15** hard bar before any explainer spend. | Pre-register one **baseline run**: production pin (grader-v5.4 + compiled routed+segmented plan), 12 fixtures, k=3, about $6, with the expressibility guard reporting instead of refusing *for this run only*. K3 and G-Z then have a comparator measured on the same fixtures. The owner re-confirms G-C, or rules that the explainer's cost is measured separately. |
+
+---
+
+## 1a. STOP-1 rulings (owner, 2026-09-27) — authoritative
+
+Recorded verbatim in substance. Code comments and RUNLOG cite the **AM-G** and **A-** ids. The spec (`PR_grader_v6_options.md`) carries the same amendments in its new §2.5 and inline, patched in the same change set; the spec stays untracked under the owner's 2026-09-09 ruling that specs live outside the public repo (`.gitignore:44-53`).
+
+### Blocks Phase 1
+
+| Q | Ruling |
+|---|---|
+| **Q-1** | **APPROVED + AM-G1.** v6 ships on in-criterion deductions (R-A) only. **Removed:** `TerminalPlan.kind="reduction"`, C8, `CheckOption.home_terminal_id`, `HomeStatus` and every home status, §10.3 ReductionRow, E3. **Kept:** markers with `candidate_anchors`, planner anchoring (S-4) and V18, because parent-level phrases need them (hobby q2.ב.c4, −3). **Extended in this PR:** C1's patterns gain «יורדו», «ירדו», «הורדת» and worded amounts («נקודה», «חצי נקודה», «שתי נקודות», «שלוש נקודות»), red-first on a phrase list drawn from both exams' markdowns. A pattern is never widened to make a plan pass. Standalone deduction lines are **Track C**, not this PR. |
+| **Q-7** | **APPROVED.** The spec is fixed: INV-5 is ContractVersionLock. Where the spec says "levels", read the **C8-lite band ladder**. |
+| **Q-8** | **APPROVED + AM-G2.** The evidence gate lives in the pricer's Resolve step, with per-check `evidence_required`. New verifier rule **V-2b**: "For a fault that is an omission, quote the code where the missing element belongs." |
+| **Q-9** | **APPROVED + AM-G3.** The overlay record per check is `{option_id?, amount?, comment?, evidence_disputed?}`. A typed amount on **any** check of a terminal makes that terminal's reasoning line teacher-decided, exactly like a terminal override: no explainer call. Typed amounts are part of the selection signature. |
+| **Q-10** | **APPROVED.** A zero-valued `note` role. Observed notes render on expand as «הערה: {label}» and are passed to the feedback prompt. |
+| **Q-11** | **APPROVED.** OD-20/OD-21 folds run as Stage-1 rules before a marker exists; V14 governs only real markers. |
+| **Q-17** | **APPROVED + AM-G4.** Count is exempt from V12's uniqueness clause. **One rounding rule for every value builder, new and legacy: ROUND_HALF_UP onto the grid** (count and partial). This replaces §3.3's `floor_to_grid`. The partial-collapse rule is unchanged. |
+
+### Blocks Phase 2
+
+| Q | Ruling |
+|---|---|
+| **Q-5** | **APPROVED + AM-G5.** The CS verifier fragment = v5 verifier rules 3–5 + rule 6's PL-9, R-1 and C-1 clauses, verbatim; **no new verifier text in this PR**. `constitution.py`'s general clauses (PL-1, PL-2, PL-3, PL-9, PL-10, R-α, R-β, A-6, charge-once, credit-once, P-A) feed the **planner and the explainer only**, and `constitution.py` becomes live code (closes D-10). **No PB-\* in any prompt, ever**: `test_no_pb_rulings_in_any_prompt` greps every assembled prompt. |
+| **Q-12** | **APPROVED + AM-G6.** Migration 034 extends `grading_plans` (`config_hash`, `plan_hash`) and also **drops** `idx_grading_plans_one_live_per_contract`, replacing it with a partial unique on `(contract_sha256, config_hash) WHERE live`, so v5 and v6 plans coexist during rollout. It **backfills `config_hash` on existing rows with a constant v5 key**. `PLAN_WAIT_S` (240 s) is reused; the spec's `PLAN_BUILD_TIMEOUT_S` is deleted. |
+| **Q-14** | **APPROVED.** Pre-registered in PREDICTIONS.md: **planner** Sonnet 5, adaptive thinking, effort **high**; **comparison** Opus 5.5, effort **high** (same effort, fair comparison); **explainer arms (§13.4)**: Sonnet 5 without thinking; Sonnet 5 adaptive at effort **low**; Haiku 4.5. |
+| **Q-18** | **APPROVED.** The grep test is scoped to the v6 grading core and uses the real keys; profiles become packages. |
+| **Q-19** | **APPROVED.** `grader-v6.0` is kept; `GRADER_V6_ARTIFACT.md` gets the disambiguation line. |
+
+### Blocks Phases 3–4
+
+| Q | Ruling |
+|---|---|
+| **Q-2** | **APPROVED + AM-G7.** Feedback reads the selected option label + `absence_pointer_he` + the verified quote; bump `FEEDBACK_PROMPT_VERSION`. **After pricing and selection marking**, feedback and the explainer run **concurrently**, each under its own `asyncio.wait_for`. **D-6 fixed:** neither runs on excluded scopes. **D-7 fixed:** feedback and explainer tokens count in `total_cost_usd`. |
+| **Q-3** | **APPROVED + AM-G8.** `confidence` is dropped. Self-consistency (`sc_n`) is kept: the per-check median is taken **over option values**. CLAUDE.md §15's confidence-triggered verification is parked with the note "future signal = SC disagreement, not verbalized confidence". |
+| **Q-13** | **APPROVED.** One knob: `GRADER_ARCHITECTURE ∈ {v3, v5, v6}`. `GRADER_STACK` is deleted from the spec. |
+| **Q-15** | **APPROVED.** OD-R1 (re-grade a failed scope once on any exception) stands for the v6 verifier; §15's text is corrected. |
+| **Q-16** | **APPROVED.** Unknown ids and duplicates → `CLOSED_WORLD_VIOLATION` flag + a non-blocking annotation. *Since the census, `main` landed GATE-1 / CWV-1..6 (e760e35): the v6 verifier reuses `validator.strip_out_of_world`, which also recovers romanised ids (CWV-6), and its annotation is INFO, not WARNING (CWV-1).* |
+| **Q-20** | **APPROVED + AM-G9.** E3 is dropped. **E10** uses the real `q5.ב.c4` text and the recorded planner output, and asserts: (1) for every verifier selection, at most one charge among the three phrases; (2) din/roni's plausible selection (capacity met, update present, one tier) prices **3/5**; (3) yahli (update absent) prices **0**, with every fault inactive. |
+| **Q-21** | **APPROVED.** |
+
+### Blocks Phase 6
+
+| Q | Ruling |
+|---|---|
+| **Q-4** | **AMENDED → AM-G10.** The owner creates a read-only Postgres role (SELECT on `graded_tests`, `rubrics`, `grading_plans` only) and sends its URL. Appendix D runs as written inside `BEGIN READ ONLY … ROLLBACK`. The G4 parity snapshot is taken through the same role and stored **outside the repo**. **C-4b is reported before Phase 4; if it is non-zero, STOP.** |
+| **Q-6** | **APPROVED + AM-G11.** The baseline runs **now**, in parallel with Phase 1 (Track B). **G-C is re-ruled:** target **$0.10 per test** (verifier + explainer, with caching, at batch-realistic cache-hit rates). G-C is **ASPIRATIONAL**: it never kills v6 and is never an open-ended loop; it is pursued only through the bounded cost ladder **AM-G12**. The $0.15 figure is retired. |
+
+### AM-G12 — the cost ladder
+
+- **When:** Phase 6, only after the v6 architecture eval is kill-clean.
+- **Purpose:** bring cost down while quality holds or improves. Quality is never traded for cost.
+- **Adoption rule:** a lever is adopted only if K1, K2 and K4 hold, and K3 and G-Z do not regress versus the v6 winning configuration at k=3.
+- **Accounting, per test and per component:** verifier and explainer, cached vs uncached; feedback, from production data after D-7; planner, per rubric (amortized); the v5 baseline under the same accounting.
+- **Pre-registration P-v6-7:** v6 with the chosen explainer lands ≤ $0.10 per test without CL-3..CL-5. Reason: `basis_he` alone was ~$0.10 of the v5 verifier's $0.156–0.160, and v6 moves the explanation to a cheaper model.
+- **Levers, in this order**, one pre-registered trial each (a HYPOTHESIZE line in RUNLOG with the expected $ saving and why):
+  - **CL-1** Explainer = the cheapest §13.4 arm that meets the ship conditions (expected: Haiku 4.5). No extra spend: it comes from §13.4.
+  - **CL-2** Prompt caching: order verifier and explainer calls so a batch hits the cached prefix (rubric, question, solution, checks); measure the real hit rate on a batch-shaped run.
+  - **CL-3** Self-consistency: if production runs `sc_n > 1`, one trial at `sc_n = 1`.
+  - **CL-4** Verifier effort: if the production verifier uses thinking (C-1), one trial one step lower.
+  - **CL-5** Cheap verifier tier: Haiku 4.5 as the verifier, k=3, kills first (its v5 K1 failure was din's wrong-target answer).
+  - **CL-6** Only if no §13.4 arm qualified: one more cheap explainer arm (a Flash-tier model via the existing factory), same ship conditions, recorded payloads.
+- **Stop and report when any one holds:** (a) the target is met, confirmed at k=5; (b) every lever has been tried; (c) cost-trial spend reaches **$20**. A lever is never re-run with tweaks to chase the target.
+- **Report:** cost-by-component table per lever; the quality/cost frontier; the recommended configuration; if still above $0.10, what each untried or rejected lever would cost in quality and the next cost levers outside this PR (e.g. the feedback model). The owner rules on cutover.
+
+### Additions (ruled now)
+
+| Id | Ruling |
+|---|---|
+| **A-1** | D-1 is **not** reproduced in the legacy view: a legacy tariff with no verdict maps to `none`. A declared parity exception with its own test, `test_legacy_unverdicted_tariff_is_not_charged`. Every other legacy cell must match exactly. |
+| **A-2** | D-3/D-4: v6 vectors (hand-written + generated) are committed and regenerate from a clean checkout. `npx vitest run` joins every phase's evidence bundle. |
+| **A-3** | D-8: in Phase 4, `PATCH /draft` **merges** the overlay instead of replacing it whole. Test: a draft save preserves `stamp_position`. |
+| **A-4** | GT notes O-1 and O-2: the awards are right and the notes are wrong. Fix the note text only, with an amendment note in each file. Awards untouched. |
+| **A-5** | The two hand-plan-only rulings (dan q2.א.c1 −1, yonatan q2.ב.c4.s2 −0.5) are reported in expressibility as **"unwritten rulings"**, separately from planner misses. |
+| **A-6** | D-2 dies with the v5 pricer. D-9 is closed by A-4. D-10 is closed by Q-5. |
+
+### Order of work
+
+- **Track A — v6.** Phase 1 starts now (pure; needs no production data), then Phases 2–7 as specced with the amendments above. AM-G12 runs inside Phase 6, after the architecture eval.
+- **Track B — measurement, in parallel; lands before REVIEW-2.**
+  1. Instrument fixes: **D-5** — commit the bagrut rubric and transcription contracts (per OD-B10, closed 2026-09-23); make `FixtureGT.awarded` Optional; the scorer skips unselected questions. `gates.py` excludes **CONTESTED** cells, encoded in GT metadata (din q2.ב.c4.s2 is the first).
+  2. Baseline: production pin (grader-v5.4 + compiled plan), 12 fixtures, k=3; the expressibility guard reports instead of refusing, for this run only; cost per test under AM-G12 accounting; `EVAL_ANALYSIS.md` per the contract. Its results go into REVIEW-2 with the plan renders.
+- **Track C — standalone deduction lines.** Separate worktree, separate PR, census first; STOP before design. Trace the four lost bagrut lines; propose extraction keeping them as a scope-level field (never as 0-point criteria); list the ontology and rubric-gold changes for an owner ruling. v6.1 then wires them in as markers with scope candidates.
+
+### Inherited from `main` since the census (not new rulings — applied as standing law)
+
+`e760e35` (2026-09-27, GATE-1 / CWV-1..6 / OD-4) changed v5 semantics the census described:
+- **C-8 / Q-16:** out-of-world verdicts are now dropped at grade time by `validator.strip_out_of_world` with a **scope-level** `closed_world_violation` flag and an **INFO** annotation; romanised ids are recovered (CWV-6). Legacy ERROR annotations are skipped at approval (CWV-3). The v6 verifier uses the same function for check ids.
+- **OD-4:** a check with no machine verdict is shown undecided and **blocks approval until she decides it** (`_undecided_no_verdict_checks`, gate check 6). v6 keeps this: PRC-1's default is a *display and pricing* default, never a decision, and the v6 approval gate carries OD-4 unchanged. A-1 (legacy unverdicted tariff → `none`) is consistent with it.
+- **CWV-5:** no grading string may say «מודל» or name an id; the static scan now covers v6's copy (fallback composer, status lines).
 
 ---
 

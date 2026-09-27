@@ -1,5 +1,11 @@
 # grader-v6 — DATED ARTIFACT, NOT A PIN (owner ruling 2026-08-31)
 
+> **Name reused (Q-19, owner 2026-09-27).** This file is the *killed 2026-08-30 prompt rewrite* (runs
+> `*_sonnet5-v6*`). The name `grader-v6` / prompt `grader-v6.0` now also denotes a **different
+> architecture** — options per check, `requires`, charge groups (`PR_grader_v6_options.md`,
+> `docs/GRADER_V6_CENSUS.md`). The two share nothing but the name; a run id or stamp from before
+> 2026-09-27 refers to this file.
+
 **Status: KILLED on both k=3 arms (2026-08-30). Retained for the record; the
 active Sonnet pin is `grader-v5.3`.** This file lives OUTSIDE `_SUT_RELPATHS`
 deliberately, so keeping the text costs the suite no provenance drift — the
