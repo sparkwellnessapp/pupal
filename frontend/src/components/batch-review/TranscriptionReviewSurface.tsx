@@ -12,13 +12,11 @@
  * Subject-agnostic (§3.3): plain monospace editing, no CS-specific rendering.
  */
 
-import { AlignLeft, ChevronDown, ChevronUp, Eye, FileText, Loader2, Table, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, FileText, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { StudentPicker } from '@/components/StudentPicker';
 import {
-    ANSWER_VIEW_SHOW_RAW,
-    ANSWER_VIEW_SHOW_TABLE,
     EMPTY_ANSWER_MARKER,
     EMPTY_ANSWER_PLACEHOLDER,
 } from '@/copy/batch';
@@ -134,18 +132,6 @@ export function TranscriptionReviewSurface({
     // R10: scan-pane zoom index into ZOOM_LEVELS.
     const [zoomIdx, setZoomIdx] = useState(0);
     const zoom = ZOOM_LEVELS[zoomIdx];
-    /**
-     * Per-answer view mode — EXPLICIT teacher choices only. The default is
-     * derived per render (below), so an answer whose text starts or stops
-     * containing a grid follows its own content until she overrules it.
-     *
-     * Δ14 (viewing is not commitment): switching modes writes ONLY here. It
-     * never calls onAnswerChange, so it cannot mark the item dirty, cannot
-     * create a review overlay, and cannot pull the item out of bulk-accept.
-     */
-    const [viewOverride, setViewOverride] = useState<Record<string, 'raw' | 'table'>>({});
-    // The answer whose editor should take the caret: she clicked through to edit.
-    const [focusKey, setFocusKey] = useState<string | null>(null);
     /**
      * The answer she is editing in the segmented view (native table editing,
      * OD-5). While focus is inside it the view mode holds still: a keystroke that
@@ -341,15 +327,14 @@ export function TranscriptionReviewSurface({
                             annotations: anns,
                             dissolved: isDissolved(key),
                         });
-                        // Table rendering (2026-08-23): a DISPLAY derivation over the
-                        // same verbatim text — the raw string stays the payload.
-                        // Default to the grid only when nothing is flagged: line
-                        // flags are the review signal and they live in the raw view
-                        // alone, so never trade one away for a prettier surface.
-                        const tableAvailable = hasRenderableTable(currentText);
-                        const viewMode = viewOverride[key]
-                            ?? (tableAvailable && lineFlags.length === 0 ? 'table' : 'raw');
-                        const showTable = editingKey === key || (tableAvailable && viewMode === 'table');
+                        // ONE view per answer, decided by its content — there is no
+                        // view toggle (owner-ruled 2026-09-27, reversing OD-3): a
+                        // table-bearing answer is edited in place, segment by
+                        // segment; anything else, or an answer carrying line flags
+                        // (the review signal, which lives in the text editor alone),
+                        // is the text editor. The raw string stays the payload.
+                        const showTable = editingKey === key
+                            || (hasRenderableTable(currentText) && lineFlags.length === 0);
                         // THE one write path for this answer (TBL-5): the raw editor,
                         // a prose run and a table cell all land here, so Δ7's
                         // dissolve-on-first-divergence holds whichever she used.
@@ -413,24 +398,6 @@ export function TranscriptionReviewSurface({
                                         ))}
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
-                                        {tableAvailable && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const next = showTable ? 'raw' : 'table';
-                                                    setViewOverride((prev) => ({ ...prev, [key]: next }));
-                                                    // Switching TO the editor hands over the caret;
-                                                    // switching away must not leave a stale request.
-                                                    setFocusKey(next === 'raw' ? key : null);
-                                                }}
-                                                className="flex items-center gap-1 text-xs border border-surface-300 rounded-lg px-2 py-1 bg-white text-gray-600 hover:border-surface-400 hover:bg-surface-50 transition-colors"
-                                                data-testid="answer-view-toggle"
-                                            >
-                                                {showTable
-                                                    ? <><AlignLeft size={13} />{ANSWER_VIEW_SHOW_RAW}</>
-                                                    : <><Table size={13} />{ANSWER_VIEW_SHOW_TABLE}</>}
-                                            </button>
-                                        )}
                                         {reassignEnabled && (
                                             <select
                                                 value=""
@@ -492,7 +459,6 @@ export function TranscriptionReviewSurface({
                                     {showTable ? (
                                         <TranscribedAnswerView
                                             text={currentText}
-                                            flagCount={lineFlags.length}
                                             dir={subject === 'mathematics' ? 'rtl' : 'ltr'}
                                             onChange={commitAnswer}
                                             readOnly={readOnly}
@@ -508,7 +474,6 @@ export function TranscriptionReviewSurface({
                                             readOnly={readOnly}
                                             lineFlags={lineFlags}
                                             placeholder={emptyUnexplained ? EMPTY_ANSWER_PLACEHOLDER : undefined}
-                                            autoFocus={focusKey === key}
                                         />
                                     )}
                                 </div>

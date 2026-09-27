@@ -51,12 +51,6 @@ describe('TranscribedAnswerView', () => {
         expect(empty).not.toContain('<table');
         expect(empty).not.toContain('<pre');
     });
-
-    it('says where the marked lines are instead of hiding them', () => {
-        const withFlags = renderToStaticMarkup(<TranscribedAnswerView text={REAL_ANSWER} flagCount={2} />);
-        expect(withFlags).toContain('שורות מסומנות מוצגות רק בטקסט המקורי');
-        expect(html).not.toContain('שורות מסומנות');
-    });
 });
 
 /**
