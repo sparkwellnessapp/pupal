@@ -2557,3 +2557,42 @@ second exam, not another dollar on this one.**
   - Nothing was built or graded. **Owner decision needed:** thread `settings.plan_route_min_points` into
     `segment_plan._compile` (tests-only). Then rebuild BOTH exams' routed+segmented plans at P≥3, before the
     C-12 baseline can claim to measure the production pin.
+
+## 2026-09-27 · GRADER v6 (options) · PHASE 1 (pure) — G1 BLOCKED on Q-22 (zero spend)
+
+- **Built (not wired; `GRADER_ARCHITECTURE` unchanged):**
+  - plan/v6 types added in place in `plan_schemas.py`;
+  - `plan_values.py`: ids, value builders, `snap_half_up` (AM-G4), `plan_hash`, `config_hash`;
+  - `plan_validator_v6.py`: V12–V20, with v5's V5/V6/V7/V10 kept;
+  - `services/pricing_v6.py`: THE v6 pricer (AM-G1/G2/G3, Q-10);
+  - `agents/explainer/fallback.py` + `copy.py`;
+  - vectors: `tests/fixtures/grade_review/pricing_v6_vectors.json` (36 hand cases + 500 generated, seed 20260927, committed, `--check` clean).
+- **Named tests:**
+  - values/ids/hash: 10/10;
+  - validators V12–V20: 17/17;
+  - pricer E1–E10 (E3 dropped) + amendments + I/O contract: 22/22, plus 2 strict xfails pinning Q-22;
+  - fallback composer: 2/2;
+  - vectors: 2/2;
+  - CWV-5 scan now covers the explainer package: 3/3.
+- **Properties at 2,000 examples** (19 min run): 6/7 green.
+  - `prop_total_monotone` FAILED. Hypothesis found a credit raise lowering the total, and shrinking timed out.
+- **Q-22 — attribution and exhaustive search.** PRC-6 is contradicted by §4.2 as written, in two classes:
+  - (a) S-3's per-fault cap lets two faults on one behavior charge 2× its value. Seed 2782: 3.0 → 0.0.
+  - (b) PRC-4 picks the group charge before the floor. The counterexample goes 5.00 → 4.25.
+  - Search over 6,000 seeded cases × every move: 69 violations under the spec rule, 0 under the prototype (Q-22a aggregate behavior cap + Q-22b group charge where it costs most).
+  - Surfaced in census §1b. `prop_total_monotone` is a non-strict xfail until the ruling.
+- **Mutation (mutmut 2.5.1; 3.x has no Windows support)** on `pricing_v6.py`, run on examples + vectors + fallback:
+  - 238 mutants; **237 killed** (234 + 3 slow-but-killed) = **99.6%**, against the ≥ 90% bar.
+  - 1 survivor, EQUIVALENT: line 286, the floor loop's `if deficit <= 0: break` → `continue`. Every later iteration re-checks the same condition and skips its whole body, so the behavior is identical.
+  - First pass, stopped at 30/238: every survivor was a declarative schema line (frozen config, optional defaults). They are now killed by `test_pricer_models_are_frozen` and `test_absent_optional_fields_take_their_documented_defaults`.
+- **A-2/D-3:** nine gitignored backend fixtures that the frontend and backend suites read are now tracked. Named negations; `approved_*` regenerated from main's compiler.
+  - `npx vitest run` on a clean checkout: 95/95 files, 1454 passed.
+- **Backend suite, attributed.** Rebased onto 0711d61. Every file that failed in the long run was rerun on the branch, then A/B'd on clean main (`trackb`, same commit):
+  - The long run's `getaddrinfo` / OperationalError errors were the environment. On rerun, 344 of 349 in 21 DB files pass.
+  - The bagrut `FileNotFoundError`s were closed by Track B's D-5.
+  - Pre-existing on clean main (not v6):
+    - `test_batch_feed_fixtures` ×4 (committed fixtures differ from a fresh generation);
+    - `test_llm_policy::test_sweep_configs_resolve_through_registry` (gitignored `configs/gpt-5.5.json` absent from a checkout, the D-3 class).
+  - `test_hobby_scores_are_byte_identical` passes once the gitignored baseline run dir is present. A stray `feedback/` dir had defeated its skip guard. So hobby scores are byte-identical under this branch.
+  - `test_batch_grading::test_detail_says_whether_this_is_her_first_batch` fails only when other files share the process: `is_first_batch` read False because an earlier file left a batch on the shared test user. The file alone passes 55/55 on BOTH main and this branch (like-for-like), and the diff touches no batch code.
+- **Next:** the owner rules Q-22, Q-B1, TC-1..8, and sends the AM-G10 read-only role URL (C-4b before Phase 4). G1 closes on the Q-22 ruling.
