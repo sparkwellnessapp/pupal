@@ -3163,7 +3163,7 @@ export interface components {
          *     Used by FlaggedOutcome to indicate why an item needs attention.
          * @enum {string}
          */
-        FlagReason: "no_answer" | "quote_not_found" | "low_confidence" | "unmeasurable" | "llm_uncertainty" | "fuzzy_match" | "max_retries_exceeded" | "closed_world_violation" | "ungraded_criterion" | "bounds_clamped" | "unverified_check" | "evidence_unverified" | "tariff_coerced";
+        FlagReason: "no_answer" | "quote_not_found" | "low_confidence" | "unmeasurable" | "llm_uncertainty" | "fuzzy_match" | "max_retries_exceeded" | "closed_world_violation" | "ungraded_criterion" | "bounds_clamped" | "unverified_check" | "evidence_unverified" | "tariff_coerced" | "check_id_recovered";
         /**
          * FlagVerdictResponse
          * @description Flag triage result for a single transcription.
