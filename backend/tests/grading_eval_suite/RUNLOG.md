@@ -2517,3 +2517,43 @@ second exam, not another dollar on this one.**
   - A (v6 Phase 1, pure) starts now.
   - B (instrument fixes + production-pin baseline) runs in parallel from a tree whose SUT is byte-identical to main. `_SUT_RELPATHS` includes `plan_schemas.py`/`pricer.py`, which Phase 1 extends.
   - C (standalone deduction lines, census only) runs in its own worktree.
+
+## 2026-09-27 · TRACK B · instrument fixes landed; the baseline STOPPED before spend (routing threshold)
+
+- **Branch `eval/v6-baseline`, off `main` @ `2e8e6a0`.** `backend/app/**` is byte-identical to main.
+  Each change below is a separate commit with a red test first. Suite: 126 passed.
+  - **D-5.** The bagrut rubric contract and 7 transcription contracts are committed (per OD-B10). Each sha256
+    equals its GT pin. They get `.gitignore` negations and `.gitattributes -text`, because `core.autocrlf`
+    would otherwise break every pin on any other machine.
+  - **1b.** `FixtureGT.awarded` is Optional: null means an unselected question. The loader accepts a null only
+    where the transcription says the question was not attempted. The scorer, gates and expressibility skip
+    such cells, never scoring them as zero. All 7 bagrut fixtures load with `require_gt=True`: 298 scored
+    cells and 129 unselected. Hobby is byte-identical: 35 published trials across 4 runs re-score unchanged.
+  - **1c.** `TerminalGT.contested` is live, and hobby din `q2.ב.c4.s2` is marked, citing RUNLOG.md:1771-1775
+    and EVAL_REPORT.md:393-417. `gates.py` excludes contested cells from K1, K2, the cross-tab, GA-1, GA-2
+    and GA-6, and names them in gates.md. Re-scoring the record with `write=False`:
+    - `20260830-130644_sonnet5-v5`: K1 **45/48 ✗ → 45/45 PASS**, 3 rows excluded.
+    - `20260831-154421_sonnet5-v5`: K1 **31/32 ✗ → 30/30 PASS**, 2 rows excluded.
+  - **A-4.** The O-1 and O-2 note texts are corrected, each file carries an `amendments` record, and the
+    awards are untouched.
+  - **1e.** The `expressibility_guard` config key takes refuse (the default, unchanged) or report. With
+    report, misses are recorded in provenance and split per A-5 into `unwritten_ruling` (dan `q2.א.c1`,
+    yonatan `q2.ב.c4.s2`) and `planner_miss`.
+- **suite_hash moved** (instrument change). It is now `49c8649ab9b3ce2b` in this worktree. Caveat: `_suite_hash`
+  hashes absolute paths, so the value is checkout-location-dependent.
+- **Baseline (2a): STOPPED at the routing-threshold check. Spend $0.**
+  - `tools/segment_plan.py` builds its skeleton with `compile_contract(...)` and passes no `route_min_points`,
+    so it takes `compile.ROUTE_MIN_POINTS = 4`.
+  - Production (`plan_build_runner`) uses `settings.plan_route_min_points = 3` (OD-W5 / OD-24).
+  - Measured at zero spend:
+    - bagrut: the tool routes 8 monoliths, production routes 14. The extra six at P=3 are `q2.ב.c4`,
+      `q3.א.c4`, `q3.ב.c5`, `q3.ב.c6`, `q4.ב.c5` and `q5.ב.c5`. `q3.ב.c5/c6` are the A0 decomposition misses.
+    - hobby: the tool routes 5, production routes 13. So the committed
+      `hobby_tvshow.routed+segmented.plan.json` (the A3 config) is not the production pin either.
+  - Dry-run estimates:
+    - Tool as-is (P≥4), bagrut: route $0.044 + segment $0.115.
+    - At P≥3: bagrut $0.080 + $0.115; hobby $0.087 + $0.063.
+    - The 2026-09-06 production smoke ran at about 2× its estimate.
+  - Nothing was built or graded. **Owner decision needed:** thread `settings.plan_route_min_points` into
+    `segment_plan._compile` (tests-only). Then rebuild BOTH exams' routed+segmented plans at P≥3, before the
+    C-12 baseline can claim to measure the production pin.
