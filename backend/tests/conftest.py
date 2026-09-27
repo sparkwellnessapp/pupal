@@ -143,3 +143,42 @@ def no_provider_in_plan_builds(monkeypatch):
     import app.services.plan_build_runner as _pbr
     monkeypatch.setattr(_pbr, "default_llm_factory", _no_provider_factory)
     yield
+
+
+# ---------------------------------------------------------------------------
+# [A-7 TEST HYGIENE] Known failures are pinned by name, and a gate run must
+# reach the test DB. The rules live in tests/known_failures.py.
+# ---------------------------------------------------------------------------
+from tests import known_failures as _kf
+
+
+def pytest_sessionstart(session):
+    if not _kf.is_gate_run():
+        return
+    why = _kf.probe_database(_os.environ.get("DATABASE_URL"))
+    if why is not None:
+        _pytest.exit(f"GATE RUN REFUSED: the test DB is unreachable ({why}). A gate run "
+                     "must reach the test DB (A-7); fix the connection and rerun.",
+                     returncode=_kf.GATE_DB_UNREACHABLE_EXIT)
+
+
+def pytest_collection_modifyitems(config, items):
+    known = _kf.load_known_failures()
+    _kf.mark_known_failures(items, known)
+    if not _kf.is_gate_run():
+        return
+    rootdir = Path(str(config.rootpath))
+    narrowed = set()
+    for arg in config.args:
+        if "::" in arg:
+            p = Path(arg.split("::", 1)[0])
+            p = p if p.is_absolute() else Path.cwd() / p
+            try:
+                narrowed.add(p.resolve().relative_to(rootdir).as_posix())
+            except ValueError:
+                pass
+    stale = _kf.stale_entries(known, [i.nodeid for i in items], narrowed)
+    if stale:
+        raise _pytest.UsageError(
+            "KNOWN_FAILURES.txt names tests that were not collected (renamed or deleted?): "
+            + ", ".join(stale))
