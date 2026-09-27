@@ -63,23 +63,31 @@ def prop_fault_capped_by_behavior(data):
     resolved = {r.check_id: r.value for r in p.checks}
     plan = _values(view)
     for t in p.terminals:
+        by_behavior = {}
         for ch in t.charges:
             req = plan[ch.check_id].requires
             if req is not None:
-                assert ch.charged >= -resolved[req]                     # PRC-3 / S-3
+                by_behavior[req] = by_behavior.get(req, D("0")) + ch.charged
+        for req, total in by_behavior.items():
+            assert total >= -resolved[req]              # PRC-3 BehaviorCap: the SUM [AM-G13]
 
 
 @given(st.data())
 def prop_charge_once(data):
     view, ov = _case(data)
     plan = _values(view)
-    nonzero = {}
+    candidates, charged = {}, {}
     for t in price(view, ov).terminals:
         for ch in t.charges:
             g = plan[ch.check_id].charge_group
-            if g is not None and ch.charged != 0:
-                nonzero[g] = nonzero.get(g, 0) + 1
-    assert all(n <= 1 for n in nonzero.values())                        # PRC-4
+            if g is None or ch.status in ("inactive", "no_fault"):
+                continue
+            candidates[g] = candidates.get(g, 0) + 1
+            if ch.status == "superseded":
+                assert ch.charged == D("0")
+            else:
+                charged[g] = charged.get(g, 0) + 1
+    assert all(charged.get(g, 0) == 1 for g in candidates)  # PRC-4 ChargedOnce: EXACTLY one [AM-G13]
 
 
 @given(st.data())
