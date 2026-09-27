@@ -116,6 +116,10 @@ celerybeat.pid
 
 # Environments
 .env
+# [AM-G10] the read-only production role's credentials (census reads). Never commit:
+# both remotes are public.
+vivi-census.env
+.vivi-census.env
 .venv
 env/
 venv/
