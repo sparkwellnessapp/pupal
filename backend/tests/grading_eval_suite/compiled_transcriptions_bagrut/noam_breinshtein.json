@@ -1,0 +1,61 @@
+{
+	"answers": [
+		{
+			"answer_text": "| x | i | arr[i] | if |\n| 6 | 0 | 8 |  |\n| 6 | 1 | 5 | x |\n| 6 | 2 | 4 | x |\n| 6 | 3 | 15 | x |\n| 6 | 4 | 3 | ✓ |\nא\n1\nאחרי i=4 יש return\n\nא. מטרת הפעולה היא לבדוק אם במערך יש מספר\nשמתחלק במספר שמביאים בכך (למעט 1 והמספר עצמו)",
+			"question_number": 1,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "| Sum | i | arr[i] | if |\n| 0 | 0 | 8 | ✓ |\n| 8 | 1 | 5 | x |\n| 8 | 2 | 4 | ✓ |\n| 12 | 3 | 15 | ✓ |\n| 27 | 4 | 3 | x |\n| 27 | 5 | 40 | ✓ |\n| 67 | 6 | 9 | ✓ |\n| 76 | 7 | 2 | x |\nמוחזר - 76\nב. מטרת הפעולה היא לבדוק את סכום המספרים שאין לחלק\nאותם במספר במערך.",
+			"question_number": 1,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static bool isMirror (int[] arr)\n{\nint count = 0;\nfor (int i = 0; i < arr.length; i++)\n{\ncount = 0;\nfor (int j = 0; j < arr.length; j++)\n{\nif (arr[i] != 0 && arr[i] == arr[j] - 1)\ncount++;\n}\nif (count != 1)\nreturn false;\n}\nreturn true;\n}",
+			"question_number": 2,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static void ArrangeMirror(int[] arr)\n{\nint[] newArr = new int[arr.length]; // מניח שזה כבר מאופס\n\nfor (int i=0; i<arr.length; i++)\n{\nif (arr[i]<0)\n\narr[i]=0;\n}\n\nfor (int i=0; i<arr.length; i+=2)\n{\nint j=0\nfor (j; j<arr.length; j++)\n{\nif (arr[j]!=0)\n{\nnewArr[i] = arr[j];\n\nnewArr[i+1] = arr[j]*-1;\n\narr[j] = 0;\nj = arr.length;\n}\n}\nreturn newArr;\n}",
+			"question_number": 2,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static int[] DiceStatistics(int[] arr)\n{\nint[] counter = new int[21]; // מניח שהכל כבר מאופס\n\nfor (int i=0; i<arr.length; i++)\n{\n\nint num = arr[i];\n\ncounter[num]++;\n}\n\nreturn counter;\n}",
+			"question_number": 3,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static void PrintStatistics(int[] arr)\n{\nint[] counter = DiceStatistics(arr);\n\nint big = 0;\n\nfor (int i=1; i<counter.length; i++)\n{\n  if (counter[i]>big)\n\n     big = counter[i]\n}\n\nString biggest = \"the biggest numbers are: \"\nString zero = \"numbers which didnt show up are: \"\nfor (int i=1; i<counter.length; i++)\n{\nif (counter[i]==big)\n\n   biggest += (i + \" \");\n\nelse if (counter[i]==0)\n\n   zero += (i + \" \");\n}\n\nreturn biggest + \"\\n\" + zero;\n}",
+			"question_number": 3,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "",
+			"question_number": 4,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "",
+			"question_number": 4,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "",
+			"question_number": 5,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "",
+			"question_number": 5,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static int[] AnalyzeMechina (int[] StudentsMechina)\n{\n// מוחזר מערך של מספרים אז כדאי להחזיר גם את המכינה\n// שאליה נרשמו הכי הרבה נוסף למערך עוד מקום אחד\n// ואז המקום האחרון זה בעצם המכינה עם הכי הרבה נרשמים\n\nint[] counter = new int[31]\n\nfor(int i=0; i<StudentsMechina; i++)\n{\nint num = StudentsMechina[i];\n\ncounter[num] ++;\n}\n\nint count = 0;\n\nfor (int i=0; i< counter.length; i++)\n{\nif (counter[i] > 0)\n\ncount++;\n}\n\nint[] analyze = new int[count * 2 + 1]; // מניח שהוא מאופס\nint j = 0;\n\nfor (int i=0; i < counter.length; i++)\n{\nif (counter[i] > 0)\n{\nanalyze[j] = i;\nanalyze[j+1] = counter[i];\nj+=2\n}\nif (counter[i] > analyze[count*2]) // לא +1 כי מתחיל ב0\n\nanalyze[count*2] = i;\n// המכינה עם הכי\n}\n\nreturn analyze;\n\n}",
+			"question_number": 6,
+			"sub_question_id": null
+		}
+	],
+	"schema_version": "1.0",
+	"contract_version": "384a8dbb-abd1-4c93-a2ae-5e066d2959b4"
+}

@@ -1,0 +1,61 @@
+{
+	"answers": [
+		{
+			"answer_text": "  0   1   2    3   4    5   6   7\n| 8 | 5 | 4 | 15 | 3 | 40 | 9 | 2 |\n\n| i | if | arr[i] | x | ערך מוחזר |\n| 0 | f | 8 | 6 |  |\n| 1 | f | 5 |  |  |\n| 2 | f | 4 |  |  |\n| 3 | f | 15 |  |  |\n| 4 | T | 3 |  | True |\n\n2. מטרת הפעולה היא למצוא\nמספר שהוא קטן מx ושהוא מתחלק בו והוא לא 1.",
+			"question_number": 1,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "  0   1   2    3   4   5    6   7 \n| 8 | 5 | 4 | 15 | 3 | 40 | 9 | 2 |\n\n| i | sum | if | arr[i] | ערך מוחזר |\n| 0 | 0 | T | 8 |  |\n| 1 | 8 | f | 5 |  |\n| 2 | 12 | T | 4 |  |\n| 3 | 27 | T | 15 |  |\n| 4 | 27 | f | 3 |  |\n| 5 | 67 | T | 40 |  |\n| 6 | 76 | T | 9 |  |\n| 7 | 76 | f | 2 | 76 |\n\n2. מטרת הפעולה היא לצבור את המספרים\nשיש יותר קטנים מהם במערך והם מתחלקים\nבהם ושהם לא 1.",
+			"question_number": 1,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static bool IsMirror (int[]arr)\n{\n// מונה שסופר את כמות הזוגות\nint count = 0;\n\n// לולאה שרצה על המערך\nfor (int i = 0; i < arr.Length; i++)\n{\n// לולאה שרצה על k ומשווה בין הערכים\nfor (int k = 0; k < arr.Length; k++)\n{\n// משווה האם המספר הנגדי נמצא\nif ((-arr[i]) == arr[k])\n{\n// נמצא המספר הנגדי\ncount ++;\n}\n}\n}\n// אם מספר המונה שווה למספר המערך\nif (count == arr.Length)\n{\nreturn true; // שווה\n}\nelse\n{\nreturn false; // לא שווה\n}\n",
+			"question_number": 2,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static void ArrangeMirror(int[]arr).ב\n{\n// הגדר מערך חדש בגודל המערך הרגיל\nint newArr = new int[arr.Length];\n// לולאה רצה על המערך\nfor(int i=0; i<arr.Length; i++)\n{\n// אם המספר חיובי\nif(arr[i]>0)\n{\nfor(int k =0;k<arr.Length;k++)\n{\n// אם נמצא המספר הנגדי\nif((-arr[i])==arr[k])\n{\nnewArr[i+1]=arr[k];\n}\n}\n}\n}",
+			"question_number": 2,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static int[] DiceStatistics(int[]arr)\n{\n// 21 יצירת מערך חדש בגודל\nint[] newArr = new int[21];\n// arr לולאה שרצה על המערך\nfor(int i = 0; i<arr.Length; i++)\n{\n// newArr לולאה שרצה על המערך\nfor(int k = 1; k<newArr; k++)\n{\n// kל שווה arr אם המיקום i במערך\nif(arr[i]==k)\n{\n// מוסיף אחד אם נמצא\nnewArr[k]++;\n}\n}\n}\nreturn newArr;\n}",
+			"question_number": 3,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static void printstatics(int[]arr).ב.1\n{\n// 21 יצירת מערך חדש בגודל\nint[] newArr = new int[21];\n// שימוש הפעולה בשביל המערך\nnewArr = DiceStatistics(arr);\n// יצירת משתנה מקסימלי\nint max=0;\n// לולאה שרצה על המערך\nfor(int i=1; i<newArr.Length; i++)\n{\n// maxמ גדול newArr[i]אם\nif(max<newArr[i])\n{\n// max מחליף את\nmax = newArr[i];\n}\n}\n// הדפסת הערכים שמופיע הכי הרבה פעמים\nfor(int i=1; i<newArr.Length; i++)\n{\n// אם הוא המספר המקסימלי\nif(max == newArr[i])\n// מדפיס את האינדקס\n{\nConsole.WriteLine(i);\n}\n}\n}\nב.2.\nfor(int i=0; i<newArr.Length; i++)\n{\n// 0 אם הוא שווה\nif(0==newArr[i])\n{\nConsole.WriteLine(i)\n}\n}",
+			"question_number": 3,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "",
+			"question_number": 4,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "",
+			"question_number": 4,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public bool IsSimilarWorkshop(Workshop other)\n{\n// אם השמות של הסדנאות דומות\nif(other.name == this.name)\n{\nreturn true; // true מחזיר\n}\nreturn false; // false מחזיר\n}",
+			"question_number": 5,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public bool HandleNewWorkshop(Workshop ws)\n{",
+			"question_number": 5,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "",
+			"question_number": 6,
+			"sub_question_id": null
+		}
+	],
+	"schema_version": "1.0",
+	"contract_version": "31977668-05a2-4728-b021-884091497713"
+}

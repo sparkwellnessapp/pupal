@@ -1,0 +1,61 @@
+{
+	"answers": [
+		{
+			"answer_text": "",
+			"question_number": 1,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "",
+			"question_number": 1,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static bool IsMiraror (int[]arr)\n{\n  if (arr.Length % 2 != 0)\n  {\n    return false;\n  }\n  int c=0;\n  for (int i=0; i<arr.Length; i++)\n  {\n    if (arr[i]<0)\n    {\n      for (int j=0; j<arr.Length; j++)\n      {\n        if (Math.Abs(arr[i])==arr[j])\n        {\n          c++\n        }\n      }\n    }\n  }\n  if (c == (arr.Length+1)/2)\n  {\n    return true;\n  }\n  return false;\n}",
+			"question_number": 2,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static void arrangeMirror(int[]arr)\n{\n  int c=0;\n  int[] help = new int [arr.Length];\n  for(int i=0; i< arr.Length; i++)\n  {\n    if( arr[i] <0)\n    {\n      arr[c] = Math.Abs(arr[i]);\n      c++\n      arr[c] = arr[i];\n      c++\n    }\n   }\n  int c=0; // עזר למקם את המספרים\n  int [] help = new int [arr.Length]; // מערך עזר\n  for (int i=0; i<arr.Length; i++)\n  {\n    if (arr[i] <0)\n    {\n      help[c] = Math.Abs(arr[i]); // להמיר אותו ליובי ואז החיובי ראשון\n      c++;\n      help[c] = arr[i]; // לשים את השלם אחריו\n      c++;\n    }\n  }\n  for(i=0; i< arr.Length; i++)\n  {\n    arr[i] = help[i]; // הכנסת לARR\n  }\n}",
+			"question_number": 2,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static int[] DiceStatistics (int [] arr)\n{\n  int [] arr2 = new int[20]\n  for (int i=0; i< arr.Length; i++)\n  {\n    arr2 [arr[i]] ++ ;\n  }\n  return arr2;\n}",
+			"question_number": 3,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static void PrintStatistics (int []arr)\n{\n  int[] student = DiceStatistics(arr);\n  int max=0;\n  for (int i=0; i< student.Length; i++)\n  {\n    if (student[i] >= max)\n      max=student[i];\n  }\n  for (i=0; i< student.Length; i++\n  {\n    if (student[i]==max)\n    {\n      Console.WriteLine (\"have max: \"+ i); // מדפיס\n    }\n  }\n  for(i =0; i < student.Length; i++)\n  {\n    if (student[i] == 0)\n    {\n      Console.WriteLine (\"have 0: \" + i); // מדפיס\n    }\n  }\n}",
+			"question_number": 3,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "Class BasketballPlayer\n{\nprivate string name;\nprivate int seasonsPlayed;\nprivate double seasonSalary;\n\npublic double TotalEarnings ()\n{\ndouble sum = 0;\n\nFor (int i = 1; i <= seasonsPlayed ; i++)\n{\nsum += seasonSalary;\n}\nreturn sum\n\n}\n\n}",
+			"question_number": 4,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static string [] TopEarners (BasketballPlayer [] arr,\ndouble amount)\n{\nstring [] str = new string [arr.Length] // יצירת\nהמערך\nint c = 0; // סופר כמה שחקנים מרוויחים amount מעל\n\nFor (int i = 0; i < arr.Length; i++)\n{\nif (arr[i].TotalEarnings > amount)\n{\nstr[c] = arr[i].getName();\nc++\n}\n}\n\nstring[] str2 = new string [c] // מערך חדש שהוא תואם בגודל בשביל השמות\nc = 0;\n// המשך בעמוד הבא\nFor (int g = 0; g < str.Length; g++)\n{\nif (str[g] != null)\n{\nstr2[c] = str[g]\nc++\n}\n\n}\nreturn str2;\n\n}",
+			"question_number": 4,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "Class WorkShop\n{\nprivate string name;\nprivate string id;\nprivate int people;\n\npublic bool IsSimilarWorkShop (WorkShop other)\n{\nif (this.name == other.name)\n{\nreturn true;\n}\nreturn False;\n}\n}",
+			"question_number": 5,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "Class Schedule\n{\nprivate WorkShop [] workShops;\nprivate int CountWorkShops;\n\npublic bool HandleNewWorkShop (WorkShop ws)\n{\n\nFor (int i = 1; i <= CountWorkShops; i++)\n{\nif ((ws.getName().IsSimilarWorkShop(workShops[i].getName())\n&& (ws.getPeople() + workShops[i].getPeople() <= 40))\n{\n// המשך בעמוד הבא\nworkshop[i].getpeople() += ws.getpeople();\nreturn true;\n}\n}\nfor (int g=0; g< workshop.Length; g++)\n{\nif (workshop[g] == null)\n{\nworkshop[g] = ws;\nreturn true\n}\n}\n\nreturn false\n}",
+			"question_number": 5,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "",
+			"question_number": 6,
+			"sub_question_id": null
+		}
+	],
+	"schema_version": "1.0",
+	"contract_version": "9fd48fd8-7533-40f3-92cc-7dc107c131a7"
+}

@@ -3,3 +3,6 @@
 # every GT hash pin on a fresh clone. No text conversion, ever.
 backend/tests/grading_eval_suite/benchmarks/** -text
 backend/tests/grading_eval_suite/fixtures/*.json -text
+# [D-5, 2026-09-27] exam 2's contracts live at the suite root; the GTs pin their bytes too.
+backend/tests/grading_eval_suite/compiled_rubric_bagrut.json -text
+backend/tests/grading_eval_suite/compiled_transcriptions_bagrut/*.json -text

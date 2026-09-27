@@ -1,0 +1,1026 @@
+{
+	"subject": "computer_science",
+	"questions": [
+		{
+			"criteria": [],
+			"proposals": null,
+			"question_id": "q1",
+			"requirements": [],
+			"total_points": "25",
+			"trace_tables": null,
+			"question_text": "",
+			"question_type": "coding_task",
+			"skill_targets": [],
+			"sub_questions": [
+				{
+					"text": null,
+					"index": 0,
+					"title": null,
+					"points": "15",
+					"criteria": [],
+					"proposals": null,
+					"sub_questions": [
+						{
+							"text": "(1) לפניכם הפעולה Check בשפת #C  :\n\npublic static bool Check(int[] arr,int x)\n\n{\n\nfor (int i = 0; i < arr.Length; i++)\n\n{\n\nif (arr[i]!=1 && arr[i]!=x && x % arr[i]==0  )\n\nreturn true;\n\n}\n\nreturn false;\n\n}\n\n[TABLE 2: 1x8 rtl]\n| 2 | 9 | 40 | 3 | 15 | 4 | 5 | 8 |\n|---|---|---|---|---|---|---|---|\n\nנתון המערך arr:\n\nעקבו בעזרת טבלת מעקב אחר הפעולה Check (arr, 6)B , וכתבו מהו הערך המוחזר מהפעולה.\n\nבטבלת המעקב יש לכלול עמודה בעבור כל אחד מן המשתנים האלה: x , i , arr[i]b ועמודה נוספת עבור התנאי.\n\n[TABLE 3: 6x5 rtl]\n| ערך מוחזר | arr[i]!=1 && arr[i]!=x && x % arr[i]==0 | arr[i] | i | x |\n|---|---|---|---|---|\n|  |  |  |  |  |\n|  |  |  |  |  |\n|  |  |  |  |  |\n|  |  |  |  |  |\n|  |  |  |  |  |",
+							"index": 0,
+							"title": null,
+							"points": "12",
+							"criteria": [
+								{
+									"index": 0,
+									"notes": null,
+									"points": "12",
+									"description": "ניקוד טבלת מעקב סה\"כ 12 נקודות: 17 תאים  0.7 כל תא",
+									"criterion_id": "q1.א.1.c0",
+									"requirements": [],
+									"sub_criteria": null,
+									"skill_targets": [],
+									"evaluation_guidance": null,
+									"extraction_confidence": null
+								}
+							],
+							"proposals": null,
+							"sub_questions": [],
+							"sub_question_id": "1",
+							"example_solution": "[TABLE 3: 6x5 rtl]\n| ערך מוחזר | arr[i]!=1 && arr[i]!=x && x % arr[i]==0 | arr[i] | i | x |\n|---|---|---|---|---|\n|  | F | 8 | 0 | 6 |\n|  | F | 5 | 1 |  |\n|  | F | 4 | 2 |  |\n|  | F | 15 | 3 |  |\n| T | T | 3 | 4 |  |"
+						},
+						{
+							"text": "רשמו בקצרה מה מטרת הפעולה Check.",
+							"index": 1,
+							"title": null,
+							"points": "3",
+							"criteria": [
+								{
+									"index": 0,
+									"notes": null,
+									"points": "1.5",
+									"description": "הבנת הבדיקה של \"מחלק ללא שארית\"~  1.5 נק'",
+									"criterion_id": "q1.א.2.c0",
+									"requirements": [],
+									"sub_criteria": null,
+									"skill_targets": [],
+									"evaluation_guidance": null,
+									"extraction_confidence": null
+								},
+								{
+									"index": 1,
+									"notes": null,
+									"points": "1.5",
+									"description": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו  0.5 נק'",
+									"criterion_id": "q1.א.2.c1",
+									"requirements": [],
+									"sub_criteria": null,
+									"skill_targets": [],
+									"evaluation_guidance": null,
+									"extraction_confidence": null
+								}
+							],
+							"proposals": null,
+							"sub_questions": [],
+							"sub_question_id": "2",
+							"example_solution": "תשובה: הפעולה מקבלת מערך מספרים וערך x,  ומטרתה לבדוק האם קיים במערך איבר שונה מ-x ושונה מ-1 שהוא מחלק של x (כלומר x  מתחלק בו ללא שארית). הפעולה מחזירה true  אם נמצא מחלק כזה, ו-false אחרת."
+						}
+					],
+					"sub_question_id": "א",
+					"example_solution": null
+				},
+				{
+					"text": "ב.  לפניכם הפעולה What בשפת #C  :\n\npublic static int What(int[] arr)\n\n{\n\nint sum = 0;\n\nfor (int i = 0;i<arr.Length;i++)\n\n{\n\nif (Check(arr, arr[i]))\n\nsum += arr[i];\n\n}\n\nreturn sum;\n\n}\n\nנתון המערך arr:\n\n[TABLE 4: 1x8 rtl]\n| 2 | 9 | 40 | 3 | 15 | 4 | 5 | 8 |\n|---|---|---|---|---|---|---|---|",
+					"index": 1,
+					"title": null,
+					"points": "10",
+					"criteria": [],
+					"proposals": null,
+					"sub_questions": [
+						{
+							"text": "כתבו מהו הערך המוחזר מהפעולה What(arr)B.",
+							"index": 0,
+							"title": null,
+							"points": "6",
+							"criteria": [
+								{
+									"index": 0,
+									"notes": null,
+									"points": "6",
+									"description": "ניקוד: 6 נקודות",
+									"criterion_id": "q1.ב.1.c0",
+									"requirements": [],
+									"sub_criteria": null,
+									"skill_targets": [],
+									"evaluation_guidance": null,
+									"extraction_confidence": null
+								}
+							],
+							"proposals": null,
+							"sub_questions": [],
+							"sub_question_id": "1",
+							"example_solution": "ערך מוחזר: 76\n\n0 + 8 + 4 + 15 + 40 + 9 = 76\n\n[TABLE 5: 11x4 ltr]\n| sum | i | arr[i] | check(arr,i) |\n|---|---|---|---|\n| 0 |  |  |  |\n|  | 0 | 8 | T |\n| 0+8=8 | 1 | 5 | F |\n|  | 2 | 4 | T |\n| 8+4=12 | 3 | 15 | T |\n| 12+15 = 27 | 4 | 3 | F |\n|  | 5 | 40 | T |\n| 27+40=67 | 6 | 9 | T |\n| 67+9 = 76 | 7 | 2 | F |\n|  | 8 |  |  |\n\nהערך המוחזר הוא 76"
+						},
+						{
+							"text": "רשמו בקצרה מה מטרת הפעולה What",
+							"index": 1,
+							"title": null,
+							"points": "4",
+							"criteria": [
+								{
+									"index": 0,
+									"notes": null,
+									"points": "2",
+									"description": "זיהוי שמדובר בפעולת סכימה של איברי המערך – 2 נק'",
+									"criterion_id": "q1.ב.2.c0",
+									"requirements": [],
+									"sub_criteria": null,
+									"skill_targets": [],
+									"evaluation_guidance": null,
+									"extraction_confidence": null
+								},
+								{
+									"index": 1,
+									"notes": null,
+									"points": "2",
+									"description": "הגדרה נכונה של תנאי הסכימה (איברים שיש להם מחלק אחר במערך) 2  נק'",
+									"criterion_id": "q1.ב.2.c1",
+									"requirements": [],
+									"sub_criteria": null,
+									"skill_targets": [],
+									"evaluation_guidance": null,
+									"extraction_confidence": null
+								}
+							],
+							"proposals": null,
+							"sub_questions": [],
+							"sub_question_id": "2",
+							"example_solution": "פתרון: מטרת הפעולה היא לחשב ולהחזיר את סכומם של כל האיברים במערך שיש להם לפחות מחלק אחד שנמצא בתוך המערך עצמו (למעט 1 והמספר עצמו)"
+						}
+					],
+					"sub_question_id": "ב",
+					"example_solution": null
+				}
+			],
+			"context_tables": null,
+			"example_solution": null,
+			"allow_multiple_valid_forms": false
+		},
+		{
+			"criteria": [],
+			"proposals": null,
+			"question_id": "q2",
+			"requirements": [],
+			"total_points": "25",
+			"trace_tables": null,
+			"question_text": "מערך מראה הוא מערך באורך זוגי המכיל מספרים שלמים השונים מאפס ושונים זה מזה, שבו עבור כל איבר במערך קיים במערך גם המספר הנגדי לו (כלומר, אם קיים איבר שערכו x , אז קיים איבר שערכו x- ).\n\nדוגמה למערך מראה:\n\n[TABLE 6: 1x6 ltr]\n| 7 | -3 | 4 | -7 | -4 | 3 |\n|---|---|---|---|---|---|\n\nדוגמאות למערכים שאינם מערכי מראה:\n\n[TABLE 7: 1x6 ltr]\n| 7 | -3 | 4 | -5 | -4 | 3 |\n|---|---|---|---|---|---|\n\n[TABLE 8: 1x5 ltr]\n| 7 | -3 | 4 | -7 | -4 |\n|---|---|---|---|---|",
+			"question_type": "coding_task",
+			"skill_targets": [],
+			"sub_questions": [
+				{
+					"text": "א. כתבו פעולה בשם IsMirror בשפת #C:\n\npublic static bool IsMirror (int[] arr)\n\nהמקבלת מערך של מספרים שלמים, ומחזירה true  אם המערך הוא מערך מראה,  או false אחרת.",
+					"index": 0,
+					"title": null,
+					"points": "12",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף א: חתימת הפעולה public static bool IsMirror(int[] arr)",
+							"criterion_id": "q2.א.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "0.5",
+							"description": "שמות משתנים משמעותיים וקוד קריא",
+							"criterion_id": "q2.א.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 2,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף א: בדיקה האם המערך לא באורך זוגי, להחזיר false (if נק' 1, החזרת false נקודה 1) if (arr.Length % 2 != 0) return false;",
+							"criterion_id": "q2.א.c2",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 3,
+							"notes": null,
+							"points": "1.5",
+							"description": "סעיף א: לולאה על המערך for (int i = 0; i < arr.Length; i++)",
+							"criterion_id": "q2.א.c3",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 4,
+							"notes": null,
+							"points": "4",
+							"description": "סעיף א: בתוך הלולאה: חיפוש אחר המספר הנגדי של arr[i]: int target = -arr[i]; bool found = false; for (int j = 0; j < arr.Length && found == false; j++) { if (arr[j] == target) { found = true; } }",
+							"criterion_id": "q2.א.c4",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 5,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף א: מחוץ ללואה אם לא מצאנו את המספר הנגדי (1 נקודה) להחזיר false (1 נקודה)",
+							"criterion_id": "q2.א.c5",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 6,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף א: שורה אחרונה: להחזיר true",
+							"criterion_id": "q2.א.c6",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_questions": [],
+					"sub_question_id": "א",
+					"example_solution": "// Q2 א - START\n\npublic static bool IsMirror(int[] arr)\n\n{\n\n// בדיקה ראשונית: אורך זוגי - לא חובה ,זה יעילות\n\nif (arr.Length % 2 != 0)\n\nreturn false;\n\n// לולאה העוברת על כל איברי המערך\n\nfor (int i = 0; i < arr.Length; i++)\n\n{\n\nint target = -arr[i]; // המספר הנגדי שאנו מחפשים\n\nbool found = false;\n\n// לולאה פנימית לחיפוש המספר הנגדי במערך\n\nfor (int j = 0; j < arr.Length && found == false; j++)\n\n{\n\nif (arr[j] == target)\n\n{\n\nfound = true; // מצאנו, זה יעצור את הלולאה מלהמשיך לחפש עבור איבר זה\n\n}\n\n}\n\n// אם עבור איבר מסוים לא נמצא נגדי, המערך אינו מערך מראה\n\nif (!found)\n\nreturn false;\n\n}\n\n// אם עברנו את כל הבדיקות בהצלחה, סימן שהמערך אכן מערך מראה\n\nreturn true;\n\n}\n\n//Q2 - א - END"
+				},
+				{
+					"text": "ב. כתבו פעולה בשם ArrangeMirror  :\n\npublic static void ArrangeMirror (int[] arr)\n\nהפעולה מקבלת מערך מראה (מערך לא מסודר) ומסדרת אותו כך שלאחר כל מספר חיובי יופיע המספר השלילי הנגדי לו.\n\nבסיום הפעולה, המערך חייב להיות מערך מראה מסודר (כלומר שלאחר כל מספר חיובי מופיע המספר הנגדי לו).\n\nדוגמה:\n\n[TABLE 9: 1x7 ltr]\n| 7 | -3 | 4 | -7 | -4 | 3 | המערך בתחילת הפעולה: |\n|---|---|---|---|---|---|---|\n\n[TABLE 10: 1x7 ltr]\n| 7 | -7 | 4 | -4 | 3 | -3 | המערך בסיום הפעולה: |\n|---|---|---|---|---|---|---|\n\nהערות: ניתן להשתמש במערך עזר בתוך הפעולה.",
+					"index": 1,
+					"title": null,
+					"points": "13",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף ב: חתימת הפעולה public static void ArrangeMirror(int[] arr)",
+							"criterion_id": "q2.ב.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "0.5",
+							"description": "סעיף ב: שמות משתנים משמעותיים וקוד קריא",
+							"criterion_id": "q2.ב.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 2,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ב: יצירת מערך עזר באותו גודל של הפרמטר + משתנה למציין של מערך העזר + אתחול ל-0 int[] temp = new int[arr.Length]; // הקצאת מערך עזר באותו הגודל int tempIndex = 0;",
+							"criterion_id": "q2.ב.c2",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 3,
+							"notes": null,
+							"points": "4.5",
+							"description": "סעיף ב: סריקת המערך הפרמטר ומציאת המספרים החיוביים והעתקם למערך הזמני פלוס קידום האנדקס לולאה על המערך הפרמטר 0.5 אם המספר הנוכחי במערך הפרמטר חיובי 2 העתק המספר החיובי למערך העזר 1 קידום האנדקס 1 for (int i = 0; i < arr.Length; i++) { if (arr[i] > 0) // אם המספר חיובי { temp[tempIndex] = arr[i]; // העתקת המספר החיובי למערך העזר tempIndex++;",
+							"criterion_id": "q2.ב.c3",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 4,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ב: בתוך הלולאה: אופציה 1: מניחים שהמערך פרמטר הוא מערך מראה (כפי שכתוב בשאלה) ופשוט מבצעים: temp[tempIndex] = -arr[i]; tempIndex++; אופציה 2: מציאת המספר הנגדי המתאים (ע\"י עוד לולאה) והשמתו בצמוד למספר שנמצא (באינדקס העוקב). bool found = false; for (int j = 0; j < arr.Length && found == false ; j++) { if (arr[j] == -arr[i]) { temp[tempIndex] = arr[j]; // העתקת המספר השלילי מיד לאחר החיובי tempIndex++; found = true; // מצאנו את הנגדי היחיד, יוצאים מהלולאה הפנימית } }",
+							"criterion_id": "q2.ב.c4",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 5,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ב: העתקה מסודרת של כל איברי מערך העזר חזרה למערך המקורי שנתקבל כפרמטר for (int i = 0; i < arr.Length; i++) arr[i] = temp[i];",
+							"criterion_id": "q2.ב.c5",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_questions": [],
+					"sub_question_id": "ב",
+					"example_solution": "//Q2 - ב - START\n\npublic static void ArrangeMirrorBR(int[] arr)\n\n{\n\nint[] temp = new int[arr.Length]; // הקצאת מערך עזר באותו הגודל\n\nint tempIndex = 0;\n\n//  סריקת המערך המקורי ומציאת המספרים החיוביים\n\nfor (int i = 0; i < arr.Length; i++)\n\n{\n\nif (arr[i] > 0) // אם המספר חיובי\n\n{\n\n// העתקת המספר החיובי למערך העזר\n\ntemp[tempIndex] = arr[i];\n\ntemp[tempIndex + 1] = -arr[i];\n\ntempIndex+=2;\n\n/*\n\n// חיפוש המספר השלילי הנגדי לו במערך המקורי (לא באמת צריך כי כתוב שזהו מערך מראה)\n\n// bool found = false;\n\n// for (int j = 0; j < arr.Length && found == false ; j++)\n\n// {\n\n//     if (arr[j] == -arr[i])\n\n//     {\n\n//         // העתקת המספר השלילי מיד לאחר החיובי\n\n//         temp[tempIndex] = arr[j];\n\n//         tempIndex++;\n\n//         found = true; // מצאנו את הנגדי היחיד, יוצאים מהלולאה הפנימית\n\n//     }\n\n// }\n\n}\n\n}\n\n// העתקת הערכים המסודרים ממערך העזר חזרה למערך המקורי\n\nfor (int i = 0; i < arr.Length; i++)\n\narr[i] = temp[i];\n\n}\n\n//Q2 - ב - END"
+				}
+			],
+			"context_tables": null,
+			"example_solution": null,
+			"allow_multiple_valid_forms": false
+		},
+		{
+			"criteria": [],
+			"proposals": null,
+			"question_id": "q3",
+			"requirements": [],
+			"total_points": "25",
+			"trace_tables": null,
+			"question_text": "תלמידי שכבת י\"א החליטו לבדוק את מידת האקראיות של קובייה מיוחדת בת 20 פאות.\n\nעל הקובייה מופיעים המספרים 1 עד 20, וכל פאה מכילה מספר אחד.\n\nכל תלמיד בשכבה הטיל את הקובייה פעם אחת בלבד, ותוצאות ההטלות נשמרו במערך של מספרים שלמים.\n\nלדוגמה, תוצאות הטלה עבור קבוצה שבה 8 תלמידים: [14, 12, 1, 17, 14, 3, 1, 1]",
+			"question_type": "coding_task",
+			"skill_targets": [],
+			"sub_questions": [
+				{
+					"text": "א. כתבו פעולה בשם DiceStatistics בשפת #C:\n\npublic static int[] DiceStatistics(int[] arr)\n\nהמקבלת מערך arr המכיל את תוצאות ההטלות של כל תלמידי השכבה. \nהפעולה תחזיר מערך המכיל את כמות הפעמים שהופיע כל ערך בקוביה.\n\nלדוגמה, עבור מערך תוצאות ההטלה הבא:\n\n[TABLE 12: 1x9 ltr]\n| 1 | 1 | 3 | 14 | 17 | 1 | 12 | 14 | 14 |\n|---|---|---|---|---|---|---|---|---|\n\nיוחזר המערך:\n\n[TABLE 13: 2x21 rtl]\n| 20 | 19 | 18 | 17 | 16 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| 0 | 0 | 0 | 1 | 0 | 0 | 3 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 3 | 0 |\n\n(שימו לב שתא 0 אינו שומר מידע הקשור להטלות הקוביה)",
+					"index": 0,
+					"title": null,
+					"points": "10",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "0.5",
+							"description": "סעיף א: חתימת הפעולה public static int[] DiceStatistics(int[] arr)",
+							"criterion_id": "q3.א.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "0.5",
+							"description": "סעיף א: משתנים משמעותיים + קוד קריא",
+							"criterion_id": "q3.א.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 2,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף א: הגדרה והקצאה נכונה של מערך המונים בגודל 21 + איפוס מערך מונים",
+							"criterion_id": "q3.א.c2",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 3,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף א: לולאה הסורקת את מערך הקלט",
+							"criterion_id": "q3.א.c3",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 4,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף א: בתוך הלולאה, קידום תקין של המונה המתאים int diceValue = arr[i]; // תוצאת ההטלה -ערך בין 1 ל-20 counts[diceValue]++; // קידום המונה באינדקס המתאים אם עשו לולאה פנימית ועדכנו את מערך הונים רק כש- arr[i] == למונה של הלולאה הפנימית , לא להוריד כלום (לא ביקשנו פתרון עם מערך מונים)",
+							"criterion_id": "q3.א.c4",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 5,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף א: אחרי הלולאה:החזרת מערך המונים המלא",
+							"criterion_id": "q3.א.c5",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_questions": [],
+					"sub_question_id": "א",
+					"example_solution": "//Q3 - א - START\n\npublic static int[] DiceStatistics(int[] arr)\n\n{\n\n// הקצאת מערך מונים בגודל 21 - אינדקסים 0 עד 20\n\nint[] counts = new int[21]; // מניחים איפוס של השפה או לולאה לאיפוס\n\n// סריקת מערך ההטלות ועדכון המונים\n\nfor (int i = 0; i < arr.Length; i++)\n\n{\n\nint diceValue = arr[i]; // תוצאת ההטלה -ערך בין 1 ל-20\n\ncounts[diceValue]++;   // קידום המונה באינדקס המתאים\n\n}\n\nreturn counts;\n\n}\n\n//Q3 - א - END"
+				},
+				{
+					"text": "ב. כתבו פעולה בשם PrintStatistics בשפת #C:\n\npublic static void PrintStatistics (int[] arr)\n\nהמקבלת מערך arr המכיל את תוצאות ההטלות של כל תלמידי השכבה.\n\nהפעולה תדפיס:\n\nאת הערך (או הערכים) השכיח ביותר, כלומר הערך שהופיע מספר הפעמים הגדול ביותר. \nאם יש כמה ערכים בעלי אותה שכיחות מרבית, יש להדפיס את כולם.\nלדוגמה, עבור המערך בדוגמה למעלה, השכיחות המירבית היא 3 ולכן יודפסו הערכים:\n\n1, 14\n\nהפעולה תדפיס את הערכים השונים מבין 1–20 שלא התקבלו כלל בהטלות.\nלדוגמה, עבור המערך בדוגמה למעלה, יודפסו הערכים:\n\n2, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 16, 18, 19, 20\n\nחובה להשתמש בפעולה שכתבתם בסעיף א'.",
+					"index": 1,
+					"title": null,
+					"points": "15",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "0.5",
+							"description": "סעיף ב: חתימת הפעולה public static void PrintStatistics(int[] arr)",
+							"criterion_id": "q3.ב.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "0.5",
+							"description": "סעיף ב: משתנים משמעותיים + קוד קריא",
+							"criterion_id": "q3.ב.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 2,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ב: קריאה נכונה לפעולה DiceStatistics(arr) ושמירת המערך המוחזר אם יצרו מערך מונים חדש ו/או הריצו את הפעולה DiceStatistics בתוך לולאה תוך העתקה של כל תא , לא להוריד כלום (חוסר יעילות)",
+							"criterion_id": "q3.ב.c2",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 3,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ב: הגדרת משתנה שלם לשמירת הערך המקסימלי maxCount + _ + אתחול לתא הראשון או לערך מאוד נמוך) (אתחול 1 נקודות)",
+							"criterion_id": "q3.ב.c3",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 4,
+							"notes": null,
+							"points": "4",
+							"description": "סעיף ב: אלגוריתם נכון למציאת הערך המקסימלי (השכיחות הגבוהה ביותר) מתוך מערך המונים (ריצה מאינדקס 1 עד 20).",
+							"criterion_id": "q3.ב.c4",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 5,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ב: לולאה נפרדת הסורקת ומדפיסה את כל האינדקסים שערכם שווה ל-maxCount (תמיכה בריבוי שכיחים) (ריצה מאינדקס 1 עד 20).",
+							"criterion_id": "q3.ב.c5",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 6,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ב: לולאה הסורקת ומדפיסה את האינדקסים שבהם המונה שווה ל-0 (ערכים שלא הופיעו) (ריצה מאינדקס 1 עד 20).",
+							"criterion_id": "q3.ב.c6",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_questions": [],
+					"sub_question_id": "ב",
+					"example_solution": "//Q3 - ב - START\n\npublic static void PrintStatistics(int[] arr)\n\n{\n\n// חובה: זימון הפעולה מסעיף א' לקבלת מערך מונים\n\nint[] counts = DiceStatistics(arr);\n\n// --- חלק 1: מציאת והדפסת הערכים השכיחים ביותר ---\n\nint maxCount = 0; // נניח בתחילה שהשכיחות המקסימלית היא של הפאה 1\n\n// שלב א': מציאת השכיחות המרבית במערך מונים\n\nfor (int i = 1; i < counts.Length; i++)\n\n{\n\nif (counts[i] > maxCount)\n\n{\n\nmaxCount = counts[i];\n\n}\n\n}\n\n// שלב ב': הדפסת כל הערכים (האינדקסים) שזכו לשכיחות המרבית הזו\n\nConsole.Write(\"The most frequent values are: \");\n\nfor (int i = 1; i < counts.Length; i++)\n\n{\n\nif (counts[i] == maxCount)\n\n{\n\nConsole.Write(i + \" \");\n\n}\n\n}\n\nConsole.WriteLine();\n\n// --- חלק 2: הדפסת ערכים שלא התקבלו כלל (מונה שווה ל-0) ---\n\nConsole.Write(\"Values that did not appear at all: \");\n\nfor (int i = 1; i < counts.Length; i++)\n\n{\n\nif (counts[i] == 0)\n\n{\n\nConsole.Write(i + \" \");\n\n}\n\n}\n\nConsole.WriteLine();\n\n}\n\n//Q3 - ב - END"
+				}
+			],
+			"context_tables": null,
+			"example_solution": null,
+			"allow_multiple_valid_forms": false
+		},
+		{
+			"criteria": [],
+			"proposals": null,
+			"question_id": "q4",
+			"requirements": [],
+			"total_points": "25",
+			"trace_tables": null,
+			"question_text": "נתונה המחלקה BasketballPlayer  המייצגת שחקנית כדורסל.\n\nלמחלקה 3 תכונות:\n\nName - שם השחקנית, מטיפוס מחרוזת\n\nseasonsPlayed - מספר העונות שהשחקנית שיחקה, מטיפוס שלם\n\nseasonSalary - שכר לעונה, מטיפוס ממשי\n\nהניחו שקיימות פעולות Get ו- Set עבור תכונות המחלקה.",
+			"question_type": "coding_task",
+			"skill_targets": [],
+			"sub_questions": [
+				{
+					"text": "א. כתבו פעולה פנימית בשם TotalEarnings  המחשבת ומחזירה את סך כל ההכנסות של השחקנית מכל העונות בהן שיחקה.",
+					"index": 0,
+					"title": null,
+					"points": "5",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף א: חתימת הפעולה (ללא מילה static!) public double TotalEarnings()",
+							"criterion_id": "q4.א.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "4",
+							"description": "סעיף א: החזרת החישוב: return this.seasonsPlayed * this.seasonSalary;",
+							"criterion_id": "q4.א.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_questions": [],
+					"sub_question_id": "א",
+					"example_solution": "// --- סעיף א': פעולה פנימית לחישוב סך כל ההכנסות ---\n\npublic double TotalEarnings()\n\n{\n\n// מכפלת מספר העונות בשכר לעונה אחת\n\nreturn this.seasonsPlayed * this.seasonSalary;\n\n}\n\n//-------------------------------------------------------"
+				},
+				{
+					"text": "ב. לצורך חישוב תקרת השכר בליגה, הנהלת הליגה מעוניינת לדעת כמה שחקניות בליגה הרוויחו שכר שנתי הגבוה מערך מסויים.\n\nכתבו פעולה חיצונית בשם TopEarners\n\npublic static string[] TopEarners (BasketballPlayer [] arr,double amount)\n\nהפעולה מקבלת מערך של שחקניות מטיפוס BasketballPlayer   וערך amount.\n\nהפעולה מחזירה מערך של שמות השחקניות, אשר סך כל הכנסותיהן מכל העונות גבוה מהערך שהתקבל בפרמטר amount.\n\nהערה: גודל המערך המוחזר צריך להיות תואם לכמות השחקניות שהכנסותיהן גבוהות מהערך שהתקבל.\n\nחובה להשתמש בפעולה שכתבתם בסעיף א'.",
+					"index": 1,
+					"title": null,
+					"points": "20",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "0.5",
+							"description": "סעיף ב: חתימת הפעולה (static!!) public static string[] TopEarners(BasketballPlayer[] arr, double amount)",
+							"criterion_id": "q4.ב.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "0.5",
+							"description": "סעיף ב: משתנים משמעותיים + קוד קריא",
+							"criterion_id": "q4.ב.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 2,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף ב: משתנה למניית השחקניות שמקיימות את התנאי + איפוס",
+							"criterion_id": "q4.ב.c2",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 3,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ב: לולאה (A) על מערך השחקניות (לספירה נכונה וקידום מונה תקין) for (int i = 0; i < arr.Length; i++)",
+							"criterion_id": "q4.ב.c3",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 4,
+							"notes": null,
+							"points": "5",
+							"description": "סעיף ב:בתוך הלולאה (A) : בדיקה אם המערך במקום ה- i שונה מ- null (1 נקודות) זימון של פעולה פנימית TotalEarnings עבור המערך במקום ה- i (3 נקודות) (לקנוס פעם אחת אם לא בדקו אם arr[i]!=null , הערה למטה) השוואה אם התוצאה גבוהה מהפרמטר (1 נקודה) קידום המונה (1 נקודה) if (arr[i].TotalEarnings() > amount) count++;",
+							"criterion_id": "q4.ב.c4",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 5,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ב: הקצאת מערך ה-string החדש בדיוק בגודל שנספר (count)",
+							"criterion_id": "q4.ב.c5",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 6,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף ב: משתנה לאנדקס מערך השמות + איפוס",
+							"criterion_id": "q4.ב.c6",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 7,
+							"notes": null,
+							"points": "5",
+							"description": "סעיף ב: לולאה שנייה (B) נכונה (1 נקודה) בדיקה אם המערך במקום ה- i שונה מ- null(1 נקודות), להוריד רק פעם אחת שימוש ב-Getter לקבלת השם arr[i].GetName() (3 נקודות) השמה במערך החדש (1 נקודה) תוך קידום אינדקס נפרד (namesIndex)(1 נקודה) for (int i = 0; i < arr.Length; i++) { if (arr[i]!= null && arr[i].TotalEarnings() > amount) // אם טעו פה,להוריד 3 רק פעם 1 (יש גם זימון בלולאה א { namesArr[namesIndex] = arr[i].GetName(); // שימוש ב-Getter namesIndex++; // קידום האנדקס } }",
+							"criterion_id": "q4.ב.c7",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 8,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ב: החזרת מערך השמות",
+							"criterion_id": "q4.ב.c8",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_questions": [],
+					"sub_question_id": "ב",
+					"example_solution": "//Q4 - ב - START\n\npublic static string[] TopEarners(BasketballPlayer[] arr, double amount)\n\n{\n\n// שלב 1: ספירת השחקניות שסך הכנסותיהן גבוה מ-amount\n\nint count = 0;\n\nfor (int i = 0; i < arr.Length; i++)\n\n{\n\n// זימון חובה של הפעולה מסעיף א\n\nif (arr[i]!= null && arr[i].TotalEarnings() > amount)\n\ncount++;\n\n}\n\n// הקצאת מערך בגודל מתאים\n\nstring[] namesArr = new string[count];\n\nint namesIndex = 0;\n\n// שלב 2: איסוף השמות\n\nfor (int i = 0; i < arr.Length; i++)\n\n{\n\nif (arr[i]!= null && arr[i].TotalEarnings() > amount)\n\n{\n\nnamesArr[namesIndex] = arr[i].GetName(); // שימוש ב-Getter לשם\n\nnamesIndex++;\n\n}\n\n}\n\nreturn namesArr;\n\n}\n\n//Q4 - ב - END"
+				}
+			],
+			"context_tables": null,
+			"example_solution": null,
+			"allow_multiple_valid_forms": false
+		},
+		{
+			"criteria": [],
+			"proposals": null,
+			"question_id": "q5",
+			"requirements": [],
+			"total_points": "25",
+			"trace_tables": null,
+			"question_text": "חברת \"טעים-לי\" מפיקה סדנאות בישול. בחברה קיימות סדנאות מסוגים שונים (למשל: איטלקי, סושי, בשרים, לחמים, קינוחים ועוד). בכל סדנא יכולים להשתתף עד 40 משתתפים.\n\nלצורך ניהול הסדנאות בנו מערכת מידע והגדירו בה את המחלקות Workshop, ו־Schedule .\n\nהמחלקה Workshop מייצגת סדנה בודדת ומכילה את התכונות הבאות:\n\nname – שם הסדנה, מטיפוס מחרוזת.\n\nid – מזהה ייחודי של סדנה, מטיפוס מחרוזת.\n\npeople – מספר המשתתפים בפועל, מטיפוס מספר שלם.\n\nהניחו שקיימות פעולות Get ו־Set עבור כל תכונות המחלקה.\n\nהמחלקה Schedule  מייצגת את כל הסדנאות המתוכננות.\n\nבמחלקה הוגדרו התכונות הבאות:\n\nworkshops – מערך מטיפוס Workshop בגודל 200.\n\ncountWorkshops – מספר הסדנאות הקיימות בפועל במערכת, מטיפוס int , מספר קטן או שווה לגודל המערך.\n\nהמערך מלא ברצף עד המקום הראשון הפנוי (כלומר כל סדנה חדשה נוספת במקום הראשון הפנוי).",
+			"question_type": "coding_task",
+			"skill_targets": [],
+			"sub_questions": [
+				{
+					"text": "א. סדנאות \"דומות\" הן סדנאות בעלות אותו שם.\n\nבמחלקה Workshop, כתבו פעולה פנימית בשם IsSimilarWorkshop\n\npublic bool IsSimilarWorkshop(Workshop other)\n\nהפעולה תקבל כפרמטר סדנה אחרת ותחזיר true אם שתי הסדנאות דומות, אחרת תחזיר false.",
+					"index": 0,
+					"title": null,
+					"points": "5",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "1",
+							"description": "סעיף א: חתימת הפעולה (ללא מילה static!) public bool IsSimilarWorkshop(Workshop other) כל טעות פה להוריד 1",
+							"criterion_id": "q5.א.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "4",
+							"description": "סעיף א: החזרת החישוב: return this.name == other.GetName();",
+							"criterion_id": "q5.א.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_questions": [],
+					"sub_question_id": "א",
+					"example_solution": "//Q5 - א\n\npublic bool IsSimilarWorkshop(Workshop other)\n\n{\n\n// השוואה בין השם של הסדנה הנוכחית לשם של הסדנה האחרת\n\nreturn this.name == other.GetName();\n\n}\n\n//----------------------------------------------------------------------------"
+				},
+				{
+					"text": "ב. במחלקה Schedule , כתבו פעולה פנימית בשם HandleNewWorkshop\n\npublic bool HandleNewWorkshop(Workshop ws)\n\nהפעולה מקבלת כפרמטר סדנה חדשה מטיפוס Workshop.\n\nהפעולה תפעל לפי הכללים הבאים:\n\nאם קיימת סדנה \"דומה\", וסך המשתתפים בשתי הסדנאות (הסדנה הקיימת והסדנה החדשה) אינו עולה על 40, יש להוסיף את משתתפי הסדנה החדשה לסדנה הקיימת (ולא להוסיף סדנה חדשה), ולהחזיר true.\n\nהערות:\n\n1. אם קיימת סדנה \"דומה\" אך סך המשתתפים בשתי הסדנאות (הסדנה הקיימת והסדנה החדשה) עולה על 40, יש להמשיך ולבדוק האם קיימות סדנאות דומות אחרות.\n\n2. אם קיימות מספר סדנאות \"דומות\", יש לבחור את הראשונה במערך שיש בה מקום לכל המשתתפים.\n\nאם לא נמצאה סדנה מתאימה, והמערכת אינה מלאה, יש להוסיף את הסדנה החדשה למקום הראשון הפנוי, לעדכן את מספר הסדנאות הקיימות בפועל ולהחזיר true.\n\nאם המערכת מלאה ולא ניתן להוסיף סדנה חדשה, יש להחזיר false.\n\nחובה להשתמש בפעולה שכתבתם בסעיף א'.",
+					"index": 1,
+					"title": null,
+					"points": "20",
+					"criteria": [
+						{
+							"index": 0,
+							"notes": null,
+							"points": "0.5",
+							"description": "סעיף ב: חתימת הפעולה (לא static!!) public bool HandleNewWorkshop(Workshop ws)",
+							"criterion_id": "q5.ב.c0",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 1,
+							"notes": null,
+							"points": "0.5",
+							"description": "סעיף ב: משתנים משמעותיים + קוד קריא",
+							"criterion_id": "q5.ב.c1",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 2,
+							"notes": null,
+							"points": "6",
+							"description": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null , להוריד 2 אם לא ניהולו נכון את גבולות הלולאה להוריד 1",
+							"criterion_id": "q5.ב.c2",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 3,
+							"notes": null,
+							"points": "2",
+							"description": "סעיף ב: זימון נכון של הפעולה מסעיף א' על איבר מהמערך: this.workshops[i].IsSimilarWorkshop(ws)",
+							"criterion_id": "q5.ב.c3",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 4,
+							"notes": null,
+							"points": "5",
+							"description": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה 1 נקודה אם לא השתמשו בפעולה הפנימית להוריד 2, אם לא השתמשו באף אחת מהן להוריד 3 אם חישבו נכון את סה\"כ ולא עדכנו את התכונה (כמובן ע\"י setter) להוריד 2",
+							"criterion_id": "q5.ב.c4",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 5,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ב: הוספת הסדנה החדשה למקום ה-countWorkshops וקידום המונה ב-1 במידה ולא בוצע איחוד והמערך אינו מלא",
+							"criterion_id": "q5.ב.c5",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						},
+						{
+							"index": 6,
+							"notes": null,
+							"points": "3",
+							"description": "סעיף ב: החזרת הערכים הבוליאניים הנכונים (true / false) בכל אחד מהתרחישים 1.5 ל-true, 1.5 ל-false",
+							"criterion_id": "q5.ב.c6",
+							"requirements": [],
+							"sub_criteria": null,
+							"skill_targets": [],
+							"evaluation_guidance": null,
+							"extraction_confidence": null
+						}
+					],
+					"proposals": null,
+					"sub_questions": [],
+					"sub_question_id": "ב",
+					"example_solution": "// Q5 – ב\n\n// OPTION 1\n\npublic bool HandleNewWorkshop(Workshop ws)\n\n{\n\n// 1. לולאת חיפוש עד countWorkshops ולא עד סוף המערך\n\nfor (int i = 0; i < this.countWorkshops; i++)\n\n{\n\n// זימון נכון מסעיף א' על איבר מהמערך\n\nif (this.workshops[i].IsSimilarWorkshop(ws))\n\n{\n\n// בדיקת תנאי הקיבולת באמצעות Get\n\nif (this.workshops[i].GetPeople() + ws.GetPeople() <= 40)\n\n{\n\n// עדכון נכון בעזרת Set ו-Get\n\nint totalPeople = this.workshops[i].GetPeople() + ws.GetPeople();\n\nthis.workshops[i].SetPeople(totalPeople);\n\nreturn true; // עצירה והחזרה כשנמצא שילוב מתאים\n\n}\n\n}\n\n}\n\n// 2. תרחיש ב': לא נמצאה סדנה מתאימה לאיחוד, ננסה להוסיף חדשה\n\nif (this.countWorkshops < 200) // בדיקה שהמערכת אינה מלאה (או < workshops.Length)\n\n{\n\nthis.workshops[this.countWorkshops] = ws; // הוספה למקום הראשון הפנוי\n\nthis.countWorkshops++;                    // עדכון המונה\n\nreturn true;\n\n}\n\n// 3. תרחיש ג': המערכת מלאה לחלוטין\n\nreturn false;\n\n}\n\n//OPTION 2 (WHILE)\n\npublic bool HandleNewWorkshop(Workshop ws)\n\n{\n\nint i = 0;          bool joined = false;\n\n// שלב 1: חיפוש סדנה דומה שיש בה מספיק מקום\n\nwhile (i < this.countWorkshops && !joined)\n\n{\n\n// זימון הפעולה מסעיף א' לבדיקה האם הסדנאות דומות\n\nif (this.workshops[i].IsSimilarWorkshop(ws))\n\n{\n\n// בדיקה האם סך המשתתפים אינו עולה על 40\n\nif (this.workshops[i].GetPeople() + ws.GetPeople() <= 40)\n\n{\n\n// עדכון מספר המשתתפים בסדנה הקיימת\n\nint updatedPeople = this.workshops[i].GetPeople() + ws.GetPeople();\n\nthis.workshops[i].SetPeople(updatedPeople);\n\njoined = true; // סימון שנמצא פתרון, הלולאה תסתיים באופן טבעי\n\n}\n\n}\n\ni++;\n\n}\n\n// אם הצלחנו לאחד את המשתתפים בסדנה קיימת, נחזיר true\n\nif (joined)\n\nreturn true;\n\n// שלב 2: אם לא נמצאה סדנה מתאימה לאיחוד, ננסה להוסיף אותה כסדנה חדשה\n\nif (this.countWorkshops < this.workshops.Length)        // אם יש מקום במערך\n\n{\n\n// הוספה למקום הראשון הפנוי\n\nthis.workshops[this.countWorkshops] = ws;\n\nthis.countWorkshops++; // עדכון מספר הסדנאות בפועל\n\nreturn true;\n\n}\n\n// שלב 3: המערכת מלאה ולא ניתן לבצע איחוד או הוספה\n\nreturn false;\n\n}"
+				}
+			],
+			"context_tables": null,
+			"example_solution": null,
+			"allow_multiple_valid_forms": false
+		},
+		{
+			"criteria": [
+				{
+					"index": 0,
+					"notes": null,
+					"points": "1",
+					"description": "חתימת הפעולה (עם המילה static!) כל טעות להוריד 1",
+					"criterion_id": "q6.c0",
+					"requirements": [],
+					"sub_criteria": null,
+					"skill_targets": [],
+					"evaluation_guidance": null,
+					"extraction_confidence": null
+				},
+				{
+					"index": 1,
+					"notes": null,
+					"points": "1",
+					"description": "משתנים משמעותיים + קוד קריא",
+					"criterion_id": "q6.c1",
+					"requirements": [],
+					"sub_criteria": null,
+					"skill_targets": [],
+					"evaluation_guidance": null,
+					"extraction_confidence": null
+				},
+				{
+					"index": 2,
+					"notes": null,
+					"points": "2",
+					"description": "יצירה של מערך מונים עם הקצאה נכונה (לפחות בגודל 31)",
+					"criterion_id": "q6.c2",
+					"requirements": [],
+					"sub_criteria": null,
+					"skill_targets": [],
+					"evaluation_guidance": null,
+					"extraction_confidence": null
+				},
+				{
+					"index": 3,
+					"notes": null,
+					"points": "1",
+					"description": "איפוס מערך המונים או הערה שיש איפוס ע\"י השפה",
+					"criterion_id": "q6.c3",
+					"requirements": [],
+					"sub_criteria": null,
+					"skill_targets": [],
+					"evaluation_guidance": null,
+					"extraction_confidence": null
+				},
+				{
+					"index": 4,
+					"notes": null,
+					"points": "2",
+					"description": "סריקה נכונה של מערך הקלט לעדכון מונים",
+					"criterion_id": "q6.c4",
+					"requirements": [],
+					"sub_criteria": null,
+					"skill_targets": [],
+					"evaluation_guidance": null,
+					"extraction_confidence": null
+				},
+				{
+					"index": 5,
+					"notes": null,
+					"points": "4",
+					"description": "סריקת מערך המונים למציאת המכינה (האינדקס) עם המונה הגבוה ביותר (4 נקודות) ו",
+					"criterion_id": "q6.c5",
+					"requirements": [],
+					"sub_criteria": null,
+					"skill_targets": [],
+					"evaluation_guidance": null,
+					"extraction_confidence": null
+				},
+				{
+					"index": 6,
+					"notes": null,
+					"points": "2",
+					"description": "הדפסת מספר המכינה בעלת כמות מקסימלית (ולא כמות התלמידים) אם הדפיסו את הכמות להוריד 2 (או 1?)",
+					"criterion_id": "q6.c6",
+					"requirements": [],
+					"sub_criteria": null,
+					"skill_targets": [],
+					"evaluation_guidance": null,
+					"extraction_confidence": null
+				},
+				{
+					"index": 7,
+					"notes": null,
+					"points": "4",
+					"description": "חישוב גודל מערך היעד: סריקת מערך המונים(1 נק'), ספירת התאים שגדולים מ-0 (1 נקודה), ויצירה והקצאת מערך חדש בגודל count * 2 (2 נקודות)",
+					"criterion_id": "q6.c7",
+					"requirements": [],
+					"sub_criteria": null,
+					"skill_targets": [],
+					"evaluation_guidance": null,
+					"extraction_confidence": null
+				},
+				{
+					"index": 8,
+					"notes": null,
+					"points": "8",
+					"description": "בניית מערך התוצאה: מילוי נכון של המערך החדש בזוגות: קודם את result[resIndex] = i ומיד לאחר מכן result[resIndex+1] = counters[i] תוך קידום ידני תקין של אינדקס מערך היעד ב-2 בכל פעם.",
+					"criterion_id": "q6.c8",
+					"requirements": [],
+					"sub_criteria": null,
+					"skill_targets": [],
+					"evaluation_guidance": null,
+					"extraction_confidence": null
+				}
+			],
+			"proposals": null,
+			"question_id": "q6",
+			"requirements": [],
+			"total_points": "25",
+			"trace_tables": null,
+			"question_text": "במדינת ישראל קיימות מכינות קדם צבאיות אזרחיות. לכל מכינה ניתן מספר סידורי המשויך למכינה בעת הקמתה ואינו משתנה. מספרה של המכינה הראשונה שהוקמה הוא 1 וכל מכינה חדשה המוקמת, מקבלת מספר סידורי הגדול ב- 1 מהמכינה שהוקמה לפניה. קיימות 30 מכינות.\n\nתלמידי תיכון מוסינזון מתמיינים למכינות קדם צבאיות. בתיכון רוצים לנתח את פיזור התלמידים שנרשמו למכינות השונות, לפי מספרי המכינות.\n\nכתבו פעולה חיצונית בשם AnalyzeMechina\n\npublic static int[] AnalyzeMechina (int[] studentsMechina)\n\nהפעולה מקבלת מערך של רישום התלמידים למכינות, כל תא במערך מייצג את מספר המכינה שהתלמיד i בחר (כאשר i  מייצג את אינדקס התא).\n\nהפעולה תיצור ותחזיר מערך חדש המכיל מידע רק על המכינות שאליהן נרשמו תלמידים.\n\nבמערך המוחזר יופיעו בכל פעם שני ערכים עוקבים:\n\nמספר המכינה.\n\nמספר התלמידים שנרשמו אליה.\n\nאין לכלול במערך המוחזר מכינות שלא נרשמו אליהן תלמידים.\n\nלדוגמה, עבור המערך הקלט הבא, המייצג את מספרי המכינות אליהם נרשמו תלמידי מוסינזון:\n\n[4, 12, 4, 2, 12, 12, 5]\n\nמשמעות המערך היא:\n\nשני תלמידים נרשמו למכינה 4.\n\nשלושה תלמידים נרשמו למכינה 12.\n\nתלמיד אחד נרשם למכינה 2.\n\nתלמיד אחד נרשם למכינה 5.\n\nהפעולה תחזיר את המערך הבא:\n\n[4, 2, 12, 3, 2, 1, 5, 1]\n\nובנוסף תדפיס את מספר המכינה שאליה נרשמו הכי הרבה תלמידי מוסינזון (הניחו כי יש רק מכינה אחת כזו).",
+			"question_type": "coding_task",
+			"skill_targets": [],
+			"sub_questions": [],
+			"context_tables": null,
+			"example_solution": "// Q6 -start -  אלגוריתמיקה מתקדמת\n\npublic static int[] AnalyzeMechina(int[] studentsMechina)\n\n{\n\nint[] counters = new int[31]; // counters[i] = מספר תלמידים שנרשמו למכינה i\n\n// מניחים שהשפה מאפסת את המערך מונים או עושים לולאה לאיפוס\n\n// ספירת רישומים\n\nfor (int i = 0; i < studentsMechina.Length; i++)\n\n{\n\nint mechina = studentsMechina[i];\n\ncounters[mechina]++;\n\n}\n\n// שלב 2: ספירת המכינות שאליהן נרשם לפחות תלמיד אחד ומציאת המקסימום\n\nint activeMechinasCount = 0;\n\nint maxStudents = counters[1];\n\nint maxMechinaNum = 1;\n\nfor (int i = 1; i <= 30; i++)\n\n{\n\nif (counters[i] > 0)\n\n{\n\nactiveMechinasCount++;\n\n}\n\n// בדיקת המכינה הפופולרית ביותר\n\nif (counters[i] > maxStudents)\n\n{\n\nmaxStudents = counters[i];\n\nmaxMechinaNum = i;\n\n}\n\n}\n\n// הדפסת המכינה שאליה נרשמו הכי הרבה תלמידים\n\nConsole.WriteLine(\"The mechina with the most students is: \" + maxMechinaNum);\n\n// שלב 3: הקצאת המערך המוחזר (כל מכינה פעילה תופסת 2 תאים: מספר מכינה וכמות)\n\nint[] result = new int[activeMechinasCount * 2];\n\nint resIndex = 0;\n\n// שלב 4: מילוי המערך החדש בזוגות\n\nfor (int i = 1; i <= 30; i++)\n\n{\n\nif (counters[i] > 0)\n\n{\n\nresult[resIndex] = i;              // תא ראשון: מספר המכינה\n\nresult[resIndex + 1] = counters[i]; // תא שני עוקב: מספר התלמידים\n\nresIndex += 2;                     // קידום האינדקס ב-2 עבור הזוג הבא\n\n}\n\n}\n\nreturn result;\n\n}\n\n// Q6 - end",
+			"allow_multiple_valid_forms": false
+		}
+	],
+	"rubric_id": "c79a46c5-94d6-4cb5-96e1-3e53d78c3369",
+	"total_points": "100",
+	"numeric_policy": {
+		"precision": "0.25",
+		"rounding_mode": "half_up",
+		"sum_tolerance": "0.01"
+	},
+	"schema_version": "2.0",
+	"contract_version": "d7f1d3c8-7c74-44c3-9fcd-aa4bc0b9e8cb",
+	"selection_groups": [
+		{
+			"label": "יש לענות על 4 שאלות מתוך 6 השאלות במבחן.",
+			"choose_k": 4,
+			"group_id": "sg0",
+			"of_question_ids": [
+				"q1",
+				"q2",
+				"q3",
+				"q4",
+				"q5",
+				"q6"
+			]
+		}
+	],
+	"programming_language": null
+}

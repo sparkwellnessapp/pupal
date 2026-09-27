@@ -1,0 +1,61 @@
+{
+	"answers": [
+		{
+			"answer_text": "",
+			"question_number": 1,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "",
+			"question_number": 1,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static bool IsMirror(int[] arr)\n{\nif (arr.Length%2 != 0)\n{\nreturn false;\n}\nelse\n{\nfor (int i=0; i<arr.Length; i++)\n{\nbool mirror = false;\nfor (int j=0; j<arr.Length; j++)\n{\nif (arr[i]+arr[j] == 0)\n{\nmirror = true;\n}\n}\nif (mirror == false)\n{\nreturn false;\n}\n}\nreturn true;\n}",
+			"question_number": 2,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static void ArrangeMirror(int[] arr)\n{\nint count = 0;\nint[] save = new int[arr.Length/2];\nfor (int i=0; i<arr.Length; i++)\n{\nif (0+arr[i] > 0)\n{\nsave[count] = arr[i];\ncount++;\n}\n}\ncount = 0;\nfor (int i=1; i<arr.Length; i+2)\n{\narr[i-1] = save[count];\narr[i] = save[-count];\ncount++;\n}\n}",
+			"question_number": 2,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static int[] DiceStatistics(int[] arr)\n{\nint[] Dice = new int[20];\n// אני יודע שהדרך הזאתי לא מאפסת את המערך אבל לא ראיתי הוראה\nfor(int i=0; arr.Length; i++)\n{\nDice[arr[i]]++\nreturn Dice;\n}",
+			"question_number": 3,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static void printStatistics(int[] arr)\nint max = int.minValeu;\nfor(int i=0; i<20; i++)\n{\nif(DiceStatistics(arr)[i] > max)\n{\nMax = DiceStatistics(arr)[i];\n}\nfor(int i=0; i<20; i++)\n{\nif(DiceStatistics(arr)[i] = max)\n{\nCW(i);\n}\nif(DiceStatistics(arr)[i] = null)\n{\nCW(i);\n}\n}",
+			"question_number": 3,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public class BasketballPlayer\n{\nprivate string name;\nprivate int seasonsPlayed;\nprivate double seasonSalary;\npublic static double TotalEarnings()\n{\nreturn this.seasonsPlayed * this.seasonSalary;\n}\n}",
+			"question_number": 4,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static string[] TopEarners(\nBasketballPlayer[] arr, double amount)\n{\nint count = 0;\nfor (int i=0; i<arr.Length; i++)\n{\nif (arr[i].TotalEarnings() > amount)\n{\ncount++;\n}\n}\nstring[] names = new string[count];\nint place = 0;\nfor (int i=0; i<arr.Length; i++)\n{\nif (arr[i].TotalErnings() > amount)\n{\nnames[place] == arr[i].GetName();\nplace++;\n}\n}\nreturn names[];\n}",
+			"question_number": 4,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "",
+			"question_number": 5,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "",
+			"question_number": 5,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static int[] AnalyzeMechina(int[] studentsMechina)\n{\nint mechinaNum=0;\nint max=int.minValue;\nint [] copy = new int[studentsMechina.Length];\nfor(int i=0; i<copy.Length; i++)\n{\ncopy[i] = studentsMechina[i];\n}\nint count = copy.Length;\nfor(int i=0; i<copy.Length; i++)\n{\nif (copy[i] != null)\n{\nint num = 0;\nfor(int j=1; j<copy.Length-1; i++)\n{\nif(copy[i] == copy[j])\n{\nnum++;\ncopy[j] = null;\n}\n}\nif(num>max)\n{\nmax = num;\nmechinaNum = copy[i];\n}\n}\ncount = num;\n}\nint[] order = new int[count * 2];\ncount = 0;\nfor(int i=0; i<order.Length; i+2)\n{\nint num = 0;\nfor(int j=1; j<copy.Length-1; j++)\n{\nif(copy[i] == copy[j])\n{\nnum++;\n}\n}\norder[count] = studentsMechina[i];\norder[count+1] = num;\ncount += 2;\n}\nreturn order[];\nreturn mechinaNum;\n}",
+			"question_number": 6,
+			"sub_question_id": null
+		}
+	],
+	"schema_version": "1.0",
+	"contract_version": "4a76b247-4521-431c-a0d3-8db5eda6b45c"
+}

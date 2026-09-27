@@ -1,0 +1,61 @@
+{
+	"answers": [
+		{
+			"answer_text": "| i | i < arr.length | arr[i] | x | if | (1) |\n| 0 | t | 8 | 6 | F |  |\n| 1 | t | 5 | 6 | f |  |\n| 2 | t | 4 | 6 | f |  |\n| 3 | t | 15 | 6 | f |  |\n| 4 | t | 3 | 6 | t |  |\n|  |  |  |  |  | true |\n\n\n2. מטרת הפעולה היא לבדוק באיזה מספרים מתחלק (X) בשלם בלי שארית שהם לא המספר עצמו וגם לא אחד.",
+			"question_number": 1,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "| Sum | i | i < arr.length | if |  \n| 0 | 0 | 0 < 8 t | t | \n| 8 | 1 | 1 < 8 t | f | \n| 8 | 2 | 2 < 8 t | t | \n| 8+4=12 | 3 | 3 < 8 t | t | \n| 12+15=27 | 4 | 4 < 8 t | f | \n| 27 | 5 | 5 < 8 t | t | \n| 27+40=67 | 6 | 6 < 8 t | t | \n| 67+9=76 | 7 | 7 < 8 t | f |  \n| 76 | 8 | 8 < 8 f |  | \n\n(1) 76\n\n(2) המטרה שלה זה לעשות סכום כל הספרות במערך שקיבלה שהם מתחלקות באחד מהמספרים במערך בלי שארית שהוא לא עצמם או 1.",
+			"question_number": 1,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static bool IsMirror (int [] arr)\n{\n  bool mirror = true;\n  for (int i = 0 ; i < arr.Length ; i++)\n  {\n    if (mirror)\n    {\n      mirror = false ; int num = 0 ; // איפוס משתנים\n      for (int g = num; g < arr.Length ; g++) // עובר דרך כל המערך\n                                                 // ובודק אם הוא Mirror\n      if ( arr [g] == ( arr[i] * -1)) // בדיקה אם\n        mirror = true ;               // זה Mirror\n    }\n    else\n      return mirror ; // יהיה שלילי ולא Mirror\n  }\n  return mirror\n}",
+			"question_number": 2,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static void ArrangeMirror (int [] arr)\n{\n  int [] arr1 = new int [arr.Length] // מסדר את החיובי \n/ / קודם\n // את השלילי אחרי\n  for ( int i = 0 ; i < arr.Length ; i++)\n  {\n    int num = 0 ; int num1 = 0 ; int L = 0 ; // מאפסים\n    for (int g = 1 ; g < arr.Length ; g++ )\n    {\n      if ((arr[i] * -1) == arr[g] && arr[i] > 0 )\n      {\n        num = arr[g] ;\n        num1 = arr[i+1] ;\n        arr[i+1] = num ;\n        arr[g] = num1 ;\n      }\n    }\n   if (arr1[arr1.Lenght-1]>0)\n     num = arr1[arr1.length-1];\n     arr1[arr1.Length-1] = arr1[arr1.length-2];\n     arr1[arr1.Length-2] = num i;\n     arr = arr1;\n  }\n  \n  for (int i = 0 ; i < arr1.Length ; i++) \n  {                                      \n    int t = 0 ; int g = 1 ;\n    if (arr[i] > 0)\n    {\n      arr1[t] = arr[i] ;\n    }\n    else\n    {\n      arr1[arr1.Length -g ] = arr[i]\n      g++ ;\n    }\n  }\n",
+			"question_number": 2,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public Static int[] DiceStatics (int [] arr)\n{\nint [] nums = new int[21] ;\n\nFor (int i = 0 ; i < nums.Length ; i++)\n{\nnums[i] = 0 ;\n}\n\narr\nFor( int i = 0 ; i < Length ; i++)\n{\nnum [arr [i]] ++ ;\n}\nreturn nums ;\n}",
+			"question_number": 3,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public Static void PrintStatics (int[] arr)\n{\nint[] nums 1 = DiceStatics (arr) ;\nint Max = int.MinValue ;\n\nFor (int i = 0 ; i < num1.Length ; i++)\n{\nif (nums > Max)\nMax = nums[i] ;\n}\n\nfor ( int i = 0 ; i < num1.Length ; i++)\n{\nif (num[i] == Max)\n{\nConsole.Write (i) ; .1\n}\nelse\n{\nif (num[i] == 0 && i != 0) .2\n}\nConsole.Write(i) ;\n}\n}\n}",
+			"question_number": 3,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public class BasketballPlayer\n{\npublic double TotalEarnings ()\n{\ndouble\nSum = 0;\nSum = this.seasonsPlayed * this.seasonsSalary ;\nreturn Sum;\n}\n}",
+			"question_number": 4,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public Static String[] TopEarners (BasketballPlayer [] arr , double amount)\n{\nint Size = 0 ;\nFor (int i = 0 ; i < arr.Length ; i++ )\n{\nif (arr [i].TotalEarnings() > amount\nSize ++ ;\n}\nString [] players = new String [Size] ;\nFor (int i = 0 ; i < String.Length ; i++) // א פוס\n{\nString[i] = \" \" ;\n}\nint n = 0 ;\nFor (inti = 0 ; i < arr.Length ; i++)\n{\nif(arr[i] .TotalEarning() > amount)\n{\nplayers [n] = arr [i] .GetName();\nn++;\n}\n}\nreturn players;\n}",
+			"question_number": 4,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "",
+			"question_number": 5,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "",
+			"question_number": 5,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "",
+			"question_number": 6,
+			"sub_question_id": null
+		}
+	],
+	"schema_version": "1.0",
+	"contract_version": "f161df2a-9b10-4f7b-a893-b4f72534acdc"
+}

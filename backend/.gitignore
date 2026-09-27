@@ -182,6 +182,13 @@ gen-lang-client-*.json
 !tests/grading_eval_suite/fixtures/*.json
 !tests/grading_eval_suite/benchmarks/**/*.json
 !tests/grading_eval_suite/plans/**/*.json
+# [D-5, owner ruling Track B 2026-09-27] exam 2 (bagrut_899371) landed its
+# rubric and transcription contracts at the suite root, outside the negations
+# above — so they never left one working tree and the exam could not run from
+# a clean checkout. Named exactly: the manifests reference these files and the
+# GTs pin their sha256. (Students' work in the public repos: OD-B10, closed.)
+!tests/grading_eval_suite/compiled_rubric_bagrut.json
+!tests/grading_eval_suite/compiled_transcriptions_bagrut/*.json
 # ...except the F0 staging area (superseded by the ratified snapshot):
 tests/grading_eval_suite/benchmarks/contracts/_proposed/
 # Transcription eval suite (same precedent): the EXAM SPECS, per-fixture

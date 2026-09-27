@@ -1,0 +1,61 @@
+{
+	"answers": [
+		{
+			"answer_text": "",
+			"question_number": 1,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "",
+			"question_number": 1,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "",
+			"question_number": 2,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "",
+			"question_number": 2,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "Public static int [] DiceStatictics (int [] arr)\n{\n    int [] cube = new int [21]; // מערך המכיל כמות הפעמים המופיע\n                                // ערך במערך\n    For (int i=0; i<cube.length; i++) // איפוס מערך\n    {\n        cube[i] = 0;\n    }\n    For (int i=0; i<arr.length; i++) // מונה כמות פעמים של ערך מסוים\n    {\n        cube[arr[i]]++ ;\n    }\n    return cube; // החזרת המערך\n}",
+			"question_number": 3,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "Public static void PrintStatistics (int[]arr)\n{\n    int max = 0; // הערך השכיח ביותר\n    int [] newArr = DiceStatics (arr); // העתקת המערך שקיבלנו בפעולה\n    For (int i=0; i<newArr.length; i++)\n    {\n        if (newArr[i] > newArr[max]) // בדיקת הערך השכיח\n            max = i ;\n    }\n    For (int i=1; i< newArr.length; i++)\n    {\n        if (newArr[i] == newArr[max]) // הדפסת הערך השכיח\n            C.W ( i + \",\" );\n        if (newArr[i] == 0 ) // הדפסת ערכים שלא התקבלו\n                             // בהטלות\n            C.W (i + \",\" );\n    }\n",
+			"question_number": 3,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "Public double TotalEarnings()\n{\n    double sum = 0; // סכום ההכנסות\n    For (int i = 1 ; i <= seasonPlayed ; i++ ) // הוספת שכר לעונה לפי מספר\n                                               // העונות\n    {\n        sum += seasonSalary ;\n    }\n    return sum; // החזרת סך ההכנסות\n}",
+			"question_number": 4,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "Public static String[] TopEarners (BasketballPlayer[]arr, double amount)\n{\n    int count = 0; // אורך מערך השמות\n    int g = 0 ; // המיקום במערך השמות\n    For (int i = 0; i < arr.length ; i++ )\n    {\n        if (arr[i].TotalEarnings() > amount ) // בדיקה אם סכום השכר\n                                              // גדול מהמספר הנתון\n            count++ ;\n    }\n    String [] name = new String [count] ; // יצירת מערך שמות לפי אורך\n                                          // של count\n    For (int i = 0 ; i < arr.length ; i++ )\n    {\n        if (arr[i].TotalEarning() > amount )\n        {\n            name[g] = arr[i].GetName() ; // הוספת השם\n                                         // הרלוונטי למערך\n            g++ ; // קידום המקום\n        }\n    }\n    return name ; // החזרת מערך השמות\n}",
+			"question_number": 4,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "Public bool IsSimilarWorkShop (workShop other)\n{\n    if (this.name == other.name) // האם הסדנאות דומות לפי שם\n        return true;\n    return false;\n}",
+			"question_number": 5,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "Public bool HandleNewWorkShop(workShop ws)\n{\n    for (int i = 0; i < countWorkShops ; i++)\n    {\n        if (workShop[i].IsSimilarWorkShop(ws) == true) // אם סדנה במערך שקיימת\n                                                       // דומה לסדנה שקיבלנו\n        {\n            if ( (workShop[i].GetPeople() + ws.GetPeople()) <= 40 ) // בודקים אם יש מקום\n            {\n                workShop[i].GetPeople() += ws.GetPeople() ; // אם יש מקום מוסיפים\n                                                            // את מספר האנשים\n                                                            // מהסדנה החדשה לקיימת\n                return true;\n            }\n        }\n    }\n    if (countWorkShops < 200) // לא נמצאה סדנה דומה בבדיקה אם יש מקום\n                              // לסדנה חדשה\n    {\n        workShop [countWorkShop] = ws ; // יש הוספה\n        countWorkShops++ ; // קידום מספר התא\n        return true ;\n    }\n    return false ; // לא נמצא מקום בסדנה קיימת ואין מקום במערך\n}",
+			"question_number": 5,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "Public static int [] AnalyzeMechina(int[] studentsMechina)\n{\n    int g = 0 ; // מיקום בתא\n    int count = 0;\n    int[] mechina = new int[31] ; // מערך ל- 30 המכינות\n    For(int i = 0 ; i < mechina.Length ; i++) // איפוס מערך\n    {\n        mechina[i] = 0;\n    }\n    For(int i = 0 ; i < studentsMechina.length ; i++) // מונה כמות סטודנטים של מכינה\n    {\n        mechina[studentMechina[i]] ++ ;\n    }\n    For(int i = 0 ; i < studentsMechina.Length ; i++) // כמות המכינות השונות במערך\n    {\n        if (mechina[i] != 0)\n            count++ ;\n    }\n    int [] newArr = new int [coun*2] ; // מערך שירשמו תלמידים וכמות הילדים\n    For(int i = 0 ; i < newArr.length ; i++) // איפוס המערך\n    {\n        newArr[i] = 0 ;\n    }\n    For(int i = 0 ; i < mechina.length ; i++)\n    {\n        if (mechina[i] != 0)\n        {\n            newArr[g] = i ; // הוספת מספר המכינה\n            g++ ; // קידום תא\n            newArr[g] = mechina[i] ; // הוספת מספר ילדים במכינה\n            g++ ; // קידום תא\n        }\n    }\n    int max = 0 ;\n    For(int i = 0 ; i < mechina.Length ; i++) // המכינה שנרשמו אליה הכי הרבה\n    {\n        if (mechina[i] > mechina[max])\n            max = i ;\n    }\n    c.w(\"The mechina with max student: \" + i) ; // הדפסה\n    return newArr ; // החזרת מערך\n}",
+			"question_number": 6,
+			"sub_question_id": null
+		}
+	],
+	"schema_version": "1.0",
+	"contract_version": "6997056f-71e7-44cf-aa54-d0ed5ada581c"
+}

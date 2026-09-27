@@ -1,0 +1,61 @@
+{
+	"answers": [
+		{
+			"answer_text": "| i | x | arr[i] | arr[i]=1 | arr[i] && |x%arr| תנאי עובד לא עובד |\n|  | 6 |  |  |  |  |\n| 0 | 6 | 8 | כן | כן | לא  | לא עובד\n| 1 | 6 | 5 | כן | כן | לא | לא עובד\n| 2 | 6 | 4 | כן | כן | לא | לא עובד\n| 3 | 6 | 15 | כן | כן | לא | לא עובד\n| 4 | 6 | 3 | כן | כן | כן | כן עובד\n\nהערך המוחזר הוא true\n\n(2) מטרת הפעולה היא לבדוק אם יש במערך מספר המתחלק בX ללא שארית שהמספר הוא לא 1 או עצמוץ",
+			"question_number": 1,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "דו צדדי\n\n| x | i | arr[i] | sum |\n|  |  | 4 | 8 |\n| |  |  |  |\n| |  |  |  |\n\n8 + 4 + 15 + 40 + 9\n\n12 + 15 + 40 + 9\n\n27 + 15 + 40\n\n40 + 21 + 15\n\n61 + 15\n\n[76] \n\n(2) מה סכום המספרים שמתחלקים ללא שארית במערך",
+			"question_number": 1,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "",
+			"question_number": 2,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "",
+			"question_number": 2,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static int[] Dicestatistics (int[] arr)\n{\nint[] result = new int[21];\nfor (int i = 0 ; i < result.length ; i++)\n{\nresult[i] = 0;\n}\nfor (int i = 0 ; i < arr.length ; i++)\n{\nint k = arr[i] ;\nresult[k] ++;\n}\nreturn result;\n}",
+			"question_number": 3,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static void Print statics (int[] arr)\n{\n\nint [] stats = new int [21];\n\nstats = Dicestatistic (arr);\n\nint count = minvalue;\n\nfor (int i=0; i< stats.length; i++)\n{\nif (stats[i] > stats[i+1])\n{\ncount = i;\n}\n}\nfor (int i = 0; i < stats.length-1; i++)\n{\nif ( stats[i] == count)\n{\nconsole.WriteLine(\"max valiue\"+ i)\n}\nif (stats[i]==0)\n{\nconsole.WriteLine(\"Low valiue\" + i)\n}\n}\nconsole.WriteLine(\"max valiue\" + count);\n}",
+			"question_number": 3,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public Basketballplayer\n{\npublic int TotalEarnings ()\n{\nthis.season Salary;\nint total = this.seasonsplayed *\n\nreturn total;\n}",
+			"question_number": 4,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "public static string[] TopEarners (Basketballplayer[] arr, double amount)\n{\nint count=0;\nfor (int i =0 ; i<arr.length ; i++)\n{\nif (arr[i]. totalEarnings() >amount)\n{\ncount++;\n}\nstring[] result = new string[count]\n\nint place=0;\nfor (int i=0; i < arr.length; i++)\n{\nif (arr[i]. totalEarnings()> amount)\n{\nresult[place] = arr[i].GetName();\nplace++;\n}\n}\nreturn result;",
+			"question_number": 4,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "",
+			"question_number": 5,
+			"sub_question_id": "א"
+		},
+		{
+			"answer_text": "",
+			"question_number": 5,
+			"sub_question_id": "ב"
+		},
+		{
+			"answer_text": "public static int[] AnalyzeMechina (int[] arr)\n{\nint Mecina = new int [31] ;\n\nfor (int i = 0; i< Mecina.length; i++)\n{\nMecina[i]=0;\n}\nfor (int i=0; i < arr.length; i++)\n{\nint m = arr[i] ;\n\nMecina[m]++;\n}\nint count=0;\nfor (int i=0; i< Mecina.length; i++)\n{\nif (Mecina[i] != 0)\n{\ncount ++;\n}\n}\nint[] result = new int [count*2];\nint j=0;\nfor (int i=0; i < Mecina.length; i++)\n{\nif(Mecina[i] != 0)\n{\nresult[j] = Mecina[i];\nresult[j+1] = i;\n}\n}\n\nint Big=0;\nint B=i\nfor (int i=0; i<result.length-2; i++)\n{\nif (result[B] > result[B+2])\n{\nBig = result[B];\n}\n}\nconsole.WriteLine(big);\nreturn result;",
+			"question_number": 6,
+			"sub_question_id": null
+		}
+	],
+	"schema_version": "1.0",
+	"contract_version": "ef09ce42-963e-47d2-9a23-dc471e4f2983"
+}
