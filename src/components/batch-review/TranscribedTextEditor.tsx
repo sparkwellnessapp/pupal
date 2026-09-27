@@ -35,7 +35,6 @@ export function TranscribedTextEditor({
     readOnly = false,
     lineFlags = [],
     placeholder = 'תמלול ריק — אפשר להקליד כאן',
-    autoFocus = false,
     dir = 'ltr',
 }: {
     value: string;
@@ -53,13 +52,6 @@ export function TranscribedTextEditor({
     dir?: 'ltr' | 'rtl';
     /** R2: marked empty-answer cards pass the §3.2 guidance placeholder. */
     placeholder?: string;
-    /**
-     * Focus on mount. Set ONLY when the teacher switched this answer out of the
-     * rendered table view — she clicked to edit, so the caret belongs here (and
-     * a focused textarea is what makes the R3 keymap treat her typing as typing
-     * rather than as navigation).
-     */
-    autoFocus?: boolean;
 }) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
@@ -93,7 +85,6 @@ export function TranscribedTextEditor({
                     style={{ minHeight: `${minHeight}px`, whiteSpace: 'pre-wrap' }}
                     placeholder={placeholder}
                     data-testid="transcription-editor"
-                    autoFocus={autoFocus}
                 />
                 {hasUncertain && (
                     <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">
@@ -165,7 +156,6 @@ export function TranscribedTextEditor({
                     }}
                     placeholder={placeholder}
                     data-testid="transcription-editor"
-                    autoFocus={autoFocus}
                 />
             </div>
         </div>

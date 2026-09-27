@@ -6,14 +6,15 @@ import { AUTH_ME, fulfillJson, SEED_BATCH_ID, seedBatch, seedItem } from './seed
  * Table rendering on the transcription-review surface (2026-08-23).
  *
  * The load-bearing claim is NOT "a grid appears" — it is that the grid is a
- * DISPLAY DERIVATION and the verbatim text underneath is untouched. So the
- * assertions here are, in order of importance:
+ * LENS over the verbatim text, which stays the only truth. So the assertions
+ * here are, in order of importance:
  *   1. the pipe rows stop being text and become a <table>;
- *   2. one click returns the EXACT original string to an editable textarea;
- *   3. that click does NOT dirty the item (Δ14 — viewing is not commitment,
- *      and a phantom overlay would silently drop the item out of bulk-accept);
- *   4. an edit made after toggling still saves verbatim through the unchanged
- *      PATCH path.
+ *   2. there is NO raw-text toggle, in any state (owner-ruled 2026-09-27);
+ *   3. stepping into a cell or the prose does NOT dirty the item (Δ14 —
+ *      viewing is not commitment, and a phantom overlay would silently drop the
+ *      item out of bulk-accept);
+ *   4. a cell edit saves the string verbatim, changed only in that cell, through
+ *      the unchanged PATCH path.
  *
  * The fixture is a REAL transcribed trace table from a live draft, ragged rows
  * and all — a rectangular synthetic one would not exercise the detector.
@@ -82,7 +83,7 @@ async function install(page: Page): Promise<MockState> {
     return state;
 }
 
-test('transcription-table-rendering — grid by default, verbatim text one click away, no phantom dirt', async ({ page }) => {
+test('transcription-table-rendering — grid by default, no raw toggle, no phantom dirt, cell edit saves verbatim', async ({ page }) => {
     await seedAuth(page);
     const state = await install(page);
 
@@ -104,31 +105,24 @@ test('transcription-table-rendering — grid by default, verbatim text one click
     await expect(view.locator('table').locator('xpath=ancestor::div[@dir][1]'))
         .toHaveAttribute('dir', 'ltr');
 
-    // 2. One click returns the EXACT source string, editable.
-    await page.getByTestId('answer-view-toggle').click();
-    const editor = page.getByTestId('transcription-editor');
-    await expect(editor).toHaveValue(TABLE_ANSWER);
-    await expect(page.getByTestId('transcribed-answer-view')).toHaveCount(0);
-    // The caret was handed over — she clicked to edit, so she can type at once.
-    await expect(editor).toBeFocused();
+    // 2. No raw-text toggle, anywhere on the card.
+    await expect(page.getByTestId('answer-view-toggle')).toHaveCount(0);
+    await expect(page.getByText('הצגת הטקסט המקורי')).toHaveCount(0);
+    await expect(page.getByText('הצגה כטבלה')).toHaveCount(0);
 
-    // 3. Δ14: looking at the text is not an edit. No dirt, no autosave.
+    // 3. Δ14: stepping into a cell and the prose is not an edit. No dirt, no autosave.
+    const cell = view.locator('[data-testid="answer-cell"][data-row="1"][data-col="3"]');
+    await cell.click();
+    await view.getByTestId('answer-text-run').last().click();
     await expect(page.getByText('שינויים לא שמורים')).toHaveCount(0);
     expect(state.patchBodies).toHaveLength(0);
 
-    // Back to the grid, still no dirt.
-    await page.getByTestId('answer-view-toggle').click();
-    await expect(page.getByTestId('transcribed-answer-view')).toBeVisible();
-    await expect(page.getByText('שינויים לא שמורים')).toHaveCount(0);
-    expect(state.patchBodies).toHaveLength(0);
-
-    // 4. A real edit made through the toggle still saves verbatim.
-    await page.getByTestId('answer-view-toggle').click();
-    await editor.fill('6 | 0 | 1 | T');
+    // 4. A real cell edit saves the string verbatim, changed in that cell only.
+    await cell.fill('T');
     await expect(page.getByText('שינויים לא שמורים')).toBeVisible();
     await page.getByRole('button', { name: 'שמירה' }).click();
     await expect(page.getByText('נשמר')).toBeVisible();
     expect(state.patchBodies).toHaveLength(1);
     expect((state.patchBodies[0].answers as Array<{ answer_text: string }>)[0].answer_text)
-        .toBe('6 | 0 | 1 | T');
+        .toBe(TABLE_ANSWER.replace('6 | 0 | 1 | F', '6 | 0 | 1 | T'));
 });

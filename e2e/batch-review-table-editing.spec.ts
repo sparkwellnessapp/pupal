@@ -12,8 +12,9 @@ import { AUTH_ME, fulfillJson, SEED_BATCH_ID, seedBatch, seedItem } from './seed
  *   table-edit-in-place       — one header cell, one body cell, one prose line;
  *                               away and back; the overlay and the accept body
  *                               carry EXACTLY those three spans (TBL-2, TBL-5).
- *   table-viewing-is-not-commitment — focus, Tab, Shift+Tab, Enter, Esc, blur,
- *                               toggle: zero bytes, no dirt, no PATCH (TBL-3/Δ14).
+ *   table-viewing-is-not-commitment — focus, Tab, Shift+Tab, Enter, Esc, blur:
+ *                               zero bytes, no dirt, no PATCH (TBL-3/Δ14). There
+ *                               is no raw-text toggle (owner-ruled 2026-09-27).
  *   table-structure-guard     — `|` and `;` never change the grid (TBL-4, OD-4).
  *   table-cell-keys           — Enter walks the column, Esc leaves, arrows stay
  *                               in the cell and never navigate items (OD-2, R6).
@@ -119,9 +120,10 @@ test('table-edit-in-place — header cell, body cell and prose, carried exactly 
     const state = await install(page, { tt1: [answer(1, TABLE_ANSWER)], tt2: [answer(1, 'int y = 2;')] });
     await page.goto(`/batches/${SEED_BATCH_ID}/review/tt1`);
 
-    // No raw toggle needed: the grid IS the editor.
+    // The grid IS the editor — and there is no raw-text view behind it.
     await expect(cell(page, 0, 2)).toHaveValue('arr[i]');
     await expect(page.getByTestId('transcription-editor')).toHaveCount(0);
+    await expect(page.getByTestId('answer-view-toggle')).toHaveCount(0);
 
     await cell(page, 0, 2).fill('arr[j]');                 // header row
     await cell(page, 2, 2).fill('7');                      // body: '|  | 1 | 5 |  |' → 7
@@ -145,7 +147,7 @@ test('table-edit-in-place — header cell, body cell and prose, carried exactly 
     expect(answerTextOf(state.acceptBodies[0].body)).toBe(EXPECTED_AFTER_EDITS);
 });
 
-test('table-viewing-is-not-commitment — focus, Tab, Enter, Esc, blur and toggle write nothing', async ({ page }) => {
+test('table-viewing-is-not-commitment — focus, Tab, Enter, Esc and blur write nothing', async ({ page }) => {
     await seedAuth(page);
     const state = await install(page, { tt1: [answer(1, TABLE_ANSWER)], tt2: [answer(1, 'int y = 2;')] });
     await page.goto(`/batches/${SEED_BATCH_ID}/review/tt1`);
@@ -157,9 +159,8 @@ test('table-viewing-is-not-commitment — focus, Tab, Enter, Esc, blur and toggl
     await page.keyboard.press('Enter');
     await page.keyboard.press('Escape');
     await textRun(page, 1).click();
-    await page.getByTestId('answer-view-toggle').click();          // → raw
-    await expect(page.getByTestId('transcription-editor')).toHaveValue(TABLE_ANSWER);
-    await page.getByTestId('answer-view-toggle').click();          // → grid
+    await textRun(page, 1).blur();                                 // leave the answer entirely
+    await expect(cell(page, 0, 2)).toHaveValue('arr[i]');
 
     await expect(page.getByText('שינויים לא שמורים')).toHaveCount(0);
     // Navigating flushes only when dirty — a glance must not create an overlay.
@@ -185,9 +186,10 @@ test('table-structure-guard — a typed `|` or `;` never changes the grid or the
     await expect(cell(page, 1, 1)).toHaveValue('0');
     await expect(page.locator('[data-testid="answer-cell"]')).toHaveCount(16);
 
-    await page.getByTestId('answer-view-toggle').click();
-    await expect(page.getByTestId('transcription-editor')).toHaveValue(TABLE_ANSWER);
     await expect(page.getByText('שינויים לא שמורים')).toHaveCount(0);
+    // Navigating flushes only a dirty item — nothing reaches the server.
+    await page.getByRole('button', { name: 'הבא' }).click();
+    await expect(page).toHaveURL(/\/review\/tt2$/);
     expect(state.patchBodies).toHaveLength(0);
 });
 

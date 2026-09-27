@@ -16,6 +16,10 @@
  * different grid is refused, never repaired (TBL-4, `answer-segments.ts`), and
  * an end-padded cell owns no bytes, so it is shown as absent, not offered (OD-8).
  *
+ * There is no view toggle (owner-ruled 2026-09-27): the surface shows THIS
+ * view for a table-bearing answer with no line flags, and the text editor
+ * otherwise — so a row or column fix is a structural edit this view refuses.
+ *
  * VIEWING IS NOT COMMITMENT (TBL-3 = Δ14): focusing, tabbing, Enter, Esc and
  * blur never call `onChange`, so they can never dirty the item or create an
  * overlay — which would silently pull a clean document out of bulk-accept.
@@ -44,7 +48,6 @@ import {
     ANSWER_CELL_HINT_STRUCTURE,
     ANSWER_CELL_LABEL,
     ANSWER_TEXT_RUN_LABEL,
-    ANSWER_VIEW_FLAGS_HIDDEN,
 } from '@/copy/batch';
 import {
     applyCellEdit,
@@ -86,15 +89,12 @@ function TextRunEditor({ value, dir, onChange }: { value: string; dir: 'ltr' | '
 
 export function TranscribedAnswerView({
     text,
-    flagCount = 0,
     dir = 'ltr',
     onChange,
     readOnly = false,
     onEditingChange,
 }: {
     text: string;
-    /** >0 ⇒ the marked lines live only in the raw view; say so rather than hide it. */
-    flagCount?: number;
     /** Direction of the prose segments, from the rubric's SUBJECT (Phase 3b); the
      *  grid keeps its own owner-ruled `ltr`. Default = today's behaviour. */
     dir?: 'ltr' | 'rtl';
@@ -231,11 +231,6 @@ export function TranscribedAnswerView({
             onBlur={onRootBlur}
             className="outline-none"
         >
-            {flagCount > 0 && (
-                <div className="mb-2 text-xs text-amber-700" dir="rtl">
-                    {ANSWER_VIEW_FLAGS_HIDDEN}
-                </div>
-            )}
             <div
                 dir={dir}
                 className="w-full p-3 rounded-lg border border-surface-300 bg-surface-50"

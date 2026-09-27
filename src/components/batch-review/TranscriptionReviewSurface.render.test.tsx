@@ -127,12 +127,13 @@ describe('TranscriptionReviewSurface — selection expectation', () => {
 });
 
 /**
- * Table rendering (2026-08-23). The default is content-derived and the raw text
- * is never displaced: a grid renders instead of the textarea only when there is
- * a grid AND nothing is flagged. Line flags outrank the prettier surface — they
- * are the review signal, and they exist only in the raw view.
+ * ONE view per answer, decided by its content (owner-ruled 2026-09-27: the
+ * «הצגת הטקסט המקורי» / «הצגה כטבלה» toggle is removed). A grid renders instead
+ * of the textarea only when there is a grid AND nothing is flagged — line flags
+ * are the review signal, and they exist only in the text editor. No answer, in
+ * any state, offers a toggle.
  */
-describe('TranscriptionReviewSurface — the answer view/edit split', () => {
+describe('TranscriptionReviewSurface — one view per answer, no toggle', () => {
     const TABLE_ANSWER = [
         'if:',
         'returned | x | i | arr[i]',
@@ -140,12 +141,12 @@ describe('TranscriptionReviewSurface — the answer view/edit split', () => {
         '6 | 1 | 5 | F',
     ].join('\n');
 
-    it('renders a table-bearing answer as a grid, with a toggle back to the text', () => {
+    it('renders a table-bearing answer as a grid, with no toggle to the raw text', () => {
         const html = render(draftWith([[1, null, TABLE_ANSWER]]));
         expect(html).toContain('data-testid="transcribed-answer-view"');
         expect(html).toContain('<table');
-        expect(html).toContain('data-testid="answer-view-toggle"');
-        expect(html).toContain('הצגת הטקסט המקורי');
+        expect(html).not.toContain('data-testid="answer-view-toggle"');
+        expect(html).not.toContain('הצגת הטקסט המקורי');
         expect(html).not.toContain('data-testid="transcription-editor"');
         expect(html).not.toContain('6 | 0 | 1 | F');
     });
@@ -155,9 +156,8 @@ describe('TranscriptionReviewSurface — the answer view/edit split', () => {
         const html = render(draftWith([[1, null, flagged]]));
         expect(html).toContain('data-testid="transcription-editor"');
         expect(html).not.toContain('data-testid="transcribed-answer-view"');
-        // The grid is still one click away — the toggle is offered, not forced.
-        expect(html).toContain('data-testid="answer-view-toggle"');
-        expect(html).toContain('הצגה כטבלה');
+        expect(html).not.toContain('data-testid="answer-view-toggle"');
+        expect(html).not.toContain('הצגה כטבלה');
     });
 
     it('leaves a table-free answer exactly as before: editor, no toggle', () => {
@@ -171,7 +171,7 @@ describe('TranscriptionReviewSurface — the answer view/edit split', () => {
 /**
  * Native table editing (2026-09-24) — the report: on a table-bearing answer the
  * DEFAULT view must be editable in place. Prose and every cell are editable
- * without «הצגת הטקסט המקורי», which stays as the escape hatch (OD-3).
+ * where they stand; there is no raw-text view behind them any more.
  */
 describe('TranscriptionReviewSurface — a table-bearing answer is editable in place', () => {
     const TABLE_ANSWER = [
@@ -186,8 +186,7 @@ describe('TranscriptionReviewSurface — a table-bearing answer is editable in p
         expect(html).toContain('data-testid="transcribed-answer-view"');
         expect(html.split('data-testid="answer-cell"').length - 1).toBe(9);
         expect(html).toContain('data-testid="answer-text-run"');
-        // The escape hatch is still offered.
-        expect(html).toContain('הצגת הטקסט המקורי');
+        expect(html).not.toContain('הצגת הטקסט המקורי');
     });
 
     it('a read-only surface (accepted item) renders no cell inputs', () => {
