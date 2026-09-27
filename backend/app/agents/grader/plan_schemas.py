@@ -29,6 +29,7 @@ the V5-B render:
 from __future__ import annotations
 
 from decimal import Decimal
+from enum import Enum
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_serializer
@@ -143,3 +144,155 @@ class ScopeVerificationResponse(BaseModel):
     """LLM structured output for one GradableScope — one verdict per check."""
 
     verdicts: List[CheckVerdict]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# plan/v6 — one building block for every check (PR_grader_v6_options.md §3.1)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Every check is a small multiple-choice question: options carry a Hebrew
+# label and a VALUE; the verifier picks an option id, never a number (D-LAW-2);
+# code prices (services/pricing_v6.py). Extended IN PLACE here, beside the v5
+# types, because both stacks live until the v5 path is deleted
+# (GRADER_ARCHITECTURE ∈ {v3, v5, v6}, Q-13). The v6 classes carry a `V6`
+# suffix only because the spec's names collide with the v5 classes above,
+# which must keep parsing the v5 plans in `grading_plans` until then; the
+# suffix goes when v5 does.
+#
+# Amendments (STOP-1, 2026-09-27; docs/GRADER_V6_CENSUS.md §1a):
+#   AM-G1  no reduction terminals: no `TerminalPlan.kind`, no
+#          `CheckOption.home_terminal_id` (markers keep their home, below).
+#   AM-G2  `evidence_required` — false only for legacy fault checks.
+#   Q-10   the `note` role: a «לא להוריד, לכתוב הערה» line, options
+#          `none`/`observed`, both 0, never priced. `notes_he` is gone.
+
+
+class PartialFraction(str, Enum):
+    """The closed fraction list the planner chooses from (D-LAW-2): never a
+    free number. Values in `plan_values.FRACTION_VALUE`."""
+    QUARTER = "QUARTER"
+    HALF = "HALF"
+    THREE_QUARTERS = "THREE_QUARTERS"
+
+
+CheckRole = Literal["credit", "fault", "note"]
+CheckShape = Literal["binary", "ladder", "levels", "count", "fault", "note"]
+CheckOrigin = Literal["compiler", "planner", "fallback", "legacy"]
+
+
+class CheckOption(BaseModel):
+    """One possible answer to a check. Values are exact Decimals on the grid:
+    credit 0..max, fault <= 0, note 0 (V12, V17)."""
+    model_config = {"frozen": True}
+
+    option_id: str                       # assigned by code (§3.2)
+    label_he: str                        # what the answer looks like when this option applies
+    value: Decimal
+    marker_id: Optional[str] = None      # fault options only
+
+    @field_serializer("value")
+    def _sd(self, v: Decimal) -> str:
+        return str(v)
+
+
+class PlanCheckV6(BaseModel):
+    """One check. Display order of `options`: credit highest-first; fault and
+    note `none` first."""
+    model_config = {"frozen": True}
+
+    check_id: str                        # assigned by code (§3.2)
+    role: CheckRole
+    shape: CheckShape
+    description_he: str                  # the thing checked, in the teacher's words
+    source_span: str                     # verbatim from an allowed source (V16)
+    options: List[CheckOption]
+    requires: Optional[str] = None       # fault only: a credit check on the same priced terminal
+    charge_group: Optional[str] = None   # fault only
+    priced_terminal_id: str
+    equivalence_note_he: Optional[str] = None
+    evidence_required: bool = True       # [AM-G2]
+    origin: CheckOrigin
+
+    def option(self, option_id: Optional[str]) -> Optional[CheckOption]:
+        for o in self.options:
+            if o.option_id == option_id:
+                return o
+        return None
+
+    @property
+    def default_option(self) -> CheckOption:
+        """The option a check resolves to with no valid selection (PRC-1):
+        the zero option for credit (the LAST option in display order — V12),
+        `none` for fault and note (the FIRST)."""
+        return self.options[-1] if self.role == "credit" else self.options[0]
+
+
+class TerminalPlanV6(BaseModel):
+    model_config = {"frozen": True}
+
+    terminal_id: str
+    points_possible: Decimal
+    interpretation_notes_he: List[str] = Field(default_factory=list)   # OD-G4; <= 3
+
+    @field_serializer("points_possible")
+    def _sd(self, v: Decimal) -> str:
+        return str(v)
+
+
+class PackRef(BaseModel):
+    model_config = {"frozen": True}
+    pack_id: str
+    pack_version: str
+
+
+class GradingPlanV6(BaseModel):
+    """The frozen, hashed plan (§3.1). A compiled artefact of the contract —
+    never teacher-edited, never shown to her (W-3)."""
+    model_config = {"frozen": True}
+
+    plan_schema: Literal["plan/v6"]
+    plan_hash: str                       # plan_values.plan_hash(terminals, checks)
+    config_hash: str                     # plan_values.config_hash(...)
+    rubric_contract_version: str
+    subject_pack: PackRef
+    terminals: List[TerminalPlanV6]
+    checks: List[PlanCheckV6]            # plan order: rubric order; within a terminal credit, fault, note
+
+
+# ── plan-building vocabulary (Stage 1 → planner → assembly) ─────────────────
+
+class DeductionMarker(BaseModel):
+    """A deduction phrase Stage 1 detected in the teacher's text (§5.1 C1).
+    `home_terminal_id` is where she wrote it; the planner anchors the fault on
+    one of `candidate_anchors` (S-4, V18). The amount is copied verbatim and
+    NEVER shown to the planner."""
+    model_config = {"frozen": True}
+
+    marker_id: str
+    home_terminal_id: str
+    amount: Optional[Decimal]
+    polarity: Literal["deduct", "no_deduct"]
+    text_span: str
+    charge_group: Optional[str] = None
+    candidate_anchors: List[str]
+
+    @field_serializer("amount")
+    def _sd(self, v: Optional[Decimal]) -> Optional[str]:
+        return None if v is None else str(v)
+
+
+class MarkerDisposition(BaseModel):
+    """What the planner did with one marker (V14)."""
+    model_config = {"frozen": True}
+
+    marker_id: str
+    disposition: Literal["fault", "merged", "not_a_deduction"]
+    merged_into_marker_id: Optional[str] = None
+    reason_he: Optional[str] = None      # required for merged and not_a_deduction
+
+
+class PlanDraft(BaseModel):
+    """Mutable build-time companion of a GradingPlanV6 — never on the plan.
+    Carries what the plan must not: dispositions and telemetry."""
+    marker_dispositions: List[MarkerDisposition] = Field(default_factory=list)
+    telemetry: dict = Field(default_factory=dict)

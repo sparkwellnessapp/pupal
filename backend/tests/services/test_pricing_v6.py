@@ -1,0 +1,364 @@
+"""grader-v6 Phase 1 — the pricer (PR_grader_v6_options.md §4, as amended:
+AM-G1 no reduction terminals, AM-G2 evidence gate in Resolve, AM-G3 typed
+amounts, AM-G4 half-up values, AM-G9 E10 on the real text, Q-10 note checks).
+
+Pure, zero mocks. Each worked example of §4.5 is a named test (§14)."""
+from __future__ import annotations
+
+import ast
+import itertools
+from decimal import Decimal as D
+from pathlib import Path
+
+import pytest
+
+from app.agents.grader.plan_schemas import PartialFraction
+from app.services.pricing_v6 import CheckDecision, price
+from tests.services.pricing_v6_cases import (
+    E10_TID,
+    Sel,
+    binary,
+    count,
+    e10_checks,
+    fault,
+    ladder,
+    levels,
+    note,
+    overlay,
+    term,
+    view,
+)
+
+A = "A"
+
+
+def _e1(c1_opt, f1_opt, quote="exact"):
+    c1 = binary("A.c1", A, 4, desc="עדכון התכונה people")
+    f1 = fault("A.f1", A, [("m1", 2, "העדכון בגישה ישירה במקום SetPeople")],
+               requires="A.c1", desc="אופן העדכון")
+    return view([term(A, 4)], [Sel(c1, c1_opt, quote), Sel(f1, f1_opt, quote)])
+
+
+def _t(priced, tid=A):
+    return next(t for t in priced.terminals if t.terminal_id == tid)
+
+
+def _charge(priced, cid):
+    for t in priced.terminals:
+        for ch in t.charges:
+            if ch.check_id == cid:
+                return ch
+    raise KeyError(cid)
+
+
+# ── §4.5 worked examples ─────────────────────────────────────────────────────
+
+def test_e1_present_behavior_with_fault_nets_partial():
+    p = price(_e1("full", "f1"))
+    assert _t(p).awarded == D("2")
+    ch = _charge(p, "A.f1")
+    assert (ch.status, ch.amount, ch.charged) == ("applied", D("-2"), D("-2"))
+    assert price(_e1("full", "none")).terminals[0].awarded == D("4")      # correct → 4
+    assert _t(price(_e1("full", "none"))).chip == "full"
+    assert _t(p).chip == "partial"
+
+
+def test_e1_absent_behavior_skips_its_fault():
+    for f_opt in ("f1", "none"):
+        p = price(_e1("absent", f_opt))
+        assert _t(p).awarded == D("0")                                     # not −2
+        assert _charge(p, "A.f1").status == "inactive"
+        assert _charge(p, "A.f1").charged == D("0")
+        assert _t(p).chip == "zero"
+        assert _t(p).primary_check_id is None
+
+
+def test_e2_ladder_charges_exactly_one_tier():
+    c1 = binary("A.c1", A, 4)
+    f1 = fault("A.f1", A, [("m1", 2, "t1"), ("m2", 3, "t2"), ("m3", 4, "t3")], requires="A.c1")
+    p = price(view([term(A, 4)], [Sel(c1, "full"), Sel(f1, "f2")]))
+    assert _t(p).awarded == D("1")
+    assert [c.charged for c in _t(p).charges] == [D("-3")]
+
+
+def test_e4_charge_group_charges_once_earliest_on_tie():
+    t1c = binary("T1.c1", "T1", 2)
+    t1f = fault("T1.f1", "T1", [("m1", 1, "חסר public")], group="g")
+    t2c = binary("T2.c1", "T2", 2)
+    t2f = fault("T2.f1", "T2", [("m2", 1, "חסר public")], group="g")
+    p = price(view([term("T1", 2), term("T2", 2)],
+                   [Sel(t1c, "full"), Sel(t1f, "f1"), Sel(t2c, "full"), Sel(t2f, "f1")]))
+    assert _charge(p, "T1.f1").status == "applied" and _charge(p, "T1.f1").charged == D("-1")
+    assert _charge(p, "T2.f1").status == "superseded" and _charge(p, "T2.f1").charged == D("0")
+    assert p.total_score == D("3")
+
+
+def test_charge_group_keeps_the_largest_magnitude_on_its_own_terminal():
+    t1c = binary("T1.c1", "T1", 4)
+    t1f = fault("T1.f1", "T1", [("m1", 1, "x")], group="g")
+    t2c = binary("T2.c1", "T2", 4)
+    t2f = fault("T2.f1", "T2", [("m2", 3, "x")], group="g")
+    p = price(view([term("T1", 4), term("T2", 4)],
+                   [Sel(t1c, "full"), Sel(t1f, "f1"), Sel(t2c, "full"), Sel(t2f, "f1")]))
+    assert _charge(p, "T1.f1").status == "superseded"
+    assert _charge(p, "T2.f1").charged == D("-3")
+    assert (_t(p, "T1").awarded, _t(p, "T2").awarded) == (D("4"), D("1"))
+
+
+def test_e5_fault_capped_by_behavior():
+    lad = ladder("A.c1", A, 2, [("half", PartialFraction.HALF)])
+    other = binary("A.c2", A, 2)
+    f1 = fault("A.f1", A, [("m1", 2, "x")], requires="A.c1")
+    p = price(view([term(A, 4)], [Sel(lad, "p1"), Sel(other, "full"), Sel(f1, "f1")]))
+    ch = _charge(p, "A.f1")
+    assert (ch.amount, ch.charged, ch.status) == (D("-2"), D("-1"), "applied")
+    assert _t(p).awarded == D("2")                   # T's portion 0, the rest untouched
+
+
+def test_e6_floor_reduces_latest_charge_and_flags():
+    c1 = binary("A.c1", A, 2)
+    f1 = fault("A.f1", A, [("m1", 3, "x")])                               # ungated
+    p = price(view([term(A, 2)], [Sel(c1, "full"), Sel(f1, "f1")]))
+    ch = _charge(p, "A.f1")
+    assert (ch.charged, ch.status) == (D("-2"), "floored")
+    assert _t(p).awarded == D("0")
+    assert "bounds_clamped" in _t(p).flags
+    # two charges: the LATER one in plan order is reduced first
+    f2 = fault("A.f2", A, [("m2", 2, "y")])
+    c = binary("A.c1", A, 3)
+    f1b = fault("A.f1", A, [("m1", 2, "x")])
+    p = price(view([term(A, 3)], [Sel(c, "full"), Sel(f1b, "f1"), Sel(f2, "f1")]))
+    assert (_charge(p, "A.f1").status, _charge(p, "A.f1").charged) == ("applied", D("-2"))
+    assert (_charge(p, "A.f2").status, _charge(p, "A.f2").charged) == ("floored", D("-1"))
+    assert _t(p).awarded == D("0")
+
+
+def test_e7_levels():
+    lv = levels("A.c1", A, [("מצוין", 40), ("טוב", 30), ("בינוני", 20), ("חלש", 10), ("אין", 0)])
+    p = price(view([term(A, 40)], [Sel(lv, "L2")]))
+    assert _t(p).awarded == D("30")
+
+
+def test_e8_count():
+    c = count("A.c1", A, 3, 8)
+    p = price(view([term(A, 3)], [Sel(c, "n5")]))
+    assert _t(p).awarded == D("2.00")                # AM-G4: half-up, was floor 1.75
+
+
+def test_e9_overlay_option_and_terminal_override():
+    v = _e1("full", "f1")
+    p = price(v, overlay({"A.c1": CheckDecision(option_id="absent")}))
+    assert _t(p).awarded == D("0")
+    assert _charge(p, "A.f1").status == "inactive"
+    p = price(v, overlay(pins={A: 3}))
+    assert _t(p).awarded == D("3") and _t(p).overridden
+    assert _charge(p, "A.f1").status == "applied"    # charge statuses kept for display
+
+
+def test_e10_setpeople_real_text_one_charge_din_roni_3_yahli_0():
+    capacity, update, tiers = e10_checks()
+    t = term(E10_TID, 5, q="q5", sq="ב")
+    # (1) every verifier selection: at most one charge among the three phrases
+    for c_opt, u_opt, f_opt in itertools.product(
+            ("full", "absent"), ("full", "absent"), ("none", "f1", "f2", "f3")):
+        p = price(view([t], [Sel(capacity, c_opt), Sel(update, u_opt), Sel(tiers, f_opt)]))
+        charged = [c for c in _t(p, E10_TID).charges if c.charged != 0]
+        assert len(charged) <= 1
+        assert D("0") <= _t(p, E10_TID).awarded <= D("5")
+    # (2) din / roni: capacity met, update present, one tier (no SetPeople) → 3/5
+    p = price(view([t], [Sel(capacity, "full"), Sel(update, "full"), Sel(tiers, "f1")]))
+    assert _t(p, E10_TID).awarded == D("3")
+    # (3) yahli: update absent → 0, every fault inactive
+    for f_opt in ("none", "f1", "f2", "f3"):
+        p = price(view([t], [Sel(capacity, "absent"), Sel(update, "absent"), Sel(tiers, f_opt)]))
+        assert _t(p, E10_TID).awarded == D("0")
+        assert all(c.status == "inactive" for c in _t(p, E10_TID).charges)
+
+
+# ── resolve (PRC-1 as amended) ───────────────────────────────────────────────
+
+def test_missing_selection_defaults_and_flags():
+    p = price(_e1(None, None))
+    assert _t(p).awarded == D("0")
+    res = {r.check_id: r for r in p.checks}
+    assert res["A.c1"].option_id == "absent" and res["A.c1"].missing
+    assert res["A.f1"].option_id == "none" and res["A.f1"].missing
+    assert "unverified_check" in _t(p).flags
+    # an option id that is not the check's own is treated as missing (§6.3)
+    p = price(_e1("zz_foreign", "none"))
+    assert {r.check_id: r for r in p.checks}["A.c1"].missing
+
+
+def test_evidence_gate_refuses_unverified_model_selection_only():
+    # AM-G2: the model's credit on a not_found quote resolves to the default…
+    p = price(_e1("full", "none", quote="not_found"))
+    res = {r.check_id: r for r in p.checks}
+    assert (res["A.c1"].option_id, res["A.c1"].source) == ("absent", "gated")
+    assert res["A.c1"].claimed_option_id == "full"            # the claim stays on the record
+    assert "evidence_unverified" in _t(p).flags
+    assert _t(p).awarded == D("0")
+    # …but HER selection of the same option is never gated (v5 evidence_confirmed)
+    p = price(_e1("full", "none", quote="not_found"),
+              overlay({"A.c1": CheckDecision(option_id="full")}))
+    assert _t(p).awarded == D("4")
+    # the same gate applies to a v6 fault: an unverified fault is not charged
+    c1 = binary("A.c1", A, 4)
+    f1 = fault("A.f1", A, [("m1", 2, "x")], requires="A.c1")
+    v = view([term(A, 4)], [Sel(c1, "full", "exact"), Sel(f1, "f1", "not_found")])
+    assert _t(price(v)).awarded == D("4")
+    # a LEGACY fault (evidence_required=False) is charged as v5 charged it
+    f_legacy = fault("A.f1", A, [("m1", 2, "x")], evidence_required=False)
+    v = view([term(A, 4)], [Sel(c1, "full", "exact"), Sel(f_legacy, "f1", "not_found")])
+    assert _t(price(v)).awarded == D("2")
+    # fuzzy is verified
+    assert _t(price(_e1("full", "f1", quote="fuzzy"))).awarded == D("2")
+
+
+def test_typed_amount_resolves_credit_and_is_bounded():
+    # AM-G3: her amount on a credit check is its value; activity follows it
+    p = price(_e1("absent", "f1"), overlay({"A.c1": CheckDecision(amount=D("1.5"))}))
+    assert _charge(p, "A.f1").status == "applied"
+    assert _charge(p, "A.f1").charged == D("-1.5")           # capped by her 1.5 (S-3)
+    assert _t(p).awarded == D("0") and _t(p).typed
+    p = price(_e1("full", "none"), overlay({"A.c1": CheckDecision(amount=D("2.5"))}))
+    assert _t(p).awarded == D("2.5") and _t(p).typed
+    res = {r.check_id: r for r in p.checks}["A.c1"]
+    assert (res.source, res.value, res.option_id) == ("amount", D("2.5"), None)
+
+
+def test_note_checks_never_price():
+    c1 = binary("A.c1", A, 3)
+    n1 = note("A.n1", A, "לא נבדק שימוש בערוץ")
+    p = price(view([term(A, 3)], [Sel(c1, "full"), Sel(n1, "observed")]))
+    assert _t(p).awarded == D("3")
+    assert _t(p).notes_observed == ["A.n1"]
+    p = price(view([term(A, 3)], [Sel(c1, "full"), Sel(n1, "none")]))
+    assert _t(p).notes_observed == []
+
+
+def test_upper_clamp_is_logged_as_logic_bug():
+    # V13 makes raw > P impossible from a valid plan; a corrupt plan (credit
+    # max above the terminal) must clamp AND surface for the caller to log.
+    c1 = binary("A.c1", A, 5)
+    p = price(view([term(A, 4)], [Sel(c1, "full")]))
+    assert _t(p).awarded == D("4")
+    assert "bounds_clamped" in _t(p).flags
+    assert any(f.startswith("upper_clamp_logic_bug:") for f in p.flags)
+
+
+def test_primary_check_is_the_highest_resolved_credit_ties_to_plan_order():
+    c1, c2 = binary("A.c1", A, 2), binary("A.c2", A, 2)
+    assert _t(price(view([term(A, 4)], [Sel(c1, "full"), Sel(c2, "full")]))).primary_check_id == "A.c1"
+    assert _t(price(view([term(A, 4)], [Sel(c1, "absent"), Sel(c2, "full")]))).primary_check_id == "A.c2"
+
+
+def test_selection_groups_aggregate_unchanged():
+    q1c, q2c = binary("q1.c0.c1", "q1.c0", 10), binary("q2.c0.c1", "q2.c0", 10)
+    v = view([term("q1.c0", 10, q="q1"), term("q2.c0", 10, q="q2")],
+             [Sel(q1c, "full"), Sel(q2c, "absent")], groups=[(["q1", "q2"], 1)])
+    p = price(v)
+    assert (p.total_score, p.total_possible) == (D("10"), D("10"))
+    excluded = [s for s in p.scopes if not s.counted]
+    assert [s.question_id for s in excluded] == ["q2"]
+
+
+def test_price_is_invariant_under_list_order():
+    c1 = binary("A.c1", A, 4)
+    f1 = fault("A.f1", A, [("m1", 2, "x")], requires="A.c1")
+    a = view([term(A, 4)], [Sel(c1, "full"), Sel(f1, "f1")])
+    b = a.model_copy(update={"checks": list(reversed(a.checks))})
+    assert price(a) == price(b)
+
+
+# ── PRC-8 purity ─────────────────────────────────────────────────────────────
+
+_ALLOWED_IMPORTS = {"__future__", "dataclasses", "decimal", "typing", "types", "enum",
+                    "pydantic", "app.agents.grader.plan_schemas",
+                    "app.schemas.ontology_types", "app.services.selection_scoring"}
+
+
+def test_pricer_module_is_pure():
+    """PRC-8: no I/O, DB, LLM, clock, logging or randomness — by import scan."""
+    src = Path(__file__).resolve().parents[2] / "app" / "services" / "pricing_v6.py"
+    tree = ast.parse(src.read_text(encoding="utf-8"))
+    mods = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            mods.update(a.name for a in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            mods.add(node.module or "")
+    assert mods <= _ALLOWED_IMPORTS, f"impure imports: {sorted(mods - _ALLOWED_IMPORTS)}"
+    banned = {"open", "print", "input", "__import__", "eval", "exec"}
+    calls = {n.func.id for n in ast.walk(tree)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    assert not (calls & banned)
+
+
+# ── Q-22 (surfaced at Phase 1, awaiting a ruling) ────────────────────────────
+
+@pytest.mark.xfail(strict=True, reason=(
+    "Q-22: §4.2 chooses a group's one charge (step 4, largest capped magnitude) "
+    "BEFORE per-terminal floors (step 5), so PRC-6 ('moving a fault to none never "
+    "lowers the total') fails when the kept charge sits on a terminal with no room: "
+    "5.00 -> 4.25. PRC-4 and PRC-6 cannot both hold as written; owner rules the fix."))
+def test_prc6_charge_group_meets_a_floor():
+    a_c = binary("A.c1", "A", "0.25")
+    a_f = fault("A.f1", "A", [("m1", 1, "x")], group="g")
+    b_c = binary("B.c1", "B", 5)
+    b_f = fault("B.f1", "B", [("m2", 1, "x")], group="g")
+    v = view([term("A", "0.25"), term("B", 5)],
+             [Sel(a_c, "full"), Sel(a_f, "f1"), Sel(b_c, "full"), Sel(b_f, "f1")])
+    before = price(v)
+    after = price(v, overlay({"A.f1": CheckDecision(option_id="none")}))
+    assert after.total_score >= before.total_score
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "Q-22a: S-3 caps EACH fault at what its behavior earned, so two fault checks "
+    "that require the same credit check can together take twice its value and eat "
+    "other credit: raising the behavior from absent to full drops the terminal "
+    "3.0 -> 0.0 (search seed 2782). S-3's own sentence ('attempted badly never "
+    "scores below skipped') needs the cap on the SUM. Owner rules the fix."))
+def test_prc6_two_faults_on_one_behavior():
+    lad = ladder("A.c1", A, 4, [("p", PartialFraction.THREE_QUARTERS), ("q", PartialFraction.QUARTER)])
+    beh = binary("A.c2", A, "3.5")
+    f1 = fault("A.f1", A, [("m1", 4, "x")], requires="A.c2")
+    f2 = fault("A.f2", A, [("m2", 6, "y")], requires="A.c2")
+    v = view([term(A, "7.5")], [Sel(lad, "p1"), Sel(beh, "absent"), Sel(f1, "f1"), Sel(f2, "f1")])
+    before = price(v)
+    after = price(v, overlay({"A.c2": CheckDecision(option_id="full")}))
+    assert before.total_score == D("3")
+    assert after.total_score >= before.total_score
+
+
+# ── the pricer's I/O contract (declarative; the TS mirror parses the same JSON)
+
+def test_pricer_models_are_frozen():
+    from app.services import pricing_v6 as pv
+    for model in (pv.ViewTerminal, pv.ViewCheck, pv.SelectionGroupView, pv.SelectionView,
+                  pv.DraftV6View, pv.CheckDecision, pv.PricingOverlay, pv.ResolvedCheck,
+                  pv.PricedCharge, pv.PricedTerminal, pv.PricedScope, pv.PricedTest):
+        assert model.model_config.get("frozen") is True, model.__name__
+    t = term(A, 4)
+    with pytest.raises(Exception):
+        t.points_possible = D("5")                                  # type: ignore[misc]
+
+
+def test_absent_optional_fields_take_their_documented_defaults():
+    """A field absent from the JSON must mean the same thing in Python as in
+    the TS mirror: these defaults are part of the wire contract (PRC-7)."""
+    from app.services import pricing_v6 as pv
+    assert pv.ViewTerminal(terminal_id="t", question_id="q",
+                           points_possible=D("1")).sub_question_id is None
+    vc = pv.ViewCheck(plan=binary("t.c1", "t", 1), plan_index=0)
+    assert vc.model_option_id is None and vc.quote_status is None
+    assert pv.SelectionView(total_points=D("1"), question_order=["q"]).groups == []
+    d = pv.CheckDecision()
+    assert (d.option_id, d.amount, d.comment, d.evidence_disputed) == (None, None, None, False)
+    o = pv.PricingOverlay()
+    assert o.checks == {} and o.terminal_points == {}
+    r = pv.ResolvedCheck(check_id="x", option_id=None, value=D("0"), source="default")
+    assert r.missing is False and r.claimed_option_id is None
+    # the quote vocabulary is closed: anything else is refused at the boundary
+    with pytest.raises(Exception):
+        pv.ViewCheck(plan=binary("t.c1", "t", 1), plan_index=0, quote_status="close")

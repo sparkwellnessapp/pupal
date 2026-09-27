@@ -156,6 +156,16 @@ Recorded verbatim in substance. Code comments and RUNLOG cite the **AM-G** and *
 
 ---
 
+## 1b. Open decisions raised after STOP-1 (awaiting the owner)
+
+| # | Raised by | Question | Evidence | Recommendation |
+|---|---|---|---|---|
+| **Q-22** | Phase 1 (Hypothesis, 2,000 examples) | **PRC-6 cannot hold under §4.2 as written.** Two classes: **(a)** S-3 caps *each* fault at what its behavior earned, so two fault checks that `require` the same credit check can together charge twice its value and eat other credit — raising a 3.5-point behavior from absent to full drops the terminal 3.0 → 0.0; **(b)** PRC-4 keeps a group's charge by largest magnitude *before* the terminal floor, so a charge swallowed by a floor moves, when that fault is cleared, to a terminal where it bites — total 5.00 → 4.25. | Exhaustive search, 6,000 seeded cases × every legal move: **69** violations under the spec's rule (58 raise, 11 fault→none); **0** under the prototype below. Both classes pinned by strict-xfail tests (`test_prc6_two_faults_on_one_behavior`, `test_prc6_charge_group_meets_a_floor`); `prop_total_monotone` is a non-strict xfail until ruled. | **Adopt both.** **Q-22a (S-3 / PRC-3):** *a behavior's faults together never cost more than it earned* — the charges requiring one credit check are reduced, latest plan order first, until their sum ≥ −its value (this is what S-3's own sentence "attempted badly never scores below skipped" needs). **Q-22b (PRC-4):** *a group's one charge lands where it lowers the test total the most; ties to the earliest plan order* — "charged once" then means charged, never silently swallowed by a floor. E1–E10 and the largest-magnitude example price identically. Enumeration is over group members (tiny in practice); the TS mirror enumerates in the same order. |
+| **Q-B1** | Track B (stopped at $0) | **The eval's plan tool is not the production pin.** `tools/segment_plan.py` compiles with the compiler default `ROUTE_MIN_POINTS = 4`; production routes at `settings.plan_route_min_points = 3` (OD-24). bagrut: the tool routes 8 monoliths, production 14; hobby: 5 vs 13 — so the committed `hobby_tvshow.routed+segmented.plan.json` (the A3 config's plan) is not the production pin either. | Track B's RUNLOG entry (2026-09-27); dry runs: bagrut P≥3 route $0.080 + segment $0.115, hobby P≥3 route $0.087 + segment $0.063 (real ≈ 2× estimate). | Make the tool read `settings.plan_route_min_points` (tests-only, one line); rebuild both exams' routed+segmented plans at P≥3 (~$0.7), keeping the old hobby artefact under a new name for A3 history; then run the baseline as ruled (~$6–8, under the $12 cap). |
+| **TC-1…TC-8** | Track C | Standalone deduction lines: field shape, placement, contract-before-v6.1, class D, package + re-baseline (~$4.7), gold/scorer, grading-eval contracts, concept scope. | `docs/STANDALONE_DEDUCTIONS_CENSUS.md` §1 (a fifth lost line found: `employee_course_select1.md:166`). | As listed there. |
+
+---
+
 ## 2. The census, item by item
 
 ### C-1 · Production grading today

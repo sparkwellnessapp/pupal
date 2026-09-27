@@ -17,7 +17,11 @@ from app.agents.grader.pricer import price_scope
 from app.agents.grader.validator import strip_out_of_world
 
 GRADER = Path(__file__).resolve().parents[2] / "app" / "agents" / "grader"
+# [grader-v6] the reasoning line she reads (fallback composer + its copy) is
+# grading copy too — CWV-5 binds it.
+EXPLAINER = GRADER.parent / "explainer"
 MACHINE = re.compile(r"מודל")                    # «המודל», «מהמודל», «מודל החזיר»
+DENY_LISTS = {"MACHINE_VOCABULARY"}              # the words this scan forbids, stated once
 INTERNAL_ID = re.compile(r"\bq\d+\.")
 
 
@@ -28,15 +32,22 @@ def _hebrew_literals(path: Path):
                                     ast.ClassDef))
                   and n.body and isinstance(n.body[0], ast.Expr)
                   and isinstance(n.body[0].value, ast.Constant)}
+    # The one place a banned word may be spelled is the deny-list that bans it
+    # (E-3's `MACHINE_VOCABULARY`); exempt exactly that assignment, nothing else.
+    denied = {id(c) for n in ast.walk(tree)
+              if isinstance(n, ast.Assign)
+              and any(isinstance(t, ast.Name) and t.id in DENY_LISTS for t in n.targets)
+              for c in ast.walk(n.value) if isinstance(c, ast.Constant)}
     for node in ast.walk(tree):
         if (isinstance(node, ast.Constant) and isinstance(node.value, str)
-                and id(node) not in docstrings and re.search(r"[א-ת]", node.value)):
+                and id(node) not in docstrings and id(node) not in denied
+                and re.search(r"[א-ת]", node.value)):
             yield node.lineno, node.value
 
 
 def test_no_grader_string_speaks_of_the_model():
     offenders = [f"{p.name}:{line}: {text[:60]}"
-                 for p in sorted(GRADER.glob("*.py"))
+                 for p in sorted([*GRADER.glob("*.py"), *EXPLAINER.glob("*.py")])
                  for line, text in _hebrew_literals(p) if MACHINE.search(text)]
     assert offenders == []
 
