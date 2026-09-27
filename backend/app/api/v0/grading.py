@@ -859,6 +859,15 @@ async def approve_graded_test(
                 f"{', '.join(blocked)}. עברי על הסעיף וקבעי בעצמך את כל "
                 f"הבדיקות שבו — לאחר מכן אפשר לאשר."
             )
+        elif all(v.violation_kind == "undecided_check" for v in e.violations):
+            # [OD-4] the one refusal she resolves in place: checks Vivi could
+            # not decide, drawn as an empty amber ring on her screen.
+            n = len(e.violations)
+            what = "בדיקה אחת" if n == 1 else f"{n} בדיקות"
+            message_he = (
+                f"לא ניתן לאשר עדיין: נותרו {what} שוויוי לא קבעה, מסומנות "
+                f"בעיגול כתום ריק. קבעי אותן, ולאחר מכן אפשר לאשר."
+            )
         else:
             message_he = (
                 f"לא ניתן לאשר: נמצאו {len(e.violations)} בעיות שדורשות תיקון "

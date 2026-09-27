@@ -154,8 +154,11 @@ async def test_closed_world_extra_check_id_annotated_and_dropped():
         _verdict("ghost.k9", "met")])
     draft = await _agent(_basic_plan(), [resp]).grade(_gradable([_scope()]))
     assert draft.scope_outcomes[0].points_awarded == Decimal("3")
-    assert any(a.annotation_type == "closed_world_violation"
-               and a.target_id == "ghost.k9" for a in draft.annotations)
+    # [CWV-1] INFO, anchored to the real scope; the stray id rides metadata
+    # and the scope flag (the eval signal), never a blocker she cannot clear.
+    cw = [a for a in draft.annotations if a.annotation_type == "closed_world_violation"]
+    assert [(a.severity.value, a.target_id, a.metadata["extra_id"]) for a in cw]         == [("info", "q1", "ghost.k9")]
+    assert [f.reason for f in draft.scope_outcomes[0].flags]         == [FlagReason.CLOSED_WORLD_VIOLATION]
 
 
 @pytest.mark.asyncio

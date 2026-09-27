@@ -487,13 +487,9 @@ class GraderAgent:
         scope_points = sum(co.points_awarded for co in criterion_outcomes)
         min_conf = min(terminal_confidences) if terminal_confidences else 0.0
 
-        # Scope-level flags: only closed-world violations bubble up to scope
-        scope_flags = [
-            f
-            for vg in validation_result.validated_grades
-            for f in vg.flags
-            if f.reason == FlagReason.CLOSED_WORLD_VIOLATION
-        ]
+        # [CWV-1] Scope-level flags: the closed-world events (a stray id belongs
+        # to no terminal). Read by the eval suite; never by the marker count.
+        scope_flags = list(validation_result.scope_flags)
 
         duration_ms = int((time.monotonic() - t0) * 1000)
         logger.info(

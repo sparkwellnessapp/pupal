@@ -52,7 +52,7 @@ from app.agents.grader.plan_schemas import (
     TerminalPlan,
 )
 from app.agents.grader.pricer import AssessedVerdict, PricedTerminal, price_scope
-from app.agents.grader.validator import quote_match_status
+from app.agents.grader.validator import quote_match_status, strip_out_of_world
 from app.agents.grader.verifier_prompt import (
     VERIFIER_PROMPT_VERSION,
     VERIFIER_SYSTEM_PROMPT,
@@ -71,7 +71,7 @@ from app.schemas.graded_test_draft import (
     SubCriterionOutcome,
 )
 from app.schemas.ontology_types import (
-    AnnotationSeverity,
+    FlaggedOutcome,
     FlagReason,
     NumericPolicy,
 )
@@ -162,15 +162,17 @@ class PlanVerifyGrader:
     async def _verify_scope(self, scope: GradableScope,
                             terminal_plans: List[TerminalPlan]
                             ) -> Tuple[Dict[str, CheckVerdict], List[GradingAnnotation],
-                                       int, int, Optional[int]]:
+                                       List[FlaggedOutcome], int, int, Optional[int]]:
         """sc_n independent calls → median-consensus verdict per check.
-        Returns (verdict per check_id, closed-world annotations, tokens...)."""
+        Returns (verdict per check_id, closed-world annotations, closed-world
+        scope flags, tokens...)."""
         # ALPHA-GAP A-4 (D-2): text-only message; alpha attaches the page image for a scope whose answer carries a figure line.
         user_msg = build_verifier_message(scope, terminal_plans, self._profile)
         known_ids = {c.check_id for tp in terminal_plans for c in tp.checks}
 
         per_call: List[Dict[str, CheckVerdict]] = []
         annotations: List[GradingAnnotation] = []
+        scope_flags: List[FlaggedOutcome] = []
         in_tok = out_tok = 0
         cached_tok: Optional[int] = None
         for _ in range(self._sc_n):
@@ -179,18 +181,20 @@ class PlanVerifyGrader:
             out_tok += o
             if c is not None:
                 cached_tok = (cached_tok or 0) + c
+            # [CWV-1, CWV-6] closed world at grade time: recover a romanised id,
+            # drop anything else — never an ERROR she could not resolve.
+            in_world, cw_flags, cw_anns = strip_out_of_world(
+                parsed.verdicts,
+                key=lambda v: v.check_id,
+                known=known_ids,
+                scope_id=_scope_target_id(scope),
+                rekey=lambda v, real: v.model_copy(update={"check_id": real}),
+                describe=lambda v: f"verdict={v.verdict}",
+            )
+            scope_flags.extend(cw_flags)
+            annotations.extend(cw_anns)
             call_map: Dict[str, CheckVerdict] = {}
-            for v in parsed.verdicts:
-                if v.check_id not in known_ids:
-                    annotations.append(GradingAnnotation(
-                        severity=AnnotationSeverity.ERROR,
-                        target_id=v.check_id,
-                        annotation_type="closed_world_violation",
-                        message=f"המודל החזיר פסיקה לבדיקה לא מוכרת: {v.check_id}",
-                        metadata={"extra_id": v.check_id,
-                                  "scope": _scope_target_id(scope)},
-                    ))
-                    continue
+            for v in in_world:
                 call_map.setdefault(v.check_id, v)   # first occurrence wins
             per_call.append(call_map)
 
@@ -201,7 +205,7 @@ class PlanVerifyGrader:
                 continue                              # pricer flags UNVERIFIED_CHECK
             med = _median_verdict([v.verdict for v in votes])
             consensus[cid] = next(v for v in votes if v.verdict == med)
-        return consensus, annotations, in_tok, out_tok, cached_tok
+        return consensus, annotations, scope_flags, in_tok, out_tok, cached_tok
 
     # ── outcome assembly from priced terminals ───────────────────────────────
     def _assemble(self, scope: GradableScope,
@@ -311,7 +315,7 @@ class PlanVerifyGrader:
         t0 = time.monotonic()
         retry_count = 0
         try:
-            consensus, cw_annotations, in_tok, out_tok, cached = \
+            consensus, cw_annotations, cw_flags, in_tok, out_tok, cached = \
                 await self._verify_scope(scope, terminal_plans)
         except Exception as e:
             # [OD-R1, owner-ruled 2026-09-10] EVERY failed scope is re-graded
@@ -347,7 +351,7 @@ class PlanVerifyGrader:
                 f"exc={type(e).__name__}: {str(e)[:300]}")
             await asyncio.sleep(random.uniform(RETRY_BACKOFF_MIN, RETRY_BACKOFF_MAX))
             try:
-                consensus, cw_annotations, in_tok, out_tok, cached = \
+                consensus, cw_annotations, cw_flags, in_tok, out_tok, cached = \
                     await self._verify_scope(scope, terminal_plans)
             except Exception as e2:
                 logger.error(
@@ -392,7 +396,7 @@ class PlanVerifyGrader:
                 points_awarded=scope_points,
                 min_confidence=min(confidences) if confidences else 0.0,
                 criterion_outcomes=criterion_outcomes,
-                flags=[],
+                flags=cw_flags,
                 graded_by="llm",
                 # [EVD-1] the answer this scope was graded against, recorded
                 # with the verdict rather than re-derived by the reader.

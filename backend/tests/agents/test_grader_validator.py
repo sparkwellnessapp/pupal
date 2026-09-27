@@ -106,10 +106,12 @@ def test_closed_world_extra_id_dropped():
     assert "EXTRA_UNKNOWN_ID" not in ids
     assert "c1" in ids
 
-    # Error annotation produced for the violation
-    error_anns = [a for a in result.annotations if a.annotation_type == "closed_world_violation"]
-    assert len(error_anns) == 1
-    assert error_anns[0].severity.value == "error"
+    # [CWV-1] recorded, never blocking: INFO + a scope flag (was ERROR, which
+    # made the draft unapprovable with nothing on screen to resolve it)
+    cw_anns = [a for a in result.annotations if a.annotation_type == "closed_world_violation"]
+    assert len(cw_anns) == 1
+    assert cw_anns[0].severity.value == "info"
+    assert len(result.scope_flags) == 1
 
 
 # ---------------------------------------------------------------------------

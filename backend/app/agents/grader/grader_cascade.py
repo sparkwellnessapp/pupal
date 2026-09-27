@@ -30,7 +30,9 @@ from app.agents.grader.plan_schemas import CheckVerdict, GradingPlan, TerminalPl
 from app.agents.grader.validator import quote_match_status
 from app.schemas.gradable import GradableScope
 from app.schemas.graded_test_draft import GradingAnnotation
-from app.schemas.ontology_types import AnnotationSeverity, NumericPolicy, QuoteValidationStatus
+from app.schemas.ontology_types import (
+    AnnotationSeverity, FlaggedOutcome, NumericPolicy, QuoteValidationStatus,
+)
 
 ROUTER_CONF_THRESHOLD_DEFAULT = 0.80
 
@@ -94,12 +96,12 @@ class CascadeGrader(PlanVerifyGrader):
     async def _verify_scope(self, scope: GradableScope,
                             terminal_plans: List[TerminalPlan]
                             ) -> Tuple[Dict[str, CheckVerdict], List[GradingAnnotation],
-                                       int, int, Optional[int]]:
+                                       List[FlaggedOutcome], int, int, Optional[int]]:
         self.total_scope_count += 1
         base = self.cascade_usage[self._base_model_version]
         champ = self.cascade_usage[self._champion_model_version]
 
-        consensus, anns, in_tok, out_tok, cached = await super()._verify_scope(
+        consensus, anns, flags, in_tok, out_tok, cached = await super()._verify_scope(
             scope, terminal_plans)
         base["input"] += in_tok
         base["output"] += out_tok
@@ -107,7 +109,7 @@ class CascadeGrader(PlanVerifyGrader):
 
         trigger = self._route(scope, consensus)
         if trigger is None:
-            return consensus, anns, in_tok, out_tok, cached
+            return consensus, anns, flags, in_tok, out_tok, cached
 
         # escalate: the champion re-verifies the WHOLE scope; its verdicts win
         target = _scope_target_id(scope)
@@ -115,7 +117,7 @@ class CascadeGrader(PlanVerifyGrader):
         base_runner = self._structured_llm
         try:
             self._structured_llm = self._champion_llm
-            c_consensus, c_anns, c_in, c_out, c_cached = await super()._verify_scope(
+            c_consensus, c_anns, c_flags, c_in, c_out, c_cached = await super()._verify_scope(
                 scope, terminal_plans)
         finally:
             self._structured_llm = base_runner
@@ -127,13 +129,15 @@ class CascadeGrader(PlanVerifyGrader):
             severity=AnnotationSeverity.INFO,
             target_id=target,
             annotation_type="cascade_routed",
-            message=f"הסעיף הועבר לאימות חוזר על-ידי המודל הראשי (טריגר: {trigger})",
+            message="הסעיף נבדק פעם נוספת לאימות",
             metadata={"trigger": trigger,
                       "base_model": self._base_model_version,
                       "champion_model": self._champion_model_version},
         )
         merged_cached = ((cached or 0) + (c_cached or 0)) or None
-        return (c_consensus, c_anns + [route_ann],
+        # The champion's verdicts are the ones priced, so ITS closed-world
+        # events are the ones that describe this scope's grade.
+        return (c_consensus, c_anns + [route_ann], c_flags,
                 in_tok + c_in, out_tok + c_out, merged_cached)
 
     async def grade(self, gradable_test):

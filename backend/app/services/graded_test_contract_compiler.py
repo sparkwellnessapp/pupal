@@ -17,7 +17,12 @@ Gate checks (in order):
      terminal) is within its ceiling, on the rubric's grid, not on a note_only
      check, and carries the verdict it implies. REFUSED, never snapped: this is
      a consuming path (§3.5a) and the number is hers.
-  5. Annotations — no unresolved error-severity annotations in draft.annotations
+  5. Annotations — no unresolved error-severity annotations in draft.annotations,
+     EXCEPT `closed_world_violation`: a model verdict addressed outside the
+     closed world is handled at GRADE time (CWV-1/CWV-6) and never freezes
+     (CWV-3), so nothing on her screen could resolve it (GATE-1)
+  6. [OD-4] Every check that received NO machine verdict is decided by her —
+     the OD-R1 «every check decided» bar at check granularity
 Bounds on the DERIVED award are re-checked after pricing as a belt (§0.5).
 """
 from __future__ import annotations
@@ -56,6 +61,8 @@ class GateViolation:
         "off_grid",            # not a multiple of numeric_policy.precision
         "not_priceable",       # an amount on a note_only check
         "verdict_mismatch",    # the verdict sent is not the one the amount implies
+        # [OD-4] a real check with no machine verdict that she has not decided
+        "undecided_check",
     ]
     message: str
 
@@ -140,6 +147,57 @@ def _scope_target_id(scope_key: Tuple[str, Optional[str]]) -> str:
     return f"{question_id}.{sub_question_id}" if sub_question_id else question_id
 
 
+def _decided_by_teacher(overrides: GradedTestOverrides) -> Tuple[Set[Tuple[str, str]], Set[str]]:
+    """What she has decided: (terminal, check) pairs she gave a verdict or an
+    amount, and the terminals she pinned with a typed total. [OD-R2] a pinned
+    terminal's checks are not priced at all, so nothing beneath it can carry an
+    unread machine zero. ONE definition for both "decided" rules below."""
+    decided = {
+        (terminal_id, decision.check_id)
+        for terminal_id, decisions in overrides.terminals.items()
+        for decision in decisions
+    }
+    return decided, set(overrides.terminal_points)
+
+
+def _undecided_no_verdict_checks(
+    draft: GradedTestDraft,
+    terminal_index: Dict[str, _TerminalInfo],
+    overrides: GradedTestOverrides,
+) -> List[GateViolation]:
+    """[OD-4, CWV-2] A REAL check that received no machine verdict is decided
+    by her before it freezes.
+
+    The pricer prices such a check `not_met` at confidence 0 and names it in an
+    `unverified_check` annotation keyed by `metadata.check_id`. That zero is
+    not a judgement — nobody read the answer for it — and freezing it would be
+    the §5 catastrophe OD-R1 was ruled for. So it blocks, and it is a block she
+    resolves IN PLACE with the keys she already has (GATE-1): a verdict, an
+    amount, or a typed total on its criterion.
+    """
+    decided, pinned = _decided_by_teacher(overrides)
+    owner = {check.check_id: info.terminal_id
+             for info in terminal_index.values()
+             for check in (info.checks or [])}
+    out: List[GateViolation] = []
+    seen: Set[str] = set()
+    for ann in draft.annotations:
+        if getattr(ann, "annotation_type", None) != "unverified_check":
+            continue
+        check_id = (ann.metadata or {}).get("check_id")
+        terminal_id = owner.get(check_id)
+        if terminal_id is None or check_id in seen:
+            continue
+        seen.add(check_id)
+        if (terminal_id, check_id) in decided or terminal_id in pinned:
+            continue
+        out.append(GateViolation(
+            terminal_id=terminal_id, violation_kind="undecided_check",
+            message=f"check '{check_id}' received no machine verdict and is "
+                    f"not decided by the teacher"))
+    return out
+
+
 def _llm_failure_resolved_by_teacher(
     ann,
     terminal_index: Dict[str, _TerminalInfo],
@@ -166,14 +224,7 @@ def _llm_failure_resolved_by_teacher(
     """
     if getattr(ann, "annotation_type", None) != "llm_failure" or not ann.target_id:
         return False
-    decided = {
-        (terminal_id, decision.check_id)
-        for terminal_id, decisions in overrides.terminals.items()
-        for decision in decisions
-    }
-    # [OD-R2] an amount typed on the criterion row decides that whole terminal:
-    # its checks are not priced at all, so there is nothing left unread there.
-    pinned = set(overrides.terminal_points)
+    decided, pinned = _decided_by_teacher(overrides)
     required = [
         (info.terminal_id, check.check_id)
         for info in terminal_index.values()
@@ -369,6 +420,13 @@ def compile_graded_test(
     for ann in draft.annotations:
         if ann.severity != AnnotationSeverity.ERROR:
             continue
+        # [CWV-3, GATE-1] legacy drafts carry this as an ERROR. The stray
+        # verdict it names was dropped at grade time and never priced, and the
+        # contract is built from the draft's real checks only — so nothing
+        # unknown can freeze, and nothing on her screen could resolve it. Its
+        # CONSEQUENCE, a real check left without a verdict, is check 6.
+        if ann.annotation_type == "closed_world_violation":
+            continue
         if _llm_failure_resolved_by_teacher(ann, terminal_index, overrides):
             continue
         violations.append(GateViolation(
@@ -379,6 +437,9 @@ def compile_graded_test(
                 f"'{ann.target_id}' must be resolved before approval: {ann.message}"
             ),
         ))
+
+    # Check 6 [OD-4]: every real check with no machine verdict is decided by her
+    violations.extend(_undecided_no_verdict_checks(draft, terminal_index, overrides))
 
     if violations:
         raise GateError(violations)

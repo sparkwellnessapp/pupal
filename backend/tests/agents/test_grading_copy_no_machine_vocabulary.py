@@ -14,6 +14,7 @@ from pathlib import Path
 
 from app.agents.grader.plan_schemas import PlanCheck, TerminalPlan
 from app.agents.grader.pricer import price_scope
+from app.agents.grader.validator import strip_out_of_world
 
 GRADER = Path(__file__).resolve().parents[2] / "app" / "agents" / "grader"
 MACHINE = re.compile(r"מודל")                    # «המודל», «מהמודל», «מודל החזיר»
@@ -41,7 +42,6 @@ def test_no_grader_string_speaks_of_the_model():
 
 
 def test_the_closed_world_annotation_names_no_id():
-    from app.agents.grader.validator import strip_out_of_world
     _kept, _flags, annotations = strip_out_of_world(
         ["q1.a.1.c0.k1"], key=lambda i: i, known={"q1.א.1.c0.k1"}, scope_id="q1.א.1")
     for a in annotations:

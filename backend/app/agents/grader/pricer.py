@@ -154,7 +154,7 @@ def price_scope(terminal_plans: List[TerminalPlan],
                 quote_status=(av.quote_status.value
                               if av is not None and av.quote_status is not None else None),
                 basis_he=(av.basis_he if av is not None
-                          else "לא אומת על ידי המודל"),
+                          else "ויוי לא קבעה את הבדיקה הזו"),
                 confidence=(max(0.0, min(1.0, av.confidence)) if av is not None else 0.0),
             ))
 
@@ -171,7 +171,7 @@ def price_scope(terminal_plans: List[TerminalPlan],
                 annotations.append(GradingAnnotation(
                     severity=AnnotationSeverity.WARNING,
                     target_id=tp.terminal_id, annotation_type="unverified_check",
-                    message=f"הבדיקה '{check.description_he}' לא אומתה על ידי המודל — לא ניתן זיכוי",
+                    message=f"ויוי לא קבעה את הבדיקה '{check.description_he}' — יש לקבוע אותה ידנית",
                     metadata={"check_id": check.check_id}))
                 lines.append(f"✗ {check.description_he} — לא אומת")
                 continue

@@ -401,11 +401,15 @@ def test_a_partly_decided_failed_scope_still_blocks():
 
 
 def test_only_llm_failure_is_teacher_resolvable():
-    """Every other ERROR class asserts something about the WORK, not about the
-    machine's silence, so no overlay may wave it through."""
+    """Every other ERROR class stays blocking whatever she decided.
+
+    (This used `closed_world_violation` as its example until 2026-09-27. That
+    one is now handled at grade time and skipped at approval — CWV-1/CWV-3,
+    `test_gate_closed_world.py` — because it asserts nothing about the WORK:
+    it describes the model's addressing, which no overlay could resolve.)"""
     draft = _draft(annotations=[_annotation(
         AnnotationSeverity.ERROR, target_id="q1",
-        annotation_type="closed_world_violation")])
+        annotation_type="no_answer")])
 
     with pytest.raises(GateError) as exc_info:
         compile_graded_test(draft, _ov("q1.c0", "q1.c0.k1", "met"),

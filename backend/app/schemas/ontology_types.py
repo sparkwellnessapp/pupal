@@ -131,6 +131,9 @@ class FlagReason(str, Enum):
     UNVERIFIED_CHECK = "unverified_check"        # plan check received no verdict
     EVIDENCE_UNVERIFIED = "evidence_unverified"  # met/partially_met on an unverifiable span — credit refused
     TARIFF_COERCED = "tariff_coerced"            # partially_met on a binary tariff check — treated as fired
+    # [CWV-6] a verdict addressed to a romanised id (`q1.a…` for `q1.א…`) was
+    # recovered onto its one real id. Scope-level, eval-only: never a marker.
+    CHECK_ID_RECOVERED = "check_id_recovered"
 
 
 # =============================================================================

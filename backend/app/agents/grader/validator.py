@@ -11,9 +11,10 @@ Four checks applied to the LLM's QuestionGradingResponse for one scope:
 from __future__ import annotations
 
 import difflib
+import logging
 from dataclasses import dataclass, field
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar
 
 from app.schemas.graded_test_draft import GradingAnnotation
 from app.schemas.gradable import GradableScope
@@ -26,6 +27,9 @@ from app.schemas.ontology_types import (
     QuoteValidationStatus,
 )
 from app.agents.grader.schemas import QuestionGradingResponse
+
+logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
 # ---------------------------------------------------------------------------
@@ -46,6 +50,136 @@ class ValidatedTerminalGrade:
 class ValidationResult:
     validated_grades: List[ValidatedTerminalGrade]
     annotations: List[GradingAnnotation] = field(default_factory=list)
+    # [CWV-1] closed-world events for the SCOPE outcome — a stray id belongs to
+    # no terminal, so it cannot ride a terminal's flags.
+    scope_flags: List[FlaggedOutcome] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# [CWV-1] The closed world, enforced at GRADE time — ONE function, both graders
+# ---------------------------------------------------------------------------
+#
+# A verdict addressed to an id outside the scope's closed world never reaches
+# the pricer and never reaches the teacher as a blocker: nothing on the review
+# screen could resolve it (GATE-1). It is recovered when it is provably a
+# transliteration of a real id, and dropped otherwise — recorded both ways as a
+# structured scope flag (the eval signal, §6).
+#
+# CWV-6 TransliterationRecovery (owner-ruled 2026-09-27). graded_test 271813b4:
+# the plan said `q1.א.1.c0.k1`, the verifier answered `q1.a.1.c0.k1`, and a
+# 12-point check lost its verdict. The model copies the ASCII parts of an id
+# faithfully and sometimes romanises the Hebrew label. The recovery is TARGET-
+# DRIVEN: it never reads a Latin letter and guesses a Hebrew one; it asks, of
+# each real id, «is this Latin segment an accepted spelling of THIS Hebrew
+# label?» — so the ambiguity of romanisation (h = ה or ח) never chooses for us.
+# It fires only when (1) every other segment matches exactly, (2) the differing
+# segment is a single Hebrew letter spelled by position or by sound, (3) exactly
+# one real id fits, and (4) that id did not receive its own verdict in the same
+# answer. Anything less is dropped, never guessed. This repairs the MODEL'S
+# ADDRESSING, not anything the teacher or the student wrote (FC is untouched);
+# the teacher is not told, by ruling — the grade is the one she would have got
+# had the model copied the label.
+
+_HEBREW_LABEL_SPELLINGS: Dict[str, frozenset] = {
+    # letter: {by alphabet position} | {by sound}
+    "א": frozenset({"a"}),
+    "ב": frozenset({"b", "v"}),
+    "ג": frozenset({"c", "g"}),
+    "ד": frozenset({"d"}),
+    "ה": frozenset({"e", "h"}),
+    "ו": frozenset({"f", "v", "w", "o", "u"}),
+    "ז": frozenset({"g", "z"}),
+    "ח": frozenset({"h", "ch", "kh"}),
+    "ט": frozenset({"i", "t"}),
+    "י": frozenset({"j", "y", "i"}),
+    "כ": frozenset({"k", "kh", "ch"}),
+    "ל": frozenset({"l"}),
+    "מ": frozenset({"m"}),
+    "נ": frozenset({"n"}),
+    "ס": frozenset({"o", "s"}),
+    "ע": frozenset({"p", "a", "e"}),
+    "פ": frozenset({"q", "p", "f"}),
+    "צ": frozenset({"r", "ts", "tz", "z"}),
+    "ק": frozenset({"s", "k", "q"}),
+    "ר": frozenset({"t", "r"}),
+    "ש": frozenset({"u", "sh", "s"}),
+    "ת": frozenset({"v", "t"}),
+}
+
+
+def recover_transliterated_id(stray: str, known: Iterable[str]) -> Optional[str]:
+    """The ONE real id `stray` is a romanisation of, or None (CWV-6)."""
+    stray_parts = stray.split(".")
+    matches: List[str] = []
+    for real in known:
+        real_parts = real.split(".")
+        if len(real_parts) != len(stray_parts):
+            continue
+        romanised = False
+        for got, want in zip(stray_parts, real_parts):
+            if got == want:
+                continue
+            if got.lower() in _HEBREW_LABEL_SPELLINGS.get(want, frozenset()):
+                romanised = True
+                continue
+            break
+        else:
+            if romanised:
+                matches.append(real)
+    return matches[0] if len(matches) == 1 else None
+
+
+def strip_out_of_world(
+    items: Sequence[T],
+    *,
+    key: Callable[[T], str],
+    known: Iterable[str],
+    scope_id: str,
+    rekey: Optional[Callable[[T, str], T]] = None,
+    describe: Optional[Callable[[T], str]] = None,
+) -> Tuple[List[T], List[FlaggedOutcome], List[GradingAnnotation]]:
+    """[CWV-1] Keep the in-world items, recover transliterated ones (CWV-6,
+    when `rekey` is given), drop the rest.
+
+    Returns (kept, scope_flags, annotations). The annotations are INFO and name
+    no id — she cannot evaluate a machine's addressing, so nothing here asks
+    her to (OD-1 b). The flags carry the ids AND what the model said, so the
+    eval suite can mine them and a dropped verdict is never lost without trace.
+    """
+    known_set = set(known)
+    answered = {key(i) for i in items if key(i) in known_set}
+    kept: List[T] = []
+    flags: List[FlaggedOutcome] = []
+    annotations: List[GradingAnnotation] = []
+    for item in items:
+        item_id = key(item)
+        if item_id in known_set:
+            kept.append(item)
+            continue
+        said = f" ({describe(item)})" if describe else ""
+        real = recover_transliterated_id(item_id, known_set) if rekey else None
+        if real is not None and real not in answered:
+            answered.add(real)
+            kept.append(rekey(item, real))
+            flags.append(FlaggedOutcome(
+                criterion_id=real, reason=FlagReason.CHECK_ID_RECOVERED,
+                message=f"returned {item_id}, recovered as {real}{said}"))
+            # §8: anything you intend to QUERY goes in the message string.
+            logger.info(f"closed_world_id_recovered scope={scope_id} "
+                        f"returned={item_id} recovered={real}")
+            continue
+        flags.append(FlaggedOutcome(
+            criterion_id=item_id, reason=FlagReason.CLOSED_WORLD_VIOLATION,
+            message=f"returned {item_id}, outside the closed world — dropped{said}"))
+        annotations.append(GradingAnnotation(
+            severity=AnnotationSeverity.INFO,
+            target_id=scope_id,
+            annotation_type="closed_world_violation",
+            message="ויוי החזירה פסיקה שאינה שייכת לסעיף הזה, והיא לא נכללה בציון",
+            metadata={"extra_id": item_id, "scope": scope_id},
+        ))
+        logger.warning(f"closed_world_id_dropped scope={scope_id} returned={item_id}")
+    return kept, flags, annotations
 
 
 # ---------------------------------------------------------------------------
@@ -277,25 +411,19 @@ def validate_scope_grading(
     all_annotations: List[GradingAnnotation] = []
     validated_grades: List[ValidatedTerminalGrade] = []
 
-    # ── Step 1: Closed-world re-check ────────────────────────────────────────
-    returned_ids = {g.terminal_criterion_id for g in response.grades}
-    extra_ids = returned_ids - terminal_map.keys()
-    for extra_id in extra_ids:
-        # Extra ID: drop the grade, annotate error
-        all_annotations.append(GradingAnnotation(
-            severity=AnnotationSeverity.ERROR,
-            target_id=extra_id,
-            annotation_type="closed_world_violation",
-            message=f"מודל החזיר ציון לקריטריון לא מוכר: {extra_id}",
-            metadata={"extra_id": extra_id, "scope": _scope_target_id(scope)},
-        ))
+    # ── Step 1: Closed-world re-check [CWV-1, CWV-6] ─────────────────────────
+    in_world, scope_flags, cw_annotations = strip_out_of_world(
+        response.grades,
+        key=lambda g: g.terminal_criterion_id,
+        known=terminal_map.keys(),
+        scope_id=_scope_target_id(scope),
+        rekey=lambda g, real: g.model_copy(update={"terminal_criterion_id": real}),
+        describe=lambda g: f"points_awarded={g.points_awarded}",
+    )
+    all_annotations.extend(cw_annotations)
 
     # Build lookup of valid (in-scope) grades
-    valid_grade_map = {
-        g.terminal_criterion_id: g
-        for g in response.grades
-        if g.terminal_criterion_id in terminal_map
-    }
+    valid_grade_map = {g.terminal_criterion_id: g for g in in_world}
 
     # ── Steps 2–5: Process each terminal in the scope ───────────────────────
     for terminal_id, max_points in terminal_map.items():
@@ -313,7 +441,7 @@ def validate_scope_grading(
                 severity=AnnotationSeverity.WARNING,
                 target_id=terminal_id,
                 annotation_type="ungraded_criterion",
-                message=f"קריטריון {terminal_id} לא קיבל ציון מהמודל",
+                message="הקריטריון לא נבדק אוטומטית — לא ניתן זיכוי",
             ))
             all_annotations.extend(term_annotations)
             validated_grades.append(ValidatedTerminalGrade(
@@ -371,4 +499,5 @@ def validate_scope_grading(
             flags=term_flags,
         ))
 
-    return ValidationResult(validated_grades=validated_grades, annotations=all_annotations)
+    return ValidationResult(validated_grades=validated_grades, annotations=all_annotations,
+                            scope_flags=scope_flags)

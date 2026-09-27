@@ -489,7 +489,10 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
         const check = flatChecks.find((c) => c.check_id === target);
         if (!check) return;
         onOverlayChange(fn(
-            check.terminalId, check.check_id, check.aiVerdict, check.kind, check.unverified));
+            check.terminalId, check.check_id, check.aiVerdict, check.kind,
+            // [OD-3] a no-verdict row's stored ✗ is not Vivi's judgement; the
+            // confirm path keeps HER ✗ instead of dropping it as "no change".
+            check.unverified || check.aiNoVerdict));
     }, [readOnly, focus, flatChecks, onOverlayChange, visibleCheck]);
 
     /**
@@ -1010,7 +1013,7 @@ export function GradeReviewSurface(props: GradeReviewSurfaceProps) {
                                     if (found) {
                                         onOverlayChange(cycleVerdict(
                                             overlay, t, c, found.aiVerdict, found.kind,
-                                            undefined, found.unverified));
+                                            undefined, found.unverified || found.aiNoVerdict));
                                     }
                                     setFocus(c);
                                 }}

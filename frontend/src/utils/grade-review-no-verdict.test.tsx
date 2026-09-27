@@ -81,8 +81,21 @@ describe('the check it displaced reads UNDECIDED, in place', () => {
         expect(theCheck(draft([STRAY, NO_VERDICT]), decided).noVerdict).toBe(false);
     });
 
+    it('choosing ✗ is kept as HER decision, not dropped as "same as Vivi"', () => {
+        // The stored ✗ is the pricer's default, not a verdict, so the surface
+        // cycles a no-verdict row on the confirm path (as it does an unverified
+        // ✓): the first press records ✗ as hers, and returning to ✗ keeps it.
+        const T = 'q1.א.1.c0', C = 'q1.א.1.c0.k1';
+        const first = cycleVerdict(emptyOverlay(), T, C, 'not_met', 'counted', undefined, true);
+        expect(build(draft([NO_VERDICT]), first).blockers).toEqual([]);
+        const round = [1, 2, 3].reduce(
+            (o) => cycleVerdict(o, T, C, 'not_met', 'counted', undefined, true), first);
+        expect(theCheck(draft([NO_VERDICT]), round).verdict).toBe('not_met');
+        expect(build(draft([NO_VERDICT]), round).blockers).toEqual([]);
+    });
+
     it('a typed criterion amount decides it too (OD-R2 pin)', () => {
-        const pinned = setTerminalPoints(emptyOverlay(), 'q1.א.1.c0', '6');
+        const pinned = setTerminalPoints(emptyOverlay(), 'q1.א.1.c0', '6', () => 'not_met');
         expect(build(draft([NO_VERDICT]), pinned).blockers).toEqual([]);
     });
 
