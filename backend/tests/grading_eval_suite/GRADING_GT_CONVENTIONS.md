@@ -116,3 +116,19 @@ expressibility guard SKIP an unselected terminal — no agreement row, never a
 zero; on the totals it is excluded from the GT side by construction. The
 behaviour tripwires still fire there (a positive award on invented ink is
 `[T1-FABRICATED]` on any scope). The R-2 `"0"` encoding stays readable.
+
+
+---
+
+# AMENDMENT (owner ruling, Track B 1c, 2026-09-27) — CONTESTED cells
+
+A terminal whose GT the owner has ruled contested carries
+`"contested": {"ruled": "<date>", "ref": "<file>:<lo>-<hi>[; …]", "why": "<one line>"}`
+(`schemas.ContestedGT`, strict keys). The award is NOT changed. `tools/gates.py`
+excludes the cell from every cell-level measure (K1, K2, the cross-tab, GA-1,
+GA-2, GA-6) and names every excluded trial row in gates.md; total-level
+measures (K4, GA-3, GA-4, GA-5) keep the award, since totals are never
+re-derived. A contested marker is added or removed ONLY on an owner ruling,
+cited in `ref`. The first: hobby `din_ezra` `q2.ב.c4.s2` (ruled 2026-08-31,
+`RUNLOG.md:1771-1775`, `EVAL_REPORT.md:393-417`) — the wrong-target answer the
+pilot teacher is to rule on.

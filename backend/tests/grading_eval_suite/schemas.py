@@ -24,6 +24,19 @@ from pydantic import BaseModel, Field, field_serializer
 # Ground truth [D1] — schema per mission §5
 # =============================================================================
 
+class ContestedGT(BaseModel):
+    """[Track B 1c, owner ruling 2026-09-27] a cell whose GT the owner has ruled
+    CONTESTED: the award stands (GT files are immutable), but the cell counts as
+    a kill for NEITHER side until it is resolved. `tools/gates.py` excludes it
+    from every cell-level measure and names it in gates.md. Strict keys: a
+    typo here must fail loudly, not silently un-contest a cell."""
+    model_config = {"extra": "forbid"}
+
+    ruled: str                            # ISO date of the owner's ruling
+    ref: str                              # "<file>:<lo>-<hi>[; …]" — the ruling's own words
+    why: str                              # one line
+
+
 class TerminalGT(BaseModel):
     """One owner judgment for one terminal (leaf criterion or sub-criterion)."""
     terminal_id: str
@@ -38,6 +51,7 @@ class TerminalGT(BaseModel):
     # beside a null award (nothing was judged, so nothing was evidenced).
     evidence_exists: Optional[bool]
     note: Optional[str] = None
+    contested: Optional[ContestedGT] = None   # [Track B 1c]
 
     @field_serializer("awarded")
     def _sd(self, v: Optional[Decimal]) -> Optional[str]:

@@ -13,14 +13,25 @@ K2's bar is the C2 baseline stated in the mission as 2.4%, encoded as the
 actual measured fraction 6/245 (=0.024489…): "vs the C2 baseline" compares to
 the baseline, not to a rounding of it. A run landing between 2.40% and 2.449%
 is inside the rounding sliver — flag it for the owner rather than adjudicating.
+
+CONTESTED cells [Track B 1c, owner ruling 2026-09-27]: a GT terminal the owner
+has ruled contested (`TerminalGT.contested`) counts as a kill for NEITHER side.
+It is excluded from every CELL-level measure — K1, K2, the cross-tab, GA-1,
+GA-2 (recomputed from the rows) and GA-6 (each trial's edit_burden less the
+cell's burden) — and gates.md NAMES every excluded row. The TOTAL-level
+measures (K4, GA-3, GA-4, GA-5) are untouched: the award is untouched, and a
+total is never re-derived here. The contested set comes from the CURRENT GT,
+so re-running this on an old results dir applies the ruling retroactively.
+Without contested cells every number is exactly what it was.
 """
 from __future__ import annotations
 
 import json
+import statistics
 import sys
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 K2_BAR = Decimal("6") / Decimal("245")          # C2 baseline, exact
 K4_BAR = 8.25                                    # E8's confirmed max spread
@@ -34,6 +45,10 @@ GA = {
 # re-evaluate against the new hard bar.
 GA7_HARD, GA7_TARGET = 0.15, 0.10
 
+# (fixture, terminal_id) -> the ruling (a ContestedGT, or a plain mapping in tests)
+Contested = Mapping[Tuple[str, str], Any]
+_NONE: Contested = {}
+
 
 def _cls(v: Decimal, possible: Decimal) -> str:
     if v == 0:
@@ -41,7 +56,8 @@ def _cls(v: Decimal, possible: Decimal) -> str:
     return "FULL" if v == possible else "PARTIAL"
 
 
-def _included_rows(trials: List[dict]) -> List[dict]:
+def _scored_rows(trials: List[dict]) -> List[dict]:
+    """Every cell that WOULD count, contested or not."""
     rows = []
     for t in trials:
         if not t.get("valid") or t.get("diagnostic_subset"):
@@ -57,14 +73,29 @@ def _included_rows(trials: List[dict]) -> List[dict]:
             # defence in depth for any other producer of trial rows).
             if "gt_awarded" in r and r["gt_awarded"] is None:
                 continue
-            rows.append({**r, "fixture": t["fixture"]})
+            rows.append({**r, "fixture": t["fixture"],
+                         "trial_index": t.get("trial_index")})
     return rows
 
 
+def _is_contested(r: dict, contested: Contested) -> bool:
+    return (r["fixture"], r["terminal_id"]) in contested
+
+
+def _included_rows(trials: List[dict], contested: Contested = _NONE) -> List[dict]:
+    return [r for r in _scored_rows(trials) if not _is_contested(r, contested)]
+
+
+def contested_rows(trials: List[dict], contested: Contested) -> List[dict]:
+    """The rows the ruling removed — what gates.md must name."""
+    return [r for r in _scored_rows(trials) if _is_contested(r, contested)]
+
+
 def cross_tab(trials: List[dict],
-              points: Dict[Tuple[str, str], Decimal]) -> Dict[Tuple[str, str], int]:
+              points: Dict[Tuple[str, str], Decimal],
+              contested: Contested = _NONE) -> Dict[Tuple[str, str], int]:
     tab: Dict[Tuple[str, str], int] = {}
-    for r in _included_rows(trials):
+    for r in _included_rows(trials, contested):
         possible = points[(r["fixture"], r["terminal_id"])]
         key = (_cls(Decimal(r["gt_awarded"]), possible),
                _cls(Decimal(r["ai_awarded"]), possible))
@@ -73,8 +104,8 @@ def cross_tab(trials: List[dict],
 
 
 def kills(trials: List[dict], points: Dict[Tuple[str, str], Decimal],
-          aggregates: dict) -> Dict[str, dict]:
-    tab = cross_tab(trials, points)
+          aggregates: dict, contested: Contested = _NONE) -> Dict[str, dict]:
+    tab = cross_tab(trials, points, contested)
     gt_zero = sum(n for (g, _), n in tab.items() if g == "ZERO")
     gt_zero_ai_zero = tab.get(("ZERO", "ZERO"), 0)
     gt_partial = sum(n for (g, _), n in tab.items() if g == "PARTIAL")
@@ -95,9 +126,34 @@ def kills(trials: List[dict], points: Dict[Tuple[str, str], Decimal],
     return out
 
 
+def _without_contested(trials: List[dict], aggregates: dict,
+                       contested: Contested) -> dict:
+    """The cell-level AGGREGATES the GA table reads, recomputed without the
+    contested rows — only when the ruling actually removed one, so a run with
+    no contested cell reads its aggregates byte-for-byte as before."""
+    removed = contested_rows(trials, contested)
+    if not removed:
+        return aggregates
+    out = dict(aggregates)
+    kept = _included_rows(trials, contested)
+    if kept:
+        out["terminal_within_precision_rate"] = round(
+            sum(bool(r.get("within_precision")) for r in kept) / len(kept), 4)
+    burdens = [t["edit_burden"] - sum(bool(r.get("burden_precision"))
+                                      + bool(r.get("burden_evidence"))
+                                      for r in contested_rows([t], contested))
+               for t in trials
+               if t.get("valid") and not t.get("diagnostic_subset")
+               and t.get("edit_burden") is not None]
+    if burdens:
+        out["edit_burden"] = {"median": statistics.median(burdens), "max": max(burdens)}
+    return out
+
+
 def gates(trials: List[dict], points: Dict[Tuple[str, str], Decimal],
-          aggregates: dict) -> Dict[str, dict]:
-    tab = cross_tab(trials, points)
+          aggregates: dict, contested: Contested = _NONE) -> Dict[str, dict]:
+    tab = cross_tab(trials, points, contested)
+    aggregates = _without_contested(trials, aggregates, contested)
     gt_zero = sum(n for (g, _), n in tab.items() if g == "ZERO")
     clean = tab.get(("ZERO", "ZERO"), 0)
     g: Dict[str, dict] = {
@@ -122,8 +178,37 @@ def gates(trials: List[dict], points: Dict[Tuple[str, str], Decimal],
     return g
 
 
+def _ruling_field(ruling: Any, name: str) -> str:
+    return str(ruling.get(name) if isinstance(ruling, Mapping) else getattr(ruling, name, ""))
+
+
+def _render_contested(trials: List[dict], contested: Contested) -> List[str]:
+    removed = contested_rows(trials, contested)
+    if not removed:
+        return []
+    L = [f"## CONTESTED cells — excluded from K1, K2, the cross-tab, GA-1, GA-2, GA-6 "
+         f"({len(removed)} trial rows)",
+         "Owner-ruled contested GT: the award stands, and the cell counts as a kill for "
+         "neither side until it is resolved. Total-level measures (K4, GA-3, GA-4, GA-5) "
+         "keep the award — totals are never re-derived here.",
+         "",
+         "| fixture | terminal | ruled | ref | why | gt → ai per trial |",
+         "|---|---|---|---|---|---|"]
+    by_cell: Dict[Tuple[str, str], List[dict]] = {}
+    for r in removed:
+        by_cell.setdefault((r["fixture"], r["terminal_id"]), []).append(r)
+    for (fx, tid), rows in sorted(by_cell.items()):
+        ruling = contested[(fx, tid)]
+        per = ", ".join(f"r{r.get('trial_index')}: {r['gt_awarded']}→{r['ai_awarded']}"
+                        for r in sorted(rows, key=lambda r: str(r.get("trial_index"))))
+        L.append(f"| {fx} | {tid} | {_ruling_field(ruling, 'ruled')} | "
+                 f"{_ruling_field(ruling, 'ref')} | {_ruling_field(ruling, 'why')} | {per} |")
+    return L
+
+
 def render(run_dir: Path, kills_d: dict, gates_d: dict, tab: dict,
-           provenance: dict) -> str:
+           provenance: dict, *, contested: Contested = _NONE,
+           trials: Optional[List[dict]] = None) -> str:
     L: List[str] = []
     L.append(f"# Gates — {run_dir.name}")
     L.append(f"provenance: model `{provenance.get('model_key')}` · arch "
@@ -143,6 +228,10 @@ def render(run_dir: Path, kills_d: dict, gates_d: dict, tab: dict,
             verdict += " ⚠ rounding sliver — surface to owner"
         L.append(f"| {k} | {d['bar']} | {d['value']} | {verdict} |")
     L.append("")
+    contested_block = _render_contested(trials or [], contested)
+    if contested_block:
+        L.extend(contested_block)
+        L.append("")
     L.append("## GA gates")
     L.append("| gate | target | this run | verdict |")
     L.append("|---|---|---|---|")
@@ -167,13 +256,19 @@ def evaluate_run(run_dir: Path, *, write: bool = True) -> str:
 
     from ..fixtures import load_bundle
     points: Dict[Tuple[str, str], Decimal] = {}
+    contested: Dict[Tuple[str, str], Any] = {}
     for fx in prov.get("fixtures", []):
         b = load_bundle(fx)
         for tid, info in b.terminal_infos.items():
             points[(fx, tid)] = info.points
+        for t in b.gt.terminals:                      # [Track B 1c] the CURRENT GT rules
+            if t.contested is not None:
+                contested[(fx, t.terminal_id)] = t.contested
 
-    text = render(run_dir, kills(trials, points, agg),
-                  gates(trials, points, agg), cross_tab(trials, points), prov)
+    text = render(run_dir, kills(trials, points, agg, contested),
+                  gates(trials, points, agg, contested),
+                  cross_tab(trials, points, contested), prov,
+                  contested=contested, trials=trials)
     if write:
         (run_dir / "gates.md").write_text(text + "\n", encoding="utf-8")
     return text
