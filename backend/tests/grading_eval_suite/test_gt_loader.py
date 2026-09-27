@@ -208,3 +208,38 @@ def test_m1_teacher_manual_still_requires_blind():
     gt = synth.make_gt(synth.GT_PERFECT, blind=False)
     with pytest.raises(GTValidationError, match="blind"):
         synth.make_bundle(gt)
+
+
+# ---------------------------------------------------------------------------
+# A-4 (owner ruling 2026-09-27, GRADER_V6_CENSUS §1a / C-7 O-1, O-2): the awards
+# are right and the NOTES were wrong — each cited a tariff the rubric does not
+# contain. Note text corrected, an amendment recorded in the file, award
+# untouched. Pinned so the note cannot drift back to a phrase the rubric lacks.
+# ---------------------------------------------------------------------------
+
+A4_CELLS = [
+    # (fixture, terminal, award, stale phrase, phrase the rubric really says)
+    ("bagrut_899371.itay_kraft", "q3.ב.c2", "2",
+     "ובכל פעם מחדש להוריד 1", "לא להוריד כלום (חוסר יעילות)"),
+    ("bagrut_899371.din_ezra", "q5.ב.c2", "5",
+     "אם הלולאה לא רצה על כל המערך", "אם לא ניהולו נכון את גבולות הלולאה להוריד 1"),
+]
+
+
+@pytest.mark.parametrize("fixture,tid,award,stale,cited", A4_CELLS)
+def test_a4_note_cites_the_rubric_and_the_award_is_untouched(fixture, tid, award, stale, cited):
+    from .fixtures import SUITE_DIR
+    bundle = load_bundle(fixture)
+    criterion = next(c for s in bundle.gradable_test.scopes for c in s.criteria
+                     if c.criterion_id == tid)
+    cell = next(t for t in bundle.gt.terminals if t.terminal_id == tid)
+    assert cell.awarded == Decimal(award)
+    assert cited in criterion.description, "the cited phrase must be the rubric's own"
+    assert cited in cell.note and stale not in cell.note
+    assert "[A-4" in cell.note
+
+    manifest = json.loads((SUITE_DIR / "fixtures" / f"{fixture}.json").read_text(encoding="utf-8"))
+    raw = json.loads((SUITE_DIR / manifest["gt"]).read_text(encoding="utf-8"))
+    amendments = [a for a in raw.get("amendments", [])
+                  if a.get("id") == "A-4" and a.get("terminal_id") == tid]
+    assert len(amendments) == 1 and stale in amendments[0]["superseded_note"]

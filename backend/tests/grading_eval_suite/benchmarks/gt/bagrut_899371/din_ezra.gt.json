@@ -392,7 +392,7 @@
    "description": "סעיף ב: ניהול נכון של לולאת החיפוש (ריצה עד countWorkshops ועצירה במידה ותנאי השילוב מתקיים. אם רצו עד Length ולא בדקו ששונה מ-Null , להוריד 2 אם לא ניהולו נכון את גבולות הלולאה להוריד 1",
    "awarded": "5",
    "evidence_exists": true,
-   "note": "1-based loop over a 0-based array (i=1..CountWorkShops): skips index 0 and reads the empty slot. Rubric's named tariff 'אם הלולאה לא רצה על כל המערך 3 נק'' applied for the first time → −3. Stops-on-merge ✓."
+   "note": "1-based loop over a 0-based array (i=1..CountWorkShops): skips index 0 and reads the empty slot. The rubric's tariff for mismanaged loop bounds: 'אם לא ניהולו נכון את גבולות הלולאה להוריד 1' → −1 → 5/6. Stops-on-merge ✓. [A-4 2026-09-27: note corrected, award unchanged — see amendments.]"
   },
   {
    "terminal_id": "q5.ב.c3",
@@ -499,5 +499,14 @@
    "note": "Question not selected (choose-4-of-6) — left unawarded per skeleton instruction; selection scoring excludes."
   }
  ],
- "ungradable_scopes": []
+ "ungradable_scopes": [],
+ "amendments": [
+  {
+   "id": "A-4",
+   "date": "2026-09-27",
+   "terminal_id": "q5.ב.c2",
+   "ruling": "GRADER_V6_CENSUS §1a A-4 (owner): the award is right and the note was wrong — it cited a tariff the rubric does not contain (census C-7 O-2). Note text corrected; award untouched.",
+   "superseded_note": "1-based loop over a 0-based array (i=1..CountWorkShops): skips index 0 and reads the empty slot. Rubric's named tariff 'אם הלולאה לא רצה על כל המערך 3 נק'' applied for the first time → −3. Stops-on-merge ✓."
+  }
+ ]
 }

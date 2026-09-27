@@ -232,7 +232,7 @@
    "description": "סעיף ב: קריאה נכונה לפעולה DiceStatistics(arr) ושמירת המערך המוחזר אם יצרו מערך מונים חדש ו/או הריצו את הפעולה DiceStatistics בתוך לולאה תוך העתקה של כל תא , לא להוריד כלום (חוסר יעילות)",
    "awarded": "2",
    "evidence_exists": true,
-   "note": "Never stored — DiceStatistics(arr) called inline on every iteration of both loops. The rubric's named tariff 'אם קראו לפעולה DiceStatistics בתוך הלולאה ובכל פעם מחדש להוריד 1' — first application."
+   "note": "Never stored — DiceStatistics(arr) called inline on every iteration of both loops. The rubric treats running DiceStatistics inside a loop as an inefficiency with no deduction: '…הריצו את הפעולה DiceStatistics בתוך לולאה … לא להוריד כלום (חוסר יעילות)' → 2/2. [A-4 2026-09-27: note corrected, award unchanged — see amendments.]"
   },
   {
    "terminal_id": "q3.ב.c3",
@@ -499,5 +499,14 @@
    "note": "Pair order correct, index advanced by 2 correctly — but the loop iterates order's range and indexes studentsMechina with it, and num is recounted with the same broken bounds. Mechanics right, data wrong (contrast raz 3/8: reversed + no advance)."
   }
  ],
- "ungradable_scopes": []
+ "ungradable_scopes": [],
+ "amendments": [
+  {
+   "id": "A-4",
+   "date": "2026-09-27",
+   "terminal_id": "q3.ב.c2",
+   "ruling": "GRADER_V6_CENSUS §1a A-4 (owner): the award is right and the note was wrong — it cited a tariff the rubric does not contain (census C-7 O-1). Note text corrected; award untouched.",
+   "superseded_note": "Never stored — DiceStatistics(arr) called inline on every iteration of both loops. The rubric's named tariff 'אם קראו לפעולה DiceStatistics בתוך הלולאה ובכל פעם מחדש להוריד 1' — first application."
+  }
+ ]
 }
