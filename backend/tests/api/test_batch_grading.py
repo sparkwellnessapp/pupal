@@ -33,6 +33,8 @@ from app.services.batch_triage import (
     compute_flag_verdict,
     match_student,
 )
+from tests.api.auth_helpers import signup_verified
+from tests.api.conftest import MINIMAL_DRAFT
 
 
 # ---------------------------------------------------------------------------
@@ -1494,17 +1496,37 @@ def test_detail_carries_a_page1_thumbnail_url_per_transcription(
     asyncio.run(_delete_batch_cascade(batch_id))
 
 
+@pytest.fixture
+def fresh_teacher(client):
+    """[A-7] A teacher no other test has touched: (user, headers, rubric_id).
+
+    `is_first_batch` is a property of HER batch history. The session-scoped
+    `user_a` carries whatever batches the files that ran before this one left
+    behind, so a test that asks «is this her first?» of it passes alone and
+    fails inside a larger run — which is exactly what it did.
+    """
+    user = signup_verified(client, "FirstBatch")
+    headers = {"Authorization": f"Bearer {user['access_token']}"}
+    resp = client.post(
+        "/api/v0/rubrics/save_ontology_draft",
+        json={"name": "First-batch rubric", "draft": MINIMAL_DRAFT,
+              "acknowledged_warning_ids": ["narrowness_issue:q1.c0"]},
+        headers=headers,
+    )
+    assert resp.status_code == 201, resp.text
+    return user, headers, resp.json()["rubric_id"]
+
+
 @pytest.mark.integration
-def test_detail_says_whether_this_is_her_first_batch(
-        client, user_a, rubric_a, headers_a):
+def test_detail_says_whether_this_is_her_first_batch(client, fresh_teacher):
     """[§5.3B] The explainer's ONE input, and it must not be browser state.
 
     The first batch says True; a batch created after it says False. Asserted in
     that order because the bug worth catching is the constant — a field that
     answers True for everything shows the explanation forever.
     """
-    user_id = user_a["user"]["id"]
-    rubric_id = rubric_a["rubric_id"]
+    user, headers_a, rubric_id = fresh_teacher
+    user_id = user["user"]["id"]
 
     first_id = asyncio.run(_insert_batch_row(user_id, rubric_id, test_count=1))
     resp = client.get(f"/api/v0/batches/{first_id}", headers=headers_a)
