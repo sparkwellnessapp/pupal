@@ -2596,3 +2596,30 @@ second exam, not another dollar on this one.**
   - `test_hobby_scores_are_byte_identical` passes once the gitignored baseline run dir is present. A stray `feedback/` dir had defeated its skip guard. So hobby scores are byte-identical under this branch.
   - `test_batch_grading::test_detail_says_whether_this_is_her_first_batch` fails only when other files share the process: `is_first_batch` read False because an earlier file left a batch on the shared test user. The file alone passes 55/55 on BOTH main and this branch (like-for-like), and the diff touches no batch code.
 - **Next:** the owner rules Q-22, Q-B1, TC-1..8, and sends the AM-G10 read-only role URL (C-4b before Phase 4). G1 closes on the Q-22 ruling.
+
+## 2026-09-27 · TRACK B · AM-G14 — the tool routes at the production threshold; the rebuild is BLOCKED (Anthropic credit), $0
+
+- **Ruling (after Phase 1): Q-B1 APPROVED + AM-G14.**
+  - `tools/segment_plan.py` reads `settings.plan_route_min_points`, with no duplicated constant.
+  - Rebuild both exams' routed+segmented plans at the production threshold, pinned by sha with their build cost.
+  - Keep the old hobby artefact as `….p4.plan.json` for A3 history.
+  - Then run the baseline as ruled, under a **$12 cap**.
+- **Done (tests-only commit):**
+  - `segment_plan._compile` passes `route_min_points=Decimal(str(settings.plan_route_min_points))`. That is the same expression `plan_build_runner` uses.
+  - `test_segment_plan_threshold.py` checks two things:
+    - both exams route exactly the monoliths production routes;
+    - moving the setting moves the tool.
+  - Red first: bagrut −6 and hobby −8 routed monoliths.
+  - `hobby_tvshow.routed+segmented.{plan,wording,run}.json` is renamed to `….p4.*`. The A3 config and `test_runner_policy.py`, whose recorded misses belong to that plan, point at the `.p4` names.
+  - Dry run at P≥3 (the estimates for the first attempt):
+    - bagrut: 14 monoliths (route ≈ $0.080), 13 segment calls (≈ $0.115);
+    - hobby: 13 monoliths (≈ $0.087), 6 segment calls (≈ $0.063).
+- **Rebuild: STOPPED on its first call.** The error was `anthropic.BadRequestError 400 — "Your credit balance is too low to access the Anthropic API"` (bagrut, route stage).
+  - Nothing was written; **$0 spent**.
+  - The baseline was not started.
+- **⚠ Production risk:** production's v5 grader and plan builder call the same provider. If production's `ANTHROPIC_API_KEY` is on this account, the next grade and the next plan build fail the same way.
+  - The last production grades (2026-09-24, read through the AM-G10 role) succeeded, and none has run since.
+- **Next:** the owner tops up the account and confirms which account production's key uses. Then rerun, in order:
+  1. `segment_plan.py --stage both --confirm-spend`;
+  2. pin the shas and record the cost;
+  3. the 12-fixture k=3 baseline under the $12 cap (guard report-only, AM-G12 accounting, `EVAL_ANALYSIS.md`).
