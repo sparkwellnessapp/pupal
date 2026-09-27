@@ -189,6 +189,19 @@ gen-lang-client-*.json
 # GTs pin their sha256. (Students' work in the public repos: OD-B10, closed.)
 !tests/grading_eval_suite/compiled_rubric_bagrut.json
 !tests/grading_eval_suite/compiled_transcriptions_bagrut/*.json
+# [grader-v6, A-2] the v6 pricer-parity vectors are committed and regenerate
+# clean from a checkout (scripts/gen_pricing_v6_vectors.py). D-3: the typed
+# vectors went missing because nothing un-ignored them.
+!tests/fixtures/grade_review/pricing_v6_vectors.json
+# [A-2 / D-3] fixtures the frontend AND backend suites read in place. `*.json`
+# above dropped them, so a clean checkout could not run either suite. Named
+# exactly (student-named fixtures: OD-B10, closed 2026-09-23, like draft_*.json).
+!tests/fixtures/grade_review/pricing_vectors_typed.json
+!tests/fixtures/grade_review/draft_SYNTHETIC_edge_cases.json
+!tests/fixtures/grade_review/approved_*.json
+!tests/fixtures/edit_step_points_cases.json
+!tests/fixtures/flag_reason_vocabulary.json
+!tests/fixtures/selection_expectation_cases.json
 # ...except the F0 staging area (superseded by the ratified snapshot):
 tests/grading_eval_suite/benchmarks/contracts/_proposed/
 # Transcription eval suite (same precedent): the EXAM SPECS, per-fixture

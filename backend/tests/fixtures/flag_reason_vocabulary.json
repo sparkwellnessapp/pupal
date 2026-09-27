@@ -1,0 +1,14 @@
+{
+  "_comment": "CROSS-PINNED FLAG-REASON VOCABULARY (closeout/B1) — TS ⇄ PY. ONE artifact, two consumers: backend/tests/test_flag_reason_vectors.py asserts compute_flag_verdict emits nothing outside this list; frontend/src/utils/flag-reason-vectors.test.ts asserts every reason here has a Hebrew label and a defined identity/content classification. Adding a reason server-side WITHOUT adding it here fails the Python test; adding it here without a client label fails the TS test. That is the pin.",
+  "_why": "partitionItems does NOT recompute the verdict (it consumes the server's review_needed), so the predicate itself is not forked. What IS mirrored is this vocabulary: the client owns the Hebrew labels (F3: a Latin enum must never render) and the identity-vs-content split that routes an item to the identity wave or the needs-eyes rows. Those two client-side tables are what can silently drift.",
+  "reasons": [
+    { "reason": "unparseable", "kind": "content" },
+    { "reason": "grounding_retry", "kind": "content" },
+    { "reason": "low_confidence", "kind": "content" },
+    { "reason": "low_logprob_span", "kind": "content" },
+    { "reason": "segmentation_mismatch", "kind": "content" },
+    { "reason": "missing_answers", "kind": "content" },
+    { "reason": "student_unassigned", "kind": "identity" },
+    { "reason": "student_unmatched", "kind": "identity" }
+  ]
+}

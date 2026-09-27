@@ -1,0 +1,108 @@
+{
+  "_comment": "Cross-pinned cases for the selection-expectation rule. Consumed IN PLACE by BOTH backend/tests/services/test_selection_expectation.py and frontend/src/utils/selection-expectation.test.ts — one owner of ground truth, no drift. Keys: answers = [question_number, sub_question_id|null, text]; groups = [{choose_k, question_numbers}]; expected_empty = [ [question_number, sub_question_id|null] ... ] sorted.",
+  "cases": [
+    {
+      "name": "selection satisfied — ALL keys of unchosen members are expected-empty",
+      "groups": [{ "choose_k": 1, "question_numbers": [4, 5, 6] }],
+      "answers": [
+        [4, null, "answer four"],
+        [5, "א", ""],
+        [5, "ב", ""],
+        [6, null, ""],
+        [1, null, "mandatory answered"]
+      ],
+      "expected_empty": [[5, "א"], [5, "ב"], [6, null]]
+    },
+    {
+      "name": "choose 2, only 1 attempted → under-answered, nothing suppressed",
+      "groups": [{ "choose_k": 2, "question_numbers": [4, 5, 6] }],
+      "answers": [
+        [4, null, "only one"],
+        [5, null, ""],
+        [6, null, ""]
+      ],
+      "expected_empty": []
+    },
+    {
+      "name": "exactly k attempted (k=2 of 3) — the third is expected-empty",
+      "groups": [{ "choose_k": 2, "question_numbers": [4, 5, 6] }],
+      "answers": [
+        [4, null, "a"],
+        [5, null, "b"],
+        [6, null, ""]
+      ],
+      "expected_empty": [[6, null]]
+    },
+    {
+      "name": "attempted member with an empty sub-answer stays reviewable (5.ב is a real gap)",
+      "groups": [{ "choose_k": 1, "question_numbers": [5, 6] }],
+      "answers": [
+        [5, "א", "chose five, answered part"],
+        [5, "ב", ""],
+        [6, null, ""]
+      ],
+      "expected_empty": [[6, null]]
+    },
+    {
+      "name": "whitespace-only text is not an attempt",
+      "groups": [{ "choose_k": 1, "question_numbers": [5, 6] }],
+      "answers": [
+        [5, null, "   \n "],
+        [6, null, "real"]
+      ],
+      "expected_empty": [[5, null]]
+    },
+    {
+      "name": "mandatory questions (no group) are never suppressed",
+      "groups": [{ "choose_k": 1, "question_numbers": [5, 6] }],
+      "answers": [
+        [1, null, ""],
+        [5, null, "chosen"],
+        [6, null, ""]
+      ],
+      "expected_empty": [[6, null]]
+    },
+    {
+      "name": "no groups — selection-free rubric reduces to today's behavior",
+      "groups": [],
+      "answers": [
+        [1, null, ""],
+        [2, null, "x"]
+      ],
+      "expected_empty": []
+    },
+    {
+      "name": "two independent groups resolve independently",
+      "groups": [
+        { "choose_k": 1, "question_numbers": [2, 3] },
+        { "choose_k": 1, "question_numbers": [5, 6] }
+      ],
+      "answers": [
+        [2, null, "group one satisfied"],
+        [3, null, ""],
+        [5, null, ""],
+        [6, null, ""]
+      ],
+      "expected_empty": [[3, null]]
+    },
+    {
+      "name": "over-answered group (k+1 attempted) — attempted members all stay, unattempted suppressed",
+      "groups": [{ "choose_k": 2, "question_numbers": [4, 5, 6, 7] }],
+      "answers": [
+        [4, null, "a"],
+        [5, null, "b"],
+        [6, null, "c"],
+        [7, null, ""]
+      ],
+      "expected_empty": [[7, null]]
+    },
+    {
+      "name": "group member with no transcription answers contributes nothing (recompiled-rubric drift)",
+      "groups": [{ "choose_k": 1, "question_numbers": [5, 9] }],
+      "answers": [
+        [5, null, "answered"]
+      ],
+      "expected_empty": []
+    }
+  ]
+}

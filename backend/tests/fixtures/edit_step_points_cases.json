@@ -1,0 +1,265 @@
+{
+  "_comment": "Cross-pinned POINTS SEMANTICS of the EditStep fix wire. Consumed IN PLACE by BOTH backend/tests/rubric_eval_suite/test_fix_effect.py (which simulates them in the eval scorer) and frontend/src/utils/edit-steps.test.ts (which runs the REAL applier, src/utils/edit-steps.ts). One owner of ground truth, no drift — the selection_expectation_cases.json precedent. WHY: the scorer must predict what accepting a fix actually does; if the two ever disagree, the eval gate either passes a broken fix or fails a good one, and nothing would say which. If the applier is deliberately changed (e.g. it starts auto-repairing the SOURCE the way it already auto-repairs vivified targets), THESE VECTORS MUST BE UPDATED IN THE SAME COMMIT — that is the signal, not an annoyance. Shape: questions[] is wire-ish (points are decimal STRINGS, criteria are bare point strings — each side expands to its own types); steps[] are EditSteps; expected_points maps a dotted scope to its DECLARED points after the fix; expected_consistent is the scorer-side verdict (TS ignores it — the applier has no such concept). scope=\"rubric\" is deliberately NOT covered here: the rubric total lives outside questions[] on the TS side, so it is asserted in the Python test only.",
+  "cases": [
+    {
+      "name": "move to a NEW scope with no set_points — the SOURCE IS NOW AUTO-REPAIRED (2026-08-24)",
+      "questions": [
+        {
+          "question_id": "q2",
+          "total_points": "60",
+          "sub_questions": [
+            {
+              "sub_question_id": "א",
+              "points": "15",
+              "criteria": [
+                "5",
+                "10"
+              ]
+            },
+            {
+              "sub_question_id": "ב",
+              "points": "45",
+              "criteria": [
+                "2",
+                "2",
+                "3",
+                "12",
+                "9",
+                "1",
+                "16"
+              ]
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "op": "move_criterion",
+          "scope": "q2.ב",
+          "criterion_index": 6,
+          "to_scope": "q2.ג"
+        }
+      ],
+      "expected_points": {
+        "q2.א": "15",
+        "q2.ב": "29",
+        "q2.ג": "16"
+      },
+      "expected_consistent": true,
+      "note": "Was the defect the owner found live: the source used to keep its stale 45 while holding 29 of criteria, so q2 became 76 against a declared 60. The applier now repairs a move SOURCE the same way it has always repaired a vivified TARGET -- ב was consistent before the move (45 == 45), so it becomes the 29 its remaining criteria state and 15+29+16 = 60 settles. The model forgetting set_points is no longer able to hurt the teacher; whether it FORGOT is still measured, ungated, by the scorer's fix_plan_complete."
+    },
+    {
+      "name": "the same move WITH the source-side set_points — everything settles (THE FIX)",
+      "questions": [
+        {
+          "question_id": "q2",
+          "total_points": "60",
+          "sub_questions": [
+            {
+              "sub_question_id": "א",
+              "points": "15",
+              "criteria": [
+                "5",
+                "10"
+              ]
+            },
+            {
+              "sub_question_id": "ב",
+              "points": "45",
+              "criteria": [
+                "2",
+                "2",
+                "3",
+                "12",
+                "9",
+                "1",
+                "16"
+              ]
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "op": "move_criterion",
+          "scope": "q2.ב",
+          "criterion_index": 6,
+          "to_scope": "q2.ג"
+        },
+        {
+          "op": "set_points",
+          "scope": "q2.ב",
+          "value": "29",
+          "current_value": "45"
+        }
+      ],
+      "expected_points": {
+        "q2.א": "15",
+        "q2.ב": "29",
+        "q2.ג": "16"
+      },
+      "expected_consistent": true,
+      "note": "15+29+16 = 60 = the declared total, and ב declares exactly the 29 its remaining criteria sum to."
+    },
+    {
+      "name": "an EXISTING target is NEVER auto-adjusted — only vivified nodes are",
+      "questions": [
+        {
+          "question_id": "q2",
+          "total_points": "60",
+          "sub_questions": [
+            {
+              "sub_question_id": "א",
+              "points": "15",
+              "criteria": [
+                "15"
+              ]
+            },
+            {
+              "sub_question_id": "ב",
+              "points": "20",
+              "criteria": [
+                "10",
+                "10"
+              ]
+            },
+            {
+              "sub_question_id": "ג",
+              "points": "25",
+              "criteria": [
+                "25"
+              ]
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "op": "move_criterion",
+          "scope": "q2.ב",
+          "criterion_index": 1,
+          "to_scope": "q2.ג"
+        }
+      ],
+      "expected_points": {
+        "q2.ב": "10",
+        "q2.ג": "25"
+      },
+      "expected_consistent": false,
+      "note": "The R4 post-pass fires only for scopes absent from the ORIGINAL tree, so the EXISTING target ג keeps its declared 25 while holding 35 of criteria. The SOURCE ב, which was consistent before (20 == 10+10), IS repaired to 10 by the new source rule. The question still sums to 60 -- which is exactly why a question-level-only check would MISS the broken ג."
+    },
+    {
+      "name": "criterion-level set_points cascades living sums into its sub-question",
+      "questions": [
+        {
+          "question_id": "q3",
+          "total_points": "10",
+          "sub_questions": [
+            {
+              "sub_question_id": "א",
+              "points": "5",
+              "criteria": [
+                "2",
+                "3"
+              ]
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "op": "set_points",
+          "scope": "q3.א",
+          "criterion_index": 0,
+          "value": "4",
+          "current_value": "2"
+        }
+      ],
+      "expected_points": {
+        "q3.א": "7"
+      },
+      "expected_consistent": true,
+      "note": "A criterion edit behaves like the teacher's own edit at that row: it cascades (leaf = sum of criteria) so the sub-question becomes 7. The QUESTION still declares 10 against 7 of children -- and that is deliberately NOT a violation: OPTION A (owner ruling 2026-08-24) judges a fix by what it CLAIMS. This plan is pure set_points, i.e. a MINIMAL LOCAL correction (Tier A's fallback, which by contract 'INVENTS NOTHING'), so it is held only to the node it targeted. Demanding it also repoint the parent would demand a number the teacher never wrote. A MOVE-bearing plan claims root-cause resolution and IS held to its ancestors -- case 1 above. expected_points is unaffected by that policy and remains the TS cross-pin."
+    },
+    {
+      "name": "GUARD 1 — a source that was ALREADY inconsistent is NOT auto-repaired (faithful capture)",
+      "questions": [
+        {
+          "question_id": "q2",
+          "total_points": "45",
+          "sub_questions": [
+            {
+              "sub_question_id": "א",
+              "points": "15",
+              "criteria": [
+                "15"
+              ]
+            },
+            {
+              "sub_question_id": "ב",
+              "points": "30",
+              "criteria": [
+                "10",
+                "10",
+                "16"
+              ]
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "op": "move_criterion",
+          "scope": "q2.ב",
+          "criterion_index": 2,
+          "to_scope": "q2.ג"
+        }
+      ],
+      "expected_points": {
+        "q2.ב": "30",
+        "q2.ג": "16"
+      },
+      "expected_consistent": false,
+      "note": "ב declared 30 while its criteria summed to 36 BEFORE anything moved -- that 30 is the teacher's own number and her discrepancy is a finding, not noise. Rewriting it here would be exactly the silent repair the product forbids, so the rule declines and ב stays 30. The resulting mismatch is reported, which is the honest outcome."
+    },
+    {
+      "name": "GUARD 2 — a move that EMPTIES the source leaves its points alone (0 is a number she never wrote)",
+      "questions": [
+        {
+          "question_id": "q2",
+          "total_points": "30",
+          "sub_questions": [
+            {
+              "sub_question_id": "א",
+              "points": "15",
+              "criteria": [
+                "15"
+              ]
+            },
+            {
+              "sub_question_id": "ב",
+              "points": "15",
+              "criteria": [
+                "15"
+              ]
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "op": "move_criterion",
+          "scope": "q2.ב",
+          "criterion_index": 0,
+          "to_scope": "q2.ג"
+        }
+      ],
+      "expected_points": {
+        "q2.ב": "15",
+        "q2.ג": "15"
+      },
+      "expected_consistent": false,
+      "note": "ב was consistent before (15 == 15) but the move takes its only criterion, so Sigma of what remains is 0. Writing 0 would fabricate a value; leaving an empty husk the teacher must resolve is honest. The mismatch it creates is reported rather than papered over."
+    }
+  ]
+}
