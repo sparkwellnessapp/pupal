@@ -31,6 +31,11 @@ intended. Config keys (all beyond model_key optional):
                 hash-pinned before any spend
   sc_n          v5 only: SC-3 self-consistency call count (odd; default 1)
   params        {"reasoning_effort": ...} — seam params for the factory
+  expressibility_guard
+                v5 only: "refuse" (DEFAULT — the permanent H-4 pre-spend
+                guard) | "report" (owner-ruled for the Track B production-pin
+                baseline ONLY, 2026-09-27: unreachable GT awards are recorded in
+                provenance, labelled per A-5, and the run proceeds)
 """
 from __future__ import annotations
 
@@ -69,6 +74,7 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")   # backend/.env
 RESULTS_DIR = SUITE_DIR / "results"
 TRIAL_WALL_S = 300.0        # [§7] per-trial wall bound
 _LEGACY_CONFIG_KEYS = ("model", "provider", "price_per_1m_input", "price_per_1m_output")
+_EXPRESSIBILITY_GUARDS = ("refuse", "report")
 
 
 # ---------------------------------------------------------------------------
@@ -115,6 +121,13 @@ def _validate_config(name: str, config: dict) -> None:
     if arch != "v5" and (config.get("plan") or config.get("plans")
                          or config.get("sc_n")):
         raise SystemExit(f"config '{name}': 'plan'/'plans'/'sc_n' are v5-only keys.")
+    guard = config.get("expressibility_guard", "refuse")
+    if guard not in _EXPRESSIBILITY_GUARDS:
+        raise SystemExit(f"config '{name}': expressibility_guard must be one of "
+                         f"{_EXPRESSIBILITY_GUARDS}, got {guard!r}.")
+    if guard != "refuse" and arch != "v5":
+        raise SystemExit(f"config '{name}': expressibility_guard is a v5-only key "
+                         f"(there is no plan to express a GT under v3).")
     casc = config.get("cascade")
     if casc is not None:
         if arch != "v5":
@@ -331,7 +344,12 @@ def _provenance(config_name: str, config: dict, spec: ModelSpec, *,
 # Grade mode
 # ---------------------------------------------------------------------------
 
-def _load_plan(config: dict, bundle: FixtureBundle, suite_dir: Path):
+def _expressibility_guard(config: dict) -> str:
+    return config.get("expressibility_guard", "refuse")
+
+
+def _load_plan(config: dict, bundle: FixtureBundle, suite_dir: Path, *,
+               expressibility_sink: Optional[list] = None):
     """Load + validate the v5 GradingPlan for this bundle. Refuses (loud, before
     any spend) on: validator errors, or a plan pinned to different contract
     bytes than the fixture's snapshot [D5 discipline extended to plans].
@@ -341,6 +359,10 @@ def _load_plan(config: dict, bundle: FixtureBundle, suite_dir: Path):
     impossible rather than wrong before this — a hobby plan meeting a bagrut
     fixture stopped the run loudly. This lifts that correct refusal into a
     correct resolution; the refusal stays exactly where it was.
+
+    [Track B 1e] Under `expressibility_guard: "report"` an unreachable GT award
+    does not stop the run: the misses go to `expressibility_sink` (the pre-spend
+    gate records them in provenance) or, with no sink, are printed loudly.
 
     Returns (plan, plan_sha256, resolved)."""
     from app.agents.grader.plan_schemas import GradingPlan
@@ -374,15 +396,33 @@ def _load_plan(config: dict, bundle: FixtureBundle, suite_dir: Path):
     # [owner H-4 item 3, 2026-08-28] the expressibility guard is PRE-SPEND:
     # a plan that cannot express the fixture's ratified GT awards never grades.
     if bundle.gt is not None:
-        from .plan_expressibility import expressibility_errors
-        errs = expressibility_errors(
+        from .plan_expressibility import expressibility_misses
+        misses = expressibility_misses(
             plan, bundle.gt, bundle.terminal_infos,
             bundle.rubric_contract.numeric_policy.precision)
-        if errs:
+        if misses and _expressibility_guard(config) == "refuse":
             raise SystemExit(
                 f"plan {plan.plan_version!r} cannot express {bundle.name!r}'s "
-                f"GT:\n  " + "\n  ".join(errs))
+                f"GT:\n  " + "\n  ".join(m.message() for m in misses))
+        if misses:
+            # [Track B 1e] report-only, owner-ruled for the baseline run
+            if expressibility_sink is not None:
+                expressibility_sink.extend(misses)
+            else:
+                _print_expressibility_report(bundle.name, plan.plan_version, misses)
     return plan, resolved.sha256, resolved
+
+
+def _print_expressibility_report(fixture: str, plan_version: str, misses: list) -> None:
+    from .plan_expressibility import PLANNER_MISS, UNWRITTEN_RULING
+    n_plan = sum(1 for m in misses if m.label == PLANNER_MISS)
+    n_rule = sum(1 for m in misses if m.label == UNWRITTEN_RULING)
+    print(f"[EXPRESSIBILITY REPORT-ONLY] {fixture}: {len(misses)} GT award(s) "
+          f"UNREACHABLE under {plan_version!r} — planner_miss {n_plan}, "
+          f"unwritten_ruling {n_rule}. expressibility_guard=report (owner-ruled, "
+          f"this run only); recorded in provenance, the run proceeds.")
+    for m in misses:
+        print(f"    [{m.label}] {m.message()}")
 
 
 def _plans_provenance(config: dict, bundles: List[FixtureBundle],
@@ -395,13 +435,26 @@ def _plans_provenance(config: dict, bundles: List[FixtureBundle],
     named rather than blank, so a reader can tell "one exam, unlabelled" from
     "the field was never populated"."""
     out: Dict[str, Any] = {}
+    report = _expressibility_guard(config) == "report"
     for bundle in bundles:
-        plan, plan_sha, resolved = _load_plan(config, bundle, suite_dir)
+        sink: list = []
+        plan, plan_sha, resolved = _load_plan(config, bundle, suite_dir,
+                                              expressibility_sink=sink)
         key = resolved.exam_id or "<unscoped>"
         entry = {"plan": resolved.ref, "plan_version": plan.plan_version,
                  "plan_sha256": plan_sha,
                  "fixtures": []}
-        out.setdefault(key, entry)["fixtures"].append(bundle.name)
+        if report:
+            # [Track B 1e / A-5] present — even when empty — only under the
+            # report guard, so a refuse-mode provenance is byte-identical.
+            entry["expressibility"] = {"guard": "report", "planner_miss": [],
+                                       "unwritten_ruling": []}
+        entry = out.setdefault(key, entry)
+        entry["fixtures"].append(bundle.name)
+        if sink:
+            _print_expressibility_report(bundle.name, plan.plan_version, sink)
+            for m in sink:
+                entry["expressibility"][m.label].append(m.as_dict())
     for entry in out.values():
         entry["fixtures"].sort()
     return out
@@ -429,7 +482,11 @@ def build_agent(bundle: FixtureBundle, agent_factory=None, *,
                            max_output_tokens=params.get("max_output_tokens"),
                            thinking_budget=params.get("thinking_budget"))
     if config.get("architecture", "v3") == "v5":
-        plan, _sha, _resolved = _load_plan(config, bundle, suite_dir)
+        # the pre-spend gate (_plans_provenance) already recorded any report-only
+        # expressibility misses for this bundle; the sink keeps them from being
+        # printed a second time (under "refuse" this call still stops the run)
+        plan, _sha, _resolved = _load_plan(config, bundle, suite_dir,
+                                           expressibility_sink=[])
         casc = config.get("cascade")
         if casc:
             from app.agents.grader.grader_cascade import CascadeGrader   # lazy
@@ -629,6 +686,16 @@ def run_grade(config_name: str, fixture_names: List[str], *, k: int,
         # graded all of them — provenance that is wrong is worse than provenance
         # that is absent, because it is quotable.
         prov["plans"] = plans_prov
+        if _expressibility_guard(config) == "report":
+            # [Track B 1e] stamped as loudly as SCREENING: this run graded
+            # fixtures whose GT its plans cannot express.
+            n_plan = sum(len(e["expressibility"]["planner_miss"]) for e in plans_prov.values())
+            n_rule = sum(len(e["expressibility"]["unwritten_ruling"]) for e in plans_prov.values())
+            prov["expressibility_guard"] = "report"
+            prov["EXPRESSIBILITY_REPORT_ONLY"] = (
+                f"guard=report (owner-ruled, Track B baseline only): {n_plan} planner_miss "
+                f"+ {n_rule} unwritten_ruling GT award(s) unreachable under the run's "
+                f"plans — per-cell in plans.<exam>.expressibility")
         # The single-exam keys keep their exact former values when one plan
         # resolved, so a hobby run's provenance is unchanged.
         if len(prov["plans"]) == 1:

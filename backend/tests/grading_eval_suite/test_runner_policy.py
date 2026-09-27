@@ -252,3 +252,89 @@ def test_provenance_carries_sut_hash():
                        scopes=None)
     assert prov["sut_hash"] == _sut_hash()
     assert prov["suite_hash"] != prov["sut_hash"]
+
+
+# ---------------------------------------------------------------------------
+# Track B 1e (owner ruling 2026-09-27): `expressibility_guard` ∈ {refuse, report}.
+# "refuse" is the default and the permanent H-4 guard, unchanged. "report" is
+# ruled for ONE run — the production-pin baseline — whose compiled plans are
+# known to miss GT awards: the run grades anyway, and every miss is recorded in
+# provenance, split per A-5 into "unwritten_ruling" (an owner tariff that lives
+# only in the hand plan: dan q2.א.c1 −1, yonatan q2.ב.c4.s2 −0.5) and
+# "planner_miss" (everything else).
+# ---------------------------------------------------------------------------
+
+COMPILED_HOBBY = "plans/compiled/hobby_tvshow.routed+segmented.plan.json"
+
+
+def _v5(**extra):
+    return {"model_key": "claude-sonnet-5", "architecture": "v5",
+            "plans": {"hobby_tvshow": COMPILED_HOBBY}, **extra}
+
+
+def test_expressibility_guard_defaults_to_refuse():
+    """The pin: with no key, an unreachable GT award stops the run before spend,
+    with the same message as ever."""
+    from .fixtures import SUITE_DIR, load_bundle
+    from .runner import _load_plan, _validate_config
+    config = _v5()
+    _validate_config("default", config)
+    with pytest.raises(SystemExit, match="cannot express 'din_ezra'"):
+        _load_plan(config, load_bundle("din_ezra"), SUITE_DIR)
+    with pytest.raises(SystemExit, match="cannot express 'din_ezra'"):
+        _load_plan(_v5(expressibility_guard="refuse"), load_bundle("din_ezra"), SUITE_DIR)
+
+
+def test_config_refuses_an_unknown_guard_and_a_v3_report():
+    from .runner import _validate_config
+    with pytest.raises(SystemExit, match="expressibility_guard"):
+        _validate_config("bad", _v5(expressibility_guard="warn"))
+    with pytest.raises(SystemExit, match="expressibility_guard"):
+        _validate_config("bad", {"model_key": "gpt-4o", "expressibility_guard": "report"})
+
+
+def test_report_grades_anyway_and_records_every_miss_with_its_a5_label(capsys):
+    from .fixtures import SUITE_DIR, load_bundle
+    from .runner import _load_plan, _plans_provenance
+    config = _v5(expressibility_guard="report")
+    sink = []
+    plan, _sha, _resolved = _load_plan(config, load_bundle("din_ezra"), SUITE_DIR,
+                                       expressibility_sink=sink)
+    assert plan.plan_version == "hobby_tvshow/compiled-5cafe7d77698"
+    assert [(m.fixture, m.terminal_id, m.label) for m in sink] == [
+        ("din_ezra", "q2.א.c0", "planner_miss")]
+
+    bundles = [load_bundle(n) for n in ("din_ezra", "moran_aharon", "yonatan_basiuk")]
+    prov = _plans_provenance(config, bundles, SUITE_DIR)
+    expr = prov["hobby_tvshow"]["expressibility"]
+    assert expr["guard"] == "report"
+    assert [(m["fixture"], m["terminal_id"]) for m in expr["planner_miss"]] == [
+        ("din_ezra", "q2.א.c0")]
+    assert [(m["fixture"], m["terminal_id"]) for m in expr["unwritten_ruling"]] == [
+        ("yonatan_basiuk", "q2.ב.c4.s2")]
+    assert expr["unwritten_ruling"][0]["award"] == "1.5"
+    out = capsys.readouterr().out
+    assert "EXPRESSIBILITY" in out and "din_ezra" in out and "yonatan_basiuk" in out
+
+
+def test_refuse_mode_leaves_the_plans_provenance_shape_unchanged():
+    from .fixtures import SUITE_DIR, load_bundle
+    from .runner import _plans_provenance
+    config = {"architecture": "v5", "plans": {"hobby_tvshow": "plans/hobby_tvshow.plan.json"}}
+    prov = _plans_provenance(config, [load_bundle("moran_aharon")], SUITE_DIR)
+    assert set(prov["hobby_tvshow"]) == {"plan", "plan_version", "plan_sha256", "fixtures"}
+
+
+def test_a5_unwritten_rulings_are_the_hand_plans_ruling_sourced_tariffs():
+    """A-5 names two cells; each must rest on a `source="ruling"` tariff in the
+    ratified hand plan, or the label is lying about why the planner missed it."""
+    from app.agents.grader.plan_schemas import GradingPlan
+    from .fixtures import SUITE_DIR
+    from .plan_expressibility import UNWRITTEN_RULINGS
+    hand = GradingPlan.model_validate_json(
+        (SUITE_DIR / "plans" / "hobby_tvshow.plan.json").read_text(encoding="utf-8"))
+    ruled = {t.terminal_id for t in hand.terminals
+             if any(c.source == "ruling" and c.kind == "tariff" for c in t.checks)}
+    assert set(UNWRITTEN_RULINGS) == {("dan_basiuk", "q2.א.c1"),
+                                      ("yonatan_basiuk", "q2.ב.c4.s2")}
+    assert {tid for _fx, tid in UNWRITTEN_RULINGS} == ruled
