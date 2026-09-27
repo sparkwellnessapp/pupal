@@ -294,15 +294,11 @@ export const RAIL_LABEL = 'סומן בגלל:'
 export const EMPTY_ANSWER_PLACEHOLDER =
   'אם התשובה קיימת בסריקה — אפשר להקליד אותה כאן, או להעביר אליה תוכן משאלה אחרת'
 export const APPROVE_AND_CONTINUE = 'אישור והמשך'
-// Answer view/edit split (table rendering, 2026-08-23). The raw text is always
-// the source of truth; the grid is a display derivation over it.
-export const ANSWER_VIEW_SHOW_RAW = 'הצגת הטקסט המקורי'
-export const ANSWER_VIEW_SHOW_TABLE = 'הצגה כטבלה'
-export const ANSWER_VIEW_FLAGS_HIDDEN = 'שורות מסומנות מוצגות רק בטקסט המקורי'
 // Native table editing (2026-09-24): a cell edit never changes the grid (TBL-4).
+// There is no raw-text view to send her to (owner-ruled 2026-09-27), so no hint
+// points at one.
 export const ANSWER_CELL_HINT_PIPE = 'התו | מפריד בין תאים, ולכן אי אפשר להקליד אותו בתוך תא'
-export const ANSWER_CELL_HINT_STRUCTURE =
-  'שינוי זה ישנה את מבנה הטבלה ולא יישמר — אפשר לערוך אותו בטקסט המקורי'
+export const ANSWER_CELL_HINT_STRUCTURE = 'שינוי זה ישנה את מבנה הטבלה ולכן לא יישמר'
 export const ANSWER_CELL_ABSENT = 'אין תא כזה בטקסט המתומלל'
 export const ANSWER_CELL_LABEL = (row: number, col: number) => `תא בשורה ${row}, עמודה ${col}`
 export const ANSWER_TEXT_RUN_LABEL = 'טקסט התשובה'
