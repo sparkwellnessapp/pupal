@@ -2,7 +2,8 @@
 
 import type { CheckKind, Verdict } from '@/lib/pricing';
 import {
-    RV_VERDICT_TITLE, RV_VERDICT_TITLE_TARIFF, RV_VERDICT_TITLE_UNVERIFIED,
+    RV_VERDICT_TITLE, RV_VERDICT_TITLE_NO_VERDICT, RV_VERDICT_TITLE_TARIFF,
+    RV_VERDICT_TITLE_UNVERIFIED,
 } from '@/copy/grade-review';
 
 /**
@@ -61,26 +62,30 @@ export interface VerdictButtonProps {
     kind?: CheckKind;
     /** Vivi's credit verdict on a span she could not verify — worth 0 until confirmed. */
     unverified?: boolean;
+    /** [OD-3] No verdict arrived and she has not decided: an empty amber ring. */
+    noVerdict?: boolean;
     onCycle: () => void;
     disabled?: boolean;
 }
 
 export function VerdictButton({
-    verdict, overridden, kind = 'required', unverified = false, onCycle, disabled = false,
+    verdict, overridden, kind = 'required', unverified = false, noVerdict = false, onCycle,
+    disabled = false,
 }: VerdictButtonProps) {
     const shown = kind === 'tariff' && verdict === 'partially_met' ? 'not_met' : verdict;
-    const title = unverified ? RV_VERDICT_TITLE_UNVERIFIED
-        : kind === 'tariff' ? RV_VERDICT_TITLE_TARIFF : RV_VERDICT_TITLE;
+    const title = noVerdict ? RV_VERDICT_TITLE_NO_VERDICT
+        : unverified ? RV_VERDICT_TITLE_UNVERIFIED
+            : kind === 'tariff' ? RV_VERDICT_TITLE_TARIFF : RV_VERDICT_TITLE;
     return (
         <button
             type="button"
             // The control is a CYCLE, so the label says what pressing it does,
             // not what it currently shows — a screen reader hearing only "✓"
             // would have no idea it is actionable.
-            aria-label={`${GLYPH[shown]} — ${title}`}
+            aria-label={noVerdict ? title : `${GLYPH[shown]} — ${title}`}
             title={title}
             data-verdict={verdict}
-            data-verdict-shown={unverified ? 'unverified' : shown}
+            data-verdict-shown={noVerdict ? 'undecided' : unverified ? 'unverified' : shown}
             data-overridden={overridden ? 'true' : 'false'}
             disabled={disabled}
             onClick={(event) => { event.stopPropagation(); onCycle(); }}
@@ -90,12 +95,12 @@ export function VerdictButton({
                 'disabled:cursor-not-allowed disabled:opacity-40',
                 overridden
                     ? 'border-decided border-primary-600 text-primary-600 ring-decided ring-primary-100'
-                    : unverified
+                    : unverified || noVerdict
                         ? 'border-hairline border-dashed border-grade-amber-dot text-grade-amber'
                         : `border-hairline border-current ${PROPOSAL_TONE[shown]}`,
             ].join(' ')}
         >
-            {GLYPH[shown]}
+            {noVerdict ? null : GLYPH[shown]}
         </button>
     );
 }

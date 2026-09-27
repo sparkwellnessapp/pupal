@@ -50,7 +50,7 @@ import {
     type Overlay,
 } from './verdict-cycle';
 import { basisHash, feedbackState, type FeedbackState } from './feedback-staleness';
-import { RV_BLOCK_GENERIC, RV_BLOCK_LLM_FAILURE } from '@/copy/grade-review';
+import { RV_BLOCK_GENERIC, RV_BLOCK_LLM_FAILURE, RV_BLOCK_UNDECIDED } from '@/copy/grade-review';
 import { add, dec, toString as decToString } from '@/lib/decimal';
 
 // ── wire shapes (structural, so fixtures type as readily as live payloads) ──
@@ -105,6 +105,8 @@ export interface WireAnnotation {
     annotation_type?: string | null;
     target_id?: string | null;
     message?: string | null;
+    /** `unverified_check` names its check here (`check_id`). */
+    metadata?: Record<string, unknown> | null;
 }
 
 export interface WireDraft {
@@ -174,6 +176,17 @@ export interface ReviewCheck {
     unverified: boolean;
     /** She confirmed that unverified verdict: credited on her reading of the paper. */
     evidenceConfirmed: boolean;
+    /**
+     * [OD-3, CWV-2] No machine verdict arrived for this check (the pricer's
+     * `unverified_check`), so its stored ✗ is not a judgement — nobody read the
+     * answer for it. Static: it stays true after she decides.
+     */
+    aiNoVerdict: boolean;
+    /**
+     * `aiNoVerdict` and she has not decided it yet (no verdict, amount or pin
+     * of hers). Drawn as an empty amber ring, and blocks approval (OD-4).
+     */
+    noVerdict: boolean;
     note: string | null;
     evidenceDisputed: boolean;
     awarded: string;
@@ -365,19 +378,29 @@ const terminalIdOf = (criterion: WireCriterion, leaf: WireLeaf): string =>
  * decided still carries the crash's unread zero. A scope with no checks is
  * never vacuously resolved, which is what keeps pre-OD-R1 drafts refusing.
  */
+/**
+ * [OD-3, CWV-2] The checks that received NO machine verdict — the pricer names
+ * each one in an `unverified_check` annotation keyed by `metadata.check_id`.
+ */
+export function noVerdictCheckIds(draft: WireDraft): Set<string> {
+    const ids = new Set<string>();
+    for (const a of draft.annotations ?? []) {
+        const checkId = a.annotation_type === 'unverified_check' ? a.metadata?.check_id : undefined;
+        if (typeof checkId === 'string') ids.add(checkId);
+    }
+    return ids;
+}
+
 function approvalBlockers(
     draft: WireDraft,
     overlay: Overlay,
 ): ApprovalBlocker[] {
-    const errors = (draft.annotations ?? []).filter(
-        (a) => (a.severity ?? '').toUpperCase() === 'ERROR');
-    if (errors.length === 0) return [];
-
     const decided = overriddenCheckIds(overlay);
     // [OD-R2] an amount typed on the criterion row decides that whole terminal
-    // (mirrors `_llm_failure_resolved_by_teacher`): nothing beneath it is priced,
-    // so nothing beneath it can carry an unread machine zero.
+    // (mirrors `_decided_by_teacher`): nothing beneath it is priced, so nothing
+    // beneath it can carry an unread machine zero.
     const pinned = new Set(Object.keys(overlay.terminalPoints));
+    const noVerdict = noVerdictCheckIds(draft);
     const checksByScope = new Map<string, { id: string; terminalId: string }[]>();
     for (const scope of draft.scope_outcomes ?? []) {
         checksByScope.set(scopeIdOf(scope), leavesOf(scope).flatMap(
@@ -385,17 +408,33 @@ function approvalBlockers(
                 id: c.check_id, terminalId: terminalIdOf(criterion, leaf),
             }))));
     }
+    const isDecided = (c: { id: string; terminalId: string }) =>
+        decided.has(c.id) || pinned.has(c.terminalId);
 
-    return errors.flatMap((annotation): ApprovalBlocker[] => {
+    const errors = (draft.annotations ?? []).filter(
+        (a) => (a.severity ?? '').toUpperCase() === 'ERROR'
+            // [CWV-3, GATE-1] a stray machine verdict — dropped at grade time,
+            // never priced, never frozen. Nothing here could resolve it, so it
+            // is never a blocker (mirrors `compile_graded_test` check 5).
+            && a.annotation_type !== 'closed_world_violation');
+    const fromErrors = errors.flatMap((annotation): ApprovalBlocker[] => {
         const scopeId = annotation.target_id ?? null;
         if (annotation.annotation_type === 'llm_failure' && scopeId) {
             const checks = checksByScope.get(scopeId) ?? [];
-            if (checks.length > 0
-                && checks.every((c) => decided.has(c.id) || pinned.has(c.terminalId))) return [];
+            if (checks.length > 0 && checks.every(isDecided)) return [];
             return [{ scopeId, message: RV_BLOCK_LLM_FAILURE(scopeId) }];
         }
         return [{ scopeId, message: annotation.message || RV_BLOCK_GENERIC }];
     });
+
+    // [OD-4] every real check with no machine verdict, decided by her — one
+    // blocker per scope, anchored so the surface takes her there (GATE-1).
+    const fromUndecided: ApprovalBlocker[] = [];
+    for (const [scopeId, checks] of checksByScope) {
+        const open = checks.filter((c) => noVerdict.has(c.id) && !isDecided(c)).length;
+        if (open > 0) fromUndecided.push({ scopeId, message: RV_BLOCK_UNDECIDED(open) });
+    }
+    return [...fromErrors, ...fromUndecided];
 }
 
 /** The scope's checks in document order — the vector `basis_hash` covers. */
@@ -444,6 +483,7 @@ export function buildReviewModel(options: BuildOptions): ReviewModel {
     } = options;
 
     const decided = overriddenCheckIds(overlay);
+    const noVerdictIds = noVerdictCheckIds(draft);
     const scopes: ReviewScope[] = [];
     let total = dec('0');
     let possibleTotal = dec('0');
@@ -566,6 +606,9 @@ export function buildReviewModel(options: BuildOptions): ReviewModel {
                         && (check.verdict === 'met' || check.verdict === 'partially_met')
                         && check.quote_status !== 'exact' && check.quote_status !== 'fuzzy',
                     evidenceConfirmed: Boolean(override?.evidence_confirmed),
+                    aiNoVerdict: noVerdictIds.has(check.check_id),
+                    noVerdict: noVerdictIds.has(check.check_id)
+                        && override === undefined && pinsHere[terminalId] === undefined,
                     note: override?.teacher_comment ?? null,
                     evidenceDisputed: Boolean(override?.evidence_disputed),
                     awarded,

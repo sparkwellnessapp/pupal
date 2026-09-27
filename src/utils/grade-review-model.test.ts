@@ -461,8 +461,10 @@ describe('approval blockers [OD-R1] — she must never be sent into a 422', () =
     });
 
     it('leaves every OTHER error class blocking, whatever she decided', () => {
+        // (Was `closed_world_violation` until 2026-09-27; that one is handled at
+        // grade time and never blocks — CWV-3, grade-review-no-verdict.test.tsx.)
         const other = {
-            severity: 'error', annotation_type: 'closed_world_violation',
+            severity: 'error', annotation_type: 'no_answer',
             target_id: 'q2.ב', message: 'לא ניתן לאשר',
         };
         const decided = cycleVerdict(emptyOverlay(), 'q2.ב.c0', 'q2.ב.c0.k1', 'not_met');

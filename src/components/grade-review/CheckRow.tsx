@@ -65,6 +65,10 @@ export interface CheckRowCheck {
     underPin: boolean;
     /** Vivi's credit verdict on a span she could not verify, undecided by the teacher. */
     unverified: boolean;
+    /** [OD-3] No machine verdict arrived for this check (static). */
+    aiNoVerdict?: boolean;
+    /** …and she has not decided it yet. */
+    noVerdict?: boolean;
     /** She confirmed that verdict — credited on her reading of the paper. */
     evidenceConfirmed: boolean;
     text: string;
@@ -197,18 +201,22 @@ export function CheckRow({
                 overridden={overridden}
                 kind={check.kind}
                 unverified={check.unverified}
+                noVerdict={check.noVerdict}
                 onCycle={onCycle}
             />
 
             <div className="self-start text-gr-body leading-snug">
                 {check.text}
-                {check.basis_he ? (
+                {/* A no-verdict row's stored basis is machine talk about the
+                    machine («לא אומת…») — the glyph says it in her words. */}
+                {check.basis_he && !check.aiNoVerdict ? (
                     <span className="mt-0.5 block text-gr-meta text-grade-ink-2">
                         {check.basis_he}
                     </span>
                 ) : null}
 
-                {overridden && check.evidenceConfirmed && effectiveVerdict === check.aiVerdict ? (
+                {overridden && check.evidenceConfirmed && !check.aiNoVerdict
+                    && effectiveVerdict === check.aiVerdict ? (
                     <div className="mt-1.5 text-gr-label text-grade-pencil" data-confirmed="true">
                         <span className="text-primary-700">{RV_ORIG_CONFIRMED}</span> ·{' '}
                         <button

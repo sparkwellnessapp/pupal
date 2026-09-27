@@ -131,6 +131,11 @@ export const RV_SCOPE_RETRY = 'ניסיון נוסף'
 export const RV_BLOCK_LLM_FAILURE = (scopeId: string) =>
     `הבדיקה האוטומטית נכשלה בסעיף ${scopeId} — קבעי בעצמך את כל הבדיקות בסעיף כדי לאשר`
 export const RV_BLOCK_GENERIC = 'יש בעיה שדורשת תיקון לפני אישור'
+/** [OD-4] Checks Vivi could not decide — drawn as an empty amber ring. */
+export const RV_BLOCK_UNDECIDED = (n: number) =>
+    n === 1
+        ? 'נותרה בדיקה אחת שוויוי לא קבעה (עיגול כתום ריק) — קבעי אותה כדי לאשר'
+        : `נותרו ${n} בדיקות שוויוי לא קבעה (עיגול כתום ריק) — קבעי אותן כדי לאשר`
 export const RV_APPROVE_BLOCKED = (blockers: readonly string[]) =>
     blockers.length === 1
         ? `לא ניתן לאשר עדיין · ${blockers[0]}`
@@ -196,6 +201,8 @@ export const RV_VERDICT_TITLE_TARIFF = 'הורדה כן / לא (Space)'
 /** An UNVERIFIED credit verdict (2026-09-15): Vivi's ✓ whose quote she could not
  *  find in the answer — priced at 0 until the teacher confirms it. */
 export const RV_VERDICT_TITLE_UNVERIFIED = 'ויוי סימנה ✓ אך לא אימתה את הציטוט — לחיצה מאשרת (Space)'
+/** [OD-3] No verdict arrived for this check — hers to decide. */
+export const RV_VERDICT_TITLE_NO_VERDICT = 'ויוי לא קבעה את הבדיקה הזו — לחיצה קובעת (Space)'
 export const RV_ORIG_CONFIRMED = 'אישרת למרות שהציטוט לא אומת'
 export const RV_POINTS_OFF_GRID = (x: string, step: string) =>
     `לא ניתן להעניק ${x} נקודות — הנקודות ניתנות בקפיצות של ${step}`
