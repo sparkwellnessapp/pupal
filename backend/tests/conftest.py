@@ -165,6 +165,11 @@ def pytest_sessionstart(session):
 def pytest_collection_modifyitems(config, items):
     known = _kf.load_known_failures()
     _kf.mark_known_failures(items, known)
+    if not (_kf.is_gate_run() or _os.environ.get("VIVI_RUN_SLOW", "").strip() not in ("", "0")):
+        skip_slow = _pytest.mark.skip(reason="slow: set VIVI_RUN_SLOW=1 (gate runs include it)")
+        for item in items:
+            if "slow" in item.keywords:
+                item.add_marker(skip_slow)
     if not _kf.is_gate_run():
         return
     rootdir = Path(str(config.rootpath))

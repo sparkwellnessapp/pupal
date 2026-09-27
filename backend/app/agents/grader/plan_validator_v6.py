@@ -20,6 +20,7 @@ Rules (as amended at STOP-1, docs/GRADER_V6_CENSUS.md §1a):
   V18 Placement         the anchor is a candidate of every member marker
   V19 FaultLeakCandidate telemetry only — see v19_fault_leak_candidates
   V20 SkeletonConformity enumerated components kept exactly, in order
+  V21 GroupEnumeration  telemetry only [AM-G13] — see v21_group_enumeration_warnings
 Kept from v5 (census Appendix C): V5 unique ids, V6 totality vs the contract,
 V7 a charge group stays inside one scope, V10 no point text in anything the
 point-blind verifier reads (descriptions AND option labels).
@@ -421,4 +422,34 @@ def v19_fault_leak_candidates(checks: Sequence[PlanCheckV6],
         common = sorted(credit_tokens & fault_tokens)
         if common:
             out.append((c.check_id, c.requires, common))
+    return out
+
+
+# ── V21 (telemetry) ──────────────────────────────────────────────────────────
+
+V21_ENUMERATION_LIMIT = 4096
+
+
+def v21_group_enumeration_warnings(checks: Sequence[PlanCheckV6],
+                                   terminal_scopes: Dict[str, str],
+                                   limit: int = V21_ENUMERATION_LIMIT
+                                   ) -> List[Tuple[str, int]]:
+    """[AM-G13] (scope, Π charge-group sizes) for every scope whose product
+    exceeds `limit`. The pricer assigns a scope's group charges jointly, by an
+    exact enumeration of that product; this names the plans where that could
+    be slow. The enumeration stays exact regardless — NEVER an error."""
+    sizes: Dict[str, Dict[str, int]] = {}
+    for c in checks:
+        if c.charge_group is None:
+            continue
+        scope = terminal_scopes.get(c.priced_terminal_id, "?")
+        groups = sizes.setdefault(scope, {})
+        groups[c.charge_group] = groups.get(c.charge_group, 0) + 1
+    out: List[Tuple[str, int]] = []
+    for scope in sorted(sizes):
+        product = 1
+        for n in sizes[scope].values():
+            product *= n
+        if product > limit:
+            out.append((scope, product))
     return out

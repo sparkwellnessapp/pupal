@@ -111,7 +111,7 @@ def test_e5_fault_capped_by_behavior():
     f1 = fault("A.f1", A, [("m1", 2, "x")], requires="A.c1")
     p = price(view([term(A, 4)], [Sel(lad, "p1"), Sel(other, "full"), Sel(f1, "f1")]))
     ch = _charge(p, "A.f1")
-    assert (ch.amount, ch.charged, ch.status) == (D("-2"), D("-1"), "applied")
+    assert (ch.amount, ch.charged, ch.status) == (D("-2"), D("-1"), "capped")    # [AM-G13]
     assert _t(p).awarded == D("2")                   # T's portion 0, the rest untouched
 
 
@@ -217,8 +217,8 @@ def test_evidence_gate_refuses_unverified_model_selection_only():
 def test_typed_amount_resolves_credit_and_is_bounded():
     # AM-G3: her amount on a credit check is its value; activity follows it
     p = price(_e1("absent", "f1"), overlay({"A.c1": CheckDecision(amount=D("1.5"))}))
-    assert _charge(p, "A.f1").status == "applied"
-    assert _charge(p, "A.f1").charged == D("-1.5")           # capped by her 1.5 (S-3)
+    assert _charge(p, "A.f1").status == "capped"                 # [AM-G13] BehaviorCap
+    assert _charge(p, "A.f1").charged == D("-1.5")           # capped by her 1.5
     assert _t(p).awarded == D("0") and _t(p).typed
     p = price(_e1("full", "none"), overlay({"A.c1": CheckDecision(amount=D("2.5"))}))
     assert _t(p).awarded == D("2.5") and _t(p).typed
@@ -272,7 +272,7 @@ def test_price_is_invariant_under_list_order():
 
 # ── PRC-8 purity ─────────────────────────────────────────────────────────────
 
-_ALLOWED_IMPORTS = {"__future__", "dataclasses", "decimal", "typing", "types", "enum",
+_ALLOWED_IMPORTS = {"__future__", "dataclasses", "decimal", "itertools", "typing", "types", "enum",
                     "pydantic", "app.agents.grader.plan_schemas",
                     "app.schemas.ontology_types", "app.services.selection_scoring"}
 
@@ -294,14 +294,14 @@ def test_pricer_module_is_pure():
     assert not (calls & banned)
 
 
-# ── Q-22 (surfaced at Phase 1, awaiting a ruling) ────────────────────────────
+# ── Q-22 → AM-G13: BehaviorCap and a jointly chosen group charge ────────────
+# Both examples were strict xfails at Phase 1: each lowered a total when the
+# answer got better (PRC-6). They are ordinary tests now, and hand vectors too.
 
-@pytest.mark.xfail(strict=True, reason=(
-    "Q-22: §4.2 chooses a group's one charge (step 4, largest capped magnitude) "
-    "BEFORE per-terminal floors (step 5), so PRC-6 ('moving a fault to none never "
-    "lowers the total') fails when the kept charge sits on a terminal with no room: "
-    "5.00 -> 4.25. PRC-4 and PRC-6 cannot both hold as written; owner rules the fix."))
 def test_prc6_charge_group_meets_a_floor():
+    """[AM-G13 PRC-4] The group's one charge lands where it lowers the scope total
+    most. On A (0.25 earned) it could only take 0.25; on B it takes the full 1 —
+    so B pays, before and after A's fault is cleared (was 5.00 → 4.25)."""
     a_c = binary("A.c1", "A", "0.25")
     a_f = fault("A.f1", "A", [("m1", 1, "x")], group="g")
     b_c = binary("B.c1", "B", 5)
@@ -310,16 +310,16 @@ def test_prc6_charge_group_meets_a_floor():
              [Sel(a_c, "full"), Sel(a_f, "f1"), Sel(b_c, "full"), Sel(b_f, "f1")])
     before = price(v)
     after = price(v, overlay({"A.f1": CheckDecision(option_id="none")}))
+    assert before.total_score == D("4.25")
+    assert (_charge(before, "A.f1").status, _charge(before, "B.f1").status) == (
+        "superseded", "applied")
+    assert after.total_score == D("4.25")
     assert after.total_score >= before.total_score
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "Q-22a: S-3 caps EACH fault at what its behavior earned, so two fault checks "
-    "that require the same credit check can together take twice its value and eat "
-    "other credit: raising the behavior from absent to full drops the terminal "
-    "3.0 -> 0.0 (search seed 2782). S-3's own sentence ('attempted badly never "
-    "scores below skipped') needs the cap on the SUM. Owner rules the fix."))
 def test_prc6_two_faults_on_one_behavior():
+    """[AM-G13 PRC-3] BehaviorCap: the two faults on A.c2 together never cost more
+    than its 3.5; the excess comes off the LATEST fault first (was 3.0 → 0.0)."""
     lad = ladder("A.c1", A, 4, [("p", PartialFraction.THREE_QUARTERS), ("q", PartialFraction.QUARTER)])
     beh = binary("A.c2", A, "3.5")
     f1 = fault("A.f1", A, [("m1", 4, "x")], requires="A.c2")
@@ -328,7 +328,59 @@ def test_prc6_two_faults_on_one_behavior():
     before = price(v)
     after = price(v, overlay({"A.c2": CheckDecision(option_id="full")}))
     assert before.total_score == D("3")
+    assert after.total_score == D("3")
+    assert [(c.check_id, c.charged, c.status) for c in _t(after).charges] == [
+        ("A.f1", D("-3.5"), "capped"), ("A.f2", D("0"), "capped")]
+
+
+def test_charge_groups_are_assigned_jointly():
+    """[AM-G13 PRC-4] Two groups share two terminals. Chosen one group at a time
+    (earliest member each), both charges land on X and one is absorbed by X's
+    floor (total 2); chosen jointly, one lands on each (total 0). Enumeration is
+    lexicographic — g1 then g2, members in plan order — and the FIRST minimum,
+    (x1, y2), is kept."""
+    xc = binary("X.c1", "X", 2)
+    yc = binary("Y.c1", "Y", 2)
+    x1 = fault("X.f1", "X", [("m1", 2, "x")], group="g1")
+    y1 = fault("Y.f1", "Y", [("m2", 2, "x")], group="g1")
+    x2 = fault("X.f2", "X", [("m3", 2, "y")], group="g2")
+    y2 = fault("Y.f2", "Y", [("m4", 2, "y")], group="g2")
+    v = view([term("X", 2), term("Y", 2)],
+             [Sel(xc, "full"), Sel(yc, "full"), Sel(x1, "f1"), Sel(y1, "f1"),
+              Sel(x2, "f1"), Sel(y2, "f1")])
+    p = price(v)
+    assert p.total_score == D("0")
+    assert {cid: _charge(p, cid).status for cid in ("X.f1", "Y.f1", "X.f2", "Y.f2")} == {
+        "X.f1": "applied", "Y.f1": "superseded", "X.f2": "superseded", "Y.f2": "applied"}
+
+
+def test_prc6_holds_when_a_group_member_is_pinned():
+    """[AM-G13, census Q-23] The group objective is the scope total WITH her
+    terminal overrides. Measured before them, the charge would sit on the pinned
+    X (where it costs nothing) until raising Y's credit made the two tie, then
+    jump to Y by plan order: 5 → 4 for a better answer."""
+    yc = ladder("Y.c1", "Y", 2, [("half", PartialFraction.HALF)])
+    yf = fault("Y.f1", "Y", [("m1", 2, "x")], group="g")
+    xc = binary("X.c1", "X", 5)
+    xf = fault("X.f1", "X", [("m2", 2, "x")], group="g")
+    v = view([term("Y", 2), term("X", 5)],
+             [Sel(yc, "p1"), Sel(yf, "f1"), Sel(xc, "full"), Sel(xf, "f1")])
+    pins = {"X": 4}
+    before = price(v, overlay(pins=pins))
+    after = price(v, overlay({"Y.c1": CheckDecision(option_id="full")}, pins=pins))
     assert after.total_score >= before.total_score
+    assert (before.total_score, after.total_score) == (D("4"), D("4"))
+
+
+def test_a_charge_group_across_scopes_is_refused():
+    """V7 is a precondition of the joint assignment: a group spanning two scopes
+    would be charged once in each. The pricer refuses rather than mis-price."""
+    xc, xf = binary("X.c1", "X", 2), fault("X.f1", "X", [("m1", 1, "x")], group="g")
+    yc, yf = binary("Y.c1", "Y", 2), fault("Y.f1", "Y", [("m2", 1, "x")], group="g")
+    v = view([term("X", 2, q="q1"), term("Y", 2, q="q2")],
+             [Sel(xc, "full"), Sel(xf, "f1"), Sel(yc, "full"), Sel(yf, "f1")])
+    with pytest.raises(ValueError, match="V7"):
+        price(v)
 
 
 # ── the pricer's I/O contract (declarative; the TS mirror parses the same JSON)

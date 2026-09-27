@@ -11,7 +11,6 @@ import os
 import random
 from decimal import Decimal as D
 
-import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
@@ -83,11 +82,6 @@ def prop_charge_once(data):
     assert all(n <= 1 for n in nonzero.values())                        # PRC-4
 
 
-@pytest.mark.xfail(strict=False, reason=(
-    "Q-22 (open): PRC-6 fails under §4.2 as written in two classes, each pinned by a "
-    "strict-xfail example in test_pricing_v6.py; a random run may or may not find one. "
-    "The prototype fix (Q-22a aggregate behavior cap + Q-22b group charge where it "
-    "costs most) had 0 violations over 6,000 seeded cases × every move."))
 @given(st.data())
 def prop_total_monotone(data):
     """PRC-6: moving a credit check to a HIGHER-valued option, or a fault check

@@ -18,6 +18,7 @@ from app.agents.grader.plan_validator_v6 import (
     SkeletonComponent,
     validate_plan_v6,
     v19_fault_leak_candidates,
+    v21_group_enumeration_warnings,
 )
 from app.agents.grader.plan_values import (
     count_options,
@@ -273,6 +274,23 @@ def test_v19_is_telemetry_and_never_blocks():
     errs = _errs([credit, f], markers=[m],
                  dispositions=[MarkerDisposition(marker_id="m1", disposition="fault")])
     assert not _has(errs, "V19")
+
+
+# ── V21 GroupEnumeration — telemetry, never blocks [AM-G13] ────────────────────
+
+def test_v21_warns_past_4096_assignments_per_scope():
+    from tests.services.pricing_v6_cases import fault
+
+    def groups(scope_terminal, n):
+        return [fault(f"{scope_terminal}.f{g}{k}", scope_terminal, [(f"m{g}{k}", 1, "x")],
+                      group=f"{scope_terminal}.g{g}")
+                for g in range(n) for k in range(2)]            # n groups of 2 members
+
+    scopes = {"A": "q1", "B": "q2", "C": "q3"}
+    checks = groups("A", 12) + groups("B", 13) + groups("C", 3)
+    assert v21_group_enumeration_warnings(checks, scopes) == [("q2", 2 ** 13)]   # 2**12 == 4096 is fine
+    assert v21_group_enumeration_warnings(checks, scopes, limit=7) == [
+        ("q1", 2 ** 12), ("q2", 2 ** 13), ("q3", 8)]
 
 
 # ── V20 SkeletonConformity ───────────────────────────────────────────────────

@@ -8,11 +8,11 @@ for that terminal only; also what approval freezes when no model line exists
 for the effective selections (§7.7). Python only — the frontend always
 receives lines from the backend.
 
-  fully earned, no applied/floored charge  «כל הדרישות בקריטריון מולאו.»
+  fully earned, no deducting charge        «כל הדרישות בקריטריון מולאו.»
   otherwise, in plan order, joined « · »:
     credit at zero                         «חסר: {description}»
     credit between zero and max            «{description}: {selected label}»
-    applied or floored fault               «נוכה: {selected label}»
+    applied, capped or floored fault       «נוכה: {selected label}»
   past 200 chars: truncate at the last « · » and append « …»
 
 A terminal SHE decided (a terminal override, or a typed amount on any check —
@@ -36,6 +36,10 @@ from app.agents.explainer.copy import (
 )
 from app.services.pricing_v6 import DraftV6View, PricedTest
 
+# The statuses of a fault that was found and charged, in whole or in part
+# ([AM-G13] `capped` joins them: BehaviorCap reduced it, it still applied).
+_DEDUCTING = ("applied", "capped", "floored")
+
 __all__ = ["compose_reasoning_he", "FULLY_EARNED_HE", "MACHINE_VOCABULARY", "MANUAL_HE"]
 
 
@@ -48,7 +52,7 @@ def compose_reasoning_he(priced: PricedTest, view: DraftV6View, terminal_id: str
     charges = {c.check_id: c for c in terminal.charges}
 
     if terminal.awarded == possible and not any(
-            c.status in ("applied", "floored") for c in terminal.charges):
+            c.status in _DEDUCTING for c in terminal.charges):
         return FULLY_EARNED_HE
 
     parts: List[str] = []
@@ -65,7 +69,7 @@ def compose_reasoning_he(priced: PricedTest, view: DraftV6View, terminal_id: str
                 parts.append(f"{plan.description_he}: {option.label_he}")
         elif plan.role == "fault":
             ch = charges.get(plan.check_id)
-            if ch is not None and ch.status in ("applied", "floored"):
+            if ch is not None and ch.status in _DEDUCTING:
                 parts.append(f"{DEDUCTED_PREFIX_HE}{plan.option(ch.option_id).label_he}")
 
     if not parts:

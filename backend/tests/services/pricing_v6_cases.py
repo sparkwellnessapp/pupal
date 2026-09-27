@@ -266,7 +266,10 @@ def build_random_case(draw: Draw, *, max_questions: int = 3, max_subs: int = 2,
                     chk = fault(cid, tid, markers,
                                 requires=(draw.choice(credits).check_id
                                           if draw.bool(70) else None),
-                                group=(draw.choice(groups_pool) if draw.bool(30) else None),
+                                # V7: a charge group stays inside one scope, so its
+                                # name is scope-local (the draws are unchanged)
+                                group=(f"{qid}{'.' + sq if sq else ''}:{draw.choice(groups_pool)}"
+                                       if draw.bool(30) else None),
                                 evidence_required=draw.bool(85))
                     sels.append(Sel(chk, _pick(draw, chk), draw.choice(_QUOTES)))
                 if draw.bool(15):

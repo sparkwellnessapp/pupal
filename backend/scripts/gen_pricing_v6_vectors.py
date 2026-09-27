@@ -6,7 +6,9 @@ The v6 pricer (`app/services/pricing_v6.py`) and its TypeScript mirror
 
   hand       the worked examples of §4.5 (E1–E10; E3 dropped by AM-G9) and
              the amendments' named cases (AM-G2 gate, AM-G3 amounts, Q-10
-             notes, charge groups, floors, selection groups, …)
+             notes, charge groups, floors, selection groups, and AM-G13's
+             BehaviorCap / joint group assignment — both sides of each PRC-6
+             move that was a Phase-1 counterexample, …)
   generated  500 random cases from the ONE case builder
              (`tests/services/pricing_v6_cases.build_random_case`), driven by
              a seeded PRNG. Not Hypothesis's engine: its example stream is not
@@ -73,6 +75,29 @@ def _hand_cases() -> List[Tuple[str, object, Optional[object]]]:
     t10 = term(E10_TID, 5, q="q5", sq="ב")
     inactive_group_a = fault("T1.f1", "T1", [("m1", 3, "x")], requires="T1.c1", group="g")
     inactive_group_b = fault("T2.f1", "T2", [("m2", 1, "x")], group="g")
+    # AM-G13 (census Q-22 / Q-23)
+    fl_ac, fl_af = binary("A.c1", "A", "0.25"), fault("A.f1", "A", [("m1", 1, "x")], group="g")
+    fl_bc, fl_bf = binary("B.c1", "B", 5), fault("B.f1", "B", [("m2", 1, "x")], group="g")
+    floor_view = view([term("A", "0.25"), term("B", 5)],
+                      [Sel(fl_ac, "full"), Sel(fl_af, "f1"), Sel(fl_bc, "full"), Sel(fl_bf, "f1")])
+    bc_lad = ladder("A.c1", A, 4, [("p", PartialFraction.THREE_QUARTERS), ("q", PartialFraction.QUARTER)])
+    bc_beh = binary("A.c2", A, "3.5")
+    bc_f1 = fault("A.f1", A, [("m1", 4, "x")], requires="A.c2")
+    bc_f2 = fault("A.f2", A, [("m2", 6, "y")], requires="A.c2")
+    bc_view = view([term(A, "7.5")], [Sel(bc_lad, "p1"), Sel(bc_beh, "absent"),
+                                      Sel(bc_f1, "f1"), Sel(bc_f2, "f1")])
+    jx, jy = binary("X.c1", "X", 2), binary("Y.c1", "Y", 2)
+    joint_view = view([term("X", 2), term("Y", 2)], [
+        Sel(jx, "full"), Sel(jy, "full"),
+        Sel(fault("X.f1", "X", [("m1", 2, "x")], group="g1"), "f1"),
+        Sel(fault("Y.f1", "Y", [("m2", 2, "x")], group="g1"), "f1"),
+        Sel(fault("X.f2", "X", [("m3", 2, "y")], group="g2"), "f1"),
+        Sel(fault("Y.f2", "Y", [("m4", 2, "y")], group="g2"), "f1")])
+    pin_view = view([term("Y", 2), term("X", 5)], [
+        Sel(ladder("Y.c1", "Y", 2, [("half", PartialFraction.HALF)]), "p1"),
+        Sel(fault("Y.f1", "Y", [("m1", 2, "x")], group="g"), "f1"),
+        Sel(binary("X.c1", "X", 5), "full"),
+        Sel(fault("X.f1", "X", [("m2", 2, "x")], group="g"), "f1")])
 
     return [
         ("E1:direct-access", e1("full", "f1"), None),
@@ -132,6 +157,15 @@ def _hand_cases() -> List[Tuple[str, object, Optional[object]]]:
         ("primary:tie-plan-order", view([term(A, 4)], [Sel(binary("A.c1", A, 2), "full"),
                                                        Sel(binary("A.c2", A, 2), "full")]), None),
         ("override:clamped", e1("full", "none"), overlay(pins={A: 9})),
+        ("AM-G13:group-meets-a-floor", floor_view, None),
+        ("AM-G13:group-meets-a-floor/cleared", floor_view,
+         overlay({"A.f1": CheckDecision(option_id="none")})),
+        ("AM-G13:behavior-cap/absent", bc_view, None),
+        ("AM-G13:behavior-cap/raised", bc_view, overlay({"A.c2": CheckDecision(option_id="full")})),
+        ("AM-G13:groups-assigned-jointly", joint_view, None),
+        ("AM-G13:pinned-member", pin_view, overlay(pins={"X": 4})),
+        ("AM-G13:pinned-member/raised", pin_view,
+         overlay({"Y.c1": CheckDecision(option_id="full")}, pins={"X": 4})),
     ]
 
 

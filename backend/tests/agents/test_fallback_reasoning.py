@@ -40,6 +40,18 @@ def test_fallback_reasoning_all_branches_and_truncation():
     assert " · " in line and not line.startswith(" ·")
 
 
+def test_fallback_reasoning_names_a_capped_fault():
+    """[AM-G13] BehaviorCap reduced the charge (−2 → −1, `capped`); the fault
+    still cost her the point, so the line still names it."""
+    c1 = binary("A.c1", A, 1, desc="עדכון התכונה")
+    f1 = fault("A.f1", A, [("m1", 2, "גישה ישירה לתכונה")], requires="A.c1")
+    v = view([term(A, 1)], [Sel(c1, "full"), Sel(f1, "f1")])
+    priced = price(v)
+    (charge,) = priced.terminals[0].charges
+    assert (charge.status, charge.charged) == ("capped", -1)
+    assert compose_reasoning_he(priced, v, A) == "נוכה: גישה ישירה לתכונה"
+
+
 def test_fallback_reasoning_carries_no_machine_vocabulary():
     c1 = binary("A.c1", A, 4, desc="עדכון התכונה")
     f1 = fault("A.f1", A, [("m1", 2, "גישה ישירה")], requires="A.c1")

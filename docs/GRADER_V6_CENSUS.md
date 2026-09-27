@@ -1,6 +1,6 @@
 # GRADER V6 CENSUS — Phase 0 of `PR_grader_v6_options.md` → STOP-1
 
-**Status: STOP-1 RULED (owner, 2026-09-27).** Census accepted. The rulings, amendments AM-G1…AM-G12 and additions A-1…A-6 are recorded in **§1a** and are authoritative; §1 below is kept as the record of what was asked. Phase 1 (Track A) and Track B are open; Track C runs separately. C-4b waits on AM-G10 (the read-only role).
+**Status: STOP-1 RULED; after-Phase-1 rulings recorded (owner, 2026-09-27).** The rulings, amendments AM-G1…AM-G14 and additions A-1…A-7 are in **§1a** and are authoritative; §1 below is kept as the record of what was asked. **AM-G13 is implemented (G1 evidence in the RUNLOG); Q-23 in §1b asks the owner to confirm one clause of it.** AM-G10 ran: **C-4b = 0** (Appendix D). Track B is **blocked: the Anthropic credit balance is too low** (§1b). Track C holds at STOP.
 *(Original status: STOP. Four STOP conditions that the spec names fired, and one of the spec's premises was false.)*
 **Base:** `origin/main` @ `4f331e5` (2026-09-27), read in a clean worktree. Paths below are repo-relative. A few gitignored artefacts exist only in the shared working tree; they were read in place there and are marked **(untracked)**.
 **Method:** zero code, zero spend. **No production database was read**: the permission layer refused the read-only query (C-4, and Appendix D has the SQL). Every claim cites `path:line`. Where a fact could not be established, the text says so.
@@ -147,6 +147,23 @@ Recorded verbatim in substance. Code comments and RUNLOG cite the **AM-G** and *
   2. Baseline: production pin (grader-v5.4 + compiled plan), 12 fixtures, k=3; the expressibility guard reports instead of refusing, for this run only; cost per test under AM-G12 accounting; `EVAL_ANALYSIS.md` per the contract. Its results go into REVIEW-2 with the plan renders.
 - **Track C — standalone deduction lines.** Separate worktree, separate PR, census first; STOP before design. Trace the four lost bagrut lines; propose extraction keeping them as a scope-level field (never as 0-point criteria); list the ontology and rubric-gold changes for an owner ruling. v6.1 then wires them in as markers with scope candidates.
 
+### After Phase 1 (owner, 2026-09-27)
+
+| Ruling | Content |
+|---|---|
+| **Q-22** | **APPROVED + AM-G13.** §4.2 steps 3–5, PRC-3 and PRC-4 amended. Order: Resolve (unchanged, evidence gate included) → Activity (unchanged) → **BehaviorCap** (PRC-3, replaces the per-fault cap: for each credit check T, the charges of all active fault checks requiring T sum to ≥ −value(T); an excess is reduced latest plan order first; a reduced charge is `capped`) → **ChargedOnce** (PRC-4: every group with a charged member charges exactly one; the assignment is chosen jointly across the scope's groups as the one giving the lowest scope total after steps 3 and 5; lexicographic enumeration — groups in plan order, members in plan order — first minimum kept; the TS mirror enumerates identically; the others `superseded`) → Terminal floor (unchanged). Statuses: inactive · no_fault · applied · capped · superseded · floored; the explainer input and the expand view carry `capped`. **V21** (telemetry): warn when a scope's product of group sizes exceeds 4,096; enumeration stays exact. **G1 closes when** both strict-xfail tests pass and join the hand vectors; `prop_total_monotone` is strict at ≥ 2,000; the seeded 6,000-case exhaustive search is committed as a slow test with 0 violations; E1–E10 unchanged; vectors regenerated and `npx vitest run` green. |
+| **Q-B1** | **APPROVED + AM-G14.** `tools/segment_plan.py` reads `settings.plan_route_min_points` (no duplicated constant). Rebuild both exams' routed+segmented plans at the production threshold, pinned by sha with their build cost; keep the old hobby artefact renamed `…p4.plan.json` for A3 history; then run the baseline as ruled, under a **$12 cap**. |
+| **AM-G10** | The read-only role `vivi_ro` exists. Its URL is built from the backend `DATABASE_URL`'s host, database and project ref on the **session** pooler, and lives only in `backend/vivi-census.env` (never printed, logged or committed; now git-ignored). Sanity checks through it: counts > 0 on all three tables, and `create table` refused as read-only. Then Appendix D inside `BEGIN READ ONLY … ROLLBACK`, C-4b reported, and the G4 snapshot stored outside the repo. **Every production read uses this role; never the admin URL.** |
+| **A-7** | **Test hygiene (standing).** Pre-existing failures are pinned by name in `tests/KNOWN_FAILURES.txt` (the 4 batch-feed fixture tests and `test_llm_policy`, failing on clean main at the phase's base commit). A gate run must reach the test DB; any failure outside the list blocks the gate; removing a name requires its test to pass. Fix the first-batch isolation flake now (a fresh user per test). Triage batch-feed and `test_llm_policy` (≤ 30 min) → D-11 / D-12 in Appendix E (not blocking). |
+| **Track C** | Holds at STOP; the owner rules TC-1…TC-8 after reading `STANDALONE_DEDUCTIONS_CENSUS.md`. |
+| **Next** | Implement AM-G13 → G1 green → Phase 2. Track B proceeds in parallel. |
+
+**Done against these rulings (2026-09-27):**
+- **AM-G13** implemented in `services/pricing_v6.py`; V21 in `plan_validator_v6.py`; `capped` in the fallback composer. The G1 evidence is in the grading RUNLOG. One clause of the ruling ("the lowest scope total **after steps 3 and 5**") is read as *including* her terminal overrides — see **Q-23**. The pricer refuses a charge group that spans scopes (V7 is a precondition of a per-scope joint assignment).
+- **AM-G14** — the tool change and the `.p4` rename are committed; **the rebuild stopped on its first call: "Your credit balance is too low to access the Anthropic API"** ($0 spent; see §1b BLOCKER-1).
+- **AM-G10** — done; results in C-4 and Appendix D. The owner may drop the role.
+- **A-7** — `tests/KNOWN_FAILURES.txt` + `tests/known_failures.py` (strict-xfail pinning; `VIVI_TEST_GATE=1` probes the test DB, exit 3 if unreachable); the first-batch flake fixed with a fresh teacher; D-11 / D-12 triaged into Appendix E.
+
 ### Inherited from `main` since the census (not new rulings — applied as standing law)
 
 `e760e35` (2026-09-27, GATE-1 / CWV-1..6 / OD-4) changed v5 semantics the census described:
@@ -160,8 +177,10 @@ Recorded verbatim in substance. Code comments and RUNLOG cite the **AM-G** and *
 
 | # | Raised by | Question | Evidence | Recommendation |
 |---|---|---|---|---|
-| **Q-22** | Phase 1 (Hypothesis, 2,000 examples) | **PRC-6 cannot hold under §4.2 as written.** Two classes: **(a)** S-3 caps *each* fault at what its behavior earned, so two fault checks that `require` the same credit check can together charge twice its value and eat other credit — raising a 3.5-point behavior from absent to full drops the terminal 3.0 → 0.0; **(b)** PRC-4 keeps a group's charge by largest magnitude *before* the terminal floor, so a charge swallowed by a floor moves, when that fault is cleared, to a terminal where it bites — total 5.00 → 4.25. | Exhaustive search, 6,000 seeded cases × every legal move: **69** violations under the spec's rule (58 raise, 11 fault→none); **0** under the prototype below. Both classes pinned by strict-xfail tests (`test_prc6_two_faults_on_one_behavior`, `test_prc6_charge_group_meets_a_floor`); `prop_total_monotone` is a non-strict xfail until ruled. | **Adopt both.** **Q-22a (S-3 / PRC-3):** *a behavior's faults together never cost more than it earned* — the charges requiring one credit check are reduced, latest plan order first, until their sum ≥ −its value (this is what S-3's own sentence "attempted badly never scores below skipped" needs). **Q-22b (PRC-4):** *a group's one charge lands where it lowers the test total the most; ties to the earliest plan order* — "charged once" then means charged, never silently swallowed by a floor. E1–E10 and the largest-magnitude example price identically. Enumeration is over group members (tiny in practice); the TS mirror enumerates in the same order. |
-| **Q-B1** | Track B (stopped at $0) | **The eval's plan tool is not the production pin.** `tools/segment_plan.py` compiles with the compiler default `ROUTE_MIN_POINTS = 4`; production routes at `settings.plan_route_min_points = 3` (OD-24). bagrut: the tool routes 8 monoliths, production 14; hobby: 5 vs 13 — so the committed `hobby_tvshow.routed+segmented.plan.json` (the A3 config's plan) is not the production pin either. | Track B's RUNLOG entry (2026-09-27); dry runs: bagrut P≥3 route $0.080 + segment $0.115, hobby P≥3 route $0.087 + segment $0.063 (real ≈ 2× estimate). | Make the tool read `settings.plan_route_min_points` (tests-only, one line); rebuild both exams' routed+segmented plans at P≥3 (~$0.7), keeping the old hobby artefact under a new name for A3 history; then run the baseline as ruled (~$6–8, under the $12 cap). |
+| **Q-22** | Phase 1 | **RULED → AM-G13** (§1a). | — | — |
+| **Q-B1** | Track B | **RULED → AM-G14** (§1a). | — | — |
+| **Q-23** | AM-G13 (the exhaustive search) | **Which total chooses the group charge.** AM-G13 says "the lowest scope total after steps 3 and 5". Read literally, that excludes her terminal override (step 6), and then PRC-6 fails on a pinned terminal: the charge sits on the pinned X (where it costs nothing) until raising Y's credit makes the two tie, and the tie goes to Y by plan order — the total falls **5 → 4 for a better answer**. Measured *with* overrides, the choice is a minimum over functions each monotone in the moves, so PRC-6 holds by construction. | The seeded 6,000-case search (52,315 improving moves, 983 cases with a pin): **0** violations with overrides, **3** before them, all on pinned terminals (seeds 1366 ×2, 4278: 1.00 → 0.75, 6.00 → 5.50). Pinned by `test_prc6_holds_when_a_group_member_is_pinned`. | **Implemented with overrides** (it is the only reading under which G1's own bar — `prop_total_monotone` strict, 0 violations — can pass). Confirm, or rule the literal reading and accept the pinned-terminal exception to PRC-6. |
+| **BLOCKER-1** | Track B (AM-G14 rebuild) | **The Anthropic API refuses: "Your credit balance is too low".** The rebuild failed on its first call (bagrut route stage); nothing was written, $0 spent. **If production's `ANTHROPIC_API_KEY` is on the same account, every v5 grade and every plan build in production fails the same way** — the last production grades (2026-09-24) succeeded and none has run since, so this could not be observed from the DB. | `trackb_rebuild.log`: `anthropic.BadRequestError 400 … credit balance is too low`. | Top up the account (and check which account production's key belongs to), then rerun the rebuild and the baseline as ruled. |
 | **TC-1…TC-8** | Track C | Standalone deduction lines: field shape, placement, contract-before-v6.1, class D, package + re-baseline (~$4.7), gold/scorer, grading-eval contracts, concept scope. | `docs/STANDALONE_DEDUCTIONS_CENSUS.md` §1 (a fifth lost line found: `employee_course_select1.md:166`). | As listed there. |
 
 ---
@@ -238,9 +257,10 @@ The compiled skeleton turns this cell into:
 
 **Per the spec: STOP, design nothing for (b).** → **Q-1**.
 
-### C-4 · Legacy drafts → **incomplete: production reads refused**
+### C-4 · Legacy drafts → **RUN 2026-09-27 through the read-only role (AM-G10): C-4b = 0**
 
-- The census needs production counts of `graded_tests` by status × `prompt_version` × plan class, plus the number of unapproved v3-era drafts. The read-only query was denied by the permission layer; the SQL is in Appendix D.
+- **Result (Appendix D, run as `vivi_ro` inside `BEGIN READ ONLY … ROLLBACK`):** 34 `graded_tests` — 16 approved + 17 draft, all `grader-v5.4` on compiled plans, plus 1 failed with no draft (v3-era by the query's definition, but `failed`, so not a draft). **C-4b = 0 → the STOP condition does not fire.** C-4c: 1 typed check amount, 1 confirmation, 0 disputes in unapproved drafts. R-C scan: 0 of 298 criteria (and 0 of 320 sub-criteria) open like a deduction line. C-5: 3 `ready` plans, all `plan-compiler/v2.0` / `segmented`. Row-level security is OFF on all three tables and `vivi_ro` has no BYPASSRLS, so the counts are complete.
+- *(Originally: the read-only query was denied by the permission layer; AM-G10 supplied the role.)*
 - **Code-side facts:**
   - A v3-era draft is one with no `plan_version`; its terminals carry no `checks` (`graded_test_draft.py:450-481`).
   - Such drafts are priced from their **stored** award (`graded_test_contract_compiler.py:543-544, 561-562`).
@@ -499,9 +519,20 @@ This is the double penalty and the summed tiers of §1.1.
 | V11 every detected deduction disposed | `plan_gen/prompt.py:164-170`; an assertion in compiler v2 (`PR_plan_compiler_v2.md:97`) | **subsumed by V14** |
 | V12 (v5) counted shape | `:224-244` | **subsumed by v6 V12's count arm and V13** (id collision, C-2) |
 
-## Appendix D — read-only production SQL (NOT run: permission refused)
+## Appendix D — read-only production SQL (RUN 2026-09-27 as `vivi_ro`, AM-G10)
 
-Run it inside `BEGIN READ ONLY; … ROLLBACK;`. A helper that enforces a read-only transaction is available on request.
+Run inside `BEGIN READ ONLY; … ROLLBACK;` through the owner's read-only role (session pooler; `default_transaction_read_only = on`; `create table` refused with 25006). Results:
+
+| Query | Result |
+|---|---|
+| C-4a | `approved · grader-v5.4 · compiled` 16 · `draft · grader-v5.4 · compiled` 17 · `failed · — · (none: v3-era)` 1 |
+| **C-4b** | **0** |
+| C-4c | typed_check_amounts 1 · confirmed 1 · disputed 0 |
+| C-3/R-C | 0 rows (298 criteria; the same pattern over 320 sub-criteria: 0) |
+| C-5 | `ready · plan-compiler/v2.0 · segmented` 3 |
+| RLS | off on `graded_tests`, `rubrics`, `grading_plans`; `vivi_ro` not BYPASSRLS, not superuser |
+
+**G4 snapshot:** every row of the three tables in one `READ ONLY REPEATABLE READ` transaction — 34 + 3 + 3 rows, 6.4 MB, sha256 `07431d668892d6e4…` — stored **outside the repo** at `C:/Users/ariel/vivi-private/grader-v6/g4_snapshot_20260927.json`. It carries `student_name` and student answers; it never enters a repository.
 
 ```sql
 -- C-4a: rows by status x stack
@@ -548,3 +579,5 @@ SELECT status, compiler_version, wording_source, count(*) FROM grading_plans GRO
 | D-8 | `PATCH /draft` replaces the overlay whole, and the review page does not send `stamp_position`. A draft save may therefore clear a stamp set on a draft row. This is inferred and not reproduced. | `grading.py:746`; `page.tsx:197-201` |
 | D-9 | GT notes O-1 and O-2 contradict their awards (C-7). | — |
 | D-10 | `constitution.py` is dead code: nothing imports it. | grep |
+| **D-11** | **Stale fixture, not a production bug.** The four committed `batch_feed_{landing,running,done,complete}.json` lack one line, `"is_first_batch": true`: 936af4f (2026-09-15) added the field to `BatchDetailResponse` and never regenerated them (last regeneration 91a3ce8, 2026-09-09). The field is intentional and tested; the frontend reads it as `batch.is_first_batch ?? true`, so absent and `true` render the same. **Fix:** `python -m scripts.gen_batch_feed_fixtures` (one line per fixture). Pinned in `KNOWN_FAILURES.txt` (A-7). | `schemas/batch.py:254`; `api/v0/batch_grading.py:1348,1363`; `frontend/src/app/batches/[id]/page.tsx:653` |
+| **D-12** | **Missing asset.** `tests/rubric_eval_suite/configs/` was never committed (`git log --all` has no commit touching it): the blanket `*.json` in `backend/.gitignore` has no negation for it. The 17 configs exist only untracked in the shared tree (no secrets). With them present, `test_llm_policy.py` is 7/7. **Fix:** add `!tests/rubric_eval_suite/configs/*.json` and commit the configs. Pinned in `KNOWN_FAILURES.txt` (A-7). | `backend/.gitignore:164`; `test_llm_policy.py:163-171`; `runner.py:56` |
