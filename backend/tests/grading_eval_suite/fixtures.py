@@ -49,6 +49,12 @@ class GTValidationError(Exception):
     """A ground-truth artifact failed a loader guard [§5]. Always fatal."""
 
 
+class GTIncompleteError(GTValidationError):
+    """[Track B 1b] a GT whose ATTEMPTED terminals still carry null awards —
+    the skeleton's completion check ("the loader refuses partial files"), not a
+    corrupt file. Distinct so structure-only loads can treat it as "not ready"."""
+
+
 class BlindSequencingError(Exception):
     """[R1] GT authored after a cached grader draft existed for the fixture."""
 
@@ -122,8 +128,14 @@ def _validate_gt(gt: FixtureGT, bundle_name: str,
                  scope_keys: List[ScopeKey],
                  precision: Decimal,
                  rubric_hash: Optional[str],
-                 transcription_hash: Optional[str]) -> None:
-    """The loader guards [§5]. Every failure names the fixture and the rule."""
+                 transcription_hash: Optional[str],
+                 *,
+                 unattempted_keys: Set[ScopeKey] = frozenset()) -> None:
+    """The loader guards [§5]. Every failure names the fixture and the rule.
+
+    `unattempted_keys` are the scopes of questions the student did not sit
+    (R-2, derived from the TRANSCRIPTION) — the only place a null award may
+    stand [Track B 1b]."""
     # [D5] contract-hash pinning: a recompiled rubric cannot silently invalidate
     # the GT authored against it. Enforced whenever expected hashes are known
     # (file-loaded bundles always know them; object-level tests may not).
@@ -171,8 +183,31 @@ def _validate_gt(gt: FixtureGT, bundle_name: str,
             f"{bundle_name}: GT totality violated — missing={sorted(missing)} "
             f"extra={sorted(extra)}.")
 
-    # bounds + precision grid
+    # [Track B 1b, owner ruling 2026-09-27] a null award is an UNSELECTED
+    # question and is legal only where the transcription agrees the student did
+    # not sit it. Anywhere else it is a judgment not yet made — the completion
+    # check the skeleton promises, kept loud.
+    unfinished = [t.terminal_id for t in gt.terminals
+                  if t.awarded is None
+                  and infos[t.terminal_id].scope_key not in unattempted_keys]
+    if unfinished:
+        attempted = sum(1 for t in gt.terminals
+                        if infos[t.terminal_id].scope_key not in unattempted_keys)
+        raise GTIncompleteError(
+            f"{bundle_name}: GT is still being authored — {len(unfinished)} of "
+            f"{attempted} terminals on ATTEMPTED questions have no award "
+            f"(first: {unfinished[0]})"
+            + ("; authored_at is still the placeholder"
+               if str(gt.authored_at).startswith("FILL") else ""))
+
+    # bounds + precision grid (a null award has neither — it was never judged)
     for t in gt.terminals:
+        if t.awarded is None:
+            continue
+        if t.evidence_exists is None:
+            raise GTValidationError(
+                f"{bundle_name}: {t.terminal_id} carries an award but no "
+                f"evidence_exists (C-5) — null is legal only beside a null award.")
         possible = infos[t.terminal_id].points
         if not (Decimal("0") <= t.awarded <= possible):
             raise GTValidationError(
@@ -210,9 +245,11 @@ def assemble_bundle(name: str,
         # The manifest routes; a GT that names its own exam must AGREE (§0.4 —
         # two sources of one fact are only safe when a disagreement is loud).
         assert_gt_exam_id_agrees(name, exam_id, getattr(gt, "exam_id", None))
+        skipped = _unattempted_question_ids(rubric_contract, gradable)
         _validate_gt(gt, name, infos, scope_keys,
                      rubric_contract.numeric_policy.precision,
-                     rubric_hash, transcription_hash)
+                     rubric_hash, transcription_hash,
+                     unattempted_keys={k for k in scope_keys if k[0] in skipped})
     return FixtureBundle(
         name=name, rubric_contract=rubric_contract,
         transcription_contract=transcription_contract,
@@ -224,26 +261,6 @@ def assemble_bundle(name: str,
 
 
 _MANIFEST_REQUIRED = ("rubric_contract", "transcription_contract", "gt")
-
-
-def _authoring_progress(gt_path: Path) -> Optional[str]:
-    """How far along a half-authored GT is, if that is why it failed to parse."""
-    try:
-        raw = json.loads(gt_path.read_text(encoding="utf-8"))
-        terminals = raw.get("terminals") or []
-    except (OSError, json.JSONDecodeError, AttributeError):
-        return None
-    if not terminals:
-        return None
-    unfilled = [t.get("terminal_id") for t in terminals
-                if isinstance(t, dict) and t.get("awarded") is None]
-    if not unfilled:
-        return None
-    placeholder = str(raw.get("authored_at") or "").startswith("FILL")
-    return (f"GT is still being authored — {len(terminals) - len(unfilled)}"
-            f"/{len(terminals)} terminals have an award; "
-            f"{len(unfilled)} still null (first: {unfilled[0]})"
-            + ("; authored_at is still the placeholder" if placeholder else ""))
 
 
 def load_bundle(name: str, *, suite_dir: Path = SUITE_DIR,
@@ -275,14 +292,14 @@ def load_bundle(name: str, *, suite_dir: Path = SUITE_DIR,
         try:
             gt = FixtureGT.model_validate_json(gt_path.read_text(encoding="utf-8"))
         except Exception as exc:                              # noqa: BLE001
-            # A GT skeleton is filled in over a long authoring session, so
-            # "present but not finished" is a NORMAL state, not a corrupt file.
-            # Pydantic answers it with one error per unfilled field — 30+ lines
-            # that bury the one fact the author needs, which is how many
-            # terminals are left. The skeleton's own _instructions promise "the
-            # loader refuses partial files — that is the completion check", so
-            # this is that check finally saying something useful.
-            detail = _authoring_progress(gt_path) or str(exc)[:200]
+            # [Track B 1b] A null award PARSES now (it means "not selected"), so
+            # a failure here is a malformed file, never a half-authored one. The
+            # completion check the skeleton's _instructions promise moved to
+            # `_validate_gt` (GTIncompleteError, below), the one place that can
+            # tell an UNSELECTED question's null from an unfinished judgment —
+            # the raw count that used to live here called every exam-2 GT
+            # "still being authored" for its unselected questions.
+            detail = str(exc)[:200]
             if require_gt:
                 raise GTValidationError(f"{name}: {detail}") from None
             logger.warning("gt_not_ready", extra={"fixture": name, "detail": detail})
@@ -292,17 +309,45 @@ def load_bundle(name: str, *, suite_dir: Path = SUITE_DIR,
             f"{name}: R1 — no GT at {gt_path}; grade mode is refused until the "
             f"owner's blind GT is committed.")
 
-    return assemble_bundle(
-        name, rubric_contract, transcription_contract, gt,
-        rubric_hash=sha256_file(rc_path),
-        transcription_hash=sha256_file(tc_path),
-        manifest=manifest,
-        exam_id=manifest_exam_id(name, suite_dir=suite_dir))
+    assemble = dict(rubric_hash=sha256_file(rc_path),
+                    transcription_hash=sha256_file(tc_path),
+                    manifest=manifest,
+                    exam_id=manifest_exam_id(name, suite_dir=suite_dir))
+    try:
+        return assemble_bundle(name, rubric_contract, transcription_contract, gt,
+                               **assemble)
+    except GTIncompleteError as exc:
+        # [Track B 1b] A null award now PARSES (it means "not selected"), so the
+        # half-authored case surfaces here instead of at parse time — same
+        # contract as above: refused for grading, "not ready" for structure.
+        if require_gt:
+            raise
+        logger.warning("gt_not_ready", extra={"fixture": name, "detail": str(exc)})
+        return assemble_bundle(name, rubric_contract, transcription_contract, None,
+                               **assemble)
 
 
 # ---------------------------------------------------------------------------
 # [R-2, owner-ruled 2026-09-05] selection from the TRANSCRIPTION, never the GT
 # ---------------------------------------------------------------------------
+
+def _unattempted_question_ids(rubric_contract: GradingRubricContract,
+                              gradable_test: GradableTest) -> Set[str]:
+    """`unattempted_questions`, on the two objects it reads (the loader needs it
+    before a bundle exists — one derivation, two callers)."""
+    members: Set[str] = set()
+    for group in getattr(rubric_contract, "selection_groups", None) or []:
+        members.update(group.of_question_ids)
+    if not members:
+        return set()
+    answered: Dict[str, bool] = {}
+    for scope in gradable_test.scopes:
+        q = scope.question_id
+        answered.setdefault(q, False)
+        if (scope.student_answer_text or "").strip():
+            answered[q] = True
+    return {q for q, saw in answered.items() if q in members and not saw}
+
 
 def unattempted_questions(bundle: FixtureBundle) -> Set[str]:
     """Questions the student did not sit — a member of a selection group whose
@@ -317,18 +362,7 @@ def unattempted_questions(bundle: FixtureBundle) -> Set[str]:
     On an exam with no selection groups this is EMPTY by construction — an
     empty answer there is a real skip the grader is expected to match
     ([T1-SKIP]), not a question the exam invited her to leave."""
-    members: Set[str] = set()
-    for group in getattr(bundle.rubric_contract, "selection_groups", None) or []:
-        members.update(group.of_question_ids)
-    if not members:
-        return set()
-    answered: Dict[str, bool] = {}
-    for scope in bundle.gradable_test.scopes:
-        q = scope.question_id
-        answered.setdefault(q, False)
-        if (scope.student_answer_text or "").strip():
-            answered[q] = True
-    return {q for q, saw in answered.items() if q in members and not saw}
+    return _unattempted_question_ids(bundle.rubric_contract, bundle.gradable_test)
 
 
 def unattempted_scope_keys(bundle: FixtureBundle) -> Set[ScopeKey]:

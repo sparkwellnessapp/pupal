@@ -27,13 +27,21 @@ from pydantic import BaseModel, Field, field_serializer
 class TerminalGT(BaseModel):
     """One owner judgment for one terminal (leaf criterion or sub-criterion)."""
     terminal_id: str
-    awarded: Decimal                      # Decimal-string on disk [§5]
-    evidence_exists: bool                 # [C-5] credit without quotable evidence is legal, but recorded
+    # Decimal-string on disk [§5]. [Track B 1b, owner ruling 2026-09-27] null =
+    # the question was NOT SELECTED (a choose-k exam the student answered
+    # elsewhere): the scorer, the gates and the expressibility guard skip it —
+    # never a zero. The field stays REQUIRED (no default): a terminal the
+    # author forgot is still a totality failure, and the loader refuses a null
+    # on a question the transcription says was attempted (fixtures._validate_gt).
+    awarded: Optional[Decimal]
+    # [C-5] credit without quotable evidence is legal, but recorded. Null only
+    # beside a null award (nothing was judged, so nothing was evidenced).
+    evidence_exists: Optional[bool]
     note: Optional[str] = None
 
     @field_serializer("awarded")
-    def _sd(self, v: Decimal) -> str:
-        return str(v)
+    def _sd(self, v: Optional[Decimal]) -> Optional[str]:
+        return None if v is None else str(v)
 
 
 class ScopeUngradable(BaseModel):

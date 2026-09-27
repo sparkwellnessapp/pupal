@@ -223,10 +223,22 @@ def score_trial(draft: GradedTestDraft,
                 ts.skip_agreement_violations.append(_scope_target(key))
 
     # ---- Selection [§5]: totals through the REAL module -------------------
+    # [Track B 1b, owner ruling 2026-09-27] a null GT award is an UNSELECTED
+    # question: it never enters the GT side as a zero. A scope whose every GT
+    # terminal is null is excluded from the GT total BY CONSTRUCTION — the
+    # student chose another question — and is added to the GT-side excluded
+    # set so `exclusion_mismatch` compares like with like (the AI side still
+    # scores every scope through the real module, exactly as production does).
     gt_by_scope: Dict[ScopeKey, Decimal] = {}
+    gt_null_by_scope: Dict[ScopeKey, bool] = {}
     for t in gt.terminals:
         info = infos[t.terminal_id]
+        null = t.awarded is None
+        gt_null_by_scope[info.scope_key] = gt_null_by_scope.get(info.scope_key, True) and null
+        if null:
+            continue
         gt_by_scope[info.scope_key] = gt_by_scope.get(info.scope_key, Decimal("0")) + t.awarded
+    unselected_gt: Set[ScopeKey] = {k for k, all_null in gt_null_by_scope.items() if all_null}
     ai_by_scope: Dict[ScopeKey, Decimal] = {}
     for outcome in draft.scope_outcomes:
         key = (outcome.question_id, outcome.sub_question_id)
@@ -246,7 +258,8 @@ def score_trial(draft: GradedTestDraft,
             [ScopeScore(q, s, a) for (q, s), a in sorted(ai_by_scope.items(),
                                                          key=lambda kv: str(kv[0]))],
             bundle.rubric_contract)
-        excluded_gt, excluded_ai = set(gt_scoring.excluded), set(ai_scoring.excluded)
+        excluded_gt = set(gt_scoring.excluded) | unselected_gt
+        excluded_ai = set(ai_scoring.excluded)
         ts.exclusion_mismatch = excluded_gt != excluded_ai
         # [T1-SELECTION] arithmetic guard: the denominator IS the contract total.
         if gt_scoring.total_possible != bundle.rubric_contract.total_points:
@@ -277,7 +290,6 @@ def score_trial(draft: GradedTestDraft,
             continue                       # counted under [T1-CW] already
         awarded, conf, quote, flags, quotes = draft_terminals[tid]
         g = gt_map[tid]
-        delta = awarded - g.awarded
         answer_text = scope_answer.get(info.scope_key)
         stitched = False
         fabricated = False
@@ -332,29 +344,35 @@ def score_trial(draft: GradedTestDraft,
                 stitched = True
             else:
                 fabricated = True
-        quote_counts[quote_status or "none"] = quote_counts.get(quote_status or "none", 0) + 1
-        excluded = info.scope_key in excluded_gt
+        if g.awarded is not None:
+            # [Track B 1b] an UNSELECTED terminal (null GT) gets no agreement row
+            # and no quote tally — it is skipped, never scored as zero. The
+            # behaviour tripwires below still fire on it, as they do on a
+            # best-k-excluded scope (PLAYBOOK §4 Selection).
+            quote_counts[quote_status or "none"] = quote_counts.get(quote_status or "none", 0) + 1
+            excluded = info.scope_key in excluded_gt
+            delta = awarded - g.awarded
 
-        row = TerminalScore(
-            terminal_id=tid, question_id=info.question_id,
-            sub_question_id=info.sub_question_id,
-            gt_awarded=str(g.awarded), ai_awarded=str(awarded),
-            delta=str(delta), abs_delta=str(abs(delta)),
-            within_precision=abs(delta) <= precision,           # [R4'] terminal level
-            exact=delta == 0,
-            quote_status=quote_status, ai_confidence=conf,
-            gt_evidence_exists=g.evidence_exists,
-            ai_flags=list(flags),
-            burden_precision=abs(delta) > precision,
-            burden_evidence=burden_evidence,
-            fabricated_evidence=fabricated,
-            evidence_stitched=stitched,
-            excluded_by_selection=excluded,
-            unattempted=info.scope_key in unattempted_keys,       # [R-2]
-            ungradable_scope=info.scope_key in ungradable_keys,   # [C-2]
-            gt_note=g.note,                                       # [item 6]
-        )
-        ts.terminals.append(row)
+            row = TerminalScore(
+                terminal_id=tid, question_id=info.question_id,
+                sub_question_id=info.sub_question_id,
+                gt_awarded=str(g.awarded), ai_awarded=str(awarded),
+                delta=str(delta), abs_delta=str(abs(delta)),
+                within_precision=abs(delta) <= precision,           # [R4'] terminal level
+                exact=delta == 0,
+                quote_status=quote_status, ai_confidence=conf,
+                gt_evidence_exists=g.evidence_exists,
+                ai_flags=list(flags),
+                burden_precision=abs(delta) > precision,
+                burden_evidence=burden_evidence,
+                fabricated_evidence=fabricated,
+                evidence_stitched=stitched,
+                excluded_by_selection=excluded,
+                unattempted=info.scope_key in unattempted_keys,       # [R-2]
+                ungradable_scope=info.scope_key in ungradable_keys,   # [C-2]
+                gt_note=g.note,                                       # [item 6]
+            )
+            ts.terminals.append(row)
         refused = bool(unverified_claims.get(tid))
         if fabricated:
             # fabrication is a model-trust tripwire — it fires even on an

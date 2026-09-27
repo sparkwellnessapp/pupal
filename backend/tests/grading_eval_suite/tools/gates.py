@@ -52,6 +52,11 @@ def _included_rows(trials: List[dict]) -> List[dict]:
             # the total) stays the totals fact. Old rows lack the key → False.
             if r.get("unattempted") or r.get("ungradable_scope"):
                 continue
+            # [Track B 1b] a null GT award is an unselected question — skipped,
+            # never classified as ZERO (the scorer emits no such row; this is
+            # defence in depth for any other producer of trial rows).
+            if "gt_awarded" in r and r["gt_awarded"] is None:
+                continue
             rows.append({**r, "fixture": t["fixture"]})
     return rows
 

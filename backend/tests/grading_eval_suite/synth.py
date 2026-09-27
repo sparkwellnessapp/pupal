@@ -139,8 +139,10 @@ def make_gt(awards: Dict[str, str], *, fixture: str = "synthetic",
     fields.update(overrides)
     return FixtureGT(
         fixture=fixture, rubric_contract_hash="", transcription_contract_hash="",
-        terminals=[TerminalGT(terminal_id=t, awarded=Decimal(a),
-                              evidence_exists=evidence.get(t, True))
+        # [Track B 1b] a None award is an unselected question (evidence None too)
+        terminals=[TerminalGT(terminal_id=t,
+                              awarded=None if a is None else Decimal(a),
+                              evidence_exists=None if a is None else evidence.get(t, True))
                    for t, a in awards.items()],
         ungradable_scopes=[ScopeUngradable(question_id=q, sub_question_id=s, reason=r)
                            for q, s, r in (ungradable or [])],

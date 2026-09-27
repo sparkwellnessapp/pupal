@@ -66,6 +66,8 @@ def expressibility_errors(plan: GradingPlan,
     plan_by_tid = {t.terminal_id: t for t in plan.terminals}
     errs: List[str] = []
     for t in gt.terminals:
+        if t.awarded is None:
+            continue        # [Track B 1b] unselected question: nothing to express
         tp = plan_by_tid.get(t.terminal_id)
         if tp is None:
             continue        # totality is validator rule V6's job, not ours

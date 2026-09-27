@@ -100,3 +100,19 @@ refused. `gt_source` is surfaced per fixture in `results.json` provenance and
 session)", validated_by: "Noam", blind: false`. Skeleton-header regeneration
 to M1 form is optional (owner grading in progress); the loader accepts both
 header forms since the M1 fields default to null.
+
+
+---
+
+# AMENDMENT (owner ruling, Track B 1b, 2026-09-27) — `awarded: null` = unselected
+
+On a choose-k exam the student does not sit every question. Such a terminal
+carries `awarded: null` (and `evidence_exists: null`); `FixtureGT.awarded` is
+`Optional`. The null is legal ONLY on a question the TRANSCRIPTION says was not
+attempted (R-2: a selection-group member whose every leaf answer is empty); a
+null anywhere else is an unfinished judgment and the loader refuses it
+(`GTIncompleteError`, the completion check). The scorer, the gates and the
+expressibility guard SKIP an unselected terminal — no agreement row, never a
+zero; on the totals it is excluded from the GT side by construction. The
+behaviour tripwires still fire there (a positive award on invented ink is
+`[T1-FABRICATED]` on any scope). The R-2 `"0"` encoding stays readable.
