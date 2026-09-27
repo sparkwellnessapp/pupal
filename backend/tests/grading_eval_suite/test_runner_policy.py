@@ -264,7 +264,7 @@ def test_provenance_carries_sut_hash():
 # "planner_miss" (everything else).
 # ---------------------------------------------------------------------------
 
-COMPILED_HOBBY = "plans/compiled/hobby_tvshow.routed+segmented.plan.json"
+COMPILED_HOBBY = "plans/compiled/hobby_tvshow.routed+segmented.p4.plan.json"
 
 
 def _v5(**extra):

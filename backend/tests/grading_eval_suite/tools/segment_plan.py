@@ -33,6 +33,7 @@ sys.path.insert(0, str(SUITE.parents[1]))
 
 from app.agents.grader.plan_validator import validate_plan                         # noqa: E402
 from app.agents.plan_compiler import compile_contract                              # noqa: E402
+from app.config import settings                                                    # noqa: E402
 from app.agents.plan_compiler.assemble import assemble_plan                        # noqa: E402
 from app.agents.plan_compiler.route import (ROUTER_MODEL_KEY, ROUTER_PROMPT_VERSION,  # noqa: E402
                                             build_router_message, route_monoliths)
@@ -96,7 +97,11 @@ def _compile(exam: str, fixtures: List[str]):
     manifest = json.loads((SUITE / "fixtures" / f"{fixtures[0]}.json").read_text(encoding="utf-8"))
     sha = hashlib.sha256((SUITE / manifest["rubric_contract"]).read_bytes()).hexdigest()
     contract = b0.rubric_contract
-    return contract, compile_contract(contract, exam_id=exam, rubric_contract_sha256=sha)
+    # [AM-G14] route at the PRODUCTION threshold, read from the one setting production
+    # reads (plan_build_runner) — never the compiler's P ≥ 4 default, never a copy.
+    return contract, compile_contract(
+        contract, exam_id=exam, rubric_contract_sha256=sha,
+        route_min_points=Decimal(str(settings.plan_route_min_points)))
 
 
 def _validate(plan, contract):
