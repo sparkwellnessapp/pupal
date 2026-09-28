@@ -131,6 +131,16 @@ MODELS: dict[str, ModelSpec] = {
                         cached_in_per_mtok=0.50),
         supports_logprobs=False, supports_json_schema=True, tier="frontier",
     ),
+    # [grader-v6 §5.5, OD-G5] the Phase-6 comparison planner. Card verified
+    # 2026-09-28 at platform.claude.com/docs/en/about-claude/pricing: $4 in,
+    # $20 out, cache hits 0.05x input ($0.20). Rejects forced tool_choice and its
+    # thinking cannot be disabled, so it is called with native json_schema.
+    "claude-opus-5.5": ModelSpec(
+        key="claude-opus-5.5", provider="anthropic", model_id="claude-opus-5-5",
+        price=PriceCard(in_per_mtok=4.00, out_per_mtok=20.00,
+                        cached_in_per_mtok=0.20),
+        supports_logprobs=False, supports_json_schema=True, tier="frontier",
+    ),
     "claude-opus-4.8": ModelSpec(
         key="claude-opus-4.8", provider="anthropic", model_id="claude-opus-4-8",
         price=PriceCard(in_per_mtok=5.00, out_per_mtok=25.00,
