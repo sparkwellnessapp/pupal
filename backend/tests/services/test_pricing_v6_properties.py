@@ -18,16 +18,15 @@ from app.agents.explainer.fallback import compose_reasoning_he
 from app.services.pricing_v6 import CheckDecision, price
 from tests.services.pricing_v6_cases import HypothesisDraw, build_random_case
 
-settings.register_profile(
-    "phase1", max_examples=2000, deadline=None,
-    suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large])
-settings.register_profile(
-    "fast", max_examples=150, deadline=None,
-    suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large])
-settings.register_profile(
-    "routine", max_examples=200, deadline=None,
-    suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large])
-settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "routine"))
+# [A-10] Two tiers: "dev" is the inner loop (T0, 100 examples), "gate" is every
+# phase gate (T1, 2,000). A gate run (VIVI_TEST_GATE=1) uses "gate" unless a
+# profile is named. "phase1" / "routine" / "fast" are kept as aliases.
+_QUIET = dict(deadline=None, suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large])
+for _name, _n in (("dev", 100), ("gate", 2000), ("phase1", 2000), ("routine", 200), ("fast", 150)):
+    settings.register_profile(_name, max_examples=_n, **_QUIET)
+settings.load_profile(os.environ.get(
+    "HYPOTHESIS_PROFILE",
+    "gate" if os.environ.get("VIVI_TEST_GATE", "").strip() not in ("", "0", "false") else "dev"))
 
 
 def _case(data):
