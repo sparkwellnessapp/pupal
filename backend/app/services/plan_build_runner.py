@@ -52,6 +52,7 @@ from ..models.grading_plan import GradingPlanRecord
 from ..schemas.ontology_types import GradingRubricContract
 from . import plan_store
 from .plan_store import WORDING_PLACEHOLDER, WORDING_SEGMENTED, contract_sha256
+from .provider_billing import log_billing_exhausted
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +118,10 @@ def _validator_inputs(contract):
 async def build_plan_for_contract(contract: GradingRubricContract, *, plan_exam_id: str,
                                   llm_factory: Optional[LLMFactory] = None,
                                   route_min_points: Optional[int] = None,
-                                  envelope_usd: Optional[float] = None) -> BuildResult:
+                                  envelope_usd: Optional[float] = None,
+                                  plan_id: Optional[UUID] = None) -> BuildResult:
+    """`plan_id` (the grading_plans row) only names the row in an A-8 billing
+    alert; on the production path `plan_exam_id` is the rubric id."""
     factory = llm_factory or default_llm_factory
     envelope = float(settings.plan_build_envelope_usd if envelope_usd is None else envelope_usd)
     threshold = Decimal(str(settings.plan_route_min_points if route_min_points is None
@@ -136,6 +140,11 @@ async def build_plan_for_contract(contract: GradingRubricContract, *, plan_exam_
     segmenter_model: Optional[str] = None
     router_failed: List[str] = []
     router_notes: List[str] = []
+    # [A-8, owner-ruled] «out of credits» is logged CRITICAL at these catches:
+    # W-2 degrades the wording to placeholder on ANY provider failure, which
+    # makes an empty account silent here. Once per build — the router and the
+    # segmenter share the account, so the second failure is the same fact.
+    billing_logged = False
 
     # Stage 2b — router (a failure leaves every monolith whole)
     if any(t.routed for t in skeleton.terminals):
@@ -154,6 +163,9 @@ async def build_plan_for_contract(contract: GradingRubricContract, *, plan_exam_
         except Exception as e:                       # provider / auth / transport / factory
             errors.append(f"router: {type(e).__name__}: {str(e)[:200]}")
             logger.warning("plan_build_router_skipped exam=%s err=%s", plan_exam_id, type(e).__name__)
+            billing_logged = billing_logged or log_billing_exhausted(
+                e, site="plan_build", model=MODEL_CARDS[ROUTER_MODEL_KEY].model_id,
+                plan_id=plan_id, rubric_id=plan_exam_id, stage="router")
 
     # Stage 2 — segmenter (a failure keeps the compiler's own spans as wording)
     wording = None
@@ -175,6 +187,9 @@ async def build_plan_for_contract(contract: GradingRubricContract, *, plan_exam_
     except Exception as e:
         errors.append(f"segmenter: {type(e).__name__}: {str(e)[:200]}")
         logger.warning("plan_build_segmenter_skipped exam=%s err=%s", plan_exam_id, type(e).__name__)
+        billing_logged = billing_logged or log_billing_exhausted(
+            e, site="plan_build", model=MODEL_CARDS[SEGMENTER_MODEL_KEY].model_id,
+            plan_id=plan_id, rubric_id=plan_exam_id, stage="segmenter")
 
     if wording is not None:
         for t in skeleton.terminals:
@@ -253,13 +268,15 @@ async def _build_claimed_row(row_id: UUID, *, llm_factory: Optional[LLMFactory],
     try:
         contract = GradingRubricContract.model_validate(contract_json)
         result = await build_plan_for_contract(contract, plan_exam_id=str(row.rubric_id or "rubric"),
-                                               llm_factory=llm_factory)
+                                               llm_factory=llm_factory, plan_id=row_id)
     except CompilerBug as e:
         logger.error("plan_build_compiler_bug row_id=%s err=%s", row_id, str(e)[:300])
         async with get_db_context() as db:
             await plan_store.mark_failed(db, row_id, f"CompilerBug: {e}")
         return
     except Exception as e:                            # unexpected — still never propagates
+        log_billing_exhausted(e, site="plan_build", plan_id=row_id,     # [A-8] the belt
+                              rubric_id=row.rubric_id)
         logger.exception("plan_build_unexpected row_id=%s", row_id)
         async with get_db_context() as db:
             await plan_store.mark_failed(db, row_id, f"{type(e).__name__}: {str(e)[:300]}")

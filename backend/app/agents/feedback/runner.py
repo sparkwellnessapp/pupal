@@ -19,8 +19,10 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-async def attach_feedback(draft):
-    """draft -> draft (with `feedback`, or unchanged). Never raises."""
+async def attach_feedback(draft, *, graded_test_id=None):
+    """draft -> draft (with `feedback`, or unchanged). Never raises.
+
+    `graded_test_id` only names the row in an A-8 billing alert."""
     if not settings.feedback_model_key:
         return draft
 
@@ -44,7 +46,8 @@ async def attach_feedback(draft):
                        extra={"exception_class": type(exc).__name__})
         return draft
 
-    agent = FeedbackAgent(llm, model_version=settings.feedback_model_key)
+    agent = FeedbackAgent(llm, model_version=settings.feedback_model_key,
+                          graded_test_id=graded_test_id)
     block, annotations = await agent.generate(
         [(sid, render_scope_for_feedback(so)) for sid, so in scopes])
 

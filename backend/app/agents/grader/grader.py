@@ -26,6 +26,7 @@ from langchain_openai import ChatOpenAI
 from app.config import settings
 from app.schemas.gradable import GradableScope, GradableTest
 from app.services.grading_inputs import scope_answer
+from app.services.provider_billing import first_billing_exhausted
 from app.schemas.graded_test_draft import (
     CriterionOutcome,
     GradedTestDraft,
@@ -378,6 +379,9 @@ class GraderAgent:
         self._policy = numeric_policy or NumericPolicy()
         self._model_version = model_version or settings.openai_model
         self._served_models: set = set()   # [COST_TRUTH] provider-reported ids
+        # [A-8] the first «out of credits» failure of this run, reported upward
+        # for the runner to log once (see PlanVerifyGrader.__init__).
+        self.billing_exhausted: Optional[BaseException] = None
         # [PR-G2] The default path is what PRODUCTION runs, and it was the
         # unbounded one: no timeout (LangChain then sends timeout=None, which
         # overrides the SDK default -> no bound) and the SDK's hidden
@@ -450,6 +454,8 @@ class GraderAgent:
             # at the worst possible moment.
             target = _scope_target_id(scope)
             if is_permanent_provider_error(e):
+                self.billing_exhausted = first_billing_exhausted(
+                    self.billing_exhausted, e)                      # [A-8]
                 logger.error(
                     f"scope_grade_failed_permanent scope={target} "
                     f"exc={type(e).__name__}: {str(e)[:300]}")
@@ -470,6 +476,8 @@ class GraderAgent:
                 accumulated_in_tokens += in_tok
                 accumulated_out_tokens += out_tok
             except Exception as e2:
+                self.billing_exhausted = first_billing_exhausted(
+                    self.billing_exhausted, e2)                     # [A-8]
                 logger.error(
                     f"scope_grade_failed_after_retry scope={target} "
                     f"exc={type(e2).__name__}: {str(e2)[:300]}")
@@ -561,6 +569,8 @@ class GraderAgent:
                     extra={"scope_index": i, "exception_class": type(result).__name__},
                     exc_info=result,
                 )
+                self.billing_exhausted = first_billing_exhausted(
+                    self.billing_exhausted, result)                 # [A-8]
                 scope_result = _build_failure_result(
                     gradable_test.scopes[i], result, retry_count=0
                 )

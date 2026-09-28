@@ -46,6 +46,7 @@ from app.agents.grader.grader import effective_scope_concurrency
 from app.tracing import student_data_run
 from app.services.grader_selection import build_grader, grader_kind_for
 from app.services.plan_build_runner import resolve_plan_for_grade
+from app.services.provider_billing import log_billing_exhausted
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +153,9 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
                        extra={"graded_test_id": str(graded_test_id)})
         return
 
+    # [A-8] one PROVIDER_BILLING_EXHAUSTED line per graded test, never per scope.
+    billing_logged = False
+    grader_model: Optional[str] = None
     try:
         # ── 3. Load contracts ─────────────────────────────────────────────────
         transcription: Transcription = await db.get(Transcription, graded_test.transcription_id)
@@ -183,6 +187,7 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
                              plan=resolved.plan if resolved else None,
                              plan_wording_source=resolved.wording_source if resolved else None,
                              subject=rubric_contract.subject)
+        grader_model = settings.grader_model_key if resolved else settings.openai_model
         budget = _row_budget_s(len(gradable_test.scopes))
         try:
             # [OD-B2] the grader's prompts carry the student's answers.
@@ -193,6 +198,19 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
             raise GradingBudgetExceeded(
                 f"grading exceeded its row budget of {budget:.0f}s for "
                 f"{len(gradable_test.scopes)} scope(s)") from exc
+        finally:
+            # [A-8, owner-ruled] «out of credits» is logged CRITICAL here. The
+            # grader isolates every scope's provider failure into a flagged
+            # zero-outcome and never raises (§3.6), so a grade in which EVERY
+            # scope ran out of credit reaches this runner as AllScopesFailed —
+            # no provider exception left in hand. The grader therefore reports
+            # the first one upward (`billing_exhausted`) and it is logged here,
+            # once, with the id the grader never sees. `finally`, because a
+            # budget overrun and a partial draft carry the same fact. Nothing
+            # else changes: the row's status and error_message are as before.
+            billing_logged = log_billing_exhausted(
+                agent.billing_exhausted, site="grading", model=grader_model,
+                graded_test_id=graded_test_id)
 
         # [PR-G2] Every scope failed ⇒ this is a failed RUN, not a grade of zero.
         # Landing it as `draft` would offer the teacher an all-zero review screen
@@ -231,7 +249,7 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
         from app.agents.feedback.runner import attach_feedback
         with student_data_run(graded_test_id=graded_test.id,
                               transcription_id=graded_test.transcription_id):
-            draft = await attach_feedback(draft)
+            draft = await attach_feedback(draft, graded_test_id=graded_test.id)
 
         if scoring.excluded:
             draft = draft.model_copy(update={
@@ -288,6 +306,10 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
         )
 
     except Exception as e:
+        # [A-8] the belt: a billing error that escaped every inner catch.
+        if not billing_logged:
+            log_billing_exhausted(e, site="grading", model=grader_model,
+                                  graded_test_id=graded_test_id)
         # Catastrophic failure — status='failed' requires error_message IS NOT NULL.
         logger.exception(
             "grading_failed",
