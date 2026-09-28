@@ -223,7 +223,24 @@ def _clause_end(text: str, phrase_end: int, polarity: str, opened: bool = False
     return i, once, alt
 
 
-def scan_deductions(text: str) -> List[Deduction]:
+@dataclass(frozen=True)
+class DeductionPatterns:
+    """The phrase set C1 scans with. `deduct` patterns capture the amount as
+    group 1; `worded` pairs a pattern with the amount its words name («להוריד חצי
+    נקודה» → 0.5); `amountless` report amount None (OD-15 resolves it)."""
+    no_deduct: Tuple[str, ...]
+    deduct: Tuple[str, ...]
+    worded: Tuple[Tuple[str, Decimal], ...]
+    amountless: Tuple[str, ...]
+
+
+# The calibrated v2 set — what production's v5 plan builds scan with. The v6 set
+# (`patterns_v6.V6_PATTERNS`, AM-G1) is opt-in, so v5 plans never move.
+V5_PATTERNS = DeductionPatterns(no_deduct=tuple(_NO_DEDUCT_PATTERNS), deduct=tuple(_DEDUCT_PATTERNS),
+                                worded=(), amountless=tuple(_DEDUCT_AMOUNTLESS_PATTERNS))
+
+
+def scan_deductions(text: str, patterns: Optional[DeductionPatterns] = None) -> List[Deduction]:
     """Every deduction / no-deduction phrase in `text`, as positioned CLAUSES.
 
     Reuses the calibrated v2 pattern tuples; unlike `prompt._scan` it keeps
@@ -236,18 +253,24 @@ def scan_deductions(text: str) -> List[Deduction]:
     def free(a: int, b: int) -> bool:
         return not any(not (b <= s or a >= e) for s, e in claimed)
 
-    for pat in _NO_DEDUCT_PATTERNS:
+    pats = patterns or V5_PATTERNS
+    for pat in pats.no_deduct:
         for m in re.finditer(pat, text):
             if free(*m.span()):
                 claimed.append(m.span())
                 hits.append((m.start(), m.end(), "no_deduct", None))
-    for pat in _DEDUCT_PATTERNS:
+    for pat in pats.deduct:
         for m in re.finditer(pat, text):
             if not free(*m.span()):
                 continue
             claimed.append(m.span())
             hits.append((m.start(), m.end(), "deduct", _dec(m.group(1))))
-    for pat in _DEDUCT_AMOUNTLESS_PATTERNS:
+    for pat, worded_amount in pats.worded:
+        for m in re.finditer(pat, text):
+            if free(*m.span()):
+                claimed.append(m.span())
+                hits.append((m.start(), m.end(), "deduct", worded_amount))
+    for pat in pats.amountless:
         for m in re.finditer(pat, text):
             if free(*m.span()):
                 claimed.append(m.span())
