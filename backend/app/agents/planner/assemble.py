@@ -34,6 +34,7 @@ from app.agents.grader.plan_schemas import (CheckOption, DeductionMarker, Marker
                                             PlanCheckV6, TerminalPlanV6)
 from app.agents.grader.plan_validator import _POINT_TEXT
 from app.agents.grader.plan_validator_v6 import PlanContext, SkeletonComponent, validate_plan_v6
+from app.agents.grader.validator import recover_transliterated_id
 from app.agents.plan_compiler.compile import scan_deductions
 from app.agents.plan_compiler.patterns_v6 import V6_PATTERNS
 from app.agents.plan_compiler.stage1_v6 import V6Scope, V6Terminal
@@ -158,16 +159,58 @@ def _wording_errors(out: ScopePlanOutput) -> List[str]:
             f"never the amount" for tid, t in texts if AMOUNT_MASK in (t or "")]
 
 
+def _recover_ids(scope: V6Scope, out: ScopePlanOutput) -> Tuple[ScopePlanOutput, List[str]]:
+    """CWV-6, reused unchanged (`validator.recover_transliterated_id`, the ONE
+    closed-world recovery): an id whose Hebrew label the model romanised is put
+    back on its one real id; nothing else is guessed. It repairs the model's
+    ADDRESSING, never the teacher's words. Every recovery is telemetry."""
+    tel: List[str] = []
+    tids = {t.terminal_id for t in scope.terminals}
+    mids = {m.marker_id for m in scope.markers}
+    comps = {t.terminal_id: {c.component_id for c in t.components} for t in scope.terminals}
+
+    def fix(x: Optional[str], known, taken=()) -> Optional[str]:
+        if x is None or x in known:
+            return x
+        real = recover_transliterated_id(x, known)
+        if real is None or real in taken:
+            return x
+        tel.append(f"id_recovered {x} → {real}")
+        return real
+
+    given_t = [pt.terminal_id for pt in out.terminals]
+    terminals = []
+    for pt in out.terminals:
+        tid = fix(pt.terminal_id, tids, taken=set(given_t))
+        credits = [c.model_copy(update={"component_ref": fix(c.component_ref, comps.get(tid, set()))})
+                   for c in pt.credits]
+        terminals.append(pt.model_copy(update={"terminal_id": tid, "credits": credits}))
+    faults = []
+    for f in out.faults:
+        anchor = fix(f.anchor_terminal_id, tids)
+        faults.append(f.model_copy(update={
+            "anchor_terminal_id": anchor,
+            "requires_component_ref": fix(f.requires_component_ref, comps.get(anchor, set())),
+            "options": [o.model_copy(update={"marker_id": fix(o.marker_id, mids)}) for o in f.options]}))
+    given_d = [d.marker_id for d in out.dispositions]
+    dispositions = [d.model_copy(update={
+        "marker_id": fix(d.marker_id, mids, taken=set(given_d)),
+        "merged_into_marker_id": fix(d.merged_into_marker_id, mids)}) for d in out.dispositions]
+    return out.model_copy(update={"terminals": terminals, "faults": faults,
+                                  "dispositions": dispositions}), tel
+
+
 def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal
               ) -> Tuple[List[TerminalPlanV6], List[PlanCheckV6], List[MarkerDisposition], List[str]]:
     """(terminals, checks, dispositions, telemetry). Raises MappingError."""
+    out, telemetry = _recover_ids(scope, out)
     errors: List[str] = _wording_errors(out)
-    telemetry: List[str] = []
     by_tid = {t.terminal_id: t for t in scope.terminals}
     planned = {}
     for pt in out.terminals:
         if pt.terminal_id not in by_tid:
-            errors.append(f"unknown terminal_id {pt.terminal_id!r}")
+            errors.append(f"unknown terminal_id {pt.terminal_id!r} — use exactly one of this scope's "
+                          f"ids, character for character: {sorted(by_tid)}")
         elif pt.terminal_id in planned:
             errors.append(f"terminal {pt.terminal_id!r} planned twice")
         elif by_tid[pt.terminal_id].shape == "components":
@@ -200,6 +243,11 @@ def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal
                               f"{comp_ids}, in order; got {refs}")
                 continue
             values = [c.points for c in t.components]
+            # C4: a fixed component's span is compiler input, like its id and points —
+            # code copies it; the planner phrases, it never re-types (V20 by construction)
+            pt = pt.model_copy(update={"credits": [
+                c.model_copy(update={"source_span": comp.source_span})
+                for c, comp in zip(pt.credits, t.components)]})
         else:
             k = len(pt.credits)
             want = {"binary": (1, 1), "ladder": (1, 1), "split": (2, 6)}[pt.decomposition]
