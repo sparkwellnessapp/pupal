@@ -9,6 +9,4 @@
 #
 # Format: <pytest node id>  # <defect id> · <why> · base <commit>
 
-# D-12: missing asset. tests/rubric_eval_suite/configs/ was never committed,
-# because the blanket `*.json` in backend/.gitignore has no negation for it.
-tests/rubric_eval_suite/test_llm_policy.py::test_sweep_configs_resolve_through_registry   # D-12 · configs/ never committed (*.json ignored) · base 0711d61
+# (empty: D-11 and D-12 fixed by A-9, 2026-09-28)

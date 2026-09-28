@@ -1,0 +1,7 @@
+{
+  "model_key": "gpt-5.6-sol",
+  "reasoning_effort": "high",
+  "max_output_tokens": 32000,
+  "cost_ceiling": 1.0,
+  "notes": "VERDICT 2026-08-23 (RUN 20260823-231425): ties base accuracy 4/5 but +37.0% headline, +23.0% suite, +15.5% $/doc — slower AND dearer than the pin it would replace. GPT-5.6 LATENCY SWEEP (2026-08-23, ordered by Noam). ONE VARIABLE vs the baseline config prod_gpt55.json: model_key gpt-5.5 -> gpt-5.6-sol AND reasoning_effort medium -> high (two moves vs prod; ONE move vs gpt-5.6-sol.json, which is this sweep's per-model medium anchor). Everything else is held IDENTICAL to the prod pin (max_output_tokens=32000, cost_ceiling=1.00, subject/pedagogical defaults) so a delta is attributable to model+effort and nothing else. Goal: equal-or-better accuracy AND cost at LOWER latency; the reference is the same-tree gpt-5.5/medium baseline (prompt 3.7.0-tabledir, pipeline 3.6.2), not the 2026-07 cross-tree numbers. Identity/prices are registry-owned (tests/eval_common/models_registry.py); prices verified 2026-08-23. reasoning_effort rides _llm_params' openai-reasoning branch (gpt-5.6-* matches _is_openai_reasoning's 'gpt-5' prefix — no pipeline change needed). sol = the vendor's flagship tier. Costed at the LIST rate (5.00/30.00), identical to gpt-5.5's card, NOT at the promotional 4.00/20.00 that bills today (promo runs at least through 2026-11-21) — see the registry note: an adoption decision outlives the promo, so any sol cost win measured here is a floor."
+}

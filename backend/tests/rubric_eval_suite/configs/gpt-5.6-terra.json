@@ -1,0 +1,7 @@
+{
+  "model_key": "gpt-5.6-terra",
+  "reasoning_effort": "medium",
+  "max_output_tokens": 32000,
+  "cost_ceiling": 1.0,
+  "notes": "VERDICT 2026-08-23 (RUN 20260823-194348): FALSIFIED — 3/5; under-execution (bagrut example_solution_fidelity 0.167, q1.ב flattened = FP2) despite the sweep's best economics. GPT-5.6 LATENCY SWEEP (2026-08-23, ordered by Noam). ONE VARIABLE vs the baseline config prod_gpt55.json: model_key gpt-5.5 -> gpt-5.6-terra. Everything else is held IDENTICAL to the prod pin (max_output_tokens=32000, cost_ceiling=1.00, subject/pedagogical defaults) so a delta is attributable to model+effort and nothing else. Goal: equal-or-better accuracy AND cost at LOWER latency; the reference is the same-tree gpt-5.5/medium baseline (prompt 3.7.0-tabledir, pipeline 3.6.2), not the 2026-07 cross-tree numbers. Identity/prices are registry-owned (tests/eval_common/models_registry.py); prices verified 2026-08-23. reasoning_effort rides _llm_params' openai-reasoning branch (gpt-5.6-* matches _is_openai_reasoning's 'gpt-5' prefix — no pipeline change needed). terra = the vendor's mid tier ($2.00/$12.00) — 2.5x cheaper in / 2.5x cheaper out than gpt-5.5."
+}
