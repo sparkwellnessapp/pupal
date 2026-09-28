@@ -2,7 +2,19 @@
 Written blind (no eval behind them); <= 12 lines each; replace CS rules, add none."""
 from __future__ import annotations
 
+# [Q-18] The v6 PACK (PR_grader_v6_options.md §8) is the four sibling files, re-exported here;
+# the seam data below is unchanged from when this package was a module.
+from .explainer import EXPLAINER_FRAGMENT
+from .planner import PLANNER_FRAGMENT
+from .precedents import PRECEDENTS
+from .verifier import VERIFIER_FRAGMENT
+
 KEY = "english"
+
+# The v6 pack identity (config_hash input, §3.5). Bump PACK_VERSION with ANY change to the pack files.
+PACK_ID = KEY
+PACK_VERSION = "v1"
+
 MODALITIES = ("prose",)
 
 # F-1 (extraction). Appended to the extraction system prompt as a final section.
