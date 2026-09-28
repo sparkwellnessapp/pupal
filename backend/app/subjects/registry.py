@@ -6,12 +6,18 @@ boundary turns that into a 422; nothing downstream ever guesses a subject.
 `prompt_version(base, profile)` is the D-16 stamp rule: CS stamps are unchanged
 (the measured numbers ride on them); every other subject carries `+<key>` so an
 English or Math number can never be mistaken for a CS one.
+
+[Q-18, grader-v6 Phase 2] Each profile is a PACKAGE (`profiles/<key>/`) and the
+`SubjectProfile` below IS the subject pack of PR_grader_v6_options.md §8 — extended in
+place, not a parallel concept: the v6 fields (`pack_id` … `precedents`) sit beside the
+multisubject-seam fields and are read by the v6 planner / verifier / explainer prompts.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, FrozenSet, Optional, Tuple
 
+from app.agents.plan_gen.constitution import Clause
 from app.schemas.ontology_types import (
     QuestionType,
     SUBJECT_PROFILES as _ONTOLOGY_PROFILES,
@@ -40,6 +46,13 @@ class SubjectProfile:
     verify_fragment: Optional[str]                 # F-2: replaces verifier rules 3-5
     p2_keywords: FrozenSet[str]                    # F-5: identifier-filter keyword set for the P2 spec
     ontology: OntologySubjectProfile               # the ontology-layer profile (valid/default question types)
+    # ── the v6 subject pack (§8, [Q-18]) ────────────────────────────────────────
+    pack_id: str                                   # PackRef.pack_id; a config_hash input (§3.5)
+    pack_version: str                              # PackRef.pack_version; bump with any pack-file change
+    planner_fragment: str                          # appended to the v6 planner's core constitution (§5.2)
+    verifier_fragment: str                         # the v6 verifier's subject rules (§6.1; CS = AM-G5 verbatim)
+    explainer_fragment: str                        # the v6 explainer's subject register (§7.3)
+    precedents: Tuple[Clause, ...]                 # constitution clauses, by reference; planner + explainer ONLY (AM-G5)
     rescale_to_exam: bool = False                  # D-13: the grid-snap post-pass runs on this subject's drafts
 
     @property
@@ -65,6 +78,12 @@ def _build(module) -> SubjectProfile:
         verify_fragment=module.VERIFY_FRAGMENT,
         p2_keywords=frozenset(module.P2_KEYWORDS),
         ontology=_ONTOLOGY_PROFILES[module.KEY],
+        pack_id=module.PACK_ID,
+        pack_version=module.PACK_VERSION,
+        planner_fragment=module.PLANNER_FRAGMENT,
+        verifier_fragment=module.VERIFIER_FRAGMENT,
+        explainer_fragment=module.EXPLAINER_FRAGMENT,
+        precedents=tuple(module.PRECEDENTS),
         rescale_to_exam=bool(getattr(module, "RESCALE_TO_EXAM", False)),
     )
 

@@ -10,29 +10,34 @@ The split is what makes V-rubric vs V-const a meaningful measurement: if a
 clause here changes DECOMPOSITION, the two variants diverge; if it only appends
 prose, they cannot (policy clauses move no number, so they cannot change the
 reachable-award set — the Phase 0 pre-registration turns on exactly this).
+
+LIVE since grader-v6 Phase 2 ([AM-G5], owner 2026-09-27; closes census D-10).
+The subject packs REFERENCE these clauses — never copy them — through `select`:
+the CS pack's precedents are `select(...)` of the eleven clauses AM-G5 names,
+and they feed the v6 PLANNER and EXPLAINER only, never the verifier. Class 4
+(`NEVER_GENERATED`) cannot be selected: `select` refuses it by id, which is the
+code form of «no PB-* in any prompt, ever».
 """
 from __future__ import annotations
 
-from typing import Dict, List, Literal
+from dataclasses import dataclass
+from typing import Dict, List, Literal, Optional, Tuple
 
 CONSTITUTION_VERSION = "constitution/v1"
 
 ClauseKind = Literal["policy", "authoring"]
 
 
+@dataclass(frozen=True)
 class Clause:
     """`policy` appends prose to a check. `authoring` changes how the model
-    DECOMPOSES — which is the only way a clause can move expressibility."""
+    DECOMPOSES — which is the only way a clause can move expressibility.
+    Frozen: a pack holds these by reference, so one cannot be edited in place."""
 
-    def __init__(self, clause_id: str, kind: ClauseKind, text_he: str,
-                 subject: str | None = None):
-        self.clause_id = clause_id
-        self.kind = kind
-        self.text_he = text_he
-        self.subject = subject          # None = every subject (§3.3)
-
-    def __repr__(self) -> str:          # pragma: no cover - debugging aid
-        return f"<Clause {self.clause_id} {self.kind}>"
+    clause_id: str
+    kind: ClauseKind
+    text_he: str
+    subject: Optional[str] = None       # None = every subject (§3.3)
 
 
 # ── class 1 — GENERAL (every subject, always attached) ──────────────────────
@@ -108,3 +113,32 @@ def clauses_for(subject: str | None, *, include_constitution: bool) -> List[Clau
     out = list(GENERAL) + list(GENERAL_DEFAULT)
     out += SUBJECT_SCOPED.get((subject or "").strip().lower(), [])
     return out
+
+
+def _all_clauses() -> List[Clause]:
+    out = list(GENERAL) + list(GENERAL_DEFAULT)
+    for scoped in SUBJECT_SCOPED.values():
+        out += scoped
+    return out
+
+
+def select(*clause_ids: str) -> Tuple[Clause, ...]:
+    """The clauses named, in the order named — how a subject pack references
+    its precedents ([AM-G5]). Refuses a class-4 id (`NEVER_GENERATED`), an
+    unknown id and a repeated one, loudly and at import of the pack."""
+    by_id: Dict[str, Clause] = {}
+    for c in _all_clauses():
+        if c.clause_id in by_id:            # pragma: no cover - a data bug in this module
+            raise ValueError(f"constitution: duplicate clause id {c.clause_id!r}")
+        by_id[c.clause_id] = c
+    out: List[Clause] = []
+    for cid in clause_ids:
+        if cid in NEVER_GENERATED:
+            raise ValueError(f"constitution: {cid!r} is an exam-specific ruling (class 4) "
+                             "and never enters a prompt")
+        if cid not in by_id:
+            raise ValueError(f"constitution: unknown clause id {cid!r}")
+        if by_id[cid] in out:
+            raise ValueError(f"constitution: clause {cid!r} selected twice")
+        out.append(by_id[cid])
+    return tuple(out)
