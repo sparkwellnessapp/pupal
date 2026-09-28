@@ -401,6 +401,15 @@ Each teardown's rows were read at its fixture, not guessed from its name.
 
 Unchanged from v1: one trigger, unrelated (`update_rubrics_updated_at`); one function; no RLS; no policies; no `pg_cron`. Database webhooks would appear as triggers, and none exist. **Edge Functions: none** (Noam, 2026-09-23). Closed.
 
+> **SEC-1 (2026-09-28): privileges changed, no data touched.** Migration 034 makes three changes:
+> - It ENABLES row-level security on every `public` table, with no policies and not FORCE.
+> - It revokes every privilege of Supabase's Data-API roles (`anon`, `authenticated`) on public tables, sequences and functions, and EXECUTE on public functions from PUBLIC.
+> - It sets the same revokes as DEFAULT PRIVILEGES.
+>
+> "No RLS" above is now superseded: RLS is on, and the backend's role, which owns every table, sees all rows as before.
+>
+> The purge's queries are unaffected: they run as that role. Its row counts and its erasure verification read the same rows they did before. No row, object, trigger or function body changed. The trigger still fires: a trigger's function is not EXECUTE-checked at run time.
+
 ---
 
 ## 15. `test_count` eras (E)
