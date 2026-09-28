@@ -2623,3 +2623,40 @@ second exam, not another dollar on this one.**
   1. `segment_plan.py --stage both --confirm-spend`;
   2. pin the shas and record the cost;
   3. the 12-fixture k=3 baseline under the $12 cap (guard report-only, AM-G12 accounting, `EVAL_ANALYSIS.md`).
+
+## 2026-09-27 · GRADER v6 (options) · AM-G13 implemented — G1 evidence (zero spend)
+
+- **Ruling (after Phase 1): Q-22 APPROVED + AM-G13.** BehaviorCap (PRC-3) and ChargedOnce, a joint lexicographic assignment per scope (PRC-4). New status `capped`; V21 is telemetry. Recorded in census §1a and the spec (§2.5, §3.4, §4.2, §4.4, §14).
+- **Built:**
+  - `services/pricing_v6.py` steps 2–6: `_settle` does steps 3/5/6 for one terminal under one choice of charged faults, and each scope enumerates `itertools.product` over its groups.
+  - V21 in `plan_validator_v6.py`.
+  - `capped` in the fallback composer.
+  - The pricer now **refuses a charge group spanning scopes (V7)**. Found while diffing the vectors: the Phase-1 case builder drew group names from one global pool, so groups crossed scopes, and a per-scope enumeration charged such a group once in each scope. Builder group names are now scope-local; the draws are unchanged.
+- **Q-23 (surfaced, implemented one way, awaiting confirmation).** "Lowest scope total after steps 3 and 5", read literally, excludes her terminal override. PRC-6 then fails on pinned terminals.
+  - Same 6,000 seeds, 52,315 improving moves, 983 cases with a pin: **0** violations with overrides vs **3** without (seeds 1366 ×2 and 4278; 1.00 → 0.75 and 6.00 → 5.50).
+  - Implemented with overrides; pinned by `test_prc6_holds_when_a_group_member_is_pinned`.
+- **G1 bar (as ruled):**
+  - Both Phase-1 strict xfails now pass as plain tests with exact totals (4.25 → 4.25; 3 → 3). Both sides of each move are hand vectors.
+  - `prop_total_monotone` is **strict**. All 7 properties pass at **2,000** examples each (15m45s).
+  - PRC-3 and PRC-4 properties strengthened to the ruled invariants (the sum of a behavior's charges; *exactly* one charged member): pass at 2,000.
+  - `test_prc6_and_prc4_hold_over_6000_seeded_cases` (slow; `VIVI_RUN_SLOW=1` / gate): **0** PRC-6 and **0** PRC-4 violations over 52,315 moves (35 s).
+  - E1–E10 price exactly as before. E5's status is now `capped`.
+  - Vectors regenerated and `--check` clean: 543, of which 43 are hand cases. Against the Phase-1 vectors, the builder rename changed only generated cases.
+  - `npx vitest run`: 95/95 files, 1454 passed. The v6 TS mirror arrives in Phase 5, so vitest parity means the suite is green.
+  - **Gate run** (`VIVI_TEST_GATE=1`, the test DB reached): backend 2013 passed, 5 xfailed (exactly the A-7 list), 4 skipped, 0 failed; transcription 152 passed.
+  - Mutation (mutmut 2.5.1, 288 mutants) is **supplementary**: it is not in the owner's AM-G13 closure list, so it does not gate this push. At push time 270 of 275 tested mutants were killed, with 5 survivors (all in the loop-exit and error-message lines). The final numbers and each survivor's disposition follow in their own commit.
+  - Correction on the process: this push was held about 20 h on that run, which was not required, and the machine slept 23:00–16:39. From now on a push waits only for the gate the owner listed; anything extra runs after it.
+- **A-7:**
+  - `tests/KNOWN_FAILURES.txt` pins D-11 ×4 and D-12, as strict xfails.
+  - The gate probe exits 3 on an unreachable DB.
+  - The first-batch flake is fixed: a fresh teacher per test; reproduced on main with a seed test, then fixed.
+  - D-11 is a stale fixture (the `is_first_batch` line) and D-12 is configs never committed. Both are in Appendix E; neither is a production bug.
+- **AM-G10:** the `vivi_ro` sanity checks passed, and Appendix D ran read-only.
+  - **C-4b = 0**, so the Phase-4 STOP does not fire.
+  - R-C scan: 0 rows.
+  - The G4 snapshot is outside the repo.
+  - The owner may drop the role.
+- **Next:**
+  - The owner confirms Q-23.
+  - The owner tops up Anthropic credit, which BLOCKER-1 holds Track B on.
+  - Then Phase 2.
