@@ -63,6 +63,7 @@ from app.agents.grader.verifier_prompt import (
 from app.config import settings
 from app.schemas.gradable import GradableScope, GradableTest
 from app.services.grading_inputs import scope_answer
+from app.services.provider_billing import first_billing_exhausted
 from app.schemas.graded_test_draft import (
     CriterionOutcome,
     GradedTestDraft,
@@ -136,6 +137,12 @@ class PlanVerifyGrader:
         # made. Stamped so a placeholder-worded grade is distinguishable in the
         # ledger even though the teacher never sees the difference (OD-W11).
         self._plan_wording_source = plan_wording_source
+        # [A-8] The first provider error of this run that means «out of
+        # credits». Reported UPWARD, never logged here: every scope of a test
+        # fails the same way, the failure is isolated into a flagged zero-outcome
+        # (so no exception reaches the runner), and the runner — which holds the
+        # graded_test id this agent never sees — logs it ONCE.
+        self.billing_exhausted: Optional[BaseException] = None
         base = llm if llm is not None else build_chat_model(
             "openai", settings.openai_model)
         self._structured_llm = base.with_structured_output(
@@ -277,6 +284,8 @@ class PlanVerifyGrader:
         these here by hand would be the second pricing path §5 spent a whole
         incident deleting.
         """
+        # [A-8] every failed scope of the v5 path passes through here.
+        self.billing_exhausted = first_billing_exhausted(self.billing_exhausted, exc)
         result = _build_failure_result(scope, exc, retry_count=retry_count)
         try:
             priced = price_scope(terminal_plans, {}, self._policy.precision)
@@ -430,6 +439,8 @@ class PlanVerifyGrader:
                              extra={"scope_index": i,
                                     "exception_class": type(result).__name__},
                              exc_info=result)
+                self.billing_exhausted = first_billing_exhausted(
+                    self.billing_exhausted, result)                 # [A-8]
                 result = _build_failure_result(
                     gradable_test.scopes[i], result, retry_count=0)
             scope_outcomes.append(result.outcome)

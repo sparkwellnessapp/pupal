@@ -34,6 +34,7 @@ from app.schemas.graded_test_draft import (
     GradingAnnotation,
 )
 from app.schemas.ontology_types import AnnotationSeverity
+from app.services.provider_billing import log_billing_exhausted
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +42,11 @@ logger = logging.getLogger(__name__)
 class FeedbackAgent:
     """generate(scopes) -> (FeedbackBlock | None, [GradingAnnotation])."""
 
-    def __init__(self, llm, model_version: str) -> None:
+    def __init__(self, llm, model_version: str, *,
+                 graded_test_id: Optional[object] = None) -> None:
         self._model_version = model_version
+        # [A-8] carried only so an «out of credits» failure can name its row.
+        self._graded_test_id = graded_test_id
         # A raw runner (the test fake) is used as-is; a real chat model gets the
         # structured-output wrapper. include_raw=True is REQUIRED — the gemini
         # adapter asserts it, and it is also how the usage metadata arrives, so
@@ -62,6 +66,11 @@ class FeedbackAgent:
                 HumanMessage(content=build_feedback_message(scopes)),
             ])
         except Exception as exc:                       # noqa: BLE001 — see docstring
+            # [A-8, owner-ruled] this catch is what makes an empty account
+            # SILENT here (the draft lands, feedback=None), so the fact is
+            # logged CRITICAL. The annotation and return value are unchanged.
+            log_billing_exhausted(exc, site="feedback", model=self._model_version,
+                                  graded_test_id=self._graded_test_id)
             logger.warning("feedback_generation_failed",
                            extra={"exception_class": type(exc).__name__})
             return None, [GradingAnnotation(
