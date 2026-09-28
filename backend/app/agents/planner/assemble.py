@@ -38,7 +38,9 @@ from app.agents.plan_compiler.compile import scan_deductions
 from app.agents.plan_compiler.patterns_v6 import V6_PATTERNS
 from app.agents.plan_compiler.stage1_v6 import V6Scope, V6Terminal
 
+from .inputs import AMOUNT_MASK
 from .schemas import PlannedCredit, ScopePlanOutput
+from .stage1_input import unmask_span
 
 FALLBACK_FAULT_DESCRIPTION = "טעות שהמחוון מפרט"      # the fault check's own line, point-free
 FALLBACK_NOTE_DESCRIPTION = "הערה מהמחוון"
@@ -139,10 +141,27 @@ def _ordered(scope: V6Scope, checks: Sequence[PlanCheckV6]) -> List[PlanCheckV6]
 # the planner's output → checks (§5.3)
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _wording_errors(out: ScopePlanOutput) -> List[str]:
+    """The amount mask is OUR marker in the planner's input; it must never come
+    back in words a teacher reads (descriptions, labels, notes)."""
+    texts = []
+    for pt in out.terminals:
+        texts += [(pt.terminal_id, n) for n in pt.interpretation_notes_he]
+        for c in pt.credits:
+            texts += [(pt.terminal_id, c.description_he), (pt.terminal_id, c.full_label_he),
+                      (pt.terminal_id, c.absent_label_he), (pt.terminal_id, c.equivalence_note_he or "")]
+            texts += [(pt.terminal_id, x.label_he) for x in c.partials]
+    for f in out.faults:
+        texts += [(f.anchor_terminal_id, f.description_he)] + [(f.anchor_terminal_id, o.label_he)
+                                                               for o in f.options]
+    return [f"{tid}: remove {AMOUNT_MASK} from the wording «{t[:60]}» — describe the condition, "
+            f"never the amount" for tid, t in texts if AMOUNT_MASK in (t or "")]
+
+
 def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal
               ) -> Tuple[List[TerminalPlanV6], List[PlanCheckV6], List[MarkerDisposition], List[str]]:
     """(terminals, checks, dispositions, telemetry). Raises MappingError."""
-    errors: List[str] = []
+    errors: List[str] = _wording_errors(out)
     telemetry: List[str] = []
     by_tid = {t.terminal_id: t for t in scope.terminals}
     planned = {}
@@ -206,7 +225,15 @@ def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal
                     errors.append(f"{t.terminal_id}: 'ladder' takes 1–2 partials, got {n_partials}")
                     continue
                 values = [t.points_possible]
+        sources = (t.text, scope.question_text, scope.example_solution)
         for n, (credit, value) in enumerate(zip(pt.credits, values), start=1):
+            if AMOUNT_MASK in credit.source_span:           # the exact inverse of our input mask
+                verbatim = unmask_span(credit.source_span, sources)
+                if verbatim is None:
+                    errors.append(f"{t.terminal_id}: source_span «{credit.source_span[:60]}» quotes "
+                                  f"the masked text; quote the teacher's words without {AMOUNT_MASK}")
+                    continue
+                credit = credit.model_copy(update={"source_span": verbatim})
             if len(credit.partials) > 2:
                 errors.append(f"{t.terminal_id}: credit {credit.component_ref!r} has "
                               f"{len(credit.partials)} partials (at most 2)")
