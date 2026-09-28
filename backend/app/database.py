@@ -150,7 +150,7 @@ EXPECTED_MIGRATIONS = (
     "001", "002", "003", "004", "005", "006", "007",
     "008", "009", "010", "011", "012", "013", "014", "015", "016", "017",
     "018", "019", "020", "021", "022", "023", "024", "025", "026", "027",
-    "028", "029", "030", "031", "032", "033", "034",
+    "028", "029", "030", "031", "032", "033", "034", "035",
 )
 
 # Attribute-level invariants the version ledger CANNOT see (the 010 lesson,
@@ -210,10 +210,6 @@ EXPECTED_PARTIAL_INDEXES: dict = {
     "idx_email_codes_one_active_per_user": (
         "where (consumed_at is null)", "024",
     ),
-    # 026 line 60: exactly one LIVE plan (queued/building/ready) per contract
-    # hash. failed and superseded rows are history and coexist; without the
-    # predicate a rebuild after a failure would be impossible while the index
-    # was still "present" by name. The predicate IS the append-only rule.
     # 028: the re-ask candidate set. WITHOUT the predicate this index would
     # cover every user row — including everyone who gave a date and everyone
     # who never answered — while still being "present" by name, so the
@@ -221,8 +217,15 @@ EXPECTED_PARTIAL_INDEXES: dict = {
     "idx_users_reask_candidates": (
         "where (next_exam_date is null)", "028",
     ),
-    "idx_grading_plans_one_live_per_contract": (
-        "where (status = any", "026",
+    # 035 (replaces 026's idx_grading_plans_one_live_per_contract): exactly one
+    # LIVE plan (queued/building/ready) per (contract hash, config hash).
+    # failed and superseded rows are history and coexist; without the predicate
+    # a rebuild after a failure would be impossible while the index was still
+    # "present" by name — the predicate IS the append-only rule. The fragment
+    # pins the COLUMNS too: recreated on contract_sha256 alone, the index would
+    # forbid a v5 and a v6 plan of one contract living side by side (AM-G6).
+    "idx_grading_plans_one_live_per_contract_config": (
+        "(contract_sha256, config_hash) where (status = any", "035",
     ),
 }
 

@@ -32,7 +32,7 @@ from app.models.grading import Rubric
 from app.models.grading_plan import GradingPlanRecord
 from app.services import plan_build_runner as pbr
 from app.services import plan_store
-from app.services.plan_store import contract_sha256
+from app.services.plan_store import V5_CONFIG_HASH as V5, contract_sha256
 
 
 def _run(coro):
@@ -211,11 +211,11 @@ def test_run_plan_build_lands_a_ready_row_and_is_idempotent(hobby):
         nonlocal rubric_id
         rubric_id = await _make_rubric(cj)
         async with get_db_context() as db:
-            row, _ = await plan_store.insert_queued(db, rubric_id=rubric_id, contract_version=cj["contract_version"], sha=sha)
+            row, _ = await plan_store.insert_queued(db, rubric_id=rubric_id, contract_version=cj["contract_version"], sha=sha, config_hash=V5)
         assert await pbr.run_plan_build(row.id, llm_factory=_outage_factory) is True
         assert await pbr.run_plan_build(row.id, llm_factory=_outage_factory) is False, "duplicate delivery"
         async with get_db_context() as db:
-            ready = await plan_store.get_ready(db, sha)
+            ready = await plan_store.get_ready(db, sha, config_hash=V5)
             assert ready is not None and ready.wording_source == "placeholder"
             assert ready.plan_version.startswith(f"{rubric_id}/compiled-")
             assert ready.compiler_version == "plan-compiler/v2.0"
@@ -240,7 +240,7 @@ def test_run_plan_build_marks_failed_on_a_compiler_bug(hobby, monkeypatch):
         nonlocal rubric_id
         rubric_id = await _make_rubric(cj)
         async with get_db_context() as db:
-            row, _ = await plan_store.insert_queued(db, rubric_id=rubric_id, contract_version=cj["contract_version"], sha=sha)
+            row, _ = await plan_store.insert_queued(db, rubric_id=rubric_id, contract_version=cj["contract_version"], sha=sha, config_hash=V5)
         await pbr.run_plan_build(row.id, llm_factory=_outage_factory)
         async with get_db_context() as db:
             r = await db.get(GradingPlanRecord, row.id)
@@ -275,7 +275,7 @@ def test_resolve_takes_over_a_dead_builder(hobby):
 
     async def scenario():
         async with get_db_context() as db:
-            row, _ = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha)
+            row, _ = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha, config_hash=V5)
             await plan_store.claim_building(db, row.id)
             await db.execute(update(GradingPlanRecord).where(GradingPlanRecord.id == row.id)
                              .values(updated_at=datetime.now(timezone.utc) - timedelta(minutes=30)))
@@ -295,7 +295,7 @@ def test_resolve_waits_for_a_live_builder(hobby, monkeypatch):
 
     async def scenario():
         async with get_db_context() as db:
-            row, _ = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha)
+            row, _ = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha, config_hash=V5)
             await plan_store.claim_building(db, row.id)
 
         async def finish_later():
@@ -304,7 +304,7 @@ def test_resolve_waits_for_a_live_builder(hobby, monkeypatch):
                 await plan_store.mark_ready(db, row.id, plan_json=_placeholder_json(hobby), plan_version="p",
                                             skeleton_json=None, compiler_version="c", segmenter_model=None,
                                             router_model=None, wording_source="placeholder",
-                                            cost_usd=Decimal("0"), sha=sha)
+                                            cost_usd=Decimal("0"), sha=sha, config_hash=V5)
         task = asyncio.create_task(finish_later())
         res = await pbr.resolve_plan_for_grade(None, cj, llm_factory=_outage_factory, wait_s=5)
         await task
@@ -328,7 +328,7 @@ def test_resolve_after_a_failed_build_starts_a_new_one(hobby):
 
     async def scenario():
         async with get_db_context() as db:
-            row, _ = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha)
+            row, _ = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha, config_hash=V5)
             await plan_store.claim_building(db, row.id)
             await plan_store.mark_failed(db, row.id, "CompilerBug: old")
         res = await pbr.resolve_plan_for_grade(None, cj, llm_factory=_outage_factory, wait_s=5)

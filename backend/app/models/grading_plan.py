@@ -1,5 +1,6 @@
 """
-grading_plans — a compiled GradingPlan per rubric contract (migration 026).
+grading_plans — a compiled GradingPlan per rubric contract and plan config
+(migrations 026, 035).
 
 The ORM mirrors the migrated schema; it does not generate it. Lifecycle,
 uniqueness and the hash live in `app/services/plan_store.py` — the only writer.
@@ -32,7 +33,15 @@ class GradingPlanRecord(Base):
     rubric_id = Column(UUID(as_uuid=True), ForeignKey("rubrics.id", ondelete="SET NULL"),
                        nullable=True, index=True)
     contract_version = Column(Text, nullable=False)
-    contract_sha256 = Column(Text, nullable=False)     # THE key; partial-unique among live rows
+    contract_sha256 = Column(Text, nullable=False)     # the key's contract half (OD-W4)
+    # [035, AM-G6] the key's other half: every input that decides a plan other
+    # than the contract. (contract_sha256, config_hash) is partial-unique among
+    # live rows, so a v5 and a v6 plan of one contract coexist. Every v5 row
+    # carries the constant `plan_store.V5_CONFIG_HASH` (the column's DB DEFAULT,
+    # which a pre-035 revision relies on); a v6 key is a sha256 hex digest.
+    config_hash = Column(Text, nullable=False)
+    # [035] sha256 of a v6 plan's terminals + checks (§3.5); NULL on v5 rows.
+    plan_hash = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, default="queued")
     plan_version = Column(Text, nullable=True)
     plan_json = Column(JSONB(none_as_null=True), nullable=True)

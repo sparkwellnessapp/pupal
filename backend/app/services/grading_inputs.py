@@ -9,14 +9,50 @@ immutability holding elsewhere in the system.
 
 Migration 029 closes that. This module owns reading the pin off a transcription
 row, so the three graded-test creation sites do it one way instead of three.
+
+grader-v6 adds a fifth input: the frozen PLAN the verifier answered against.
+Migration 035 records it as `graded_tests.plan_hash`, stamped by
+`pin_plan_hash` when the runner writes a v6 draft (AM-G6 / §5.7 "Pin").
 """
 import logging
+import re
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:                       # pragma: no cover
     from ..schemas.graded_test_draft import ScopeAnswer
 
 logger = logging.getLogger(__name__)
+
+_SHA256_HEX = re.compile(r"[0-9a-f]{64}")
+
+
+class PlanPinConflict(ValueError):
+    """A graded test already pinned to one plan was asked to pin another."""
+
+
+def pin_plan_hash(graded_test, plan_hash: str) -> None:
+    """Stamp the plan a v6 grade was produced against onto its row [AM-G6].
+
+    The runner calls this when it writes a v6 draft, in the same commit as the
+    grading → draft transition, with the `plan_hash` of the grading_plans row
+    it resolved (`ResolvedPlan.plan_hash`). It sets the attribute only; the
+    caller commits.
+
+    A pin is written once and never moved (the VER-2 shape): re-stamping the
+    SAME hash is a no-op, a DIFFERENT one raises `PlanPinConflict` — a re-grade
+    is a new row that resolves its own plan, never a rewrite of this one. A
+    value that is not a sha256 hex digest is refused: the column records an
+    identity that must be checkable against grading_plans, and a label or a
+    config hash in its place would match nothing. v5 grades never call this;
+    their NULL means "no v6 plan", never "unknown".
+    """
+    if not isinstance(plan_hash, str) or not _SHA256_HEX.fullmatch(plan_hash):
+        raise ValueError(f"plan_hash must be a sha256 hex digest, got {plan_hash!r}")
+    current = graded_test.plan_hash
+    if current is not None and current != plan_hash:
+        raise PlanPinConflict(
+            f"graded_test {graded_test.id} is pinned to plan {current}; refusing {plan_hash}")
+    graded_test.plan_hash = plan_hash
 
 
 def transcription_contract_version(transcription) -> Optional[str]:
