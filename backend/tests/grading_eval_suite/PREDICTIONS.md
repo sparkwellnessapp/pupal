@@ -523,3 +523,27 @@ leniency hypothesis structurally and costs nothing; >20 buys one arm.
 **Run:** `grader-v5.4+english`, compiled plan per contract hash, k=5, the three keys + their
 perturbed variants (`SYNTHETIC-DERIVED`), ≈ $2; P-8 and P-12 are scored on the first 20 real tests
 of each subject when they exist.
+
+## GRADER v6 — model & effort pre-registration (Q-14, registered 2026-09-28, BEFORE any v6 spend)
+
+Registered before Phase 2's live compiles and before any Phase-6 run. Every number below is fixed
+now; a change is a new registration with its own date, never an edit of this one.
+
+| Role | Model (registry key → id) | Thinking / effort | Output | Why this, fixed now |
+|---|---|---|---|---|
+| **Planner** (§5.5, production) | `claude-sonnet-5` → `claude-sonnet-5` | `thinking={"type":"adaptive"}`, **effort `high`** | native `json_schema` (`output_config.format`), no forced tool use | Q-14: Sonnet 5 rejects `budget_tokens`; depth is `effort`. |
+| **Comparison planner** (Phase 6 only, OD-G5) | `claude-opus-5.5` → `claude-opus-5-5` | adaptive (cannot be disabled), **effort `high`** — the SAME effort as the planner, for a fair comparison | native `json_schema` (rejects forced `tool_choice`) | OD-G5 as amended. |
+| **Explainer, arm A** | `claude-sonnet-5` | **no thinking** | native `json_schema` | Q-14 arm. |
+| **Explainer, arm B** | `claude-sonnet-5` | adaptive, **effort `low`** | native `json_schema` | Q-14 arm. |
+| **Explainer, arm C** | `claude-haiku-4.5` → `claude-haiku-4-5` | none | native `json_schema` | Q-14 arm; the cost-ladder floor (AM-G12 CL-1 picks the cheapest qualifying arm). |
+
+Price cards (USD per MTok, verified 2026-09-28 at platform.claude.com/docs/en/about-claude/pricing):
+Sonnet 5 $2 in / $10 out / $0.20 cache hit; Opus 5.5 $4 / $20 / $0.20 (0.05× hit); Haiku 4.5 $1 / $5 / $0.10.
+
+**Phase 2 live compiles (G2).** hobby_tvshow and bagrut_899371 (the C-7 SetPeople rubric is bagrut
+`q5.ב.c4`), one planner call per scope that needs language (C7), ≤ 1 repair per scope. Watched,
+never gated: fallback count (target 0 on fixtures), planner cost per rubric (watch $2.00), p95
+build latency. **Expected:** ≤ $2 per rubric; 0 fallbacks on hobby; ≤ 1 fallback on bagrut.
+**Kill (surface, do not tune):** > 2 fallbacks on either rubric ⇒ the planner prompt or schema is
+the problem, reported with the validator messages before any Phase-6 spend.
+
