@@ -79,6 +79,8 @@ class V6Scope:
     scope: str
     terminals: Tuple[V6Terminal, ...]
     markers: Tuple[DeductionMarker, ...]
+    question_text: str = ""               # the question's text (+ the sub-question's)
+    example_solution: str = ""            # verbatim; the scope's, else the question's
 
     @property
     def needs_planner(self) -> bool:
@@ -103,19 +105,29 @@ class Stage1V6:
         raise KeyError(label)
 
 
-def _anchor_map(contract) -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
-    """(criterion id → its sub-criterion ids, scope label → its terminal ids),
-    walked exactly as `compile_contract` walks the contract."""
+def _text(*parts) -> str:
+    return "\n".join(p.strip() for p in parts if isinstance(p, str) and p.strip())
+
+
+def _anchor_map(contract):
+    """(criterion id → its sub-criterion ids, scope label → its terminal ids,
+    scope label → (question text, example solution)), walked exactly as
+    `compile_contract` walks the contract."""
     kids: Dict[str, List[str]] = {}
     scope_terms: Dict[str, List[str]] = {}
+    materials: Dict[str, Tuple[str, str]] = {}
     for key, question, sub in contract_scopes(contract):
         node = sub or question
         scope_terms[_scope_label(key)] = [t for t, _ in terminals_of(node)]
+        materials[_scope_label(key)] = (
+            _text(getattr(question, "question_text", None), getattr(sub, "text", None) if sub else None),
+            _text(getattr(sub, "example_solution", None) if sub else None)
+            or _text(getattr(question, "example_solution", None)))
         for criterion in getattr(node, "criteria", []) or []:
             subs = getattr(criterion, "sub_criteria", None) or []
             if subs:
                 kids[criterion.criterion_id] = [s.sub_criterion_id for s in subs]
-    return kids, scope_terms
+    return kids, scope_terms, materials
 
 
 def _candidates(slot, home: str, scope: str, kids: Dict[str, List[str]],
@@ -150,7 +162,7 @@ def compile_stage1_v6(contract, *, exam_id: str, rubric_contract_sha256: str) ->
     skeleton = compile_contract(contract, exam_id=exam_id,
                                 rubric_contract_sha256=rubric_contract_sha256,
                                 route_min_points=_NEVER_ROUTE, patterns=V6_PATTERNS)
-    kids, scope_terms = _anchor_map(contract)
+    kids, scope_terms, materials = _anchor_map(contract)
     by_scope: Dict[str, List[TerminalSkeleton]] = {}
     for t in skeleton.terminals:
         by_scope.setdefault(t.scope, []).append(t)
@@ -165,7 +177,9 @@ def compile_stage1_v6(contract, *, exam_id: str, rubric_contract_sha256: str) ->
                     amount=slot.tariff_amount, polarity="deduct", text_span=slot.source_span,
                     charge_group=slot.charge_group,
                     candidate_anchors=_candidates(slot, t.terminal_id, label, kids, scope_terms)))
-        scopes.append(V6Scope(label, tuple(_terminal(t) for t in terms), tuple(markers)))
+        question_text, example_solution = materials.get(label, ("", ""))
+        scopes.append(V6Scope(label, tuple(_terminal(t) for t in terms), tuple(markers),
+                              question_text=question_text, example_solution=example_solution))
     return Stage1V6(exam_id=exam_id, rubric_contract_sha256=rubric_contract_sha256,
                     precision=skeleton.precision, version=STAGE1_V6_VERSION,
                     scopes=tuple(scopes), flags=skeleton.flags)
