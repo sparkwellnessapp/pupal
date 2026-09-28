@@ -607,7 +607,8 @@ def _band_ladder(prose: str, points: Decimal) -> Optional[List[Tuple[str, Decima
 def compile_terminal(*, terminal_id: str, scope: str, text: str, points: Decimal,
                      grid: Decimal, has_solution: bool,
                      inherited: Sequence[Slot] = (),
-                     route_min_points: Decimal = ROUTE_MIN_POINTS) -> TerminalSkeleton:
+                     route_min_points: Decimal = ROUTE_MIN_POINTS,
+                     patterns: Optional[DeductionPatterns] = None) -> TerminalSkeleton:
     """Compile ONE terminal. `inherited` are tariff slots anchored here by a
     parent- or scope-level phrase (OD-10). `route_min_points` is OD-11's
     threshold; anything but the default is a COUNTERFACTUAL for a report,
@@ -626,7 +627,7 @@ def compile_terminal(*, terminal_id: str, scope: str, text: str, points: Decimal
     if code_start < len(text):
         flag("code_tail_ignored", text[code_start:code_start + 40])
 
-    deds = scan_deductions(text)
+    deds = scan_deductions(text, patterns)
     claims = [m.span() for m in _TOTAL_CLAIM.finditer(prose)] + \
              [m.span() for m in _DETAIL_CLAIM.finditer(prose)]
     for m in _TOTAL_CLAIM.finditer(prose):
@@ -934,7 +935,10 @@ def _scope_label(key) -> str:
 
 
 def compile_contract(contract, *, exam_id: str, rubric_contract_sha256: str,
-                     route_min_points: Decimal = ROUTE_MIN_POINTS) -> PlanSkeleton:
+                     route_min_points: Decimal = ROUTE_MIN_POINTS,
+                     patterns: Optional[DeductionPatterns] = None) -> PlanSkeleton:
+    """`patterns` is the C1 phrase set; None is V5_PATTERNS (production v5). The
+    v6 Stage 1 (`stage1_v6`) passes `patterns_v6.V6_PATTERNS` (AM-G1)."""
     grid = Decimal(str(contract.numeric_policy.precision))
     terminals: List[TerminalSkeleton] = []
     scope_flags: List[Flag] = []
@@ -962,7 +966,7 @@ def compile_contract(contract, *, exam_id: str, rubric_contract_sha256: str,
         scope_text = "\n".join(s for s in (getattr(node, "text", None), getattr(node, "notes", None),
                                            getattr(node, "evaluation_guidance", None))
                                if isinstance(s, str) and s.strip())
-        for i, d in enumerate(scan_deductions(scope_text)):
+        for i, d in enumerate(scan_deductions(scope_text, patterns)):
             if d.polarity != "deduct" or d.amount is None or not scope_terms:
                 continue
             amount = min(d.amount, d.alt_amount) if d.alt_amount is not None else d.amount
@@ -979,7 +983,7 @@ def compile_contract(contract, *, exam_id: str, rubric_contract_sha256: str,
             if subs:
                 # OD-10: parent-level phrase → first child + sibling charge_group
                 kids = [s.sub_criterion_id for s in subs]
-                for i, d in enumerate(scan_deductions(_node_text(criterion))):
+                for i, d in enumerate(scan_deductions(_node_text(criterion), patterns)):
                     if d.polarity != "deduct" or d.amount is None:
                         continue
                     amount = d.amount
@@ -999,13 +1003,13 @@ def compile_contract(contract, *, exam_id: str, rubric_contract_sha256: str,
                         terminal_id=s.sub_criterion_id, scope=scope, text=_node_text(s),
                         points=Decimal(str(s.points)), grid=grid, has_solution=has_solution,
                         inherited=tuple(inherited.get(s.sub_criterion_id, ())),
-                        route_min_points=route_min_points))
+                        route_min_points=route_min_points, patterns=patterns))
             else:
                 terminals.append(compile_terminal(
                     terminal_id=criterion.criterion_id, scope=scope, text=_node_text(criterion),
                     points=Decimal(str(criterion.points)), grid=grid, has_solution=has_solution,
                     inherited=tuple(inherited.get(criterion.criterion_id, ())),
-                    route_min_points=route_min_points))
+                    route_min_points=route_min_points, patterns=patterns))
     terminals = _merge_once_groups(terminals)
     return PlanSkeleton(exam_id=exam_id, rubric_contract_sha256=rubric_contract_sha256,
                         precision=grid, compiler_version=COMPILER_VERSION,
