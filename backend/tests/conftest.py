@@ -67,6 +67,14 @@ if _ENV_PATH.exists():
 # can still ask for one.
 _os.environ.setdefault("EMAIL_PROVIDER", "console")
 
+# [D-14] The same failure, for the post-pricing student-feedback call (PR-G4).
+# `config.feedback_model_key` DEFAULTS to a real model (claude-sonnet-5), so any
+# test that runs the grading runner without faking `attach_feedback` called the
+# real Anthropic API — paid, network-dependent, and invisible because the call
+# degrades to `feedback=None` on failure. Found by A-8 (2026-09-28). Tests that
+# exercise feedback set the key and inject a fake model themselves.
+_os.environ.setdefault("FEEDBACK_MODEL_KEY", "")
+
 if _os.environ.get("TEST_DATABASE_URL"):
     _os.environ["DATABASE_URL"] = _os.environ["TEST_DATABASE_URL"]
     # Pooled connections that outlive a test wedge session teardown on
