@@ -372,6 +372,44 @@ def test_prc6_holds_when_a_group_member_is_pinned():
     assert (before.total_score, after.total_score) == (D("4"), D("4"))
 
 
+def _pin_view():
+    yc = ladder("Y.c1", "Y", 2, [("half", PartialFraction.HALF)])
+    yf = fault("Y.f1", "Y", [("m1", 2, "x")], group="g")
+    xc = binary("X.c1", "X", 5)
+    xf = fault("X.f1", "X", [("m2", 2, "x")], group="g")
+    return view([term("Y", 2), term("X", 5)],
+                [Sel(yc, "p1"), Sel(yf, "f1"), Sel(xc, "full"), Sel(xf, "f1")])
+
+
+def test_moved_by_pin_names_the_terminal_her_pin_displaced_the_charge_from():
+    """[AM-G15] Unpinned, the group charge lands on X (it lowers the scope most
+    there). She pins X at 4, so a charge on X would cost nothing: it lands on Y,
+    and Y's fault row says why — naming X, the criterion she set by hand."""
+    unpinned = price(_pin_view())
+    assert _charge(unpinned, "X.f1").status == "applied"
+    assert not any(c.moved_by_pin for t in unpinned.terminals for c in t.charges)
+
+    pinned = price(_pin_view(), overlay(pins={"X": 4}))
+    moved = _charge(pinned, "Y.f1")
+    assert (moved.status, moved.moved_by_pin, moved.moved_from_terminal_id) == (
+        "floored", True, "X")
+    assert _charge(pinned, "X.f1").moved_by_pin is False          # superseded, not moved
+
+
+def test_a_pin_that_does_not_move_the_charge_marks_nothing():
+    """A pin on a terminal the charge never sat on moves nothing."""
+    pinned = price(_pin_view(), overlay(pins={"Y": 1}))
+    assert _charge(pinned, "X.f1").status == "applied"
+    assert not any(c.moved_by_pin for t in pinned.terminals for c in t.charges)
+
+
+def test_the_moved_by_pin_row_names_the_criterion_by_its_first_40_chars():
+    from app.agents.explainer.copy import MACHINE_VOCABULARY, moved_by_pin_row_he
+    row = moved_by_pin_row_he("  " + "א" * 45 + "  ")
+    assert row == "נוכה כאן: אותה טעות, והציון ב«" + "א" * 40 + "» נקבע ידנית"
+    assert not any(w in row for w in MACHINE_VOCABULARY)
+
+
 def test_a_charge_group_across_scopes_is_refused():
     """V7 is a precondition of the joint assignment: a group spanning two scopes
     would be charged once in each. The pricer refuses rather than mis-price."""
@@ -426,6 +464,9 @@ def test_absent_optional_fields_take_their_documented_defaults():
     assert o.checks == {} and o.terminal_points == {}
     r = pv.ResolvedCheck(check_id="x", option_id=None, value=D("0"), source="default")
     assert r.missing is False and r.claimed_option_id is None
+    ch = pv.PricedCharge(check_id="x", option_id="none", amount=D("0"), charged=D("0"),
+                         status="no_fault")
+    assert ch.moved_by_pin is False and ch.moved_from_terminal_id is None        # [AM-G15]
     # the quote vocabulary is closed: anything else is refused at the boundary
     with pytest.raises(Exception):
         pv.ViewCheck(plan=binary("t.c1", "t", 1), plan_index=0, quote_status="close")
