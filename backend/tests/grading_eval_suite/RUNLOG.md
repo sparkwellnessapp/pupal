@@ -2691,3 +2691,29 @@ second exam, not another dollar on this one.**
   - 9 of the 10 route failures across both exams are one defect. Sonnet 5 returns `components` as a JSON **string** that wraps a valid `{"components": [...]}` object, so `RouterResponse` fails with `components: Input should be a valid list`. The 10th is bagrut `q1.ב.1.c0` (a non-verbatim evidence span, a genuine refusal).
   - By design a failed monolith stays a single unrouted check (`router_failed`). So production plan builds, which use the same router, lose the decomposition on about a third of routed monoliths, with no error anywhere but a flag.
 - **Baseline: HELD, $0.** Its purpose is the v5 production-pin number that v6 is compared against (C-12, K3, G-Z). Run now, it measures v5 with D-13's lost routing: faithful to production today, but a handicapped comparator. **Owner decision:** baseline now, or fix D-13 first, rebuild the routes (≈ $0.4) and then run the baseline.
+## 2026-09-28 · GRADER v6 (options) · PHASE 2 — G2: both exams planned live; REVIEW-2 package ready
+
+- **Built (offline; the LLM is never called in tests):**
+  - Stage 1 (`plan_compiler/stage1_v6.py`) is an adapter over v2. It uses the AM-G1 phrase set, red-first against both exams (`patterns_v6.py`; v5 plan builds unchanged, since `patterns=None` is v5).
+  - Markers with S-4 candidates; notes (Q-10); fixed/monolith components (C4); C7 with no threshold.
+  - The planner output schema (no numeric field), Stage 1 → planner input (amounts masked, the exact inverse in the mapping), the mapping and the fallback (valid by construction on every scope of both exams), and the one-repair loop.
+  - The live call (Sonnet 5, `thinking` adaptive, effort high, native json_schema). The request payload is pinned offline.
+  - The plan render, and the tool `tools/plan_v6.py` (dry run / replay / confirm-spend / live-scopes, canary + cap).
+  - Packs and prompt (Q-18/AM-G5): pins planner `f1444b27…`, CS verifier fragment `305158a2…`, explainer fragment `ea68000e…`. The six existing CS prompt pins are unmoved.
+  - Plan cache / migration 035 (AM-G6) is on its own branch, which follows SEC-1's 034.
+- **Live compiles** (credit canary first; PREDICTIONS «GRADER v6 — model & effort pre-registration»):
+
+| Exam | First run | Final (mapping fixes + q4.ב re-planned) | Spend |
+|---|---|---|---|
+| bagrut_899371 | 7 planner · 3 repaired · 2 fallback · 1 compiled, 26 min | **11 planner · 1 fallback (q4.ב) · 1 compiled** | $1.67 + $0.38 = **$2.05** |
+| hobby_tvshow | 3 planner · 3 repaired · 0 fallback, 11 min | **5 planner · 1 repaired · 0 fallback** | **$0.92** |
+
+  - Pre-registered: ≤ $2 per rubric (bagrut $2.05 with the re-plan, $1.67 without); 0 fallbacks on hobby ✓; ≤ 1 on bagrut ✓ (after the fixes); kill (> 2) not fired.
+  - Recordings: `plans/v6/<exam>.recorded.json`; plans `plans/v6/<exam>.plan.json` (hashes `54ae5ccf…` bagrut, `dab9cd6e…` hobby); renders `docs/plans/<exam>_v6_render.md`.
+- **What the first run taught the mapping** (each fix verified by REPLAYING the recordings at $0; no prompt change):
+  1. **V20 span drift** caused most repairs and the C-7 SetPeople scope's fallback (q5.ב). The planner re-typed a FIXED component's `source_span`. Code now copies it: it is compiler input like the id and the points, the planner only phrases it, and V20 holds by construction.
+  2. **Homoglyph ids.** Once, in both attempts on q4.ב, the model wrote the Bengali `ব` for the Hebrew `ב` (`q4.ব.c1`). CWV-6's recovery is reused unchanged and recovers Latin romanisations only (its ruling: "anything less is dropped, never guessed"), so this stays a fallback → **Q-24**. It did not recur on the re-plan. The unknown-id repair message now lists the scope's real ids.
+- **q4.ב still falls back.** The planner merges c4's and c7's «רק פעם אחת» markers (two different v2 once-groups) into ONE fault anchored on c4, which fails V18 (c7's markers anchor only on c7) and V14 (two groups). It did so twice.
+  - The teacher's intent (one charge across two criteria) is real. v2's C6 gave the two markers different groups, so the planner cannot express it legally.
+  - **For REVIEW-2:** a prompt line («a fault check lives on one criterion; the same mistake at two criteria is two fault checks, linked by code») and a C6 look at why the two once-markers did not share a group.
+- **Next:** REVIEW-2 (async) on the renders, the planner prompt and the few-shots; G3–5 starts.
