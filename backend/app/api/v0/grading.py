@@ -1290,7 +1290,8 @@ async def regenerate_feedback(
 
     agent = FeedbackAgent(build_chat_model(settings.feedback_model_provider,
                                            settings.feedback_model_key),
-                          model_version=settings.feedback_model_key)
+                          model_version=settings.feedback_model_key,
+                          graded_test_id=row.id)          # [A-8] names the row
     # [OD-B2] the feedback prompt carries the student's graded answers.
     from ...tracing import student_data_run
     with student_data_run(graded_test_id=row.id, transcription_id=row.transcription_id):
