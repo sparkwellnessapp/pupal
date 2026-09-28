@@ -155,6 +155,11 @@ class PricedCharge(BaseModel):
     amount: Decimal                                   # the resolved option's value (≤ 0)
     charged: Decimal                                  # what was actually deducted (≤ 0)
     status: FaultStatus
+    # [AM-G15] the group charge landed HERE because she set a terminal's grade by
+    # hand: with no terminal pinned, the scope's enumeration charges another member.
+    # `moved_from_terminal_id` is that member's terminal (the fault row names it).
+    moved_by_pin: bool = False
+    moved_from_terminal_id: Optional[str] = None
 
 
 class PricedTerminal(BaseModel):
@@ -344,6 +349,8 @@ def price(view: DraftV6View, overlay: Optional[PricingOverlay] = None) -> Priced
     # 3–6 — one scope at a time; its charge groups are assigned jointly (4)
     settled: Dict[str, _Settled] = {}
     superseded: Set[str] = set()
+    moved: Dict[str, str] = {}                        # charged check → the unpinned choice's terminal
+    terminal_of = {c.plan.check_id: c.plan.priced_terminal_id for c in checks}
     for terms in by_scope.values():
         tids = {t.terminal_id for t in terms}
         in_scope = [c for c in checks if c.plan.priced_terminal_id in tids]
@@ -360,19 +367,30 @@ def price(view: DraftV6View, overlay: Optional[PricingOverlay] = None) -> Priced
                 members.setdefault(group, []).append(c.plan.check_id)
         groups = sorted(members, key=lambda g: first_member[g])
 
-        best: Optional[Tuple[Decimal, Set[str], Dict[str, _Settled]]] = None
-        for assignment in itertools.product(*(members[g] for g in groups)):
-            chosen = ungrouped | set(assignment)
-            trial = {t.terminal_id: _settle(t, by_terminal.get(t.terminal_id, []), chosen,
-                                            candidate, resolved, order,
-                                            overlay.terminal_points.get(t.terminal_id))
-                     for t in terms}
-            total = sum((st.final for st in trial.values()), ZERO)
-            if best is None or total < best[0]:                   # the FIRST minimum
-                best = (total, chosen, trial)
-        _total, chosen, trial = best
+        def assign(pins: Dict[str, Decimal]) -> Tuple[Set[str], Dict[str, _Settled]]:
+            best: Optional[Tuple[Decimal, Set[str], Dict[str, _Settled]]] = None
+            for assignment in itertools.product(*(members[g] for g in groups)):
+                chosen = ungrouped | set(assignment)
+                trial = {t.terminal_id: _settle(t, by_terminal.get(t.terminal_id, []), chosen,
+                                                candidate, resolved, order,
+                                                pins.get(t.terminal_id))
+                         for t in terms}
+                total = sum((st.final for st in trial.values()), ZERO)
+                if best is None or total < best[0]:               # the FIRST minimum
+                    best = (total, chosen, trial)
+            return best[1], best[2]
+
+        chosen, trial = assign(overlay.terminal_points)
         settled.update(trial)
         superseded.update(cid for g in groups for cid in members[g] if cid not in chosen)
+        # [AM-G15] where would each group charge land if she had pinned nothing?
+        if groups and any(t.terminal_id in overlay.terminal_points for t in terms):
+            unpinned, _ = assign({})
+            for g in groups:
+                (here,) = [cid for cid in members[g] if cid in chosen]
+                (there,) = [cid for cid in members[g] if cid in unpinned]
+                if here != there:
+                    moved[here] = terminal_of[there]
 
     # 7 — terminals, as priced
     test_flags: List[str] = []
@@ -403,7 +421,8 @@ def price(view: DraftV6View, overlay: Optional[PricingOverlay] = None) -> Priced
                 "superseded" if cid in superseded else base_status[cid])
             charges.append(PricedCharge(
                 check_id=cid, option_id=r.option_id or c.plan.default_option.option_id,
-                amount=r.value, charged=st.charged.get(cid, ZERO), status=status))
+                amount=r.value, charged=st.charged.get(cid, ZERO), status=status,
+                moved_by_pin=cid in moved, moved_from_terminal_id=moved.get(cid)))
 
         primary: Optional[str] = None
         top = ZERO

@@ -19,3 +19,15 @@ MACHINE_VOCABULARY = ("אופציה", "צ'ק", "תוכנית הבדיקה", "מ�
                       "ויוי", "Vivi", "check", "option")
 # E-5 — first-person and gendered-student markers.
 VOICE_MARKERS = ("אני", "בדקתי", "מצאתי", "שלי", "התלמיד", "התלמידה")
+
+
+# [AM-G15] The fault row of a group charge that a terminal pin moved here: the same
+# mistake, charged where it counts, because she set the other criterion's grade herself.
+MOVED_BY_PIN_ROW_HE = "נוכה כאן: אותה טעות, והציון ב«{criterion}» נקבע ידנית"
+MOVED_BY_PIN_CRITERION_CHARS = 40
+
+
+def moved_by_pin_row_he(pinned_criterion_text: str) -> str:
+    """The row text, naming the pinned criterion by its first 40 characters."""
+    return MOVED_BY_PIN_ROW_HE.format(
+        criterion=pinned_criterion_text.strip()[:MOVED_BY_PIN_CRITERION_CHARS].rstrip())
