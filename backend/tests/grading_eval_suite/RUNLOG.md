@@ -2668,3 +2668,26 @@ second exam, not another dollar on this one.**
     - Each kill was verified by applying the mutant by hand: 1 failed each.
   - **Final: 286 of 288 killed (99.3%).**
   - The two left are EQUIVALENT: `break` → `continue` in the BehaviorCap loop (l.256) and in the floor loop (l.271). Once the loop's exit condition holds, every later iteration skips its whole body.
+
+## 2026-09-28 · PLAN COMPILER v2 · A1/A2 (spend stages)
+
+- **hobby_tvshow** stage=both
+  - route (Sonnet 5): $0.1731 · 23 calls · failed ['q1.ב.c2', 'q2.ב.c2', 'q2.ב.c4.s3', 'q2.ג.c0.s1'] · wall 116.3s · components {'q1.א.c0': ['כותרת המחלקה', 'הגדרת התכונות', 'כותרת הפעולה הבונה', 'גוף הפעולה הבונה - קביעת ערכי התכונות'], 'q1.א.c1': ['כותרת המחלקה', 'הגדרת התכונות', 'כותרת הפעולה הבונה', 'השמת ערכים לתכונות hobbyName ו-isSportive', 'השמת ערך התכונה minutes'], 'q1.ב.c4': ['יצירת עצם חדש מטיפוס Hobby', 'שמירה בתא המתאים במערך (hobbies[countHobbies])', 'ביצוע הפעולה בתוך הלולאה'], 'q1.ג.c3': ['לולאה על המערך עד countHobbies (או עד length עם בדיקת null)', 'בדיקה בתוך הלולאה אם התחביב שונה מ-null (במקרה של לולאה עד length)'], 'q2.א.c0': ['קליטת פרמטרים ושיוך לתכונות name ו-channel', 'קביעת ערכי ברירת מחדל rate=0 ו-isOn=true'], 'q2.א.c1': ['קונסטרקטור - קליטת פרמטרים ושיוך name, channel', 'קונסטרקטור - קביעת ערכי ברירת מחדל rate=0, isOn=true', 'UpdateRate - לולאה לקליטת דירוג מכל צופה', 'UpdateRate - עדכון rate בהוספת הדירוג הנקלט'], 'q2.ב.c3.s0': ['טווח הלולאה מ-0', 'התחלה מ-0 ולא מ-1', 'שימוש ב-Getter לגישה למערך', 'גבול עליון נכון של הלולאה'], 'q2.ב.c3.s3': ['בדיקת תא לא null', 'צבירה למערך הצוברים במקום הערוץ המתאים', 'שימוש ב-GetRate ולא בגישה ישירה לתכונה'], 'q2.ג.c0.s2': ['לולאה מ-0', 'תנאי עצירה קטן ממש מ-Length', 'הורדת 1 אם אין getter לגישה למערך']}
+  - segment (Haiku 4.5): $0.1187 · 8 calls · clean first try 4 · retried 2 · substituted 29/90 · notes dropped 4 · validator 0 · expressible 186/190 · p50 17.3s max 26.2s · plan `hobby_tvshow/compiled-cba07765064b`
+
+## 2026-09-28 · TRACK B · AM-G14 rebuild done — both exams at the production threshold, $0.65; baseline HELD on D-13
+
+- **Credit canary** (standing rule): `claude-sonnet-5` and `claude-haiku-4-5`, one token each — OK.
+- **Rebuild** at `settings.plan_route_min_points` = 3, sha256-pinned:
+
+| Exam | Plan (`plans/compiled/…routed+segmented.plan.json`) | sha256 | Route (Sonnet 5) | Segment (Haiku 4.5) | Validator | Expressible |
+|---|---|---|---|---|---|---|
+| bagrut_899371 | `bagrut_899371/compiled-fe613fbb98de`, 61 terminals | `42fd2035dbe63601…` | $0.1976 · 28 calls · 6/14 failed | $0.1611 · 8/13 clean · 3/108 substituted | 0 | 294/298 |
+| hobby_tvshow | `hobby_tvshow/compiled-cba07765064b`, 38 terminals | `845c33498cca4d3b…` | $0.1731 · 23 calls · 4/13 failed | $0.1187 · 4/6 clean · 29/90 substituted | 0 | 186/190 |
+
+  **Build cost $0.65**, against the dry-run's $0.35: the usual ≈ 2× on real calls.
+- **Tool defect (worked around):** running both exams in one process crashed the second on `Event loop is closed` → `APIConnectionError`. A provider client bound to the first `asyncio.run`'s loop is reused by the second. Workaround: one process per exam (`--exam`). $0 was lost, because the crash hit the first call. The hobby entry above this one is the tool's own; bagrut's is recorded here, since the crash skipped its RUNLOG write.
+- **D-13 — the router silently loses routing (production too).**
+  - 9 of the 10 route failures across both exams are one defect. Sonnet 5 returns `components` as a JSON **string** that wraps a valid `{"components": [...]}` object, so `RouterResponse` fails with `components: Input should be a valid list`. The 10th is bagrut `q1.ב.1.c0` (a non-verbatim evidence span, a genuine refusal).
+  - By design a failed monolith stays a single unrouted check (`router_failed`). So production plan builds, which use the same router, lose the decomposition on about a third of routed monoliths, with no error anywhere but a flag.
+- **Baseline: HELD, $0.** Its purpose is the v5 production-pin number that v6 is compared against (C-12, K3, G-Z). Run now, it measures v5 with D-13's lost routing: faithful to production today, but a handicapped comparator. **Owner decision:** baseline now, or fix D-13 first, rebuild the routes (≈ $0.4) and then run the baseline.
