@@ -179,6 +179,9 @@ gen-lang-client-*.json
 # draft/contract/report never leave the machine that made it. Labelled REAL-PROVIDER-
 # SNAPSHOT in each directory's MANIFEST — never hand-ratified, never a benchmark.
 !tests/rubric_eval_suite/snapshots/**/*.json
+# [A-9 / D-12] the rubric-eval sweep configs are SOURCE (model key, effort, cost
+# ceiling): the runner and test_llm_policy read them. `*.json` above hid all 16.
+!tests/rubric_eval_suite/configs/*.json
 # Grading eval suite (mission v0, same precedent): configs, per-fixture
 # manifests, frozen contract snapshots and GT files are SOURCE — hash-pinned
 # provenance the runner validates against committed state. NOT eval output.

@@ -1,0 +1,7 @@
+{
+  "model_key": "gemini-3.1-pro-preview",
+  "max_output_tokens": 16000,
+  "reasoning_effort": null,
+  "cost_ceiling": 2.0,
+  "notes": "SWEEP CONFIG — functional-first phase. cost_ceiling=2.00 is deliberately loose: its job in this phase is pathology detection (runaway retries), not economy. Revisit when stripping toward cost/latency benchmarks. Likeliest smoke failure: Gemini's function-calling schema translation of the RubricExtraction Pydantic model — verify parse success and non-null finish_reason on the repeats=1 smoke before the k=5 run. Registry-schema migration 2026-08-23: identity/prices registry-owned (model_key -> tests/eval_common/models_registry.py)."
+}

@@ -12,8 +12,8 @@ BACKEND = Path(__file__).resolve().parents[1]
 
 
 def test_every_pinned_name_points_at_a_real_test():
-    known = kf.load_known_failures()
-    assert known, "the allowlist is loaded"
+    known = kf.load_known_failures()               # may be empty: that is the goal state
+    assert kf.KNOWN_FAILURES_PATH.exists(), "the allowlist file itself stays"
     for nid in known:
         file, _, rest = nid.partition("::")
         func = re.split(r"[\[:]", rest, maxsplit=1)[0]

@@ -1,0 +1,7 @@
+{
+  "model_key": "gpt-5.6-luna",
+  "reasoning_effort": "medium",
+  "max_output_tokens": 32000,
+  "cost_ceiling": 1.0,
+  "notes": "VERDICT 2026-08-23 (RUN 20260823-221411): FALSIFIED — 0/5, the worst cell of the sweep; drops whole QUESTIONS (question_recall 0.500-0.667). GPT-5.6 LATENCY SWEEP (2026-08-23, ordered by Noam). ONE VARIABLE vs the baseline config prod_gpt55.json: model_key gpt-5.5 -> gpt-5.6-luna. Everything else is held IDENTICAL to the prod pin (max_output_tokens=32000, cost_ceiling=1.00, subject/pedagogical defaults) so a delta is attributable to model+effort and nothing else. Goal: equal-or-better accuracy AND cost at LOWER latency; the reference is the same-tree gpt-5.5/medium baseline (prompt 3.7.0-tabledir, pipeline 3.6.2), not the 2026-07 cross-tree numbers. Identity/prices are registry-owned (tests/eval_common/models_registry.py); prices verified 2026-08-23. reasoning_effort rides _llm_params' openai-reasoning branch (gpt-5.6-* matches _is_openai_reasoning's 'gpt-5' prefix — no pipeline change needed). luna = the vendor's economy tier ($0.20/$1.20; cached-in rate deliberately absent from its registry card since 2026-08-07, so its cost is a conservative upper bound). Already the production P2 segmentor in the transcription engine, at effort=low."
+}

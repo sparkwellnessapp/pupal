@@ -1,0 +1,7 @@
+{
+  "model_key": "gpt-5.5",
+  "max_output_tokens": 32000,
+  "reasoning_effort": "low",
+  "cost_ceiling": 1.0,
+  "notes": "FALSIFIED 2026-07-23 (RUN 20260723-155345): effort=low broke bagrut's gate — annotation_match + pedagogical_match BOTH failed (model reconciled the faithful teacher error), plus structure/criteria/example_solution regressions. DO NOT USE for extraction; kept as the experiment record. LATENCY LEVER P-L6-low: identical to gpt-5.5.json EXCEPT reasoning_effort medium->low. The ONLY variable vs the gpt-5.5 (medium) run. Decode dominates t_doc (~99%) and t_doc ~= output_tokens/~55 tok/s, so cutting reasoning-token volume is the biggest raw decode knob. Tier-2 / accuracy-risky: effort=low most endangers bagrut's faithful-error gate (annotation_match + pedagogical_match never-reconcile tripwires). Owner-authorized 2026-07-23. Run on pipeline 3.4.0 (P-L1 in) so the comparison L1(medium)->L1(low) isolates effort. Registry-schema migration 2026-08-23: identity/prices registry-owned (model_key); cost_ceiling 2.00 -> 1.00 (owner ruling for the gpt-5.5 configs)."
+}
