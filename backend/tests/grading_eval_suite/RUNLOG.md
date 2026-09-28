@@ -2660,3 +2660,11 @@ second exam, not another dollar on this one.**
   - The owner confirms Q-23.
   - The owner tops up Anthropic credit, which BLOCKER-1 holds Track B on.
   - Then Phase 2.
+
+- **2026-09-28 · AM-G13 mutation follow-up (supplementary).** mutmut 2.5.1 on `pricing_v6.py`: 288 mutants.
+  - 283 killed at first (276 + 7 slow-but-killed), 5 survived. Three of the survivors are now killed:
+    - #173/#174: the V7 refusal message. The test now asserts the exact text.
+    - #259: the primary-check scan, `continue` → `break`. A real gap: no builder ever listed a non-credit check before a credit check. Killed by `test_primary_check_ignores_non_credit_checks_listed_first`, and added as hand vector `primary:non-credit-listed-first`.
+    - Each kill was verified by applying the mutant by hand: 1 failed each.
+  - **Final: 286 of 288 killed (99.3%).**
+  - The two left are EQUIVALENT: `break` → `continue` in the BehaviorCap loop (l.256) and in the floor loop (l.271). Once the loop's exit condition holds, every later iteration skips its whole body.

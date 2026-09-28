@@ -379,8 +379,23 @@ def test_a_charge_group_across_scopes_is_refused():
     yc, yf = binary("Y.c1", "Y", 2), fault("Y.f1", "Y", [("m2", 1, "x")], group="g")
     v = view([term("X", 2, q="q1"), term("Y", 2, q="q2")],
              [Sel(xc, "full"), Sel(xf, "f1"), Sel(yc, "full"), Sel(yf, "f1")])
-    with pytest.raises(ValueError, match="V7"):
+    with pytest.raises(ValueError) as refused:
         price(v)
+    assert str(refused.value) == (
+        "charge group 'g' spans scopes ('q1', None) and ('q2', None) (V7): "
+        "the pricer assigns a scope's groups jointly (AM-G13)")
+
+
+def test_primary_check_ignores_non_credit_checks_listed_first():
+    """The primary is the best CREDIT check, wherever faults and notes sit in
+    plan order (mutation survivor 259: `continue` → `break` stopped the scan at
+    the first non-credit check, which no builder had ever listed first)."""
+    n1 = note("A.n1", A, "הערה")
+    f1 = fault("A.f1", A, [("m1", 1, "x")])
+    c1 = binary("A.c1", A, 1)
+    c2 = binary("A.c2", A, 3)
+    p = price(view([term(A, 4)], [Sel(n1, "none"), Sel(f1, "none"), Sel(c1, "full"), Sel(c2, "full")]))
+    assert _t(p).primary_check_id == "A.c2"
 
 
 # ── the pricer's I/O contract (declarative; the TS mirror parses the same JSON)

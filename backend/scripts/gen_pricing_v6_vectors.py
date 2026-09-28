@@ -156,6 +156,9 @@ def _hand_cases() -> List[Tuple[str, object, Optional[object]]]:
             groups=[(["q1", "q2"], 1)]), None),
         ("primary:tie-plan-order", view([term(A, 4)], [Sel(binary("A.c1", A, 2), "full"),
                                                        Sel(binary("A.c2", A, 2), "full")]), None),
+        ("primary:non-credit-listed-first", view([term(A, 4)], [
+            Sel(note("A.n1", A, "הערה"), "none"), Sel(fault("A.f1", A, [("m1", 1, "x")]), "none"),
+            Sel(binary("A.c1", A, 1), "full"), Sel(binary("A.c2", A, 3), "full")]), None),
         ("override:clamped", e1("full", "none"), overlay(pins={A: 9})),
         ("AM-G13:group-meets-a-floor", floor_view, None),
         ("AM-G13:group-meets-a-floor/cleared", floor_view,
