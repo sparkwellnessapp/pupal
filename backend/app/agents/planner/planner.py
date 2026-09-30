@@ -56,6 +56,12 @@ class ScopePlanResult:
     usage: List[Dict[str, Any]] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)                 # what sent it to repair / fallback
 
+    @property
+    def model_fallback(self) -> bool:
+        """[AM-G18] a call was served by another model than requested; eval runs
+        exclude the scope from gate math and report the count."""
+        return any(u.get("model_fallback") for u in self.usage)
+
 
 def repair_message(user_message: str, prior_output_json: str, errors: Sequence[str]) -> str:
     return (user_message + PRIOR_HEADER + prior_output_json + REPAIR_HEADER

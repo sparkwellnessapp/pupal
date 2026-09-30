@@ -125,6 +125,19 @@ MODELS: dict[str, ModelSpec] = {
                         cached_in_per_mtok=0.20),
         supports_logprobs=False, supports_json_schema=True, tier="frontier",
     ),
+    # [AM-G18] verified 2026-09-30 at platform.claude.com (models overview, model page,
+    # what's new): id claude-sonnet-5-5; $2 in / $10 out / $0.20 cache hit — the SAME
+    # rates and the same tokenizer as Sonnet 5 (savings come from fewer tokens, never a
+    # lower rate); adaptive thinking, API default effort `high` (recalibrated vs
+    # Sonnet 5 — set it explicitly on every call). Breaking changes that touch our
+    # calls: forced tool_choice → 400 (native json_schema only), thinking "disabled" →
+    # 400 (the lowest setting is `between_tools`), non-default temperature → 400.
+    "claude-sonnet-5.5": ModelSpec(
+        key="claude-sonnet-5.5", provider="anthropic", model_id="claude-sonnet-5-5",
+        price=PriceCard(in_per_mtok=2.00, out_per_mtok=10.00,
+                        cached_in_per_mtok=0.20),
+        supports_logprobs=False, supports_json_schema=True, tier="frontier",
+    ),
     "claude-opus-5": ModelSpec(
         key="claude-opus-5", provider="anthropic", model_id="claude-opus-5",
         price=PriceCard(in_per_mtok=5.00, out_per_mtok=25.00,

@@ -23,3 +23,35 @@ def test_planner_request_is_sonnet5_adaptive_high_native_json_schema():
     assert (output_config.get("format") or {}).get("type") == "json_schema"
     assert not payload.get("tools") and not payload.get("tool_choice")
     assert "temperature" not in payload
+
+
+def test_sonnet_55_planner_request_sets_effort_explicitly_and_never_forces_a_tool():
+    """[AM-G18] Sonnet 5.5 rejects forced tool_choice and `thinking: disabled`, and
+    its default effort is recalibrated: the request is adaptive, effort EXPLICIT,
+    native json_schema, no tools, no temperature."""
+    from app.agents.plan_compiler.models import SONNET_55_MODEL_KEY
+    card = MODEL_CARDS[SONNET_55_MODEL_KEY]
+    llm = build_chat_model(card.provider, card.model_id, reasoning_effort="high",
+                           max_output_tokens=pl.PLANNER_MAX_OUTPUT_TOKENS, timeout_s=10)
+    llm = llm.model_copy(update={"thinking": dict(pl.PLANNER_THINKING)})
+    raw = llm.with_structured_output(ScopePlanOutput, method="json_schema",
+                                     include_raw=True).first.steps__["raw"]
+    payload = raw.bound._get_request_payload([("system", "s"), ("human", "u")], **raw.kwargs)
+    oc = payload.get("output_config") or {}
+    assert payload["model"] == "claude-sonnet-5-5" and payload["thinking"] == {"type": "adaptive"}
+    assert oc.get("effort") == "high" and (oc.get("format") or {}).get("type") == "json_schema"
+    assert not payload.get("tools") and not payload.get("tool_choice") and "temperature" not in payload
+
+
+def test_the_app_price_cards_equal_the_eval_registry():
+    from tests.eval_common.models_registry import spec
+    for key, card in MODEL_CARDS.items():
+        reg = spec(key)
+        assert (card.model_id, card.price) == (reg.model_id, reg.price), key
+
+
+def test_a_call_served_by_another_model_is_flagged_model_fallback():
+    from app.agents.planner.planner import ScopePlanResult
+    ok = ScopePlanResult("q1", "planner", [], [], [], usage=[{"model_fallback": False}])
+    fb = ScopePlanResult("q1", "planner", [], [], [], usage=[{"model_fallback": True}])
+    assert (ok.model_fallback, fb.model_fallback) == (False, True)

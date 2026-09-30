@@ -57,11 +57,18 @@ def build_planner_call(*, model_key: str = PLANNER_MODEL_KEY, effort: str = PLAN
             attempts=PLANNER_TRANSPORT_ATTEMPTS, timeout_s=timeout_s,
             deadline=_Deadline(deadline_s), label=f"planner ({card.model_id})")
         raw = res.get("raw")
+        # [AM-G18] provenance: the model that SERVED the call, from the response; a
+        # mismatch with the requested id is flagged `model_fallback` on the scope
+        rmeta = dict(getattr(raw, "response_metadata", None) or {})
+        served = rmeta.get("model") or rmeta.get("model_name")
         meta = dict(getattr(raw, "usage_metadata", None) or {})
         in_tok = int(meta.get("input_tokens") or 0)
         out_tok = int(meta.get("output_tokens") or 0)
         cached = int((meta.get("input_token_details") or {}).get("cache_read") or 0)
-        usage = {"model": card.model_id, "input_tokens": in_tok, "output_tokens": out_tok,
+        usage = {"model": card.model_id, "served_model": served,
+                 "model_fallback": bool(served) and served != card.model_id,
+                 "stop_reason": rmeta.get("stop_reason"),
+                 "input_tokens": in_tok, "output_tokens": out_tok,
                  "cached_input_tokens": cached, "cost_usd": round(cost(in_tok, out_tok, cached), 6)}
         if res.get("parsed") is None:
             raise PlannerParseError(f"{card.model_id}: {res.get('parsing_error')!r}"[:400])

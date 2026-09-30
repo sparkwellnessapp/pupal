@@ -547,3 +547,15 @@ build latency. **Expected:** ≤ $2 per rubric; 0 fallbacks on hobby; ≤ 1 fall
 **Kill (surface, do not tune):** > 2 fallbacks on either rubric ⇒ the planner prompt or schema is
 the problem, reported with the validator messages before any Phase-6 spend.
 
+## GRADER v6 — AM-G18 Sonnet 5.5 pre-registrations (registered 2026-09-30, BEFORE any Sonnet 5.5 call)
+
+Sonnet 5.5 (`claude-sonnet-5-5`, verified 2026-09-30: the SAME $2 / $10 / $0.20 cache-hit rates and the same tokenizer as Sonnet 5; adaptive thinking; API default effort `high`, recalibrated against Sonnet 5, so effort is set EXPLICITLY on every call). One variable per comparison; the choice rules are unchanged.
+
+> **P-v6-8 (planner).** In the planner re-record (both exams, effort high for both), the Sonnet 5.5 planner has **no more** inexpressible cells against GT and **no more** repairs than Sonnet 5.
+> **Kill:** more of either ⇒ Sonnet 5.5 does not replace Sonnet 5 as the planner.
+
+> **P-v6-9 (Phase-6 model arm).** v6 + a Sonnet 5.5 verifier beats v6 + Sonnet 5 on **K3** with the kills clean (K1, K2, K4), at a **lower** cost per test. Adoption is under AM-G12's rule; cap $8.
+
+> **P-v6-10 (Track B).** v5 + a Sonnet 5.5 verifier (grader-v5.4, the same pinned plans and fixtures, k=3) beats v5 + Sonnet 5 on **K3**. If it does, with the kills clean, it is reported as an owner decision: an interim production pin change before the v6 cutover.
+
+Provenance for all three: the served model id is recorded from every response. A scope served by another model is flagged `model_fallback`, excluded from gate math, and counted in the report. We do not opt into server-side refusal fallback, so a decline is `stop_reason: "refusal"`, which is a failed call.

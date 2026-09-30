@@ -2732,3 +2732,18 @@ second exam, not another dollar on this one.**
 - **No Cloud Run deploy.** SEC-1's only code change is `'034'` in `EXPECTED_MIGRATIONS` (the boot check). The live code logs "DB ahead of code" until the D-13 + A-8 deploy, which carries it.
 - **Seed accounts:** the owner confirmed that the accounts created by migrations 001/002 do not exist in production, so no production action. CLAUDE.md gains migration rule 4 (no credentials, plaintext or hashed, in any migration or committed file; seed accounts come from a local-only script reading the environment).
 - **Pending the owner:** Supabase Advisors → Security (expected: no «RLS disabled») and the click-through (log in, rubrics, a graded test, a roster). Both are recorded here once confirmed.
+
+## 2026-09-30 · AM-G18 · Sonnet 5.5 verified from the docs; registry card and planner support in; P-v6-8/9/10 registered
+
+- **Verified** at platform.claude.com (models overview, the Sonnet 5.5 model page, "What's new in Claude Sonnet 5.5"), 2026-09-30:
+  - The id is `claude-sonnet-5-5`, released 2026-09-28.
+  - The rates are **$2 / $10 / $0.20 cache hit, the same as Sonnet 5**, with the same tokenizer, so any saving is fewer tokens, never a lower rate.
+  - Adaptive thinking is on by default. The API's default effort is **`high`**, and it is **recalibrated** against Sonnet 5 (re-sweep; never carry a level over).
+- **Breaking changes that touch our calls:**
+  1. Forced `tool_choice` (`any`/`tool`) → 400. LangChain's default Anthropic structured output forces a tool, so **the v5 grader and the router must use native `json_schema` on 5.5**; the planner already does.
+  2. `thinking: {"type": "disabled"}` → 400. The lowest setting is `between_tools`, which behaves like disabled when there are no tools. The explainer's "without thinking" arm uses it.
+  3. A non-default `temperature`/`top_p`/`top_k` → 400. We send none for the 5 family.
+  4. Prompt caching's minimum is 512 tokens (1,024 on Sonnet 5).
+- **The owner's "higher-risk requests fall back to Sonnet 5", corrected:** a declined request returns HTTP 200 with `stop_reason: "refusal"`. Only the opt-in beta server-side fallback (`fallbacks: "default"`) retries `cyber` and `frontier_llm` declines on Sonnet 5. We do not opt in, so a refusal is a failed call. The served model is recorded anyway (`model_fallback`).
+- **Built:** the registry card (eval registry + `plan_compiler.models`, pinned equal by test); the planner call for 5.5 (adaptive, effort explicit, json_schema, no tools, no temperature, pinned by an offline payload test); provenance (`served_model` per call, `model_fallback` per scope).
+- **Registered:** P-v6-8, P-v6-9, P-v6-10 (PREDICTIONS.md).
