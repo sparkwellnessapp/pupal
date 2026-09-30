@@ -141,7 +141,8 @@ async def test_async_httpx_and_the_openai_sdk_cannot_either():
 # --- end to end: a swallowed violation still fails its test -----------------------------
 
 def test_swallowed_violations_fail_their_tests_and_db_marked_tests_are_left_alone():
-    env = {k: v for k, v in os.environ.items() if k != local_db.SELECT_ENV}
+    # Same database as this session; never a gate run (the probes need no DB probe).
+    env = {k: v for k, v in os.environ.items() if k != "VIVI_TEST_GATE"}
     r = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-rf",
          "tests/a10_guard_probes/probe_guards.py"],
