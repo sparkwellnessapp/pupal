@@ -63,6 +63,7 @@ def test_the_hash_of_a_real_contract_is_stable_across_model_round_trips():
 
 # ── lifecycle ───────────────────────────────────────────────────────────────
 
+@pytest.mark.db
 def test_queued_to_building_to_ready_and_a_rebuild_supersedes():
     sha = _sha()
 
@@ -105,6 +106,7 @@ def test_queued_to_building_to_ready_and_a_rebuild_supersedes():
         _run(_cleanup(sha))
 
 
+@pytest.mark.db
 def test_two_writers_race_and_the_index_decides():
     sha = _sha()
 
@@ -119,6 +121,7 @@ def test_two_writers_race_and_the_index_decides():
         _run(_cleanup(sha))
 
 
+@pytest.mark.db
 def test_a_failed_row_is_history_and_a_new_build_can_start():
     sha = _sha()
 
@@ -138,6 +141,7 @@ def test_a_failed_row_is_history_and_a_new_build_can_start():
         _run(_cleanup(sha))
 
 
+@pytest.mark.db
 def test_a_dead_builder_can_be_claimed_only_when_its_heartbeat_is_stale():
     sha = _sha()
 
@@ -161,6 +165,7 @@ def test_a_dead_builder_can_be_claimed_only_when_its_heartbeat_is_stale():
         _run(_cleanup(sha))
 
 
+@pytest.mark.db
 def test_the_check_refuses_a_ready_row_without_a_plan():
     """§0.5: the CHECK is correct; a writer that reaches it is wrong."""
     sha = _sha()
@@ -179,6 +184,7 @@ def test_the_check_refuses_a_ready_row_without_a_plan():
         _run(_cleanup(sha))
 
 
+@pytest.mark.db
 def test_ensure_plan_for_contract_is_idempotent_on_content():
     contract = {"questions": [{"q": 1}], "contract_version": str(uuid.uuid4())}
     sha = contract_sha256(contract)

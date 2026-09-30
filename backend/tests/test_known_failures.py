@@ -62,6 +62,7 @@ def test_a_stale_entry_is_found_only_where_its_file_was_collected_whole():
     assert kf.stale_entries(known, collected, narrowed_files=["tests/c.py"]) == ["tests/a.py::gone"]
 
 
+@pytest.mark.db          # it dials a (dead) database: a DB-touching test by definition (A-10)
 def test_the_probe_reports_an_unreachable_database():
     why = kf.probe_database("postgresql+asyncpg://u:p@127.0.0.1:1/x", timeout_s=3)
     assert why is not None and why

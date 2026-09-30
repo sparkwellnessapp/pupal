@@ -202,6 +202,7 @@ async def _cleanup(sha, rubric_id=None):
         await db.commit()
 
 
+@pytest.mark.db
 def test_run_plan_build_lands_a_ready_row_and_is_idempotent(hobby):
     cj = dict(hobby["contract_json"], contract_version=str(uuid.uuid4()))
     sha = contract_sha256(cj)
@@ -227,6 +228,7 @@ def test_run_plan_build_lands_a_ready_row_and_is_idempotent(hobby):
         _run(_cleanup(sha, rubric_id))
 
 
+@pytest.mark.db
 def test_run_plan_build_marks_failed_on_a_compiler_bug(hobby, monkeypatch):
     cj = dict(hobby["contract_json"], contract_version=str(uuid.uuid4()))
     sha = contract_sha256(cj)
@@ -253,6 +255,7 @@ def test_run_plan_build_marks_failed_on_a_compiler_bug(hobby, monkeypatch):
 
 # ── resolve_plan_for_grade ──────────────────────────────────────────────────
 
+@pytest.mark.db
 def test_resolve_builds_in_place_when_no_plan_exists(hobby):
     cj = dict(hobby["contract_json"], contract_version=str(uuid.uuid4()))
     sha = contract_sha256(cj)
@@ -269,6 +272,7 @@ def test_resolve_builds_in_place_when_no_plan_exists(hobby):
         _run(_cleanup(sha))
 
 
+@pytest.mark.db
 def test_resolve_takes_over_a_dead_builder(hobby):
     cj = dict(hobby["contract_json"], contract_version=str(uuid.uuid4()))
     sha = contract_sha256(cj)
@@ -288,6 +292,7 @@ def test_resolve_takes_over_a_dead_builder(hobby):
         _run(_cleanup(sha))
 
 
+@pytest.mark.db
 def test_resolve_waits_for_a_live_builder(hobby, monkeypatch):
     cj = dict(hobby["contract_json"], contract_version=str(uuid.uuid4()))
     sha = contract_sha256(cj)
@@ -322,6 +327,7 @@ def _placeholder_json(hobby):
     return assemble_placeholder_plan(sk).model_dump(mode="json")
 
 
+@pytest.mark.db
 def test_resolve_after_a_failed_build_starts_a_new_one(hobby):
     cj = dict(hobby["contract_json"], contract_version=str(uuid.uuid4()))
     sha = contract_sha256(cj)
