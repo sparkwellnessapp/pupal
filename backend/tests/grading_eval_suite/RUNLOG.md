@@ -2824,3 +2824,19 @@ second exam, not another dollar on this one.**
   - Most v6 misses are binary checks where GT awarded partial credit, for example bagrut `q3.ב.c6` binary[3/0] against GT 2.5/2/1.5, and hobby `q2.ב.c0` binary[2/0] against GT 1.
   - This is rule 7 (concrete partials only) meeting teachers' partial awards. It is recorded, not tuned: the REVIEW-2 package is the place for it.
 - **Old recordings:** the G2 files (`<exam>.recorded.json`, planner-v6.0, real-id space) are deleted and superseded; git keeps them.
+
+## 2026-09-30 · TRACK B · both baseline arms VOID — the Anthropic credit ran out mid-run (BLOCKER-1 again); STOPPED, $4.58
+
+- **Order kept:** D-13 deploy → production plans rebuilt → eval plans re-routed → canary (Sonnet 5 and Haiku 4.5 OK) → a live smoke of both arms' exact requests (Sonnet 5.5 json_schema + between_tools; Sonnet 5 forced tool; each served by the requested model) → both arms launched in parallel at 17:03.
+- **Both arms, minutes later:** every call returned `400 invalid_request_error — Your credit balance is too low`. The v5 grader isolates that per scope (`v5_scope_failed_permanent`), so the runs completed as mostly-failed trials:
+
+  | arm | run dir | valid trials | spend |
+  |---|---|---|---|
+  | A · v5 + Sonnet 5 | `20260930-170310_trackb-sonnet5-v54` | 9 of 36 | $1.6387 |
+  | B · v5 + Sonnet 5.5 | `20260930-170314_trackb-sonnet55-v54` | 17 of 36 | $2.9368 |
+
+  **VOID: not analysed, not a baseline** (the arms stopped at different points, so even the valid trials are not comparable). A one-token canary afterwards: `400 credit`.
+- **Track B spend:** $0.50 re-route + $4.58 arms = **$5.08 of $20**. Anthropic spend today: $8.84 (re-record $3.10, production rebuild $0.65, re-route $0.50, arms $4.58, canaries/smoke ≈ $0.01).
+- **Production:** no `PROVIDER_BILLING_EXHAUSTED` and no grade logged since the deploy (13:40Z), so no failure has been observed. But if production's key is on this account, the next v5 grade or plan build fails; A-8's CRITICAL tag then fires the owner's alert.
+- **Next, after a top-up:** canary → re-run both arms as committed (`trackb-sonnet5-v54`, `trackb-sonnet55-v54`, `--repeats 3`). They need no code change; the pinned plans and configs are unchanged.
+- **Tooling lesson (recorded, not fixed):** the runner has no run-level stop on a permanent billing error. It graded every remaining fixture into failed scopes. That cost nothing (a refused call is not billed), but it wasted wall time and wrote two misleading results dirs. A run-level abort on the first `PROVIDER_BILLING_EXHAUSTED` belongs with A-8's classifier.
