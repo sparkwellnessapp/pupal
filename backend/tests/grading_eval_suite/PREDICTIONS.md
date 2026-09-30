@@ -559,3 +559,16 @@ Sonnet 5.5 (`claude-sonnet-5-5`, verified 2026-09-30: the SAME $2 / $10 / $0.20 
 > **P-v6-10 (Track B).** v5 + a Sonnet 5.5 verifier (grader-v5.4, the same pinned plans and fixtures, k=3) beats v5 + Sonnet 5 on **K3**. If it does, with the kills clean, it is reported as an owner decision: an interim production pin change before the v6 cutover.
 
 Provenance for all three: the served model id is recorded from every response. A scope served by another model is flagged `model_fallback`, excluded from gate math, and counted in the report. We do not opt into server-side refusal fallback, so a decline is `stop_reason: "refusal"`, which is a failed call.
+
+### P-v6-10 — the arm's exact request (registered 2026-09-30, BEFORE the Track B spend)
+
+- **Arm A** `configs/trackb-sonnet5-v54.json`: the production pin exactly. grader-v5.4 + `claude-sonnet-5`, with no thinking parameter, no effort, and forced-tool structured output (`test_the_sonnet_5_production_request_is_unchanged` pins it).
+- **Arm B** `configs/trackb-sonnet55-v54.json`: the one variable is the model, `claude-sonnet-5-5`. Its request is as close to arm A as the API allows:
+  - `thinking: between_tools`, the lowest mode. With no tools it thinks not at all; `disabled` returns a 400.
+  - effort `high`, set explicitly: the API default of both models, which arm A therefore runs at implicitly.
+  - native json_schema, because forced tool_choice returns a 400.
+- **Both arms:**
+  - the same re-routed plans (D-13 fixed, pinned by sha in provenance);
+  - the same 12 fixtures, k=3, guard report-only;
+  - a model-fallback trial is excluded and counted (AM-G18, `provenance.model_fallback`).
+- The kill and the adoption rule are as P-v6-10 states. A higher-thinking 5.5 verifier is not this arm: it belongs to the Phase-6 model arm (AM-G12 rule).

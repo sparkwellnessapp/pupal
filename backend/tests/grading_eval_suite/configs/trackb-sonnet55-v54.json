@@ -1,0 +1,12 @@
+{
+ "model_key": "claude-sonnet-5.5",
+ "architecture": "v5",
+ "plans": {
+  "hobby_tvshow": "plans/compiled/hobby_tvshow.routed+segmented.plan.json",
+  "bagrut_899371": "plans/compiled/bagrut_899371.routed+segmented.plan.json"
+ },
+ "params": {"reasoning_effort": "high", "thinking": "between_tools"},
+ "expressibility_guard": "report",
+ "cost_ceiling": 0.15,
+ "notes": "Track B arm B (AM-G18, P-v6-10): arm A with ONE variable changed — the verifier model, Sonnet 5.5. Its request mirrors production's Sonnet 5 as closely as the API allows: thinking between_tools (the lowest; no thinking without tools — 'disabled' is a 400), effort high set explicitly (the API default of both models), native json_schema (forced tool_choice is a 400)."
+}

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, Tuple
 
-from app.agents.grader.llm_factory import build_chat_model
+from app.agents.grader.llm_factory import build_chat_model, serves_requested
 from app.agents.plan_compiler.models import MODEL_CARDS, ROUTER_MODEL_KEY, cost_fn
 from app.services.docx_v3.pipeline import _Deadline, _transport_retry_async
 
@@ -46,8 +46,8 @@ def build_planner_call(*, model_key: str = PLANNER_MODEL_KEY, effort: str = PLAN
                        deadline_s: Optional[float] = None) -> LLMCall:
     card = MODEL_CARDS[model_key]
     llm = build_chat_model(card.provider, card.model_id, reasoning_effort=effort,
-                           max_output_tokens=PLANNER_MAX_OUTPUT_TOKENS, timeout_s=timeout_s)
-    llm = llm.model_copy(update={"thinking": dict(PLANNER_THINKING)})
+                           max_output_tokens=PLANNER_MAX_OUTPUT_TOKENS, timeout_s=timeout_s,
+                           thinking=PLANNER_THINKING["type"])
     runner = llm.with_structured_output(ScopePlanOutput, method="json_schema", include_raw=True)
     cost = cost_fn(model_key)
 
@@ -66,7 +66,7 @@ def build_planner_call(*, model_key: str = PLANNER_MODEL_KEY, effort: str = PLAN
         out_tok = int(meta.get("output_tokens") or 0)
         cached = int((meta.get("input_token_details") or {}).get("cache_read") or 0)
         usage = {"model": card.model_id, "served_model": served,
-                 "model_fallback": bool(served) and served != card.model_id,
+                 "model_fallback": bool(served) and not serves_requested(card.model_id, served),
                  "stop_reason": rmeta.get("stop_reason"),
                  "input_tokens": in_tok, "output_tokens": out_tok,
                  "cached_input_tokens": cached, "cost_usd": round(cost(in_tok, out_tok, cached), 6)}

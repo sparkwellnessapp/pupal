@@ -136,6 +136,26 @@ def _validate_config(name: str, config: dict) -> None:
             raise SystemExit(f"config '{name}': cascade.base_model_key required.")
 
 
+def model_fallbacks(draft: Optional[GradedTestDraft], spec: ModelSpec) -> List[str]:
+    """[AM-G18] Provider-reported ids that name ANOTHER registry model than the one
+    requested (e.g. `claude-sonnet-5` for a `claude-sonnet-5-5` request, a
+    server-side fallback). The trial is excluded from gate math and counted
+    (`provenance.model_fallback`). Served models are recorded per TEST, not per
+    scope, so the exclusion is the whole trial: a superset of the flagged scopes,
+    never less."""
+    from app.agents.grader.llm_factory import serves_requested
+    if draft is None or draft.cascade_usage is not None:
+        return []
+    out = []
+    for served in draft.served_models or []:
+        if serves_requested(spec.model_id, served):
+            continue
+        if any(m.model_id != spec.model_id and serves_requested(m.model_id, served)
+               for m in _REGISTRY_MODELS.values()):
+            out.append(served)
+    return out
+
+
 def _assert_draft_stamp(draft: Optional[GradedTestDraft], spec: ModelSpec) -> None:
     """[DL-4 successor, seam era] provenance may never claim a model the SUT
     didn't run — now asserted against what ACTUALLY ran: the draft's own
@@ -165,7 +185,10 @@ def _assert_draft_stamp(draft: Optional[GradedTestDraft], spec: ModelSpec) -> No
             f"but the draft was graded by {draft.model_version!r} — the seam "
             f"wiring is broken; provenance may never claim a model the SUT "
             f"didn't run.")
+    fallbacks = set(model_fallbacks(draft, spec))
     for served in draft.served_models or []:
+        if served in fallbacks:
+            continue                    # [AM-G18] excluded by the caller, never a halt
         if not (served.startswith(spec.model_id) or spec.model_id.startswith(served)):
             raise SystemExit(
                 f"COST_TRUTH: provider served {served!r} for a request pinned to "
@@ -480,7 +503,8 @@ def build_agent(bundle: FixtureBundle, agent_factory=None, *,
     llm = build_chat_model(spec.provider, spec.model_id,
                            reasoning_effort=params.get("reasoning_effort"),
                            max_output_tokens=params.get("max_output_tokens"),
-                           thinking_budget=params.get("thinking_budget"))
+                           thinking_budget=params.get("thinking_budget"),
+                           thinking=params.get("thinking"))
     if config.get("architecture", "v3") == "v5":
         # the pre-spend gate (_plans_provenance) already recorded any report-only
         # expressibility misses for this bundle; the sink keeps them from being
@@ -650,6 +674,7 @@ def run_grade(config_name: str, fixture_names: List[str], *, k: int,
                   if config.get("architecture") == "v5" and bundles else None)
 
     trials: List[TrialScore] = []
+    fallback_trials: List[dict] = []                 # [AM-G18]
     drafts_by_fixture: Dict[str, Dict[int, GradedTestDraft]] = {}
     for bundle in bundles:
         gradable, scope_filter = (None, None)
@@ -665,6 +690,15 @@ def run_grade(config_name: str, fixture_names: List[str], *, k: int,
         for draft, meta in pairs:
             if agent_factory is None:
                 _assert_draft_stamp(draft, spec)     # [DL-4 successor] per trial
+                foreign = model_fallbacks(draft, spec)
+                if foreign and meta.get("invalid_reason") is None:
+                    meta["invalid_reason"] = f"model_fallback: served {foreign} for {spec.model_id}"
+                    fallback_trials.append({"fixture": bundle.name,
+                                            "trial_index": meta["trial_index"],
+                                            "served": foreign,
+                                            "scopes": len(draft.scope_outcomes)})
+                    print(f"[AM-G18] {bundle.name} trial {meta['trial_index']}: served {foreign} "
+                          f"for {spec.model_id} — EXCLUDED (model_fallback)")
             trials.append(_score_pair(draft, meta, bundle,
                                       cost_ceiling=cost_ceiling, price=spec.price,
                                       provisional=provisional,
@@ -680,6 +714,10 @@ def run_grade(config_name: str, fixture_names: List[str], *, k: int,
                          for d in by_r.values() for m in (d.served_models or [])})
     # [COST_TRUTH] absence is surfaced, never silently equated with the request
     prov["served_models"] = served_all or ["<unreported-by-provider>"]
+    # [AM-G18] every trial a fallback model served: excluded (invalid), counted
+    prov["model_fallback"] = {"trials": len(fallback_trials),
+                              "scopes": sum(t["scopes"] for t in fallback_trials),
+                              "detail": fallback_trials}
     if plans_prov is not None:
         # Recorded for EVERY exam in the run. This used to read bundles[0],
         # which on a two-exam corpus records one plan and silently implies it

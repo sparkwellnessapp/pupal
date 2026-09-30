@@ -11,8 +11,8 @@ from app.agents.planner.schemas import ScopePlanOutput
 def test_planner_request_is_sonnet5_adaptive_high_native_json_schema():
     card = MODEL_CARDS[pl.PLANNER_MODEL_KEY]
     llm = build_chat_model(card.provider, card.model_id, reasoning_effort=pl.PLANNER_EFFORT,
-                           max_output_tokens=pl.PLANNER_MAX_OUTPUT_TOKENS, timeout_s=10)
-    llm = llm.model_copy(update={"thinking": dict(pl.PLANNER_THINKING)})
+                           max_output_tokens=pl.PLANNER_MAX_OUTPUT_TOKENS, timeout_s=10,
+                           thinking="adaptive")
     bound = llm.with_structured_output(ScopePlanOutput, method="json_schema", include_raw=True)
     raw = bound.first.steps__["raw"]
     payload = raw.bound._get_request_payload([("system", "s"), ("human", "u")], **raw.kwargs)
@@ -32,8 +32,8 @@ def test_sonnet_55_planner_request_sets_effort_explicitly_and_never_forces_a_too
     from app.agents.plan_compiler.models import SONNET_55_MODEL_KEY
     card = MODEL_CARDS[SONNET_55_MODEL_KEY]
     llm = build_chat_model(card.provider, card.model_id, reasoning_effort="high",
-                           max_output_tokens=pl.PLANNER_MAX_OUTPUT_TOKENS, timeout_s=10)
-    llm = llm.model_copy(update={"thinking": dict(pl.PLANNER_THINKING)})
+                           max_output_tokens=pl.PLANNER_MAX_OUTPUT_TOKENS, timeout_s=10,
+                           thinking="adaptive")
     raw = llm.with_structured_output(ScopePlanOutput, method="json_schema",
                                      include_raw=True).first.steps__["raw"]
     payload = raw.bound._get_request_payload([("system", "s"), ("human", "u")], **raw.kwargs)

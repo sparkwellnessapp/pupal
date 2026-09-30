@@ -1,0 +1,11 @@
+{
+ "model_key": "claude-sonnet-5",
+ "architecture": "v5",
+ "plans": {
+  "hobby_tvshow": "plans/compiled/hobby_tvshow.routed+segmented.plan.json",
+  "bagrut_899371": "plans/compiled/bagrut_899371.routed+segmented.plan.json"
+ },
+ "expressibility_guard": "report",
+ "cost_ceiling": 0.15,
+ "notes": "Track B arm A (AM-G11/AM-G14/AM-G18, 2026-09-30): the production pin — grader-v5.4 + Sonnet 5 (no thinking, no effort, forced-tool structured output, exactly as production) — on both exams' routed+segmented plans re-routed after the D-13 fix. 12 fixtures, k=3, guard report-only."
+}

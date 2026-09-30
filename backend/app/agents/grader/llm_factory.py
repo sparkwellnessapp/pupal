@@ -35,6 +35,7 @@ Providers:
 """
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from app.config import settings
@@ -56,8 +57,11 @@ def build_chat_model(provider: str, model_id: str, *,
                      reasoning_effort: Optional[str] = None,
                      max_output_tokens: Optional[int] = None,
                      thinking_budget: Optional[int] = None,
-                     timeout_s: Optional[float] = None):
+                     timeout_s: Optional[float] = None,
+                     thinking: Optional[str] = None):
     timeout = GRADER_LLM_TIMEOUT_S if timeout_s is None else timeout_s
+    if thinking is not None and not (provider == "anthropic" and model_id.startswith(_CLAUDE_5)):
+        raise ValueError(f"thinking is a Claude 5 family knob, not {provider}/{model_id} (AM-G18)")
 
     if provider == "gemini":
         return _GenAIChat(model_id, reasoning_effort=reasoning_effort,
@@ -80,8 +84,19 @@ def build_chat_model(provider: str, model_id: str, *,
     params = _llm_params(provider, model_id, max_output_tokens,
                          reasoning_effort, timeout_s=timeout)
 
+    if provider == "anthropic" and model_id in NATIVE_SCHEMA_MODELS:
+        if not reasoning_effort or thinking not in THINKING_MODES:
+            raise ValueError(f"{model_id}: effort and thinking ({THINKING_MODES}) are set "
+                             f"explicitly on every call (AM-G18); got effort={reasoning_effort!r} "
+                             f"thinking={thinking!r}")
+        cls = _native_schema_chat_anthropic()
+        return cls(model=model_id, thinking={"type": thinking},
+                   api_key=settings.anthropic_api_key.get_secret_value()
+                   if settings.anthropic_api_key else None, **params)
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
+        if thinking is not None:
+            params["thinking"] = {"type": thinking}
         # The key comes from SETTINGS, like the openai branch below. Relying on
         # the SDK's os.environ fallback made this branch depend on a variable
         # that `.env` never exports, and `attach_feedback` swallows the failure
@@ -105,6 +120,45 @@ def build_chat_model(provider: str, model_id: str, *,
 EVAL_REQUEST_LABELS = {"vivi-workload": "grading-eval"}
 
 _THINKING_LEVELS = ("minimal", "low", "medium", "high")
+
+
+# [AM-G18] Models that REFUSE forced tool_choice (HTTP 400; verified 2026-09-30):
+# LangChain's default Anthropic structured output forces a tool, so these ride
+# the provider's native json_schema mode instead. They also run adaptive thinking
+# by default and reject `thinking: {"type": "disabled"}`, so the thinking mode
+# and the effort are REQUIRED arguments: set explicitly on every call, never
+# inherited from an API default that was recalibrated between models.
+NATIVE_SCHEMA_MODELS = ("claude-sonnet-5-5",)
+THINKING_MODES = ("adaptive", "between_tools")      # between_tools ≡ no thinking without tools
+_CLAUDE_5 = ("claude-sonnet-5", "claude-opus-5", "claude-haiku-5", "claude-fable")
+
+_SNAPSHOT = re.compile(r"-(?:\d{8}|\d{4}-\d{2}-\d{2})")
+
+
+def serves_requested(requested: str, served: str) -> bool:
+    """[AM-G18] The provider-reported model IS the requested one: the id itself or
+    its dated snapshot (`claude-sonnet-5-20260801`, `gpt-4o-2024-08-06`). A prefix
+    is not enough: `claude-sonnet-5` is a prefix of `claude-sonnet-5-5`, so a
+    5.5 request served by 5 passes any prefix test in either direction."""
+    if served == requested:
+        return True
+    return served.startswith(requested) and _SNAPSHOT.fullmatch(served[len(requested):]) is not None
+
+
+def _native_schema_chat_anthropic():
+    from langchain_anthropic import ChatAnthropic
+
+    class NativeSchemaChatAnthropic(ChatAnthropic):
+        """ChatAnthropic whose structured output defaults to the native json_schema
+        mode (no forced tool) — the only structured output these models accept.
+        Both grader agents call `with_structured_output(schema, include_raw=True)`
+        unchanged."""
+
+        def with_structured_output(self, schema, *, include_raw: bool = False, **kwargs):
+            kwargs.setdefault("method", "json_schema")
+            return super().with_structured_output(schema, include_raw=include_raw, **kwargs)
+
+    return NativeSchemaChatAnthropic
 
 
 class _GenAIChat:

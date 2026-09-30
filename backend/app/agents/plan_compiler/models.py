@@ -27,6 +27,7 @@ class ModelCard:
 SEGMENTER_MODEL_KEY = "claude-haiku-4.5"
 ROUTER_MODEL_KEY = "claude-sonnet-5"
 SONNET_55_MODEL_KEY = "claude-sonnet-5.5"     # [AM-G18] a v6 planner arm (verified 2026-09-30)
+OPUS_55_MODEL_KEY = "claude-opus-5.5"         # [OD-G5/AM-G18] the planner comparison arm
 
 MODEL_CARDS: Dict[str, ModelCard] = {
     SEGMENTER_MODEL_KEY: ModelCard(
@@ -38,6 +39,9 @@ MODEL_CARDS: Dict[str, ModelCard] = {
     SONNET_55_MODEL_KEY: ModelCard(
         key=SONNET_55_MODEL_KEY, model_id="claude-sonnet-5-5", provider="anthropic",
         price=PriceCard(in_per_mtok=2.00, out_per_mtok=10.00, cached_in_per_mtok=0.20)),
+    OPUS_55_MODEL_KEY: ModelCard(
+        key=OPUS_55_MODEL_KEY, model_id="claude-opus-5-5", provider="anthropic",
+        price=PriceCard(in_per_mtok=4.00, out_per_mtok=20.00, cached_in_per_mtok=0.20)),
 }
 
 CostFn = Callable[[int, int, Optional[int]], float]
