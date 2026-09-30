@@ -9,6 +9,10 @@ What the planner sees for ONE scope, and nothing else:
              compiled shape (`levels` / `count`), read-only
   marker     marker_id · text_span · polarity · home_terminal_id · candidate_anchors
 
+IDS (AM-G17): every id here is a call-scoped ASCII alias (t1, k1, m1; split refs n1…n6),
+never a real id: `stage1_input.scope_planner_input` is the one place real ids become
+aliases, and `ScopePlannerInput` refuses anything else.
+
 NEVER INPUT (§5.2): student work, ground truth, other scopes — and NO AMOUNT. There
 is no field for any of them, so a caller cannot pass one by accident; the test
 `test_planner_payload_has_no_amounts_and_no_student_work` walks these types to keep
@@ -29,6 +33,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Iterable, Literal, Optional, Tuple
 
+from app.agents.grader.payload_aliases import ALIAS_PATTERN
 from app.agents.grader.plan_schemas import DeductionMarker
 
 __all__ = ["AMOUNT_MASK", "SPLIT_REFS", "SkeletonComponent", "CompiledShape", "TerminalInput",
@@ -36,7 +41,7 @@ __all__ = ["AMOUNT_MASK", "SPLIT_REFS", "SkeletonComponent", "CompiledShape", "T
            "mask_marker_amounts", "marker_input"]
 
 AMOUNT_MASK = "[סכום]"
-SPLIT_REFS: Tuple[str, ...] = tuple(f"new:{i}" for i in range(1, 7))   # §5.3: a split has 2..6 credits
+SPLIT_REFS: Tuple[str, ...] = tuple(f"n{i}" for i in range(1, 7))   # §5.3: a split has 2..6 credits (AM-G17: aliases)
 
 ComponentStatus = Literal["fixed", "monolith"]
 CompiledShapeKind = Literal["levels", "count"]
@@ -127,6 +132,16 @@ class ScopePlannerInput:
     def __post_init__(self) -> None:
         if not self.terminals:
             raise PlannerInputError(f"scope {self.scope_id}: no terminals")
+        # [AM-G17] the model reads aliases only: a real id here is refused, never rendered
+        ids = ([t.terminal_id for t in self.terminals]
+               + [c.component_id for t in self.terminals for c in t.components]
+               + [n.terminal_id for n in self.notes]
+               + [x for m in self.markers for x in (m.marker_id, m.home_terminal_id,
+                                                    *m.candidate_anchors)])
+        not_aliases = sorted({i for i in ids if not ALIAS_PATTERN.fullmatch(i)})
+        if not_aliases:
+            raise PlannerInputError(f"scope {self.scope_id}: ids that are not AM-G17 aliases "
+                                    f"{not_aliases}")
         tids = [t.terminal_id for t in self.terminals]
         _unique(tids, f"scope {self.scope_id}: terminal ids")
         _unique([c.component_id for t in self.terminals for c in t.components],

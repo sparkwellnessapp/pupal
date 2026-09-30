@@ -33,7 +33,7 @@ class PlannedPartial(BaseModel):
 
 
 class PlannedCredit(BaseModel):
-    component_ref: str                    # a skeleton component id; for split: "new:1".."new:6"
+    component_ref: str                    # an AM-G17 alias: a component (k1…); for split: "n1".."n6"
     description_he: str
     source_span: str
     full_label_he: str
@@ -43,7 +43,7 @@ class PlannedCredit(BaseModel):
 
 
 class PlannedTerminal(BaseModel):
-    terminal_id: str
+    terminal_id: str                      # an AM-G17 alias (t1…)
     decomposition: Decomposition
     credits: List[PlannedCredit]
     interpretation_notes_he: List[str] = Field(default_factory=list)     # 0..3 (checked in code)

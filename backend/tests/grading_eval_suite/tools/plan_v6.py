@@ -2,17 +2,23 @@
 grader-v6 G2 — LIVE compiles of the fixture rubrics (PR_grader_v6_options.md §12, Phase 2).
 
     python tests/grading_eval_suite/tools/plan_v6.py --exam hobby_tvshow --dry-run
-    python tests/grading_eval_suite/tools/plan_v6.py --exam bagrut_899371 --confirm-spend
+    python tests/grading_eval_suite/tools/plan_v6.py --exam bagrut_899371 --confirm-spend --model claude-sonnet-5.5
     python tests/grading_eval_suite/tools/plan_v6.py --exam hobby_tvshow --replay   # $0, recorded
+    python tests/grading_eval_suite/tools/plan_v6.py --replay --publish --model claude-sonnet-5
+
+A live run RECORDS only: plans/v6/<exam>.<model>.recorded.json. The committed plan and
+the REVIEW-2 render are written by `--replay --publish --model M` from the model the
+§13.1 choice rule picks (PLANNER RE-RECORD ruling, 2026-09-30).
 
 Per exam: Stage 1 → the planner (Sonnet 5, adaptive, effort high — PREDICTIONS.md
 «GRADER v6 — model & effort pre-registration») one call per scope that needs language,
 ≤ 1 repair, else the fallback → assembly → validators → the plan hash.
 
 Writes (committed as the G2 evidence and the recorded fixtures offline tests replay):
-  plans/v6/<exam>.recorded.json   per scope: origin, raw outputs, usage, validator messages
-  plans/v6/<exam>.plan.json       the assembled GradingPlanV6
-  docs/plans/<exam>_v6_render.md  the REVIEW-2 render
+  plans/v6/<exam>.<model>.recorded.json   per scope: origin, raw outputs, usage (served
+                                          model, model_fallback), validator messages
+  plans/v6/<exam>.plan.json               the assembled GradingPlanV6   (--publish)
+  docs/plans/<exam>_v6_render.md          the REVIEW-2 render           (--publish)
 
 Standing rules: a one-token credit canary before any spend (after-AM-G13 ruling); a
 hard per-exam cap (`--max-usd`, default $3; the watch value is $2 per rubric) — a scope
@@ -34,6 +40,7 @@ sys.path.insert(0, str(BACKEND))
 
 from app.agents.grader import plan_values as pv                                     # noqa: E402
 from app.agents.grader.plan_schemas import PackRef                                  # noqa: E402
+from app.agents.plan_compiler.models import MODEL_CARDS                              # noqa: E402
 from app.agents.plan_compiler.stage1_v6 import STAGE1_V6_VERSION, compile_stage1_v6  # noqa: E402
 from app.agents.planner.planner import (ScopePlanResult, assemble_plan,             # noqa: E402
                                         plan_scope)
@@ -47,21 +54,22 @@ from tests.grading_eval_suite.fixtures import SUITE_DIR, load_bundle            
 
 EXAMS = {"hobby_tvshow": "din_ezra", "bagrut_899371": "bagrut_899371.din_ezra"}
 SUBJECT = {"hobby_tvshow": "computer_science", "bagrut_899371": "computer_science"}
+PLANNER_ARMS = ("claude-sonnet-5", "claude-sonnet-5.5", "claude-opus-5.5")   # AM-G18 planner arms
 OUT_DIR = SUITE_DIR / "plans" / "v6"
 RENDER_DIR = BACKEND.parent / "docs" / "plans"
 
 
-def _canary() -> None:
+def _canary(model_id: str) -> None:
     """One token to the planner's provider before any spend; refuses on failure."""
     import anthropic
     from app.config import settings
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key.get_secret_value())
     try:
-        client.messages.create(model="claude-sonnet-5", max_tokens=1,
+        client.messages.create(model=model_id, max_tokens=1,
                                messages=[{"role": "user", "content": "ok"}])
     except anthropic.APIStatusError as e:
         raise SystemExit(f"credit canary FAILED ({e.status_code}) — no spend; offline work continues")
-    print("credit canary: claude-sonnet-5 OK")
+    print(f"credit canary: {model_id} OK")
 
 
 def _recorded_call(recorded: dict):
@@ -71,14 +79,16 @@ def _recorded_call(recorded: dict):
     return call
 
 
-async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scopes=()):
+async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scopes=(),
+               model_key: str = "claude-sonnet-5", publish: bool = False):
     bundle = load_bundle(EXAMS[exam], require_gt=False)
     contract = bundle.rubric_contract
     sha = hashlib.sha256(contract.model_dump_json().encode("utf-8")).hexdigest()
     s1 = compile_stage1_v6(contract, exam_id=exam, rubric_contract_sha256=sha)
     profile = get_profile(SUBJECT[exam])
     system = planner_system_prompt(profile)
-    recorded_path = OUT_DIR / f"{exam}.recorded.json"
+    card = MODEL_CARDS[model_key]
+    recorded_path = OUT_DIR / f"{exam}.{model_key}.recorded.json"
 
     live_scopes = set(live_scopes)
     if replay or live_scopes:
@@ -90,7 +100,7 @@ async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scop
         live_call = None
         if live_scopes:
             from app.agents.planner.planner_llm import build_planner_call
-            live_call = build_planner_call()
+            live_call = build_planner_call(model_key=model_key)
 
         def call_for(scope):
             if scope.scope in live_scopes:
@@ -105,7 +115,7 @@ async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scop
             return call
     else:
         from app.agents.planner.planner_llm import build_planner_call
-        live_call = build_planner_call() if live else None
+        live_call = build_planner_call(model_key=model_key) if live else None
 
         def call_for(scope):
             return live_call
@@ -134,28 +144,36 @@ async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scop
     if skipped:
         print(f"  CAP ${max_usd} reached — scopes NOT planned: {skipped}")
         return
-    config = pv.config_hash(compiler_version=STAGE1_V6_VERSION, planner_model="claude-sonnet-5",
+    config = pv.config_hash(compiler_version=STAGE1_V6_VERSION, planner_model=card.model_id,
                             planner_prompt_version=PLANNER_PROMPT_VERSION,
                             pack_id=profile.pack_id, pack_version=profile.pack_version)
     plan = assemble_plan(results, config_hash=config, rubric_contract_version=str(contract.contract_version),
                          pack=PackRef(pack_id=profile.pack_id, pack_version=profile.pack_version))
     origins = {o: sum(r.origin == o for r in results) for o in ("planner", "repaired", "fallback", "compiled")}
-    print(f"== {exam}: ${spent:.4f} · wall {wall:.0f}s · origins {origins} · plan_hash {plan.plan_hash[:16]}")
+    served = sorted({u.get("served_model") or "?" for r in results for u in r.usage})
+    fallbacks = [r.scope for r in results if r.model_fallback]
+    print(f"== {exam} [{model_key}]: ${spent:.4f} · wall {wall:.0f}s · origins {origins} · "
+          f"served {served} · model_fallback {len(fallbacks)} · plan_hash {plan.plan_hash[:16]}")
+    if publish:
+        (OUT_DIR / f"{exam}.plan.json").write_text(plan.model_dump_json(indent=1), encoding="utf-8")
+        RENDER_DIR.mkdir(parents=True, exist_ok=True)
+        (RENDER_DIR / f"{exam}_v6_render.md").write_text(
+            render_plan_md(exam, plan, s1, results), encoding="utf-8")
+        print(f"  published {exam}.plan.json and docs/plans/{exam}_v6_render.md from {recorded_path.name}")
+        return
     if replay and not live_scopes:
         return
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     recorded_path.write_text(json.dumps({
         "exam": exam, "stage1_version": s1.version, "planner_prompt_version": PLANNER_PROMPT_VERSION,
+        "model_key": model_key, "model_id": card.model_id, "served_models": served,
+        "model_fallback_scopes": fallbacks,
         "config_hash": config, "plan_hash": plan.plan_hash, "cost_usd": round(spent, 4),
         "wall_s": round(wall, 1), "origins": origins,
         "scopes": {r.scope: {"origin": r.origin, "outputs": r.outputs, "usage": r.usage,
                              "errors": r.errors, "telemetry": r.telemetry} for r in results},
     }, ensure_ascii=False, indent=1, sort_keys=True), encoding="utf-8")
-    (OUT_DIR / f"{exam}.plan.json").write_text(plan.model_dump_json(indent=1), encoding="utf-8")
-    RENDER_DIR.mkdir(parents=True, exist_ok=True)
-    (RENDER_DIR / f"{exam}_v6_render.md").write_text(
-        render_plan_md(exam, plan, s1, results), encoding="utf-8")
-    print(f"  wrote {recorded_path.name}, {exam}.plan.json, docs/plans/{exam}_v6_render.md")
+    print(f"  wrote {recorded_path.name} (publish the plan and render with --replay --publish)")
 
 
 def main() -> None:
@@ -165,6 +183,9 @@ def main() -> None:
     ap.add_argument("--confirm-spend", action="store_true")
     ap.add_argument("--replay", action="store_true")
     ap.add_argument("--max-usd", type=float, default=3.0)
+    ap.add_argument("--model", choices=PLANNER_ARMS, default="claude-sonnet-5")
+    ap.add_argument("--publish", action="store_true",
+                    help="with --replay: write the committed plan and render from this model's recording")
     ap.add_argument("--live-scopes", default="",
                     help="comma-separated scopes to re-plan LIVE; every other scope replays its recording")
     args = ap.parse_args()
@@ -173,12 +194,15 @@ def main() -> None:
         raise SystemExit("pass --dry-run, --replay, or --confirm-spend (a live run spends money)")
     if live_scopes and not args.confirm_spend:
         raise SystemExit("--live-scopes spends money: add --confirm-spend")
+    if args.publish and not (args.replay and not live_scopes):
+        raise SystemExit("--publish rebuilds from a recording: use it with --replay only")
     if args.confirm_spend:
-        _canary()
+        _canary(MODEL_CARDS[args.model].model_id)
     for exam in (sorted(EXAMS) if args.exam == "all" else [args.exam]):
         print(f"===== {exam} =====")
         asyncio.run(_run(exam, live=args.confirm_spend and not live_scopes, max_usd=args.max_usd,
-                         replay=args.replay or bool(live_scopes), live_scopes=live_scopes))
+                         replay=args.replay or bool(live_scopes), live_scopes=live_scopes,
+                         model_key=args.model, publish=args.publish))
 
 
 if __name__ == "__main__":

@@ -11,6 +11,8 @@ from app.agents.plan_compiler.stage1_v6 import compile_stage1_v6
 from app.agents.planner.planner import REPAIR_HEADER, assemble_plan, plan_all, plan_scope
 from app.agents.planner.schemas import (PlannedCredit, PlannedFault, PlannedFaultOption,
                                         PlannedTerminal, ScopePlanOutput)
+from app.agents.planner.stage1_input import planner_aliases
+from tests.agents.planner_aliasing import to_aliases
 from tests.grading_eval_suite.fixtures import load_bundle
 
 G = D("0.25")
@@ -35,9 +37,10 @@ def _valid(scope):
     faults = [PlannedFault(anchor_terminal_id=m.home_terminal_id, description_he="טעות",
                            options=[PlannedFaultOption(marker_id=m.marker_id, label_he="נמצאה")])
               for m in scope.markers]
-    return ScopePlanOutput(terminals=terms, faults=faults,
-                           dispositions=[MarkerDisposition(marker_id=m.marker_id, disposition="fault")
-                                         for m in scope.markers])
+    return to_aliases(scope, ScopePlanOutput(
+        terminals=terms, faults=faults,
+        dispositions=[MarkerDisposition(marker_id=m.marker_id, disposition="fault")
+                      for m in scope.markers]))
 
 
 def _invalid(scope):
@@ -67,9 +70,11 @@ async def test_repair_called_once_with_validator_messages(hobby):
     assert r.origin == "repaired" and len(call.calls) == 2
     repair_user = call.calls[1][1]
     assert repair_user.startswith("U") and REPAIR_HEADER in repair_user
-    for msg in r.errors:                                   # the validator's words, verbatim
-        assert f"- {msg}" in repair_user
+    table = planner_aliases(scope)
+    for msg in r.errors:            # the validator's words, verbatim, re-addressed by alias (AM-G17)
+        assert f"- {table.redact(msg)}" in repair_user
     assert any("as_compiled" in m for m in r.errors)
+    assert all(t.terminal_id not in repair_user for t in scope.terminals)
 
 
 async def test_a_failed_repair_falls_back_and_never_calls_a_third_time(hobby):

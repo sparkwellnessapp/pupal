@@ -37,15 +37,15 @@ _TEXT_1 = ("חישוב מהירות הרכב בקמ\"ש (7 נק'). שימוש ב
            "תוצאה ללא יחידות: -0.75.")
 _TEXT_2 = "הסבר קצר של הקשר בין מהירות לדרך (4 נק'). על הסבר מעגלי להוריד ½ נקודה."
 _MARKERS = (
-    DeductionMarker(marker_id="q9.c1.m1", home_terminal_id="q9.c1", amount=Decimal("1.5"),
+    DeductionMarker(marker_id="m1", home_terminal_id="t1", amount=Decimal("1.5"),
                     polarity="deduct", text_span="שימוש בזמן בדקות במקום בשעות — יורדו 1.5 נק'",
-                    candidate_anchors=["q9.c1"]),
-    DeductionMarker(marker_id="q9.c1.m2", home_terminal_id="q9.c1", amount=Decimal("0.75"),
+                    candidate_anchors=["t1"]),
+    DeductionMarker(marker_id="m2", home_terminal_id="t1", amount=Decimal("0.75"),
                     polarity="deduct", text_span="תוצאה ללא יחידות: -0.75",
-                    candidate_anchors=["q9.c1"]),
-    DeductionMarker(marker_id="q9.c2.m1", home_terminal_id="q9.c2", amount=Decimal("0.5"),
+                    candidate_anchors=["t1"]),
+    DeductionMarker(marker_id="m3", home_terminal_id="t2", amount=Decimal("0.5"),
                     polarity="deduct", text_span="על הסבר מעגלי להוריד ½ נקודה",
-                    candidate_anchors=["q9.c2", "q9.c1"]),
+                    candidate_anchors=["t2", "t1"]),
 )
 
 
@@ -55,14 +55,14 @@ def _synthetic_scope() -> ScopePlannerInput:
         question_text="רכב נסע 180 ק\"מ ב-3 שעות. חשבו את מהירותו והסבירו.",
         example_solution="v = 180 / 3 = 60 קמ\"ש",
         terminals=(
-            TerminalInput("q9.c1", Decimal("7"), mask_marker_amounts(_TEXT_1, _MARKERS),
-                          components=(SkeletonComponent("q9.c1.k1", "חישוב מהירות הרכב בקמ\"ש",
+            TerminalInput("t1", Decimal("7"), mask_marker_amounts(_TEXT_1, _MARKERS),
+                          components=(SkeletonComponent("k1", "חישוב מהירות הרכב בקמ\"ש",
                                                         "monolith"),)),
-            TerminalInput("q9.c2", Decimal("4"), mask_marker_amounts(_TEXT_2, _MARKERS),
-                          components=(SkeletonComponent("q9.c2.k1", "הסבר קצר של הקשר בין מהירות לדרך",
+            TerminalInput("t2", Decimal("4"), mask_marker_amounts(_TEXT_2, _MARKERS),
+                          components=(SkeletonComponent("k2", "הסבר קצר של הקשר בין מהירות לדרך",
                                                         "fixed"),)),
         ),
-        notes=(NoteInput("q9.c2", "ניסוח לא מדויק — לא להוריד, לכתוב הערה"),),
+        notes=(NoteInput("t2", "ניסוח לא מדויק — לא להוריד, לכתוב הערה"),),
         markers=tuple(marker_input(m) for m in _MARKERS),
     )
 
@@ -123,19 +123,32 @@ def test_mask_amount_masks_only_the_amount() -> None:
 
 
 def test_input_guards_keep_the_closed_world() -> None:
-    comp = (SkeletonComponent("t1.k1", "x", "monolith"),)
+    comp = (SkeletonComponent("k1", "x", "monolith"),)
     t1 = TerminalInput("t1", Decimal("2"), "x", components=comp)
     with pytest.raises(PlannerInputError):          # V18's precondition
         ScopePlannerInput("s", "q", None, (t1,),
-                          markers=(MarkerInput("m1", "x", "deduct", "t1", ("t1", "other")),))
+                          markers=(MarkerInput("m1", "x", "deduct", "t1", ("t1", "t9")),))
     with pytest.raises(PlannerInputError):
         TerminalInput("t2", Decimal("2"), "x")                        # neither skeleton nor shape
     with pytest.raises(PlannerInputError):
         TerminalInput("t3", Decimal("2"), "x", components=(
-            SkeletonComponent("a", "x", "monolith"), SkeletonComponent("b", "y", "fixed")))
+            SkeletonComponent("k2", "x", "monolith"), SkeletonComponent("k3", "y", "fixed")))
     with pytest.raises(PlannerInputError):
         ScopePlannerInput("s", "q", None, (t1, t1))
-    assert t1.component_refs == ("t1.k1",) + SPLIT_REFS
+    assert t1.component_refs == ("k1",) + SPLIT_REFS
+
+
+def test_the_input_refuses_a_real_id() -> None:
+    """[AM-G17] the model reads aliases only: a real id is refused at construction,
+    so it cannot be rendered by accident."""
+    real = TerminalInput("q1.א.c0", Decimal("2"), "x",
+                         components=(SkeletonComponent("k1", "x", "monolith"),))
+    with pytest.raises(PlannerInputError, match="AM-G17"):
+        ScopePlannerInput("q1.א", "q", None, (real,))
+    t1 = TerminalInput("t1", Decimal("2"), "x", components=(SkeletonComponent("k1", "x", "monolith"),))
+    with pytest.raises(PlannerInputError, match="AM-G17"):
+        ScopePlannerInput("q1.א", "q", None, (t1,),
+                          markers=(MarkerInput("q1.א.c0.m1", "x", "deduct", "t1", ("t1",)),))
 
 
 # ── the few-shots ────────────────────────────────────────────────────────────
@@ -257,14 +270,17 @@ def test_planner_system_prompt_per_pack(key: str) -> None:
     assert p.verifier_fragment not in text            # the verifier's rules are not the planner's
     # no rule id reaches the model: its Hebrew is the teacher's to read (CWV-5)
     assert not _RULE_ID.search(text), _RULE_ID.search(text).group(0)
-    assert PLANNER_PROMPT_VERSION == "planner-v6.0"
+    assert PLANNER_PROMPT_VERSION == "planner-v6.1"
+    # REVIEW-2 (owner-approved 2026-09-30): the cross-criterion rule, verbatim
+    assert " ".join(("A fault check lives on one criterion. The same mistake at two criteria is "
+                     "two fault checks; code links them.").split()) in " ".join(text.split())
 
 
 def test_render_preamble_names_every_closed_list() -> None:
     user = render_scope_input(_synthetic_scope())
     head = user.split("=== SCOPE")[0]
-    for token in ("q9.c1, q9.c2", "q9.c1.k1 [monolith]", "new:6", "q9.c2.k1 [fixed]",
-                  "q9.c1.m1, q9.c1.m2, q9.c2.m1", "as_compiled | binary | ladder | split",
+    for token in ("t1, t2", "t1: k1 [monolith]", "n6", "t2: k2 [fixed]",
+                  "m1, m2, m3", "as_compiled | binary | ladder | split",
                   "QUARTER | HALF | THREE_QUARTERS", "fault | merged | not_a_deduction",
                   "Never output a number"):
         assert token in head, token

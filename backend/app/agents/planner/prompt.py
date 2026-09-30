@@ -6,7 +6,9 @@ SYSTEM  = the core constitution (P-1..P-10, subject-agnostic, numbered 1..10 in 
           (`examples.py`) + the output contract. Identical for every scope of every
           rubric of one pack, so the provider caches it.
 USER    = `render_scope_input(inp)`: a closed-list preamble naming the ONLY ids and
-          enum values the model may output, stating P-10, then the scope.
+          enum values the model may output, stating P-10, then the scope. Every id is
+          an AM-G17 alias (t1, k1, m1, n1 — `stage1_input.planner_aliases`); the scope's
+          own id is not rendered at all.
 
 Rule ids (P-1, PL-9, …) are never rendered: everything the planner writes in Hebrew is
 read by the teacher, and no grading string she reads names an id (CWV-5). The
@@ -28,7 +30,7 @@ from .examples import FEW_SHOTS, FewShot
 from .inputs import AMOUNT_MASK, SPLIT_REFS, ScopePlannerInput, TerminalInput
 from .schemas import Decomposition
 
-PLANNER_PROMPT_VERSION = "planner-v6.0"
+PLANNER_PROMPT_VERSION = "planner-v6.1"
 
 DECOMPOSITIONS = get_args(Decomposition)         # ("as_compiled", "binary", "ladder", "split")
 FRACTIONS = tuple(f.value for f in PartialFraction)
@@ -59,7 +61,7 @@ amounts are never yours.
     component_ref = the component id.
   - binary — a monolith checked as one credit, no partials; component_ref = its id.
   - ladder — a monolith checked as one credit with 1 or 2 partials; component_ref = its id.
-  - split — a monolith split into 2 to 6 credits; component_ref = "new:1", "new:2", … in order.
+  - split — a monolith split into 2 to 6 credits; component_ref = "n1", "n2", … in order.
   Each credit: description_he (the thing checked), source_span (verbatim from her text, the
   question or the solution), full_label_he and absent_label_he (what an answer looks like at
   full credit and at none), 0 to 2 partials (label_he + fraction), and equivalence_note_he
@@ -80,7 +82,9 @@ amounts are never yours.
    describes the behavior itself, WITHOUT the fault. The fault lives only in its fault check,
    which requires that credit.
 4. ONE FAULT, ONE CHECK. Markers that describe severities of the same fault form ONE fault
-   whose options are the severities. Independent faults get separate faults.
+   whose options are the severities. Independent faults get separate faults. A fault check
+   lives on one criterion. The same mistake at two criteria is two fault checks; code links
+   them.
 5. MUTUALLY EXCLUSIVE OPTIONS. Rewrite overlapping conditions ("at least one" vs. "both")
    into disjoint descriptions, so that exactly one option can match any answer.
 6. SAME CONDITION, DIFFERENT AMOUNTS → MERGE. Markers that state the same condition are
@@ -182,7 +186,7 @@ def render_scope_input(inp: ScopePlannerInput) -> str:
         "Never output a number: no points, no value and no amount, in any field or label "
         f"(rule 10). Amounts in the teacher's text are masked as {AMOUNT_MASK}.",
         "",
-        f"=== SCOPE {inp.scope_id} ===",
+        "=== SCOPE ===",
         "",
         "=== QUESTION ===",
         inp.question_text.strip() or "(none)",

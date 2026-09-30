@@ -4,7 +4,8 @@ grader-v6 Stage 3 — ASSEMBLE (PR_grader_v6_options.md §5.1 [3], §5.3, §5.6)
 Pure. Three ways a scope becomes plan/v6 checks, all ending in the same
 validator (V12–V20):
 
-  * `map_scope`       the planner's `ScopePlanOutput` → checks. Code assigns every
+  * `map_scope`       the planner's `ScopePlanOutput` (in AM-G17 aliases, mapped
+                      back first) → checks. Code assigns every
                       id (§3.2) and every value (§3.3); the planner chose only
                       words, shapes and dispositions (D-LAW-2). A structural
                       mistake raises `MappingError` with messages written for the
@@ -34,14 +35,14 @@ from app.agents.grader.plan_schemas import (CheckOption, DeductionMarker, Marker
                                             PlanCheckV6, TerminalPlanV6)
 from app.agents.grader.plan_validator import _POINT_TEXT
 from app.agents.grader.plan_validator_v6 import PlanContext, SkeletonComponent, validate_plan_v6
-from app.agents.grader.validator import recover_transliterated_id
+from app.agents.grader.validator import strip_out_of_world
 from app.agents.plan_compiler.compile import scan_deductions
 from app.agents.plan_compiler.patterns_v6 import V6_PATTERNS
 from app.agents.plan_compiler.stage1_v6 import V6Scope, V6Terminal
 
-from .inputs import AMOUNT_MASK
+from .inputs import AMOUNT_MASK, SPLIT_REFS
 from .schemas import PlannedCredit, ScopePlanOutput
-from .stage1_input import unmask_span
+from .stage1_input import planner_aliases, unmask_span
 
 FALLBACK_FAULT_DESCRIPTION = "טעות שהמחוון מפרט"      # the fault check's own line, point-free
 FALLBACK_NOTE_DESCRIPTION = "הערה מהמחוון"
@@ -159,59 +160,62 @@ def _wording_errors(out: ScopePlanOutput) -> List[str]:
             f"never the amount" for tid, t in texts if AMOUNT_MASK in (t or "")]
 
 
-def _recover_ids(scope: V6Scope, out: ScopePlanOutput) -> Tuple[ScopePlanOutput, List[str]]:
-    """CWV-6, reused unchanged (`validator.recover_transliterated_id`, the ONE
-    closed-world recovery): an id whose Hebrew label the model romanised is put
-    back on its one real id; nothing else is guessed. It repairs the model's
-    ADDRESSING, never the teacher's words. Every recovery is telemetry."""
+def _unalias(scope: V6Scope, out: ScopePlanOutput) -> Tuple[ScopePlanOutput, List[str]]:
+    """[AM-G17] The planner's output, from call-scoped aliases back to real ids.
+
+    Anything addressed by an alias this call did not issue is outside the closed
+    world: dropped through `strip_out_of_world` (no `rekey`, so no CWV-6 — an alias
+    has nothing to romanise). A plan has no teacher surface (W-3), so the INFO
+    annotation's place is the telemetry. Whatever a drop leaves unplanned then fails
+    the structural checks below and reaches the ONE repair call; nothing is guessed."""
+    table = planner_aliases(scope)
     tel: List[str] = []
-    tids = {t.terminal_id for t in scope.terminals}
-    mids = {m.marker_id for m in scope.markers}
-    comps = {t.terminal_id: {c.component_id for c in t.components} for t in scope.terminals}
 
-    def fix(x: Optional[str], known, taken=()) -> Optional[str]:
-        if x is None or x in known:
-            return x
-        real = recover_transliterated_id(x, known)
-        if real is None or real in taken:
-            return x
-        tel.append(f"id_recovered {x} → {real}")
-        return real
+    def strip(items, key, known, what):
+        kept, flags, _anns = strip_out_of_world(items, key=key, known=known, scope_id=scope.scope)
+        tel.extend(f"alias_dropped {what}: {f.message}" for f in flags)
+        return kept
 
-    given_t = [pt.terminal_id for pt in out.terminals]
+    comp_refs = set(table.issued("k")) | set(SPLIT_REFS)
+
+    def ref(r: Optional[str]) -> Optional[str]:
+        return r if r is None or r in SPLIT_REFS else table.real(r)
+
     terminals = []
-    for pt in out.terminals:
-        tid = fix(pt.terminal_id, tids, taken=set(given_t))
-        credits = [c.model_copy(update={"component_ref": fix(c.component_ref, comps.get(tid, set()))})
-                   for c in pt.credits]
-        terminals.append(pt.model_copy(update={"terminal_id": tid, "credits": credits}))
-    faults = []
-    for f in out.faults:
-        anchor = fix(f.anchor_terminal_id, tids)
-        faults.append(f.model_copy(update={
-            "anchor_terminal_id": anchor,
-            "requires_component_ref": fix(f.requires_component_ref, comps.get(anchor, set())),
-            "options": [o.model_copy(update={"marker_id": fix(o.marker_id, mids)}) for o in f.options]}))
-    given_d = [d.marker_id for d in out.dispositions]
-    dispositions = [d.model_copy(update={
-        "marker_id": fix(d.marker_id, mids, taken=set(given_d)),
-        "merged_into_marker_id": fix(d.merged_into_marker_id, mids)}) for d in out.dispositions]
+    for pt in strip(out.terminals, lambda x: x.terminal_id, table.issued("t"), "terminal"):
+        credits = [c.model_copy(update={"component_ref": ref(c.component_ref)})
+                   for c in strip(pt.credits, lambda x: x.component_ref, comp_refs, "component")]
+        terminals.append(pt.model_copy(update={"terminal_id": table.real(pt.terminal_id),
+                                               "credits": credits}))
+    faults = strip(out.faults, lambda x: x.anchor_terminal_id, table.issued("t"), "fault anchor")
+    faults = strip(faults, lambda x: x.requires_component_ref or "", comp_refs | {""}, "fault requires")
+    faults = [f.model_copy(update={
+        "anchor_terminal_id": table.real(f.anchor_terminal_id),
+        "requires_component_ref": ref(f.requires_component_ref),
+        "options": [o.model_copy(update={"marker_id": table.real(o.marker_id)})
+                    for o in strip(f.options, lambda x: x.marker_id, table.issued("m"), "fault option")]})
+        for f in faults]
+    dispositions = strip(out.dispositions, lambda x: x.marker_id, table.issued("m"), "disposition")
+    dispositions = strip(dispositions, lambda x: x.merged_into_marker_id or "",
+                         set(table.issued("m")) | {""}, "merged_into")
+    dispositions = [d.model_copy(update={"marker_id": table.real(d.marker_id),
+                                         "merged_into_marker_id": table.real(d.merged_into_marker_id)})
+                    for d in dispositions]
     return out.model_copy(update={"terminals": terminals, "faults": faults,
                                   "dispositions": dispositions}), tel
 
 
 def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal
               ) -> Tuple[List[TerminalPlanV6], List[PlanCheckV6], List[MarkerDisposition], List[str]]:
-    """(terminals, checks, dispositions, telemetry). Raises MappingError."""
-    out, telemetry = _recover_ids(scope, out)
+    """(terminals, checks, dispositions, telemetry). `out` is in alias space (AM-G17);
+    every id below is real. Raises MappingError (real ids — `planner_aliases(scope).redact`
+    turns them back into aliases for the repair call)."""
+    out, telemetry = _unalias(scope, out)
     errors: List[str] = _wording_errors(out)
     by_tid = {t.terminal_id: t for t in scope.terminals}
     planned = {}
     for pt in out.terminals:
-        if pt.terminal_id not in by_tid:
-            errors.append(f"unknown terminal_id {pt.terminal_id!r} — use exactly one of this scope's "
-                          f"ids, character for character: {sorted(by_tid)}")
-        elif pt.terminal_id in planned:
+        if pt.terminal_id in planned:
             errors.append(f"terminal {pt.terminal_id!r} planned twice")
         elif by_tid[pt.terminal_id].shape == "components":
             planned[pt.terminal_id] = pt           # compiled terminals are read-only: ignored
@@ -256,7 +260,7 @@ def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal
                               f"credits, got {k}")
                 continue
             if pt.decomposition == "split":
-                expected = [f"new:{i}" for i in range(1, k + 1)]
+                expected = list(SPLIT_REFS[:k])
                 if refs != expected:
                     errors.append(f"{t.terminal_id}: split credits are {expected}, got {refs}")
                     continue
@@ -301,15 +305,8 @@ def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal
     fault_n: Dict[str, int] = {}
     for f in out.faults:
         anchor = f.anchor_terminal_id
-        if anchor not in by_tid:
-            errors.append(f"fault anchored on unknown terminal {anchor!r}")
-            continue
         if not 1 <= len(f.options) <= 7:
             errors.append(f"fault on {anchor}: 1–7 options, got {len(f.options)}")
-            continue
-        unknown = [o.marker_id for o in f.options if o.marker_id not in markers]
-        if unknown:
-            errors.append(f"fault on {anchor}: unknown marker ids {unknown}")
             continue
         requires = None
         if f.requires_component_ref is not None:

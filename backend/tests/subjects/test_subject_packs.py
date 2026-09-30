@@ -25,7 +25,7 @@ BACKEND = Path(__file__).resolve().parents[2]
 
 PINS = {
     # name                          version                          sha256
-    "cs.planner_system_prompt": ("planner-v6.0/computer_science@v1", "f1444b27ad753ee4afe7588f76fbf8d986423ce64c8c76417ea756cc86f3886d"),
+    "cs.planner_system_prompt": ("planner-v6.1/computer_science@v1", "ff72866c026aec6be256fe8fa4fd30d255339a8dbe95011436d1da5a2bdfd66b"),
     "cs.verifier_fragment":     ("computer_science@v1",              "305158a2c207b927504480b686487b233c2eb9b44ba45ea2549b637de39cfb8e"),
     "cs.explainer_fragment":    ("computer_science@v1",              "ea68000e0e3f5be372b056dad265e71c9bcc8b2d41c68226627ac18d3c59426b"),
 }
@@ -208,11 +208,11 @@ def test_new_pack_needs_no_core_change(monkeypatch) -> None:
     scope = ScopePlannerInput(
         scope_id="q1", question_text="גוף נופל מגובה של 20 מטר. חשבו את זמן הנפילה.",
         example_solution="t = sqrt(2h / g) = 2 s",
-        terminals=(TerminalInput("q1.c1", Decimal("5"), "חישוב זמן הנפילה עם יחידות",
-                                 components=(SkeletonComponent("q1.c1.k1", "חישוב זמן הנפילה",
+        terminals=(TerminalInput("t1", Decimal("5"), "חישוב זמן הנפילה עם יחידות",
+                                 components=(SkeletonComponent("k1", "חישוב זמן הנפילה",
                                                                "monolith"),)),))
     user = render_scope_input(scope)
-    assert "terminal_id (plan each one): q1.c1" in user and "q1.c1.k1 [monolith]" in user
+    assert "terminal_id (plan each one): t1" in user and "t1: k1 [monolith]" in user
 
     # zero changes outside the pack folder: nothing in production knows this subject
     hits = [p.relative_to(BACKEND).as_posix() for p in (BACKEND / "app").rglob("*.py")

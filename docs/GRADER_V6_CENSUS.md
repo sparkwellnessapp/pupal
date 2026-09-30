@@ -184,10 +184,49 @@ Recorded verbatim in substance. Code comments and RUNLOG cite the **AM-G** and *
 - **A-9:** D-11 and D-12 fixed; KNOWN_FAILURES.txt is empty.
 - **BLOCKER-1:** credit canary OK; the AM-G14 rebuild is done ($0.65, both plans sha-pinned); the baseline is HELD on D-13 (the router loses routing on a JSON-string payload, production too).
 
+### After G2 (owner, 2026-09-30)
+
+| Ruling | Content |
+|---|---|
+| **SEC-1** | **UNBLOCKED** (the owner's results: `postgres` owns all 26 tables and has BYPASSRLS; `anon`/`authenticated` have neither). Apply 034 to production through the migration path, in one transaction, preceded by a read-only preflight (RLS expected OFF everywhere); that session runs 034 only. Verify after the commit, in the same session: RLS on everywhere; as `anon` and as `authenticated`, a SELECT is refused; as `postgres`, rows are counted on users/rubrics/graded_tests/students; GET health. No Cloud Run deploy when no runtime code changed. Merge SEC-1 to main after the verification. The seed accounts do not exist in production (recorded in RUNLOG). CLAUDE.md gains: no credentials, plaintext or hashed, in any migration or committed file; seed accounts are created by a local-only script that reads its secrets from the environment. After the report the owner re-runs Advisors and clicks through; both are recorded, with the Data API change, once the owner confirms. |
+| **D-13** | **APPROVED, fixed first.** A string holding JSON of the expected shape is decoded exactly once; anything else stays a routing failure. Tests run on recorded Sonnet 5 outputs. A failed route logs WARNING with scope id and reason and counts as `route_failed`; build summaries report the count. Ships right after SEC-1 as one small production deploy with A-8; gate T1 + the plan-builder DB tests. **Authorized after that deploy:** supersede and rebuild the 3 live production plans via plan_store (≤ $2); existing drafts keep their pinned plans. |
+| **AM-G17** | **OPAQUE ALIASES** (supersedes Q-24). Every v6 LLM payload (planner, verifier, explainer) addresses things by call-scoped ASCII aliases (`t1…`, `k1…`, `c1…`, `m1…`) that code maps back. An unknown alias is a closed-world drop through the `strip_out_of_world` grammar, with an INFO annotation. CWV-6 stays for v5 only; this replaces the "planner ids go through CWV-6" item. The other pending-veto items are accepted. Tests `test_payload_ids_are_ascii_aliases` (`^[a-z]\d+$`) and `test_unknown_alias_dropped`. |
+| **REVIEW-2 line** | APPROVED for the planner prompt: «A fault check lives on one criterion. The same mistake at two criteria is two fault checks; code links them.» |
+| **PLANNER RE-RECORD** | AM-G17 + the approved line; both exams on Sonnet 5 AND Sonnet 5.5, effort high; cap $8. Report per model: repairs, fallbacks, validator errors, V19 candidates, expressibility vs GT, cost, latency. Regenerate the renders from the model the §13.1 choice rule picks. The package is REVIEW-2 (it gates Phase-6 spend only). |
+| **AM-G18** | **SONNET 5.5.** Verify from the docs (id, price = Sonnet 5, breaking changes, default effort high, the higher-risk fallback). Registry card + `build_chat_model` support; effort set explicitly on every call; breaking changes in RUNLOG. Provenance: the served model id from every response, a `model_fallback` flag; eval runs exclude flagged scopes and report the count. Arms: planner (S5, S5.5, Opus 5.5 at high); Track B second baseline arm v5 + S5.5 verifier (grader-v5.4, pinned plans, fixtures, k=3) → a 2×2; Phase-6 model arm v6 + S5.5 (AM-G12 adoption rule); explainer arms (S5.5 lowest thinking, S5.5 effort low, Haiku 4.5, + Haiku 5.5 if released); CL-5 on Haiku 5.5 if released, else 4.5. Pre-register P-v6-8/9/10. Track B cap $12 → **$20**; Phase-6 model arm cap **$8**. |
+| **Track B order** | D-13 deploy → production plan rebuild → re-route the eval plans (~$0.40) → canary → both baseline arms in parallel. |
+| **A-10 amendments** | A local Postgres container for T0/T1 on the production major version, with an init script creating NOLOGIN roles anon/authenticated; pure tests never open a DB connection (DB fixtures only for db-marked tests; Hypothesis DB-free); an autouse session network guard fails any outbound call to an LLM provider during tests; T1 ≤ 10 min, report the new wall time. |
+| **Order** | D+0 SEC-1 production; the D-13 + A-8 deploy → plan rebuild; in parallel the A-10 amendments, AM-G17, the Sonnet 5.5 card. D+1 planner re-record → REVIEW-2 package; both Track B arms; G3–5 starts (Phase-4 schemas + codegen first). D+2–3 G3–5 → T2 → deploy with v5. D+4 Phase 6. D+5 cutover. |
+
+**Done against these rulings (2026-09-30):**
+- **SEC-1:** applied to production and verified (RUNLOG); merged to main (`63a90c9`, `428243f`). The Advisors re-run and the Data API change are recorded when the owner confirms.
+- **D-13 + A-8:**
+  - Deployed as revision `00053-blw` after the gate (1190 passed); health 200, `SCHEMA OK 034`.
+  - The 3 live production plans were rebuilt through the new `plan_store.requeue_for_rebuild` for **$0.65**: all ready, the old rows superseded, verified read-only.
+  - The remaining route failure is a genuine refusal, logged at WARNING.
+- **AM-G17:**
+  - The planner is aliased end to end: input, output and repair messages. `ScopePlannerInput` refuses a real id.
+  - The planner's CWV-6 use is deleted.
+  - Tests: `test_payload_ids_are_ascii_aliases`, `test_unknown_alias_dropped`.
+  - The verifier and explainer adopt the same `AliasTable` in G3–5.
+- **REVIEW-2 line:** in the planner prompt at rule 4; `planner-v6.1`, re-pinned.
+- **PLANNER RE-RECORD ($3.10 of $8):**
+  - Sonnet 5: 32 inexpressible cells, 3 repairs, $1.97. Sonnet 5.5: 34 inexpressible cells, 0 repairs, $1.13.
+  - §13.1 step 1 picks **Sonnet 5**; the renders are published from it.
+  - Both express fewer GT cells than the re-routed v5 compiled plans: a STOP-3 finding, in the report.
+  - Report: `docs/plans/v6_planner_rerecord_report.md`.
+- **AM-G18:**
+  - The Sonnet 5.5 and Opus 5.5 cards; factory support (effort and thinking explicit; native json_schema).
+  - Served-model provenance: the planner flags per scope; the eval runner excludes and counts fallback-served trials. This fixes a prefix check that would have missed a 5.5 → 5 fallback.
+  - P-v6-8/9/10 are registered, with arm B's exact request.
+- **Track B:**
+  - D-13 deployed → production plans rebuilt → eval plans re-routed ($0.50; hobby 13/13 routed, 189/190; bagrut 14/15, 288/298) → canary + a live smoke of both request shapes → **both arms running** (12 fixtures, k=3, guard report-only).
+- **A-10 amendments:** in progress in their own worktree (a native Postgres 17.6 cluster, since Docker Desktop fails to start: decided, pending veto).
+
 ### Inherited from `main` since the census (not new rulings — applied as standing law)
 
 `e760e35` (2026-09-27, GATE-1 / CWV-1..6 / OD-4) changed v5 semantics the census described:
-- **C-8 / Q-16:** out-of-world verdicts are now dropped at grade time by `validator.strip_out_of_world` with a **scope-level** `closed_world_violation` flag and an **INFO** annotation; romanised ids are recovered (CWV-6). Legacy ERROR annotations are skipped at approval (CWV-3). The v6 verifier uses the same function for check ids.
+- **C-8 / Q-16:** out-of-world verdicts are now dropped at grade time by `validator.strip_out_of_world` with a **scope-level** `closed_world_violation` flag and an **INFO** annotation; romanised ids are recovered (CWV-6). Legacy ERROR annotations are skipped at approval (CWV-3). The v6 verifier uses the same function, over its AM-G17 aliases and without CWV-6 recovery (after G2).
 - **OD-4:** a check with no machine verdict is shown undecided and **blocks approval until she decides it** (`_undecided_no_verdict_checks`, gate check 6). v6 keeps this: PRC-1's default is a *display and pricing* default, never a decision, and the v6 approval gate carries OD-4 unchanged. A-1 (legacy unverdicted tariff → `none`) is consistent with it.
 - **CWV-5:** no grading string may say «מודל» or name an id; the static scan now covers v6's copy (fallback composer, status lines).
 

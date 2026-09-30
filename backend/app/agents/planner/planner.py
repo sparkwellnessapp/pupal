@@ -13,7 +13,8 @@ Per scope:
   3. otherwise ONE repair call: the same input, plus the prior output, plus the
      validator messages verbatim (§5.6 — the only content-level retry in the
      system, allowed because validation is deterministic and the repair input
-     is exact); clean → origin "repaired";
+     is exact) with every real id in them redacted to its AM-G17 alias, since the
+     model never reads a real id; clean → origin "repaired";
   4. otherwise the fallback, `planner_fallback` telemetry with the reason.
 A scope whose terminals are all compiled (C7) is assembled with no call.
 """
@@ -31,6 +32,7 @@ from app.agents.plan_compiler.stage1_v6 import Stage1V6, V6Scope
 
 from .assemble import MappingError, fallback_scope, map_scope, validate_scope
 from .schemas import ScopePlanOutput
+from .stage1_input import planner_aliases
 
 PLANNER_MAX_CONCURRENCY = 6
 
@@ -103,7 +105,9 @@ async def plan_scope(scope: V6Scope, *, precision: Decimal, system_prompt: str, 
         return ScopePlanResult(scope.scope, "planner", t, c, d, tel, outputs, usage)
 
     try:
-        out2, u2 = await call(system_prompt, repair_message(user_message, out.model_dump_json(), errs))
+        redact = planner_aliases(scope).redact
+        out2, u2 = await call(system_prompt, repair_message(user_message, out.model_dump_json(),
+                                                            [redact(e) for e in errs]))
     except Exception as e:                                    # noqa: BLE001
         return _fallback(scope, precision, "fallback", f"repair_call_failed: {type(e).__name__}",
                          errs, outputs, usage)

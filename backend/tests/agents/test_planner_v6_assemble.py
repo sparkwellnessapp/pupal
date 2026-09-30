@@ -11,6 +11,7 @@ from app.agents.planner.assemble import (MappingError, fallback_scope, map_scope
                                          validate_scope)
 from app.agents.planner.schemas import (PlannedCredit, PlannedFault, PlannedFaultOption,
                                         PlannedPartial, PlannedTerminal, ScopePlanOutput)
+from tests.agents.planner_aliasing import to_aliases
 from tests.grading_eval_suite.fixtures import load_bundle
 
 G = D("0.25")
@@ -75,7 +76,7 @@ def test_planner_output_maps_to_checks(stage1):
     out = ScopePlanOutput(terminals=terms, faults=faults,
                           dispositions=[MarkerDisposition(marker_id=m.marker_id, disposition="fault")
                                         for m in scope.markers])
-    terminals, checks, disps, _tel = map_scope(scope, out, G)
+    terminals, checks, disps, _tel = map_scope(scope, to_aliases(scope, out), G)
     assert validate_scope(scope, terminals, checks, disps, G) == []
     ladder = next(c for c in checks if c.priced_terminal_id == mono.terminal_id and c.role == "credit")
     assert (ladder.shape, [o.value for o in ladder.options]) == ("ladder", [D(3), D("1.5"), D(0)])
@@ -109,7 +110,7 @@ def test_merge_reason_appended_to_interpretation_notes():
                       MarkerDisposition(marker_id="q9.c0.m2", disposition="merged",
                                         merged_into_marker_id="q9.c0.m1",
                                         reason_he="אותו תנאי מופיע פעמיים; נבחר הסכום המקל")])
-    terminals, checks, disps, _ = map_scope(scope, out, G)
+    terminals, checks, disps, _ = map_scope(scope, to_aliases(scope, out), G)
     assert validate_scope(scope, terminals, checks, disps, G) == []
     (fault,) = [c for c in checks if c.role == "fault"]
     assert [o.value for o in fault.options] == [D(0), D(-1)]
@@ -120,13 +121,13 @@ def test_a_fixed_terminal_refuses_a_new_decomposition_with_a_repairable_message(
     scope = stage1["hobby_tvshow"].scope("q1.ג")
     fixed = next(t for t in scope.terminals if t.fixed)
     bad = PlannedTerminal(terminal_id=fixed.terminal_id, decomposition="split",
-                          credits=[_credit("new:1", "x"), _credit("new:2", "y")])
+                          credits=[_credit("n1", "x"), _credit("n2", "y")])
     out = ScopePlanOutput(terminals=[bad] + [_as_compiled(t) if t.fixed else PlannedTerminal(
         terminal_id=t.terminal_id, decomposition="binary",
         credits=[_credit(t.components[0].component_id, "לולאה")]) for t in scope.terminals
         if t.terminal_id != fixed.terminal_id])
     with pytest.raises(MappingError) as e:
-        map_scope(scope, out, G)
+        map_scope(scope, to_aliases(scope, out), G)
     assert any("as_compiled" in m and fixed.terminal_id in m for m in e.value.errors)
 
 
@@ -157,3 +158,45 @@ def test_point_free_keeps_words_and_drops_amounts():
     assert point_free("אם לא בדקו null להוריד 2") == "אם לא בדקו null"
     assert point_free("צבירה של הדקות שלו (1)") == "צבירה של הדקות שלו"
     assert point_free("להוריד 1", fallback="טעות") == "טעות"
+
+
+def test_unknown_alias_dropped(caplog):
+    """[AM-G17] An alias this call did not issue is outside the closed world: the item
+    is dropped through strip_out_of_world (no CWV-6 recovery — an alias has nothing to
+    romanise), recorded in telemetry, and logged. Nothing is guessed: a drop that
+    leaves the scope incomplete reaches the repair call as a structural error."""
+    import logging
+    scope = _synthetic([("2", "אם הלולאה חורגת מהגבול להוריד 2", None),
+                        ("1", "אם לא בדקו null להוריד 1", None)])
+    fault = PlannedFault(anchor_terminal_id="t1", requires_component_ref="k1", description_he="טעות",
+                         options=[PlannedFaultOption(marker_id="m1", label_he="הלולאה חורגת"),
+                                  PlannedFaultOption(marker_id="m7", label_he="שורה שאינה קיימת")])
+    out = ScopePlanOutput(
+        terminals=[PlannedTerminal(terminal_id="t1", decomposition="binary",
+                                   credits=[_credit("k1", "בדיקת גבולות הלולאה")]),
+                   PlannedTerminal(terminal_id="t9", decomposition="binary",
+                                   credits=[_credit("k1", "בדיקת גבולות הלולאה")])],
+        faults=[fault, PlannedFault(anchor_terminal_id="t1", requires_component_ref="k1",
+                                    description_he="בדיקת null",
+                                    options=[PlannedFaultOption(marker_id="m2", label_he="לא נבדק null")])],
+        dispositions=[MarkerDisposition(marker_id="m1", disposition="fault"),
+                      MarkerDisposition(marker_id="m2", disposition="fault"),
+                      MarkerDisposition(marker_id="m7", disposition="fault")])
+    with caplog.at_level(logging.WARNING, logger="app.agents.grader.validator"):
+        terminals, checks, disps, tel = map_scope(scope, out, G)
+    assert validate_scope(scope, terminals, checks, disps, G) == []
+    assert [c.options[1].marker_id for c in checks if c.role == "fault"] == ["q9.c0.m1", "q9.c0.m2"]
+    assert len([c for c in checks if c.role == "fault"][0].options) == 2        # m7's option is gone
+    assert [d.marker_id for d in disps] == ["q9.c0.m1", "q9.c0.m2"]
+    assert sorted(x.split(":")[0] for x in tel) == ["alias_dropped disposition", "alias_dropped fault option",
+                                                    "alias_dropped terminal"]
+    assert all("outside the closed world" in x for x in tel)
+    assert {r.getMessage() for r in caplog.records} >= {
+        "closed_world_id_dropped scope=q9 returned=t9", "closed_world_id_dropped scope=q9 returned=m7"}
+
+    # a real id is not an alias either: never mapped, never recovered
+    real = out.model_copy(update={"terminals": [out.terminals[0].model_copy(
+        update={"terminal_id": "q9.c0"})], "faults": [], "dispositions": []})
+    with pytest.raises(MappingError) as e:
+        map_scope(scope, real, G)
+    assert any("q9.c0" in m and "not planned" in m for m in e.value.errors)

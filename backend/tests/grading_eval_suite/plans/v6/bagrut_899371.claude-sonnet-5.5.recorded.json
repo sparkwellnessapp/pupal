@@ -1,0 +1,1859 @@
+{
+ "config_hash": "b799ef5f5be7874e6812afaf68a17a40f264c0181f2a0120edaa4d1819d71be9",
+ "cost_usd": 0.71,
+ "exam": "bagrut_899371",
+ "model_fallback_scopes": [],
+ "model_id": "claude-sonnet-5-5",
+ "model_key": "claude-sonnet-5.5",
+ "origins": {
+  "compiled": 1,
+  "fallback": 0,
+  "planner": 12,
+  "repaired": 0
+ },
+ "plan_hash": "229c46a8c7b4d5f5785da9839db697a2a666d8a2032c25835a053ce9c2175540",
+ "planner_prompt_version": "planner-v6.1",
+ "scopes": {
+  "q1.א.1": {
+   "errors": [],
+   "origin": "compiled",
+   "outputs": [],
+   "telemetry": [],
+   "usage": []
+  },
+  "q1.א.2": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "התשובה אינה מציינת שהפעולה בודקת חלוקה ללא שארית של x באיבר מהמערך",
+         "component_ref": "k1",
+         "description_he": "הבנת הבדיקה של \"מחלק ללא שארית\"",
+         "equivalence_note_he": "ניסוח בלשון \"מחלק של x\", \"x מתחלק באיבר\" או \"שארית החלוקה היא אפס\" שקול",
+         "full_label_he": "התשובה מציינת שהפעולה בודקת האם קיים במערך איבר שמחלק את x ללא שארית (x מתחלק בו ללא שארית)",
+         "partials": [],
+         "source_span": "הבנת הבדיקה של \"מחלק ללא שארית\""
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "התשובה אינה מתייחסת לכך שהאיבר צריך להיות שונה מ-1",
+         "component_ref": "k2",
+         "description_he": "התייחסות לתנאי שהאיבר שונה מ-1",
+         "equivalence_note_he": "ניסוח כגון \"מחלק שאינו 1\" או \"חוץ מ-1\" שקול",
+         "full_label_he": "התשובה מציינת שהאיבר המחלק צריך להיות שונה מ-1",
+         "partials": [],
+         "source_span": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו"
+        },
+        {
+         "absent_label_he": "התשובה אינה מתייחסת לכך שהאיבר צריך להיות שונה מ-x עצמו",
+         "component_ref": "k3",
+         "description_he": "התייחסות לתנאי שהאיבר שונה מ-x עצמו",
+         "equivalence_note_he": "ניסוח כגון \"מחלק שאינו x\" או \"חוץ מ-x עצמו\" שקול",
+         "full_label_he": "התשובה מציינת שהאיבר המחלק צריך להיות שונה מ-x עצמו",
+         "partials": [],
+         "source_span": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [
+        "שני הרכיבים נוסחו באותו טקסט; הם נקראו כשני תנאים נפרדים: האיבר שונה מ-1, והאיבר שונה מ-x עצמו."
+       ],
+       "terminal_id": "t2"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.034358,
+     "input_tokens": 10179,
+     "model": "claude-sonnet-5-5",
+     "model_fallback": false,
+     "output_tokens": 1400,
+     "served_model": "claude-sonnet-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q1.ב.1": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נכתב ערך מוחזר, או שהערך שנכתב שונה מהערך בפתרון לדוגמה",
+         "component_ref": "k1",
+         "description_he": "כתיבת הערך המוחזר מהפעולה What(arr)B",
+         "equivalence_note_he": "הערך המוחזר יכול להופיע כתוצאה סופית בסוף טבלת המעקב או בכתיבה ישירה, ושתי הצורות שקולות",
+         "full_label_he": "נכתב הערך המוחזר הנכון מהפעולה, התואם לערך בפתרון לדוגמה",
+         "partials": [],
+         "source_span": "מהו הערך המוחזר מהפעולה What(arr)B"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [
+        "השאלה מבקשת רק את הערך המוחזר, ולכן הצגת טבלת מעקב או חישוב הביניים אינה נדרשת."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.028552,
+     "input_tokens": 10076,
+     "model": "claude-sonnet-5-5",
+     "model_fallback": false,
+     "output_tokens": 840,
+     "served_model": "claude-sonnet-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q1.ב.2": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "התשובה אינה מזהה סכימה של איברי המערך (למשל מתארת ספירה, מציאת מקסימום או פעולה אחרת)",
+         "component_ref": "k1",
+         "description_he": "זיהוי שמדובר בפעולת סכימה של איברי המערך",
+         "equivalence_note_he": "כל ניסוח שמבטא חישוב סכום של איברי המערך שקול, למשל «מחברת», «מחשבת את סכום האיברים» או «מחזירה את הסכום»",
+         "full_label_he": "התשובה קובעת שהפעולה מחשבת ומחזירה סכום של איברים במערך",
+         "partials": [],
+         "source_span": "זיהוי שמדובר בפעולת סכימה של איברי המערך"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "התשובה אינה מציינת תנאי סכימה של איבר שיש לו מחלק במערך, או שהתנאי שהוגדר שונה מכך",
+         "component_ref": "k2",
+         "description_he": "הגדרה נכונה של תנאי הסכימה: איברים שיש להם מחלק אחר במערך",
+         "equivalence_note_he": "ניסוח כמו «איבר שמתחלק באיבר אחר במערך» או «איבר שיש לו מחלק בתוך המערך» שקול",
+         "full_label_he": "התשובה מציינת שנסכמים רק האיברים שיש להם מחלק אחר שנמצא בתוך המערך",
+         "partials": [],
+         "source_span": "הגדרה נכונה של תנאי הסכימה (איברים שיש להם מחלק אחר במערך)"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [
+        "המילה «אחר» הובנה כמחלק שנמצא במערך ואינו האיבר עצמו, בהתאם לפתרון לדוגמה; תשובה שמציינת מחלק במערך ללא הבהרה מפורשת של כך מתקבלת."
+       ],
+       "terminal_id": "t2"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.035182,
+     "input_tokens": 10106,
+     "model": "claude-sonnet-5-5",
+     "model_fallback": false,
+     "output_tokens": 1497,
+     "served_model": "claude-sonnet-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q2.א": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "חתימת הפעולה אינה מתאימה: שם, טיפוס מוחזר או פרמטר שונים מהנדרש",
+         "component_ref": "k1",
+         "description_he": "חתימת הפעולה IsMirror",
+         "equivalence_note_he": "שם אחר לפרמטר המערך שקול, כל עוד הפרמטר הוא מערך של מספרים שלמים",
+         "full_label_he": "הפעולה הוגדרה כ-public static, מחזירה bool, בשם IsMirror, ומקבלת מערך מספרים שלמים",
+         "partials": [],
+         "source_span": "חתימת הפעולה public static bool IsMirror(int[] arr)"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "שמות המשתנים אינם משמעותיים או שהקוד אינו קריא",
+         "component_ref": "k2",
+         "description_he": "שמות משתנים משמעותיים וקוד קריא",
+         "equivalence_note_he": "שמות התואמים את הפתרון לדוגמה תקפים תמיד; משתני לולאה מקובלים כמו i ו-j תקפים",
+         "full_label_he": "שמות המשתנים מבטאים את תפקידם והקוד כתוב בצורה קריאה",
+         "partials": [],
+         "source_span": "שמות משתנים משמעותיים וקוד קריא"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t2"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין בדיקה של זוגיות אורך המערך",
+         "component_ref": "k3",
+         "description_he": "בדיקה האם המערך לא באורך זוגי",
+         "equivalence_note_he": "בדיקה שקולה כמו arr.Length % 2 == 1 או בדיקה שאורך המערך זוגי עם החזרת false בענף החלופי תקפה",
+         "full_label_he": "קיים תנאי if הבודק אם אורך המערך אינו זוגי",
+         "partials": [],
+         "source_span": "בדיקה האם המערך לא באורך זוגי"
+        },
+        {
+         "absent_label_he": "כאשר אורך המערך אינו זוגי הפעולה אינה מחזירה false",
+         "component_ref": "k4",
+         "description_he": "החזרת false כשהאורך אינו זוגי",
+         "equivalence_note_he": null,
+         "full_label_he": "כאשר אורך המערך אינו זוגי הפעולה מחזירה false",
+         "partials": [],
+         "source_span": "החזרת false"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t3"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה העוברת על איברי המערך",
+         "component_ref": "k5",
+         "description_he": "לולאה על המערך",
+         "equivalence_note_he": "כל סוג לולאה (for, foreach, while) העוברת על כל איברי המערך שקול",
+         "full_label_he": "קיימת לולאה העוברת על כל איברי המערך",
+         "partials": [],
+         "source_span": "לולאה על המערך"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t4"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "הערך הנגדי של האיבר הנוכחי אינו נקבע",
+         "component_ref": "n1",
+         "description_he": "קביעת המספר הנגדי של arr[i]",
+         "equivalence_note_he": "שימוש ישיר ב-arr[i]*-1 או ב-(-arr[i]) בהשוואה, בלי משתנה נפרד, שקול",
+         "full_label_he": "בתוך הלולאה מחושב או נקבע הערך הנגדי של האיבר הנוכחי",
+         "partials": [],
+         "source_span": "חיפוש אחר המספר הנגדי של arr[i]: int target = -arr[i];"
+        },
+        {
+         "absent_label_he": "אין חיפוש של הערך הנגדי בין איברי המערך",
+         "component_ref": "n2",
+         "description_he": "חיפוש הערך הנגדי בין איברי המערך",
+         "equivalence_note_he": "דרך חיפוש אחרת שקולה, כגון שימוש ב-break, השוואת סכום שני איברים לאפס, או החזרה מיידית כשנמצא",
+         "full_label_he": "לולאה פנימית עוברת על איברי המערך, משווה כל איבר לערך הנגדי ורושמת אם הוא נמצא",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "לולאה פנימית משווה איברים לערך הנגדי, אך תוצאת החיפוש (נמצא או לא נמצא) אינה נרשמת"
+          }
+         ],
+         "source_span": "bool found = false; for (int j = 0; j < arr.Length && found == false; j++) { if (arr[j] == target) { found = true; } }"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "החיפוש נבדק בלי קשר לבדיקת תוצאתו מחוץ ללולאה, שנבדקת בסעיף נפרד."
+       ],
+       "terminal_id": "t5"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין בדיקה אם הערך הנגדי לא נמצא לאחר החיפוש",
+         "component_ref": "k7",
+         "description_he": "בדיקה מחוץ ללולאה הפנימית אם לא נמצא המספר הנגדי",
+         "equivalence_note_he": "בדיקה שקולה בכל צורה שמזהה שלא נמצא נגדי, כמו found == false או !found",
+         "full_label_he": "לאחר החיפוש קיימת בדיקה האם הערך הנגדי לא נמצא",
+         "partials": [],
+         "source_span": "מחוץ ללואה אם לא מצאנו את המספר הנגדי"
+        },
+        {
+         "absent_label_he": "כאשר לא נמצא הערך הנגדי הפעולה אינה מחזירה false",
+         "component_ref": "k8",
+         "description_he": "החזרת false כשלא נמצא הערך הנגדי",
+         "equivalence_note_he": null,
+         "full_label_he": "כאשר לא נמצא הערך הנגדי הפעולה מחזירה false",
+         "partials": [],
+         "source_span": "להחזיר false"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t6"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "בסוף הפעולה לא מוחזר true",
+         "component_ref": "k9",
+         "description_he": "שורה אחרונה: החזרת true",
+         "equivalence_note_he": null,
+         "full_label_he": "בסוף הפעולה, אחרי הלולאה, מוחזר true",
+         "partials": [],
+         "source_span": "שורה אחרונה: להחזיר true"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t7"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.059094,
+     "input_tokens": 11607,
+     "model": "claude-sonnet-5-5",
+     "model_fallback": false,
+     "output_tokens": 3588,
+     "served_model": "claude-sonnet-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q2.ב": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "חתימת הפעולה אינה תואמת: חסר שם הפעולה, סוג ההחזרה או פרמטר המערך",
+         "component_ref": "k1",
+         "description_he": "חתימת הפעולה ArrangeMirror",
+         "equivalence_note_he": "שם הפרמטר אינו חייב להיות arr",
+         "full_label_he": "הפעולה מוגדרת כ-public static void, בשם ArrangeMirror, ומקבלת פרמטר מערך של מספרים שלמים",
+         "partials": [],
+         "source_span": "חתימת הפעולה public static void ArrangeMirror(int[] arr)"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "שמות המשתנים אינם משמעותיים או שהקוד אינו קריא",
+         "component_ref": "k2",
+         "description_he": "שמות משתנים משמעותיים וקוד קריא",
+         "equivalence_note_he": "שמות התואמים את הפתרון לדוגמה (temp, tempIndex) תקפים תמיד",
+         "full_label_he": "שמות המשתנים מבטאים את תפקידם והקוד קריא",
+         "partials": [],
+         "source_span": "שמות משתנים משמעותיים וקוד קריא"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t2"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נוצר מערך עזר באותו גודל של הפרמטר",
+         "component_ref": "k3",
+         "description_he": "יצירת מערך עזר באותו גודל של הפרמטר",
+         "equivalence_note_he": null,
+         "full_label_he": "נוצר מערך עזר חדש שאורכו כאורך מערך הפרמטר",
+         "partials": [],
+         "source_span": "יצירת מערך עזר באותו גודל של הפרמטר"
+        },
+        {
+         "absent_label_he": "לא הוגדר משתנה מציין למערך העזר",
+         "component_ref": "k4",
+         "description_he": "משתנה למציין של מערך העזר",
+         "equivalence_note_he": null,
+         "full_label_he": "הוגדר משתנה המשמש כמציין (אינדקס) למערך העזר",
+         "partials": [],
+         "source_span": "משתנה למציין של מערך העזר"
+        },
+        {
+         "absent_label_he": "משתנה המציין אינו מאותחל ל-0",
+         "component_ref": "k5",
+         "description_he": "אתחול משתנה המציין ל-0",
+         "equivalence_note_he": null,
+         "full_label_he": "משתנה המציין של מערך העזר מאותחל ל-0",
+         "partials": [],
+         "source_span": "אתחול ל-0"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t3"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה הסורקת את מערך הפרמטר",
+         "component_ref": "k6",
+         "description_he": "לולאה על מערך הפרמטר",
+         "equivalence_note_he": "כל סוג לולאה שסורק את כל איברי המערך שקול",
+         "full_label_he": "קיימת לולאה הסורקת את כל איברי מערך הפרמטר",
+         "partials": [],
+         "source_span": "לולאה על המערך הפרמטר"
+        },
+        {
+         "absent_label_he": "לא נבדק אם האיבר הנוכחי חיובי",
+         "component_ref": "k7",
+         "description_he": "בדיקה אם המספר הנוכחי במערך הפרמטר חיובי",
+         "equivalence_note_he": null,
+         "full_label_he": "בתוך הלולאה נבדק אם האיבר הנוכחי חיובי",
+         "partials": [],
+         "source_span": "אם המספר הנוכחי במערך הפרמטר חיובי"
+        },
+        {
+         "absent_label_he": "המספר החיובי אינו מועתק למערך העזר",
+         "component_ref": "k8",
+         "description_he": "העתקת המספר החיובי למערך העזר",
+         "equivalence_note_he": null,
+         "full_label_he": "המספר החיובי מועתק למערך העזר במקום המצוין במציין",
+         "partials": [],
+         "source_span": "העתק המספר החיובי למערך העזר"
+        },
+        {
+         "absent_label_he": "מציין מערך העזר אינו מקודם",
+         "component_ref": "k9",
+         "description_he": "קידום האינדקס",
+         "equivalence_note_he": null,
+         "full_label_he": "מציין מערך העזר מקודם לאחר ההעתקה",
+         "partials": [],
+         "source_span": "קידום האנדקס"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t4"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "המספר הנגדי אינו מושם במערך העזר מיד אחרי המספר החיובי",
+         "component_ref": "n1",
+         "description_he": "השמת המספר הנגדי למערך העזר בתוך הלולאה",
+         "equivalence_note_he": "שתי האפשרויות שקולות: השמת -arr[i] ישירות, או מציאת הנגדי בלולאה נוספת והשמתו בצמוד לחיובי",
+         "full_label_he": "בתוך הלולאה, במקום העוקב למספר החיובי במערך העזר, מושם המספר הנגדי לו (בהנחה שהמערך מערך מראה, או לאחר מציאתו בלולאה נוספת)",
+         "partials": [],
+         "source_span": "temp[tempIndex] = -arr[i];"
+        },
+        {
+         "absent_label_he": "מציין מערך העזר אינו מקודם לאחר השמת המספר הנגדי",
+         "component_ref": "n2",
+         "description_he": "קידום האינדקס לאחר השמת המספר הנגדי",
+         "equivalence_note_he": "קידום אחד של המציין ב-2 אחרי השמת שני המספרים שקול",
+         "full_label_he": "מציין מערך העזר מקודם לאחר השמת המספר הנגדי",
+         "partials": [],
+         "source_span": "tempIndex++;"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "נקבע שהאפשרות של הנחת מערך מראה ומציאת הנגדי בלולאה נוספת שקולות, כפי שכתבה המורה."
+       ],
+       "terminal_id": "t5"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "איברי מערך העזר אינם מועתקים חזרה למערך הפרמטר",
+         "component_ref": "k11",
+         "description_he": "העתקה מסודרת של כל איברי מערך העזר חזרה למערך המקורי",
+         "equivalence_note_he": "שימוש בפעולת העתקה מובנית שקולה ללולאה",
+         "full_label_he": "כל איברי מערך העזר מועתקים, לפי הסדר, למקומותיהם במערך הפרמטר",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "חלק מאיברי מערך העזר מועתקים למערך הפרמטר או שההעתקה אינה לפי הסדר, אך קיימת לולאת העתקה"
+          }
+         ],
+         "source_span": "העתקה מסודרת של כל איברי מערך העזר חזרה למערך המקורי שנתקבל כפרמטר"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [],
+       "terminal_id": "t6"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.049996,
+     "input_tokens": 12548,
+     "model": "claude-sonnet-5-5",
+     "model_fallback": false,
+     "output_tokens": 2490,
+     "served_model": "claude-sonnet-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q3.א": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "חתימת הפעולה אינה מתאימה לנדרש: חסר שם הפעולה, סוג ההחזרה או הפרמטר",
+         "component_ref": "k1",
+         "description_he": "חתימת הפעולה DiceStatistics",
+         "equivalence_note_he": "שם הפרמטר זהה לזה שבשאלה או שונה ממנו אך ברור, בתנאי שסוגו מערך מספרים שלמים",
+         "full_label_he": "הפעולה מוגדרת כ-public static, מחזירה מערך של מספרים שלמים, נקראת DiceStatistics ומקבלת מערך מספרים שלמים arr",
+         "partials": [],
+         "source_span": "חתימת הפעולה public static int[] DiceStatistics(int[] arr)"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "שמות המשתנים אינם מתארים את תפקידם",
+         "component_ref": "n1",
+         "description_he": "משתנים משמעותיים",
+         "equivalence_note_he": "שם התואם את הפתרון לדוגמה תקף תמיד; שמות קצרים כמו i למונה לולאה מקובלים",
+         "full_label_he": "שמות המשתנים מתארים את תפקידם בקוד, למשל מערך המונים ותוצאת ההטלה",
+         "partials": [],
+         "source_span": "משתנים משמעותיים"
+        },
+        {
+         "absent_label_he": "הקוד מבולגן עד שקשה לעקוב אחר מהלכו",
+         "component_ref": "n2",
+         "description_he": "קוד קריא",
+         "equivalence_note_he": null,
+         "full_label_he": "הקוד כתוב בצורה מסודרת וקריאה, וניתן לעקוב אחר מהלכו",
+         "partials": [],
+         "source_span": "קוד קריא"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "הסעיף מנה שני רכיבים נבדלים, משתנים משמעותיים וקוד קריא, ולכן נבדקים בנפרד."
+       ],
+       "terminal_id": "t2"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא הוגדר והוקצה מערך מונים, או שגודלו אינו מכיל אינדקס לכל ערך אפשרי בקובייה",
+         "component_ref": "k3",
+         "description_he": "הגדרה והקצאה נכונה של מערך המונים",
+         "equivalence_note_he": null,
+         "full_label_he": "הוגדר והוקצה מערך מונים של מספרים שלמים בגודל שמכיל אינדקס לכל ערך אפשרי בקובייה, כולל תא אפס",
+         "partials": [],
+         "source_span": "הגדרה והקצאה נכונה של מערך המונים"
+        },
+        {
+         "absent_label_he": "מערך המונים אינו מאופס",
+         "component_ref": "k4",
+         "description_he": "איפוס מערך מונים",
+         "equivalence_note_he": "הסתמכות על איפוס אוטומטי של השפה בהקצאת המערך שקולה ללולאת איפוס, כמו בפתרון לדוגמה",
+         "full_label_he": "כל תאי מערך המונים מתחילים באפס, בלולאת איפוס או בהסתמכות על איפוס ברירת המחדל של השפה",
+         "partials": [],
+         "source_span": "איפוס מערך מונים"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t3"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה שעוברת על מערך הקלט",
+         "component_ref": "k5",
+         "description_he": "לולאה הסורקת את מערך הקלט",
+         "equivalence_note_he": "כל סוג לולאה (for, foreach, while) שעוברת על כל תאי המערך תקף",
+         "full_label_he": "קיימת לולאה שעוברת על כל תאי מערך הקלט arr",
+         "partials": [],
+         "source_span": "לולאה הסורקת את מערך הקלט"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t4"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "בתוך הלולאה לא מקודם אף מונה בהתאם לערך ההטלה",
+         "component_ref": "k6",
+         "description_he": "בתוך הלולאה, קידום תקין של המונה המתאים",
+         "equivalence_note_he": "שימוש ישיר ב-arr[i] כאינדקס ללא משתנה עזר שקול. לולאה פנימית שמקדמת את המונה רק כאשר arr[i] שווה למונה הלולאה הפנימית תקפה במלואה",
+         "full_label_he": "בתוך הלולאה, עבור כל תוצאת הטלה מקודם המונה שבאינדקס השווה לערך התוצאה",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "בתוך הלולאה מקודם מונה, אך לא המונה שבאינדקס של ערך ההטלה"
+          }
+         ],
+         "source_span": "קידום תקין של המונה המתאים"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "פתרון עם לולאה פנימית שמעדכן את מערך המונים רק כאשר arr[i] שווה למונה הלולאה הפנימית מתקבל במלואו, בהתאם להערת המורה."
+       ],
+       "terminal_id": "t5"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "הפעולה אינה מחזירה את מערך המונים המלא אחרי הלולאה",
+         "component_ref": "k7",
+         "description_he": "אחרי הלולאה: החזרת מערך המונים המלא",
+         "equivalence_note_he": null,
+         "full_label_he": "אחרי סיום הלולאה הפעולה מחזירה את מערך המונים כולו",
+         "partials": [],
+         "source_span": "החזרת מערך המונים המלא"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t6"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.057756,
+     "input_tokens": 11718,
+     "model": "claude-sonnet-5-5",
+     "model_fallback": false,
+     "output_tokens": 3432,
+     "served_model": "claude-sonnet-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q3.ב": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "חתימת הפעולה שונה מהנדרש: שם, סוג ההחזרה או הפרמטר אינם תואמים",
+         "component_ref": "k1",
+         "description_he": "חתימת הפעולה PrintStatistics",
+         "equivalence_note_he": "שם אחר לפרמטר המערך שקול, כל עוד הפעולה מקבלת מערך שלמים",
+         "full_label_he": "הפעולה הוגדרה כ-public static, מחזירה void, בשם PrintStatistics ומקבלת מערך שלמים arr",
+         "partials": [],
+         "source_span": "חתימת הפעולה public static void PrintStatistics(int[] arr)"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "שמות המשתנים אינם משמעותיים והקוד אינו קריא",
+         "component_ref": "k2",
+         "description_he": "משתנים משמעותיים וקוד קריא",
+         "equivalence_note_he": "שם התואם את הפתרון לדוגמה תקף תמיד",
+         "full_label_he": "שמות המשתנים מבטאים את תפקידם והקוד כתוב באופן קריא",
+         "partials": [],
+         "source_span": "משתנים משמעותיים + קוד קריא"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t2"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "הפעולה DiceStatistics אינה מזומנת עם המערך arr",
+         "component_ref": "n1",
+         "description_he": "קריאה נכונה לפעולה DiceStatistics עם המערך arr",
+         "equivalence_note_he": null,
+         "full_label_he": "הפעולה DiceStatistics מזומנת עם המערך arr שהתקבל",
+         "partials": [],
+         "source_span": "קריאה נכונה לפעולה DiceStatistics(arr)"
+        },
+        {
+         "absent_label_he": "המערך המוחזר אינו נשמר ואין בו שימוש",
+         "component_ref": "n2",
+         "description_he": "שמירת המערך המוחזר מהפעולה DiceStatistics",
+         "equivalence_note_he": null,
+         "full_label_he": "המערך שהוחזר מהפעולה נשמר במשתנה ובו נעשה שימוש בהמשך",
+         "partials": [],
+         "source_span": "ושמירת המערך המוחזר"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "יצירת מערך מונים חדש ו/או הרצת DiceStatistics בתוך לולאה תוך העתקת כל תא אינן מורידות כלום (חוסר יעילות), כפי שכתבה המורה."
+       ],
+       "terminal_id": "t3"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא הוגדר משתנה שלם לשמירת הערך המקסימלי",
+         "component_ref": "k4",
+         "description_he": "הגדרת משתנה שלם לשמירת הערך המקסימלי maxCount",
+         "equivalence_note_he": "שם אחר למשתנה שקול כל עוד הוא שומר את הערך המקסימלי",
+         "full_label_he": "הוגדר משתנה שלם השומר את הערך המקסימלי",
+         "partials": [],
+         "source_span": "הגדרת משתנה שלם לשמירת הערך המקסימלי maxCount"
+        },
+        {
+         "absent_label_he": "משתנה המקסימום לא אותחל לתא הראשון או לערך מאוד נמוך",
+         "component_ref": "k5",
+         "description_he": "אתחול משתנה המקסימום לתא הראשון או לערך מאוד נמוך",
+         "equivalence_note_he": null,
+         "full_label_he": "משתנה המקסימום אותחל לערך התא הראשון או לערך מאוד נמוך",
+         "partials": [],
+         "source_span": "אתחול לתא הראשון או לערך מאוד נמוך"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t4"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין אלגוריתם שמוצא ערך מקסימלי",
+         "component_ref": "n1",
+         "description_he": "אלגוריתם למציאת הערך המקסימלי",
+         "equivalence_note_he": "שימוש בפעולת מקסימום מובנית, או בעדכון המקסימום בצורה אחרת, שקול",
+         "full_label_he": "כל ערך נבדק מול המקסימום הנוכחי, והמקסימום מתעדכן כשנמצא ערך גדול ממנו",
+         "partials": [],
+         "source_span": "אלגוריתם נכון למציאת הערך המקסימלי (השכיחות הגבוהה ביותר)"
+        },
+        {
+         "absent_label_he": "המקסימום לא נמצא בתוך מערך המונים, או שהריצה אינה על אינדקסי ערכי הקובייה",
+         "component_ref": "n2",
+         "description_he": "הריצה על מערך המונים בטווח ערכי הקובייה",
+         "equivalence_note_he": null,
+         "full_label_he": "המקסימום נמצא בתוך מערך המונים, בריצה על האינדקסים של ערכי הקובייה",
+         "partials": [],
+         "source_span": "מתוך מערך המונים (ריצה מאינדקס 1 עד 20)"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [],
+       "terminal_id": "t5"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה שמדפיסה אינדקסים שערכם שווה ל-maxCount",
+         "component_ref": "k7",
+         "description_he": "לולאה נפרדת הסורקת ומדפיסה את כל האינדקסים שערכם שווה ל-maxCount",
+         "equivalence_note_he": "הדפסה באמצעות משתנה הלולאה או באמצעות כל דרך אחרת להדפסת האינדקס שקולה",
+         "full_label_he": "לולאה נפרדת עוברת על מערך המונים בטווח ערכי הקובייה ומדפיסה כל אינדקס שערכו שווה ל-maxCount, כך שכל הערכים השכיחים מודפסים",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "נסרק מערך המונים והודפס ערך שכיח, אך רק אחד מהם ולא כל הערכים השכיחים"
+          }
+         ],
+         "source_span": "לולאה נפרדת הסורקת ומדפיסה את כל האינדקסים שערכם שווה ל-maxCount (תמיכה בריבוי שכיחים)"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [],
+       "terminal_id": "t6"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה שמדפיסה את האינדקסים שהמונה שלהם שווה לאפס",
+         "component_ref": "k8",
+         "description_he": "לולאה הסורקת ומדפיסה את האינדקסים שבהם המונה שווה לאפס",
+         "equivalence_note_he": "סריקה שמשולבת בלולאה אחרת שקולה כל עוד האינדקסים הללו מודפסים",
+         "full_label_he": "לולאה עוברת על מערך המונים בטווח ערכי הקובייה ומדפיסה כל אינדקס שהמונה שלו שווה לאפס",
+         "partials": [],
+         "source_span": "לולאה הסורקת ומדפיסה את האינדקסים שבהם המונה שווה ל-0 (ערכים שלא הופיעו)"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t7"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.06644,
+     "input_tokens": 12420,
+     "model": "claude-sonnet-5-5",
+     "model_fallback": false,
+     "output_tokens": 4160,
+     "served_model": "claude-sonnet-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q4.א": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "חתימת הפעולה שגויה או חסרה: שם אחר, טיפוס החזרה שאינו double, או שימוש במילה static",
+         "component_ref": "k1",
+         "description_he": "חתימת הפעולה public double TotalEarnings() ללא המילה static",
+         "equivalence_note_he": null,
+         "full_label_he": "הפעולה הוגדרה כפעולה פנימית ציבורית (public) מטיפוס double בשם TotalEarnings, ללא פרמטרים וללא המילה static",
+         "partials": [],
+         "source_span": "חתימת הפעולה (ללא מילה static!) public double TotalEarnings()"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא מחושבת מכפלה של מספר העונות בשכר לעונה",
+         "component_ref": "n1",
+         "description_he": "חישוב מכפלת מספר העונות בשכר לעונה",
+         "equivalence_note_he": "סדר הגורמים במכפלה, כתיבה ללא this, או גישה לתכונות דרך פעולות Get שקולים",
+         "full_label_he": "מחושבת מכפלה של התכונה seasonsPlayed בתכונה seasonSalary",
+         "partials": [],
+         "source_span": "this.seasonsPlayed * this.seasonSalary"
+        },
+        {
+         "absent_label_he": "תוצאת החישוב אינה מוחזרת מהפעולה",
+         "component_ref": "n2",
+         "description_he": "החזרת תוצאת החישוב",
+         "equivalence_note_he": "החזרה דרך משתנה עזר שבו נשמרה המכפלה שקולה להחזרה ישירה",
+         "full_label_he": "תוצאת המכפלה מוחזרת מהפעולה באמצעות return",
+         "partials": [],
+         "source_span": "החזרת החישוב"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [],
+       "terminal_id": "t2"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.03403,
+     "input_tokens": 10305,
+     "model": "claude-sonnet-5-5",
+     "model_fallback": false,
+     "output_tokens": 1342,
+     "served_model": "claude-sonnet-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q4.ב": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [
+      {
+       "disposition": "fault",
+       "marker_id": "m1",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m2",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m3",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      }
+     ],
+     "faults": [
+      {
+       "anchor_terminal_id": "t5",
+       "description_he": "היעדר בדיקת arr[i]!=null בלולאה הראשונה",
+       "options": [
+        {
+         "label_he": "לא נבדק ש-arr[i] שונה מ-null לפני הגישה אליו",
+         "marker_id": "m1"
+        }
+       ],
+       "requires_component_ref": null
+      },
+      {
+       "anchor_terminal_id": "t8",
+       "description_he": "היעדר בדיקת null בלולאה השנייה",
+       "options": [
+        {
+         "label_he": "בלולאה השנייה לא נבדק ש-arr[i] שונה מ-null",
+         "marker_id": "m2"
+        }
+       ],
+       "requires_component_ref": null
+      },
+      {
+       "anchor_terminal_id": "t8",
+       "description_he": "טעות בתנאי בלולאה השנייה",
+       "options": [
+        {
+         "label_he": "התנאי בלולאה השנייה שגוי: ההשוואה של הכנסות השחקנית ל-amount או זימון TotalEarnings אינם תקינים",
+         "marker_id": "m3"
+        }
+       ],
+       "requires_component_ref": "k13"
+      }
+     ],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "חתימת הפעולה אינה תואמת: חסר static, או שסוג ההחזרה, השם או הפרמטרים שונים",
+         "component_ref": "k1",
+         "description_he": "חתימת הפעולה",
+         "equivalence_note_he": null,
+         "full_label_he": "הפעולה הוגדרה כ-public static, מחזירה string[], בשם TopEarners ומקבלת מערך BasketballPlayer וערך double",
+         "partials": [],
+         "source_span": "public static string[] TopEarners(BasketballPlayer[] arr, double amount)"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "שמות המשתנים אינם מתארים את תפקידם",
+         "component_ref": "n1",
+         "description_he": "משתנים משמעותיים",
+         "equivalence_note_he": "שם התואם את הפתרון לדוגמה תקף תמיד",
+         "full_label_he": "שמות המשתנים מתארים את תפקידם (למשל מונה, אינדקס, מערך השמות)",
+         "partials": [],
+         "source_span": "משתנים משמעותיים"
+        },
+        {
+         "absent_label_he": "הקוד אינו מסודר ואינו קריא",
+         "component_ref": "n2",
+         "description_he": "קוד קריא",
+         "equivalence_note_he": null,
+         "full_label_he": "הקוד מסודר וקריא, עם הזחות ובלוקים ברורים",
+         "partials": [],
+         "source_span": "קוד קריא"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [],
+       "terminal_id": "t2"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא הוגדר משתנה למניית השחקניות",
+         "component_ref": "k3",
+         "description_he": "משתנה למניית השחקניות שמקיימות את התנאי",
+         "equivalence_note_he": "כל שם משתנה המבטא מונה תקף",
+         "full_label_he": "הוגדר משתנה מונה לשחקניות שהכנסותיהן גבוהות מ-amount",
+         "partials": [],
+         "source_span": "משתנה למניית השחקניות שמקיימות את התנאי"
+        },
+        {
+         "absent_label_he": "המונה לא אופס לפני הלולאה",
+         "component_ref": "k4",
+         "description_he": "איפוס המונה",
+         "equivalence_note_he": null,
+         "full_label_he": "המונה אותחל לאפס לפני הלולאה",
+         "partials": [],
+         "source_span": "איפוס"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t3"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה על מערך השחקניות לצורך הספירה",
+         "component_ref": "k5",
+         "description_he": "לולאה (A) על מערך השחקניות לספירה נכונה וקידום מונה תקין",
+         "equivalence_note_he": "לולאה מסוג אחר (while או foreach) שקולה ל-for",
+         "full_label_he": "לולאה עוברת על כל איברי מערך השחקניות וקידום המונה תקין",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "קיימת לולאה על מערך השחקניות, אך היא אינה עוברת על כל האיברים או שקידום המשתנה בה אינו תקין"
+          }
+         ],
+         "source_span": "לולאה (A) על מערך השחקניות (לספירה נכונה וקידום מונה תקין)"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [],
+       "terminal_id": "t4"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "בתוך הלולאה אין בדיקה ש-arr[i] שונה מ-null",
+         "component_ref": "k6",
+         "description_he": "בדיקה אם המערך במקום ה-i שונה מ-null",
+         "equivalence_note_he": null,
+         "full_label_he": "בתוך הלולאה נבדק ש-arr[i] שונה מ-null לפני הגישה אליו",
+         "partials": [],
+         "source_span": "בדיקה אם המערך במקום ה- i שונה מ- null"
+        },
+        {
+         "absent_label_he": "הפעולה TotalEarnings אינה מזומנת על arr[i]",
+         "component_ref": "k7",
+         "description_he": "זימון הפעולה הפנימית TotalEarnings עבור המערך במקום ה-i",
+         "equivalence_note_he": "שמירת תוצאת הזימון במשתנה ושימוש בו בהשוואה שקולים",
+         "full_label_he": "הפעולה TotalEarnings מזומנת על arr[i] בתוך הלולאה",
+         "partials": [],
+         "source_span": "זימון של פעולה פנימית TotalEarnings עבור המערך במקום ה- i"
+        },
+        {
+         "absent_label_he": "אין השוואה של התוצאה לפרמטר amount",
+         "component_ref": "k8",
+         "description_he": "השוואה אם התוצאה גבוהה מהפרמטר",
+         "equivalence_note_he": null,
+         "full_label_he": "תוצאת TotalEarnings מושווית ל-amount בתנאי של גדול ממש",
+         "partials": [],
+         "source_span": "השוואה אם התוצאה גבוהה מהפרמטר"
+        },
+        {
+         "absent_label_he": "המונה אינו מקודם כאשר התנאי מתקיים",
+         "component_ref": "k9",
+         "description_he": "קידום המונה",
+         "equivalence_note_he": null,
+         "full_label_he": "המונה מקודם כאשר התנאי מתקיים",
+         "partials": [],
+         "source_span": "קידום המונה"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [
+        "ההנחיה «לקנוס פעם אחת» נקראת ככזו החלה על היעדר בדיקת null, בשתי הלולאות יחד."
+       ],
+       "terminal_id": "t5"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא הוקצה מערך string חדש",
+         "component_ref": "k10",
+         "description_he": "הקצאת מערך ה-string החדש בדיוק בגודל שנספר (count)",
+         "equivalence_note_he": null,
+         "full_label_he": "הוקצה מערך string חדש שגודלו שווה לערך המונה",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "הוקצה מערך string חדש, אך גודלו אינו ערך המונה (למשל אורך מערך השחקניות)"
+          }
+         ],
+         "source_span": "הקצאת מערך ה-string החדש בדיוק בגודל שנספר (count)"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [],
+       "terminal_id": "t6"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא הוגדר משתנה נפרד לאינדקס מערך השמות",
+         "component_ref": "k11",
+         "description_he": "משתנה לאינדקס מערך השמות",
+         "equivalence_note_he": "כל שם משתנה המבטא אינדקס תקף",
+         "full_label_he": "הוגדר משתנה נפרד המשמש אינדקס למערך השמות",
+         "partials": [],
+         "source_span": "משתנה לאנדקס מערך השמות"
+        },
+        {
+         "absent_label_he": "האינדקס לא אופס לפני הלולאה",
+         "component_ref": "k12",
+         "description_he": "איפוס אינדקס מערך השמות",
+         "equivalence_note_he": null,
+         "full_label_he": "האינדקס אותחל לאפס לפני הלולאה",
+         "partials": [],
+         "source_span": "איפוס"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t7"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה שנייה על מערך השחקניות",
+         "component_ref": "k13",
+         "description_he": "לולאה שנייה (B) נכונה",
+         "equivalence_note_he": "לולאה מסוג אחר שקולה ל-for",
+         "full_label_he": "לולאה שנייה עוברת על כל איברי מערך השחקניות לצורך איסוף השמות",
+         "partials": [],
+         "source_span": "לולאה שנייה (B) נכונה"
+        },
+        {
+         "absent_label_he": "בלולאה השנייה אין בדיקה ש-arr[i] שונה מ-null",
+         "component_ref": "k14",
+         "description_he": "בדיקה אם המערך במקום ה-i שונה מ-null בלולאה השנייה",
+         "equivalence_note_he": null,
+         "full_label_he": "בלולאה השנייה נבדק ש-arr[i] שונה מ-null לפני הגישה אליו",
+         "partials": [],
+         "source_span": "בדיקה אם המערך במקום ה- i שונה מ- null"
+        },
+        {
+         "absent_label_he": "שם השחקנית אינו מתקבל באמצעות פעולת Get",
+         "component_ref": "k15",
+         "description_he": "שימוש ב-Getter לקבלת השם",
+         "equivalence_note_he": null,
+         "full_label_he": "שם השחקנית מתקבל באמצעות arr[i].GetName()",
+         "partials": [],
+         "source_span": "שימוש ב-Getter לקבלת השם arr[i].GetName()"
+        },
+        {
+         "absent_label_he": "השם אינו מושם במערך השמות החדש",
+         "component_ref": "k16",
+         "description_he": "השמה במערך החדש",
+         "equivalence_note_he": null,
+         "full_label_he": "השם מושם במערך השמות החדש",
+         "partials": [],
+         "source_span": "השמה במערך החדש"
+        },
+        {
+         "absent_label_he": "אין קידום של אינדקס נפרד למערך השמות",
+         "component_ref": "k17",
+         "description_he": "קידום אינדקס נפרד (namesIndex)",
+         "equivalence_note_he": null,
+         "full_label_he": "אינדקס נפרד למערך השמות מקודם לאחר כל השמה",
+         "partials": [],
+         "source_span": "תוך קידום אינדקס נפרד (namesIndex)"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [
+        "ההערה «להוריד רק פעם אחת» נקראת ככזו החלה על היעדר בדיקת null בלולאה השנייה, ולא על השימוש ב-Getter.",
+        "טעות בתנאי בלולאה השנייה נקנסת פעם אחת, כיוון שהתנאי מופיע גם בלולאה הראשונה."
+       ],
+       "terminal_id": "t8"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "הפעולה אינה מחזירה את מערך השמות",
+         "component_ref": "k18",
+         "description_he": "החזרת מערך השמות",
+         "equivalence_note_he": null,
+         "full_label_he": "הפעולה מחזירה את מערך השמות שנבנה",
+         "partials": [],
+         "source_span": "החזרת מערך השמות"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t9"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.109146,
+     "input_tokens": 12833,
+     "model": "claude-sonnet-5-5",
+     "model_fallback": false,
+     "output_tokens": 8348,
+     "served_model": "claude-sonnet-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q5.א": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "חתימת הפעולה שונה מהנדרש: שם, טיפוס מוחזר, פרמטר או הרשאת public שונים, או שנכתבה המילה static",
+         "component_ref": "k1",
+         "description_he": "חתימת הפעולה",
+         "equivalence_note_he": null,
+         "full_label_he": "הפעולה מוגדרת כפעולה פנימית (ללא המילה static) בשם IsSimilarWorkshop, מחזירה bool ומקבלת פרמטר אחד מטיפוס Workshop בשם other",
+         "partials": [],
+         "source_span": "חתימת הפעולה (ללא מילה static!) public bool IsSimilarWorkshop(Workshop other)"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין השוואה בין שמות שתי הסדנאות, או שהושוותה תכונה אחרת",
+         "component_ref": "n1",
+         "description_he": "חישוב השוואה בין שם הסדנה הנוכחית לשם הסדנה האחרת",
+         "equivalence_note_he": "גישה לשם בעזרת GetName או ישירות לתכונה, וכן שימוש ב-Equals, שקולים להשוואה עם ==",
+         "full_label_he": "שם הסדנה הנוכחית מושווה לשם הסדנה שהתקבלה כפרמטר",
+         "partials": [],
+         "source_span": "this.name == other.GetName()"
+        },
+        {
+         "absent_label_he": "הפעולה אינה מחזירה את תוצאת ההשוואה",
+         "component_ref": "n2",
+         "description_he": "החזרת תוצאת ההשוואה",
+         "equivalence_note_he": "החזרת true או false בעזרת if/else לפי תוצאת ההשוואה שקולה להחזרה ישירה",
+         "full_label_he": "הפעולה מחזירה ערך בוליאני המבטא את תוצאת ההשוואה בין השמות",
+         "partials": [],
+         "source_span": "החזרת החישוב"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [],
+       "terminal_id": "t2"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.038546,
+     "input_tokens": 10748,
+     "model": "claude-sonnet-5-5",
+     "model_fallback": false,
+     "output_tokens": 1705,
+     "served_model": "claude-sonnet-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q5.ב": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [
+      {
+       "disposition": "fault",
+       "marker_id": "m1",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m2",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m3",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m4",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m5",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      }
+     ],
+     "faults": [
+      {
+       "anchor_terminal_id": "t3",
+       "description_he": "גבולות לולאת החיפוש שגויים",
+       "options": [
+        {
+         "label_he": "הלולאה רצה עד Length ולא נבדק שהאיבר שונה מ-null",
+         "marker_id": "m1"
+        },
+        {
+         "label_he": "גבולות הלולאה שגויים בדרך אחרת: לא עד countWorkshops, ולא עד Length עם בדיקת null",
+         "marker_id": "m2"
+        }
+       ],
+       "requires_component_ref": "n1"
+      },
+      {
+       "anchor_terminal_id": "t5",
+       "description_he": "אי-שימוש בפעולות Get ו-Set של המחלקה Workshop",
+       "options": [
+        {
+         "label_he": "נעשה שימוש רק באחת מהפעולות Get או Set, והשנייה לא שימשה",
+         "marker_id": "m3"
+        },
+        {
+         "label_he": "לא נעשה שימוש באף אחת מהפעולות Get ו-Set",
+         "marker_id": "m4"
+        }
+       ],
+       "requires_component_ref": "k6"
+      },
+      {
+       "anchor_terminal_id": "t5",
+       "description_he": "סך המשתתפים חושב נכון אך התכונה people לא עודכנה באמצעות setter",
+       "options": [
+        {
+         "label_he": "סך המשתתפים חושב נכון, אך התכונה people של הסדנה הקיימת לא עודכנה באמצעות SetPeople",
+         "marker_id": "m5"
+        }
+       ],
+       "requires_component_ref": "k6"
+      }
+     ],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "הפעולה מוגדרת כ-static, או שסוג ההחזרה או הפרמטר שגויים",
+         "component_ref": "k1",
+         "description_he": "חתימת הפעולה HandleNewWorkshop כפעולה פנימית (לא static) המחזירה bool ומקבלת Workshop ws",
+         "equivalence_note_he": "שם הפרמטר אינו חייב להיות ws, כל עוד הוא מטיפוס Workshop",
+         "full_label_he": "הפעולה HandleNewWorkshop מוגדרת במחלקה Schedule ללא static, מחזירה bool ומקבלת פרמטר מטיפוס Workshop",
+         "partials": [],
+         "source_span": "חתימת הפעולה (לא static!!) public bool HandleNewWorkshop(Workshop ws)"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "שמות המשתנים אינם משמעותיים או שהקוד אינו קריא",
+         "component_ref": "k2",
+         "description_he": "משתנים משמעותיים וקוד קריא",
+         "equivalence_note_he": "שמות התואמים את הפתרון לדוגמה תקפים תמיד",
+         "full_label_he": "שמות המשתנים מתארים את תפקידם והקוד קריא ומסודר",
+         "partials": [],
+         "source_span": "משתנים משמעותיים + קוד קריא"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t2"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה שעוברת על הסדנאות הקיימות במערך",
+         "component_ref": "n1",
+         "description_he": "לולאת החיפוש רצה על הסדנאות הקיימות בפועל, עד countWorkshops",
+         "equivalence_note_he": "ריצה עד Length יחד עם בדיקה שהאיבר שונה מ-null שקולה לריצה עד countWorkshops",
+         "full_label_he": "הלולאה עוברת על האיברים מהמקום הראשון ועד countWorkshops בלבד",
+         "partials": [],
+         "source_span": "ריצה עד countWorkshops"
+        },
+        {
+         "absent_label_he": "החיפוש אינו נעצר כאשר תנאי השילוב מתקיים",
+         "component_ref": "n2",
+         "description_he": "עצירת החיפוש כאשר תנאי השילוב מתקיים",
+         "equivalence_note_he": "עצירה באמצעות return, break או תנאי בלולאה while שקולה",
+         "full_label_he": "משנמצאה סדנה דומה שיש בה מקום לכל המשתתפים, הסדנאות מאוחדות והחיפוש נעצר",
+         "partials": [],
+         "source_span": "ועצירה במידה ותנאי השילוב מתקיים"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "ריצה עד Length עם בדיקה שהאיבר שונה מ-null מתקבלת כניהול תקין של גבולות הלולאה."
+       ],
+       "terminal_id": "t3"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "הפעולה מסעיף א' לא זומנה, או שזומנה שלא על איבר מהמערך",
+         "component_ref": "k4",
+         "description_he": "זימון הפעולה IsSimilarWorkshop מסעיף א' על איבר מהמערך עם הסדנה החדשה",
+         "equivalence_note_he": "זימון ללא this, או על משתנה עזר המחזיק איבר מהמערך, שקול",
+         "full_label_he": "הפעולה IsSimilarWorkshop מופעלת על איבר מהמערך workshops, והסדנה החדשה מועברת לה כפרמטר",
+         "partials": [],
+         "source_span": "this.workshops[i].IsSimilarWorkshop(ws)"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t4"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין בדיקה של סך המשתתפים מול הקיבולת המותרת",
+         "component_ref": "k5",
+         "description_he": "בדיקת תנאי הקיבולת: סך המשתתפים בשתי הסדנאות קטן או שווה למגבלת הסדנה",
+         "equivalence_note_he": "תנאי שקול, למשל הבדיקה שאין חריגה מהקיבולת, תקף",
+         "full_label_he": "נבדק שסך המשתתפים בסדנה הקיימת ובסדנה החדשה אינו עולה על הקיבולת המותרת",
+         "partials": [],
+         "source_span": "בדיקת תנאי הקיבולת (קטן או שווה ל-40)"
+        },
+        {
+         "absent_label_he": "התכונה people של הסדנה הקיימת לא עודכנה בסך המשתתפים",
+         "component_ref": "k6",
+         "description_he": "עדכון התכונה people של הסדנה הקיימת בסך המשתתפים, בעזרת SetPeople ו-GetPeople",
+         "equivalence_note_he": "חישוב הסכום במשתנה עזר ואחר כך SetPeople, או חישוב ישירות בתוך הקריאה, שקולים",
+         "full_label_he": "סך המשתתפים חושב ונקבע בסדנה הקיימת באמצעות SetPeople, תוך שימוש ב-GetPeople",
+         "partials": [],
+         "source_span": "ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [
+        "אי-עדכון התכונה כאשר הסך חושב נכון נבחן לפי ההנחיה הייעודית לכך, ולא כאי-שימוש בפעולות הפנימיות."
+       ],
+       "terminal_id": "t5"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "הסדנה החדשה אינה מתווספת למקום הראשון הפנוי במערך",
+         "component_ref": "n1",
+         "description_he": "הוספת הסדנה החדשה למקום ה-countWorkshops במערך, כשלא בוצע איחוד והמערך אינו מלא",
+         "equivalence_note_he": "בדיקה שהמערך אינו מלא, באמצעות 200 או Length, שקולה",
+         "full_label_he": "כשלא בוצע איחוד והמערך אינו מלא, הסדנה החדשה נשמרת באינדקס countWorkshops",
+         "partials": [],
+         "source_span": "הוספת הסדנה החדשה למקום ה-countWorkshops"
+        },
+        {
+         "absent_label_he": "countWorkshops אינו מקודם לאחר ההוספה",
+         "component_ref": "n2",
+         "description_he": "קידום מונה הסדנאות countWorkshops באחד לאחר ההוספה",
+         "equivalence_note_he": "כל צורת קידום באחד שקולה, למשל ++ או השמה של ערך גדול באחד",
+         "full_label_he": "countWorkshops גדל באחד לאחר הוספת הסדנה החדשה",
+         "partials": [],
+         "source_span": "וקידום המונה ב-1"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [],
+       "terminal_id": "t6"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "הפעולה אינה מחזירה true בתרחישי ההצלחה",
+         "component_ref": "k8",
+         "description_he": "החזרת true בתרחישים שבהם האיחוד או ההוספה הצליחו",
+         "equivalence_note_he": null,
+         "full_label_he": "הפעולה מחזירה true לאחר איחוד עם סדנה קיימת ולאחר הוספת סדנה חדשה",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "מוחזר true באחד משני תרחישי ההצלחה בלבד (איחוד או הוספה)"
+          }
+         ],
+         "source_span": "ל-true"
+        },
+        {
+         "absent_label_he": "הפעולה אינה מחזירה false כשהמערכת מלאה",
+         "component_ref": "k9",
+         "description_he": "החזרת false כשהמערכת מלאה ולא ניתן להוסיף סדנה חדשה",
+         "equivalence_note_he": null,
+         "full_label_he": "כשהמערכת מלאה ואין איחוד אפשרי, הפעולה מחזירה false",
+         "partials": [],
+         "source_span": "ל-false"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [
+        "הרכיב הראשון נקרא כהחזרת true והשני כהחזרת false, בהתאם לניסוח «ל-true» ו-«ל-false»."
+       ],
+       "terminal_id": "t7"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.107616,
+     "input_tokens": 13878,
+     "model": "claude-sonnet-5-5",
+     "model_fallback": false,
+     "output_tokens": 7986,
+     "served_model": "claude-sonnet-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q6": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [
+      {
+       "disposition": "fault",
+       "marker_id": "m1",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      }
+     ],
+     "faults": [
+      {
+       "anchor_terminal_id": "t7",
+       "description_he": "הדפסת כמות התלמידים במקום מספר המכינה",
+       "options": [
+        {
+         "label_he": "הודפסה כמות התלמידים של המכינה הפופולרית ביותר ולא מספר המכינה",
+         "marker_id": "m1"
+        }
+       ],
+       "requires_component_ref": "k8"
+      }
+     ],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "בחתימת הפעולה יש טעות, למשל חסרה המילה static, או שהשם, סוג ההחזרה או הפרמטר שגויים",
+         "component_ref": "k1",
+         "description_he": "חתימת הפעולה (עם המילה static!)",
+         "equivalence_note_he": "שם הפרמטר שונה משם בפתרון לדוגמה תקף, כל עוד הוא מערך שלמים",
+         "full_label_he": "חתימת הפעולה נכונה: פעולה חיצונית עם המילה static, מחזירה מערך שלמים, בשם AnalyzeMechina, ומקבלת מערך שלמים",
+         "partials": [],
+         "source_span": "חתימת הפעולה (עם המילה static!)"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [
+        "כל טעות בחתימה מאבדת את הזיכוי של הסעיף."
+       ],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "שמות המשתנים אינם מבטאים את תפקידם",
+         "component_ref": "k2",
+         "description_he": "משתנים משמעותיים",
+         "equivalence_note_he": "שם התואם את הפתרון לדוגמה תקף תמיד",
+         "full_label_he": "שמות המשתנים מבטאים את תפקידם בפעולה",
+         "partials": [],
+         "source_span": "משתנים משמעותיים"
+        },
+        {
+         "absent_label_he": "הקוד מבולגן ואינו קריא",
+         "component_ref": "k3",
+         "description_he": "קוד קריא",
+         "equivalence_note_he": null,
+         "full_label_he": "הקוד מסודר וקריא, עם הזחה ומבנה ברור",
+         "partials": [],
+         "source_span": "קוד קריא"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t2"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נוצר מערך מונים",
+         "component_ref": "k4",
+         "description_he": "יצירה של מערך מונים עם הקצאה נכונה (לפחות בגודל 31)",
+         "equivalence_note_he": "גודל גדול מ-31 תקף",
+         "full_label_he": "נוצר מערך מונים של מספרים שלמים שגודלו מאפשר גישה לכל מספרי המכינות, לפחות בגודל 31",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "נוצר מערך מונים, אך גודלו קטן מדי ואינו מכסה את כל מספרי המכינות"
+          }
+         ],
+         "source_span": "יצירה של מערך מונים עם הקצאה נכונה (לפחות בגודל 31)"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [],
+       "terminal_id": "t3"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין איפוס למערך המונים ואין הערה על איפוס ע\"י השפה",
+         "component_ref": "k5",
+         "description_he": "איפוס מערך המונים או הערה שיש איפוס ע\"י השפה",
+         "equivalence_note_he": "הערה בלשון חופשית על כך שהמערך מאופס אוטומטית מספיקה",
+         "full_label_he": "מערך המונים מאופס בלולאה, או שנכתבה הערה שהשפה מאפסת אותו",
+         "partials": [],
+         "source_span": "איפוס מערך המונים או הערה שיש איפוס ע\"י השפה"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t4"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין סריקה של מערך הקלט, או שהיא אינה עוברת על כל התאים",
+         "component_ref": "n1",
+         "description_he": "סריקה של מערך הקלט",
+         "equivalence_note_he": "כל צורת לולאה שעוברת על כל התאים שקולה, כולל foreach",
+         "full_label_he": "הלולאה עוברת על כל תאי מערך הקלט, מהראשון ועד האחרון",
+         "partials": [],
+         "source_span": "סריקה נכונה של מערך הקלט"
+        },
+        {
+         "absent_label_he": "המונים אינם מתעדכנים לפי מספר המכינה שבתא הקלט",
+         "component_ref": "n2",
+         "description_he": "עדכון מונים",
+         "equivalence_note_he": "קידום בדרכים שקולות כמו ‎+= 1‎ או ‎counters[x] = counters[x] + 1‎ תקף",
+         "full_label_he": "עבור כל תא בקלט, המונה שהאינדקס שלו הוא מספר המכינה שבתא גדל באחד",
+         "partials": [],
+         "source_span": "לעדכון מונים"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [],
+       "terminal_id": "t5"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין סריקה של מערך המונים",
+         "component_ref": "n1",
+         "description_he": "סריקת מערך המונים",
+         "equivalence_note_he": "התחלה מאינדקס 0 או מ-1 תקפה",
+         "full_label_he": "הלולאה עוברת על תאי מערך המונים של כל המכינות",
+         "partials": [],
+         "source_span": "סריקת מערך המונים"
+        },
+        {
+         "absent_label_he": "אין השוואה בין המונים ואין שמירה של המקסימום",
+         "component_ref": "n2",
+         "description_he": "מציאת המונה הגבוה ביותר",
+         "equivalence_note_he": "מציאת המקסימום ישירות לפי מערך המונים, בלי משתנה נפרד לכמות, תקפה",
+         "full_label_he": "במהלך הסריקה מושווה כל מונה למקסימום שנשמר, והמקסימום מתעדכן כשנמצא מונה גבוה יותר",
+         "partials": [],
+         "source_span": "המונה הגבוה ביותר"
+        },
+        {
+         "absent_label_he": "לא נשמר מספר המכינה של המונה הגבוה ביותר",
+         "component_ref": "n3",
+         "description_he": "שמירת המכינה (האינדקס) בעלת המונה הגבוה ביותר",
+         "equivalence_note_he": null,
+         "full_label_he": "נשמר האינדקס של המונה הגבוה ביותר, כלומר מספר המכינה, ולא רק ערך המונה",
+         "partials": [],
+         "source_span": "המכינה (האינדקס) עם המונה הגבוה ביותר"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "סוף הטקסט בסעיף מסתיים במילה «ו» בלי המשך, והקריטריון נקרא כפי שנכתב עד אותה נקודה."
+       ],
+       "terminal_id": "t6"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא מודפס מספר המכינה בעלת הכמות המקסימלית",
+         "component_ref": "k8",
+         "description_he": "הדפסת מספר המכינה בעלת כמות מקסימלית",
+         "equivalence_note_he": "הדפסה באמצעות Console.WriteLine עם טקסט מקדים או בלעדיו תקפה",
+         "full_label_he": "מודפס מספר המכינה שאליה נרשמו הכי הרבה תלמידים",
+         "partials": [],
+         "source_span": "הדפסת מספר המכינה בעלת כמות מקסימלית"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [
+        "בטקסט המורה מופיעות שתי חלופות לסכום הניכוי על הדפסת הכמות, והסכום המקל הוא שמוחל."
+       ],
+       "terminal_id": "t7"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "מערך המונים אינו נסרק לצורך חישוב גודל מערך היעד",
+         "component_ref": "k9",
+         "description_he": "סריקת מערך המונים לצורך חישוב גודל מערך היעד",
+         "equivalence_note_he": "סריקה אחת המשמשת גם למציאת המקסימום שקולה",
+         "full_label_he": "מערך המונים נסרק כדי לחשב את גודל מערך היעד",
+         "partials": [],
+         "source_span": "סריקת מערך המונים"
+        },
+        {
+         "absent_label_he": "לא נספרים התאים שערכם גדול מ-0",
+         "component_ref": "k10",
+         "description_he": "ספירת התאים שגדולים מ-0",
+         "equivalence_note_he": "אי-שוויון שקול, כמו שונה מ-0, תקף",
+         "full_label_he": "נספרים התאים במערך המונים שערכם גדול מ-0, כלומר המכינות שנרשמו אליהן תלמידים",
+         "partials": [],
+         "source_span": "ספירת התאים שגדולים מ-0"
+        },
+        {
+         "absent_label_he": "לא הוקצה מערך חדש בגודל הנדרש",
+         "component_ref": "k11",
+         "description_he": "יצירה והקצאת מערך חדש בגודל count * 2",
+         "equivalence_note_he": "כתיבה שקולה, כמו count + count, תקפה",
+         "full_label_he": "מוקצה מערך חדש שגודלו כפול ממספר המכינות שנרשמו אליהן תלמידים",
+         "partials": [],
+         "source_span": "ויצירה והקצאת מערך חדש בגודל count * 2"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t8"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "מספר המכינה אינו נכתב במערך היעד בתא הראשון של הזוג",
+         "component_ref": "n1",
+         "description_he": "כתיבת מספר המכינה בתא הראשון של הזוג",
+         "equivalence_note_he": "המילוי נעשה רק עבור מכינות שנרשמו אליהן תלמידים, כמו בפתרון לדוגמה",
+         "full_label_he": "בכל זוג, מספר המכינה נכתב בתא הנוכחי של מערך היעד",
+         "partials": [],
+         "source_span": "קודם את result[resIndex] = i"
+        },
+        {
+         "absent_label_he": "ערך המונה אינו נכתב בתא העוקב למספר המכינה",
+         "component_ref": "n2",
+         "description_he": "כתיבת מספר התלמידים בתא העוקב",
+         "equivalence_note_he": "קידום האינדקס בין שתי הכתיבות וכתיבה אחרי כן תקפים, כל עוד הסדר נשמר: מספר מכינה ואחריו כמות",
+         "full_label_he": "מיד אחרי מספר המכינה, בתא העוקב, נכתב ערך המונה של אותה מכינה",
+         "partials": [],
+         "source_span": "ומיד לאחר מכן result[resIndex+1] = counters[i]"
+        },
+        {
+         "absent_label_he": "אינדקס מערך היעד אינו מקודם בשני תאים אחרי כל זוג",
+         "component_ref": "n3",
+         "description_he": "קידום ידני של אינדקס מערך היעד",
+         "equivalence_note_he": "קידום בשתי פעולות של הגדלה באחד שקול, כל עוד בסוף הזוג האינדקס התקדם בשניים",
+         "full_label_he": "אינדקס מערך היעד מקודם בשני תאים אחרי כל זוג",
+         "partials": [],
+         "source_span": "תוך קידום ידני תקין של אינדקס מערך היעד ב-2 בכל פעם"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [],
+       "terminal_id": "t9"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.089294,
+     "input_tokens": 12937,
+     "model": "claude-sonnet-5-5",
+     "model_fallback": false,
+     "output_tokens": 6342,
+     "served_model": "claude-sonnet-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  }
+ },
+ "served_models": [
+  "claude-sonnet-5-5"
+ ],
+ "stage1_version": "plan-compiler/v2.0+stage1-v6.0",
+ "wall_s": 309.5
+}

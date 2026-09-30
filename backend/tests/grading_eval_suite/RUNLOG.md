@@ -2759,3 +2759,68 @@ second exam, not another dollar on this one.**
 - **hobby_tvshow** stage=both
   - route (Sonnet 5): $0.1039 · 14 calls · failed [] · wall 53.1s · components {'q1.א.c0': ['כותרת המחלקה', 'הגדרת התכונות', 'הפעולה הבונה'], 'q1.א.c1': ['כותרת המחלקה', 'הגדרת התכונות', 'כותרת הפעולה הבונה', 'השמת ערכי hobbyName ו-isSportive', 'השמת ערך minutes'], 'q1.ב.c2': ['תנאי לולאה - מקום פנוי במערך', 'תנאי לולאה - תשובת המשתמש'], 'q1.ב.c4': ['יצירת עצם חדש מטיפוס Hobby', 'שיבוץ העצם בתא המתאים במערך'], 'q1.ג.c3': ['לולאה על מערך התחביבים בגבולות נכונים', 'בדיקת null בתוך הלולאה (כאשר נדרש)'], 'q2.א.c0': ['כותרת הפעולה הבונה עם פרמטרים נכונים', 'שיבוץ הפרמטרים לתכונות name ו-chl', 'קביעת rate=0 ו-isOn=true'], 'q2.א.c1': ['מימוש הפעולה הבונה TvShow', 'קביעת ערכי rate=0 ו-isOn=true בבנאי', 'מימוש הפעולה UpdateRate', 'קליטת דירוג עבור כל אחד מהצופים', 'הוספת הדירוג הנקלט לדירוג הקיים'], 'q2.ב.c2': ['לולאה על מערך הצוברים', 'איפוס תא במערך'], 'q2.ב.c3.s0': ['לולאה מתחילה מ-0', 'גישה למערך TvShows דרך Getter', 'גבול עליון נכון של הלולאה (קטן ממש מ-Length)'], 'q2.ב.c3.s3': ['בדיקת תא לא null', 'צבירת הדירוג במערך הצוברים במקום הערוץ', 'שימוש ב-GetRate ולא בגישה ישירה לתכונה'], 'q2.ב.c4.s3': ['בדיקת שימוש בערוץ (תא גדול מאפס)', 'בדיקת קטן מהמינימום הנוכחי'], 'q2.ג.c0.s1': ['זימון הפעולה LowestRateChannel לשם קבלת הערוץ בעל הדירוג המינימלי', 'מימוש נכון של הפעולה LowestRateChannel המוצאת בפועל את הערוץ המינימלי'], 'q2.ג.c0.s2': ['תחילת הלולאה מ-0', 'תנאי עצירה קטן ממש מ-length', 'גישה למערך באמצעים ישירים ולא ע"י getter (אם יש getter צריך להוריד 1)']}
   - segment (Haiku 4.5): $0.1288 · 9 calls · clean first try 3 · retried 3 · substituted 33/93 · notes dropped 3 · validator 0 · expressible 189/190 · p50 10.9s max 22.6s · plan `hobby_tvshow/compiled-f0719c4d7471`
+
+## 2026-09-30 · D-13 + A-8 · deployed to production; the 3 live plans rebuilt ($0.65)
+
+- **Deploy:** revision `gradervision-backend-00053-blw` (100% of traffic), from the clean `deploy/d13-a8` worktree: the live base + SEC-1's EXPECTED list + A-8 + D-13 + the D-14 test fix.
+  - **Gate (owner-ruled: T1 + the plan-builder DB tests):** 1190 passed, 1 skipped, exit 0, in 25:09. That is over A-10's 10-minute T1 bar; the A-10 amendments address it.
+  - **After the deploy:** `/health` 200; boot log `SCHEMA OK: migration head 034`; no ERROR on the revision.
+  - D-13 (`c22bf63`) and AM-G18 (`c4b1cf6`) were then fast-forwarded onto main.
+- **The store could not express a deliberate rebuild.** The one-live-plan index refuses a queued row while a ready one exists, and the only supersede path was a raw UPDATE inside a test.
+  - Added `plan_store.requeue_for_rebuild`: ONE transaction, ready → superseded, then a new queued row.
+  - Added `python -m app.scripts.rebuild_plans`: a dry run by default; `--apply` runs a canary and a spend cap. Commit `e5ba4da`, on main.
+- **Rebuild (authorized, ≤ $2):**
+  - Dry run: the 3 ready plans C-5 found. Credit canary OK.
+
+    | old row | new row | cost | routing |
+    |---|---|---|---|
+    | 7f322338 | 2ebd6466 | $0.1028 | router_failed 0 |
+    | 284e2bd1 | 1ce442a6 | $0.2766 | router_failed 1 |
+    | 5c29b477 | 40143fa5 | $0.2752 | router_failed 1, substituted 34 |
+
+  - Total **$0.6546**. All three are `ready`, with segmented wording.
+  - The remaining route failure (`q5.א.c1`: evidence span not verbatim, a genuine refusal) now logs at WARNING with scope and reason, as D-13 requires.
+  - **Verified read-only:** 3 ready, 3 superseded, 0 contracts with more than one live row.
+  - Existing drafts are untouched: a draft carries its own copy of the checks.
+
+## 2026-09-30 · AM-G17 · opaque aliases in the planner payload; the REVIEW-2 line; planner-v6.1
+
+- **Why:** in G2 (2026-09-28) a planner returned `q1.ব.c0` for `q1.א.c0`. That is a Bengali homoglyph, not a romanisation, so CWV-6 could not see it and no guess could repair it without inventing an id.
+- **Built:**
+  - `app/agents/grader/payload_aliases.AliasTable`: call-scoped `t1…`/`k1…`/`m1…` (and `c1…` for the verifier and explainer later). It is a pure function of what the call shows, so the renderer and the mapper each build it independently.
+  - `stage1_input.planner_aliases(scope)` builds the planner input in alias space. `ScopePlannerInput` refuses any id that does not match `^[a-z]\d+$`, so a real id cannot be rendered.
+  - The scope's own id is no longer rendered. Split refs are `n1…n6`, replacing `new:1…`.
+  - `assemble._unalias` maps the output back. Unknown aliases are dropped through `strip_out_of_world` with no `rekey`, recorded in telemetry and logged `closed_world_id_dropped`.
+  - The repair call's validator messages are redacted to aliases (`AliasTable.redact`).
+  - The planner's CWV-6 use (`_recover_ids`) is deleted; CWV-6 stays for v5.
+  - The few-shots are rewritten in alias space.
+- **REVIEW-2 line** (owner-approved), appended to rule 4: «A fault check lives on one criterion. The same mistake at two criteria is two fault checks; code links them.»
+- **Prompt pin moved:** `planner-v6.0` → `planner-v6.1`; `cs.planner_system_prompt` sha `f1444b27…` → `ff72866c…` (`tests/subjects/test_subject_packs.py`).
+- **Decided — pending owner veto:**
+  - (a) A plan has no teacher surface (W-3), so the planner's closed-world drops go to telemetry and the log rather than to an annotation. The verifier and explainer will emit `strip_out_of_world`'s INFO annotation verbatim.
+  - (b) Split refs are aliases too (`n1…n6`), so every id the planner writes matches the pattern.
+  - (c) A `requires` or `merged_into` that names an unknown alias drops its whole fault or disposition. The structural checks then send the scope to the one repair call; nothing is silently re-pointed.
+- **Tests:** `test_payload_ids_are_ascii_aliases`, `test_unknown_alias_dropped`, `test_the_input_refuses_a_real_id`, `test_the_alias_table_is_pure_and_its_redaction_is_exact`; the planner suites were moved to alias space (53 passed).
+
+## 2026-09-30 · GRADER v6 · PLANNER RE-RECORD — AM-G17 + the REVIEW-2 line, Sonnet 5 and Sonnet 5.5 ($3.10 of $8)
+
+- **Runs:** `tools/plan_v6.py --confirm-spend --model M` for each exam and each model, both at effort high (credit canary per run). They write `plans/v6/<exam>.<model>.recorded.json`.
+- **The report** is `tools/planner_report.py` → `docs/plans/v6_planner_rerecord_report.md`. It rebuilds each plan from its recording and applies §13.1.
+- **Expressibility** comes from the new `plan_v6_expressibility.py`: every GT cell, priced by THE pricer, per terminal, existential across terminals as in v5.
+
+| model | exam | planner / repaired / fallback / compiled | validator msgs | V19 | expressible | $ | wall |
+|---|---|---|---|---|---|---|---|
+| Sonnet 5 | hobby | 5 / 1 / 0 / 0 | 1 | 0 | 180/190 (8 planner miss + 2 unwritten ruling) | 0.7341 | 532 s |
+| Sonnet 5 | bagrut | 10 / 2 / 0 / 1 | 2 | 1 | 276/298 | 1.2309 | 1,242 s (one transport timeout, retried once) |
+| Sonnet 5.5 | hobby | 6 / 0 / 0 / 0 | 0 | 1 | 180/190 (8 + 2) | 0.4200 | 187 s |
+| Sonnet 5.5 | bagrut | 12 / 0 / 0 / 1 | 0 | 0 | 274/298 | 0.7100 | 310 s |
+
+- **Served:** every call by the requested model; `model_fallback` 0 for both.
+- **Choice rule (§13.1):**
+  - Step 1: Sonnet 5 has **32** inexpressible cells, Sonnet 5.5 **34**. The gap is 2 (more than 1), so **Sonnet 5 wins at step 1**.
+  - The renders and the committed plans are regenerated from Sonnet 5 (`--replay --publish`). The owner rules at STOP-3.
+  - Sonnet 5.5 is 42% cheaper and 2.5–4× faster, with 0 repairs against 3.
+- **Finding for STOP-3:** both v6 planners express FEWER GT cells than the v5 compiled plans re-routed today (hobby 189/190, bagrut 288/298).
+  - Most v6 misses are binary checks where GT awarded partial credit, for example bagrut `q3.ב.c6` binary[3/0] against GT 2.5/2/1.5, and hobby `q2.ב.c0` binary[2/0] against GT 1.
+  - This is rule 7 (concrete partials only) meeting teachers' partial awards. It is recorded, not tuned: the REVIEW-2 package is the place for it.
+- **Old recordings:** the G2 files (`<exam>.recorded.json`, planner-v6.0, real-id space) are deleted and superseded; git keeps them.
