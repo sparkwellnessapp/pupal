@@ -11,6 +11,7 @@ import asyncio
 import uuid
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from sqlalchemy import delete
 
 from app.database import get_db_context
@@ -18,6 +19,8 @@ from app.models.grading import Rubric
 from app.models.grading_plan import GradingPlanRecord
 from app.services import plan_store
 from app.services.plan_store import contract_sha256, kick_plan_build
+
+pytestmark = pytest.mark.db          # both tests write grading_plans rows (A-10)
 
 
 def _run(coro):

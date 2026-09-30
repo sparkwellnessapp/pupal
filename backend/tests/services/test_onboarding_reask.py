@@ -91,6 +91,7 @@ async def _ids(now=NOW) -> set:
 # Eligibility — the query in §7
 # ---------------------------------------------------------------------------
 
+@pytest.mark.db
 async def test_selects_only_the_teachers_who_are_actually_due(cleanup):
     due = await _make_user(next_exam_answered_at=NOW - timedelta(days=15))
     too_recent = await _make_user(next_exam_answered_at=NOW - timedelta(days=13))
@@ -108,12 +109,14 @@ async def test_selects_only_the_teachers_who_are_actually_due(cleanup):
     assert {too_recent.id, never_asked.id, has_a_date.id}.isdisjoint(found)
 
 
+@pytest.mark.db
 async def test_the_fourteen_day_boundary_is_inclusive(cleanup):
     exactly = await _make_user(next_exam_answered_at=NOW - timedelta(days=14))
     cleanup.append(exactly)
     assert exactly.id in await _ids()
 
 
+@pytest.mark.db
 async def test_a_second_run_the_same_day_does_not_re_include_her(cleanup):
     user = await _make_user(next_exam_answered_at=NOW - timedelta(days=20))
     cleanup.append(user)
@@ -127,6 +130,7 @@ async def test_a_second_run_the_same_day_does_not_re_include_her(cleanup):
     assert not _in_digest(second, user)
 
 
+@pytest.mark.db
 async def test_answering_unknown_AGAIN_makes_her_eligible_again(cleanup):
     """The whole reason nothing is ever cleared: `sent_at < answered_at` is what
     re-arms her, automatically."""
@@ -155,6 +159,7 @@ async def test_answering_unknown_AGAIN_makes_her_eligible_again(cleanup):
     assert _in_digest(third, user)
 
 
+@pytest.mark.db
 async def test_a_send_failure_stamps_NOTHING_and_raises(cleanup):
     """Stamping first would lose a teacher permanently on a transient error.
     Sending first can at worst repeat a digest — a nuisance, against a teacher
