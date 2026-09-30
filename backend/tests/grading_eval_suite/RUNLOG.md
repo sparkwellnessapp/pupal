@@ -2840,3 +2840,20 @@ second exam, not another dollar on this one.**
 - **Production:** no `PROVIDER_BILLING_EXHAUSTED` and no grade logged since the deploy (13:40Z), so no failure has been observed. But if production's key is on this account, the next v5 grade or plan build fails; A-8's CRITICAL tag then fires the owner's alert.
 - **Next, after a top-up:** canary → re-run both arms as committed (`trackb-sonnet5-v54`, `trackb-sonnet55-v54`, `--repeats 3`). They need no code change; the pinned plans and configs are unchanged.
 - **Tooling lesson (recorded, not fixed):** the runner has no run-level stop on a permanent billing error. It graded every remaining fixture into failed scopes. That cost nothing (a refused call is not billed), but it wasted wall time and wrote two misleading results dirs. A run-level abort on the first `PROVIDER_BILLING_EXHAUSTED` belongs with A-8's classifier.
+
+## 2026-09-30 · A-10 amendments · the local test DB, the db marker, the provider network guard; T1 12:33 (bar 10:00, NOT met)
+
+- **Built** (branch `a10/local-db`, merged onto main): see CLAUDE.md §8.
+  - `scripts/local_test_db.py up|down|reset|url|snapshot`. A dedicated native PostgreSQL **17.6** cluster (production's version) on 127.0.0.1:55717. Docker Desktop does not start on this machine, so this is not a container: decided, pending veto.
+  - The schema is the committed Vivi-Test `pg_dump --schema-only` plus the ledger 001..034 (`tests/local_db_schema/`). `init.sql` creates the NOLOGIN `anon`/`authenticated` roles.
+  - Opt in with `VIVI_TEST_DB=local`; unset means today's behaviour.
+  - The allow-list is stricter: localhost is accepted only on the cluster's port, and the guard also reads the `.env` that Settings falls back to.
+  - A `db` marker, and a per-test DB guard that fails an unmarked test that opens a connection. 19 unmarked DB tests were found and marked.
+  - An autouse network guard at the socket layer (OpenAI, Anthropic, Gemini/Vertex, xAI, LangSmith, Kimi): it raises and also records, so a swallowed call still fails its test. It found **0** provider calls in the whole suite.
+- **Merged tree, local DB:** pure `-n auto` 1634 passed (1:31); DB serial 626 passed (8:11); transcription eval suite 152 passed (20 s). Full suite **8:42** at the dev profile, against more than 36 minutes on Vivi-Test.
+- **T1 gate selection (`VIVI_TEST_GATE=1`): 12:33, against 25:09 before.** It misses the 10-minute bar.
+  - Its floor is the 7 `test_pricing_v6_properties.py` tests at the ruled 2,000 examples: about 100 s of CPU each, spent in Hypothesis's own drawing (about 160 `data.draw` calls per example through `pricing_v6_cases.HypothesisDraw`), not in the pricer.
+  - **Open decision for the owner.**
+- **Deviations:**
+  - pytest-xdist is not in the venv (it is used from a scratch `--target` dir); adding it permanently is the owner's call.
+  - Vivi-Test carries migration 035 from the unmerged plan-cache branch; the snapshot was taken with it reversed.
