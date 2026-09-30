@@ -2717,3 +2717,18 @@ second exam, not another dollar on this one.**
   - The teacher's intent (one charge across two criteria) is real. v2's C6 gave the two markers different groups, so the planner cannot express it legally.
   - **For REVIEW-2:** a prompt line («a fault check lives on one criterion; the same mistake at two criteria is two fault checks, linked by code») and a C6 look at why the two once-markers did not share a group.
 - **Next:** REVIEW-2 (async) on the renders, the planner prompt and the few-shots; G3–5 starts.
+
+## 2026-09-30 · SEC-1 · the public schema is locked down in production (034) — no runtime deploy needed
+
+- **Precondition (owner's facts, 2026-09-30):** all 26 `public` tables are owned by `postgres`; `rolbypassrls` is true for postgres and service_role and false for anon and authenticated. The production backend's `DATABASE_URL` user (Secret Manager `database-url`) is `postgres`, and its project, host, port and database equal `backend/.env`'s. The owner has removed `public` from the Data API's exposed schemas.
+- **Applied**, with the backend `DATABASE_URL`, one connection, 034 and nothing else in ONE transaction; the file's commit token records it in `schema_migrations`.
+  - Preflight (read-only): user postgres · PostgreSQL 17.6 · 26 tables · RLS on: none · ledger 001..033 contiguous · 034 absent.
+- **Verified on the same connection after commit:**
+  - RLS on for all 26 public tables.
+  - As `anon` and as `authenticated`, `SELECT 1 FROM users` is refused (42P01, the name is unresolvable). The schema-qualified `public.users` is refused with **42501 permission denied for schema public**: neither role has USAGE on the schema (the Data API change) nor SELECT on the table (034).
+  - As postgres: users 3 · rubrics 3 · graded_tests 34 · students 19, so the backend's view is intact.
+  - Ledger row 034 present.
+  - `GET /health` → 200 `{"status":"healthy"}`.
+- **No Cloud Run deploy.** SEC-1's only code change is `'034'` in `EXPECTED_MIGRATIONS` (the boot check). The live code logs "DB ahead of code" until the D-13 + A-8 deploy, which carries it.
+- **Seed accounts:** the owner confirmed that the accounts created by migrations 001/002 do not exist in production, so no production action. CLAUDE.md gains migration rule 4 (no credentials, plaintext or hashed, in any migration or committed file; seed accounts come from a local-only script reading the environment).
+- **Pending the owner:** Supabase Advisors → Security (expected: no «RLS disabled») and the click-through (log in, rubrics, a graded test, a roster). Both are recorded here once confirmed.
