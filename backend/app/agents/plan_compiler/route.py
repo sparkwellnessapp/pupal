@@ -15,18 +15,22 @@ the run before it can be exceeded.
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 import time
 from dataclasses import dataclass, field, replace
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.agents.grader.plan_validator import _tight, quote_is_grounded
 
 from .compile import _canon, even_split
 from .segment import EnvelopeExceeded, _usage
 from .skeleton import Flag, PlanSkeleton, Slot, TerminalSkeleton
+
+logger = logging.getLogger(__name__)
 
 ROUTER_PROMPT_VERSION = "router/v1"
 ROUTER_MODEL_KEY = "claude-sonnet-5"
@@ -40,6 +44,35 @@ class RoutedComponent(BaseModel):
 
 class RouterResponse(BaseModel):
     components: List[RoutedComponent]
+
+
+def decode_string_payload(result) -> Optional[RouterResponse]:
+    """[D-13] Sonnet 5 sometimes sends the tool argument `components` as a JSON
+    STRING holding the whole response object `{"components": [...]}` — every one of
+    the 10 raw outputs recorded 2026-09-30 (tests/fixtures/router_sonnet5_recorded.json)
+    — and the parse fails, so the monolith silently kept its single check, in
+    production too. Decode it EXACTLY ONCE, and only into the expected shape: the
+    response object, or the component list itself. A string inside the string, a
+    non-JSON string, or any other shape stays a routing failure."""
+    raw = result.get("raw")
+    calls = getattr(raw, "tool_calls", None) or []
+    if not calls:
+        return None
+    value = (calls[0].get("args") or {}).get("components")
+    if not isinstance(value, str):
+        return None
+    try:
+        decoded = json.loads(value)
+    except ValueError:
+        return None
+    if isinstance(decoded, dict) and set(decoded) == {"components"}:
+        decoded = decoded["components"]
+    if not isinstance(decoded, list):
+        return None
+    try:
+        return RouterResponse(components=decoded)
+    except ValidationError:
+        return None
 
 
 assert not any(f in RoutedComponent.model_fields for f in ("points", "kind", "tariff_amount")), \
@@ -132,6 +165,7 @@ class RouteRun:
     calls: List[RouteCall] = field(default_factory=list)
     failed: List[str] = field(default_factory=list)
     flags: List[Flag] = field(default_factory=list)
+    decoded: List[str] = field(default_factory=list)      # [D-13] string payloads decoded once
 
     @property
     def cost_usd(self) -> float:
@@ -175,7 +209,16 @@ async def route_monoliths(skeleton: PlanSkeleton, llm, *, corpora: Dict[str, str
                 timeout=timeout_s)
             latency = time.monotonic() - t0
             in_tok, out_tok, cached = _usage(result)
+            recovered = None
             if result.get("parsing_error") or result.get("parsed") is None:
+                recovered = decode_string_payload(result)
+            if recovered is not None:
+                comps = list(recovered.components)
+                errors = validate_components(comps, corpus=corpus)
+                if t.terminal_id not in run.decoded:
+                    run.decoded.append(t.terminal_id)
+                logger.info(f"route_decoded_string scope={t.scope} terminal={t.terminal_id} attempt={attempt}")
+            elif result.get("parsing_error") or result.get("parsed") is None:
                 errors, comps = [f"unparseable response: {result.get('parsing_error')}"], []
             else:
                 comps = list(result["parsed"].components)
@@ -188,6 +231,9 @@ async def route_monoliths(skeleton: PlanSkeleton, llm, *, corpora: Dict[str, str
         if errors:
             run.failed.append(t.terminal_id)
             run.flags.append(Flag("router_failed", t.terminal_id, "; ".join(errors)[:160]))
+            # [D-13] no silent failures: the ids and the reason in the MESSAGE (extra= is never rendered)
+            logger.warning(f"route_failed scope={t.scope} terminal={t.terminal_id}: "
+                           f"{'; '.join(errors)[:200]}")
             new_terminals.append(t)
         else:
             new_terminals.append(apply_routing(t, comps, skeleton.precision))

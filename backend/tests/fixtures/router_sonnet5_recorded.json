@@ -1,0 +1,127 @@
+{
+ "recorded": "2026-09-30",
+ "model": "claude-sonnet-5",
+ "note": "D-13: raw router tool-call args, one attempt per monolith that failed routing in the 2026-09-28 AM-G14 rebuild",
+ "records": [
+  {
+   "exam": "bagrut_899371",
+   "terminal_id": "q1.ב.1.c0",
+   "scope": "q1.ב.1",
+   "model": "claude-sonnet-5",
+   "tool_call_args": {
+    "components": "{\"components\": [{\"evidence_span\": \"ערך מוחזר: 76\", \"name_he\": \"ציון הערך המוחזר הסופי\"}, {\"evidence_span\": \"0 + 8 + 4 + 15 + 40 + 9 = 76\", \"name_he\": \"חישוב הסכום מהאיברים הרלוונטיים\"}, {\"evidence_span\": \"check(arr,i)\", \"name_he\": \"הפעלת תנאי הבדיקה על כל איבר\"}]}"
+   },
+   "parsed_ok": false,
+   "parsing_error": "1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden... על כל איבר\"}]}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+   "kind": "components_is_string"
+  },
+  {
+   "exam": "bagrut_899371",
+   "terminal_id": "q2.א.c4",
+   "scope": "q2.א",
+   "model": "claude-sonnet-5",
+   "tool_call_args": {
+    "components": "{\"components\": [{\"evidence_span\": \"int target = -arr[i];\", \"name_he\": \"חישוב המספר הנגדי של האיבר הנוכחי\"}, {\"evidence_span\": \"bool found = false;\", \"name_he\": \"אתחול משתנה found לפני החיפוש\"}, {\"evidence_span\": \"for (int j = 0; j < arr.Length && found == false; j++)\", \"name_he\": \"לולאה פנימית עם תנאי עצירה לפי found\"}, {\"evidence_span\": \"if (arr[j] == target) { found = true; }\", \"name_he\": \"בדיקת השוואה ועדכון found בעת מציאת הנגדי\"}]}"
+   },
+   "parsed_ok": false,
+   "parsing_error": "1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...ציאת הנגדי\"}]}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+   "kind": "components_is_string"
+  },
+  {
+   "exam": "bagrut_899371",
+   "terminal_id": "q2.ב.c4",
+   "scope": "q2.ב",
+   "model": "claude-sonnet-5",
+   "tool_call_args": {
+    "components": "{\"components\": [{\"evidence_span\": \"אופציה 1: מניחים שהמערך פרמטר הוא מערך מראה (כפי שכתוב בשאלה) ופשוט מבצעים: temp[tempIndex] = -arr[i]; tempIndex++;\", \"name_he\": \"הנחת מערך מראה - חישוב ישיר של הנגדי\"}, {\"evidence_span\": \"אופציה 2: מציאת המספר הנגדי המתאים (ע\\\"י עוד לולאה) והשמתו בצמוד למספר שנמצא (באינדקס העוקב).\", \"name_he\": \"חיפוש הנגדי בלולאה פנימית\"}, {\"evidence_span\": \"bool found = false; for (int j = 0; j < arr.Length && found == false ; j++) { if (arr[j] == -arr[i]) { temp[tempIndex] = arr[j];\", \"name_he\": \"מציאת האינדקס הנכון והעתקה למערך העזר\"}, {\"evidence_span\": \"found = true; // מצאנו את הנגדי היחיד, יוצאים מהלולאה הפנימית\", \"name_he\": \"עצירת החיפוש לאחר מציאה\"}]}"
+   },
+   "parsed_ok": false,
+   "parsing_error": "1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...לאחר מציאה\"}]}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+   "kind": "components_is_string"
+  },
+  {
+   "exam": "bagrut_899371",
+   "terminal_id": "q4.א.c1",
+   "scope": "q4.א",
+   "model": "claude-sonnet-5",
+   "tool_call_args": {
+    "components": "{\"components\": [{\"evidence_span\": \"return this.seasonsPlayed * this.seasonSalary;\", \"name_he\": \"שימוש נכון במכפלה של seasonsPlayed ו-seasonSalary\"}, {\"evidence_span\": \"return this.seasonsPlayed * this.seasonSalary;\", \"name_he\": \"החזרת ערך (return) של החישוב\"}]}"
+   },
+   "parsed_ok": false,
+   "parsing_error": "1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...) של החישוב\"}]}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+   "kind": "components_is_string"
+  },
+  {
+   "exam": "bagrut_899371",
+   "terminal_id": "q4.ב.c5",
+   "scope": "q4.ב",
+   "model": "claude-sonnet-5",
+   "tool_call_args": {
+    "components": "{\"components\": [{\"evidence_span\": \"int count = 0;\", \"name_he\": \"אתחול משתנה הספירה\"}, {\"evidence_span\": \"count++;\", \"name_he\": \"ספירת השחקניות העומדות בתנאי\"}, {\"evidence_span\": \"string[] namesArr = new string[count];\", \"name_he\": \"הקצאת המערך בגודל count שנספר\"}]}"
+   },
+   "parsed_ok": false,
+   "parsing_error": "1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...ל count שנספר\"}]}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+   "kind": "components_is_string"
+  },
+  {
+   "exam": "bagrut_899371",
+   "terminal_id": "q5.א.c1",
+   "scope": "q5.א",
+   "model": "claude-sonnet-5",
+   "tool_call_args": {
+    "components": "{\"components\": [{\"evidence_span\": \"this.name\", \"name_he\": \"גישה ישירה לשם הסדנה הנוכחית\"}, {\"evidence_span\": \"other.GetName()\", \"name_he\": \"שימוש בפעולת Get לקבלת שם הסדנה האחרת\"}, {\"evidence_span\": \"return this.name == other.GetName();\", \"name_he\": \"החזרת תוצאת ההשוואה\"}]}"
+   },
+   "parsed_ok": false,
+   "parsing_error": "1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...את ההשוואה\"}]}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+   "kind": "components_is_string"
+  },
+  {
+   "exam": "hobby_tvshow",
+   "terminal_id": "q1.ב.c2",
+   "scope": "q1.ב",
+   "model": "claude-sonnet-5",
+   "tool_call_args": {
+    "components": "{\"components\": [{\"evidence_span\": \"לולאה עד שאין מקום במערך (כל עוד countHobbies קטן מ-length)\", \"name_he\": \"תנאי לולאה - מקום פנוי במערך\"}, {\"evidence_span\": \"או כל עוד המשתמש יענה Y או y לשאלה\", \"name_he\": \"תנאי לולאה - תשובת המשתמש\"}]}"
+   },
+   "parsed_ok": false,
+   "parsing_error": "1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...ובת המשתמש\"}]}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+   "kind": "components_is_string"
+  },
+  {
+   "exam": "hobby_tvshow",
+   "terminal_id": "q2.ב.c2",
+   "scope": "q2.ב",
+   "model": "claude-sonnet-5",
+   "tool_call_args": {
+    "components": "{\"components\": [{\"evidence_span\": \"for (int i = 0; i < sumRates.Length; i++)\\n        sumRates[i] = 0;\", \"name_he\": \"לולאה על מערך הצוברים\"}, {\"evidence_span\": \"sumRates[i] = 0;\", \"name_he\": \"איפוס כל תא במערך לאפס\"}]}"
+   },
+   "parsed_ok": false,
+   "parsing_error": "1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...במערך לאפס\"}]}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+   "kind": "components_is_string"
+  },
+  {
+   "exam": "hobby_tvshow",
+   "terminal_id": "q2.ב.c4.s3",
+   "scope": "q2.ב",
+   "model": "claude-sonnet-5",
+   "tool_call_args": {
+    "components": "{\"components\": [{\"evidence_span\": \"if (   sumRates[chl] > 0     // קיים דירוג כלשהו לערוץ הזה\", \"name_he\": \"בדיקת שימוש בערוץ (גדול מאפס)\"}, {\"evidence_span\": \"&& sumRates[chl] < minRate)\", \"name_he\": \"בדיקת קטן מהמינימום\"}]}"
+   },
+   "parsed_ok": false,
+   "parsing_error": "1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden... מהמינימום\"}]}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+   "kind": "components_is_string"
+  },
+  {
+   "exam": "hobby_tvshow",
+   "terminal_id": "q2.ג.c0.s1",
+   "scope": "q2.ג",
+   "model": "claude-sonnet-5",
+   "tool_call_args": {
+    "components": "{\"components\": [{\"evidence_span\": \"int lowChannel = LowestRateChannel(tr);\", \"name_he\": \"זימון הפעולה LowestRateChannel וקבלת הערוץ\"}, {\"evidence_span\": \"מציאת הערוץ בעל דירוג מינימלי\", \"name_he\": \"מציאת הערוץ עם הדירוג המינימלי (מימוש הלוגיקה)\"}]}"
+   },
+   "parsed_ok": false,
+   "parsing_error": "1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...ש הלוגיקה)\"}]}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+   "kind": "components_is_string"
+  }
+ ]
+}
