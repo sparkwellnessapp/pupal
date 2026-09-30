@@ -20,138 +20,118 @@
  ],
  "route_estimate_usd": 0.0872,
  "route": {
-  "cost_usd": 0.1731,
-  "calls": 23,
-  "failed": [
-   "q1.ב.c2",
-   "q2.ב.c2",
-   "q2.ב.c4.s3",
-   "q2.ג.c0.s1"
-  ],
-  "wall_s": 116.3,
+  "cost_usd": 0.1039,
+  "calls": 14,
+  "failed": [],
+  "wall_s": 53.1,
   "components": {
    "q1.א.c0": [
     "כותרת המחלקה",
     "הגדרת התכונות",
-    "כותרת הפעולה הבונה",
-    "גוף הפעולה הבונה - קביעת ערכי התכונות"
+    "הפעולה הבונה"
    ],
    "q1.א.c1": [
     "כותרת המחלקה",
     "הגדרת התכונות",
     "כותרת הפעולה הבונה",
-    "השמת ערכים לתכונות hobbyName ו-isSportive",
-    "השמת ערך התכונה minutes"
+    "השמת ערכי hobbyName ו-isSportive",
+    "השמת ערך minutes"
+   ],
+   "q1.ב.c2": [
+    "תנאי לולאה - מקום פנוי במערך",
+    "תנאי לולאה - תשובת המשתמש"
    ],
    "q1.ב.c4": [
     "יצירת עצם חדש מטיפוס Hobby",
-    "שמירה בתא המתאים במערך (hobbies[countHobbies])",
-    "ביצוע הפעולה בתוך הלולאה"
+    "שיבוץ העצם בתא המתאים במערך"
    ],
    "q1.ג.c3": [
-    "לולאה על המערך עד countHobbies (או עד length עם בדיקת null)",
-    "בדיקה בתוך הלולאה אם התחביב שונה מ-null (במקרה של לולאה עד length)"
+    "לולאה על מערך התחביבים בגבולות נכונים",
+    "בדיקת null בתוך הלולאה (כאשר נדרש)"
    ],
    "q2.א.c0": [
-    "קליטת פרמטרים ושיוך לתכונות name ו-channel",
-    "קביעת ערכי ברירת מחדל rate=0 ו-isOn=true"
+    "כותרת הפעולה הבונה עם פרמטרים נכונים",
+    "שיבוץ הפרמטרים לתכונות name ו-chl",
+    "קביעת rate=0 ו-isOn=true"
    ],
    "q2.א.c1": [
-    "קונסטרקטור - קליטת פרמטרים ושיוך name, channel",
-    "קונסטרקטור - קביעת ערכי ברירת מחדל rate=0, isOn=true",
-    "UpdateRate - לולאה לקליטת דירוג מכל צופה",
-    "UpdateRate - עדכון rate בהוספת הדירוג הנקלט"
+    "מימוש הפעולה הבונה TvShow",
+    "קביעת ערכי rate=0 ו-isOn=true בבנאי",
+    "מימוש הפעולה UpdateRate",
+    "קליטת דירוג עבור כל אחד מהצופים",
+    "הוספת הדירוג הנקלט לדירוג הקיים"
+   ],
+   "q2.ב.c2": [
+    "לולאה על מערך הצוברים",
+    "איפוס תא במערך"
    ],
    "q2.ב.c3.s0": [
-    "טווח הלולאה מ-0",
-    "התחלה מ-0 ולא מ-1",
-    "שימוש ב-Getter לגישה למערך",
-    "גבול עליון נכון של הלולאה"
+    "לולאה מתחילה מ-0",
+    "גישה למערך TvShows דרך Getter",
+    "גבול עליון נכון של הלולאה (קטן ממש מ-Length)"
    ],
    "q2.ב.c3.s3": [
     "בדיקת תא לא null",
-    "צבירה למערך הצוברים במקום הערוץ המתאים",
+    "צבירת הדירוג במערך הצוברים במקום הערוץ",
     "שימוש ב-GetRate ולא בגישה ישירה לתכונה"
    ],
+   "q2.ב.c4.s3": [
+    "בדיקת שימוש בערוץ (תא גדול מאפס)",
+    "בדיקת קטן מהמינימום הנוכחי"
+   ],
+   "q2.ג.c0.s1": [
+    "זימון הפעולה LowestRateChannel לשם קבלת הערוץ בעל הדירוג המינימלי",
+    "מימוש נכון של הפעולה LowestRateChannel המוצאת בפועל את הערוץ המינימלי"
+   ],
    "q2.ג.c0.s2": [
-    "לולאה מ-0",
-    "תנאי עצירה קטן ממש מ-Length",
-    "הורדת 1 אם אין getter לגישה למערך"
+    "תחילת הלולאה מ-0",
+    "תנאי עצירה קטן ממש מ-length",
+    "גישה למערך באמצעים ישירים ולא ע\"י getter (אם יש getter צריך להוריד 1)"
    ]
   },
   "latency_s": [
-   8.4,
-   7.2,
-   4.6,
-   3.0,
-   3.3,
-   3.8,
-   4.2,
+   5.4,
    4.3,
-   2.9,
-   4.7,
-   2.9,
-   9.6,
-   5.7,
-   6.0,
+   4.0,
+   2.0,
+   4.5,
    3.7,
-   6.1,
-   6.1,
-   5.6,
-   4.9,
-   3.6,
-   5.9,
-   4.8,
+   3.8,
+   3.1,
+   2.3,
+   2.8,
+   2.9,
+   5.2,
+   4.1,
    5.1
   ],
-  "flags": [
-   [
-    "router_failed",
-    "q1.ב.c2",
-    "unparseable response: 1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...ש"
-   ],
-   [
-    "router_failed",
-    "q2.ב.c2",
-    "unparseable response: 1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...ך"
-   ],
-   [
-    "router_failed",
-    "q2.ב.c4.s3",
-    "unparseable response: 1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...מ"
-   ],
-   [
-    "router_failed",
-    "q2.ג.c0.s1",
-    "unparseable response: 1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden... "
-   ]
-  ]
+  "flags": []
  },
  "segment_calls_planned": 6,
  "segment_chars": [
-  2166,
-  4020,
-  5432,
-  1697,
-  7057,
-  2322
+  2132,
+  3839,
+  5486,
+  1873,
+  6986,
+  2401
  ],
- "segment_estimate_usd": 0.0661,
+ "segment_estimate_usd": 0.0662,
  "segment": {
-  "cost_usd": 0.1187,
-  "calls": 8,
-  "clean_first_try": 4,
-  "retried": 2,
-  "slots": 90,
+  "cost_usd": 0.1288,
+  "calls": 9,
+  "clean_first_try": 3,
+  "retried": 3,
+  "slots": 93,
   "substituted": [
    "q1.ג.c0.k2",
    "q2.ב.c0.k1",
    "q2.ב.c1.k1",
    "q2.ב.c2.k1",
+   "q2.ב.c2.k2",
    "q2.ב.c3.s0.k1",
    "q2.ב.c3.s0.k2",
    "q2.ב.c3.s0.k3",
-   "q2.ב.c3.s0.k4",
    "q2.ב.c3.s0.t1",
    "q2.ב.c3.s0.t2",
    "q2.ב.c3.s0.t3",
@@ -168,30 +148,28 @@
    "q2.ב.c4.s1.k2",
    "q2.ב.c4.s2.k1",
    "q2.ב.c4.s3.k1",
+   "q2.ב.c4.s3.k2",
    "q2.ב.c4.s3.t1",
    "q2.ב.c4.s3.n1",
    "q2.ב.c4.s4.k1",
    "q2.ב.c4.s5.k1",
-   "q2.ב.c5.k1"
+   "q2.ב.c5.k1",
+   "q2.ג.c0.s3.k2",
+   "q2.ג.c0.s3.k3",
+   "q2.ג.c0.s3.k4"
   ],
   "notes_dropped": {
-   "q1.ב.c7.k1": "מותר להחזיר true רק אם נוסף לפחות עצם אחד כי הפתרון לדוגמה משתמש במשתנה addedAtLeastOne",
-   "q1.ג.c3.k2": "אם נעשתה לולאה עד countHobbies, בדיקת null אינה נדרשת כי countHobbies מבטיח שהתא תקף",
-   "q2.ג.c0.s2.k1": "מותר להשתמש ב-arr.Length כי הפתרון לדוגמה משתמש ב-arr.Length",
-   "q2.ג.c0.s2.k3": "מותר להשתמש ב-tr.GetArrShows() כי הפתרון לדוגמה משתמש בו"
+   "q1.ג.c3.k1": "מותר להשתמש בלולאה עד hobbies.length כי הפתרון לדוגמה משתמש בלולאה עד countHobbies",
+   "q2.ב.c4.s0.k2": "מותר לאתחל ל-int.MaxValue כי הפתרון לדוגמה עושה זאת",
+   "q2.ב.c4.s1.k2": "מותר לאתחל ל-1- כי הפתרון לדוגמה עושה זאת"
   },
   "validator_errors": [],
-  "expressible": "186/190",
-  "wall_s": 131.8,
-  "latency_p50_s": 17.3,
-  "latency_max_s": 26.2,
-  "plan_version": "hobby_tvshow/compiled-cba07765064b",
+  "expressible": "189/190",
+  "wall_s": 119.9,
+  "latency_p50_s": 10.9,
+  "latency_max_s": 22.6,
+  "plan_version": "hobby_tvshow/compiled-f0719c4d7471",
   "flags": [
-   [
-    "equivalence_note_unlicensed",
-    "q1.ב.c7",
-    "q1.ב.c7.k1: מותר להחזיר true רק אם נוסף לפחות עצם אחד כי הפתרון לדוגמה משתמש במשתנה addedAtL"
-   ],
    [
     "segmenter_substituted",
     "q1.ג.c0",
@@ -200,157 +178,167 @@
    [
     "equivalence_note_unlicensed",
     "q1.ג.c3",
-    "q1.ג.c3.k2: "
+    "q1.ג.c3.k1: מותר לעשות לולאה עד hobbies.length כי הרובריקה אומרת «או לולאה על מערך התחביבים "
    ],
    [
     "segmenter_substituted",
     "q2.ב.c0",
-    "q2.ב.c0.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c0.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c1",
-    "q2.ב.c1.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c1.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c2",
-    "q2.ב.c2.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c2.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c2",
+    "q2.ב.c2.k2: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s0",
-    "q2.ב.c3.s0.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s0.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s0",
-    "q2.ב.c3.s0.k2: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s0.k2: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s0",
-    "q2.ב.c3.s0.k3: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s0.k3: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s0",
-    "q2.ב.c3.s0.k4: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s0.t1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s0",
-    "q2.ב.c3.s0.t1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s0.t2: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s0",
-    "q2.ב.c3.s0.t2: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
-   ],
-   [
-    "segmenter_substituted",
-    "q2.ב.c3.s0",
-    "q2.ב.c3.s0.t3: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s0.t3: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s1",
-    "q2.ב.c3.s1.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s1.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s2",
-    "q2.ב.c3.s2.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s2.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s2",
-    "q2.ב.c3.s2.t1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s2.t1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s3",
-    "q2.ב.c3.s3.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s3.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s3",
-    "q2.ב.c3.s3.k2: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s3.k2: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s3",
-    "q2.ב.c3.s3.k3: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s3.k3: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c3.s3",
-    "q2.ב.c3.s3.t1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c3.s3.t1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c4.s0",
-    "q2.ב.c4.s0.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c4.s0.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c4.s0",
-    "q2.ב.c4.s0.k2: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c4.s0.k2: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c4.s1",
-    "q2.ב.c4.s1.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c4.s1.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c4.s1",
-    "q2.ב.c4.s1.k2: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c4.s1.k2: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c4.s2",
-    "q2.ב.c4.s2.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c4.s2.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c4.s3",
-    "q2.ב.c4.s3.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c4.s3.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c4.s3",
-    "q2.ב.c4.s3.t1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c4.s3.k2: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c4.s3",
-    "q2.ב.c4.s3.n1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c4.s3.t1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c4.s3",
+    "q2.ב.c4.s3.n1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c4.s4",
-    "q2.ב.c4.s4.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c4.s4.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c4.s5",
-    "q2.ב.c4.s5.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c4.s5.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
     "segmenter_substituted",
     "q2.ב.c5",
-    "q2.ב.c5.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.k4', 'q2.ב.c3.s0.t1', 'q2.ב.c"
+    "q2.ב.c5.k1: slot ids must be exactly ['q2.ב.c0.k1', 'q2.ב.c1.k1', 'q2.ב.c2.k1', 'q2.ב.c2.k2', 'q2.ב.c3.s0.k1', 'q2.ב.c3.s0.k2', 'q2.ב.c3.s0.k3', 'q2.ב.c3.s0.t1', 'q2.ב.c3.s"
    ],
    [
-    "equivalence_note_unlicensed",
-    "q2.ג.c0.s2",
-    "q2.ג.c0.s2.k1: מותר להשתמש ב-arr.Length כי הפתרון לדוגמה משתמש ב-arr.Length"
+    "segmenter_substituted",
+    "q2.ג.c0.s3",
+    "q2.ג.c0.s3.k2: q2.ג.c0.s3.k2: rubric_quote is not a verbatim span of the text you were shown (copy exactly; elide the middle with … if long); q2.ג.c0.s3.k3: rubric_quote is no"
    ],
    [
-    "equivalence_note_unlicensed",
-    "q2.ג.c0.s2",
-    "q2.ג.c0.s2.k3: מותר להשתמש ב-tr.GetArrShows() כי הפתרון לדוגמה משתמש בו"
+    "segmenter_substituted",
+    "q2.ג.c0.s3",
+    "q2.ג.c0.s3.k3: q2.ג.c0.s3.k2: rubric_quote is not a verbatim span of the text you were shown (copy exactly; elide the middle with … if long); q2.ג.c0.s3.k3: rubric_quote is no"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ג.c0.s3",
+    "q2.ג.c0.s3.k4: q2.ג.c0.s3.k2: rubric_quote is not a verbatim span of the text you were shown (copy exactly; elide the middle with … if long); q2.ג.c0.s3.k3: rubric_quote is no"
    ]
   ]
  }

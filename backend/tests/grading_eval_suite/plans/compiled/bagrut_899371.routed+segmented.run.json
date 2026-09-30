@@ -21,115 +21,99 @@
  ],
  "route_estimate_usd": 0.0804,
  "route": {
-  "cost_usd": 0.1976,
-  "calls": 28,
+  "cost_usd": 0.1029,
+  "calls": 15,
   "failed": [
-   "q1.ב.1.c0",
-   "q2.א.c4",
-   "q2.ב.c4",
-   "q4.א.c1",
-   "q4.ב.c5",
    "q5.א.c1"
   ],
-  "wall_s": 135.2,
+  "wall_s": 62.3,
   "components": {
+   "q1.ב.1.c0": [
+    "ציון הערך המוחזר הסופי",
+    "חישוב הסכום מהאיברים הנכונים",
+    "הצגת תהליך הבדיקה לכל איבר (check)"
+   ],
+   "q2.א.c4": [
+    "חישוב המספר הנגדי",
+    "אתחול משתנה found",
+    "לולאה פנימית עם תנאי עצירה מוקדם",
+    "בדיקת התאמה ועדכון found"
+   ],
+   "q2.ב.c4": [
+    "אופציה 1 - הנחת מערך מראה והשמה ישירה של הנגדי",
+    "אופציה 2 - חיפוש הנגדי בלולאה פנימית",
+    "מבנה הלולאה הפנימית והתנאי לעצירה",
+    "השמה נכונה במערך העזר וסימון שנמצא"
+   ],
    "q3.א.c4": [
-    "קריאת ערך ההטלה מהמערך",
+    "שליפת ערך ההטלה מהמערך",
     "קידום המונה באינדקס המתאים"
    ],
    "q3.ב.c4": [
-    "מציאת ערך השכיחות המקסימלית",
-    "הדפסת כל הערכים בעלי השכיחות המקסימלית"
+    "מציאת ערך השכיחות המקסימלית (מעבר על מערך המונים ואיתור המקסימום)",
+    "הדפסת כל האינדקסים בעלי השכיחות המקסימלית (טיפול בריבוי ערכים שווים)"
    ],
    "q3.ב.c5": [
-    "לולאה נפרדת הסורקת מאינדקס 1 עד 20 ומדפיסה לפי maxCount",
-    "תמיכה בריבוי שכיחים (הדפסת כל הערכים המתאימים, לא רק אחד)"
+    "לולאה נפרדת לסריקת האינדקסים (מ-1 עד 20)",
+    "הדפסת כל האינדקסים השווים ל-maxCount"
    ],
    "q3.ב.c6": [
-    "לולאה עם תנאי לבדיקת מונה שווה ל-0",
-    "הדפסת האינדקס (הערך) שלא הופיע",
-    "טווח ריצה נכון של הלולאה (1 עד 20)"
+    "הדפסת כותרת/פלט מתאים לערכים שלא הופיעו",
+    "לולאה הבודקת אילו אינדקסים (1 עד 20) בעלי מונה 0 ומדפיסה אותם"
+   ],
+   "q4.א.c1": [
+    "שימוש נכון במכפלה בין seasonsPlayed לבין seasonSalary",
+    "החזרת הערך (return) כתוצאת הפעולה"
+   ],
+   "q4.ב.c5": [
+    "אתחול משתנה ספירה",
+    "ספירת השחקניות העומדות בתנאי",
+    "הקצאת המערך בגודל count שנספר"
    ],
    "q5.ב.c2": [
-    "ריצה עד countWorkshops (לא עד Length)",
-    "עצירת הלולאה כאשר תנאי השילוב מתקיים"
+    "ריצה עד countWorkshops (ולא עד Length)",
+    "בדיקת שונה מ-Null במקרה של ריצה עד Length",
+    "עצירת הלולאה כשנמצא שילוב מתאים"
    ],
    "q5.ב.c5": [
     "בדיקה שהמערך אינו מלא",
-    "הוספת הסדנה החדשה למקום הראשון הפנוי",
+    "הוספת הסדנה החדשה למקום countWorkshops",
     "קידום המונה ב-1"
    ],
    "q6.c5": [
-    "אתחול משתני המקסימום",
-    "סריקה והשוואה לעדכון המונה הגבוה ביותר",
-    "שמירת האינדקס של המכינה המובילה"
+    "אתחול משתני המקסימום (מונה מקסימלי ומכינה מקסימלית)",
+    "סריקת מערך המונים בלולאה על כל המכינות",
+    "בדיקת תנאי ועדכון המקסימום והאינדקס המתאים",
+    "הדפסת המכינה עם המונה הגבוה ביותר"
    ],
    "q6.c8": [
-    "הכנסת מספר המכינה לתא הראשון בזוג",
+    "הכנסת מספר המכינה לתא הראשון",
     "הכנסת מספר התלמידים לתא העוקב",
     "קידום ידני של האינדקס ב-2"
    ]
   },
   "latency_s": [
-   5.6,
-   3.7,
-   4.8,
-   5.5,
-   9.7,
-   9.7,
-   6.2,
-   2.5,
-   4.2,
-   5.0,
-   5.8,
-   5.2,
-   4.6,
-   5.9,
-   2.9,
-   2.6,
-   2.3,
-   2.7,
+   5.7,
    4.1,
-   2.9,
-   4.8,
+   8.2,
    2.7,
-   4.4,
    4.5,
-   10.8,
-   4.8,
+   4.6,
    4.0,
-   3.2
+   3.5,
+   2.5,
+   2.5,
+   3.5,
+   2.8,
+   4.0,
+   5.7,
+   4.0
   ],
   "flags": [
    [
     "router_failed",
-    "q1.ב.1.c0",
-    "component 4: evidence_span is not a verbatim span of the text you were shown"
-   ],
-   [
-    "router_failed",
-    "q2.א.c4",
-    "unparseable response: 1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden... "
-   ],
-   [
-    "router_failed",
-    "q2.ב.c4",
-    "unparseable response: 1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...צ"
-   ],
-   [
-    "router_failed",
-    "q4.א.c1",
-    "unparseable response: 1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...ע"
-   ],
-   [
-    "router_failed",
-    "q4.ב.c5",
-    "unparseable response: 1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...ש"
-   ],
-   [
-    "router_failed",
     "q5.א.c1",
-    "unparseable response: 1 validation error for RouterResponse\ncomponents\n  Input should be a valid list [type=list_type, input_value='{\"components\": [{\"eviden...ר"
+    "component 1: evidence_span is not a verbatim span of the text you were shown"
    ]
   ]
  },
@@ -137,51 +121,85 @@
  "segment_chars": [
   654,
   960,
-  700,
+  840,
   775,
-  2543,
-  3698,
+  2778,
+  4149,
   2259,
-  3629,
-  865,
-  4710,
+  3670,
+  986,
+  4865,
   927,
-  5999,
-  4304
+  6055,
+  4393
  ],
- "segment_estimate_usd": 0.1159,
+ "segment_estimate_usd": 0.1179,
  "segment": {
-  "cost_usd": 0.1611,
-  "calls": 18,
-  "clean_first_try": 8,
-  "retried": 5,
-  "slots": 108,
+  "cost_usd": 0.1681,
+  "calls": 17,
+  "clean_first_try": 9,
+  "retried": 4,
+  "slots": 120,
   "substituted": [
+   "q2.ב.c0.k1",
+   "q2.ב.c1.k1",
+   "q2.ב.c2.k1",
+   "q2.ב.c2.k2",
+   "q2.ב.c2.k3",
+   "q2.ב.c3.k1",
+   "q2.ב.c3.k2",
+   "q2.ב.c3.k3",
+   "q2.ב.c3.k4",
+   "q2.ב.c4.k1",
+   "q2.ב.c4.k2",
+   "q2.ב.c4.k3",
+   "q2.ב.c4.k4",
+   "q2.ב.c5.k1",
+   "q4.ב.c0.k1",
+   "q4.ב.c1.k1",
+   "q4.ב.c2.k1",
    "q4.ב.c2.k2",
+   "q4.ב.c3.k1",
+   "q4.ב.c4.k1",
+   "q4.ב.c4.k2",
+   "q4.ב.c4.k3",
+   "q4.ב.c4.k4",
+   "q4.ב.c4.t1",
+   "q4.ב.c5.k1",
+   "q4.ב.c5.k2",
+   "q4.ב.c5.k3",
+   "q4.ב.c6.k1",
    "q4.ב.c6.k2",
+   "q4.ב.c7.k1",
+   "q4.ב.c7.k2",
+   "q4.ב.c7.k3",
+   "q4.ב.c7.k4",
+   "q4.ב.c7.k5",
+   "q4.ב.c7.t1",
+   "q4.ב.c7.t2",
+   "q4.ב.c8.k1",
    "q6.c1.k2"
   ],
   "notes_dropped": {
-   "q1.א.2.c0.k1": "מותר להסביר שהפעולה בודקת האם קיים איבר במערך שונה מ-x ושונה מ-1 שהוא מחלק של x, כי הפתרון לדוגמה מסביר זאת",
+   "q1.א.2.c0.k1": "מותר לתאר זאת כ'x מתחלק בו ללא שארית' כי הפתרון לדוגמה משתמש בניסוח זה",
    "q1.ב.2.c1.k1": "מותר לתאר את התנאי כ'איברים שיש להם מחלק אחר במערך' כי הפתרון לדוגמה מפרט זאת כ'לפחות מחלק אחד שנמצא בתוך המערך עצמו (למעט 1 והמספר עצמו)'",
-   "q2.א.c4.k1": "מותר להשתמש בשיטת חיפוש כמו בפתרון לדוגמה: int target = -arr[i]; bool found = false; for (int j = 0; j < arr.Length && found == false; j++) { if (arr[j] == target) { found = true; } }",
-   "q2.ב.c4.k1": "מותר לבצע חיפוש של המספר השלילי הנגדי בלולאה נוספת כי הרובריקה מציעה אופציה 2 לכך",
-   "q5.ב.c2.k1": "מותר להשתמש בלולאת while כי הפתרון לדוגמה מציג שתי אפשרויות: for ו-while",
-   "q5.ב.c2.k2": "מותר להשתמש ב-return true במקום סימון משתנה כי הפתרון לדוגמה (OPTION 1) עושה זאת",
-   "q5.ב.c5.k1": "מותר להשתמש ב-if (this.countWorkshops < this.workshops.Length) כי הפתרון לדוגמה (OPTION 2) עושה זאת",
-   "q6.c5.k1": "מותר להשתמש בערכים אחרים לאתחול כי הפתרון לדוגמה משתמש בערכים אלה"
+   "q2.א.c3.k1": "מותר להשתמש בלולאה for (int i = 0; i < arr.Length; i++) כי הפתרון לדוגמה משתמש בה",
+   "q5.א.c1.k1": "מותר להחזיר return this.name == other.GetName(); כי הפתרון לדוגמה עושה זאת",
+   "q5.ב.c2.k1": "מותר להשתמש בלולאת while או for כי הפתרון לדוגמה מציג שתי אפשרויות",
+   "q5.ב.c5.k1": "מותר לבדוק countWorkshops < 200 או countWorkshops < this.workshops.Length כי הפתרון לדוגמה מציג שתי אפשרויות",
+   "q6.c5.k1": "מותר להשתמש בשם משתנה שונה כי הפתרון לדוגמה משתמש בשם זה"
   },
   "validator_errors": [],
-  "expressible": "294/298",
-  "wall_s": 164.3,
-  "latency_p50_s": 9.3,
+  "expressible": "288/298",
+  "wall_s": 151.1,
+  "latency_p50_s": 10.6,
   "latency_max_s": 19.3,
-  "plan_version": "bagrut_899371/compiled-fe613fbb98de",
+  "plan_version": "bagrut_899371/compiled-8711fd53e16f",
   "flags": [
    [
     "equivalence_note_unlicensed",
     "q1.א.2.c0",
-    "q1.א.2.c0.k1: מותר להסביר שהפעולה בודקת האם קיים איבר במערך שונה מ-x ושונה מ-1 שהוא מחלק של x,"
+    "q1.א.2.c0.k1: מותר לתאר זאת כ'x מתחלק בו ללא שארית' כי הפתרון לדוגמה משתמש בניסוח זה"
    ],
    [
     "equivalence_note_unlicensed",
@@ -190,38 +208,208 @@
    ],
    [
     "equivalence_note_unlicensed",
-    "q2.א.c4",
-    "q2.א.c4.k1: מותר להשתמש בשיטת חיפוש כמו בפתרון לדוגמה: int target = -arr[i]; bool found = fa"
+    "q2.א.c3",
+    "q2.א.c3.k1: מותר להשתמש בלולאה for (int i = 0; i < arr.Length; i++) כי הפתרון לדוגמה משתמש ב"
    ],
    [
-    "equivalence_note_unlicensed",
+    "segmenter_substituted",
+    "q2.ב.c0",
+    "q2.ב.c0.k1: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c1",
+    "q2.ב.c1.k1: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c2",
+    "q2.ב.c2.k1: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c2",
+    "q2.ב.c2.k2: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c2",
+    "q2.ב.c2.k3: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c3",
+    "q2.ב.c3.k1: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c3",
+    "q2.ב.c3.k2: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c3",
+    "q2.ב.c3.k3: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c3",
+    "q2.ב.c3.k4: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
     "q2.ב.c4",
-    "q2.ב.c4.k1: מותר לבצע חיפוש של המספר השלילי הנגדי בלולאה נוספת כי הרובריקה מציעה אופציה 2 לכ"
+    "q2.ב.c4.k1: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c4",
+    "q2.ב.c4.k2: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c4",
+    "q2.ב.c4.k3: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c4",
+    "q2.ב.c4.k4: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q2.ב.c5",
+    "q2.ב.c5.k1: unparseable response: 1 validation error for SegmenterResponse\nentries\n  Input should be a valid list [type=list_type, input_value='[\\n  {\\n    \"slot_id\": \"...l"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c0",
+    "q4.ב.c0.k1: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c1",
+    "q4.ב.c1.k1: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
    ],
    [
     "segmenter_substituted",
     "q4.ב.c2",
-    "q4.ב.c2.k2: q4.ב.c2.k2: rubric_quote is not a verbatim span of the text you were shown (copy exactly; elide the middle with … if long); q4.ב.c6.k2: rubric_quote is not a ve"
+    "q4.ב.c2.k1: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c2",
+    "q4.ב.c2.k2: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c3",
+    "q4.ב.c3.k1: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c4",
+    "q4.ב.c4.k1: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c4",
+    "q4.ב.c4.k2: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c4",
+    "q4.ב.c4.k3: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c4",
+    "q4.ב.c4.k4: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c4",
+    "q4.ב.c4.t1: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c5",
+    "q4.ב.c5.k1: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c5",
+    "q4.ב.c5.k2: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c5",
+    "q4.ב.c5.k3: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
    ],
    [
     "segmenter_substituted",
     "q4.ב.c6",
-    "q4.ב.c6.k2: q4.ב.c2.k2: rubric_quote is not a verbatim span of the text you were shown (copy exactly; elide the middle with … if long); q4.ב.c6.k2: rubric_quote is not a ve"
+    "q4.ב.c6.k1: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c6",
+    "q4.ב.c6.k2: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c7",
+    "q4.ב.c7.k1: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c7",
+    "q4.ב.c7.k2: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c7",
+    "q4.ב.c7.k3: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c7",
+    "q4.ב.c7.k4: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c7",
+    "q4.ב.c7.k5: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c7",
+    "q4.ב.c7.t1: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c7",
+    "q4.ב.c7.t2: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "segmenter_substituted",
+    "q4.ב.c8",
+    "q4.ב.c8.k1: slot ids must be exactly ['q4.ב.c0.k1', 'q4.ב.c1.k1', 'q4.ב.c2.k1', 'q4.ב.c2.k2', 'q4.ב.c3.k1', 'q4.ב.c4.k1', 'q4.ב.c4.k2', 'q4.ב.c4.k3', 'q4.ב.c4.k4', 'q4.ב.c4"
+   ],
+   [
+    "equivalence_note_unlicensed",
+    "q5.א.c1",
+    "q5.א.c1.k1: מותר להחזיר return this.name == other.GetName(); כי הפתרון לדוגמה עושה זאת"
    ],
    [
     "equivalence_note_unlicensed",
     "q5.ב.c2",
-    "q5.ב.c2.k1: מותר להשתמש בלולאת while כי הפתרון לדוגמה מציג שתי אפשרויות: for ו-while"
-   ],
-   [
-    "equivalence_note_unlicensed",
-    "q5.ב.c2",
-    "q5.ב.c2.k2: מותר להשתמש ב-return true במקום סימון משתנה כי הפתרון לדוגמה (OPTION 1) עושה זאת"
+    "q5.ב.c2.k1: "
    ],
    [
     "equivalence_note_unlicensed",
     "q5.ב.c5",
-    "q5.ב.c5.k1: מותר להשתמש ב-if (this.countWorkshops < this.workshops.Length) כי הפתרון לדוגמה "
+    "q5.ב.c5.k1: "
    ],
    [
     "segmenter_substituted",
