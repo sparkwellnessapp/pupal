@@ -11,6 +11,7 @@ module, and the contract hash is computed here and nowhere else.
   claim_building                   CAS queued→building (+ a stale `building` under OD-W3)
   heartbeat                        updated_at while building
   mark_ready / mark_failed         the terminal transitions; ready supersedes the old ready
+  requeue_for_rebuild              a deliberate rebuild: ready → superseded + a new queued row, ONE txn
   ensure_plan_for_contract         the compile-time trigger's DB half (W-2)
 
 Sessions: the CAS/transition helpers take a session so a runner can keep them
@@ -169,6 +170,36 @@ async def mark_failed(db: AsyncSession, row_id: UUID, error_message: str,
         .values(status="failed", error_message=error_message[:2000], cost_usd=cost_usd,
                 updated_at=_now()))
     await db.commit()
+
+
+async def requeue_for_rebuild(db: AsyncSession, sha: str, *, rubric_id: Optional[UUID],
+                              contract_version: str) -> GradingPlanRecord:
+    """A DELIBERATE rebuild of a contract's plan (first use: D-13, owner-authorized
+    2026-09-30 — plans built while the router lost JSON-string payloads).
+
+    ONE transaction: the `ready` row → `superseded` (its plan_json untouched —
+    append-only, W-1), then a new `queued` row. The order matters: the partial unique
+    index admits one LIVE row per hash, and it is checked per statement. The build
+    then takes the ordinary path (`claim_building` → `mark_ready`), and while it
+    runs a grade finds a live builder and waits on it (OD-W3) instead of grading on
+    the superseded plan. Existing drafts are untouched: a draft carries its own copy
+    of the checks it was graded with. Refuses when the hash has no `ready` row (a
+    queued/building row is already a build; nothing to rebuild)."""
+    now = _now()
+    result = await db.execute(
+        update(GradingPlanRecord)
+        .where(GradingPlanRecord.contract_sha256 == sha, GradingPlanRecord.status == "ready")
+        .values(status="superseded", updated_at=now))
+    if result.rowcount != 1:
+        await db.rollback()
+        raise RuntimeError(f"grading_plans {sha[:12]}: no ready row to rebuild")
+    row = GradingPlanRecord(rubric_id=rubric_id, contract_version=contract_version,
+                            contract_sha256=sha, status="queued")
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    logger.info(f"plan_rebuild_requeued sha={sha[:12]} row_id={row.id} rubric_id={rubric_id}")
+    return row
 
 
 # ── the compile-time trigger (W-2), DB half ──────────────────────────────────

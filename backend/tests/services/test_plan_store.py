@@ -82,13 +82,14 @@ def test_queued_to_building_to_ready_and_a_rebuild_supersedes():
             # a rebuild: a NEW row; the old ready row is superseded, its plan_json untouched
             row2, created2 = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha)
             assert not created2 and row2.id == row.id, "one LIVE row per hash: ready blocks a new queued"
-        # supersede path: mark the ready row superseded by building a fresh one through the API
+        # the supersede path, through the store: ready → superseded + a new queued, ONE txn
         async with get_db_context() as db:
-            await db.execute(update(GradingPlanRecord).where(GradingPlanRecord.id == row.id)
-                             .values(status="superseded"))
-            await db.commit()
-            row3, created3 = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha)
-            assert created3
+            row3 = await plan_store.requeue_for_rebuild(db, sha, rubric_id=None, contract_version="v")
+            assert row3.status == "queued" and row3.id != row.id
+            assert (await db.get(GradingPlanRecord, row.id)).status == "superseded"
+            with pytest.raises(RuntimeError, match="no ready row"):
+                await plan_store.requeue_for_rebuild(db, sha, rubric_id=None, contract_version="v")
+            assert (await plan_store.find_live(db, sha)).id == row3.id, "the refusal changed nothing"
             assert await plan_store.claim_building(db, row3.id)
             await plan_store.mark_ready(db, row3.id, plan_json={"plan": 2}, plan_version="p2",
                                         skeleton_json=None, compiler_version="c", segmenter_model="m",
