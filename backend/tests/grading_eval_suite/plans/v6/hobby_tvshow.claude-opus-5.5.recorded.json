@@ -1,0 +1,1336 @@
+{
+ "config_hash": "9b7b40f09b97b36e379626d67b9a3be8f2d76d21ca20cf18b51bbc4673c744e7",
+ "cost_usd": 0.8327,
+ "exam": "hobby_tvshow",
+ "model_fallback_scopes": [],
+ "model_id": "claude-opus-5-5",
+ "model_key": "claude-opus-5.5",
+ "origins": {
+  "compiled": 0,
+  "fallback": 0,
+  "planner": 6,
+  "repaired": 0
+ },
+ "plan_hash": "d66c2d3da94d42708a3b89e31af0bf30a5b0741857a0ca9317337cf838fd45d7",
+ "planner_prompt_version": "planner-v6.1",
+ "scopes": {
+  "q1.א": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נכתבה כותרת למחלקה Hobby",
+         "component_ref": "n1",
+         "description_he": "כותרת המחלקה Hobby",
+         "equivalence_note_he": "כותרת עם public, עם internal או ללא מציין גישה תקפה",
+         "full_label_he": "נכתבה כותרת מחלקה בשם Hobby",
+         "partials": [],
+         "source_span": "כותרת ותכונות המחלקה Hobby"
+        },
+        {
+         "absent_label_he": "לא הוכרזו תכונות למחלקה",
+         "component_ref": "n2",
+         "description_he": "תכונות המחלקה Hobby: שם התחביב, האם ספורטיבי וזמן הפעילות בדקות",
+         "equivalence_note_he": "שם תכונת הזמן יכול להיות minutes כבשאלה או durationInMinutes כבפתרון, או שם אחר שמשמעותו ברורה",
+         "full_label_he": "הוכרזו שלוש התכונות: שם התחביב מטיפוס מחרוזת, isSportive מטיפוס בוליאני וזמן הפעילות בדקות מטיפוס שלם",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "הוכרזו רק חלק מהתכונות, או שאחת מהן הוכרזה מטיפוס שגוי"
+          }
+         ],
+         "source_span": "כותרת ותכונות המחלקה Hobby"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "הכותרת והתכונות נבדקות בנפרד, כי אפשר לכתוב כותרת ללא תכונות."
+       ],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נכתבה פעולה בונה בשם Hobby עם שלושת הפרמטרים",
+         "component_ref": "n1",
+         "description_he": "כותרת הפעולה הבונה Hobby עם שלושת הפרמטרים",
+         "equivalence_note_he": "שמות פרמטרים שונים תקפים כל עוד הטיפוסים והסדר תואמים",
+         "full_label_he": "נכתבה פעולה בונה בשם Hobby המקבלת מחרוזת, בוליאני ושלם",
+         "partials": [],
+         "source_span": "פעולה בונה Hobby(string hobbyName, bool isSportive, int minutes)"
+        },
+        {
+         "absent_label_he": "ערכי התכונות אינם נקבעים לפי הפרמטרים",
+         "component_ref": "n2",
+         "description_he": "קביעת ערכי התכונות לפי הפרמטרים",
+         "equivalence_note_he": "השמה באמצעות פעולות Set שקולה להשמה ישירה לתכונה",
+         "full_label_he": "כל אחת משלוש התכונות מקבלת את ערך הפרמטר המתאים",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "רק חלק מהתכונות מקבלות את ערך הפרמטר המתאים, ואחת או יותר אינה נקבעת"
+          }
+         ],
+         "source_span": "מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "בדיקת הטווח של זמן הפעילות אינה נדרשת, כפי שצוין בפתרון לדוגמה.",
+        "השמה של פרמטר לעצמו, כשלפרמטר ולתכונה אותו שם ואין הפניה לתכונת העצם, אינה קובעת את ערך התכונה."
+       ],
+       "terminal_id": "t2"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.0793,
+     "input_tokens": 10940,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1777,
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q1.ב": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין כותרת של פעולה פנימית בשם PopulateHobbies",
+         "component_ref": "k1",
+         "description_he": "כותרת הפעולה הפנימית PopulateHobbies",
+         "equivalence_note_he": null,
+         "full_label_he": "נכתבה כותרת של פעולה פנימית (לא סטטית) בשם PopulateHobbies, ללא פרמטרים",
+         "partials": [],
+         "source_span": "פעולה פנימית בשם PopulateHobbies"
+        },
+        {
+         "absent_label_he": "הטיפוס המוחזר בכותרת אינו bool או חסר",
+         "component_ref": "k2",
+         "description_he": "טיפוס מוחזר bool",
+         "equivalence_note_he": null,
+         "full_label_he": "הטיפוס המוחזר בכותרת הוא bool",
+         "partials": [],
+         "source_span": "טיפוס מוחזר bool"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין בדיקה לפני הלולאה אם המערך מלא, או שבמקרה זה לא מוחזר false",
+         "component_ref": "k3",
+         "description_he": "לפני הלולאה - לבדוק אם המערך מלא, להחזיר false",
+         "equivalence_note_he": "החזרת false בסוף הפעולה כשלא נוסף אף תחביב, כאשר הלולאה כלל לא מתבצעת במערך מלא, שקולה",
+         "full_label_he": "לפני הלולאה נבדק אם countHobbies הגיע לגודל המערך, ובמקרה זה הפעולה מחזירה false",
+         "partials": [],
+         "source_span": "לפני הלולאה - לבדוק אם המערך מלא, להחזיר false"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t2"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה, או שהלולאה אינה נעצרת כשאין מקום במערך",
+         "component_ref": "n1",
+         "description_he": "לולאה עד שאין מקום במערך",
+         "equivalence_note_he": "יציאה מהלולאה באמצעות break כשהמערך מתמלא שקולה",
+         "full_label_he": "הלולאה ממשיכה רק כל עוד countHobbies קטן מגודל המערך",
+         "partials": [],
+         "source_span": "לולאה עד שאין מקום במערך (כל עוד countHobbies קטן מ-length)"
+        },
+        {
+         "absent_label_he": "תשובת המשתמש אינה משפיעה על המשך הלולאה",
+         "component_ref": "n2",
+         "description_he": "הלולאה ממשיכה כל עוד המשתמש עונה Y או y לשאלה",
+         "equivalence_note_he": "המשך כל עוד התשובה היא Y או y, או עצירה כשהתשובה היא N או n — שתי הצורות מתקבלות; גם יציאה באמצעות break",
+         "full_label_he": "הלולאה נעצרת כאשר המשתמש עונה N או n, וממשיכה אחרת",
+         "partials": [],
+         "source_span": "כל עוד המשתמש יענה Y או y לשאלה"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "שני תנאי ההמשך פועלים יחד: הלולאה נעצרת כאשר נגמר המקום או כאשר המשתמש מבקש להפסיק."
+       ],
+       "terminal_id": "t3"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "שם התחביב אינו נקלט בתוך הלולאה",
+         "component_ref": "k5",
+         "description_he": "בתוך הלולאה קליטה של שם התחביב (name)",
+         "equivalence_note_he": null,
+         "full_label_he": "בתוך הלולאה נקלט מהמשתמש שם התחביב",
+         "partials": [],
+         "source_span": "name"
+        },
+        {
+         "absent_label_he": "הנתון isSportive אינו נקלט בתוך הלולאה",
+         "component_ref": "k6",
+         "description_he": "בתוך הלולאה קליטה של isSportive",
+         "equivalence_note_he": "קליטת תו או מחרוזת והמרתם לערך בוליאני שקולה",
+         "full_label_he": "בתוך הלולאה נקלט מהמשתמש ערך בוליאני האם התחביב ספורטיבי",
+         "partials": [],
+         "source_span": "isSportive"
+        },
+        {
+         "absent_label_he": "הנתון minutes אינו נקלט בתוך הלולאה",
+         "component_ref": "k7",
+         "description_he": "בתוך הלולאה קליטה של minutes",
+         "equivalence_note_he": null,
+         "full_label_he": "בתוך הלולאה נקלט מהמשתמש מספר שלם של דקות",
+         "partials": [],
+         "source_span": "minutes"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t4"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נוצר בתוך הלולאה עצם חדש מטיפוס Hobby",
+         "component_ref": "n1",
+         "description_he": "יצירה של עצם חדש מטיפוס Hobby",
+         "equivalence_note_he": "יצירת העצם במשתנה עזר ואחר כך השמתו במערך שקולה",
+         "full_label_he": "בתוך הלולאה נוצר עצם חדש מטיפוס Hobby מהנתונים שנקלטו",
+         "partials": [],
+         "source_span": "יצירה של עצם חדש מטיפוס Hobby"
+        },
+        {
+         "absent_label_he": "העצם אינו נשמר בתא הפנוי הראשון במערך",
+         "component_ref": "n2",
+         "description_he": "העצם נשמר בתא המתאים במערך (hobbies[countHobbies])",
+         "equivalence_note_he": null,
+         "full_label_he": "העצם החדש נשמר בתא hobbies[countHobbies]",
+         "partials": [],
+         "source_span": "בתא המתאים במערך (hobbies[countHobbies])"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [],
+       "terminal_id": "t5"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "countHobbies אינו מקודם בתוך הלולאה",
+         "component_ref": "k9",
+         "description_he": "בתוך הלולאה קידום countHobbies",
+         "equivalence_note_he": "קידום בתוך האינדקס, כמו hobbies[countHobbies++], שקול",
+         "full_label_he": "countHobbies גדל באחד בכל הוספת תחביב בתוך הלולאה",
+         "partials": [],
+         "source_span": "בתוך הלולאה קידום countHobbies"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t6"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין שאלה למשתמש האם להמשיך, או שהשאלה מוצגת בלי לבדוק האם יש עדיין מקום",
+         "component_ref": "k10",
+         "description_he": "בדיקה אם עדיין יש מקום ושאלה למשתמש האם להמשיך",
+         "equivalence_note_he": null,
+         "full_label_he": "השאלה האם להמשיך מוצגת למשתמש רק לאחר בדיקה שעדיין יש מקום במערך",
+         "partials": [],
+         "source_span": "בדיקה אם עדיין יש מקום ושאלה למשתמש האם להמשיך"
+        },
+        {
+         "absent_label_he": "תשובת המשתמש אינה נקלטת",
+         "component_ref": "k11",
+         "description_he": "קליטת תשובה",
+         "equivalence_note_he": "קליטת התשובה כתו בודד או כמחרוזת מתקבלת",
+         "full_label_he": "תשובת המשתמש לשאלה נקלטת למשתנה",
+         "partials": [],
+         "source_span": "קליטת תשובה"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [
+        "הצגת ההודעה בלי לבדוק האם יש עדיין מקום אינה מזכה ברכיב הבדיקה והשאלה."
+       ],
+       "terminal_id": "t7"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אחרי הלולאה לא מוחזר true",
+         "component_ref": "k12",
+         "description_he": "מחוץ ללולאה - להחזיר ערך true",
+         "equivalence_note_he": "החזרת משתנה דגל שערכו true כאשר נוסף לפחות תחביב אחד שקולה",
+         "full_label_he": "אחרי הלולאה הפעולה מחזירה true כאשר נוסף לפחות תחביב אחד",
+         "partials": [],
+         "source_span": "מחוץ ללולאה - להחזיר ערך true"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t8"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.136628,
+     "input_tokens": 13042,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 4223,
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q1.ג": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [
+      {
+       "disposition": "fault",
+       "marker_id": "m1",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m2",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m3",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m4",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m5",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      }
+     ],
+     "faults": [
+      {
+       "anchor_terminal_id": "t4",
+       "description_he": "לולאה עד length ללא בדיקה שהתא שונה מ-null",
+       "options": [
+        {
+         "label_he": "הלולאה רצה עד hobbies.length ובתוכה לא נבדק שהתא שונה מ-null",
+         "marker_id": "m1"
+        }
+       ],
+       "requires_component_ref": "k7"
+      },
+      {
+       "anchor_terminal_id": "t7",
+       "description_he": "טעות בחישוב המתמטי של ממוצע התחביבים הספורטיביים",
+       "options": [
+        {
+         "label_he": "בחישוב ממוצע התחביבים הספורטיביים נפלה טעות מתמטית",
+         "marker_id": "m2"
+        }
+       ],
+       "requires_component_ref": "k15"
+      },
+      {
+       "anchor_terminal_id": "t7",
+       "description_he": "לא הומר לממשי בחישוב ממוצע התחביבים הספורטיביים",
+       "options": [
+        {
+         "label_he": "החלוקה בחישוב ממוצע התחביבים הספורטיביים מתבצעת בין שלמים, ללא המרה לממשי",
+         "marker_id": "m3"
+        }
+       ],
+       "requires_component_ref": "k15"
+      },
+      {
+       "anchor_terminal_id": "t8",
+       "description_he": "טעות בחישוב המתמטי של ממוצע התחביבים הלא ספורטיביים",
+       "options": [
+        {
+         "label_he": "בחישוב ממוצע התחביבים הלא ספורטיביים נפלה טעות מתמטית",
+         "marker_id": "m4"
+        }
+       ],
+       "requires_component_ref": "k17"
+      },
+      {
+       "anchor_terminal_id": "t8",
+       "description_he": "לא הומר לממשי בחישוב ממוצע התחביבים הלא ספורטיביים",
+       "options": [
+        {
+         "label_he": "החלוקה בחישוב ממוצע התחביבים הלא ספורטיביים מתבצעת בין שלמים, ללא המרה לממשי",
+         "marker_id": "m5"
+        }
+       ],
+       "requires_component_ref": "k17"
+      }
+     ],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין כותרת של פעולה פנימית בשם PrintAverages",
+         "component_ref": "k1",
+         "description_he": "כותרת הפעולה הפנימית PrintAverages",
+         "equivalence_note_he": null,
+         "full_label_he": "נכתבה כותרת של פעולה פנימית בשם PrintAverages במחלקה SchoolHobbies, ללא פרמטרים",
+         "partials": [],
+         "source_span": "פעולה פנימית בשם PrintAverages (סה\"כ 16)כותרת הפעולה"
+        },
+        {
+         "absent_label_he": "הפעולה אינה מוגדרת כ-void",
+         "component_ref": "k2",
+         "description_he": "טיפוס ההחזרה void",
+         "equivalence_note_he": null,
+         "full_label_he": "הפעולה מוגדרת כ-void",
+         "partials": [],
+         "source_span": "void"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא הוגדרו מונים לכמות החוגים",
+         "component_ref": "k3",
+         "description_he": "יצירת שני מונים לכמות החוגים הספורטיביים והלא ספורטיביים",
+         "equivalence_note_he": null,
+         "full_label_he": "הוגדרו שני מונים: אחד לחוגים הספורטיביים ואחד לחוגים הלא ספורטיביים",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "הוגדר מונה לסוג אחד בלבד של חוגים, והמונה לסוג השני חסר"
+          }
+         ],
+         "source_span": "יצירת 2 מונה לכמות החוגים בספורטיבים והלא ספורטיבים"
+        },
+        {
+         "absent_label_he": "המונים לא אותחלו באפס",
+         "component_ref": "k4",
+         "description_he": "אתחול שני המונים באפס",
+         "equivalence_note_he": null,
+         "full_label_he": "שני המונים אותחלו באפס",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "רק אחד מהמונים אותחל באפס"
+          }
+         ],
+         "source_span": "אתחולם ב-0"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t2"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא הוגדרו צוברים לדקות החוגים",
+         "component_ref": "k5",
+         "description_he": "יצירת שני צוברים לדקות של החוגים הספורטיביים והלא ספורטיביים",
+         "equivalence_note_he": "צובר מטיפוס ממשי שקול",
+         "full_label_he": "הוגדרו שני צוברים: אחד לדקות החוגים הספורטיביים ואחד לדקות החוגים הלא ספורטיביים",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "הוגדר צובר לסוג אחד בלבד של חוגים, והצובר לסוג השני חסר"
+          }
+         ],
+         "source_span": "יצירת 2 צוברים לדקות של החוגים הספורטיבים והלא ספורטיבים"
+        },
+        {
+         "absent_label_he": "הצוברים לא אותחלו באפס",
+         "component_ref": "k6",
+         "description_he": "אתחול שני הצוברים באפס",
+         "equivalence_note_he": null,
+         "full_label_he": "שני הצוברים אותחלו באפס",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "רק אחד מהצוברים אותחל באפס"
+          }
+         ],
+         "source_span": "אתחולם ב-0"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t3"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה העוברת על מערך התחביבים",
+         "component_ref": "k7",
+         "description_he": "לולאה על מערך התחביבים",
+         "equivalence_note_he": "לולאת foreach על המערך נחשבת לולאה עד hobbies.length",
+         "full_label_he": "לולאה העוברת על תאי מערך התחביבים מתחילתו ועד countHobbies, או עד hobbies.length",
+         "partials": [],
+         "source_span": "לולאה על מערך התחביבים מ-0 עד countHobbiesאו לולאה על מערך התחביבים עד hobbies.length"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [
+        "לולאה עד countHobbies אינה מחייבת בדיקה שהתא שונה מ-null."
+       ],
+       "terminal_id": "t4"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נבדק בתוך הלולאה האם החוג הנוכחי ספורטיבי",
+         "component_ref": "k8",
+         "description_he": "בתוך הלולאה, בדיקה האם החוג הנוכחי ספורטיבי",
+         "equivalence_note_he": "בדיקה באמצעות פעולת Get של התכונה isSportive, בכל שם התואם את התכונה, תקפה",
+         "full_label_he": "בתוך הלולאה נבדק האם החוג הנוכחי ספורטיבי",
+         "partials": [],
+         "source_span": "בתוך הלולאה, בדיקת האם החוג הנוכחי ספורטיבי"
+        },
+        {
+         "absent_label_he": "דקות החוג הספורטיבי אינן נצברות",
+         "component_ref": "k9",
+         "description_he": "צבירה של דקות החוג הספורטיבי",
+         "equivalence_note_he": "קבלת הדקות בפעולת Get של התכונה minutes, או בשם GetDurationInMinutes כבפתרון, תקפה",
+         "full_label_he": "דקות החוג הספורטיבי הנוכחי נוספות לצובר של החוגים הספורטיביים",
+         "partials": [],
+         "source_span": "צבירה של הדקות שלו"
+        },
+        {
+         "absent_label_he": "המונה של החוגים הספורטיביים אינו מקודם",
+         "component_ref": "k10",
+         "description_he": "קידום המונה של החוגים הספורטיביים",
+         "equivalence_note_he": null,
+         "full_label_he": "המונה של החוגים הספורטיביים מקודם עבור החוג הספורטיבי הנוכחי",
+         "partials": [],
+         "source_span": "קידום המונה שלו"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t5"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין טיפול במקרה שהחוג הנוכחי לא ספורטיבי",
+         "component_ref": "k11",
+         "description_he": "בתוך הלולאה, טיפול במקרה שהחוג הנוכחי לא ספורטיבי",
+         "equivalence_note_he": "בדיקה מפורשת שהחוג אינו ספורטיבי שקולה ל-else",
+         "full_label_he": "בתוך הלולאה יש ענף else, או בדיקה מפורשת, למקרה שהחוג הנוכחי לא ספורטיבי",
+         "partials": [],
+         "source_span": "בתוך הלולאה, אם החוג הנוכחי לא ספורטיבי (else)"
+        },
+        {
+         "absent_label_he": "דקות החוג הלא ספורטיבי אינן נצברות",
+         "component_ref": "k12",
+         "description_he": "צבירה של דקות החוג הלא ספורטיבי",
+         "equivalence_note_he": "קבלת הדקות בפעולת Get של התכונה minutes, או בשם GetDurationInMinutes כבפתרון, תקפה",
+         "full_label_he": "דקות החוג הלא ספורטיבי הנוכחי נוספות לצובר של החוגים הלא ספורטיביים",
+         "partials": [],
+         "source_span": "צבירה של הדקות שלו"
+        },
+        {
+         "absent_label_he": "המונה של החוגים הלא ספורטיביים אינו מקודם",
+         "component_ref": "k13",
+         "description_he": "קידום המונה של החוגים הלא ספורטיביים",
+         "equivalence_note_he": null,
+         "full_label_he": "המונה של החוגים הלא ספורטיביים מקודם עבור החוג הלא ספורטיבי הנוכחי",
+         "partials": [],
+         "source_span": "קידום המונה שלו"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t6"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נמנעה חלוקה באפס בחישוב ממוצע התחביבים הספורטיביים",
+         "component_ref": "k14",
+         "description_he": "מחוץ ללולאה, בדיקה האם המונה של התחביבים הספורטיביים שונה מאפס",
+         "equivalence_note_he": "בדיקה שהמונה גדול מאפס שקולה",
+         "full_label_he": "לפני החלוקה נבדק שהמונה של התחביבים הספורטיביים שונה מאפס, כך שנמנעת חלוקה באפס",
+         "partials": [],
+         "source_span": "מחוץ ללולאה, בדיקה האם המונה של התחביבים הספורטיבים שונה מאפס"
+        },
+        {
+         "absent_label_he": "ממוצע התחביבים הספורטיביים לא חושב או לא הודפס",
+         "component_ref": "k15",
+         "description_he": "חישוב ממוצע התחביבים הספורטיביים והדפסתו",
+         "equivalence_note_he": null,
+         "full_label_he": "הממוצע חושב מהצובר של הדקות הספורטיביות ומהמונה שלהן, והודפס",
+         "partials": [],
+         "source_span": "חישוב הממוצע והדפסה"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [
+        "צובר או מונה מטיפוס ממשי, הגורם לחלוקה ממשית, נחשב המרה לממשי."
+       ],
+       "terminal_id": "t7"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נמנעה חלוקה באפס בחישוב ממוצע התחביבים הלא ספורטיביים",
+         "component_ref": "k16",
+         "description_he": "מחוץ ללולאה, בדיקה האם המונה של התחביבים הלא ספורטיביים שונה מאפס",
+         "equivalence_note_he": "בדיקה שהמונה גדול מאפס שקולה",
+         "full_label_he": "לפני החלוקה נבדק שהמונה של התחביבים הלא ספורטיביים שונה מאפס, כך שנמנעת חלוקה באפס",
+         "partials": [],
+         "source_span": "מחוץ ללולאה,בדיקה האם המונה של התחביבים הלא-הספורטיבים שונה מאפס"
+        },
+        {
+         "absent_label_he": "ממוצע התחביבים הלא ספורטיביים לא חושב או לא הודפס",
+         "component_ref": "k17",
+         "description_he": "חישוב ממוצע התחביבים הלא ספורטיביים והדפסתו",
+         "equivalence_note_he": null,
+         "full_label_he": "הממוצע חושב מהצובר של הדקות הלא ספורטיביות ומהמונה שלהן, והודפס",
+         "partials": [],
+         "source_span": "חישוב הממוצע והדפסה"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [
+        "צובר או מונה מטיפוס ממשי, הגורם לחלוקה ממשית, נחשב המרה לממשי."
+       ],
+       "terminal_id": "t8"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.184664,
+     "input_tokens": 13471,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 6539,
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q2.א": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "התכונה name אינה מקבלת את ערך הפרמטר name",
+         "component_ref": "n1",
+         "description_he": "קביעת שם התכנית לפי הפרמטר name",
+         "equivalence_note_he": "השמה באמצעות פעולת Set של התכונה שקולה",
+         "full_label_he": "התכונה name מקבלת את ערך הפרמטר name",
+         "partials": [],
+         "source_span": "פעולה הבונה תוכנית טלוויזיה ששמה name"
+        },
+        {
+         "absent_label_he": "התכונה chl אינה מקבלת את ערך הפרמטר channel, או שההשמה נעשית ליעד שאינו תכונה מוגדרת של המחלקה",
+         "component_ref": "n2",
+         "description_he": "קביעת ערוץ התכנית לפי הפרמטר channel",
+         "equivalence_note_he": "השמה באמצעות פעולת Set של התכונה שקולה",
+         "full_label_he": "התכונה chl מקבלת את ערך הפרמטר channel",
+         "partials": [],
+         "source_span": "והיא משודרת בערוץ הטלויזיה channel"
+        },
+        {
+         "absent_label_he": "התכונה rate אינה נקבעת לאפס",
+         "component_ref": "n3",
+         "description_he": "קביעת התכונה rate להיות אפס",
+         "equivalence_note_he": "הסתמכות על ערך ברירת המחדל של שלם, ללא השמה מפורשת, אינה מקיימת את הדרישה רק אם אין השמה כלל; השמה באמצעות פעולת Set שקולה",
+         "full_label_he": "התכונה rate מקבלת את הערך אפס",
+         "partials": [],
+         "source_span": "הפעולה הבונה קובעת את התכונה rate להיות אפס (0)"
+        },
+        {
+         "absent_label_he": "התכונה isOn אינה נקבעת ל-true",
+         "component_ref": "n4",
+         "description_he": "קביעת התכונה isOn להיות אמת",
+         "equivalence_note_he": "השמה באמצעות פעולת Set של התכונה שקולה",
+         "full_label_he": "התכונה isOn מקבלת את הערך true",
+         "partials": [],
+         "source_span": "ואת התכונה isOn להיות אמת (true)"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "כל אחת מארבע התכונות נבדקת בנפרד, לפי תיאור הפעולה הבונה בשאלה."
+       ],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה התלויה במספר הצופים numViewers",
+         "component_ref": "n1",
+         "description_he": "לולאה העוברת על כל אחד מהצופים",
+         "equivalence_note_he": "כל צורת לולאה (for או while) וכל טווח מונה המתבצע numViewers פעמים שקולים",
+         "full_label_he": "לולאה המתבצעת בדיוק numViewers פעמים",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "יש לולאה התלויה ב-numViewers, אך היא מתבצעת פעם אחת יותר או פחות ממספר הצופים"
+          }
+         ],
+         "source_span": "עבור כל צופה"
+        },
+        {
+         "absent_label_he": "לא נקלט דירוג מהקלט בתוך הלולאה",
+         "component_ref": "n2",
+         "description_he": "קליטת הדירוג של כל צופה",
+         "equivalence_note_he": "הדפסת הודעה לפני הקליטה אינה נדרשת",
+         "full_label_he": "בתוך הלולאה נקלט דירוג מהקלט בכל סיבוב",
+         "partials": [],
+         "source_span": "הפעולה קולטת"
+        },
+        {
+         "absent_label_he": "הדירוגים שנקלטו אינם נצברים לסכום",
+         "component_ref": "n3",
+         "description_he": "צבירת הדירוגים שנקלטו",
+         "equivalence_note_he": "צבירה במשתנה עזר מקומי או ישירות בתכונה rate שקולות",
+         "full_label_he": "כל דירוג שנקלט מתווסף לסכום מצטבר",
+         "partials": [],
+         "source_span": "ומוסיפה את הדירוג שלו"
+        },
+        {
+         "absent_label_he": "התכונה rate אינה מתעדכנת בדירוגים שנקלטו",
+         "component_ref": "n4",
+         "description_he": "עדכון התכונה rate להיות סכום הדירוגים שנקלטו אי פעם, בתוספת לדירוג הקיים",
+         "equivalence_note_he": "הוספת סכום מקומי ל-rate אחרי הלולאה, או עדכון באמצעות פעולות Get/Set, שקולים",
+         "full_label_he": "התכונה rate מתעדכנת כך שהדירוגים החדשים מתווספים לערך שהיה בה קודם",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "התכונה rate מתעדכנת בסכום הדירוגים שנקלטו בקריאה הנוכחית, אך הערך הקודם שלה נמחק (איפוס או דריסה)"
+          }
+         ],
+         "source_span": "לדירוג הקיים לתכנית הטלוויזיה. הפעולה מעדכנת את התכונה rate להיות סכום הדירוגים שנקלטו אי פעם מכל הצופים המדרגים את התוכנית"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "כותרת הפעולה הבונה המופיעה בסוף טקסט הקריטריון נקראה כהעתקה מהקריטריון הקודם; הקריטריון בודק את הפעולה UpdateRate בלבד.",
+        "צבירה נכונה של הדירוגים שאינה נשמרת בתכונה rate מזכה בצבירה בלבד, והחסר נבדק פעם אחת, בעדכון התכונה."
+       ],
+       "terminal_id": "t2"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.1113,
+     "input_tokens": 11220,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 3321,
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q2.ב": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [
+      {
+       "disposition": "fault",
+       "marker_id": "m1",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m2",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m3",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m4",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m5",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      },
+      {
+       "disposition": "fault",
+       "marker_id": "m6",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      }
+     ],
+     "faults": [
+      {
+       "anchor_terminal_id": "t4",
+       "description_he": "הלולאה על מערך התוכניות מתחילה מ-1 במקום מ-0",
+       "options": [
+        {
+         "label_he": "הלולאה מתחילה מ-1 במקום מ-0, והתא הראשון אינו נסרק",
+         "marker_id": "m1"
+        }
+       ],
+       "requires_component_ref": "k4"
+      },
+      {
+       "anchor_terminal_id": "t4",
+       "description_he": "גישה למערך התוכניות בלי Getter",
+       "options": [
+        {
+         "label_he": "ניגשו למערך התוכניות ישירות דרך התכונה, בלי GetArrShows",
+         "marker_id": "m2"
+        }
+       ],
+       "requires_component_ref": "k4"
+      },
+      {
+       "anchor_terminal_id": "t4",
+       "description_he": "טעות בגבול העליון של הלולאה על מערך התוכניות",
+       "options": [
+        {
+         "label_he": "הגבול העליון של הלולאה שגוי (למשל קטן או שווה ל-length, או גבול שאינו אורך המערך)",
+         "marker_id": "m3"
+        }
+       ],
+       "requires_component_ref": "k4"
+      },
+      {
+       "anchor_terminal_id": "t6",
+       "description_he": "גישה ישירה לתכונה chl",
+       "options": [
+        {
+         "label_he": "ניגשו ישירות לתכונה chl במקום GetChl",
+         "marker_id": "m4"
+        }
+       ],
+       "requires_component_ref": "k6"
+      },
+      {
+       "anchor_terminal_id": "t7",
+       "description_he": "גישה ישירה לתכונה rate",
+       "options": [
+        {
+         "label_he": "ניגשו ישירות לתכונה rate במקום GetRate",
+         "marker_id": "m5"
+        }
+       ],
+       "requires_component_ref": "n1"
+      },
+      {
+       "anchor_terminal_id": "t11",
+       "description_he": "חיפוש המקסימום במקום המינימום",
+       "options": [
+        {
+         "label_he": "החיפוש מוצא את הדירוג הגבוה ביותר במקום הנמוך ביותר, ושאר הלוגיקה בסדר",
+         "marker_id": "m6"
+        }
+       ],
+       "requires_component_ref": "k13"
+      }
+     ],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין כותרת פעולה LowestRateChannel, או שהכותרת אינה מקבלת TvRate ואינה מחזירה מספר ערוץ",
+         "component_ref": "k1",
+         "description_he": "כותרת הפעולה החיצונית LowestRateChannel",
+         "equivalence_note_he": "שם אחר לפרמטר תקף",
+         "full_label_he": "כותרת פעולה סטטית בשם LowestRateChannel המקבלת אובייקט מטיפוס TvRate ומחזירה מספר שלם (int)",
+         "partials": [],
+         "source_span": "פעולה חיצונית LowestRateChannel כותרת הפעולה"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא הוגדר מערך צוברים מטיפוס int עבור הערוצים",
+         "component_ref": "k2",
+         "description_he": "הגדרת מערך צוברים int לכל 100 הערוצים",
+         "equivalence_note_he": "מערך בגודל 100 שבו ערוץ chl נשמר בעקביות בתא chl-1 שקול",
+         "full_label_he": "מוגדר ונוצר מערך צוברים מטיפוס int בגודל 101, כך שלכל ערוץ 1-100 יש תא משלו",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "הוגדר מערך צוברים int, אך גודלו אינו מכסה את כל הערוצים 1-100 לפי אופן הגישה אליו"
+          }
+         ],
+         "source_span": "הגדרת מערך צוברים int לכל 100 הערוצים (ערוצים 1-100, המערך אמור להיות בגודל 101)"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "מערך בגודל 100 עם היסט עקבי של אחד בין מספר הערוץ לאינדקס התקבל כמכסה את כל הערוצים."
+       ],
+       "terminal_id": "t2"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה המאפסת את תאי מערך הצוברים",
+         "component_ref": "k3",
+         "description_he": "לולאה על מערך הצוברים לאיפוס המערך",
+         "equivalence_note_he": null,
+         "full_label_he": "לולאה העוברת על תאי מערך הצוברים ומציבה 0 בכל תא",
+         "partials": [],
+         "source_span": "לולאה על מערך הצוברים לאיפוס המערך"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t3"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה העוברת על מערך התוכניות",
+         "component_ref": "k4",
+         "description_he": "הגדרת לולאה על מערך התוכניות",
+         "equivalence_note_he": "לולאה העוצרת בתא הריק הראשון, בהתאם להנחה שהמערך מלא עד המקום הראשון הפנוי, שקולה",
+         "full_label_he": "לולאה העוברת על תאי מערך התוכניות של אובייקט ה-TvRate",
+         "partials": [],
+         "source_span": "הגדרת לולאה על מערך התוכניות TvShows"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [
+        "לולאה שעוצרת בתא הריק הראשון אינה נחשבת טעות בגבול העליון."
+       ],
+       "terminal_id": "t4"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין בדיקה שהתא אינו null",
+         "component_ref": "k5",
+         "description_he": "בדיקה אם התא אינו null",
+         "equivalence_note_he": "תנאי null בתוך תנאי הלולאה עצמה שקול",
+         "full_label_he": "בתוך הלולאה נבדק שהתא הנוכחי במערך התוכניות אינו null לפני הגישה אליו",
+         "partials": [],
+         "source_span": "בדיקה אם התא אינו null"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t5"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא מתקבל מספר הערוץ של התוכנית",
+         "component_ref": "k6",
+         "description_he": "גישה לערוץ של התוכנית",
+         "equivalence_note_he": null,
+         "full_label_he": "מתקבל מספר הערוץ של התוכנית שבתא הנוכחי",
+         "partials": [],
+         "source_span": "גישה לערוץ GetChl"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t6"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "דירוג התוכנית אינו נצבר במערך הצוברים (למשל מושם במקום להתווסף, או לא נצבר כלל)",
+         "component_ref": "n1",
+         "description_he": "צבירה של דירוג התוכנית לתוך מערך הצוברים",
+         "equivalence_note_he": null,
+         "full_label_he": "דירוג התוכנית מתווסף לערך הקיים בתא של מערך הצוברים",
+         "partials": [],
+         "source_span": "צבירה של הדירוג של הערוץ (GetChl) לתוך מערך הצוברים"
+        },
+        {
+         "absent_label_he": "הדירוג נצבר בתא שאינו תלוי בערוץ של התוכנית (למשל לפי אינדקס הלולאה)",
+         "component_ref": "n2",
+         "description_he": "הצבירה נעשית במקום של הערוץ של התוכנית",
+         "equivalence_note_he": "תא chl-1 שקול כאשר המערך בגודל 100 והמיפוי עקבי",
+         "full_label_he": "התא שאליו נצבר הדירוג הוא התא שמתאים למספר הערוץ של התוכנית",
+         "partials": [],
+         "source_span": "במקום של הערוץ הזה"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [],
+       "terminal_id": "t7"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין משתנה לדירוג המינימלי",
+         "component_ref": "k8",
+         "description_he": "הגדרת מינימום דירוג",
+         "equivalence_note_he": null,
+         "full_label_he": "מוגדר משתנה השומר את הדירוג המינימלי",
+         "partials": [],
+         "source_span": "הגדרת מינימום דירוג"
+        },
+        {
+         "absent_label_he": "משתנה הדירוג המינימלי אינו מאותחל, או מאותחל לערך שמונע את מציאת המינימום",
+         "component_ref": "k9",
+         "description_he": "אתחול מינימום הדירוג",
+         "equivalence_note_he": "אתחול לערך גדול מכל סכום אפשרי או לסכום של ערוץ קיים שקול",
+         "full_label_he": "משתנה הדירוג המינימלי מאותחל לערך התחלתי המתאים לחיפוש, כגון int.MaxValue או דירוג של ערוץ",
+         "partials": [],
+         "source_span": "אתחול"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t8"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין משתנה לערוץ המינימלי",
+         "component_ref": "k10",
+         "description_he": "הגדרת ערוץ מינימלי",
+         "equivalence_note_he": null,
+         "full_label_he": "מוגדר משתנה השומר את מספר הערוץ המינימלי",
+         "partials": [],
+         "source_span": "הגדרת ערוץ מינימלי"
+        },
+        {
+         "absent_label_he": "משתנה הערוץ המינימלי אינו מאותחל",
+         "component_ref": "k11",
+         "description_he": "אתחול הערוץ המינימלי",
+         "equivalence_note_he": null,
+         "full_label_he": "משתנה הערוץ המינימלי מאותחל לערך התחלתי",
+         "partials": [],
+         "source_span": "אתחול"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t9"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה על מערך הצוברים, או שהלולאה אינה עוברת על כל תאי הערוצים",
+         "component_ref": "k12",
+         "description_he": "הגדרת לולאה על מערך צוברים מ-1 עד 100",
+         "equivalence_note_he": "לולאה הכוללת גם את תא 0, או מ-0 עד 99 כשהמיפוי עם היסט, שקולה",
+         "full_label_he": "לולאה העוברת על תאי מערך הצוברים של הערוצים 1 עד 100",
+         "partials": [],
+         "source_span": "הגדרת לולאה על מערך צוברים מ-1 עד 100"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t10"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין השוואה בין סה\"כ הדירוגים של הערוץ לבין המינימום",
+         "component_ref": "k13",
+         "description_he": "בדיקה האם סה\"כ הדירוגים של הערוץ קטן מהמינימום",
+         "equivalence_note_he": null,
+         "full_label_he": "בתוך הלולאה מושווה הסכום שבתא הערוץ הנוכחי לערך שנשמר במשתנה המינימום",
+         "partials": [],
+         "source_span": "והאם סה\"כ הדירוגים קטן מהמינימום"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [
+        "בדיקת התא גדול מאפס אינה תנאי לזיכוי בהשוואה.",
+        "חיפוש מקסימום במקום מינימום מחויב פעם אחת בהשוואה ולא בשאר שלבי החיפוש."
+       ],
+       "terminal_id": "t11"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "משתנה הדירוג המינימלי אינו מתעדכן בתוך התנאי",
+         "component_ref": "k14",
+         "description_he": "החלפה של מינימום דירוג",
+         "equivalence_note_he": null,
+         "full_label_he": "בתוך התנאי משתנה הדירוג המינימלי מקבל את הסכום שבתא הערוץ הנוכחי",
+         "partials": [],
+         "source_span": "החלפה של מינימום דירוג"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t12"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "משתנה הערוץ המינימלי אינו מתעדכן בתוך התנאי",
+         "component_ref": "k15",
+         "description_he": "החלפת הערוץ המינימלי",
+         "equivalence_note_he": "עדכון לאינדקס+1 כשהמיפוי עם היסט שקול",
+         "full_label_he": "בתוך התנאי משתנה הערוץ המינימלי מקבל את מספר הערוץ הנוכחי",
+         "partials": [],
+         "source_span": "החלפת הערוץ המינימלי"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t13"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "הפעולה אינה מחזירה את הערוץ המינימלי",
+         "component_ref": "k16",
+         "description_he": "החזרת הערוץ המינימלי",
+         "equivalence_note_he": null,
+         "full_label_he": "הפעולה מחזירה את משתנה הערוץ המינימלי לאחר הלולאה",
+         "partials": [],
+         "source_span": "החזרת הערוץ המינימלי"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t14"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.214916,
+     "input_tokens": 14769,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 7792,
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q2.ג": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [
+      {
+       "disposition": "fault",
+       "marker_id": "m1",
+       "merged_into_marker_id": null,
+       "reason_he": null
+      }
+     ],
+     "faults": [
+      {
+       "anchor_terminal_id": "t3",
+       "description_he": "גישה למערך התוכניות בלי getter",
+       "options": [
+        {
+         "label_he": "הגישה למערך arrShows נעשית ישירות לתכונה, בלי זימון GetArrShows",
+         "marker_id": "m1"
+        }
+       ],
+       "requires_component_ref": "k3"
+      }
+     ],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין כותרת לפעולה PrintLowRatingChannel",
+         "component_ref": "k1",
+         "description_he": "כותרת הפעולה PrintLowRatingChannel",
+         "equivalence_note_he": "שם אחר לפרמטר תקף",
+         "full_label_he": "כותרת של פעולה חיצונית (static) בשם PrintLowRatingChannel שאינה מחזירה ערך (void) ומקבלת פרמטר מטיפוס TvRate",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "כותרת בשם PrintLowRatingChannel קיימת, אך הפרמטר אינו מטיפוס TvRate או שחסר, או שטיפוס ההחזרה אינו void"
+          }
+         ],
+         "source_span": "כותרת הפעולה PrintLowRatingChannel"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין זימון של LowestRateChannel למציאת הערוץ בעל הדירוג המינימלי",
+         "component_ref": "k2",
+         "description_he": "מציאת הערוץ בעל דירוג מינימלי ע\"י זימון LowestRateChannel",
+         "equivalence_note_he": "שימוש בערך המוחזר ישירות בתנאי, בלי שמירה במשתנה, שקול",
+         "full_label_he": "הפעולה LowestRateChannel מזומנת עם אובייקט ה-TvRate שהתקבל, והערוץ שהיא מחזירה נשמר או משמש בהשוואה",
+         "partials": [],
+         "source_span": "מציאת הערוץ בעל דירוג מינימלי ע\"י זימון LowestRateChannel"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [],
+       "terminal_id": "t2"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין לולאה העוברת על מערך התוכניות",
+         "component_ref": "k3",
+         "description_he": "הגדרת לולאה על מערך התוכניות מ-0 עד קטן ממש מ-length של המערך",
+         "equivalence_note_he": "לולאת foreach על המערך, או לולאה העוצרת בתא הריק הראשון, שקולות",
+         "full_label_he": "לולאה העוברת על כל תאי מערך התוכניות, מאינדקס 0 ועד קטן ממש מאורך המערך",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "קיימת לולאה על מערך התוכניות, אך גבולותיה שגויים (למשל עד קטן או שווה לאורך, או שאינה מתחילה מ-0)"
+          }
+         ],
+         "source_span": "הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ- length של מערך ה -TvShows"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "מאחר שהמערך מלא עד המקום הראשון הפנוי, לולאה העוצרת בתא null הראשון נחשבת מעבר תקין על התוכניות."
+       ],
+       "terminal_id": "t3"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין בדיקה שהתוכנית אינה null",
+         "component_ref": "k4",
+         "description_he": "בדיקה שהתוכנית אינה null",
+         "equivalence_note_he": "בדיקת null בתנאי הלולאה, העוצרת בתא הריק הראשון, שקולה",
+         "full_label_he": "לפני הגישה לתוכנית נבדק שהתא במערך אינו null",
+         "partials": [],
+         "source_span": "אינה null"
+        },
+        {
+         "absent_label_he": "אין השוואה בין ערוץ התוכנית לערוץ המינימלי",
+         "component_ref": "k5",
+         "description_he": "הערוץ של התוכנית תואם את הערוץ המינימלי, ע\"י GetChl והשוואה",
+         "equivalence_note_he": null,
+         "full_label_he": "ערוץ התוכנית נקרא ב-GetChl ומושווה לערוץ בעל הדירוג המינימלי",
+         "partials": [],
+         "source_span": "הערוץ שלה תואם את הערוץ המינימלי (ע\"י GetChl והשוואתם"
+        },
+        {
+         "absent_label_he": "אין בדיקה שהתוכנית משודרת כעת",
+         "component_ref": "k6",
+         "description_he": "התוכנית באוויר, ע\"י GetIsOn",
+         "equivalence_note_he": "השוואה GetIsOn() == true שקולה",
+         "full_label_he": "נבדק ב-GetIsOn שהתוכנית משודרת כעת",
+         "partials": [],
+         "source_span": "היא באוויר (ע\"י GetIsOn"
+        },
+        {
+         "absent_label_he": "שם התוכנית אינו מודפס",
+         "component_ref": "k7",
+         "description_he": "הדפסת שם התוכנית ע\"י GetName",
+         "equivalence_note_he": null,
+         "full_label_he": "שם התוכנית מודפס באמצעות GetName עבור תוכנית שעומדת בתנאים",
+         "partials": [],
+         "source_span": "הדפסה של השם של התוכנית (ע\"י GetName"
+        }
+       ],
+       "decomposition": "as_compiled",
+       "interpretation_notes_he": [],
+       "terminal_id": "t4"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cached_input_tokens": 0,
+     "cost_usd": 0.105848,
+     "input_tokens": 11872,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 2918,
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  }
+ },
+ "served_models": [
+  "claude-opus-5-5"
+ ],
+ "stage1_version": "plan-compiler/v2.0+stage1-v6.0",
+ "wall_s": 234.1
+}

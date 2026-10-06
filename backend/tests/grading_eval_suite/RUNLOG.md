@@ -2930,3 +2930,33 @@ second exam, not another dollar on this one.**
 - **Run 4, the CS eval (§3.7a):** `v6-cs-sonnet55`, 12 fixtures, k=3, arm A on Haiku 4.5, payloads recorded.
   - Estimate **$6.00**: 36 tests at about $0.18 uncached for hobby and $0.30 for bagrut, about 40% saved by caching.
 - **Cumulative estimate:** baseline 4.90 + Opus 0.24 + Opus re-run 2.60 + M3 0.18 + CS eval 6.00 = **$13.92 ≤ $19** → GO.
+
+## 2026-10-06 · SPEND · actuals for runs 1–3; run 5 (baseline repair) estimate
+
+| run | what | actual | note |
+|---|---|---|---|
+| 1 | v5 baseline `20261006-171126_trackb-sonnet5-v54` | **$3.9032** | 22/24 trials valid; the outage invalidated `bagrut_899371.itay_kraft` r1 and `bagrut_899371.noam_breinshtein` r0 (transport) |
+| 2 | Opus 5.5 planner, void (outage) | $0.2378 | |
+| 2b | Opus 5.5 planner, re-run | **$2.3301** | hobby 6/0/0 $0.8327 · 234 s; bagrut 11/1/0 (+1 compiled) $1.4974 · 463 s; served `claude-opus-5-5`, model_fallback 0 |
+| 3 | M3 proof `20261006-171520_v6-cs-sonnet55` | $0.1837 | |
+
+**Ledger: $6.6548 of $19.** Run 4 (the CS eval, est. $6.00) is in flight.
+
+- **Run 5:** re-run the two invalidated baseline fixtures at k=1. Their drafts replace the invalid trials (same trial index), and the merged draft set is re-scored through `--mode score_only` into one baseline.
+  - Estimate $0.50. **Cumulative estimate $13.15 ≤ $19** → GO.
+
+## 2026-10-06 · TRACK V5 DONE — the v5 baseline (KILLED on its own bars); the Opus planner result; run 5 actual
+
+- **Run 5 (baseline repair): $0.3537** — both trials valid.
+  - Merged with run 1's 22 valid trials and re-scored (`score_only`): `results/20261006-172751_trackb-sonnet5-v54_rescore`, **24/24 valid, $4.257**.
+- **v5 baseline** (`EVAL_ANALYSIS_v5_baseline_20261006.md`; grader-v5.4 + Sonnet 5, 12 fixtures, k=2):
+  - K1 62/62 ✓, **K2 20/196 = 10.2% ✗, K4 10.25 ✗**.
+  - K3 (GA-2) **0.693**; G-Z **62/196 = 31.6%**; cost **$0.1774/test**.
+  - Every student is under-graded, by 5–33 points: credit refused on unverified quotes, and binary criteria zeroed by one defect.
+  - This is the comparator for v6's K3, G-Z and cost (§0 criteria 3–4).
+- **Opus 5.5 planner (item 4):**
+  - Inexpressible GT cells: **26**, against Sonnet 5.5's 34 and Sonnet 5's 32. Bagrut 281/298, hobby 181/190.
+  - Origins: 17 planned, 1 repaired, 0 fallback. **$2.33** for both rubrics, against Sonnet 5.5's $1.13.
+  - Under the old §13.1 rule Opus would win step 1 by 6 cells, but ruling §3.8 pins the planner to Sonnet 5.5. **OPEN DECISION for the owner** (a new trade-off; nothing switched).
+  - The CS eval runs on the Sonnet 5.5 plans, as ruled.
+- **Ledger: $7.0085 of $19** (CS eval in flight).
