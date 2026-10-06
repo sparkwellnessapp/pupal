@@ -120,6 +120,10 @@ celerybeat.pid
 # both remotes are public.
 vivi-census.env
 .vivi-census.env
+# [Oct 6 rulings §2] the eval-only Anthropic key (its own workspace, spend-limited).
+# Never commit: both remotes are public.
+vivi-eval.env
+.vivi-eval.env
 .venv
 env/
 venv/
