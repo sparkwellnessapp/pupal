@@ -2892,3 +2892,13 @@ second exam, not another dollar on this one.**
   - Sonnet 5.5 is worse on bagrut expressibility by one cell, so the item-4 rule calls for the Opus 5.5 comparison (within the cap). It runs once the eval key exists.
   - **P-v6-8: FALSIFIED** on inexpressible cells (34 against the same-prompt Sonnet 5 re-record's 32), CONFIRMED on repairs (0 against 3).
 - **Pre-registered:** Phase 6 (PREDICTIONS.md «GRADER v6 — Phase 6 pre-registration»). The verifier runs adaptive thinking at effort `low`; explainer arm A is Haiku 4.5; arm B is Sonnet 5.5 at its lowest setting.
+
+## 2026-10-06 · SPEND · eval key in place; canary OK; estimates for runs 1–2 (ledger $0.00 of $19)
+
+- **Key:** `backend/vivi-eval.env` (gitignored, untracked; one variable). It is used through `VIVI_EVAL_ENV` + `python -m tests.eval_common.eval_key …`, never copied.
+- **Credit canary on the eval key:** `claude-sonnet-5`, `claude-sonnet-5-5`, `claude-opus-5-5`, `claude-haiku-4-5` — all OK, each served by the requested model (Haiku as its dated snapshot).
+- **Run 1, the v5 baseline (§3.5):** `trackb-sonnet5-v54`, 12 fixtures, k=2, guard report-only, on the D-13 re-routed plans of 2026-09-30.
+  - Estimate $4.90: 2 × (5 × $0.150 hobby + 7 × $0.24 bagrut), from the 2026-08-30 hobby mean of $0.1501 and bagrut's 1.6× terminal count.
+- **Run 2, the Opus 5.5 planner comparison (§3.4; Sonnet 5.5 is one bagrut cell worse than G2):** both exams, effort high, caps hobby $1.50 and bagrut $2.00.
+  - Estimate $2.60: Sonnet 5.5's $1.13 × 2 for Opus's price card, plus thinking headroom.
+- **Estimate after runs 1–2: $7.50 ≤ $19** → GO. They run in parallel; actual costs follow.
