@@ -735,17 +735,11 @@ def _score_pair(draft: Optional[GradedTestDraft], meta: dict,
             target = o.question_id if o.sub_question_id is None else f"{o.question_id}.{o.sub_question_id}"
             per_scope_cost[target] = cost_usd(
                 Usage(input_tokens=o.input_tokens, output_tokens=o.output_tokens), price)
-    if draft.v6 is not None and cost is not None:
-        # [grader-v6] the explainer's tokens on the explainer's OWN registry card
-        # (D-7: they count in the test's cost)
-        eu = draft.v6.get("explainer_usage")
-        if eu and eu.get("calls"):
-            espec = next((m for m in _REGISTRY_MODELS.values() if m.model_id == eu["model"]), None)
-            if espec is None:
-                raise SystemExit(f"explainer model {eu['model']!r} has no registry card")
-            cost += cost_usd(Usage(input_tokens=eu["input_tokens"], output_tokens=eu["output_tokens"],
-                                   cached_input_tokens=eu.get("cached_input_tokens") or None),
-                             espec.price)
+    if draft.v6 is not None:
+        # [grader-v6] verifier + explainer, each on its OWN registry card, cache writes at
+        # their premium (the one v6 cost function; D-7: the explainer counts in the test)
+        from .v6_cost import usage_cost
+        cost = usage_cost(draft.v6.get("verifier_usage")) + usage_cost(draft.v6.get("explainer_usage"))
     ts = score_trial(
         draft, bundle, trial_index=meta["trial_index"],
         cost_usd_value=cost, cost_ceiling=cost_ceiling,

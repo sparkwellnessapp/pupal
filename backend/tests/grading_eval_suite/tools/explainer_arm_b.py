@@ -39,7 +39,8 @@ async def main(run_dir: Path) -> None:
 
     s = spec(ARM_B_MODEL_KEY)
     llm = build_chat_model(s.provider, s.model_id, max_output_tokens=4000, **ARM_B_PARAMS)
-    lines, totals = {}, {"calls": 0, "input_tokens": 0, "output_tokens": 0, "cached_input_tokens": 0}
+    lines, totals = {}, {"calls": 0, "input_tokens": 0, "output_tokens": 0, "cached_input_tokens": 0,
+                         "cache_write_input_tokens": 0}
     served, n_tests, e_model, e_total = set(), 0, 0, 0
     for p in sorted((run_dir / "drafts").glob("*_r*.json")):
         if p.name.endswith(".meta.json"):
@@ -61,8 +62,8 @@ async def main(run_dir: Path) -> None:
             totals[k] += getattr(u, k)
         served.update(u.served_models)
         print(f"  {fixture} r{r}: {len(res.lines)} lines · {u.calls} calls")
-    cost = cost_usd(Usage(input_tokens=totals["input_tokens"], output_tokens=totals["output_tokens"],
-                          cached_input_tokens=totals["cached_input_tokens"] or None), s.price)
+    from tests.grading_eval_suite.v6_cost import usage_cost
+    cost = usage_cost({**totals, "model": s.model_id})
     out = {"model": s.model_id, "params": ARM_B_PARAMS, "n_tests": n_tests, "cost_usd": round(cost, 6),
            "cost_per_test": round(cost / n_tests, 6) if n_tests else 0.0,
            "cache_hit": (totals["cached_input_tokens"] / totals["input_tokens"]) if totals["input_tokens"] else 0.0,

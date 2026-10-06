@@ -112,6 +112,13 @@ def build_verifier_v6_message(scope: GradableScope, checks: Sequence[PlanCheckV6
                               aliases: VerifierAliases) -> str:
     """The per-scope user message. Pure. `checks` are the scope's plan checks in
     plan order (credit, fault, note within each terminal)."""
+    return "\n".join(build_verifier_v6_parts(scope, checks, aliases))
+
+
+def build_verifier_v6_parts(scope: GradableScope, checks: Sequence[PlanCheckV6],
+                            aliases: VerifierAliases):
+    """(rubric part, student part). The rubric part — context + checks — is identical for
+    every student of the exam: the cached prefix (CL-2). The student part follows it."""
     parts: List[str] = _render_context_sections(scope)
     parts += ["", _RULE, "CHECKS", _RULE]
     for c in checks:
@@ -121,7 +128,7 @@ def build_verifier_v6_message(scope: GradableScope, checks: Sequence[PlanCheckV6
             parts.append(f"   שקילות: {c.equivalence_note_he}")
         for o in c.options:
             parts.append(f"   {aliases.option_alias(c.check_id, o.option_id)}: {o.label_he}")
-    parts += ["", _RULE, "STUDENT ANSWER", _RULE, scope.student_answer_text or "אין תשובה"]
-    parts += ["", _RULE, "VERIFY THESE (each exactly once)", _RULE,
-              ", ".join(aliases.checks.alias(c.check_id) for c in checks)]
-    return "\n".join(parts)
+    student = ["", _RULE, "STUDENT ANSWER", _RULE, scope.student_answer_text or "אין תשובה",
+               "", _RULE, "VERIFY THESE (each exactly once)", _RULE,
+               ", ".join(aliases.checks.alias(c.check_id) for c in checks)]
+    return "\n".join(parts), "\n".join(student)

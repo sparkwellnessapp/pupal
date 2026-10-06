@@ -51,7 +51,8 @@ class UsageV6(BaseModel):
     calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
-    cached_input_tokens: int = 0
+    cached_input_tokens: int = 0                      # cache READS (billed at the cached rate)
+    cache_write_input_tokens: int = 0                 # cache WRITES (billed at 1.25× input)
     served_models: List[str] = Field(default_factory=list)
     model_fallback: bool = False                     # [AM-G18] a call served by another model
 

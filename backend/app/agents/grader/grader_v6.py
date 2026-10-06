@@ -51,9 +51,11 @@ from app.agents.grader.llm_factory import serves_requested
 from app.agents.grader.plan_schemas import (CheckVerdictV6, GradingPlanV6, PlanCheckV6,
                                             ScopeVerdictsV6)
 from app.agents.grader.plan_values import plan_hash as compute_plan_hash
+from app.agents.grader.prompt_cache import (cache_write_tokens, human_message, supports_cache,
+                                            system_message)
 from app.agents.grader.validator import quote_match_status, strip_out_of_world
 from app.agents.grader.verifier_prompt_v6 import (VERIFIER_V6_PROMPT_VERSION,
-                                                  build_verifier_v6_message,
+                                                  build_verifier_v6_parts,
                                                   verifier_aliases, verifier_v6_system_prompt)
 from app.schemas.gradable import GradableScope, GradableTest
 from app.schemas.graded_test_draft import (CriterionOutcome, GradedTestDraft, GradingAnnotation,
@@ -125,14 +127,16 @@ class OptionsVerifyGrader:
         self._explain = explain
         self._explainer_prompt_version = explainer_prompt_version
         self._system = verifier_v6_system_prompt(profile)
+        self._cache = supports_cache(llm)                          # [CL-2]
         self._structured_llm = llm.with_structured_output(ScopeVerdictsV6, include_raw=True)
         self._plan_terminals = {t.terminal_id: t for t in plan.terminals}
         self.billing_exhausted: Optional[BaseException] = None       # [A-8] reported upward
 
     # ── one call ─────────────────────────────────────────────────────────────
-    async def _invoke_once(self, user_msg: str, usage: UsageV6) -> ScopeVerdictsV6:
+    async def _invoke_once(self, user_parts: Tuple[str, str], usage: UsageV6) -> ScopeVerdictsV6:
         result: Dict[str, Any] = await bounded_invoke(self._structured_llm, [
-            SystemMessage(content=self._system), HumanMessage(content=user_msg)])
+            system_message(self._system, self._cache),
+            human_message(user_parts[0], user_parts[1], self._cache)])
         raw = result.get("raw")
         meta = (getattr(raw, "usage_metadata", None) or {}) if raw is not None else {}
         rmeta = dict(getattr(raw, "response_metadata", None) or {}) if raw is not None else {}
@@ -141,6 +145,7 @@ class OptionsVerifyGrader:
         usage.input_tokens += int(meta.get("input_tokens") or 0)
         usage.output_tokens += int(meta.get("output_tokens") or 0)
         usage.cached_input_tokens += int((meta.get("input_token_details") or {}).get("cache_read") or 0)
+        usage.cache_write_input_tokens += cache_write_tokens(meta)
         if served:
             if served not in usage.served_models:
                 usage.served_models.append(served)
@@ -155,7 +160,7 @@ class OptionsVerifyGrader:
                       ) -> Tuple[Dict[str, _Verdict], List[GradingAnnotation],
                                  List[FlaggedOutcome], Dict[str, List[str]]]:
         aliases = verifier_aliases(checks)
-        user_msg = build_verifier_v6_message(scope, checks, aliases)
+        user_parts = build_verifier_v6_parts(scope, checks, aliases)
         target = _scope_target_id(scope)
         by_id = {c.check_id: c for c in checks}
         annotations: List[GradingAnnotation] = []
@@ -163,7 +168,7 @@ class OptionsVerifyGrader:
         check_flags: Dict[str, List[str]] = {}
         per_call: List[Dict[str, _Verdict]] = []
         for _ in range(self._sc_n):
-            parsed = await self._invoke_once(user_msg, usage)
+            parsed = await self._invoke_once(user_parts, usage)
             # [CWV-1 / AM-G17] closed world over the call's check aliases, no rekey
             in_world, cw_flags, cw_anns = strip_out_of_world(
                 parsed.verdicts, key=lambda v: v.check_id, known=aliases.checks.issued("c"),
@@ -291,6 +296,7 @@ class OptionsVerifyGrader:
                            input_tokens=sum(u.input_tokens for u in scope_usages),
                            output_tokens=sum(u.output_tokens for u in scope_usages),
                            cached_input_tokens=sum(u.cached_input_tokens for u in scope_usages),
+                           cache_write_input_tokens=sum(u.cache_write_input_tokens for u in scope_usages),
                            served_models=sorted({m for u in scope_usages for m in u.served_models}),
                            model_fallback=any(u.model_fallback for u in scope_usages))
         return DraftV6Content(

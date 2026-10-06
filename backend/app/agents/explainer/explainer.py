@@ -65,6 +65,7 @@ from app.agents.explainer.prompt import (
     render_scope_message,
 )
 from app.agents.explainer.validators import LineVerdict, validate_scope
+from app.agents.grader.prompt_cache import cache_write_tokens, supports_cache, system_message
 from app.agents.grader.grader import (
     RETRY_BACKOFF_MAX,
     RETRY_BACKOFF_MIN,
@@ -183,6 +184,7 @@ async def run_scopes(inputs: Sequence[ScopeExplainerInput], *, llm, model_id: st
 
     try:
         system = explainer_system_prompt(profile)
+        cache = supports_cache(llm)                    # [CL-2] the system prompt is the cached prefix
         runner = llm.with_structured_output(ScopeExplanations, include_raw=True)
     except Exception as exc:                                       # noqa: BLE001
         logger.error(f"explainer_unavailable model={model_id} "
@@ -194,7 +196,7 @@ async def run_scopes(inputs: Sequence[ScopeExplainerInput], *, llm, model_id: st
 
     async def one(i: int, inp: ScopeExplainerInput) -> None:
         try:
-            out = await _call_scope(inp, runner, system, model_id, usage, telemetry)
+            out = await _call_scope(inp, runner, system, model_id, usage, telemetry, cache)
         except Exception as exc:                                   # noqa: BLE001
             # per-scope isolation (§3.6): even a defect here costs one scope its lines
             logger.error(f"explainer_scope_error scope={inp.scope_id} "
@@ -218,12 +220,13 @@ async def run_scopes(inputs: Sequence[ScopeExplainerInput], *, llm, model_id: st
 
 
 async def _call_scope(inp: ScopeExplainerInput, runner, system: str, model_id: str,
-                      usage: "_UsageAcc", telemetry: List[str]) -> Optional[Dict[str, LineVerdict]]:
+                      usage: "_UsageAcc", telemetry: List[str],
+                      cache: bool = False) -> Optional[Dict[str, LineVerdict]]:
     """One scope: the call (one retry, transport only), then E-1..E-5. None when the call
     produced no lines at all for a transport reason; a parse failure is the model's
     content failure and is returned as E-1 on every terminal (no line came back)."""
     sid = inp.scope_id
-    messages = [SystemMessage(content=system), HumanMessage(content=render_scope_message(inp))]
+    messages = [system_message(system, cache), HumanMessage(content=render_scope_message(inp))]
     res: Any = None
     for attempt in range(1, EXPLAINER_TRANSPORT_ATTEMPTS + 1):
         usage.calls += 1
@@ -296,6 +299,7 @@ class _UsageAcc:
         self.input_tokens = 0
         self.output_tokens = 0
         self.cached_input_tokens = 0
+        self.cache_write_input_tokens = 0
         self.served: List[str] = []
 
     def add(self, raw: Any) -> None:
@@ -306,6 +310,7 @@ class _UsageAcc:
         self.output_tokens += int(meta.get("output_tokens") or 0)
         self.cached_input_tokens += int(
             (meta.get("input_token_details") or {}).get("cache_read") or 0)
+        self.cache_write_input_tokens += cache_write_tokens(meta)
         rmeta = dict(getattr(raw, "response_metadata", None) or {})
         served = rmeta.get("model") or rmeta.get("model_name")
         if served and str(served) not in self.served:
@@ -315,6 +320,7 @@ class _UsageAcc:
         return UsageV6(model=self.model_id, calls=self.calls, input_tokens=self.input_tokens,
                        output_tokens=self.output_tokens,
                        cached_input_tokens=self.cached_input_tokens,
+                       cache_write_input_tokens=self.cache_write_input_tokens,
                        served_models=sorted(self.served),
                        model_fallback=any(not serves_requested(self.model_id, s)
                                           for s in self.served))

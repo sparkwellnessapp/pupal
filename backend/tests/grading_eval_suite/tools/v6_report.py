@@ -63,11 +63,8 @@ def _card(model_id: str):
 
 
 def _usage_cost(u: Optional[dict]) -> float:
-    if not u or not u.get("calls"):
-        return 0.0
-    return cost_usd(Usage(input_tokens=u["input_tokens"], output_tokens=u["output_tokens"],
-                          cached_input_tokens=u.get("cached_input_tokens") or None),
-                    _card(u["model"]))
+    from tests.grading_eval_suite.v6_cost import usage_cost
+    return usage_cost(u)
 
 
 def _load_run(run_dir: Path):

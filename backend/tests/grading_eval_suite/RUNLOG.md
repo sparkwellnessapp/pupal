@@ -2902,3 +2902,31 @@ second exam, not another dollar on this one.**
 - **Run 2, the Opus 5.5 planner comparison (§3.4; Sonnet 5.5 is one bagrut cell worse than G2):** both exams, effort high, caps hobby $1.50 and bagrut $2.00.
   - Estimate $2.60: Sonnet 5.5's $1.13 × 2 for Opus's price card, plus thinking headroom.
 - **Estimate after runs 1–2: $7.50 ≤ $19** → GO. They run in parallel; actual costs follow.
+
+## 2026-10-06 · SPEND · a network outage (DNS) hit runs 1–2; Opus re-run; the M3 proof estimate
+
+- **Outage:** about 17:10–17:13 local, `getaddrinfo failed` (DNS) — it was the machine's network, not the provider. Afterwards DNS resolved and `api.anthropic.com` answered.
+- **Run 2 (Opus) was VOID:**
+  - Hobby: 2 scopes planned; the other 4 fell back with 0 calls, on transport failures.
+  - Bagrut: the canary could not resolve the host; $0 spent.
+  - **Actual: $0.2378.** Re-launched both exams (estimate $2.60, unchanged).
+- **Run 1 (baseline) continued:** 44 scope retries and several scopes failed after retry. Those trials are marked transport-invalid by the scorer, never scored as grades. The affected fixtures re-run after it ends, and the valid drafts are merged through `--mode score_only`.
+- **Run 3, the M3 proof (§3.6):** v6 on `dan_basiuk`, k=1 (`v6-cs-sonnet55`: Sonnet 5.5 verifier, Haiku 4.5 explainer).
+  - Estimate $0.12 (about 8 scopes × $0.012 for the verifier with low thinking, plus $0.01 for the explainer).
+  - **Cumulative estimate after runs 1–3: $8.15 ≤ $19** → GO.
+
+## 2026-10-06 · M3 PROVEN live ($0.1837); CL-2 caching added; the CS-eval estimate
+
+- **Run 3, the M3 proof** (`results/20261006-171520_v6-cs-sonnet55`, `dan_basiuk`, k=1): the trial is valid.
+  - plan_hash `1d74b46a…` is stamped in the draft and in provenance. 6/6 scopes graded, served by `claude-sonnet-5-5`, model_fallback 0.
+  - 78/78 checks have a selection. Quote status is `exact` on all 57 non-default options. Gated claims 0; bounds_clamped 0.
+  - The pricer's total 76.50/100 equals the scorer's total (GT 84.0).
+  - Explainer (Haiku 4.5): 6 calls; 35 model lines, 3 fallback lines (E-4).
+  - **Actual $0.1837:** verifier 38.2k in / 4.3k out, explainer 50.0k in / 2.9k out, **0 cached**.
+- **Finding → CL-2 implemented before the eval** (decided, pending veto). Nothing in the codebase used prompt caching, so every call re-paid identical prefixes: the explainer's examples-heavy system prompt about 8k tokens per call, and the verifier's system prompt plus the per-scope rubric part.
+  - Ruling §3.7a measures the CL-2 hit rate inside the run, and caching changes cost, not outputs.
+  - So the v6 calls now carry Anthropic cache breakpoints (`app/agents/grader/prompt_cache.py`; Anthropic only, other providers' messages unchanged): the system prompt for both calls, and the verifier's rubric part (question, solution, checks) for every student of an exam.
+  - Cache writes are recorded (`UsageV6.cache_write_input_tokens`) and priced at 1.25× by the ONE v6 cost function (`tests/grading_eval_suite/v6_cost.py`), used by the runner, `v6_report` and arm B.
+- **Run 4, the CS eval (§3.7a):** `v6-cs-sonnet55`, 12 fixtures, k=3, arm A on Haiku 4.5, payloads recorded.
+  - Estimate **$6.00**: 36 tests at about $0.18 uncached for hobby and $0.30 for bagrut, about 40% saved by caching.
+- **Cumulative estimate:** baseline 4.90 + Opus 0.24 + Opus re-run 2.60 + M3 0.18 + CS eval 6.00 = **$13.92 ≤ $19** → GO.
