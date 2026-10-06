@@ -1,0 +1,10 @@
+{
+ "model_key": "claude-sonnet-5",
+ "architecture": "v6",
+ "plans": {
+  "hobby_tvshow": "plans/v6/hobby_tvshow.plan.json",
+  "bagrut_899371": "plans/v6/bagrut_899371.plan.json"
+ },
+ "cost_ceiling": 0.15,
+ "notes": "Phase 6 pre-approved diagnosis (Oct 6 rulings §3.7b; a kill fired: K1 90/93, K2 17.0%): v6 on the same pinned plans and fixtures with a Sonnet 5 verifier run exactly as production runs it (no thinking, no effort, forced-tool structured output), so against the v5 baseline the architecture is the one variable. No explainer: it does not touch grades. k=2."
+}

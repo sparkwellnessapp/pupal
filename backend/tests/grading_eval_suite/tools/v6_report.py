@@ -149,8 +149,12 @@ def v6_measures(run_dir: Path, bundles) -> Dict[str, Any]:
                 cache[name][1] += u.input_tokens
         fallback_scopes += sum(1 for s in content.scopes if s.usage and s.usage.model_fallback)
         for x in content.explanations:
-            e_total += 1
-            e_model += x.source == "model"
+            # E-1..E-5 judge lines a MODEL wrote: a passed line (source model) or one the
+            # validators rejected (failed_rules). Scopes with no call (skipped, excluded,
+            # failed, late) fall back with no rule failing and are not in the rate.
+            if x.source == "model" or x.failed_rules:
+                e_total += 1
+                e_model += x.source == "model"
             failed_rules.update(x.failed_rules)
     mean = {k: (statistics.mean(v) if v else 0.0) for k, v in comp.items()}
     return {"G-D1": gd1, "G-D2": gd2, "G-B": gb, "cost_mean": mean,

@@ -2960,3 +2960,36 @@ second exam, not another dollar on this one.**
   - Under the old §13.1 rule Opus would win step 1 by 6 cells, but ruling §3.8 pins the planner to Sonnet 5.5. **OPEN DECISION for the owner** (a new trade-off; nothing switched).
   - The CS eval runs on the Sonnet 5.5 plans, as ruled.
 - **Ledger: $7.0085 of $19** (CS eval in flight).
+
+## 2026-10-06 · CS EVAL (run 4) — KILLS FIRE (K1, K2); the pre-approved diagnosis and arm B launched
+
+- **Run 4 actual: $3.6566** (`results/20261006-172019_v6-cs-sonnet55`). 36/36 trials valid, model_fallback 0, 0 failed scopes (3 trial re-runs absorbed a second network blip).
+- **v6 against the v5 baseline:**
+  - K1 **90/93 ✗**, K2 **50/294 = 17.0% ✗** (v5 10.2%), K4 5.25 ✓ (v5 10.25).
+  - K3 0.767 (v5 0.693 ✓); G-Z 96/294 = 32.7% (v5 31.6% ✗, +1.1 points).
+  - G-D1 = G-D2 = 0 ✓; G-B 0.
+  - Cost **$0.1016/test**: verifier $0.0596 (90% cache hit) + explainer $0.0419 (59%), against v5's $0.1774.
+- **K1 is ONE cell, 3/3 trials:** din `q2.ב.c1`. The planner gave the accumulator-array credit a partial option, and the verifier took it for `int[] arr = new int[tv]`, a wrong-target array that GT zeroes under PL-9.
+- **Ledger: $10.6651 of $19.**
+- **Run 6, the pre-approved diagnosis (§3.7b):** `v6-cs-sonnet5-diag` — v6, same plans and fixtures, Sonnet 5 verifier exactly as production runs it, no explainer, k=2. Estimate $1.60.
+- **Run 7, explainer arm B:** the recorded payloads of run 4 on Sonnet 5.5, lowest setting. Estimate $0.60.
+- **Cumulative estimate $12.87 ≤ $19** → GO.
+
+## 2026-10-06 · STOP (a) — kills fire after the pre-approved diagnosis; the CS report and the read sheet delivered
+
+- **Run 6, the diagnosis:** v6 + Sonnet 5 verifier, k=2, `results/20261006-173328_v6-cs-sonnet5-diag`. **Actual $1.7394.**
+  - K1 62/62 ✓, **K2 37/196 = 18.9% ✗**, **K4 9.5 ✗**, K3 0.734, G-Z 27.0%.
+- **Run 7, explainer arm B:** Sonnet 5.5, lowest setting, on run 4's recorded payloads. **Actual $2.9460** against an estimate of $0.60.
+  - The estimate was wrong: Sonnet 5.5's input rate is double Haiku's, and the payloads are long.
+  - E-pass 1436/1464 = 98.1%; $0.0818/test.
+- **The kills fire under every configuration measured.**
+  - K2: v6 + Sonnet 5.5 17.0% · v6 + Sonnet 5 18.9% · v5 10.2% (bar 2.4%).
+  - K1: v6 + Sonnet 5.5 only, one cell (din `q2.ב.c1`, a wrong-target partial).
+  - **STOP (a), reported** in `docs/EVAL_REPORT_v6.md`.
+- **Located:** 68% of v6's K2 cells and 47% of its G-Z cells are GT awards the pinned plan cannot express. That is plan expressibility (a REVIEW-2 AMEND matter), not the verifier.
+- v6 halves the mean total shortfall against GT (14.5 → 7.4 points) at 43% lower cost ($0.1016 against $0.1774), with G-D1 = G-D2 = 0.
+- **Delivered:**
+  - `docs/EVAL_REPORT_v6.md` (the CS section);
+  - `docs/plans/v6_explainer_read_sheet.md` (80 blind items; the key is in the run directory, kept out of the repo);
+  - `tests/grading_eval_suite/EVAL_ANALYSIS_v5_baseline_20261006.md`.
+- **Ledger: $15.3505 of $19** (runs 1 $3.9032 · 2 $0.2378 · 2b $2.3301 · 3 $0.1837 · 4 $3.6566 · 5 $0.3537 · 6 $1.7394 · 7 $2.9460). **$3.65 left.**
