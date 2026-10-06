@@ -1,0 +1,13 @@
+{
+ "model_key": "claude-sonnet-5.5",
+ "architecture": "v6",
+ "plans": {
+  "hobby_tvshow": "plans/v6/hobby_tvshow.plan.json",
+  "bagrut_899371": "plans/v6/bagrut_899371.plan.json"
+ },
+ "params": {"reasoning_effort": "low", "thinking": "adaptive"},
+ "explainer": {"model_key": "claude-haiku-4.5", "params": {}},
+ "record_explainer_payloads": true,
+ "cost_ceiling": 0.15,
+ "notes": "Phase 6 CS eval (Oct 6 rulings §3.7a): v6 plans pinned by plan_hash (Sonnet 5.5 planner, planner-v6.1), verifier Sonnet 5.5 at adaptive thinking / effort low (pre-registered in PREDICTIONS.md), explainer arm A = Haiku 4.5, every explainer payload recorded for arm B. 12 fixtures, k=3."
+}

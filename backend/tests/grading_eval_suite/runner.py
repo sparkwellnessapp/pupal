@@ -103,8 +103,15 @@ def _validate_config(name: str, config: dict) -> None:
     if not config.get("model_key"):
         raise SystemExit(f"config '{name}' has no 'model_key' — required.")
     arch = config.get("architecture", "v3")
-    if arch not in ("v3", "v5"):
-        raise SystemExit(f"config '{name}': architecture must be v3|v5, got {arch!r}.")
+    if arch not in ("v3", "v5", "v6"):
+        raise SystemExit(f"config '{name}': architecture must be v3|v5|v6, got {arch!r}.")
+    # [grader-v6, M3] a v6 run names its pinned plan/v6 per exam ('plans'), never one
+    # 'plan': the plan is a property of the exam, and v6 has no single-exam legacy.
+    if arch == "v6" and (config.get("plan") or not config.get("plans")):
+        raise SystemExit(f"config '{name}': architecture v6 requires 'plans' "
+                         f"(exam_id -> plans/v6/<exam>.plan.json) and no 'plan'.")
+    if config.get("explainer") is not None and arch != "v6":
+        raise SystemExit(f"config '{name}': 'explainer' is a v6-only key.")
     # [two-exam harness] v5 needs a plan; it may name ONE ('plan', the legacy
     # single-exam key) or a MAP ('plans', exam_id -> path). Both, and neither,
     # are refused: two ways to answer one question is how a run silently grades
@@ -118,9 +125,10 @@ def _validate_config(name: str, config: dict) -> None:
             f"config '{name}': names BOTH 'plan' and 'plans'. Pick one — with "
             f"both, which plan grades a fixture depends on resolution order "
             f"rather than on intent.")
-    if arch != "v5" and (config.get("plan") or config.get("plans")
+    if arch == "v3" and (config.get("plan") or config.get("plans")
                          or config.get("sc_n")):
-        raise SystemExit(f"config '{name}': 'plan'/'plans'/'sc_n' are v5-only keys.")
+        raise SystemExit(f"config '{name}': 'plan'/'plans'/'sc_n' are v5-only keys "
+                         f"(v6 also takes 'plans' and 'sc_n'); this config is v3.")
     guard = config.get("expressibility_guard", "refuse")
     if guard not in _EXPRESSIBILITY_GUARDS:
         raise SystemExit(f"config '{name}': expressibility_guard must be one of "
@@ -483,6 +491,92 @@ def _plans_provenance(config: dict, bundles: List[FixtureBundle],
     return out
 
 
+def _load_plan_v6(config: dict, bundle: FixtureBundle, suite_dir: Path):
+    """[grader-v6, M3] The pinned plan/v6 for this fixture's exam. Refuses, loud and
+    before any spend: a plan whose content no longer re-hashes to its `plan_hash`
+    (the pin IS the content), or whose terminals differ from the contract's."""
+    import hashlib
+    from app.agents.grader.plan_schemas import GradingPlanV6
+    from app.agents.grader.plan_values import plan_hash as _plan_hash
+    from .exam_resolution import resolve_plan
+    resolved = resolve_plan(bundle.exam_id, config, fixture=bundle.name, suite_dir=suite_dir)
+    if resolved is None:
+        raise SystemExit(f"{bundle.name}: architecture v6 requires 'plans' for exam "
+                         f"{bundle.exam_id!r}.")
+    raw = resolved.path.read_bytes()
+    plan = GradingPlanV6.model_validate_json(raw)
+    if _plan_hash(plan.terminals, plan.checks) != plan.plan_hash:
+        raise SystemExit(f"{bundle.name}: {resolved.ref} does not re-hash to its plan_hash "
+                         f"{plan.plan_hash[:12]} — refusing before spend.")
+    want = set(bundle.terminal_infos)
+    have = {t.terminal_id for t in plan.terminals}
+    if want != have:
+        raise SystemExit(f"{bundle.name}: plan {plan.plan_hash[:12]} terminals differ from the "
+                         f"contract: missing {sorted(want - have)[:5]}, extra {sorted(have - want)[:5]}")
+    return plan, hashlib.sha256(raw).hexdigest(), resolved
+
+
+def _plans_provenance_v6(config: dict, bundles: List[FixtureBundle],
+                         suite_dir: Path) -> Dict[str, Any]:
+    """[grader-v6] one entry per exam: the pinned plan_hash, the file's sha, and the
+    plan's expressibility against every GT cell of the run's fixtures (report only)."""
+    from .fixtures import read_gt_judgments
+    from .plan_v6_expressibility import expressibility_v6
+    out: Dict[str, Any] = {}
+    for bundle in bundles:
+        plan, sha, resolved = _load_plan_v6(config, bundle, suite_dir)
+        entry = out.setdefault(resolved.exam_id or "<unscoped>", {
+            "plan": resolved.ref, "plan_hash": plan.plan_hash, "plan_sha256": sha,
+            "config_hash": plan.config_hash, "fixtures": [], "expressibility_v6": {}})
+        entry["fixtures"].append(bundle.name)
+        from decimal import Decimal as _D
+        precision = _D(str(bundle.rubric_contract.numeric_policy.precision))
+        total, misses = expressibility_v6(plan, {bundle.name: read_gt_judgments(bundle.name)[1]},
+                                          precision)
+        entry["expressibility_v6"][bundle.name] = {
+            "expressible": total - len(misses), "total": total,
+            "misses": [m.as_dict() for m in misses]}
+    for entry in out.values():
+        entry["fixtures"].sort()
+    return out
+
+
+def _build_explain(config: dict, profile):
+    """[grader-v6] the explainer as the grader's injected `explain` hook, on the
+    explainer's OWN registry card (arm A of §13.4)."""
+    from app.agents.explainer.explainer import explain_test
+    from app.agents.explainer.payload import ScopeMaterials
+    from app.agents.grader.llm_factory import build_chat_model
+    ex = config["explainer"]
+    espec = model_spec(ex["model_key"])
+    params = ex.get("params") or {}
+    llm = build_chat_model(espec.provider, espec.model_id,
+                           reasoning_effort=params.get("reasoning_effort"),
+                           max_output_tokens=params.get("max_output_tokens"),
+                           thinking=params.get("thinking"))
+    record = bool(config.get("record_explainer_payloads", True))
+
+    def materials(gradable_test):
+        out = {}
+        for sc in gradable_test.scopes:
+            texts = {}
+            for c in sc.criteria:
+                for leaf in (c.sub_criteria or [c]):
+                    tid = getattr(leaf, "sub_criterion_id", None) or leaf.criterion_id
+                    texts[tid] = leaf.description
+            question = "\n".join(t for t in (sc.question_text, sc.sub_question_text) if t)
+            out[(sc.question_id, sc.sub_question_id)] = ScopeMaterials(
+                question_text=question, example_solution=sc.example_solution or "",
+                teacher_texts=texts)
+        return out
+
+    async def explain(content, priced, gradable_test):
+        return await explain_test(content, priced, materials(gradable_test),
+                                  llm=llm, model_id=espec.model_id, profile=profile,
+                                  record_payloads=record)
+    return explain
+
+
 def build_agent(bundle: FixtureBundle, agent_factory=None, *,
                 config: Optional[dict] = None, spec: Optional[ModelSpec] = None,
                 suite_dir: Path = SUITE_DIR):
@@ -505,6 +599,19 @@ def build_agent(bundle: FixtureBundle, agent_factory=None, *,
                            max_output_tokens=params.get("max_output_tokens"),
                            thinking_budget=params.get("thinking_budget"),
                            thinking=params.get("thinking"))
+    if config.get("architecture") == "v6":
+        from app.agents.grader.grader_v6 import OptionsVerifyGrader
+        from app.subjects import get_profile
+        plan, _sha, _resolved = _load_plan_v6(config, bundle, suite_dir)
+        profile = get_profile(plan.subject_pack.pack_id)
+        explain, ex_version = None, None
+        if config.get("explainer"):
+            from app.agents.explainer.prompt import EXPLAINER_PROMPT_VERSION
+            explain, ex_version = _build_explain(config, profile), EXPLAINER_PROMPT_VERSION
+        return OptionsVerifyGrader(plan, bundle.rubric_contract, llm=llm,
+                                   model_version=spec.model_id, profile=profile,
+                                   sc_n=int(config.get("sc_n", 1)), explain=explain,
+                                   explainer_prompt_version=ex_version)
     if config.get("architecture", "v3") == "v5":
         # the pre-spend gate (_plans_provenance) already recorded any report-only
         # expressibility misses for this bundle; the sink keeps them from being
@@ -628,6 +735,17 @@ def _score_pair(draft: Optional[GradedTestDraft], meta: dict,
             target = o.question_id if o.sub_question_id is None else f"{o.question_id}.{o.sub_question_id}"
             per_scope_cost[target] = cost_usd(
                 Usage(input_tokens=o.input_tokens, output_tokens=o.output_tokens), price)
+    if draft.v6 is not None and cost is not None:
+        # [grader-v6] the explainer's tokens on the explainer's OWN registry card
+        # (D-7: they count in the test's cost)
+        eu = draft.v6.get("explainer_usage")
+        if eu and eu.get("calls"):
+            espec = next((m for m in _REGISTRY_MODELS.values() if m.model_id == eu["model"]), None)
+            if espec is None:
+                raise SystemExit(f"explainer model {eu['model']!r} has no registry card")
+            cost += cost_usd(Usage(input_tokens=eu["input_tokens"], output_tokens=eu["output_tokens"],
+                                   cached_input_tokens=eu.get("cached_input_tokens") or None),
+                             espec.price)
     ts = score_trial(
         draft, bundle, trial_index=meta["trial_index"],
         cost_usd_value=cost, cost_ceiling=cost_ceiling,
@@ -644,6 +762,9 @@ def run_grade(config_name: str, fixture_names: List[str], *, k: int,
               suite_dir: Path = SUITE_DIR) -> Path:
     config = _load_config(config_name, suite_dir=suite_dir)
     spec = model_spec(config["model_key"])
+    if agent_factory is None:
+        from tests.eval_common.eval_key import require_eval_key
+        require_eval_key()                     # [Oct 6 §2] a spend runs ONLY on the eval key
     _apply_prior_context_flag(config)                           # [PR-G1 item 4]
     cost_ceiling = float(config.get("cost_ceiling", 0.10))      # [§6 Tier-1]
     provisional = (k == 1) or bool(scopes)
@@ -672,6 +793,8 @@ def run_grade(config_name: str, fixture_names: List[str], *, k: int,
     # same words in the docstring, silently worth less.
     plans_prov = (_plans_provenance(config, bundles, suite_dir)
                   if config.get("architecture") == "v5" and bundles else None)
+    if config.get("architecture") == "v6" and bundles:
+        plans_prov = _plans_provenance_v6(config, bundles, suite_dir)
 
     trials: List[TrialScore] = []
     fallback_trials: List[dict] = []                 # [AM-G18]

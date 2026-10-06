@@ -260,6 +260,8 @@ def main() -> None:
     if not args.dry_run and not args.confirm_spend:
         raise SystemExit("a real run spends money: pass --confirm-spend (or --dry-run)")
     if not args.dry_run:
+        from tests.eval_common.eval_key import require_eval_key
+        require_eval_key()                     # [Oct 6 §2] a spend runs ONLY on the eval key
         if not (OUT_DIR / "hobby_tvshow.plan.json").exists() or not A0_REPORT.exists():
             raise SystemExit("A0 gates all spend (PR §7): run tools/compile_plan.py first")
         verdicts = [l.strip() for l in A0_REPORT.read_text(encoding="utf-8").splitlines()

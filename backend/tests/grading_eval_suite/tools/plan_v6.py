@@ -197,6 +197,8 @@ def main() -> None:
     if args.publish and not (args.replay and not live_scopes):
         raise SystemExit("--publish rebuilds from a recording: use it with --replay only")
     if args.confirm_spend:
+        from tests.eval_common.eval_key import require_eval_key
+        require_eval_key()                     # [Oct 6 §2] a spend runs ONLY on the eval key
         _canary(MODEL_CARDS[args.model].model_id)
     for exam in (sorted(EXAMS) if args.exam == "all" else [args.exam]):
         print(f"===== {exam} =====")
