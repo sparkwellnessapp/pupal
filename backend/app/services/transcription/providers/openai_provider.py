@@ -111,6 +111,11 @@ class OpenAIProvider:
         cached = None
         if u and u.prompt_tokens_details:
             cached = u.prompt_tokens_details.cached_tokens
+        # completion_tokens ALREADY includes reasoning tokens (OpenAI bills them
+        # as output); the breakdown is recorded for reporting only.
+        reasoning = None
+        if u and getattr(u, "completion_tokens_details", None):
+            reasoning = getattr(u.completion_tokens_details, "reasoning_tokens", None)
 
         return VLMResponse(
             text=choice.message.content or "",
@@ -118,6 +123,7 @@ class OpenAIProvider:
                 input_tokens=u.prompt_tokens if u else 0,
                 output_tokens=u.completion_tokens if u else 0,
                 cached_input_tokens=cached,
+                reasoning_tokens=reasoning,
             ),
             total_ms=total_ms,
             model_id=resp.model,

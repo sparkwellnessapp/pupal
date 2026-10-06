@@ -44,6 +44,7 @@ from app.services.transcription.scheduler import ProviderLimit, ProviderSchedule
 from app.services.transcription.two_phase.trust import run_with_trust
 
 from .critical_tokens import CriticalProfile
+from . import diagnostics as diag
 from .exam_resolution import ResolvedExam, resolve_exam
 from .flag_metrics import score_flags
 from .ground_truth import (
@@ -121,6 +122,16 @@ class RunPlan:
     #: front of the SAME ground truth and the SAME scorer. Runner plumbing only
     #: — it changes the model's INPUT, never what the ruler measures (§17.10).
     pdf_dir: str = "pdfs"
+    #: Record a document that exhausts every transport retry as FAILED and keep
+    #: the run going. OFF by default — check_goal.sh must keep crash semantics.
+    isolate_failures: bool = False
+    #: How many fixtures of ONE repeat run at once. 1 (default) is the
+    #: historical sequential loop, byte-identical. >1 is runner plumbing for
+    #: sweeps: accuracy is per-document and unaffected, but LATENCY then
+    #: includes queueing behind the per-model cap — so finalists report
+    #: latency from a concurrency=1 run, and every record carries its
+    #: queue_wait_ms_total so the two can always be separated.
+    concurrency: int = 1
 
 
 @dataclass
@@ -172,6 +183,10 @@ class RunRecord:
     # what ruler measured it.
     exam_spec: str | None = None
     profile: str = DEFAULT_PROFILE
+    # MISSION §4.3 — additive diagnostics (Hebrew / tables / arrows) and the
+    # per-phase token totals the cost pre-screen reprices. Never read by a gate.
+    diag: dict = field(default_factory=dict)
+    tokens: dict = field(default_factory=dict)
 
 
 # --- fixture resolution -----------------------------------------------------------
@@ -281,9 +296,16 @@ async def _run_one(
     corr_scopes: list = []
     trust_block: dict | None = None
     outputs: dict = {"pages": {}, "answers": {}}
+    relocations: tuple = ()
+    pages_before_reloc: dict | None = None
     if mode == "p2_only":
+        # §4.4: P2 is measured on the student's INTENDED order — the owner's
+        # arrow cases applied to the gold pages by the production function.
+        pages_before_reloc = fx.raw_gold.as_dict()
+        gold_pages, gold_res = diag.gold_relocation(fx.doc_id, pages_before_reloc)
+        relocations = gold_res.applied
         run = await pipeline.run_phase2(
-            fx.raw_gold.as_dict(), exam_spec, fx.doc_id, doc_priority=doc_priority
+            gold_pages, exam_spec, fx.doc_id, doc_priority=doc_priority
         )
         trace = run.trace
         scored_answers = run.corrected_answers or run.answers
@@ -312,15 +334,24 @@ async def _run_one(
             )
         trace = run.trace
         scored_answers = run.corrected_answers or run.answers
-        p1_score = score_page_document(run.pages, fx.raw_gold, profile=profile, policy=SCORING_POLICY)
+        reloc = getattr(run, "relocation", None)
+        if reloc is not None:
+            relocations = reloc.applied
+            pages_before_reloc = getattr(run, "pages_before_relocation", None)
+        # P1 is perception: scored on the PHYSICAL pages (raw GT = where the ink
+        # sits). With Bet 3 on, run.pages is what P2 consumed (moved text).
+        physical = pages_before_reloc if pages_before_reloc is not None else run.pages
+        p1_score = score_page_document(physical, fx.raw_gold, profile=profile, policy=SCORING_POLICY)
         e2e_score = score_document(scored_answers, fx.draft_gold, profile=profile, policy=SCORING_POLICY)
         mismatches = [dataclasses.asdict(m) for m in run.spec_mismatches]
         routing_notes = list(run.routing_notes)
-        outputs = {"pages": dict(run.pages), "answers": dict(scored_answers)}
+        outputs = {"pages": dict(physical), "answers": dict(scored_answers)}
+        if physical is not run.pages:
+            outputs["pages_after_relocation"] = dict(run.pages)
         corr_scopes = _correction_scopes(run, fx.draft_gold)
         if trust_run is not None:
             flag_score = score_flags(
-                fx.doc_id, run.pages, fx.raw_gold,
+                fx.doc_id, physical, fx.raw_gold,
                 trust_run.flags, trust_run.lint,
             )
             outputs["flags"] = [dataclasses.asdict(f) for f in trust_run.flags]
@@ -330,7 +361,20 @@ async def _run_one(
             }
             trust_block = flag_score.as_dict()
 
+    reported = getattr(locals().get("run"), "p1_instructions", None) if mode != "p2_only" else None
+    if reported:
+        outputs["instructions"] = [dataclasses.asdict(i) for i in reported]
+    if getattr(trace, "focus", None):
+        outputs["focus"] = list(trace.focus)     # Bet 4: every reader verdict
     latency_ms = (time.monotonic() - t0) * 1000.0
+    # P1 is scored on PHYSICAL placement (raw GT): the pages BEFORE any
+    # relocation. e2e is scored on the answers P2 produced from the moved text.
+    diag_block = diag.compute(
+        fx.doc_id, raw_gold=fx.raw_gold, draft_gold=fx.draft_gold,
+        pages=(pages_before_reloc or outputs.get("pages")) if mode != "p2_only" else None,
+        answers=outputs.get("answers") if mode != "p1_only" else None,
+        relocations=relocations, pages_before_relocation=pages_before_reloc,
+    )
     stage_ms: dict[str, float] = {}
     for span in trace.spans:
         stage_ms[span.stage] = stage_ms.get(span.stage, 0.0) + span.ms
@@ -360,6 +404,8 @@ async def _run_one(
         trust=trust_block,
         exam_spec=fx.exam_spec_ref,
         profile=fx.profile_name,
+        diag=diag_block,
+        tokens=diag.token_totals(trace),
     )
     return rec, p1_score, e2e_score, outputs, corr_scopes
 
@@ -390,7 +436,7 @@ def _correction_scopes(run, draft_gold) -> list:
 
 
 async def _run_one_resilient(pipeline, fx, mode, prio,
-                             attempts: int = 3):
+                             attempts: int = 4):
     """Doc-level retry for TRANSPORT failures only.
 
     The scheduler already retries each call once; a VLMCallError that still
@@ -406,7 +452,9 @@ async def _run_one_resilient(pipeline, fx, mode, prio,
         except VLMCallError as e:
             if not e.retryable or attempt == attempts:
                 raise
-            wait = 15 * attempt
+            # 30/60/90 s: a local DNS outage on 2026-09-27 outlasted 15+30 s
+            # and killed two whole arms of the Bet 1 screen
+            wait = 30 * attempt
             log.warning("[%s] transport failure (%s) — re-running doc in %ds "
                         "(attempt %d/%d)", fx.doc_id, e.kind.value, wait,
                         attempt, attempts)
@@ -418,6 +466,10 @@ async def execute(plan: RunPlan, pipeline: Pipeline) -> tuple[dict, dict]:
     records: list[RunRecord] = []
     doc_scores: dict[str, list] = {fx.doc_id: [] for fx in fixtures}
     first_outputs: dict[str, dict] = {}
+    # Every record's raw outputs (pages + answers), for the per-repeat error
+    # reads (taxonomy, table/Hebrew misses). Written beside results.json under
+    # results/ — gitignored, as it holds student text — never INTO it.
+    all_outputs: dict[str, dict] = {}
     all_corr_scopes: list = []
     batch_metrics: dict = {}
 
@@ -450,16 +502,47 @@ async def execute(plan: RunPlan, pipeline: Pipeline) -> tuple[dict, dict]:
         }
     else:
         first = True
-        for repeat in range(plan.repeats):
-            for fx in fixtures:
+        sem = asyncio.Semaphore(max(1, plan.concurrency))
+
+        failed_runs: list[dict] = []
+
+        async def one(repeat: int, fx: Fixture, prio: int):
+            async with sem:
                 log.info("=== %s | repeat %d/%d | mode=%s ===",
                          fx.doc_id, repeat + 1, plan.repeats, plan.mode)
                 t_fx = time.monotonic()
-                rec, p1s, e2es, outs, cscopes = await _run_one_resilient(pipeline, fx, plan.mode, 0)
+                try:
+                    out = await _run_one_resilient(pipeline, fx, plan.mode, prio)
+                except VLMCallError as e:
+                    # --isolate-failures (OFF by default, so check_goal.sh keeps its
+                    # crash-on-failure semantics and can never "pass" by dropping a
+                    # document): one document that exhausts every transport retry
+                    # is recorded as failed and the rest of the run survives.
+                    if not plan.isolate_failures:
+                        raise
+                    log.error("=== %s repeat %d FAILED after all retries (%s) — isolated ===",
+                              fx.doc_id, repeat + 1, e.kind.value)
+                    failed_runs.append({"doc_id": fx.doc_id, "repeat": repeat,
+                                        "kind": e.kind.value,
+                                        "wall_s": round(time.monotonic() - t_fx, 1)})
+                    return repeat, fx, None
                 log.info("=== %s done in %.1fs (cost=$%.4f, parse_failures=%d) ===",
-                         fx.doc_id, time.monotonic() - t_fx, rec.cost_usd,
-                         rec.parse_failures)
-                rec.repeat, rec.cold = repeat, first
+                         fx.doc_id, time.monotonic() - t_fx, out[0].cost_usd,
+                         out[0].parse_failures)
+                return repeat, fx, out
+
+        for repeat in range(plan.repeats):
+            if plan.concurrency <= 1:
+                done = [await one(repeat, fx, 0) for fx in fixtures]
+            else:
+                done = await asyncio.gather(*[one(repeat, fx, i)
+                                              for i, fx in enumerate(fixtures)])
+            for repeat_i, fx, out in done:
+                if out is None:
+                    continue                          # isolated failure (see `one`)
+                rec, p1s, e2es, outs, cscopes = out
+                all_outputs[f"{fx.doc_id}__rep{repeat_i}"] = outs
+                rec.repeat, rec.cold = repeat_i, first
                 first = False
                 records.append(rec)
                 first_outputs.setdefault(fx.doc_id, outs)
@@ -577,7 +660,9 @@ async def execute(plan: RunPlan, pipeline: Pipeline) -> tuple[dict, dict]:
                       plan.config.p1_strike_check_model_key} if k
         },
         "records": [dataclasses.asdict(r) for r in records],
+        "failed_runs": locals().get("failed_runs", []),
         "aggregates": aggregates,
+        "_outputs": all_outputs,
     }, first_outputs)
 
 
@@ -599,8 +684,13 @@ def make_default_pipeline(cfg: PipelineConfig) -> Pipeline:
                    "gemini": GeminiProvider}
     providers = {}
     aliased = {}
+    # EVERY model the config can call — a key missing here is a KeyError inside an
+    # optional pass, which its fail-safe then swallows as "keep P1's text": the run
+    # looks clean and measures nothing (round 2, R1, 2026-09-28).
     for key in {cfg.p1_model_key, cfg.p2_model_key,
-                cfg.p1_strike_check_model_key, *cfg.reader_model_keys}:
+                cfg.p1_strike_check_model_key, *cfg.reader_model_keys,
+                cfg.p1_focus_localizer_model_key, cfg.p1_focus_reader_model_key,
+                cfg.p1_table_reread_model_key}:
         if not key:
             continue
         ms = model_spec(key)
@@ -613,12 +703,36 @@ def make_default_pipeline(cfg: PipelineConfig) -> Pipeline:
                     resolve_model=lambda k: aliased[k])
 
 
+def _write_outputs(out_dir: Path, all_outputs: dict) -> None:
+    """One JSON per (doc, repeat): the pages P1 produced and the answers P2
+    produced, verbatim. Answer keys become "Q1.א" strings for JSON."""
+    if not all_outputs:
+        return
+    od = out_dir / "outputs"
+    od.mkdir(exist_ok=True)
+    for name, outs in all_outputs.items():
+        answers = {}
+        for k, v in (outs.get("answers") or {}).items():
+            key = f"Q{k[0]}" + (f".{k[1]}" if k[1] else "") if isinstance(k, tuple) else str(k)
+            answers[key] = v
+        payload = {"pages": {str(n): t for n, t in (outs.get("pages") or {}).items()},
+                   "answers": answers}
+        for extra in ("pages_after_relocation", "focus", "instructions"):
+            if outs.get(extra):
+                v = outs[extra]
+                payload[extra] = ({str(n): t for n, t in v.items()}
+                                  if isinstance(v, dict) else v)
+        (od / f"{name}.json").write_text(json.dumps(payload, ensure_ascii=False, indent=1),
+                                         encoding="utf-8")
+
+
 def run_plan(plan: RunPlan, pipeline: Pipeline | None = None) -> Path:
     pipeline = pipeline or make_default_pipeline(plan.config)
     results, first_outputs = asyncio.run(execute(plan, pipeline))
 
     out_dir = SUITE_DIR / "results" / f"{time.strftime('%Y%m%d_%H%M%S')}_{plan.config_name}"
     out_dir.mkdir(parents=True, exist_ok=True)
+    _write_outputs(out_dir, results.pop("_outputs", {}))
     (out_dir / "results.json").write_text(
         json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8"
     )
@@ -653,6 +767,10 @@ def main() -> None:
                          "to the suite dir. Used only for fixtures with no "
                          "fixtures/<doc_id>.json manifest.")
     ap.add_argument("--batch-size", type=int, default=25)
+    ap.add_argument("--isolate-failures", action="store_true",
+                    help="record a document that exhausts all retries as failed; keep the run going")
+    ap.add_argument("--concurrency", type=int, default=1,
+                    help="fixtures of one repeat run at once (1 = sequential, historical)")
     ap.add_argument("--pdf-dir", default="pdfs",
                     help="source-PDF directory relative to the suite dir "
                          "(default: pdfs). [Stage E] Point at a variant corpus "
@@ -671,7 +789,8 @@ def main() -> None:
         config=_load_config(args.config), config_name=args.config,
         fixtures=fixtures, repeats=args.repeats, mode=args.mode,
         batch_size=args.batch_size, exam_spec_path=args.exam_spec,
-        pdf_dir=args.pdf_dir,
+        pdf_dir=args.pdf_dir, concurrency=args.concurrency,
+        isolate_failures=args.isolate_failures,
     )
     log.info("config=%s mode=%s repeats=%d pdf_dir=%s fixtures=[%s]",
              args.config, args.mode, args.repeats, args.pdf_dir,

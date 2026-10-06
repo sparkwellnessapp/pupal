@@ -26,7 +26,7 @@ end, and belong — the one thing that needs intelligence.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from .parsing import ExamSpec
@@ -126,6 +126,8 @@ class SliceResult:
     answers: dict[Key, str]
     notes: tuple[str, ...]
     problems: tuple[str, ...]      # validator violations (empty = clean)
+    # (page, line) -> owning target label, as resolved above (first wins).
+    owned: dict[tuple[int, int], str] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
@@ -219,4 +221,5 @@ def parse_and_slice(
 
     return SliceResult(
         answers=answers, notes=tuple(notes), problems=tuple(problems),
+        owned=owned,
     )

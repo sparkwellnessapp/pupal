@@ -13,11 +13,23 @@ Three locked properties:
    order — all pending calls for document 1 go before document 2's first call.
    This single ordering rule IS the time-to-first-draft optimization.
 
-3. RETRY POLICY: ONE retry, retryable kinds only (rate_limit/transient/timeout),
-   jittered backoff. Content/parse/bad-request failures are never retried —
-   they propagate and are recorded as outcomes (mirrors the grader's
-   transient-only rule). SDK-internal retries are disabled in adapters, so the
-   attempt count here is globally true.
+3. RETRY POLICY — kind-aware, still ONE layer (2026-09-30, owner-approved):
+   * rate_limit (a 429 — the provider's shared pool is momentarily busy; it
+     fails in ~2s and costs nothing): up to `rate_limit_max_attempts` (4)
+     attempts, EXPONENTIAL backoff with jitter (~1-1.5s, 2-3s, 4-6s, capped).
+     Google's own guidance for Vertex 429s; one quick retry landed in the same
+     busy moment (eval 2026-09-28: 34 of 118 429s still failed after it).
+   * transient / timeout (a SLOW failure — it already burned a full deadline):
+     still ONE retry, because every extra attempt costs another deadline and
+     the document's wall budget is built on this count. Its wait is WIDER and
+     fully jittered (2-5s): when several pages of one document fail at the same
+     moment (noam, 2026-09-30: four strike-check 504s in one second) a fixed
+     ~1.2s wait retried them in lockstep into the same congestion (production:
+     3 of 21 such retries succeeded).
+   Content/parse/bad-request failures are never retried — they propagate and
+   are recorded as outcomes (mirrors the grader's transient-only rule).
+   SDK-internal retries are disabled in adapters, so the attempt count here is
+   globally true.
 
 queue_wait_ms is measured on every call: time between submit and dispatch.
 At low provider tiers this is THE number that decides "buy a tier upgrade vs
@@ -45,8 +57,11 @@ log = logging.getLogger("transcription.scheduler")
 class ProviderLimit:
     max_concurrent: int = 3            # conservative lowest-tier default (approved)
     recovery_successes: int = 5        # consecutive successes to creep limit back up
-    backoff_base_s: float = 1.0        # retry backoff = base * (1 + jitter)
+    backoff_base_s: float = 1.0        # 429 backoff n = base * 2**(n-1) * (1 + jitter)
     backoff_jitter: float = 0.5
+    backoff_cap_s: float = 20.0        # ceiling on any single 429 backoff
+    rate_limit_max_attempts: int = 4   # a 429 fails fast: retry it up to 3 times
+    slow_retry_wait_s: tuple[float, float] = (2.0, 5.0)   # transient/timeout: U(lo, hi)
 
 
 @dataclass(frozen=True)
@@ -152,7 +167,8 @@ class ProviderScheduler:
         *,
         doc_id: str = "",
     ) -> ScheduledResult:
-        """Run `call` under the provider's limiter. One retry on retryable kinds.
+        """Run `call` under the provider's limiter; retry per the kind-aware
+        policy (module docstring, property 3).
 
         `doc_id` is DIAGNOSTIC AND LOAD-BEARING. On 2026-09-10 a single call
         spent 481s here (240s + backoff + 240s) and the only line it wrote named
@@ -185,15 +201,22 @@ class ProviderScheduler:
                     failed_after_s = self._time() - attempt_started
                     if e.kind.value == "rate_limit":
                         lim.on_rate_limit()
-                    if e.retryable and attempts == 1:
-                        cfg = lim.cfg
-                        backoff = cfg.backoff_base_s * (
-                            1.0 + self._rng.random() * cfg.backoff_jitter
-                        )
+                    cfg = lim.cfg
+                    fast = e.kind.value == "rate_limit"
+                    max_attempts = cfg.rate_limit_max_attempts if fast else 2
+                    if e.retryable and attempts < max_attempts:
+                        if fast:
+                            backoff = min(cfg.backoff_cap_s,
+                                          cfg.backoff_base_s * 2 ** (attempts - 1)) * (
+                                1.0 + self._rng.random() * cfg.backoff_jitter)
+                        else:
+                            lo, hi = cfg.slow_retry_wait_s
+                            backoff = lo + self._rng.random() * (hi - lo)
                         log.warning(
-                            "%s%s: call failed (%s) after %.0fs; retrying once "
-                            "after %.2fs", tag, provider_name, e.kind.value,
-                            failed_after_s, backoff)
+                            "%s%s: call failed (%s) after %.0fs; retrying "
+                            "(attempt %d/%d) after %.2fs", tag, provider_name,
+                            e.kind.value, failed_after_s, attempts + 1,
+                            max_attempts, backoff)
                         await self._sleep(backoff)
                         continue
                     log.warning(

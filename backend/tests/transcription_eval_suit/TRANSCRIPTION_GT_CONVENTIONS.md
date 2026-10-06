@@ -61,7 +61,8 @@ The exam_id matches its `exams/<exam_id>.json`. Lowercase `snake_case` either si
 
 This matters more than it looks.
 
-- **Same exam as the existing five** (Hobby / TvShow, keys `(1,א)(1,ב)(1,ג)(2,א)(2,ב)(2,ג)`): reuse
+- **An exam already in the corpus** — `hobby_tvshow` (keys `(1,א)(1,ב)(1,ג)(2,א)(2,ב)(2,ג)`) or
+  `bagrut_899371` (11 keys, answer 4 of 6): copy a sibling's `fixtures/<doc_id>.json` and reuse
   `draft.json` as the exam spec. Nothing else to build.
 - **A new exam**: SUPPORTED since 2026-08-28 (`PLAN_multi_rubric_fixtures.md`, which amends
   BACKLOG B-30f). One run may span several exams; each fixture declares its own. Two files:
@@ -185,12 +186,34 @@ Enforced by the parser ([ground_truth.py:145-176](ground_truth.py#L145-L176)):
 Everything the student's pen put on the page: code, inline comments, section headers, margin notes,
 asides, corrections. If it is ink and it is not struck out, it is in the raw GT.
 
+**Where it goes is where it SITS (OD-A1, physical placement) — never where an arrow sends it.** A
+boxed or margin block goes, as one block, directly after the main-column line level with the box's
+FIRST written line (RULED 2026-09-27, the arrow-case fix). A student's instruction marks (`*`,
+arrows, «המשך») stay in the raw GT where written; moving text to its intended place is the draft
+GT's job, and every such move is a case in `insertion_cases.json`. `check_gt_consistency.py`
+compares the draft against the raw with those cases applied.
+
+**Multiplication written as a small circle or dot** (`int ◦ double`) is transcribed `*`
+(RULED 2026-09-30, hobby dan_basiuk p3: the student meant multiplication). Like the section
+markers below, this is a FORMAT normalization of a symbol, never of the student's content.
+
 ### 3.3 Section markers — normalize the format, never the letter
 
 Student section headers **belong in the raw GT**. Write them in canonical format:
 
 - Question headers as `שאלה {n}` — including when the student circled a bare digit.
 - Sub-question markers as `א.` (letter, period), on their own line, as the corpus does.
+- **Every marker on its own line, BEFORE the content it heads** — including a marker the
+  student wrote at the end of a code line (`IsMirror(int[] arr)   (2) (א)` → `שאלה 2` / `א.` /
+  `IsMirror(int[] arr)`). RULED 2026-09-27 (the bagrut GT fix).
+- **Part numbers** below a sub-question (`(1)`, `2)`) are kept VERBATIM, WHERE WRITTEN: inline
+  before the prose or after the code they sit beside; on their own line only when they stood
+  alone (or shared a line with a letter, which moves). The prompt does not normalize them, and
+  P1 writes them inline — a bare `2)` line made P2 read a new section (noam Q1.א, 2026-09-27).
+- **Header words written with a question number stay with it**: `שאלה 3 - פרק ראשון`,
+  `שאלה 6 המשך 2`. A navigation note («המשך צד שני», «סעיף ב בצד שני») is ink: it stays
+  verbatim in the raw GT and is dropped from the draft (§4.3).
+- A marker INSIDE a code comment (`// ב) 2)`) is comment text, not a marker: verbatim, both GTs.
 
 But the **letter itself is verbatim, even when the student is wrong**. In `omer_gelber` the student
 labelled question 2's parts `ג.` and `ד.` where the rubric's keys are ב and ג. The raw GT preserves
@@ -350,6 +373,13 @@ Four rules, each measured (`PLAN_multi_rubric_fixtures.md` D9), not chosen for l
 4. **Always space-pad; never `||`.** Two adjacent pipes fail twice over: `||` is the
    logical-OR operator on the critical-token metric, and it is a code-token that makes the
    review surface refuse to render the table at all.
+
+5. **Marks in cells — RULED 2026-09-27.** A tick is `✓`, a cross is `x`. A value the
+   student BOXED (drew a frame around, typically the final answer) is written `[74]` — the
+   brackets represent the frame. **A CIRCLED final answer is a box too** (RULED 2026-09-30:
+   itay_katav's circled `22` → `[22]`). Note the cost: `[` `]` are structural tokens gated at
+   recall 1.0, so the model must emit them too; and a boxed `?` would read `[?]`, the
+   illegible marker (§5.2) — none in the corpus yet.
 
 Pipes themselves are free — `|` is in neither the operator nor the structural vocabulary —
 so the delimiters cost nothing. Do **not** use a whitespace-aligned grid instead: the scorer
@@ -514,7 +544,7 @@ is.
 - **Do not edit one corpus without the other.** This is the single defect class this corpus has;
   the 2026-06-28 fix batch landed in raw, missed draft, and went undetected because it was verified
   with a `p1_only` run that never loads the draft corpus.
-- **Do not touch the existing five fixtures.** They are the owner's (`CLAUDE.md` §17.7). Adding a
+- **Do not touch an existing fixture.** They are the owner's (`CLAUDE.md` §17.7). Adding a
   *new* fixture is the only sanctioned GT-authoring action.
 - **Do not adjust the scorer, the profile, the thresholds, or a test assertion** to make your
   fixture fit. That is answering a measurement question with an instrument change, and it is on the

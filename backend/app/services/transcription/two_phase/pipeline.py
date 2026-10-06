@@ -40,8 +40,10 @@ from .corrector import Correction, correct_text
 from .instrument import CallRecord, PriceCard, StageTimer, Trace, cost_usd
 from .keys import Key, normalize_key
 from .parsing import ExamSpec, parse_model_json
+from .relocation import Instruction, RelocationResult, log_line as _reloc_log_line, relocate
 from .prompts import (
     P1_SCHEMA,
+    P1_SCHEMA_WITH_INSTRUCTIONS,
     P2_SCHEMA,
     P2_SPAN_SYSTEM,
     TRANSCRIPTION_PROMPT_VERSION,
@@ -111,6 +113,34 @@ class PipelineConfig:
     dpi: int = 200
     image_max_px: int = 2000              # longest-edge resize, no enhancement in v0
     p1_max_tokens: int = 4000             # scaled by pages-per-call at call time
+    # Reasoning depth for the P1 call, passed through the provider protocol and
+    # translated per vendor: OpenAI `reasoning_effort`, Gemini `thinking_level`,
+    # Anthropic `output_config.effort`. EMPTY = each adapter's historical
+    # default (Gemini: thinking_level=low), so every existing config is
+    # byte-identical. OpenAI reasoning models REQUIRE it: without it the adapter
+    # sends `temperature`, which they reject.
+    p1_reasoning_effort: str = ""
+    # Bet 3 (MISSION_transcription_accuracy): P1 also REPORTS the student's
+    # "move this text" marks as structured data, and the pure relocation
+    # function (relocation.py) applies them between P1 and P2. False = the
+    # historical prompt and schema, byte-identical.
+    p1_instructions: bool = False
+    # Bet 2 (MISSION): the table-row rule variant of the P1 prompt
+    # (prompts.P1_TABLE_ROWS_RULE). False = the sha-pinned P1_SYSTEM.
+    p1_table_rows: bool = False
+    # Bet 2 follow-up (table_rows.py): re-join a table row P1 broke across
+    # lines. FORMAT only. False = P1's text untouched. Awaiting owner ruling.
+    p1_join_split_table_rows: bool = False
+    # GT §5.2a rule 5 (owner-ruled 2026-09-27): a framed short result → `[74]`
+    # (prompts.P1_BOXED_VALUES_RULE). False = the sha-pinned P1_SYSTEM.
+    p1_boxed_values: bool = False
+    # TABLE RE-READ (recommendation #1, 2026-09-28): a page whose P1 text holds a
+    # table is re-read by THIS model and only its table blocks are swapped in
+    # (table_rows.replace_tables; refuses on a table-count mismatch). "" = off.
+    # OPTIONAL pass: its own timeout, under the optional-pass belt; any failure
+    # keeps P1's page. The incumbent (3.1-pro) drew tables shape-perfect.
+    p1_table_reread_model_key: str = ""
+    p1_table_reread_timeout_s: float = 90.0
     # Post-P1 crossed-out-ink verification pass (strike_check.py); empty =
     # disabled. One cheap single-image call per nonempty page asks which
     # already-transcribed lines are struck through; a deterministic post-pass
@@ -136,6 +166,36 @@ class PipelineConfig:
     # and the checker's cost is almost entirely image input tokens. Halving
     # the edge quarters those tokens.
     p1_strike_check_image_max_px: int = 0
+    # Thinking level for the strike check call (Gemini: minimal/low/...); "" =
+    # provider default (low). On dense docs its thinking is the largest cost line
+    # (noam: ~6k reasoning tokens, $0.08/doc, 2026-09-27).
+    p1_strike_check_reasoning_effort: str = ""
+    # The strike check's OWN deadline and phase belt (owner-approved 2026-09-30);
+    # 0 = the shared optional-pass values (40 s / 120 s). Production 504s were
+    # Vertex honouring OUR 40 s deadline on a slow shared pool (~1 in 10 checks
+    # lost, crossed-out ink then leaks). The belt must fit TWO attempts plus the
+    # scheduler's widest slow-retry wait, or the one retry is theatre (pinned).
+    p1_strike_check_timeout_s: float = 0.0
+    p1_strike_check_budget_s: float = 0.0
+    # FOCUS PASS (focus.py; MISSION Bet 4): localize the Hebrew-bearing lines,
+    # re-read each from a crop of the full render, splice by line id under a guard
+    # that makes changing code unrepresentable. Empty localizer key = OFF, and the
+    # pipeline is byte-identical. OPTIONAL (OD-H1): runs under the optional-pass
+    # timeout and belt; any failure keeps P1's text.
+    p1_focus_localizer_model_key: str = ""
+    p1_focus_reader_model_key: str = ""       # empty = the localizer's model
+    p1_focus_max_targets_per_page: int = 12
+    p1_focus_localizer_max_tokens: int = 3000
+    p1_focus_reader_max_tokens: int = 1500
+    # thinking level for BOTH focus calls (Gemini: minimal/low/...); "" = default
+    p1_focus_reasoning_effort: str = ""
+    # the READER's own thinking level ("" = p1_focus_reasoning_effort) — a stronger
+    # reader model may not accept the localizer's level (e.g. `minimal`).
+    p1_focus_reader_reasoning_effort: str = ""
+    # Recommendation #5 (2026-09-28): re-read ONLY lines where P1 wrote no Hebrew
+    # at all — ink the first pass DROPPED. Bet 4 re-read every Hebrew line and the
+    # reader rewrote Hebrew P1 had right; this makes that unrepresentable.
+    p1_focus_only_missing: bool = False
     # Trust layer (cross-reader disagreement flags); empty = disabled
     reader_model_keys: tuple[str, ...] = ()
     reader_image_max_px: int = 2000       # readers may run cheaper/smaller images
@@ -156,6 +216,9 @@ class PipelineConfig:
     # lines; the harness slices text verbatim; see spans.py). "text" is the
     # revert path while spans is under evaluation.
     p2_output_contract: str = "text"
+    # P2 tie-breaker (prompts.P2_MARKER_TIEBREAK): the student's marker decides ONLY
+    # when content fits two targets equally. False = the sha-pinned P2 prompt.
+    p2_marker_tiebreak: bool = False
     # Wire encoding for page images. "png" (default, historical) | "jpeg".
     # Providers sniff the mime from the bytes, so this needs no adapter change.
     image_format: str = "png"
@@ -210,6 +273,14 @@ class PipelineRun:
     corrected_answers: dict[Key, str] = field(default_factory=dict)
     corrections: tuple[Correction, ...] = ()
     prompt_version: str = TRANSCRIPTION_PROMPT_VERSION
+    # Bet 3: `pages` is what P2 consumed (instructions applied); the PHYSICAL P1
+    # output, which raw GT scores, is `pages_before_relocation` when they differ.
+    # OD-A2: relocation is silent, so none of this reaches a TranscriptionDraft.
+    pages_before_relocation: dict[int, str] | None = None
+    relocation: RelocationResult | None = None
+    # ...and the instruction marks P1 reported, verbatim (eval diagnosis of a
+    # missed/refused case). OD-A2: silent — never reaches a TranscriptionDraft.
+    p1_instructions: list | None = None
 
 
 # --- image preparation (pure-ish; PIL only) --------------------------------------
@@ -319,6 +390,47 @@ def _stitch(images: list[Image.Image], gap_px: int = 24) -> Image.Image:
 
 def _chunk(seq: list[int], size: int) -> list[list[int]]:
     return [seq[i:i + size] for i in range(0, len(seq), size)]
+
+
+def _prompt_base(cfg: "PipelineConfig") -> str:
+    """The prompt-version stamp for THIS config: TRANSCRIPTION_PROMPT_VERSION plus
+    one suffix per P1 prompt VARIANT that is on. A draft's stamp must identify the
+    text the model saw, and the variants change it without touching the sha-pinned
+    P1_SYSTEM. All variants off = the historical stamp, byte-identical."""
+    base = TRANSCRIPTION_PROMPT_VERSION
+    if cfg.p1_table_rows:
+        base += "+rows"
+    if cfg.p1_boxed_values:
+        base += "+boxed"
+    if cfg.p1_instructions:
+        base += "+instr-r1"
+    if cfg.p2_marker_tiebreak:
+        base += "+p2tie"
+    return base
+
+
+def _parse_instructions(page: int, raw) -> list[Instruction]:
+    """P1's reported instruction marks for one page -> relocation inputs. Anything
+    malformed is DROPPED here, never guessed: a missing instruction leaves the text
+    where the student wrote it, which is the safe failure (review-first)."""
+    out: list[Instruction] = []
+    for i, it in enumerate(raw or []):
+        if not isinstance(it, dict) or it.get("kind") not in ("insertion", "attachment"):
+            continue
+        try:
+            target_page = int(it.get("target_page") or page)
+        except (TypeError, ValueError):
+            continue
+        out.append(Instruction(
+            id=f"p1:p{page}#{i}", kind=it["kind"], source_page=page,
+            target_page=target_page,
+            source_first=str(it.get("first_words") or "") or None,
+            source_last=str(it.get("last_words") or "") or None,
+            after=str(it.get("after") or ""), before=str(it.get("before") or ""),
+            line=str(it.get("line") or "") or None,
+            marker=str(it.get("marker") or "other"),
+        ))
+    return out
 
 
 # --- the pipeline -----------------------------------------------------------------
@@ -460,9 +572,11 @@ class Pipeline:
         model_key: str | None = None,
         image_max_px: int | None = None,
         timeout_s: float | None = None,
+        instructions: list | None = None,
     ) -> dict[int, str]:
         cfg = self.cfg
         key = model_key or cfg.p1_model_key
+        want_instr = cfg.p1_instructions and phase == "p1"
         max_px = image_max_px or cfg.image_max_px
         # An EXPLICIT parameter, not a `phase == "reader"` sniff. Readers share
         # this code path with P1 and need the optional-pass timeout, and the
@@ -489,7 +603,8 @@ class Pipeline:
                 )
 
         user = p1_user_prompt(page_numbers, cfg.p1_image_packing)
-        schema = P1_SCHEMA if (cfg.use_json_schema and ms.supports_json_schema) else None
+        schema = ((P1_SCHEMA_WITH_INSTRUCTIONS if want_instr else P1_SCHEMA)
+                  if (cfg.use_json_schema and ms.supports_json_schema) else None)
         per_page = (cfg.reader_max_tokens
                     if phase == "reader" and cfg.reader_max_tokens
                     else cfg.p1_max_tokens)
@@ -502,7 +617,10 @@ class Pipeline:
         # P1 per subject profile: CS is `P1_SYSTEM` byte-for-byte; a prose/math
         # profile swaps only the ink-rules block (prompts.p1_system). Spec-blind
         # either way — the profile carries modality, never rubric content.
-        p1_system_text = p1_system(_get_subject_profile(cfg.subject_key))
+        p1_system_text = p1_system(_get_subject_profile(cfg.subject_key),
+                                   instructions=want_instr,
+                                   table_rows=cfg.p1_table_rows and phase == "p1",
+                                   boxed_values=cfg.p1_boxed_values and phase == "p1")
 
         def make_call():
             # Clamped HERE, inside the closure, so the budget is read at
@@ -517,6 +635,8 @@ class Pipeline:
                 max_tokens=max_tokens, temperature=cfg.temperature,
                 json_schema=schema,
                 timeout_s=self._budget.clamp(base_timeout_s),
+                reasoning_effort=(cfg.p1_reasoning_effort or None)
+                if phase == "p1" else None,
             )
 
         ok, data = await self._call_parsed(
@@ -534,6 +654,8 @@ class Pipeline:
                 if n in page_numbers:
                     # Same page emitted twice -> concatenate, never drop.
                     out[n] = (out.get(n, "") + "\n" + str(item["text"])).strip("\n")
+                    if want_instr and instructions is not None:
+                        instructions.extend(_parse_instructions(n, item.get("instructions")))
             except (KeyError, TypeError, ValueError):
                 continue
         for n in page_numbers:
@@ -551,6 +673,7 @@ class Pipeline:
         model_key: str | None = None,
         image_max_px: int | None = None,
         timeout_s: float | None = None,
+        instructions: list | None = None,
     ) -> dict[int, str]:
         """Chunk + dispatch pre-rendered page images through one P1 model."""
         page_numbers = list(range(1, len(images) + 1))
@@ -561,7 +684,7 @@ class Pipeline:
             self._phase1_chunk(
                 nums, [images[n - 1] for n in nums], doc_priority, trace,
                 phase=phase, model_key=model_key, image_max_px=image_max_px,
-                timeout_s=timeout_s,
+                timeout_s=timeout_s, instructions=instructions,
             )
             for nums in chunks
         ])
@@ -596,6 +719,7 @@ class Pipeline:
         doc_id: str,
         doc_priority: int,
         trace: Trace,
+        instructions: list | None = None,
     ) -> dict[int, str]:
         """THE perception entry point: P1 transcription + the post-P1
         strike-check pass.
@@ -613,12 +737,207 @@ class Pipeline:
         # P1 is ESSENTIAL: without it there is no transcription at all, so an
         # exhausted budget raises rather than degrading (budget.py).
         self._budget.require(_ESSENTIAL_MIN_RUNWAY_S, "phase 1 (perception)")
-        pages = await self._transcribe_pages(images, doc_id, doc_priority, trace)
+        pages = await self._transcribe_pages(images, doc_id, doc_priority, trace,
+                                             instructions=instructions)
         log.info("[%s] phase1 done: %d page(s) transcribed", doc_id, len(pages))
+        if self.cfg.p1_join_split_table_rows:
+            from .table_rows import join_split_rows
+            pages = {n: join_split_rows(t) for n, t in pages.items()}
         if self.cfg.p1_strike_check_model_key:
             pages = await self._strike_check_pages(
                 images, pages, doc_id, doc_priority, trace)
+        # AFTER the strike check: a struck line is gone before anyone re-reads it.
+        if self.cfg.p1_table_reread_model_key:
+            pages = await self._table_reread_pages(
+                images, pages, doc_id, doc_priority, trace)
+        if self.cfg.p1_focus_localizer_model_key:
+            pages = await self._focus_pages(
+                images, pages, doc_id, doc_priority, trace)
         return pages
+
+    async def _table_reread_pages(
+        self,
+        images: list[Image.Image],
+        pages: dict[int, str],
+        doc_id: str,
+        doc_priority: int,
+        trace: Trace,
+    ) -> dict[int, str]:
+        """Recommendation #1: re-read every page whose P1 text holds a table with
+        `p1_table_reread_model_key` (the P1 prompt and schema, via `_phase1_chunk`),
+        then swap in ONLY its table blocks (table_rows.replace_tables). Concurrent
+        across pages; per-page fail-safe; the whole pass under the optional belt."""
+        from .table_rows import join_split_rows, replace_tables, table_blocks
+
+        cfg = self.cfg
+        key = cfg.p1_table_reread_model_key
+        targets = [n for n in sorted(pages) if table_blocks(pages[n])]
+        if not targets:
+            return pages
+        if not self._budget.can_start(cfg.optional_pass_budget_s):
+            log.warning("[%s] table_reread skipped: document budget spent — keeping "
+                        "P1 tables on %d page(s)", doc_id, len(targets))
+            return pages
+
+        async def one(n: int) -> tuple[int, str]:
+            try:
+                donor = await self._phase1_chunk(
+                    [n], [images[n - 1]], doc_priority, trace,
+                    phase="table_reread", model_key=key,
+                    timeout_s=self._budget.clamp(cfg.p1_table_reread_timeout_s))
+                text = donor.get(n, "")
+                if cfg.p1_join_split_table_rows:
+                    text = join_split_rows(text)
+                new, why = replace_tables(pages[n], text)
+                log.info("[%s] table_reread page %d: %s (%d table(s))", doc_id, n, why,
+                         len(table_blocks(pages[n])))
+                return n, new
+            except Exception:  # noqa: BLE001 — the pass must never sink the doc
+                log.warning("[%s] table_reread page %d failed; keeping P1 tables",
+                            doc_id, n, exc_info=True)
+                return n, pages[n]
+
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*(one(n) for n in targets)),
+                timeout=self._budget.clamp(cfg.optional_pass_budget_s))
+        except asyncio.TimeoutError:
+            log.warning("[%s] table_reread exceeded its %.0fs budget — keeping P1 "
+                        "tables on %d page(s)", doc_id, cfg.optional_pass_budget_s,
+                        len(targets))
+            return pages
+        out = dict(pages)
+        out.update(dict(results))
+        return out
+
+    async def _focus_pages(
+        self,
+        images: list[Image.Image],
+        pages: dict[int, str],
+        doc_id: str,
+        doc_priority: int,
+        trace: Trace,
+    ) -> dict[int, str]:
+        """The focus pass (focus.py): per nonempty page, LOCALIZE Hebrew-bearing
+        lines, READ each from a crop of the full render, SPLICE by line id under
+        the skeleton guard. Concurrent across pages and across a page's lines;
+        per-unit fail-safe (a failed localize keeps the page, a failed read keeps
+        the line); the whole pass sits under the optional-pass belt."""
+        from . import focus as F
+
+        cfg = self.cfg
+        loc_key = cfg.p1_focus_localizer_model_key
+        read_key = cfg.p1_focus_reader_model_key or loc_key
+        loc_ms, read_ms = self._resolve(loc_key), self._resolve(read_key)
+        loc_p, read_p = self._providers[loc_ms.provider], self._providers[read_ms.provider]
+        effort = cfg.p1_focus_reasoning_effort or None
+        read_effort = cfg.p1_focus_reader_reasoning_effort or effort
+        targets_pages = [n for n in sorted(pages) if pages[n].strip()]
+        if not targets_pages:
+            return pages
+        if not self._budget.can_start(cfg.optional_pass_budget_s):
+            log.warning("[%s] focus skipped: %.0fs of the %.0fs document budget "
+                        "already spent — keeping P1 text", doc_id,
+                        self._budget.elapsed_s(), self._budget.total_s or 0.0)
+            return pages
+        log.info("[%s] focus: localizing %d page(s) with %s, reading with %s",
+                 doc_id, len(targets_pages), loc_ms.model_id, read_ms.model_id)
+
+        async def encode(img: Image.Image, max_px: int) -> str:
+            async with self._encode_lock:
+                return (await asyncio.get_running_loop().run_in_executor(
+                    _ENCODE_POOL, _encode_pages_sync, [img], max_px,
+                    cfg.image_format, cfg.image_jpeg_quality, False,
+                ))[0]
+
+        async def read_one(n: int, t, line: str) -> tuple[int, str | None]:
+            try:
+                # the crop is sent at the RENDER's resolution — that is the
+                # whole point of cropping; 8192 never binds on a line crop
+                b64 = await encode(F.crop(images[n - 1], t.box), 8192)
+
+                def make_call():
+                    return read_p.complete(
+                        system=F.READ_SYSTEM, user=F.read_user_prompt(line),
+                        images_b64=[b64], max_tokens=cfg.p1_focus_reader_max_tokens,
+                        temperature=cfg.temperature,
+                        json_schema=(F.READ_SCHEMA if (cfg.use_json_schema
+                                     and read_ms.supports_json_schema) else None),
+                        timeout_s=self._budget.clamp(cfg.optional_pass_timeout_s),
+                        reasoning_effort=read_effort,
+                    )
+
+                ok, data = await self._call_parsed(
+                    phase="focus_read", model_key=read_key, doc_priority=doc_priority,
+                    trace=trace, required_keys=("line",), make_call=make_call,
+                    label=f"focus_read page={n} line={t.line_id}")
+                got = data.get("line") if ok else None
+                return t.line_id, (got if isinstance(got, str) else None)
+            except Exception:  # noqa: BLE001 — a reader must never sink the doc
+                log.warning("[%s] focus_read page %d line %d failed; keeping line",
+                            doc_id, n, t.line_id, exc_info=True)
+                return t.line_id, None
+
+        async def one(n: int) -> tuple[int, str]:
+            text = pages[n]
+            try:
+                lines = text.split("\n")
+                b64 = await encode(images[n - 1], cfg.image_max_px)
+
+                def make_call():
+                    return loc_p.complete(
+                        system=F.LOCALIZE_SYSTEM, user=F.localize_user_prompt(n, text),
+                        images_b64=[b64], max_tokens=cfg.p1_focus_localizer_max_tokens,
+                        temperature=cfg.temperature,
+                        json_schema=(F.LOCALIZE_SCHEMA if (cfg.use_json_schema
+                                     and loc_ms.supports_json_schema) else None),
+                        timeout_s=self._budget.clamp(cfg.optional_pass_timeout_s),
+                        reasoning_effort=effort,
+                    )
+
+                ok, data = await self._call_parsed(
+                    phase="focus_localize", model_key=loc_key, doc_priority=doc_priority,
+                    trace=trace, required_keys=("hebrew_lines",), make_call=make_call,
+                    label=f"focus_localize page={n}")
+                if not ok:
+                    return n, text
+                targets = F.parse_targets(data.get("hebrew_lines"), len(lines),
+                                          cfg.p1_focus_max_targets_per_page)
+                if cfg.p1_focus_only_missing:
+                    targets = [t for t in targets
+                               if not F.has_hebrew(lines[t.line_id - 1])]
+                got = await asyncio.gather(
+                    *(read_one(n, t, lines[t.line_id - 1]) for t in targets))
+                readings = {lid: s for lid, s in got if s is not None}
+                new_text, record = F.splice(text, readings)
+                for r in record:
+                    trace.focus.append({"page": n, "line_id": r.line_id,
+                                        "before": r.before, "after": r.after,
+                                        "accepted": r.accepted, "reason": r.reason})
+                refused = [r.reason for r in record if not r.accepted and r.reason != "unchanged"]
+                log.info("[%s] focus page %d: %d target(s), %d read, %d spliced, "
+                         "refused=%s", doc_id, n, len(targets), len(readings),
+                         sum(r.accepted for r in record), refused or "none")
+                return n, new_text
+            except Exception:  # noqa: BLE001 — the pass must never sink the doc
+                log.warning("[%s] focus page %d failed; keeping text", doc_id, n,
+                            exc_info=True)
+                return n, text
+
+        t_phase = time.monotonic()
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*(one(n) for n in targets_pages)),
+                timeout=self._budget.clamp(cfg.optional_pass_budget_s),
+            )
+        except asyncio.TimeoutError:
+            log.warning("[%s] focus exceeded its %.0fs budget after %.0fs — keeping "
+                        "P1 text for all %d page(s)", doc_id, cfg.optional_pass_budget_s,
+                        time.monotonic() - t_phase, len(targets_pages))
+            return pages
+        out = dict(pages)
+        out.update(dict(results))
+        return out
 
     async def _strike_check_pages(
         self,
@@ -652,7 +971,9 @@ class Pipeline:
         # already does on any failure. Degradation by omission, never by guess
         # (CLAUDE.md 3.5a); the teacher loses a crossed-out-ink correction, not
         # her document.
-        if not self._budget.can_start(self.cfg.optional_pass_budget_s):
+        sc_timeout = cfg.p1_strike_check_timeout_s or cfg.optional_pass_timeout_s
+        sc_budget = cfg.p1_strike_check_budget_s or cfg.optional_pass_budget_s
+        if not self._budget.can_start(sc_budget):
             log.warning(
                 "[%s] strike_check skipped: %.0fs of the %.0fs document budget "
                 "already spent — keeping P1 text for %d page(s)",
@@ -673,7 +994,8 @@ class Pipeline:
                         max_tokens=cfg.p1_strike_check_max_tokens,
                         temperature=cfg.temperature,
                         json_schema=schema,
-                        timeout_s=self._budget.clamp(cfg.optional_pass_timeout_s),
+                        timeout_s=self._budget.clamp(sc_timeout),
+                        reasoning_effort=cfg.p1_strike_check_reasoning_effort or None,
                     )
 
                 label = (f"strike_check page={n}" if votes == 1
@@ -743,13 +1065,13 @@ class Pipeline:
         try:
             results = await asyncio.wait_for(
                 asyncio.gather(*(one(n) for n in targets)),
-                timeout=self._budget.clamp(self.cfg.optional_pass_budget_s),
+                timeout=self._budget.clamp(sc_budget),
             )
         except asyncio.TimeoutError:
             log.warning(
                 "[%s] strike_check exceeded its %.0fs budget after %.0fs — "
                 "keeping P1 text for all %d page(s)",
-                doc_id, self.cfg.optional_pass_budget_s,
+                doc_id, sc_budget,
                 time.monotonic() - t_phase, len(targets))
             return pages
         out = dict(pages)
@@ -841,7 +1163,7 @@ class Pipeline:
                 trace=trace, corrected_answers=corrected_answers,
                 corrections=tuple(corrections),
                 prompt_version=_stamp_prompt_version(
-                    TRANSCRIPTION_PROMPT_VERSION, _get_subject_profile(cfg.subject_key)),
+                    _prompt_base(cfg), _get_subject_profile(cfg.subject_key)),
             )
 
         # ALPHA-GAP A-8: P2 text is the CS base for every profile; alpha words segmentation per modality.
@@ -887,7 +1209,7 @@ class Pipeline:
             spec_mismatches=tuple(mismatches), routing_notes=notes, trace=trace,
             corrected_answers=corrected_answers, corrections=tuple(corrections),
             prompt_version=_stamp_prompt_version(
-                TRANSCRIPTION_PROMPT_VERSION, _get_subject_profile(cfg.subject_key)),
+                _prompt_base(cfg), _get_subject_profile(cfg.subject_key)),
         )
 
     async def _phase2_spans(
@@ -915,7 +1237,8 @@ class Pipeline:
         targets = spec_targets(exam_spec)
         numbered = numbered_pages_block(pages)
         # ALPHA-GAP A-8: span-mode P2 text is the CS base for every profile this cycle.
-        system = p2_span_system(_get_subject_profile(cfg.subject_key))
+        system = p2_span_system(_get_subject_profile(cfg.subject_key),
+                                marker_tiebreak=cfg.p2_marker_tiebreak)
         user = p2_span_user_prompt(numbered, exam_spec.to_prompt_json())
         schema = (build_span_schema(targets)
                   if (cfg.use_json_schema and ms.supports_json_schema) else None)
@@ -967,6 +1290,8 @@ class Pipeline:
         notes = list(best.notes)
         for p in best.problems:
             notes.append(f"span_contract: {p} (salvaged deterministically)")
+        # the claimed-line map, for the eval's paired with/without comparison
+        trace.p2_owned = dict(best.owned)
         return best.answers, tuple(notes)
 
     def _apply_corrections(self, answers, exam_spec, trace):
@@ -996,12 +1321,32 @@ class Pipeline:
         self, pdf_bytes: bytes, doc_id: str, exam_spec: ExamSpec,
         *, doc_priority: int = 0,
     ) -> PipelineRun:
-        pages, trace = await self.run_phase1(
-            pdf_bytes, doc_id, doc_priority=doc_priority
+        trace = Trace(doc_id=doc_id)
+        images = await self.render(pdf_bytes, trace)
+        instructions: list = []
+        pages = await self.perceive(images, doc_id, doc_priority, trace,
+                                    instructions=instructions)
+        moved, reloc = self.apply_relocation(pages, instructions, doc_id)
+        run = await self.run_phase2(
+            moved, exam_spec, doc_id, doc_priority=doc_priority, trace=trace
         )
-        return await self.run_phase2(
-            pages, exam_spec, doc_id, doc_priority=doc_priority, trace=trace
-        )
+        if reloc is not None:
+            run.pages_before_relocation, run.relocation = pages, reloc
+            run.p1_instructions = list(instructions)
+        return run
+
+    def apply_relocation(self, pages: dict[int, str], instructions: list,
+                         doc_id: str) -> tuple[dict[int, str], RelocationResult | None]:
+        """Bet 3: apply the instruction marks P1 reported (relocation.py) — the
+        ONE place both the eval path (`run`) and production (`run_with_trust`)
+        call. Off (`p1_instructions=False`) it is the identity and returns None.
+        Pure over its inputs; one operational log line per document (OD-A2:
+        silent to the teacher)."""
+        if not self.cfg.p1_instructions:
+            return pages, None
+        result = relocate(pages, instructions)
+        log.info(_reloc_log_line(doc_id, result))
+        return result.pages, result
 
 
 def build_pipeline(

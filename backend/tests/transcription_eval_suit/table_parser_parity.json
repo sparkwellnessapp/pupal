@@ -1,0 +1,984 @@
+{
+ "note": "Inputs: every table-bearing GT text + edge cases. `expected` is written by the TS detector (frontend/src/utils/table-parser-parity.test.ts, WRITE_TABLE_PARITY=1) and asserted by BOTH sides.",
+ "cases": [
+  {
+   "id": "raw:bagrut_899371.dan_basiuk:p1",
+   "text": "(1)\nא) (1)\n| for | i | arr[i] | if | Return |\n| v | 0 | 8 | x | x |\n| v | 1 | 5 | x | x |\n| v | 2 | 4 | x | x |\n| v | 3 | 15 | x | x |\n| v | 4 | 3 | v | true |\n\n(2) לבדוק אם יש במערך מספר \"נורמלי\" (לא 0 ולא המספר) שהמספר מתחלק בו בלי שארית\n\n(ב) (1)\n| Sum | for | i | arr[i] | if | return |\n| 0 | v | 0 | 8 | v(4) | x |\n| 8 | v | 1 | 5 | x | x |\n| 8 | v | 2 | 4 | v(2) | x |\n| 10 | v | 3 | 15 | v(5) | x |\n| 25 | v | 4 | 3 | x | x |\n| 25 | v | 5 | 40 | v(2,4,5) | x |\n| 65 | v | 6 | 9 | v(3) | x |\n| 74 | v | 7 | 2 | x | x |\n| 74 | x |  |  |  | v [74]|\n                                   \n(2) למצוא את סכום המספרים במערך שמתחלקים בלי שארית על מספר\nאחר במערך.",
+   "expected": [
+    {
+     "rows": [
+      [
+       "for",
+       "i",
+       "arr[i]",
+       "if",
+       "Return"
+      ],
+      [
+       "v",
+       "0",
+       "8",
+       "x",
+       "x"
+      ],
+      [
+       "v",
+       "1",
+       "5",
+       "x",
+       "x"
+      ],
+      [
+       "v",
+       "2",
+       "4",
+       "x",
+       "x"
+      ],
+      [
+       "v",
+       "3",
+       "15",
+       "x",
+       "x"
+      ],
+      [
+       "v",
+       "4",
+       "3",
+       "v",
+       "true"
+      ]
+     ],
+     "hasHeader": true
+    },
+    {
+     "rows": [
+      [
+       "Sum",
+       "for",
+       "i",
+       "arr[i]",
+       "if",
+       "return"
+      ],
+      [
+       "0",
+       "v",
+       "0",
+       "8",
+       "v(4)",
+       "x"
+      ],
+      [
+       "8",
+       "v",
+       "1",
+       "5",
+       "x",
+       "x"
+      ],
+      [
+       "8",
+       "v",
+       "2",
+       "4",
+       "v(2)",
+       "x"
+      ],
+      [
+       "10",
+       "v",
+       "3",
+       "15",
+       "v(5)",
+       "x"
+      ],
+      [
+       "25",
+       "v",
+       "4",
+       "3",
+       "x",
+       "x"
+      ],
+      [
+       "25",
+       "v",
+       "5",
+       "40",
+       "v(2,4,5)",
+       "x"
+      ],
+      [
+       "65",
+       "v",
+       "6",
+       "9",
+       "v(3)",
+       "x"
+      ],
+      [
+       "74",
+       "v",
+       "7",
+       "2",
+       "x",
+       "x"
+      ],
+      [
+       "74",
+       "x",
+       "",
+       "",
+       "",
+       "v [74]"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "draft:bagrut_899371.dan_basiuk:Q1.א",
+   "text": "(1)\nא) (1)\n| for | i | arr[i] | if | Return |\n| v | 0 | 8 | x | x |\n| v | 1 | 5 | x | x |\n| v | 2 | 4 | x | x |\n| v | 3 | 15 | x | x |\n| v | 4 | 3 | v | true |\n\n(2) לבדוק אם יש במערך מספר \"נורמלי\" (לא 0 ולא המספר) שהמספר מתחלק בו בלי שארית",
+   "expected": [
+    {
+     "rows": [
+      [
+       "for",
+       "i",
+       "arr[i]",
+       "if",
+       "Return"
+      ],
+      [
+       "v",
+       "0",
+       "8",
+       "x",
+       "x"
+      ],
+      [
+       "v",
+       "1",
+       "5",
+       "x",
+       "x"
+      ],
+      [
+       "v",
+       "2",
+       "4",
+       "x",
+       "x"
+      ],
+      [
+       "v",
+       "3",
+       "15",
+       "x",
+       "x"
+      ],
+      [
+       "v",
+       "4",
+       "3",
+       "v",
+       "true"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "draft:bagrut_899371.dan_basiuk:Q1.ב",
+   "text": "(ב) (1)\n| Sum | for | i | arr[i] | if | return |\n| 0 | v | 0 | 8 | v(4) | x |\n| 8 | v | 1 | 5 | x | x |\n| 8 | v | 2 | 4 | v(2) | x |\n| 10 | v | 3 | 15 | v(5) | x |\n| 25 | v | 4 | 3 | x | x |\n| 25 | v | 5 | 40 | v(2,4,5) | x |\n| 65 | v | 6 | 9 | v(3) | x |\n| 74 | v | 7 | 2 | x | x |\n| 74 | x |  |  |  | v [74]|\n                                   \n(2) למצוא את סכום המספרים במערך שמתחלקים בלי שארית על מספר\nאחר במערך.",
+   "expected": [
+    {
+     "rows": [
+      [
+       "Sum",
+       "for",
+       "i",
+       "arr[i]",
+       "if",
+       "return"
+      ],
+      [
+       "0",
+       "v",
+       "0",
+       "8",
+       "v(4)",
+       "x"
+      ],
+      [
+       "8",
+       "v",
+       "1",
+       "5",
+       "x",
+       "x"
+      ],
+      [
+       "8",
+       "v",
+       "2",
+       "4",
+       "v(2)",
+       "x"
+      ],
+      [
+       "10",
+       "v",
+       "3",
+       "15",
+       "v(5)",
+       "x"
+      ],
+      [
+       "25",
+       "v",
+       "4",
+       "3",
+       "x",
+       "x"
+      ],
+      [
+       "25",
+       "v",
+       "5",
+       "40",
+       "v(2,4,5)",
+       "x"
+      ],
+      [
+       "65",
+       "v",
+       "6",
+       "9",
+       "v(3)",
+       "x"
+      ],
+      [
+       "74",
+       "v",
+       "7",
+       "2",
+       "x",
+       "x"
+      ],
+      [
+       "74",
+       "x",
+       "",
+       "",
+       "",
+       "v [74]"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "raw:bagrut_899371.itay_katav:p1",
+   "text": "| returned | x | i | arr[i] | if: (arr[i]!=1 && arr[i]!=x && x%arr[i]==0) |\n|  | 6 | 0 | 8 | F |\n|  | 6 | 1 | 5 | F |\n|  | 6 | 2 | 4 | F |\n|  | 6 | 3 | 15 | F |\n| true | 6 | 4 | 3 | T |\n\nא) 2) לבדוק אם יש ערך במערך ש-שונה מ-1,\nשונה מ-x שהתקבל בפעולה ו-x מתחלק בו\nבלי שארית.\n\n\nב) 1)\n| arr[i] | sum | i | if: check(arr, arr[i]) | returned |\n| 8 | 0 | 0 | T |  |\n| 5 | 8 | 1 | T |  |\n| 4 | 13 | 2 | T |  |\n| 15 | 17 | 3 | F |  |\n| 3 | 17 | 4 | T |  |\n| 40 | 20 | 5 | F |  |\n| 9 | 20 | 6 | F |  |\n| 2 | 20 | 7 | T | 22 |\n\nב) 2) להחזיר את סכום הערכים במערך, שהפעולה check מחזירה עליהם true עד המערך שלהם.",
+   "expected": [
+    {
+     "rows": [
+      [
+       "returned",
+       "x",
+       "i",
+       "arr[i]",
+       "if: (arr[i]!=1 && arr[i]!=x && x%arr[i]==0)"
+      ],
+      [
+       "",
+       "6",
+       "0",
+       "8",
+       "F"
+      ],
+      [
+       "",
+       "6",
+       "1",
+       "5",
+       "F"
+      ],
+      [
+       "",
+       "6",
+       "2",
+       "4",
+       "F"
+      ],
+      [
+       "",
+       "6",
+       "3",
+       "15",
+       "F"
+      ],
+      [
+       "true",
+       "6",
+       "4",
+       "3",
+       "T"
+      ]
+     ],
+     "hasHeader": true
+    },
+    {
+     "rows": [
+      [
+       "arr[i]",
+       "sum",
+       "i",
+       "if: check(arr, arr[i])",
+       "returned"
+      ],
+      [
+       "8",
+       "0",
+       "0",
+       "T",
+       ""
+      ],
+      [
+       "5",
+       "8",
+       "1",
+       "T",
+       ""
+      ],
+      [
+       "4",
+       "13",
+       "2",
+       "T",
+       ""
+      ],
+      [
+       "15",
+       "17",
+       "3",
+       "F",
+       ""
+      ],
+      [
+       "3",
+       "17",
+       "4",
+       "T",
+       ""
+      ],
+      [
+       "40",
+       "20",
+       "5",
+       "F",
+       ""
+      ],
+      [
+       "9",
+       "20",
+       "6",
+       "F",
+       ""
+      ],
+      [
+       "2",
+       "20",
+       "7",
+       "T",
+       "22"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "draft:bagrut_899371.itay_katav:Q1.א",
+   "text": "| returned | x | i | arr[i] | if: (arr[i]!=1 && arr[i]!=x && x%arr[i]==0) |\n|  | 6 | 0 | 8 | F |\n|  | 6 | 1 | 5 | F |\n|  | 6 | 2 | 4 | F |\n|  | 6 | 3 | 15 | F |\n| true | 6 | 4 | 3 | T |\n\nא) 2) לבדוק אם יש ערך במערך ש-שונה מ-1,\nשונה מ-x שהתקבל בפעולה ו-x מתחלק בו\nבלי שארית.",
+   "expected": [
+    {
+     "rows": [
+      [
+       "returned",
+       "x",
+       "i",
+       "arr[i]",
+       "if: (arr[i]!=1 && arr[i]!=x && x%arr[i]==0)"
+      ],
+      [
+       "",
+       "6",
+       "0",
+       "8",
+       "F"
+      ],
+      [
+       "",
+       "6",
+       "1",
+       "5",
+       "F"
+      ],
+      [
+       "",
+       "6",
+       "2",
+       "4",
+       "F"
+      ],
+      [
+       "",
+       "6",
+       "3",
+       "15",
+       "F"
+      ],
+      [
+       "true",
+       "6",
+       "4",
+       "3",
+       "T"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "draft:bagrut_899371.itay_katav:Q1.ב",
+   "text": "ב) 1)\n| arr[i] | sum | i | if: check(arr, arr[i]) | returned |\n| 8 | 0 | 0 | T |  |\n| 5 | 8 | 1 | T |  |\n| 4 | 13 | 2 | T |  |\n| 15 | 17 | 3 | F |  |\n| 3 | 17 | 4 | T |  |\n| 40 | 20 | 5 | F |  |\n| 9 | 20 | 6 | F |  |\n| 2 | 20 | 7 | T | 22 |\n\nב) 2) להחזיר את סכום הערכים במערך, שהפעולה check מחזירה עליהם true עד המערך שלהם.",
+   "expected": [
+    {
+     "rows": [
+      [
+       "arr[i]",
+       "sum",
+       "i",
+       "if: check(arr, arr[i])",
+       "returned"
+      ],
+      [
+       "8",
+       "0",
+       "0",
+       "T",
+       ""
+      ],
+      [
+       "5",
+       "8",
+       "1",
+       "T",
+       ""
+      ],
+      [
+       "4",
+       "13",
+       "2",
+       "T",
+       ""
+      ],
+      [
+       "15",
+       "17",
+       "3",
+       "F",
+       ""
+      ],
+      [
+       "3",
+       "17",
+       "4",
+       "T",
+       ""
+      ],
+      [
+       "40",
+       "20",
+       "5",
+       "F",
+       ""
+      ],
+      [
+       "9",
+       "20",
+       "6",
+       "F",
+       ""
+      ],
+      [
+       "2",
+       "20",
+       "7",
+       "T",
+       "22"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "raw:bagrut_899371.noam_breinshtein:p1",
+   "text": "                                שאלה 1\nא)\n1\n| x | i | arr[i] | if |             \n| 6 | 0 | 8 |  |\n| 6 | 1 | 5 | x |\n| 6 | 2 | 4 | x |\n| 6 | 3 | 15 | x |\n| 6 | 4 | 3 | v |\n\nאחרי i=4 יש return\n\n\nא 2) מטרת הפעולה chrck היא לבדוק אם במערך יש מספר שמתחלק מבספר שמביאים לכך (למעט 1 והמספר עצמו)\n\n\n\n                             המשך בצד השני של העמוד",
+   "expected": [
+    {
+     "rows": [
+      [
+       "x",
+       "i",
+       "arr[i]",
+       "if"
+      ],
+      [
+       "6",
+       "0",
+       "8",
+       ""
+      ],
+      [
+       "6",
+       "1",
+       "5",
+       "x"
+      ],
+      [
+       "6",
+       "2",
+       "4",
+       "x"
+      ],
+      [
+       "6",
+       "3",
+       "15",
+       "x"
+      ],
+      [
+       "6",
+       "4",
+       "3",
+       "v"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "raw:bagrut_899371.noam_breinshtein:p2",
+   "text": "המשך\nב)\nמוחזר - 76\n| sum | i | arr[i] | if |\n| 0 | 0 | 8 | v |\n| 8 | 1 | 5 | x |\n| 8 | 2 | 4 | v |\n| 12 | 3 | 15 | v |\n| 27 | 4 | 3 | x |\n| 27 | 5 | 40 | v |\n| 67 | 6 | 9 | v |\n| 76 | 7 | 2 | x |\n\nב 2) מטרת הפעולה היא לבדוק את סכום המספרים שניתן לחלק\nאותם במספר במערך.",
+   "expected": [
+    {
+     "rows": [
+      [
+       "sum",
+       "i",
+       "arr[i]",
+       "if"
+      ],
+      [
+       "0",
+       "0",
+       "8",
+       "v"
+      ],
+      [
+       "8",
+       "1",
+       "5",
+       "x"
+      ],
+      [
+       "8",
+       "2",
+       "4",
+       "v"
+      ],
+      [
+       "12",
+       "3",
+       "15",
+       "v"
+      ],
+      [
+       "27",
+       "4",
+       "3",
+       "x"
+      ],
+      [
+       "27",
+       "5",
+       "40",
+       "v"
+      ],
+      [
+       "67",
+       "6",
+       "9",
+       "v"
+      ],
+      [
+       "76",
+       "7",
+       "2",
+       "x"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "draft:bagrut_899371.noam_breinshtein:Q1.א",
+   "text": "א)\n1\n| x | i | arr[i] | if |             \n| 6 | 0 | 8 |  |\n| 6 | 1 | 5 | x |\n| 6 | 2 | 4 | x |\n| 6 | 3 | 15 | x |\n| 6 | 4 | 3 | v |\n\nאחרי i=4 יש return\n\n\nא 2) מטרת הפעולה chrck היא לבדוק אם במערך יש מספר שמתחלק מבספר שמביאים לכך (למעט 1 והמספר עצמו)\n\n\n\n                             המשך בצד השני של העמוד",
+   "expected": [
+    {
+     "rows": [
+      [
+       "x",
+       "i",
+       "arr[i]",
+       "if"
+      ],
+      [
+       "6",
+       "0",
+       "8",
+       ""
+      ],
+      [
+       "6",
+       "1",
+       "5",
+       "x"
+      ],
+      [
+       "6",
+       "2",
+       "4",
+       "x"
+      ],
+      [
+       "6",
+       "3",
+       "15",
+       "x"
+      ],
+      [
+       "6",
+       "4",
+       "3",
+       "v"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "draft:bagrut_899371.noam_breinshtein:Q1.ב",
+   "text": "המשך\nב)\nמוחזר - 76\n| sum | i | arr[i] | if |\n| 0 | 0 | 8 | v |\n| 8 | 1 | 5 | x |\n| 8 | 2 | 4 | v |\n| 12 | 3 | 15 | v |\n| 27 | 4 | 3 | x |\n| 27 | 5 | 40 | v |\n| 67 | 6 | 9 | v |\n| 76 | 7 | 2 | x |\n\nב 2) מטרת הפעולה היא לבדוק את סכום המספרים שניתן לחלק\nאותם במספר במערך.",
+   "expected": [
+    {
+     "rows": [
+      [
+       "sum",
+       "i",
+       "arr[i]",
+       "if"
+      ],
+      [
+       "0",
+       "0",
+       "8",
+       "v"
+      ],
+      [
+       "8",
+       "1",
+       "5",
+       "x"
+      ],
+      [
+       "8",
+       "2",
+       "4",
+       "v"
+      ],
+      [
+       "12",
+       "3",
+       "15",
+       "v"
+      ],
+      [
+       "27",
+       "4",
+       "3",
+       "x"
+      ],
+      [
+       "27",
+       "5",
+       "40",
+       "v"
+      ],
+      [
+       "67",
+       "6",
+       "9",
+       "v"
+      ],
+      [
+       "76",
+       "7",
+       "2",
+       "x"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "raw:hobby_tvshow.dan_basiuk:p2",
+   "text": "שאלה 1 \nב.\nPublic bool populateHobbies ()\n{\n    bool added = false;\n    bool going = true;\n\n    for (int i=0; i< this.hobbies.Length; i++)\n    {\n        cw(\"do u want to create another hobby?\");  // אם מאושר להמשיך\n        string answear = CR();\n        if(answear == \"n\" || answear == \"N\")\n            going = false;\n\n        if((this.hobbies[i] == null) && (going == true))  // אישור להמשיך/מקום פנוי\n        {\n            added = true;   // אפשר להכניס\n            cw(\"enter bobbyName , if its sportive and it duration\");\n            string a = CR();\n            bool b = CR();\n            int c = CR();\n            this.hobbies[i] = new Hobby(a,b,c); // יצירת חדש והסמתו\n        }\n    }\n    return added;  // אם הצליח או לא\n}",
+   "expected": []
+  },
+  {
+   "id": "draft:hobby_tvshow.dan_basiuk:Q1.ב",
+   "text": "Public bool populateHobbies ()\n{\n    bool added = false;\n    bool going = true;\n\n    for (int i=0; i< this.hobbies.Length; i++)\n    {\n        cw(\"do u want to create another hobby?\");  // אם מאושר להמשיך\n        string answear = CR();\n        if(answear == \"n\" || answear == \"N\")\n            going = false;\n\n        if((this.hobbies[i] == null) && (going == true))  // אישור להמשיך/מקום פנוי\n        {\n            added = true;   // אפשר להכניס\n            cw(\"enter bobbyName , if its sportive and it duration\");\n            string a = CR();\n            bool b = CR();\n            int c = CR();\n            this.hobbies[i] = new Hobby(a,b,c); // יצירת חדש והסמתו\n        }\n    }\n    return added;  // אם הצליח או לא\n}",
+   "expected": []
+  },
+  {
+   "id": "raw:hobby_tvshow.din_ezra:p2",
+   "text": "שאלה 1 \nב.\npublic bool pupulatHobbies()\n{\n    bool t = true;\n    bool f = false;\n\n    for(int i=0; i<this.hobbies.length; i++)\n    {\n        cw(\"do u want to crate\n        string a = CR();\n        if(a==\"n\" || a==\"N\")\n        {\n            t = false;\n        }\n\n        if((this.hobbies[i]==null) && (t==true))\n        {\n            f = true;\n            rw(\"enter your hobby\");\n\n            string name = CR();\n            bool sportiv = CR();\n            int min = int.parce(CR());\n            Hobby hobb = new Hobby(name, sportiv, min);\n        }\n    }\n\n    return f;\n}",
+   "expected": []
+  },
+  {
+   "id": "draft:hobby_tvshow.din_ezra:Q1.ב",
+   "text": "public bool pupulatHobbies()\n{\n    bool t = true;\n    bool f = false;\n\n    for(int i=0; i<this.hobbies.length; i++)\n    {\n        cw(\"do u want to crate\n        string a = CR();\n        if(a==\"n\" || a==\"N\")\n        {\n            t = false;\n        }\n\n        if((this.hobbies[i]==null) && (t==true))\n        {\n            f = true;\n            rw(\"enter your hobby\");\n\n            string name = CR();\n            bool sportiv = CR();\n            int min = int.parce(CR());\n            Hobby hobb = new Hobby(name, sportiv, min);\n        }\n    }\n\n    return f;\n}",
+   "expected": []
+  },
+  {
+   "id": "edge:bounded_rect",
+   "text": "| x | i |\n| 6 | 0 |\n|  | 1 |",
+   "expected": [
+    {
+     "rows": [
+      [
+       "x",
+       "i"
+      ],
+      [
+       "6",
+       "0"
+      ],
+      [
+       "",
+       "1"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "edge:ragged_end",
+   "text": "| x | i | r |\n| 6 | 0 |\n| 7 | 1 | T |",
+   "expected": [
+    {
+     "rows": [
+      [
+       "x",
+       "i",
+       "r"
+      ],
+      [
+       "6",
+       "0",
+       ""
+      ],
+      [
+       "7",
+       "1",
+       "T"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "edge:mixed_edges",
+   "text": "| 8 | T | 8 | 0\n| | | 0 |\n76 | 2 | f | 76 | 7",
+   "expected": [
+    {
+     "rows": [
+      [
+       "",
+       "8",
+       "T",
+       "8",
+       "0"
+      ],
+      [
+       "",
+       "",
+       "",
+       "0",
+       ""
+      ],
+      [
+       "76",
+       "2",
+       "f",
+       "76",
+       "7"
+      ]
+     ],
+     "hasHeader": false
+    }
+   ]
+  },
+  {
+   "id": "edge:separator_row",
+   "text": "| a | b |\n|---|---|\n| 1 | 2 |",
+   "expected": [
+    {
+     "rows": [
+      [
+       "a",
+       "b"
+      ],
+      [
+       "1",
+       "2"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "edge:numeric_first_row",
+   "text": "| 1 | 2 |\n| 3 | 4 |",
+   "expected": [
+    {
+     "rows": [
+      [
+       "1",
+       "2"
+      ],
+      [
+       "3",
+       "4"
+      ]
+     ],
+     "hasHeader": false
+    }
+   ]
+  },
+  {
+   "id": "edge:code_with_or",
+   "text": "if (a || b)\n{\nx = 1;\n}",
+   "expected": []
+  },
+  {
+   "id": "edge:literal_or_in_cell",
+   "text": "| x | cond |\n| 1 | a || b |\n| 2 | c |",
+   "expected": []
+  },
+  {
+   "id": "edge:semicolon_in_cell",
+   "text": "| sum | i |\n| s+=1; | 0 |\n| 2 | 1 |",
+   "expected": []
+  },
+  {
+   "id": "edge:long_prose_with_pipe",
+   "text": "this is a long sentence | with a pipe inside it here\nand another long line | that has a pipe too",
+   "expected": []
+  },
+  {
+   "id": "edge:single_row",
+   "text": "| a | b |",
+   "expected": []
+  },
+  {
+   "id": "edge:tight_pipes",
+   "text": "|x|i|\n|6|0|\n||1|",
+   "expected": [
+    {
+     "rows": [
+      [
+       "x",
+       "i"
+      ],
+      [
+       "6",
+       "0"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "edge:table_between_prose",
+   "text": "before\n| a | b |\n| 1 | 2 |\nafter",
+   "expected": [
+    {
+     "rows": [
+      [
+       "a",
+       "b"
+      ],
+      [
+       "1",
+       "2"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  },
+  {
+   "id": "edge:hebrew_cells",
+   "text": "| ערך | i |\n| אמת | 0 |\n| שקר | 1 |",
+   "expected": [
+    {
+     "rows": [
+      [
+       "ערך",
+       "i"
+      ],
+      [
+       "אמת",
+       "0"
+      ],
+      [
+       "שקר",
+       "1"
+      ]
+     ],
+     "hasHeader": true
+    }
+   ]
+  }
+ ]
+}

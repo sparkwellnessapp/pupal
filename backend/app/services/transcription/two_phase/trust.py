@@ -68,14 +68,22 @@ async def run_with_trust(
     # back to `_transcribe_pages`: this is the production path, and calling the
     # bare transcription here is what silently excluded production from the
     # strike-check pass while the eval suite (run_phase1) ran it.
+    instructions: list = []
     base_task = pipeline.perceive(  # noqa: SLF001 — package-internal
-        images, doc_id, doc_priority, trace)
+        images, doc_id, doc_priority, trace, instructions=instructions)
     readers_task = pipeline.run_readers(
         images, doc_id, doc_priority=doc_priority, trace=trace)
     pages, (reader_pages, _) = await asyncio.gather(base_task, readers_task)
 
+    # Bet 3: the student's move-this-text marks, applied by the same method the
+    # eval path uses. Readers and flags keep comparing PHYSICAL pages (they read
+    # the same scan); P2 segments the moved text.
+    moved, reloc = pipeline.apply_relocation(pages, instructions, doc_id)
     run = await pipeline.run_phase2(
-        pages, exam_spec, doc_id, doc_priority=doc_priority, trace=trace)
+        moved, exam_spec, doc_id, doc_priority=doc_priority, trace=trace)
+    if reloc is not None:
+        run.pages_before_relocation, run.relocation = pages, reloc
+        run.p1_instructions = list(instructions)
 
     answers_by_target = {
         answer_target(q, sub): text for (q, sub), text in run.answers.items()

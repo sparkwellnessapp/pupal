@@ -193,6 +193,11 @@ tests/grading_eval_suite/benchmarks/contracts/_proposed/
 !tests/transcription_eval_suit/fixtures/*.json
 !tests/transcription_eval_suit/configs/*.json
 !tests/transcription_eval_suit/draft.json
+# MISSION_transcription_accuracy (2026-09-27): the owner's ARROW ground truth and
+# the table-parser parity fixture both suites assert. Ground truth and a
+# cross-language pin are SOURCE, and a fresh clone without them fails both.
+!tests/transcription_eval_suit/insertion_cases.json
+!tests/transcription_eval_suit/table_parser_parity.json
 # eval RUN OUTPUTS are regenerable artifacts — never commit them (repo bloat).
 tests/*/results/
 annotated-docx*

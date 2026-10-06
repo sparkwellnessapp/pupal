@@ -326,3 +326,51 @@ def test_openai_adapter_omits_temperature_under_reasoning_effort():
     asyncio.run(p.complete(system="s", user="u", max_tokens=10, temperature=0.0))
     assert captured[-1]["temperature"] == 0.0
     assert "reasoning_effort" not in captured[-1]
+
+
+# --- the kind-aware retry policy (2026-09-30) -----------------------------------------
+
+def _recording_sched(**limit_kw):
+    waits = []
+
+    async def rec_sleep(s):
+        waits.append(s)
+    import random as _r
+    return ProviderScheduler({"fake": ProviderLimit(**limit_kw)}, sleep_fn=rec_sleep,
+                             rng=_r.Random(7)), waits
+
+
+def test_a_429_is_retried_up_to_three_times_with_growing_waits():
+    fake = FakeProvider(script=[VLMCallError(ErrorKind.RATE_LIMIT, "busy", provider="fake")] * 3
+                        + [FakeProvider.ok("in")])
+    sched, waits = _recording_sched()
+    res = _run(sched.submit("fake", 0, lambda: fake.complete(system="s", user="u", max_tokens=10)))
+    assert res.attempts == 4 and res.response.text == "in"
+    assert len(waits) == 3 and waits[0] < waits[1] < waits[2]      # exponential
+    assert 1.0 <= waits[0] <= 1.5 and 4.0 <= waits[2] <= 6.0         # base 1s, jitter 50%
+
+
+def test_a_fourth_429_propagates():
+    fake = FakeProvider(script=[VLMCallError(ErrorKind.RATE_LIMIT, "busy", provider="fake")] * 5)
+    sched, _ = _recording_sched()
+    with pytest.raises(VLMCallError):
+        _run(sched.submit("fake", 0, lambda: fake.complete(system="s", user="u", max_tokens=10)))
+    assert len(fake.calls) == 4
+
+
+def test_a_slow_failure_still_gets_exactly_one_retry_after_a_wide_jittered_wait():
+    """Each extra attempt on a timeout / 504 costs a whole deadline, so the count
+    stays at ONE retry; only the wait changes (desynchronizes a burst)."""
+    fake = FakeProvider(script=[VLMCallError(ErrorKind.TRANSIENT, "504", provider="fake")] * 3)
+    sched, waits = _recording_sched()
+    with pytest.raises(VLMCallError):
+        _run(sched.submit("fake", 0, lambda: fake.complete(system="s", user="u", max_tokens=10)))
+    assert len(fake.calls) == 2 and len(waits) == 1 and 2.0 <= waits[0] <= 5.0
+
+
+def test_a_429_backoff_is_capped():
+    fake = FakeProvider(script=[VLMCallError(ErrorKind.RATE_LIMIT, "busy", provider="fake")] * 9)
+    sched, waits = _recording_sched(rate_limit_max_attempts=8, backoff_cap_s=3.0)
+    with pytest.raises(VLMCallError):
+        _run(sched.submit("fake", 0, lambda: fake.complete(system="s", user="u", max_tokens=10)))
+    assert max(waits) <= 3.0 * 1.5

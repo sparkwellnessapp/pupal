@@ -127,11 +127,92 @@ if _P1_CS_INK_RULES not in P1_SYSTEM:  # loud at import, never at the first non-
 
 
 # ALPHA-GAP A-2 (D-1): the mathematics fragment prescribes linear notation only; alpha adds the LaTeX grammar.
-def p1_system(profile=None) -> str:
-    """The P1 system prompt for a subject profile (None ⇒ the CS baseline)."""
-    if profile is None or profile.p1_fragment is None:
-        return P1_SYSTEM
-    return P1_SYSTEM.replace(_P1_CS_INK_RULES, profile.p1_fragment, 1)
+# ---------------------------------------------------------------------------
+# Instruction marks (MISSION_transcription_accuracy Bet 3) — OFF unless the config
+# sets `p1_instructions`, so the default P1 text is byte-identical (sha-pinned).
+#
+# P1 stays a perception step: it reports the student's "move this text" marks as
+# DATA beside the physical text and never moves anything itself. The pure
+# relocation function (relocation.py) applies them between P1 and P2, so raw-GT
+# scoring is untouched by construction and every relocation is countable.
+# ---------------------------------------------------------------------------
+P1_INSTRUCTIONS_BLOCK = """
+Instruction marks — a SEPARATE report; the page text above is unchanged:
+- Transcribe every page exactly as written, in its PHYSICAL position, as you do now. Separately, list in the page's `instructions` any mark by which the student tells the reader to MOVE text. Never move text inside `text`, and never add characters the student did not write.
+- INSERTION: the student wrote a piece of the answer (code or prose) somewhere else and linked it to where it belongs — an arrow, a pair of matching symbols (`*`, a numbered star), a caret `^`, or a note such as «המשך». The target may be between two lines or inside a line (for example, into a condition). Report `kind: "insertion"` on the page where the moved text is written:
+  `first_words` / `last_words`: the first and last few words of the moved text, copied EXACTLY from your own transcription of that page;
+  `target_page`, `after`, `before`: the text immediately before and after the insertion point, copied EXACTLY from your transcription of the target page, with enough words that the pair occurs only once on that page — a full line on each side when possible. `line` is "".
+- ATTACHMENT: the student wrote a note (often boxed or in the margin) and drew an arrow onto one specific line; the note comments on that line rather than being part of its content. Report `kind: "attachment"` with `first_words` / `last_words` of the note, `target_page`, and `line` set to that complete line exactly as you transcribed it. `after` and `before` are "".
+- INSERTION OR ATTACHMENT is decided by what the text IS, not by how it is linked: text that belongs INSIDE the answer (a statement, a condition, a line of the answer's own reasoning) is an insertion; a note ABOUT a line (an explanation, an assumption, a remark to the reader — typically words written beside code, often boxed) is an attachment. When it could be either, report an attachment: an attachment never changes the answer's content.
+- EXACT TARGET MARKS: when the student marks the exact insertion point with a second mark (a caret, an arrowhead, a small x or a squiggle) separate from where the arrow line ends, that mark defines the target — report the anchors at the mark.
+- NOT instructions — never report these: arrows inside a trace table showing flow between rows; `->` or `=>` written as part of code; a connector linking text that is already in reading order (e.g. `{` with an arrow to the statement right after it); arrows pointing at a heading or question number; decorative marks.
+- WHEN UNSURE, DON'T REPORT. If you are not sure a mark is an instruction, or not sure exactly where it points, leave it out: the text stays where it is and the teacher checks it against the scan. A missed instruction costs her a glance; a wrong one silently changes the student's answer.
+- Most pages have no instruction marks: `instructions` is then [].
+"""
+
+_P1_OUTPUT_LINE = '{"pages": [{"page_number": <int>, "text": "<full verbatim page text>"}]}'
+_P1_OUTPUT_LINE_INSTR = ('{"pages": [{"page_number": <int>, "text": "<full verbatim page '
+                         'text>", "instructions": [ ... ]}]}')
+
+
+# MISSION Bet 2 (2026-09-27) — TABLE-ROW ADHERENCE, a VARIANT behind
+# `PipelineConfig.p1_table_rows`, not an edit: P1_SYSTEM is sha-pinned
+# (tests/subjects/test_prompt_identity.py: "a mismatch is a STOP, never a re-pin")
+# and switching production is the owner's call. Two sentences: (1) A ROW IS ONE
+# LINE — the gemini-flash P1 candidates break a line INSIDE a header cell whose ink
+# wraps (`if:` / `(arr[i] != 1 && ...)`), splitting the row and shifting every row
+# after it (itay_katav: 6/75 cells in the Bet 1 screen with the table read
+# correctly). (2) `✓` / `x` — the owner's raw GT spelling (ruled by edit,
+# 2026-09-27); the incumbent wrote `v` for one student's ticks, `✓` for another's.
+_P1_TABLE_ANCHOR = "Skipping a blank cell shifts every value after it into the wrong column. "
+P1_TABLE_ROWS_RULE = (
+    "A row is ONE line of text: when a cell's ink wraps onto a second line (a long "
+    "header such as a condition), write it on its row's line with the parts joined "
+    "by a space — never break a line inside a row. In a table, write a check mark "
+    "as `✓` and a cross mark as `x`. ")
+
+
+# BOXED / CIRCLED FINAL ANSWERS (owner-ruled 2026-09-27/30, GT §5.2a rule 5) — a
+# flagged VARIANT, `PipelineConfig.p1_boxed_values`, for the same sha-pin reason. The
+# GT writes a number the student framed or circled as the final answer `[74]`;
+# nothing tells the model so, and `[` `]` are structural tokens gated at recall 1.0.
+# THE WORDING WAS ITERATED to the owner's bar "changes no other digit" (RUNLOG
+# 2026-09-30 / 10-03; tests/.../boxed_check.py): a first wording changed three table
+# digits on noam p2 on every run; a stricter one changed «לא 0» → «ללא 1» on dan p1
+# and lost dan's boxed 74. This one changed NO digit across all 10 exams. Known
+# limit: a frame that holds a word AND a number (noam's «מוחזר - 76») comes out
+# bracketed with its word order reversed (`[76] - מוחזר`). At temperature 0 ANY
+# added sentence can shift unrelated readings — never edit this without re-running
+# boxed_check on all ten documents.
+_P1_BOXED_ANCHOR = "- Use `[?]` for any character or word you cannot read. Never guess.\n"
+P1_BOXED_VALUES_RULE = (
+    "- FINAL-ANSWER BOX: only when you are CERTAIN that a single number is enclosed "
+    "by a frame or circle the student drew around it to mark it as the final answer, "
+    "write that number inside square brackets, e.g. `[74]`. If you are not certain, "
+    "write it as a plain number. This never changes HOW you read anything: every "
+    "digit, framed or not, is transcribed exactly as written, and brackets are never "
+    "added anywhere else.\n")
+
+
+def p1_system(profile=None, *, instructions: bool = False,
+              table_rows: bool = False, boxed_values: bool = False) -> str:
+    """The P1 system prompt for a subject profile (None ⇒ the CS baseline).
+    `instructions=True` adds the Bet-3 instruction-mark report; `table_rows=True`
+    the Bet-2 table-row rule; `boxed_values=True` the `[74]` rule; all off, the
+    text is exactly the historical prompt."""
+    base = (P1_SYSTEM if profile is None or profile.p1_fragment is None
+            else P1_SYSTEM.replace(_P1_CS_INK_RULES, profile.p1_fragment, 1))
+    if table_rows:
+        assert _P1_TABLE_ANCHOR in base, "Bet 2 anchor moved"
+        base = base.replace(_P1_TABLE_ANCHOR, _P1_TABLE_ANCHOR + P1_TABLE_ROWS_RULE, 1)
+    if boxed_values:
+        assert _P1_BOXED_ANCHOR in base, "boxed-values anchor moved"
+        base = base.replace(_P1_BOXED_ANCHOR, _P1_BOXED_ANCHOR + P1_BOXED_VALUES_RULE, 1)
+    if not instructions:
+        return base
+    head, sep, tail = base.partition("Output JSON only")
+    return (head + P1_INSTRUCTIONS_BLOCK.lstrip(chr(10)) + chr(10) + sep
+            + tail.replace(_P1_OUTPUT_LINE, _P1_OUTPUT_LINE_INSTR))
 
 
 P1_SCHEMA: dict = {
@@ -146,6 +227,47 @@ P1_SCHEMA: dict = {
                     "text": {"type": "string"},
                 },
                 "required": ["page_number", "text"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["pages"],
+    "additionalProperties": False,
+}
+
+# Bet 3: the same per-page object plus `instructions`. FLAT, every field required
+# ("" when unused) so the strict-schema dialects of all three vendors accept it.
+P1_INSTRUCTION_ITEM: dict = {
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string", "enum": ["insertion", "attachment"]},
+        "marker": {"type": "string", "enum": ["arrow", "asterisk", "caret",
+                                              "numbered_star", "continuation_note",
+                                              "other"]},
+        "first_words": {"type": "string"},
+        "last_words": {"type": "string"},
+        "target_page": {"type": "integer"},
+        "after": {"type": "string"},
+        "before": {"type": "string"},
+        "line": {"type": "string"},
+    },
+    "required": ["kind", "marker", "first_words", "last_words", "target_page",
+                 "after", "before", "line"],
+    "additionalProperties": False,
+}
+P1_SCHEMA_WITH_INSTRUCTIONS: dict = {
+    "type": "object",
+    "properties": {
+        "pages": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "page_number": {"type": "integer"},
+                    "text": {"type": "string"},
+                    "instructions": {"type": "array", "items": P1_INSTRUCTION_ITEM},
+                },
+                "required": ["page_number", "text", "instructions"],
                 "additionalProperties": False,
             },
         }
@@ -337,10 +459,33 @@ def p2_system_prompt(profile=None) -> str:
     return _P2_BASE + "\n" + _P2_OUTPUT
 
 
-def p2_span_system(profile=None) -> str:
+# Code-symbol mission (2026-09-30) — P2 TIE-BREAKER, a flagged VARIANT
+# (`PipelineConfig.p2_marker_tiebreak`; P2_SPAN_SYSTEM is sha-pinned). The one
+# recurring P2 splitting error: noam's prose explanation «מטרת הפעולה check…», written
+# under his own `א.` marker, routed to 1.ב on ~half the runs — the text fits BOTH
+# targets (1.ב's method `What` calls `Check`), and "content is the SOLE authority"
+# leaves a true tie to chance. This keeps content supreme and lets the marker break
+# ONLY a tie. It does not touch a real marker-vs-content conflict (omer's
+# mislabelled `ג.`/`ד.` still route by content).
+_P2_AUTHORITY_ANCHOR = ("assign by content and record the conflict in `notes`. "
+                        "Never infer a unit's target from its page position.")
+P2_MARKER_TIEBREAK = (
+    " ONE EXCEPTION — A TIE: when a unit's content fits TWO targets equally well (typically a "
+    "prose explanation, e.g. «the purpose of the method …», that could answer either of two "
+    "sub-questions about related code), content cannot decide — then the student's own "
+    "section marker written directly above that unit decides. A tie is not a conflict: "
+    "whenever content points to one target, content wins.")
+
+
+def p2_span_system(profile=None, *, marker_tiebreak: bool = False) -> str:
     """The span-mode P2 system prompt (production). Same text for every
-    profile this cycle — see p2_system_prompt (ALPHA-GAP A-8)."""
-    return P2_SPAN_SYSTEM
+    profile this cycle — see p2_system_prompt (ALPHA-GAP A-8). `marker_tiebreak`
+    adds the code-symbol-mission tie-breaker; off = the sha-pinned text."""
+    if not marker_tiebreak:
+        return P2_SPAN_SYSTEM
+    assert _P2_AUTHORITY_ANCHOR in P2_SPAN_SYSTEM, "P2 tie-break anchor moved"
+    return P2_SPAN_SYSTEM.replace(_P2_AUTHORITY_ANCHOR,
+                                  _P2_AUTHORITY_ANCHOR + P2_MARKER_TIEBREAK, 1)
 
 
 P2_SCHEMA: dict = {

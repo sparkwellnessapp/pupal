@@ -504,14 +504,32 @@ Pure parts are tested with **zero mocks**; provider/LLM paths inject fakes (a
 
 ## 14. Fixtures
 
-5 student exams (`dan_basiuk`, `din_ezra`, `moran_aharon`, `omer_gelber`,
-`yonatan_basiuk`), each: `pdfs/<id>.pdf` + `raw_benchmarks/<id>.md` (raw GT) +
-`draft_benchmarks/<id>.md` (draft GT). One exam (hobby/TvShow), two CS questions,
-sub-questions א/ב/ג. Since 2026-08-28 a fixture may declare its OWN exam via
-`fixtures/<doc_id>.json`, so the corpus is no longer single-exam by construction. **n=5 is below the `flag_metrics_trustworthy` threshold of 10** — conclusions
-are provisional and the correction kill-criterion is meaningless until n≥10 *with
-deliberately-included student-spec-errors.* GT bugs are tracked as verification tasks
-for the GT author (Noam), not as model findings.
+**n = 10, across TWO exams** (2026-09-27). Every fixture is four files sharing a
+`doc_id` of `<exam_id>.<student>`: `pdfs/<id>.pdf` + `raw_benchmarks/<id>.md` (raw GT)
++ `draft_benchmarks/<id>.md` (draft GT) + `fixtures/<id>.json` (which exam it answers).
+
+| exam | fixtures | shape |
+|---|---|---|
+| `hobby_tvshow` | 5 (`dan_basiuk`, `din_ezra`, `moran_aharon`, `omer_gelber`, `yonatan_basiuk`) | 2 questions, sub-questions א/ב/ג, **6 keys, all answered** |
+| `bagrut_899371` | 5 (`dan_basiuk`, `itay_katav`, `itay_kraft`, `noam_breinshtein`, `roni_ben_ezra`) | 6 questions, **11 keys**, a SELECTION group (answer 4 of 6) — so 3–4 keys per fixture are EMPTY by design; Q1 is the corpus's first TRACE-TABLE question |
+
+Two things about the selection exam that are easy to misread. An empty answer body
+there is **correct**, not missing: the student chose four questions, and the gate
+scores empty-gold against empty-prediction at 1.0 while a model that INVENTS an
+answer for an unchosen question scores 0.0 and is flagged (the D3 Option A ruling).
+And every such document costs a SECOND P2 call — the span contract records an
+unassigned target as a `problem`, which is unreachable-by-construction here, so the
+map is never `ok` and the doc lands via deterministic salvage with routing notes
+(PLAN_multi_rubric_fixtures.md D3/D8).
+
+**n=10 MEETS the `flag_metrics_trustworthy` threshold numerically** — it is the first
+corpus that does. Two caveats before reading anything into it: that flag only governs
+TRUST-LAYER (reader) configs, which are retired in production and measured only via
+`configs/v1_trust.json`; and the corrector's own `trustworthy` flag uses the same n but
+its standing precondition is n≥10 *with deliberately-included student-spec-errors* —
+whether the bagrut fixtures' real student errors satisfy that is the owner's call
+(§17.7), not an inference from the count. GT bugs remain verification tasks for the GT
+author, never model findings.
 
 ---
 

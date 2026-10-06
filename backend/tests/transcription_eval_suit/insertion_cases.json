@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "bagrut_899371.itay_katav#01",
+      "fixture": "bagrut_899371.itay_katav",
+      "kind": "attachment",
+      "marker": "arrow",
+  "source": {
+    "page": 3,
+    "text": "בהנחה שהמערך מונים ממולא ב- null/אפס."
+  },
+  "target": {
+    "page": 3,
+    "line": "* string[] names = new string[count];"
+  },
+  "answer_key": "Q4.ב",
+  "note": "boxed margin note arrowed onto a code line"
+    },  
+    {
+      "id": "bagrut_899371.itay_kraft#01",
+      "fixture": "bagrut_899371.itay_kraft",
+      "kind": "insertion",
+      "marker": "arrow",
+    "source": {
+        "page": 5,
+        "text": "int mechinaNum=0;\nint max=int.minValou;"
+    },
+    "target": {
+        "page": 5,
+        "after": "{\n",
+        "before": "int[] copy = new int[studentsMechina.Length];"
+    },
+    "answer_key": "Q6",
+    "note": "arrow plus a separate mark at the target, pinning it after the opening brace"
+    },
+    {
+      "id": "hobby_tvshow.yonatan_basiuk#01",
+      "fixture": "hobby_tvshow.yonatan_basiuk",
+      "kind": "insertion",
+      "marker": "arrow",
+    "source": {
+       "page": 1,
+       "text": "|| (answer==\"n\") || (answer=='N')"
+    },
+  "target": {
+    "page": 1,
+    "after": "if (this.countHobbies == this.hobbies.Length",
+    "before": ")\nreturn false; // בדיקה אם מלא"
+    },
+    "answer_key": "Q1.ב",
+    "note": "circled condition fragment written at the start of the if-line, arrowed into the condition before its closing paren; mid-line insertion"
+    },
+    {"id": "bagrut_899371.itay_katav#02", "fixture": "bagrut_899371.itay_katav", "kind": "insertion", "marker": "asterisk", "source": {"page": 3, "text": "for (int i = 0; i < names.Length; i++)\n{\nnames[i] = \"null\";\n}"}, "target": {"page": 3, "after": "* string[] names = new string[count];", "before": "count = 0;"}, "answer_key": "Q4.ב", "note": "«שכחתי לאפס: *» at the page foot; its `*` pairs with the one opening the names allocation line — the zeroing loop right after the allocation. Added 2026-09-27 under owner authorization (Checkpoint 1)."},
+    {"id": "bagrut_899371.itay_kraft#02", "fixture": "bagrut_899371.itay_kraft", "kind": "insertion", "marker": "arrow", "source": {"page": 5, "text": "if(num > max)\n{\nmax = num;\nmechinaNum = copy[i];\n}"}, "target": {"page": 5, "after": "}\n}", "before": "}\ncount -=num;"}, "answer_key": "Q6", "note": "boxed block, bottom right; the arrow leaves the inner for-loop's closing brace — the block lands after that loop, inside `if (copy[i] != null)`. Added 2026-09-27 under owner authorization (Checkpoint 1)."}
+  ]
+}

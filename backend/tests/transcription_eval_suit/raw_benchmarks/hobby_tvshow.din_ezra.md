@@ -14,6 +14,8 @@ Public class Hobby
         this.minutes = durationInMinutes;
     }
 
+המשך צד שני
+
 === PAGE 2 ===
 שאלה 1 
 ב.
