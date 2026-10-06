@@ -861,7 +861,8 @@ def run_grade(config_name: str, fixture_names: List[str], *, k: int,
         # resolved, so a hobby run's provenance is unchanged.
         if len(prov["plans"]) == 1:
             only = next(iter(prov["plans"].values()))
-            prov["plan_version"] = only["plan_version"]
+            # v5 stamps a plan_version; a v6 plan is named by its plan_hash
+            prov["plan_version"] = only.get("plan_version") or f"plan/v6:{only['plan_hash']}"
             prov["plan_sha256"] = only["plan_sha256"]
     suite = SuiteResult(provenance=prov, trials=trials)
     suite.aggregates = reporting.aggregate(trials, k=k)
