@@ -572,3 +572,29 @@ Provenance for all three: the served model id is recorded from every response. A
   - the same 12 fixtures, k=3, guard report-only;
   - a model-fallback trial is excluded and counted (AM-G18, `provenance.model_fallback`).
 - The kill and the adoption rule are as P-v6-10 states. A higher-thinking 5.5 verifier is not this arm: it belongs to the Phase-6 model arm (AM-G12 rule).
+
+## GRADER v6 — Phase 6 pre-registration (Oct 6 final rulings §3.7e; registered BEFORE any Phase-6 spend)
+
+**The run (§3.7a).** One CS eval: `configs/v6-cs-sonnet55.json`, with k=3 over 12 fixtures (hobby 5 + bagrut 7).
+- **Plans** are pinned by plan_hash, from the Sonnet 5.5 planner (planner-v6.1, effort high): hobby `1d74b46a…`, bagrut `229c46a8…`.
+- **Verifier:** Sonnet 5.5 (`claude-sonnet-5-5`, grader-v6.0), **adaptive thinking at effort `low`** (my choice, recorded here).
+  - Why: v6 removed `basis_he`, the free-text field where the v5 verifier reasoned before its verdict. The rubric rules still ask it to trace the code's behavior before deciding.
+  - A small adaptive budget gives that reasoning back, at lower cost than v5's `basis_he` output. It is set explicitly on every call (AM-G18).
+- **Explainer arm A:** Haiku 4.5 (`claude-haiku-4-5`), no thinking. Every per-scope explainer payload is recorded in the draft for arm B. Haiku 5.5 is not released, so it does not replace arm A.
+- **Explainer arm B:** Sonnet 5.5 at its lowest setting: thinking `between_tools` (equivalent to none, since there are no tools; `disabled` returns a 400), effort `low`. It runs on the SAME recorded payloads.
+- **Gate math** (`tools/v6_report.py`, against the v5 baseline from `trackb-sonnet5-v54` at k=2):
+  - CONTESTED cells and model_fallback trials are excluded; the 2 unwritten-ruling cells are reported apart.
+  - Kills first: K1 = 100%, K2 ≤ 2.4%, K4 ≤ 8.25.
+  - Then K3 ≥ v5, G-Z ≤ v5, G-D1 = G-D2 = 0 (census App. B), and G-B reported.
+- **Diagnosis, pre-approved (§3.7b):** if a kill fires, run v6 with a Sonnet 5 verifier (same plans and fixtures, k=2), within the cap.
+
+**Predictions** — each scored CONFIRMED / FALSIFIED / INDETERMINATE, with its number:
+- **P-v6-1:** K2 falls below the v5 baseline.
+- **P-v6-2:** G-Z does not rise above the v5 baseline.
+- **P-v6-3:** verifier output tokens per test fall by ≥ 40% against the v5 baseline. Thinking tokens bill as output; with effort-`low` thinking this is a genuine test, not a given.
+- **P-v6-4:** G-D1 = G-D2 = 0.
+- **P-v6-6** (re-scoped by the Oct 6 arms): the cheaper qualifying explainer arm meets every §13.4 ship condition.
+- **P-v6-7:** v6 with the chosen explainer lands ≤ $0.10 per test without CL-3..CL-5.
+- **P-v6-8** (judged at item 4, at no spend): the Sonnet 5.5 planner has no more inexpressible cells and no more repairs than the Sonnet 5 planner.
+- **P-v6-9:** v6 + Sonnet 5.5 holds K1, K2 and K4; K3 and G-Z are no worse than v5; and cost per test is lower than v5's.
+- **Dropped by the Oct 6 rulings:** P-v6-5 and P-v6-10.

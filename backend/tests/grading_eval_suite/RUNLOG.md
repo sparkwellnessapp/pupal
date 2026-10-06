@@ -2857,3 +2857,38 @@ second exam, not another dollar on this one.**
 - **Deviations:**
   - pytest-xdist is not in the venv (it is used from a scratch `--target` dir); adding it permanently is the owner's call.
   - Vivi-Test carries migration 035 from the unmerged plan-cache branch; the snapshot was taken with it reversed.
+
+## 2026-10-06 · OWNER RULINGS (final + CS-eval-today amendment) — recorded; spend ledger opened at $0 of $19
+
+- **Recorded from the owner:**
+  - `public` is removed from the Supabase Data API.
+  - The seed accounts of migrations 001/002 do not exist in production.
+  - Track C is PAUSED until the cutover. Its census is committed on `docs/standalone-deductions-census` (`de6650a`, docs only, tree clean); no spend.
+  - Per-subject cutover is REJECTED: all subjects switch together, gated by the Math/English smoke.
+- **A-10 closed:**
+  - T1 = 12:33 accepted; the 10-minute bar is retired.
+  - `pytest-xdist>=3.5` is added to requirements.txt beside pytest and installed.
+  - The native PostgreSQL 17.6 cluster and the schema copy with 035 reversed are accepted. Regenerate the copy (`scripts/local_test_db.py snapshot`) when 035 merges.
+- **Item 2:** the production rebuild of the 3 live v5 plans had already run on 2026-09-30 ($0.65, production key; RUNLOG "D-13 + A-8 deployed"), before this ruling cancelled it. Nothing further was done.
+- **Budget (§2):**
+  - Every eval/plan spend runs ONLY on `backend/vivi-eval.env`, through `python -m tests.eval_common.eval_key <module> …`. Every spend path refuses any other key (`require_eval_key`).
+  - `vivi-eval.env` is now gitignored in both trees (`3d46755`; it was NOT before).
+  - **The file does not exist yet**, so no spend can start: a blocker, reported to the owner.
+  - **Ledger: $0.00 of $19.**
+- **Item 4 (no spend):**
+  - The Sonnet 5.5 planner recordings of 2026-09-30 (planner-v6.1: AM-G17 + the approved line, effort high) ARE item 4's run. They are reused rather than re-bought.
+  - Plans are republished and pinned from Sonnet 5.5: hobby `1d74b46a…`, bagrut `229c46a8…`.
+  - **Against the recorded G2 Sonnet 5:**
+
+    | | G2 Sonnet 5 | Sonnet 5.5 |
+    |---|---|---|
+    | fallbacks | 1 | 0 |
+    | repairs | 1 | 0 |
+    | expressible, hobby | 180/190 | 180/190 |
+    | expressible, bagrut | 275/298 | 274/298 |
+    | cost | $2.97 | $1.13 |
+    | latency | 970 s | 497 s |
+
+  - Sonnet 5.5 is worse on bagrut expressibility by one cell, so the item-4 rule calls for the Opus 5.5 comparison (within the cap). It runs once the eval key exists.
+  - **P-v6-8: FALSIFIED** on inexpressible cells (34 against the same-prompt Sonnet 5 re-record's 32), CONFIRMED on repairs (0 against 3).
+- **Pre-registered:** Phase 6 (PREDICTIONS.md «GRADER v6 — Phase 6 pre-registration»). The verifier runs adaptive thinking at effort `low`; explainer arm A is Haiku 4.5; arm B is Sonnet 5.5 at its lowest setting.

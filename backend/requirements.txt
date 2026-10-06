@@ -32,6 +32,7 @@ lxml>=4.9.0
 # Testing
 pytest>=7.0.0
 pytest-asyncio>=0.21.0
+pytest-xdist>=3.5  # [A-10, Oct 6 ruling] T1's pure half runs -n auto
 
 # PDF to Image conversion (requires poppler-utils on system)
 pdf2image==1.17.0
