@@ -296,3 +296,19 @@ class PlanDraft(BaseModel):
     Carries what the plan must not: dispositions and telemetry."""
     marker_dispositions: List[MarkerDisposition] = Field(default_factory=list)
     telemetry: dict = Field(default_factory=dict)
+
+
+# ── the v6 verifier's output (§6.2) ──────────────────────────────────────────
+
+class CheckVerdictV6(BaseModel):
+    """One check's verdict. FIELD ORDER IS LOAD-BEARING: the evidence is decoded
+    before the decision (`test_check_verdict_v6_decode_order_is_evidence_first`).
+    Ids are the call's AM-G17 aliases (`c1`, `o2`); code maps them back."""
+    check_id: str
+    evidence_quote: str                  # "" only for a default option
+    absence_pointer_he: str              # "" unless the credit zero option
+    option_id: str
+
+
+class ScopeVerdictsV6(BaseModel):
+    verdicts: List[CheckVerdictV6]
