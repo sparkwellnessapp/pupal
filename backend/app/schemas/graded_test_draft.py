@@ -430,6 +430,12 @@ class GradedTestDraft(BaseModel):
     # requested). None = the provider did not report one — surfaced as
     # "unreported", never silently equated with the request.
     served_models: Optional[List[str]] = None
+    # [grader-v6, M3] the v6 block (`graded_test_draft_v6.DraftV6Content`, as its JSON
+    # document): the plan-check copy + the model's options and evidence, from which the
+    # ONE v6 pricer re-derives every number. Validated on write and on every read
+    # (`graded_test_draft_v6.v6_content`); a JSON document here only because typing it
+    # would import app.agents.grader into this module (a cycle). None on v3/v5 grades.
+    v6: Optional[Dict[str, Any]] = None
 
     scope_outcomes: List[ScopeOutcome]
     teacher_overrides: GradedTestOverrides = Field(default_factory=GradedTestOverrides)  # EMPTY at S7; S9 populates
