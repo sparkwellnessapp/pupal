@@ -236,6 +236,15 @@ def test_evidence_only_for_the_option_it_was_produced_for() -> None:
                          overlay({"q1.c0.c1": CheckDecision(option_id="full")}))
     assert (replaced.selected_value, replaced.evidence_quote, replaced.absence_pointer_he) == \
         (D("2"), "", "")
+    # the model's VERIFIED quote for «full» is not evidence for the partial she chose
+    lad = ladder("q1.c0.c1", "q1.c0", 2, [("חלקי", PartialFraction.HALF)], desc="רכיב")
+    lowered = credit_of(XSel(lad, "full", quote="exact", evidence="הקוד המלא"),
+                        overlay({"q1.c0.c1": CheckDecision(option_id="p1")}))
+    assert (lowered.selected_value, lowered.selected_label_he, lowered.evidence_quote) == \
+        (D("1"), "חלקי", "")
+    kept = credit_of(XSel(lad, "full", quote="exact", evidence="הקוד המלא"),
+                     overlay({"q1.c0.c1": CheckDecision(option_id="full")}))
+    assert kept.evidence_quote == "הקוד המלא"          # she confirmed the model's own pick
 
 
 def test_superseded_and_moved_by_pin_carry_her_text_of_the_other_criterion() -> None:

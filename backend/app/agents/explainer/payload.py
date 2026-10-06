@@ -32,6 +32,7 @@ input (`validators.allowed_numbers`), so they travel with the payload by constru
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple
 
@@ -62,12 +63,13 @@ class ExplainerInputError(ValueError):
     scope to its fallback lines and logs it (§3.5a — a display path)."""
 
 
-class ScopeMaterials(BaseModel):
-    """The scope's rubric text, from the contract: the per-batch-identical part."""
-    model_config = {"frozen": True}
+@dataclass(frozen=True)
+class ScopeMaterials:
+    """The scope's rubric text, from the contract: the per-batch-identical part.
+    `example_solution` is "" when she wrote none."""
     question_text: str
-    example_solution: str = ""
-    teacher_texts: Dict[str, str]                    # terminal_id → her criterion text, verbatim
+    example_solution: str
+    teacher_texts: Mapping[str, str]                 # terminal_id → her criterion text, verbatim
 
 
 def _sd(v: Optional[Decimal]) -> Optional[str]:
