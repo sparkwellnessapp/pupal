@@ -48,7 +48,7 @@ def test_a_plan_whose_content_moved_is_refused(config, tmp_path):
     bundle = load_bundle("din_ezra", require_gt=True)
     root = tmp_path / "suite"
     shutil.copytree(SUITE_DIR / "plans", root / "plans")
-    p = root / "plans" / "v6" / "hobby_tvshow.plan.json"
+    p = root / config["plans"]["hobby_tvshow"]            # the file the config pins, wherever it lives
     doc = json.loads(p.read_text(encoding="utf-8"))
     doc["checks"][0]["options"][0]["value"] = "99"
     p.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")

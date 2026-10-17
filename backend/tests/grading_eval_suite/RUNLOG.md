@@ -3057,3 +3057,38 @@ second exam, not another dollar on this one.**
   - Run 8, Sonnet 5.5: the v6.1 actual was $1.13. Add 20% for AM-G19's longer output and possible repairs, less about $0.25 of cached system prompt → **estimate $1.25**; cap $1.20 per exam.
   - Run 9, Opus 5.5: the v6.1 actual was $2.33 (hobby + bagrut) → **estimate $2.55**; cap $2.00 per exam.
   - **Cumulative estimate: 15.35 + 3.80 = $19.15 ≤ $25 → GO.** The CS re-run (~$3.7) and the smoke (~$2) are estimated again before they start.
+
+## 2026-10-17 · SPEND · runs 8–9, the AM-G19 re-plan — actuals; Opus 5.5 wins §13.1; run 10 estimate (ledger $18.59 of $25)
+
+- **Runs 8–9** (planner-v6.2, effort high, system prompt cached; both exams; canary OK on each model). Two transient `APIConnectionError`s were absorbed by the transport retry.
+
+  | | Sonnet 5.5 | Opus 5.5 |
+  |---|---|---|
+  | origins | 18 planner · 0 repaired · 0 fallback · 1 compiled | same |
+  | validator messages | 0 | 0 |
+  | served | `claude-sonnet-5-5` | `claude-opus-5-5` |
+  | model_fallback | 0 | 0 |
+  | inexpressible GT cells | **29** (was 34 on v6.1) | **21** (was 26 on v6.1) |
+  | **actual** | **$1.1187** | **$2.1197** |
+  | plan_hash | hobby `c7318ec2…` · bagrut `ea2b4c22…` | hobby `f068fa66…` · bagrut `773ea231…` |
+
+  Both runs together: **$3.2384** against an estimate of $3.80.
+- **§13.1 choice: Opus 5.5** (21 against 29, outside the 1-cell band). Published and pinned:
+  - `plans/v6/hobby_tvshow.plan.json` `f068fa66…`, 85 checks;
+  - `plans/v6/bagrut_899371.plan.json` `773ea231…`, 109 checks.
+
+  Both re-hash to their plan_hash. The renders are regenerated (`docs/plans/<exam>_v6_render.md`).
+- **The previous run's cells, now** (`tools/v6_residual.py`): how many of run 4's K2 and G-Z cells each plan can price.
+
+  | plan | run 4's 50 K2 cells | run 4's 96 G-Z cells |
+  |---|---|---|
+  | the v6.1 Sonnet 5.5 plan run 4 used | 16 (32%) | 51 (53%) |
+  | Sonnet 5.5 v6.2 | 16 (32%) | 61 (64%) |
+  | **Opus 5.5 v6.2 (pinned)** | **27 (54%)** | **72 (75%)** |
+- **Reuse: none taken. All 36 trials run.**
+  - Under the owner's algebra rule, 4 scopes qualify: hobby q1.ב, bagrut q1.א.1, q1.א.2 and q5.א.
+  - Under the stricter, pre-registered rule (algebra AND wording), only bagrut q1.א.1 qualifies, a compiled scope.
+  - The saving would be about $0.3 at most, and the 3 algebra-only scopes carry new wording the verifier must see.
+- **RUN 10 ESTIMATE, the AM-G19 CS re-run** (`configs/v6-cs-sonnet55-amg19.json`, 12 fixtures, k=3): run 4's actual was $3.6566, and the pinned plans carry more options → **estimate $4.00**.
+  - **Cumulative: 18.59 + 4.00 = $22.59 ≤ $25 → GO.**
+  - The smoke is estimated again after run 10. It fits only if run 10 lands near its estimate.
