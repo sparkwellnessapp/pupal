@@ -29,7 +29,11 @@ never fakes the auth dependency — faking it would bypass the exact code under
 test).
 """
 from datetime import timedelta
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
+
+# Fixed ids for the parametrized routes: these name tests, and xdist refuses a run
+# whose workers collected different ids. None exists in any database.
+_ID1, _ID2 = (uuid5(NAMESPACE_URL, f"vivi-users-auth-{n}") for n in (1, 2))
 
 from tests.api.auth_helpers import signup_verified
 
@@ -56,9 +60,9 @@ USERS_ROUTES = [
     ("PUT", "/api/v0/users/me/subject-matters", {"subject_matter_ids": []}),
     ("GET", "/api/v0/users/me/rubrics", None),
     ("GET", "/api/v0/users/me/graded-tests", None),
-    ("POST", f"/api/v0/users/rubrics/{uuid4()}/share", {"email": "x@s2test.com", "permission": "view"}),
-    ("GET", f"/api/v0/users/rubrics/{uuid4()}/shares", None),
-    ("DELETE", f"/api/v0/users/rubrics/{uuid4()}/shares/{uuid4()}", None),
+    ("POST", f"/api/v0/users/rubrics/{_ID1}/share", {"email": "x@s2test.com", "permission": "view"}),
+    ("GET", f"/api/v0/users/rubrics/{_ID1}/shares", None),
+    ("DELETE", f"/api/v0/users/rubrics/{_ID1}/shares/{_ID2}", None),
 ]
 
 ROUTE_IDS = [f"{m} {p.split('?')[0]}" for m, p, _ in USERS_ROUTES]
@@ -345,9 +349,9 @@ def test_graded_tests_list_is_scoped(client, headers_a, headers_b):
 
 SHADOWED_RUBRIC_PATHS = [
     ("POST", "/api/v0/rubrics/save_ontology_draft", {"name": "x", "draft": {}}),
-    ("PUT", f"/api/v0/rubrics/{uuid4()}/draft", {"draft": {}}),
-    ("POST", f"/api/v0/rubrics/{uuid4()}/compile", {}),
-    ("GET", f"/api/v0/rubrics/{uuid4()}", None),
+    ("PUT", f"/api/v0/rubrics/{_ID1}/draft", {"draft": {}}),
+    ("POST", f"/api/v0/rubrics/{_ID1}/compile", {}),
+    ("GET", f"/api/v0/rubrics/{_ID1}", None),
     ("GET", "/api/v0/rubrics", None),
 ]
 

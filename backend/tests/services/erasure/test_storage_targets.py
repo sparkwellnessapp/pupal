@@ -22,7 +22,9 @@ import pytest
 from tests.services.erasure.fakes import FakeStorage
 
 B = "known-bucket"
-U, T, G = (str(uuid.uuid4()) for _ in range(3))
+# Fixed, not uuid4(): these ids name parametrized tests, and xdist refuses a run whose
+# workers collected different ids.
+U, T, G = (str(uuid.uuid5(uuid.NAMESPACE_URL, f"vivi-erasure-{n}")) for n in "utg")
 
 VALID_PREFIXES = [
     f"thumbs/{T}/",

@@ -108,11 +108,11 @@ def test_patch_merges_and_keeps_the_stamp(client, v6_row):
     r2 = client.patch(f"{BASE}/{gid}/v6/draft", headers=headers, json={
         "v6": {"checks": {b["check_id"]: {"comment": "הערה שלי"}}}})
     assert r2.status_code == 200, r2.text
-    out = r2.json()
-    assert out["overlay"]["checks"][a["check_id"]]["option_id"] == a["options"][-1]["option_id"]
-    assert out["overlay"]["checks"][b["check_id"]]["comment"] == "הערה שלי"
-    assert out["overrides"]["stamp_position"]["corner"] == "tl"             # A-3: merged, never replaced
-    line = {x["terminal_id"]: x for x in out["lines"]}[a["priced_terminal_id"]]
+    body = r2.json()                                    # the response body, not a draft
+    assert body["overlay"]["checks"][a["check_id"]]["option_id"] == a["options"][-1]["option_id"]
+    assert body["overlay"]["checks"][b["check_id"]]["comment"] == "הערה שלי"
+    assert body["overrides"]["stamp_position"]["corner"] == "tl"            # A-3: merged, never replaced
+    line = {x["terminal_id"]: x for x in body["lines"]}[a["priced_terminal_id"]]
     assert line["source"] in ("fallback", "teacher_override")              # her edit: no model line
 
 
