@@ -3174,3 +3174,10 @@ second exam, not another dollar on this one.**
   - The deterministic FALLBACK plans pass V12–V20 clean; V21: 0.
   - Every answer's verifier payload: aliases only, value-invariant. Every rendered explainer message: aliases only.
   - Hand-selected pricing: 0 for wrong/blank ✅, full for fully correct ✅, partial wherever the plan can express it ✅. **Not expressible on the fallback plan** (single binary checks): Math A2 `q1.ג.c0`, `q1.ג.c2`, `q2.ב.c0`, `q4.ד.c0`, `q5.ב.c0`. That is expected of a fallback; the planner's plan is what §6b grades.
+
+## 2026-10-17 · OO-3, the shipping configuration's cost per test ($0, from the recorded runs)
+
+- **Verifier:** Sonnet 5.5 effort low, cached → **$0.0625**/test (run 10).
+- **Explainer arm B:** Sonnet 5.5 lowest (OO-3). Measured on run 4's recorded payloads (`arm_b.json`): $0.0818/test, 64% cache hit. Scaled to run 10's payloads by the measured Haiku-explainer token ratio (input ×1.015, output ×1.010) → **$0.0829**.
+- **Shipping: $0.1454/test** ($0.1443 with arm B exactly as measured), within the owner's expected $0.14–0.15. Feedback is reported separately in the STOP-3 package.
+- Recorded in `docs/EVAL_REPORT_v6.md` §1a with OO-1..OO-4.

@@ -28,6 +28,17 @@ Every one of the 12 students is closer to the teacher than under v5.
 | (4) cost per test below v5 | ✅ $0.1016 | ✅ $0.1054 |
 | (5) Math/English smoke | not run | **not run** (STOP first). Prepared and pre-registered (`smoke/known_answers.json`, PREDICTIONS) |
 
+### 1a · Owner overrides (2026-10-17, 17:30) — overrides, NOT bar changes; the gate code is unchanged
+
+| | override | the recorded trade |
+|---|---|---|
+| **OO-1** | **K2 15.0% (44/294) accepted on n=12.** | Points over-credited 36 (v5 22); G-Z points lost 68.5 (v5 82); total gap 5.3 (v5 14.5); K3 0.784 (v5 0.693). Rationale (owner): the teacher reviews every grade, and over-credit is visible on expand. |
+| **OO-2** | **K4 8.5 accepted on n=12** (one student, hobby din_ezra). No self-consistency. | |
+| **OO-3** | **Explainer: Sonnet 5.5 at its lowest effort (arm B)**, by the owner's read; this overrides the cheapest-qualifier rule. | **Shipping cost per test: $0.1454.** The verifier is $0.0625 (run 10, cached). Arm B is $0.0829: it was measured at $0.0818 on run 4's payloads, and run 10's payloads are 1.5% larger on input and 1.0% on output. This is below v5's $0.1774 and above the $0.10 aspiration. |
+| **OO-4** | **Minimum viable cutover:** the §7 scope replaces the G3–5 remainder. OD-G6 is reversed for this PR: `/similar` moves to v6.1. | |
+
+With OO-1 and OO-2, ship criterion (1) is met by override. (5) is the Math/English smoke: §6a passes ($0, `docs/plans/v6_smoke_structural.md`); §6b waits on the Vertex quota.
+
 ## 2 · Kills and gates
 
 | | v5 production pin | v6 · Oct 6 (v6.1, Sonnet 5.5 verifier) | v6 · Sonnet 5 diagnosis | **v6 · Oct 17 (AM-G19)** | bar |
