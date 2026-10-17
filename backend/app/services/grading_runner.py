@@ -44,7 +44,7 @@ from app.services.gradable_compiler import compile as compile_gradable_test
 from app.services.selection_scoring import ScopeScore, score_with_selection
 from app.agents.grader.grader import effective_scope_concurrency
 from app.tracing import student_data_run
-from app.services.grader_selection import build_grader, grader_kind_for
+from app.services.grader_selection import build_grader, build_grader_v6, grader_kind_for
 from app.services.plan_build_runner import resolve_plan_for_grade
 from app.services.provider_billing import log_billing_exhausted
 
@@ -105,6 +105,40 @@ def _compute_cost(input_tokens: int, output_tokens: int,
         Decimal(input_tokens)  / 1000 * _INPUT_COST_PER_1K
         + Decimal(output_tokens) / 1000 * _OUTPUT_COST_PER_1K
     ).quantize(Decimal("0.0001"))
+
+
+CACHE_WRITE_PREMIUM = Decimal("0.25")         # a cache write bills 1.25x input
+
+
+def _usage_cost(model_id: Optional[str], input_tokens: int, output_tokens: int,
+                cached: int = 0, written: int = 0) -> Decimal:
+    """One component's cost on its OWN card (`plan_compiler.models`, pinned equal to the
+    eval registry): cache reads at the cached rate, cache writes at 1.25x input — the
+    rule the eval ledger uses (`tests/grading_eval_suite/v6_cost.py`)."""
+    from app.agents.plan_compiler.models import MODEL_CARDS
+    from app.services.transcription.two_phase.instrument import cost_usd
+    from app.services.transcription.vlm_provider import Usage
+    card = next((c for c in MODEL_CARDS.values() if model_id in (c.key, c.model_id)), None)
+    if card is None or not (input_tokens or output_tokens):
+        return Decimal("0")
+    base = Decimal(str(cost_usd(Usage(input_tokens=input_tokens, output_tokens=output_tokens,
+                                      cached_input_tokens=cached or None), card.price)))
+    return base + CACHE_WRITE_PREMIUM * Decimal(written) * Decimal(str(card.price.in_per_mtok)) / Decimal(10 ** 6)
+
+
+def _v6_cost(draft, feedback_usage: dict) -> Decimal:
+    """[D-7] a v6 grade's cost: its verifier, its explainer and its feedback call."""
+    from app.schemas.graded_test_draft_v6 import v6_content
+    content = v6_content(draft)
+    total = Decimal("0")
+    for u in (content.verifier_usage, content.explainer_usage):
+        if u is not None:
+            total += _usage_cost(u.model, u.input_tokens, u.output_tokens,
+                                 u.cached_input_tokens, u.cache_write_input_tokens)
+    if feedback_usage:
+        total += _usage_cost(feedback_usage.get("model"), int(feedback_usage.get("input_tokens") or 0),
+                             int(feedback_usage.get("output_tokens") or 0))
+    return total.quantize(Decimal("0.0001"))
 
 
 async def _claim_grading(db, graded_test_id: UUID) -> bool:
@@ -175,19 +209,31 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
         # failed / dead builder → build IN PLACE, then grade (OD-W1). The
         # build has its own bounds (model timeouts, the wait cap) and runs
         # before the row budget below, which covers grading alone.
-        resolved = None
-        if grader_kind_for(str(graded_test.rubric_id)) == "v5":
+        resolved = resolved_v6 = None
+        kind = grader_kind_for(str(graded_test.rubric_id))
+        if kind == "v5":
             resolved = await resolve_plan_for_grade(graded_test.rubric_id, rubric.contract_json)
             logger.info("grading_plan_resolved graded_test_id=%s row_id=%s wording=%s "
                         "built_in_place=%s waited_s=%.1f", graded_test_id, resolved.row_id,
                         resolved.wording_source, resolved.built_in_place, resolved.waited_s)
-        agent = build_grader(str(graded_test.rubric_id),
-                             rubric_contract.numeric_policy,
-                             gradable_test=gradable_test,
-                             plan=resolved.plan if resolved else None,
-                             plan_wording_source=resolved.wording_source if resolved else None,
-                             subject=rubric_contract.subject)
-        grader_model = settings.grader_model_key if resolved else settings.openai_model
+        elif kind == "v6":
+            # [grader-v6, §9] the plan builds LAZILY, here, on the production credentials
+            from app.services.plan_build_v6 import resolve_plan_v6_for_grade
+            resolved_v6 = await resolve_plan_v6_for_grade(graded_test.rubric_id, rubric.contract_json)
+            logger.info(f"grading_plan_v6_resolved graded_test_id={graded_test_id} "
+                        f"row_id={resolved_v6.row_id} plan_hash={resolved_v6.plan_hash[:12]} "
+                        f"built_in_place={resolved_v6.built_in_place} waited_s={resolved_v6.waited_s:.1f}")
+        if kind == "v6":
+            agent = build_grader_v6(resolved_v6.plan, rubric_contract, gradable_test=gradable_test)
+            grader_model = settings.v6_verifier_model
+        else:
+            agent = build_grader(str(graded_test.rubric_id),
+                                 rubric_contract.numeric_policy,
+                                 gradable_test=gradable_test,
+                                 plan=resolved.plan if resolved else None,
+                                 plan_wording_source=resolved.wording_source if resolved else None,
+                                 subject=rubric_contract.subject)
+            grader_model = settings.grader_model_key if resolved else settings.openai_model
         budget = _row_budget_s(len(gradable_test.scopes))
         try:
             # [OD-B2] the grader's prompts carry the student's answers.
@@ -247,9 +293,18 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
         # annotation. Losing a graded test because a sentence could not be
         # written is the opposite of review-first, not guess.
         from app.agents.feedback.runner import attach_feedback
+        feedback_usage: dict = {}
+        if kind == "v6" and scoring.excluded:
+            # [D-6] a v6 grade marks its excluded scopes BEFORE feedback, so none is
+            # written for a scope that does not count (the explainer already skips them)
+            draft = draft.model_copy(update={"scope_outcomes": [
+                so.model_copy(update={"graded_by": "excluded_by_selection"})
+                if not scoring.is_counted((so.question_id, so.sub_question_id)) else so
+                for so in draft.scope_outcomes]})
         with student_data_run(graded_test_id=graded_test.id,
                               transcription_id=graded_test.transcription_id):
-            draft = await attach_feedback(draft, graded_test_id=graded_test.id)
+            draft = await attach_feedback(draft, graded_test_id=graded_test.id,
+                                          usage=feedback_usage)
 
         if scoring.excluded:
             draft = draft.model_copy(update={
@@ -268,8 +323,14 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
             if total_possible > 0
             else Decimal("0")
         )
-        cost = _compute_cost(draft.total_input_tokens, draft.total_output_tokens,
-                             draft.model_version)
+        if kind == "v6":
+            # [D-7] verifier + explainer + feedback, each on its own card, cache-aware
+            cost = _v6_cost(draft, feedback_usage)
+            from app.services.grading_inputs import pin_plan_hash
+            pin_plan_hash(graded_test, resolved_v6.plan_hash)          # [AM-G6] once, never moved
+        else:
+            cost = _compute_cost(draft.total_input_tokens, draft.total_output_tokens,
+                                 draft.model_version)
         now2 = datetime.now(timezone.utc)
 
         # ── 7. COMMIT 2: grading → draft ──────────────────────────────────────

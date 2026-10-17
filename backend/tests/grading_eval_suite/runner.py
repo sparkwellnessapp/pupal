@@ -552,9 +552,9 @@ def _plans_provenance_v6(config: dict, bundles: List[FixtureBundle],
 
 def _build_explain(config: dict, profile):
     """[grader-v6] the explainer as the grader's injected `explain` hook, on the
-    explainer's OWN registry card (arm A of §13.4)."""
-    from app.agents.explainer.explainer import explain_test
-    from app.agents.explainer.payload import ScopeMaterials
+    explainer's OWN registry card (arm A of §13.4) — the production hook
+    (`app.agents.explainer.materials.explain_hook`), one place for both."""
+    from app.agents.explainer.materials import explain_hook
     from app.agents.grader.llm_factory import build_chat_model
     ex = config["explainer"]
     espec = model_spec(ex["model_key"])
@@ -563,27 +563,8 @@ def _build_explain(config: dict, profile):
                            reasoning_effort=params.get("reasoning_effort"),
                            max_output_tokens=params.get("max_output_tokens"),
                            thinking=params.get("thinking"))
-    record = bool(config.get("record_explainer_payloads", True))
-
-    def materials(gradable_test):
-        out = {}
-        for sc in gradable_test.scopes:
-            texts = {}
-            for c in sc.criteria:
-                for leaf in (c.sub_criteria or [c]):
-                    tid = getattr(leaf, "sub_criterion_id", None) or leaf.criterion_id
-                    texts[tid] = leaf.description
-            question = "\n".join(t for t in (sc.question_text, sc.sub_question_text) if t)
-            out[(sc.question_id, sc.sub_question_id)] = ScopeMaterials(
-                question_text=question, example_solution=sc.example_solution or "",
-                teacher_texts=texts)
-        return out
-
-    async def explain(content, priced, gradable_test):
-        return await explain_test(content, priced, materials(gradable_test),
-                                  llm=llm, model_id=espec.model_id, profile=profile,
-                                  record_payloads=record)
-    return explain
+    return explain_hook(llm, model_id=espec.model_id, profile=profile,
+                        record_payloads=bool(config.get("record_explainer_payloads", True)))
 
 
 def build_agent(bundle: FixtureBundle, agent_factory=None, *,

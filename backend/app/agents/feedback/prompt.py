@@ -85,3 +85,40 @@ def render_scope_for_feedback(scope_outcome) -> str:
                     line += f"\n    {check.basis_he}"
                 lines.append(line)
     return "\n".join(lines) or "אין בדיקות לסעיף זה."
+
+
+def render_scope_v6(content, priced, scope_key) -> str:
+    """[grader-v6, AM-G7; owner rulings 2026-10-17 §7] the priced view of one v6 scope: per
+    check, the label of the option that PRICED (the pricer's resolution — the evidence gate
+    included, so a credit Vivi claimed without a verified quote reads as not credited), then
+    the student's own words where the quote verified, or Vivi's absence pointer where she
+    found nothing. Faults appear only when charged; observed notes as notes. No points."""
+    terminals = {t.terminal_id for t in content.view_terminals
+                 if (t.question_id, t.sub_question_id) == scope_key}
+    resolved = {r.check_id: r for r in priced.checks}
+    charges = {c.check_id: c for t in priced.terminals if t.terminal_id in terminals for c in t.charges}
+    lines = []
+    for rec in sorted(content.checks, key=lambda c: c.plan_index):
+        plan = rec.plan
+        if plan.priced_terminal_id not in terminals:
+            continue
+        r = resolved.get(plan.check_id)
+        option = plan.option(r.option_id) if r is not None and r.option_id else None
+        if plan.role == "credit":
+            label = option.label_he if option is not None else plan.default_option.label_he
+            line = f"[{label}] {plan.description_he}"
+            if r is not None and r.source == "gated":
+                line = f"[לא אומת — לא זוכה] {plan.description_he}"
+            elif rec.evidence_quote and rec.quote_status in ("exact", "fuzzy") \
+                    and r is not None and r.option_id == rec.model_option_id:
+                line += f"\n    מתוך התשובה: {rec.evidence_quote}"
+            elif rec.absence_pointer_he and r is not None and r.option_id == plan.default_option.option_id:
+                line += f"\n    {rec.absence_pointer_he}"
+            lines.append(line)
+        elif plan.role == "fault":
+            ch = charges.get(plan.check_id)
+            if ch is not None and ch.charged < 0 and option is not None:
+                lines.append(f"[טעות] {option.label_he}")
+        elif plan.role == "note" and option is not None and option.option_id != plan.options[0].option_id:
+            lines.append(f"[הערה] {option.label_he}")
+    return "\n".join(lines) or "אין בדיקות לסעיף זה."

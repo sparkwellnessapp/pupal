@@ -123,6 +123,13 @@ class GradedTestOverrides(BaseModel):
     # scope_id | "summary" -> her edited feedback text
     feedback: Dict[str, str] = Field(default_factory=dict)
     stamp_position: Optional[StampPosition] = None
+    # [grader-v6 MVC, owner 2026-10-17 §7] her decisions on a v6 draft: the pricer's OWN
+    # input (`services/pricing_v6.PricingOverlay` — per-check option + comment, per-
+    # terminal points), as its JSON document — typed it would import the pricer into this
+    # module. Validated on every read and write (`services/v6_review.overlay_of`). None on
+    # v3/v5 drafts; `terminals` / `terminal_points` above stay the v5 overlay. `feedback`
+    # and `stamp_position` are shared by both: a v6 PATCH MERGES, so neither is lost (A-3).
+    v6: Optional[Dict[str, Any]] = None
 
     def overrides_for(self, terminal_id: str) -> List[TeacherOverride]:
         return self.terminals.get(terminal_id, [])

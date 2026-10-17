@@ -27,6 +27,7 @@ from ...schemas.graded_test_draft import (
     GradedTestDraft, GradedTestOverrides, StampPosition,
 )
 from ...schemas.graded_test_responses import (
+    GradedTestV6Response,
     GradedTestApprovedResponse,
     GradedTestDraftResponse,
     GradedTestFailedResponse,
@@ -35,6 +36,7 @@ from ...schemas.graded_test_responses import (
 )
 from ...schemas.ontology_types import GradingRubricContract, NumericPolicy
 from ...services.graded_test_contract_compiler import GateError, compile_graded_test
+from ...services.v6_review import OverlayPatchV6
 from ...services.graded_test_revision import extend_chain
 from ...services.returned_exam_store import ReturnedExamUnavailable, returned_exam_pdf
 from ...services.cloud_tasks_service import enqueue_grading_task_or_log, verify_task_request
@@ -771,6 +773,98 @@ async def save_draft_overrides(
         effective_total=effective_total,
         pricing_mismatch=pricing_mismatch,
     )
+
+
+# =============================================================================
+# grader-v6 review (owner rulings 2026-10-17 §7, the MVC)
+# =============================================================================
+
+class SaveDraftV6Request(BaseModel):
+    """PATCH /graded_test/{id}/v6/draft — MERGED into her stored working copy (A-3):
+    a key present in `v6` sets (null: withdraws) that decision, an absent key is left
+    alone, and everything outside the v6 overlay — `stamp_position` included — stays."""
+    model_config = {"extra": "forbid"}
+    v6: Optional[OverlayPatchV6] = None
+    feedback: Dict[str, Optional[str]] = {}
+    client_total: Optional[Decimal] = None
+
+
+def _v6_response(row: GradedTest, draft: GradedTestDraft) -> "GradedTestV6Response":
+    from ...schemas.graded_test_responses import GradedTestV6Response, V6ReasoningLine
+    from ...services.v6_review import review, undecided_checks
+    r = review(draft, draft.teacher_overrides)
+    if r is None:
+        raise HTTPException(status_code=409, detail="This graded test is not a v6 grade.")
+    return GradedTestV6Response(
+        id=row.id, status=row.status, content=r.content, overrides=draft.teacher_overrides,
+        overlay=r.overlay, priced=r.final, ai_total_score=r.ai.total_score,
+        lines=[V6ReasoningLine(terminal_id=t, text_he=x, source=src) for t, (x, src) in r.lines.items()],
+        undecided_check_ids=undecided_checks(r.content, r.ai, r.overlay))
+
+
+@router.get("/graded_test/{graded_test_id}/v6", response_model=GradedTestV6Response)
+async def get_graded_test_v6(
+    graded_test_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """The v6 review model: the draft's v6 block, her overlay, the server's price and
+    the line she reads per criterion. Owner-scoped; another teacher's id is a 404."""
+    row: GradedTest = await get_owned_or_404(db, GradedTest, graded_test_id, current_user.id)
+    if row.status not in ("draft", "approved") or row.draft_json is None:
+        raise HTTPException(status_code=409, detail=f"Graded test is '{row.status}': nothing to review.")
+    return _v6_response(row, GradedTestDraft.model_validate(row.draft_json))
+
+
+@router.patch("/graded_test/{graded_test_id}/v6/draft", response_model=GradedTestV6Response)
+async def save_draft_v6(
+    graded_test_id: UUID,
+    body: SaveDraftV6Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Her option flips, criterion grades and comments on a v6 draft — merged, gated
+    (CW-3 extended to checks and options; 422 lists every violation), re-priced by the
+    server. Only `teacher_overrides` is rewritten; Vivi's record is never modified."""
+    from ...services.v6_review import merge_overlay, overlay_doc, overlay_of, overlay_violations
+    from ...schemas.graded_test_draft_v6 import v6_content
+    from ...services.pricing_v6 import price
+    row: GradedTest = await get_owned_or_404(db, GradedTest, graded_test_id, current_user.id)
+    if row.status != "draft":
+        raise HTTPException(status_code=409,
+                            detail=f"Cannot save: graded test is '{row.status}', expected 'draft'.")
+    draft = GradedTestDraft.model_validate(row.draft_json)
+    content = v6_content(draft)
+    if content is None:
+        raise HTTPException(status_code=409, detail="This graded test is not a v6 grade.")
+
+    stored = draft.teacher_overrides
+    merged_overlay = merge_overlay(overlay_of(stored), body.v6 or OverlayPatchV6())
+    violations = overlay_violations(content, merged_overlay)
+    if violations:
+        raise HTTPException(status_code=422, detail={
+            "message_he": "השינוי לא נשמר: אחד הערכים אינו תקין עבור המבחן הזה.",
+            "gate_violations": [v.__dict__ for v in violations]})
+    feedback = dict(stored.feedback)
+    for scope_id, text in body.feedback.items():
+        if text is None:
+            feedback.pop(scope_id, None)
+        else:
+            feedback[scope_id] = text
+    overrides = stored.model_copy(update={"v6": overlay_doc(merged_overlay), "feedback": feedback})
+    updated = draft.model_copy(update={"teacher_overrides": overrides})
+
+    priced = price(content.to_view(), merged_overlay)
+    if body.client_total is not None and Decimal(str(body.client_total)) != priced.total_score:
+        logger.warning(f"v6_pricing_mismatch graded_test_id={row.id} client={body.client_total} "
+                       f"server={priced.total_score}")
+    row.draft_json = updated.model_dump(mode="json")
+    # [PR-G8] the row aggregate follows her decisions (the batch feed reads it)
+    row.total_score = priced.total_score
+    if row.total_possible:
+        row.percentage = (priced.total_score / row.total_possible * 100).quantize(Decimal("0.01"))
+    await db.commit()
+    return _v6_response(row, updated)
 
 
 @router.post("/graded_test/{graded_test_id}/approve", response_model=GradedTestApprovedResponse)

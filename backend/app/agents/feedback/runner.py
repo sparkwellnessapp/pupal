@@ -19,10 +19,11 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-async def attach_feedback(draft, *, graded_test_id=None):
+async def attach_feedback(draft, *, graded_test_id=None, usage: Optional[dict] = None):
     """draft -> draft (with `feedback`, or unchanged). Never raises.
 
-    `graded_test_id` only names the row in an A-8 billing alert."""
+    `graded_test_id` only names the row in an A-8 billing alert. `usage`, when given,
+    receives the call's model and tokens — [D-7] a v6 grade counts them in its cost."""
     if not settings.feedback_model_key:
         return draft
 
@@ -31,12 +32,27 @@ async def attach_feedback(draft, *, graded_test_id=None):
     from app.agents.feedback.staleness import basis_hash, flatten_checks
     from app.agents.grader.llm_factory import build_chat_model
 
-    # only scopes the LLM actually graded have verdicts to describe
+    # only scopes the LLM actually graded have verdicts to describe — and [D-6] never one
+    # excluded by a selection group (the runner marks those first on a v6 grade)
     scopes = [(so.question_id if so.sub_question_id is None
                else f"{so.question_id}.{so.sub_question_id}", so)
               for so in draft.scope_outcomes if so.graded_by == "llm"]
     if not scopes:
         return draft
+
+    # [grader-v6, AM-G7] a v6 draft is described from its own block: the option that
+    # priced, the verified quote, the absence pointer — its envelope carries no checks
+    from app.schemas.graded_test_draft_v6 import v6_content
+    content = v6_content(draft)
+    if content is not None:
+        from app.agents.feedback.prompt import render_scope_v6
+        from app.services.pricing_v6 import price
+        priced = price(content.to_view())
+
+        def render(so):
+            return render_scope_v6(content, priced, (so.question_id, so.sub_question_id))
+    else:
+        render = None
 
     try:
         llm = build_chat_model(settings.feedback_model_provider,
@@ -49,7 +65,9 @@ async def attach_feedback(draft, *, graded_test_id=None):
     agent = FeedbackAgent(llm, model_version=settings.feedback_model_key,
                           graded_test_id=graded_test_id)
     block, annotations = await agent.generate(
-        [(sid, render_scope_for_feedback(so)) for sid, so in scopes])
+        [(sid, render(so) if render else render_scope_for_feedback(so)) for sid, so in scopes])
+    if usage is not None:
+        usage.update(model=settings.feedback_model_key, **dict(agent.last_usage))
 
     if block is None:
         return draft.model_copy(update={

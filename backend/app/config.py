@@ -75,7 +75,20 @@ class Settings(BaseSettings):
     # first grade), so the pilot-era file+rubric-id binding is retired. The
     # only knob left is the EMERGENCY ROLLBACK: GRADER_ARCHITECTURE=v3 sends
     # every grade down the historical v3 path with no data change.
-    grader_architecture: str = "v5"                    # v5 | v3 (rollback only)
+    grader_architecture: str = "v5"                    # v5 | v6 | v3 (rollback only)
+    # [grader-v6, owner rulings 2026-10-17 §7] the PRODUCTION v6 config — committed, and
+    # read only when GRADER_ARCHITECTURE=v6. Frozen as evaluated in run 10 (§2 freeze):
+    # planner Opus 5.5 at planner-v6.2, effort high; verifier Sonnet 5.5 effort low with
+    # adaptive thinking; explainer Sonnet 5.5 at its lowest setting (OO-3, arm B:
+    # thinking between_tools, effort low). The provider is CLAUDE_ROUTE (vertex at §5d).
+    v6_planner_model_key: str = "claude-opus-5.5"     # a plan_compiler.models card key
+    v6_planner_effort: str = "high"
+    v6_verifier_model: str = "claude-sonnet-5-5"
+    v6_verifier_effort: str = "low"
+    v6_verifier_thinking: str = "adaptive"
+    v6_explainer_model: str = "claude-sonnet-5-5"     # "" ⇒ no explainer: the fallback composer's lines
+    v6_explainer_effort: str = "low"
+    v6_explainer_thinking: str = "between_tools"
     grader_model_key: Optional[str] = "claude-sonnet-5"
     grader_model_provider: str = "anthropic"            # openai | anthropic | gemini
 

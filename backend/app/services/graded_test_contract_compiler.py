@@ -357,6 +357,9 @@ def compile_graded_test(
     Raises:
         GateError: if any approval gate check fails (collect-all violations).
     """
+    if getattr(draft, "v6", None) is not None:
+        return _compile_v6(draft, overrides, rubric_contract)    # [grader-v6 MVC §7]
+
     terminal_index, branch_criterion_ids = _build_terminal_index(draft)
     precision = rubric_contract.numeric_policy.precision
 
@@ -513,6 +516,13 @@ def compile_graded_test(
         )
         scope_terminals[info.scope_key].append(terminal)
 
+    return _assemble_contract(draft, overrides, rubric_contract, scope_terminals)
+
+
+def _assemble_contract(draft, overrides, rubric_contract, scope_terminals, *, v6=None):
+    """The tail BOTH grader generations share: scope outcomes in draft order, the
+    SELECTION-AWARE totals (PR-3), and the frozen contract. One place, so v5 and v6
+    can never disagree about how a total is formed."""
     # ------------------------------------------------------------------
     # Build ContractScopeOutcomes, preserving draft scope order
     # ------------------------------------------------------------------
@@ -593,7 +603,120 @@ def compile_graded_test(
         total_possible=total_possible,
         percentage=percentage,
         approved_at=datetime.now(timezone.utc).isoformat(),
+        v6=v6,
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# grader-v6 (owner rulings 2026-10-17 §7, the MVC)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _compile_v6(draft, overrides, rubric_contract) -> GradedTestContract:
+    """The v6 gate and contract: priced by the ONE v6 pricer from the draft's own v6
+    block and her overlay (`services/v6_review`). Gate, collect-all:
+      * CW-3 extended to checks and options, the MVC's limits, a pin's bounds and grid;
+      * no unresolved ERROR annotation — an `llm_failure` is resolved when she decided
+        every check of that scope (or set its criteria by hand);
+      * [OD-4, unchanged] no check a call should have answered is left undecided.
+    Frozen beside the shared fields: the plan identity, the provider, every check's
+    model and effective option, and the reasoning line she approved with its source."""
+    from app.schemas.graded_test_contract import ContractCheckV6, ContractTerminalV6, ContractV6
+    from app.services.v6_review import (decided_check_ids, overlay_violations, review,
+                                        undecided_checks)
+
+    r = review(draft, overrides)
+    content, overlay = r.content, r.overlay
+    violations: List[GateViolation] = [
+        GateViolation(terminal_id=v.target_id, violation_kind=v.kind, message=v.message)
+        for v in overlay_violations(content, overlay)]
+
+    decided, pinned = decided_check_ids(overlay), set(overlay.terminal_points)
+    terminal_of = {c.plan.check_id: c.plan.priced_terminal_id for c in content.checks}
+    scope_terminals_v6: Dict[str, List[str]] = {}
+    for vt in content.view_terminals:
+        target = vt.question_id if vt.sub_question_id is None else f"{vt.question_id}.{vt.sub_question_id}"
+        scope_terminals_v6.setdefault(target, []).append(vt.terminal_id)
+
+    def _scope_resolved(target_id) -> bool:
+        tids = set(scope_terminals_v6.get(target_id or "", []))
+        if not tids:
+            return False
+        open_checks = [c.plan.check_id for c in content.checks
+                       if c.plan.priced_terminal_id in tids and c.plan.role != "note"
+                       and c.plan.priced_terminal_id not in pinned]
+        return all(cid in decided for cid in open_checks)
+
+    for ann in draft.annotations:
+        if ann.severity != AnnotationSeverity.ERROR or ann.annotation_type == "closed_world_violation":
+            continue
+        if ann.annotation_type == "llm_failure" and _scope_resolved(ann.target_id):
+            continue
+        violations.append(GateViolation(
+            terminal_id=ann.target_id, violation_kind="error_annotation",
+            message=(f"Annotation '{ann.annotation_type}' (ERROR) on target "
+                     f"'{ann.target_id}' must be resolved before approval: {ann.message}")))
+    for cid in undecided_checks(content, r.ai, overlay):
+        violations.append(GateViolation(
+            terminal_id=terminal_of[cid], violation_kind="undecided_check",
+            message=f"check '{cid}' has no selection from the model and no decision from her"))
+    if violations:
+        raise GateError(violations)
+
+    terminal_index, _branch = _build_terminal_index(draft)
+    ai_award = {t.terminal_id: t.awarded for t in r.ai.terminals}
+    final_t = {t.terminal_id: t for t in r.final.terminals}
+    comments: Dict[str, str] = {}
+    for cid, d in overlay.checks.items():
+        if d.comment and cid in terminal_of:
+            comments.setdefault(terminal_of[cid], d.comment)
+
+    scope_terminals: Dict[Tuple[str, Optional[str]], List[ContractTerminalOutcome]] = {
+        (s.question_id, s.sub_question_id): [] for s in draft.scope_outcomes}
+    touched = {terminal_of[c] for c in decided if c in terminal_of} | pinned
+    for info in terminal_index.values():
+        t = final_t[info.terminal_id]
+        final, ai = t.awarded, ai_award[info.terminal_id]
+        # Belt and braces on the DERIVED value (§0.5): the pricer clamps.
+        if final < Decimal("0") or final > info.points_possible:
+            raise GateError([GateViolation(
+                terminal_id=info.terminal_id, violation_kind="out_of_bounds",
+                message=(f"derived award {final} for '{info.terminal_id}' is outside "
+                         f"[0, {info.points_possible}] — the pricer is wrong"))])
+        scope_terminals[info.scope_key].append(ContractTerminalOutcome(
+            terminal_id=info.terminal_id, terminal_kind=info.terminal_kind,
+            description=info.description, points_possible=info.points_possible,
+            ai_points_awarded=ai, ai_reasoning=info.ai_reasoning,
+            ai_evidence_quote=info.ai_evidence_quote,
+            was_overridden=(info.terminal_id in touched or final != ai),
+            teacher_comment=comments.get(info.terminal_id),
+            final_points_awarded=final,
+            typed_points=overlay.terminal_points.get(info.terminal_id),
+            checks=None))
+
+    resolved = {x.check_id: x for x in r.final.checks}
+    records = {c.plan.check_id: c for c in content.checks}
+    frozen_checks = []
+    for cid, rec in records.items():
+        x = resolved[cid]
+        opt = rec.plan.option(x.option_id) if x.option_id else None
+        d = overlay.checks.get(cid)
+        frozen_checks.append(ContractCheckV6(
+            check_id=cid, priced_terminal_id=rec.plan.priced_terminal_id, role=rec.plan.role,
+            description_he=rec.plan.description_he, model_option_id=rec.model_option_id,
+            effective_option_id=x.option_id, effective_label_he=opt.label_he if opt else None,
+            effective_value=x.value, resolution=x.source,
+            was_overridden=cid in decided, teacher_comment=d.comment if d else None,
+            evidence_quote=rec.evidence_quote, quote_status=rec.quote_status))
+    provider = getattr(draft, "llm_provider", None) or (
+        content.verifier_usage.provider if content.verifier_usage else None)
+    v6 = ContractV6(
+        plan_hash=content.plan_hash, config_hash=content.config_hash,
+        pack_id=content.pack.pack_id, pack_version=content.pack.pack_version,
+        provider=provider, verifier_prompt_version=content.verifier_prompt_version,
+        explainer_prompt_version=content.explainer_prompt_version, checks=frozen_checks,
+        terminals=[ContractTerminalV6(terminal_id=tid, reasoning_he=text, reasoning_source=src)
+                   for tid, (text, src) in r.lines.items()])
+    return _assemble_contract(draft, overrides, rubric_contract, scope_terminals, v6=v6)
 
 
 def _price_by_scope(draft, terminal_index, overrides, precision):

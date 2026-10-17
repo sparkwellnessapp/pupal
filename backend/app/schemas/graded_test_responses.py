@@ -13,13 +13,13 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, field_serializer
 
 from app.schemas.graded_test_contract import GradedTestContract
-from app.schemas.graded_test_draft import GradedTestDraft
+from app.schemas.graded_test_draft import GradedTestDraft, GradedTestOverrides
 # [OD-F8] Used in the annotations below. `from __future__ import annotations`
 # makes those lazy strings, so a missing import here does NOT fail at import
 # time — `python -c "import app.main"` stays green while
@@ -131,3 +131,44 @@ class GradedTestFailedResponse(BaseModel):
     id: UUID
     status: str
     error_message: Optional[str] = None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# grader-v6 review (owner rulings 2026-10-17 §7, the MVC)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class V6ReasoningLine(BaseModel):
+    """The line she reads under one criterion: the explainer's (grade time), the
+    fallback composer's (after her edit), or the manual line (she set the grade)."""
+    terminal_id: str
+    text_he: str
+    source: str
+
+
+class GradedTestV6Response(BaseModel):
+    """GET /graded_test/{id}/v6 and PATCH /graded_test/{id}/v6/draft.
+
+    `content` is the draft's v6 block (the plan checks with their options and values,
+    Vivi's selections and evidence) — the TS pricer re-prices it live from this alone
+    (PRC-7). `overrides` is her FULL working copy, the body POST /approve takes;
+    `overlay` is its v6 part, typed. `priced` is the SERVER's price of content +
+    overlay, which the client compares with its own."""
+    id: UUID
+    status: str
+    content: "DraftV6Content"
+    overrides: GradedTestOverrides
+    overlay: "PricingOverlay"
+    priced: "PricedTest"
+    ai_total_score: Decimal
+    lines: List[V6ReasoningLine]
+    undecided_check_ids: List[str]
+
+    @field_serializer("ai_total_score")
+    def _sd(self, v: Decimal) -> str:
+        return str(v)
+
+
+from app.schemas.graded_test_draft_v6 import DraftV6Content  # noqa: E402
+from app.services.pricing_v6 import PricedTest, PricingOverlay  # noqa: E402
+
+GradedTestV6Response.model_rebuild()

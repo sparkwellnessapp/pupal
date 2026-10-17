@@ -172,6 +172,62 @@ class ContractScopeOutcome(BaseModel):
         return str(v)
 
 
+class ContractCheckV6(BaseModel):
+    """[grader-v6 MVC §7] one plan check as APPROVED: what Vivi picked, what priced.
+
+    `model_option_id` is the verifier's own pick (None when it gave none); the
+    effective option is what the one pricer resolved after her overlay and the
+    evidence gate (`resolution`: overlay | model | gated | default). Values are the
+    plan's, frozen here because the plan row can be superseded later."""
+    model_config = {"frozen": True}
+
+    check_id: str
+    priced_terminal_id: str
+    role: Literal["credit", "fault", "note"]
+    description_he: str
+    model_option_id: Optional[str] = None
+    effective_option_id: Optional[str] = None
+    effective_label_he: Optional[str] = None
+    effective_value: Decimal
+    resolution: str
+    was_overridden: bool = False
+    teacher_comment: Optional[str] = None
+    evidence_quote: str = ""
+    quote_status: Optional[str] = None
+
+    @field_serializer("effective_value")
+    def _sd(self, v: Decimal) -> str:
+        return str(v)
+
+
+class ContractTerminalV6(BaseModel):
+    """[§7] the reasoning line she approved, and where it came from: the model's
+    (explainer at grade time), the fallback composer's (after her edit, or when the
+    explainer could not write one), or the manual line (she set the grade)."""
+    model_config = {"frozen": True}
+
+    terminal_id: str
+    reasoning_he: str
+    reasoning_source: Literal["model", "fallback", "teacher_override"]
+
+
+class ContractV6(BaseModel):
+    """[grader-v6 MVC, owner 2026-10-17 §7] the v6 facts frozen at approval — the plan
+    a grade was priced against (`plan_hash`, `config_hash`, pack), the PROVIDER route
+    its calls took, and per check / per terminal what priced and what she read."""
+    model_config = {"frozen": True}
+
+    plan_hash: str
+    config_hash: str
+    pack_id: str
+    pack_version: str
+    provider: Optional[str] = None
+    verifier_prompt_version: str
+    explainer_prompt_version: Optional[str] = None
+    checks: List[ContractCheckV6]
+    terminals: List[ContractTerminalV6]
+
+
 class GradedTestContract(BaseModel):
     """
     Frozen, approved graded test. Written to graded_tests.contract_json at approval.
@@ -194,6 +250,8 @@ class GradedTestContract(BaseModel):
     total_possible: Decimal
     percentage: Decimal                 # total_score / total_possible * 100 (0 if /0)
     approved_at: str                    # ISO-8601 UTC timestamp
+    # [grader-v6 MVC §7] None on every v3/v5 contract, which therefore re-parse unchanged
+    v6: Optional[ContractV6] = None
 
     @field_serializer("total_score", "total_possible", "percentage")
     def _sd(self, v: Decimal) -> str:

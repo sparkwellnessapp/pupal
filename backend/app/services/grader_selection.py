@@ -27,15 +27,63 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-GraderKind = Literal["v3", "v5"]
+GraderKind = Literal["v3", "v5", "v6"]
 
 
 def grader_kind_for(rubric_id: Optional[str] = None) -> GraderKind:
-    """v5 (W-4) unless the rollback knob says v3. The rubric id is accepted
-    for the call sites' sake and for logging; it no longer decides anything."""
-    if (settings.grader_architecture or "v5").lower() == "v3":
+    """v5 (W-4) unless GRADER_ARCHITECTURE says v6 (the §9 flip, all subjects together)
+    or v3 (the historical rollback). The rubric id is accepted for the call sites' sake
+    and for logging; it no longer decides anything."""
+    arch = (settings.grader_architecture or "v5").lower()
+    if arch == "v3":
         return "v3"
+    if arch == "v6":
+        return "v6"
     return "v5"
+
+
+def _validate_plan_v6_against(plan, gradable_test) -> None:
+    """The v6 fit guard, before any spend: the plan prices EXACTLY this test's terminals."""
+    want = set()
+    for scope in gradable_test.scopes:
+        for c in scope.criteria:
+            want |= ({sc.sub_criterion_id for sc in c.sub_criteria} if c.sub_criteria else {c.criterion_id})
+    have = {t.terminal_id for t in plan.terminals}
+    if want != have:
+        raise ValueError(f"plan {plan.plan_hash[:12]} does not fit this test: missing "
+                         f"{sorted(want - have)[:5]}, extra {sorted(have - want)[:5]}")
+
+
+def build_grader_v6(plan, contract, *, gradable_test=None):
+    """[grader-v6, owner rulings 2026-10-17 §7] the production v6 grader — the config
+    evaluated in run 10, frozen (§2): verifier Sonnet 5.5 effort low with adaptive
+    thinking; explainer Sonnet 5.5 at its lowest setting (OO-3, arm B: thinking
+    between_tools, effort low, 4000 output tokens), its line written into the draft at
+    grading time. `V6_EXPLAINER_MODEL=""` grades with the fallback composer's lines."""
+    from app.agents.explainer.materials import explain_hook
+    from app.agents.explainer.prompt import EXPLAINER_PROMPT_VERSION
+    from app.agents.grader.grader_v6 import OptionsVerifyGrader
+    from app.agents.grader.llm_factory import build_chat_model
+    from app.subjects import get_profile
+    if gradable_test is not None:
+        _validate_plan_v6_against(plan, gradable_test)
+    profile = get_profile(plan.subject_pack.pack_id)
+    llm = build_chat_model("anthropic", settings.v6_verifier_model,
+                           reasoning_effort=settings.v6_verifier_effort,
+                           thinking=settings.v6_verifier_thinking)
+    explain, explainer_version = None, None
+    if settings.v6_explainer_model:
+        ellm = build_chat_model("anthropic", settings.v6_explainer_model, max_output_tokens=4000,
+                                reasoning_effort=settings.v6_explainer_effort,
+                                thinking=settings.v6_explainer_thinking)
+        explain = explain_hook(ellm, model_id=settings.v6_explainer_model, profile=profile)
+        explainer_version = EXPLAINER_PROMPT_VERSION
+    logger.info("grader_v6_selected plan_hash=%s verifier=%s explainer=%s pack=%s",
+                plan.plan_hash[:12], settings.v6_verifier_model, settings.v6_explainer_model or "-",
+                profile.pack_id)
+    return OptionsVerifyGrader(plan, contract, llm=llm, model_version=settings.v6_verifier_model,
+                               profile=profile, explain=explain,
+                               explainer_prompt_version=explainer_version)
 
 
 def _validate_plan_against(plan, gradable_test, precision) -> None:
