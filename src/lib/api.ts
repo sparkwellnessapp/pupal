@@ -2234,6 +2234,38 @@ export async function approveGradeReview(
   );
 }
 
+// =============================================================================
+// grader-v6 review (owner rulings 2026-10-17 §7, the MVC)
+// =============================================================================
+// A v6 draft is reviewed through its own two endpoints; it is APPROVED through
+// the same `/approve` as v5 (`approveGradeReview`), with the `overrides` the
+// latest v6 response returned — her full working copy, merged by the server.
+
+/** The v6 review model: Vivi's record, her overlay, the server's price, the lines. */
+export type GradedTestV6Response = components['schemas']['GradedTestV6Response'];
+/** PATCH /v6/draft — MERGE: a present key sets (null withdraws), an absent key stays. */
+export type SaveDraftV6Request = components['schemas']['SaveDraftV6Request'];
+export type OverlayPatchV6 = components['schemas']['OverlayPatchV6'];
+
+export async function getGradedTestV6(id: string): Promise<GradedTestV6Response> {
+  return apiFetch<GradedTestV6Response>(`/api/v0/grading/graded_test/${id}/v6`);
+}
+
+/**
+ * Send ONLY what she changed since the last save (merge semantics), with the
+ * total the client priced so the server can say when it disagrees. A 422
+ * carries `message_he`, which `apiFetch` turns into the thrown `ApiError`.
+ */
+export async function saveGradedTestV6Draft(
+  id: string,
+  body: SaveDraftV6Request,
+): Promise<GradedTestV6Response> {
+  return apiFetch<GradedTestV6Response>(
+    `/api/v0/grading/graded_test/${id}/v6/draft`,
+    jsonInit('PATCH', body),
+  );
+}
+
 /**
  * Rewrite one scope's feedback, or the summary.
  *

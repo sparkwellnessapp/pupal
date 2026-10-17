@@ -215,6 +215,8 @@ const CLARITY_SURFACES = [
   join('src', 'components', 'grade-review'),
   join('src', 'copy', 'batch.ts'),
   join('src', 'copy', 'grade-review.ts'),
+  // grader-v6 review (2026-10-17): gated from its first string, like its sibling.
+  join('src', 'copy', 'grade-review-v6.ts'),
   join('src', 'utils', 'batch-'),
   join('src', 'utils', 'transcription-completeness'),
   join('src', 'utils', 'triage-reason'),
