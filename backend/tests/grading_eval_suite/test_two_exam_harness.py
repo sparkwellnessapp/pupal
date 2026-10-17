@@ -373,20 +373,30 @@ def test_suite_hash_covers_every_artifact_a_manifest_references():
                 f"the instrument hash moving")
 
 
-def test_suite_hash_moves_when_an_exam_2_artifact_changes(tmp_path):
-    """The property above, demonstrated rather than asserted structurally."""
-    from .runner import _hashed_paths, _suite_hash
+def test_suite_hash_moves_when_an_exam_2_artifact_changes(monkeypatch):
+    """The property above, demonstrated rather than asserted structurally.
 
-    contract = SUITE_DIR / "compiled_rubric_bagrut.json"
-    original = contract.read_bytes()
+    The changed bytes are SERVED, never written: this test used to append to the
+    committed contract and restore it, and under xdist every worker loading the
+    bagrut bundle inside that window saw a file off its manifest sha — the source
+    of the bagrut flakes in `test_plan_compiler_stage0` and
+    `test_plan_validator_v9_v10` (2026-10-17)."""
+    from pathlib import Path
+
+    from .runner import _suite_hash
+
+    contract = (SUITE_DIR / "compiled_rubric_bagrut.json").resolve()
     before = _suite_hash()
-    try:
-        contract.write_bytes(original + b"\n")
-        assert _suite_hash() != before, (
-            "changing the exam-2 contract did not move suite_hash")
-    finally:
-        contract.write_bytes(original)
-    assert _suite_hash() == before, "the restore did not round-trip"
+    real_read_bytes = Path.read_bytes
+
+    def changed(self):
+        data = real_read_bytes(self)
+        return data + b"\n" if self.resolve() == contract else data
+
+    monkeypatch.setattr(Path, "read_bytes", changed)
+    assert _suite_hash() != before, "changing the exam-2 contract did not move suite_hash"
+    monkeypatch.undo()
+    assert _suite_hash() == before, "the hash is not a function of the bytes alone"
 
 
 def test_hashed_paths_are_deduplicated_and_ordered():

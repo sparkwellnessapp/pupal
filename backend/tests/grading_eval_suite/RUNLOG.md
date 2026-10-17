@@ -3209,3 +3209,16 @@ second exam, not another dollar on this one.**
 - **§8 package:** `docs/EVAL_REPORT_v6.md` now carries the verdict with OO-1..4, the shipping cost by component, smoke 8a/8b, the Vertex section, the MVC status and the v6.1 backlog.
 - **G4 snapshot (ruling §7: "delete it now"): NOT deleted.** The local permission policy refused the `rm` of `C:\Users\ariel\vivi-private\grader-v6\g4_snapshot_20260927.json` (6.5 MB of production grades). It needs the owner's hand or approval. It sits outside the repo and was never committed.
 - **Remaining:** the v6 review frontend (in progress) → T2 → migration 035 to production → backend deploy (`GRADER_ARCHITECTURE=v5`) → frontend deploy. §5b/§5d/§6b/§9 wait on the Vertex quota.
+
+## 2026-10-17 · T2 GREEN on main + the bagrut flake root-caused ($0)
+
+- **T2** (local DB, `VIVI_TEST_GATE=1`; pure half `-n 6 --dist worksteal`, DB half serial, the transcription eval suite separately):
+  - pure 1771 passed, 3 skipped;
+  - DB 640 passed, 1 skipped;
+  - `tests/transcription_eval_suit` 152 passed, 1 skipped;
+  - **0 failures**, KNOWN_FAILURES empty.
+- **The bagrut flake, found.** The first pure run failed `test_plan_validator_v9_v10::test_scope_labels_are_unique_per_leaf_on_a_depth_2_exam`, which passes alone, as `test_plan_compiler_stage0`'s bagrut hash pin did earlier.
+  - **Cause:** `test_two_exam_harness::test_suite_hash_moves_when_an_exam_2_artifact_changes` appended to the committed `compiled_rubric_bagrut.json` and restored it. Any xdist worker loading the bagrut bundle inside that window saw a file off its manifest sha.
+  - **Fix:** the test now SERVES the changed bytes through a patched `Path.read_bytes`, scoped to its own process, and never writes the file. The demonstrated property is unchanged.
+  - The suite's other file-writing tests are all `tmp_path`-rooted.
+- **The §7 deploy is gated now only by production access.** The local permission policy refuses production reads, so the pre-035 dump, migration 035 and therefore the backend deploy wait on the owner. Runbook delivered.
