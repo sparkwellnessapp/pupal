@@ -1,16 +1,29 @@
 """
 The plan store — `grading_plans` row lifecycle and the contract hash
-(PLAN_production_wiring.md §3/§7; rulings W-1, OD-W4).
+(PLAN_production_wiring.md §3/§7; rulings W-1, OD-W4; grader-v6 §5.7 / AM-G6).
 
 One concept, one place: every write to `grading_plans` goes through this
 module, and the contract hash is computed here and nowhere else.
 
-  contract_sha256(contract_json)   the key (OD-W4, ratified: contract_version BLANKED)
-  find_live / get_ready            lookups by hash
+THE KEY is (contract_sha256, config_hash) since migration 035 [AM-G6]:
+
+  contract_sha256(contract_json)   the contract half (OD-W4, ratified: contract_version BLANKED)
+  config_hash                      the plan-config half — `V5_CONFIG_HASH` for every v5
+                                   plan (one constant; the column's DB DEFAULT), or a v6
+                                   `plan_values.config_hash(...)` digest
+
+so a v5 and a v6 plan of one contract coexist as two live rows. Every lookup and
+every write that selects rows by key takes BOTH halves, as a required keyword: a
+caller that forgot its config would otherwise read or supersede another
+planner's plan. The row-id transitions (claim / heartbeat / failed) need no key —
+the id already names exactly one row.
+
+  find_live / get_ready            lookups by key
   insert_queued                    the race is decided by the partial unique index
   claim_building                   CAS queued→building (+ a stale `building` under OD-W3)
   heartbeat                        updated_at while building
-  mark_ready / mark_failed         the terminal transitions; ready supersedes the old ready
+  mark_ready / mark_failed         the terminal transitions; ready supersedes the old
+                                   ready of the SAME key only
   requeue_for_rebuild              a deliberate rebuild: ready → superseded + a new queued row, ONE txn
   ensure_plan_for_contract         the compile-time trigger's DB half (W-2)
 
@@ -23,6 +36,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, Optional, Tuple
@@ -41,6 +55,15 @@ WORDING_SEGMENTED = "segmented"
 WORDING_PLACEHOLDER = "placeholder"
 LIVE_STATUSES = ("queued", "building", "ready")
 
+# [AM-G6] The ONE key every v5 plan carries — the backfill value of migration 035
+# and its column DEFAULT (a pre-035 revision inserts without naming the column).
+# Pinned equal to the migration by tests/services/test_plan_cache.py. A v6 key is
+# a sha256 hex digest, so it can never collide with this literal.
+V5_CONFIG_HASH = "v5"
+
+V6_PLAN_SCHEMA = "plan/v6"
+_SHA256_HEX = re.compile(r"[0-9a-f]{64}")
+
 
 # ── the key ──────────────────────────────────────────────────────────────────
 
@@ -56,26 +79,68 @@ def contract_sha256(contract_json: Dict[str, Any]) -> str:
     return hashlib.sha256(canon.encode("utf-8")).hexdigest()
 
 
+def _check_config_hash(config_hash: str) -> None:
+    """A key is the v5 constant or a sha256 digest — anything else is a caller
+    passing the wrong string (a plan_hash, a label) into the key slot."""
+    if config_hash != V5_CONFIG_HASH and not (
+            isinstance(config_hash, str) and _SHA256_HEX.fullmatch(config_hash)):
+        raise ValueError(f"config_hash must be {V5_CONFIG_HASH!r} or a sha256 hex digest, "
+                         f"got {config_hash!r}")
+
+
+def _plan_identity_problem(plan_json: Dict[str, Any], *, config_hash: str,
+                           plan_hash: Optional[str]) -> Optional[str]:
+    """The plan must belong to the key it is stored under. A v5 plan lives only
+    under V5_CONFIG_HASH and carries no plan_hash; a plan/v6 plan lives only
+    under its own config_hash and is stored with the plan_hash it declares.
+    A mismatch is a wiring bug (the wrong builder for the row) — refused before
+    anything is written, never repaired."""
+    is_v6 = isinstance(plan_json, dict) and plan_json.get("plan_schema") == V6_PLAN_SCHEMA
+    if config_hash == V5_CONFIG_HASH:
+        if is_v6:
+            return "a plan/v6 plan cannot be stored under the v5 key"
+        if plan_hash is not None:
+            return "a v5 plan carries no plan_hash"
+        return None
+    if not is_v6:
+        return f"only a {V6_PLAN_SCHEMA} plan can be stored under config {config_hash[:12]}…"
+    if plan_json.get("config_hash") != config_hash:
+        return (f"the plan declares config {str(plan_json.get('config_hash'))[:12]}… "
+                f"but the row is keyed {config_hash[:12]}…")
+    if plan_hash is None or not _SHA256_HEX.fullmatch(plan_hash):
+        return "a plan/v6 plan is stored with its sha256 plan_hash"
+    if plan_json.get("plan_hash") != plan_hash:
+        return "plan_hash disagrees with the hash the plan declares"
+    return None
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _key(sha: str, config_hash: str):
+    return (GradingPlanRecord.contract_sha256 == sha,
+            GradingPlanRecord.config_hash == config_hash)
+
+
 # ── lookups ──────────────────────────────────────────────────────────────────
 
-async def find_live(db: AsyncSession, sha: str) -> Optional[GradingPlanRecord]:
-    """The one queued/building/ready row for this hash, if any."""
+async def find_live(db: AsyncSession, sha: str, *, config_hash: str
+                    ) -> Optional[GradingPlanRecord]:
+    """The one queued/building/ready row for this key, if any."""
     result = await db.execute(
         select(GradingPlanRecord)
-        .where(GradingPlanRecord.contract_sha256 == sha,
+        .where(*_key(sha, config_hash),
                GradingPlanRecord.status.in_(LIVE_STATUSES))
         .limit(1))
     return result.scalar_one_or_none()
 
 
-async def get_ready(db: AsyncSession, sha: str) -> Optional[GradingPlanRecord]:
+async def get_ready(db: AsyncSession, sha: str, *, config_hash: str
+                    ) -> Optional[GradingPlanRecord]:
     result = await db.execute(
         select(GradingPlanRecord)
-        .where(GradingPlanRecord.contract_sha256 == sha,
+        .where(*_key(sha, config_hash),
                GradingPlanRecord.status == "ready")
         .limit(1))
     return result.scalar_one_or_none()
@@ -84,19 +149,21 @@ async def get_ready(db: AsyncSession, sha: str) -> Optional[GradingPlanRecord]:
 # ── transitions ──────────────────────────────────────────────────────────────
 
 async def insert_queued(db: AsyncSession, *, rubric_id: Optional[UUID],
-                        contract_version: str, sha: str
+                        contract_version: str, sha: str, config_hash: str
                         ) -> Tuple[GradingPlanRecord, bool]:
-    """(row, created). A concurrent writer loses on
-    `idx_grading_plans_one_live_per_contract` and gets the winner's row —
-    the extraction-submit idempotency shape. Commits."""
+    """(row, created). A concurrent writer of the SAME key loses on
+    `idx_grading_plans_one_live_per_contract_config` and gets the winner's row
+    — the extraction-submit idempotency shape. Another config of the same
+    contract is a different key and never collides. Commits."""
+    _check_config_hash(config_hash)
     row = GradingPlanRecord(rubric_id=rubric_id, contract_version=contract_version,
-                            contract_sha256=sha, status="queued")
+                            contract_sha256=sha, config_hash=config_hash, status="queued")
     db.add(row)
     try:
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        existing = await find_live(db, sha)
+        existing = await find_live(db, sha, config_hash=config_hash)
         if existing is None:              # the winner finished and was superseded between? re-read
             raise
         return existing, False
@@ -137,28 +204,42 @@ async def mark_ready(db: AsyncSession, row_id: UUID, *, plan_json: Dict[str, Any
                      compiler_version: str, segmenter_model: Optional[str],
                      router_model: Optional[str], wording_source: str,
                      cost_usd: Decimal, error_message: Optional[str] = None,
-                     sha: str) -> None:
-    """building → ready, and every OTHER ready row for the hash → superseded,
-    in ONE transaction (append-only: the old plan_json is never touched)."""
+                     sha: str, config_hash: str, plan_hash: Optional[str] = None) -> None:
+    """building → ready, and every OTHER ready row of the SAME KEY → superseded,
+    in ONE transaction (append-only: the old plan_json is never touched). A
+    ready row of another config of this contract is not this plan's
+    predecessor and is left alone — that is what lets v5 and v6 coexist.
+    `plan_hash` is stored for a v6 plan (it must equal the hash the plan
+    declares); a v5 plan has none."""
     assert wording_source in (WORDING_SEGMENTED, WORDING_PLACEHOLDER)
+    _check_config_hash(config_hash)
+    problem = _plan_identity_problem(plan_json, config_hash=config_hash, plan_hash=plan_hash)
+    if problem is not None:
+        raise ValueError(f"grading_plans {row_id}: {problem}")
     now = _now()
     await db.execute(
         update(GradingPlanRecord)
-        .where(GradingPlanRecord.contract_sha256 == sha,
+        .where(*_key(sha, config_hash),
                GradingPlanRecord.status == "ready",
                GradingPlanRecord.id != row_id)
         .values(status="superseded", updated_at=now))
     result = await db.execute(
         update(GradingPlanRecord)
-        .where(GradingPlanRecord.id == row_id, GradingPlanRecord.status == "building")
+        .where(GradingPlanRecord.id == row_id, GradingPlanRecord.status == "building",
+               *_key(sha, config_hash))
         .values(status="ready", plan_json=plan_json, plan_version=plan_version,
                 skeleton_json=skeleton_json, compiler_version=compiler_version,
                 segmenter_model=segmenter_model, router_model=router_model,
                 wording_source=wording_source, cost_usd=cost_usd,
-                error_message=error_message, built_at=now, updated_at=now))
-    await db.commit()
+                error_message=error_message, plan_hash=plan_hash,
+                built_at=now, updated_at=now))
     if result.rowcount != 1:
-        raise RuntimeError(f"grading_plans {row_id}: mark_ready found no building row")
+        # Nothing may land — not even the supersede above — when the row is
+        # not the building row of this key.
+        await db.rollback()
+        raise RuntimeError(f"grading_plans {row_id}: mark_ready found no building row "
+                           f"for key ({sha[:12]}…, {config_hash[:12]})")
+    await db.commit()
 
 
 async def mark_failed(db: AsyncSession, row_id: UUID, error_message: str,
@@ -173,7 +254,7 @@ async def mark_failed(db: AsyncSession, row_id: UUID, error_message: str,
 
 
 async def requeue_for_rebuild(db: AsyncSession, sha: str, *, rubric_id: Optional[UUID],
-                              contract_version: str) -> GradingPlanRecord:
+                              contract_version: str, config_hash: str) -> GradingPlanRecord:
     """A DELIBERATE rebuild of a contract's plan (first use: D-13, owner-authorized
     2026-09-30 — plans built while the router lost JSON-string payloads).
 
@@ -188,13 +269,15 @@ async def requeue_for_rebuild(db: AsyncSession, sha: str, *, rubric_id: Optional
     now = _now()
     result = await db.execute(
         update(GradingPlanRecord)
-        .where(GradingPlanRecord.contract_sha256 == sha, GradingPlanRecord.status == "ready")
+        .where(GradingPlanRecord.contract_sha256 == sha, GradingPlanRecord.config_hash == config_hash,
+               GradingPlanRecord.status == "ready")
         .values(status="superseded", updated_at=now))
     if result.rowcount != 1:
         await db.rollback()
-        raise RuntimeError(f"grading_plans {sha[:12]}: no ready row to rebuild")
+        raise RuntimeError(f"grading_plans {sha[:12]}/{config_hash[:12]}: no ready row to rebuild")
+    # [035] the rebuild stays inside its own key: a v5 rebuild never retires a v6 plan
     row = GradingPlanRecord(rubric_id=rubric_id, contract_version=contract_version,
-                            contract_sha256=sha, status="queued")
+                            contract_sha256=sha, config_hash=config_hash, status="queued")
     db.add(row)
     await db.commit()
     await db.refresh(row)
@@ -204,26 +287,27 @@ async def requeue_for_rebuild(db: AsyncSession, sha: str, *, rubric_id: Optional
 
 # ── the compile-time trigger (W-2), DB half ──────────────────────────────────
 
-async def ensure_plan_for_contract(*, rubric_id: Optional[UUID], contract_json: Dict[str, Any]
-                                   ) -> Optional[UUID]:
-    """A live row exists for this contract's hash → None (nothing to do — the
-    hash is why a re-save of unchanged content costs nothing). Otherwise
-    INSERT queued and return its id for the caller to enqueue. Own session."""
+async def ensure_plan_for_contract(*, rubric_id: Optional[UUID], contract_json: Dict[str, Any],
+                                   config_hash: str) -> Optional[UUID]:
+    """A live row exists for this key → None (nothing to do — the hash is why
+    a re-save of unchanged content costs nothing). Otherwise INSERT queued and
+    return its id for the caller to enqueue. Own session."""
     sha = contract_sha256(contract_json)
     version = str(contract_json.get("contract_version") or "")
     async with get_db_context() as db:
-        if await find_live(db, sha) is not None:
+        if await find_live(db, sha, config_hash=config_hash) is not None:
             return None
-        row, created = await insert_queued(db, rubric_id=rubric_id,
-                                           contract_version=version, sha=sha)
+        row, created = await insert_queued(db, rubric_id=rubric_id, contract_version=version,
+                                           sha=sha, config_hash=config_hash)
         return row.id if created else None
 
 
 async def kick_plan_build(rubric_id: UUID) -> Optional[UUID]:
-    """ensure + enqueue for a rubric that was just compiled, never raises (the
-    queued row is durable; the grade path builds on demand if the enqueue is
-    lost — OD-W1). Called by the three contract-writing endpoints AFTER their
-    commit, with the request session closed. Returns the new row id, if any."""
+    """ensure + enqueue the v5 plan for a rubric that was just compiled, never
+    raises (the queued row is durable; the grade path builds on demand if the
+    enqueue is lost — OD-W1). Called by the three contract-writing endpoints
+    AFTER their commit, with the request session closed. Returns the new row
+    id, if any."""
     try:
         from ..models.grading import Rubric
         async with get_db_context() as db:
@@ -231,7 +315,8 @@ async def kick_plan_build(rubric_id: UUID) -> Optional[UUID]:
             contract_json = rubric.contract_json if rubric is not None else None
         if not contract_json:
             return None
-        row_id = await ensure_plan_for_contract(rubric_id=rubric_id, contract_json=contract_json)
+        row_id = await ensure_plan_for_contract(rubric_id=rubric_id, contract_json=contract_json,
+                                                config_hash=V5_CONFIG_HASH)
         if row_id is None:
             return None
         from .cloud_tasks_service import enqueue_plan_build_task_or_log

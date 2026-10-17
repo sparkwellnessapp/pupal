@@ -144,6 +144,11 @@ class GradedTest(Base):
     # "this row predates the pin", and inventing a value would fabricate exactly
     # the provenance the column exists to record.
     transcription_contract_version = Column(String(50), nullable=True)
+    # [035, AM-G6] the plan a v6 draft was graded against — `plan_hash` of its
+    # grading_plans row, stamped by `grading_inputs.pin_plan_hash` when the
+    # runner writes the draft, never re-stamped. NULL = a v5 / pre-035 grade;
+    # never back-filled (029's rule: a guessed pin is worse than an absence).
+    plan_hash               = Column(Text, nullable=True)
     student_name            = Column(String(255), nullable=False)
     filename                = Column(String(500), nullable=True)
     # none_as_null=True is LOAD-BEARING: /grade and the batch accepts pass

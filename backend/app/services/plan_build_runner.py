@@ -14,6 +14,11 @@ Three entry points:
                                             wait; queued / failed / absent / dead builder →
                                             build in place, then use.
 
+This module builds and resolves V5 plans only: every key it reads or writes is
+(contract_sha256, V5_CONFIG_HASH) [AM-G6, migration 035]. A row keyed for another
+config is refused by the builder (marked failed, loudly) rather than filled with
+a v5 plan; the v6 builder and its resolution are wired in grader-v6 Phase 3.
+
 W-2's guarantee is STRUCTURAL: the model stages can only degrade the WORDING
 (a provider outage, an envelope overrun, a validator surprise all fall back to
 the compiler's own spans — `wording_source='placeholder'`), never the algebra.
@@ -51,7 +56,8 @@ from ..models.grading import Rubric
 from ..models.grading_plan import GradingPlanRecord
 from ..schemas.ontology_types import GradingRubricContract
 from . import plan_store
-from .plan_store import WORDING_PLACEHOLDER, WORDING_SEGMENTED, contract_sha256
+from .plan_store import (V5_CONFIG_HASH, WORDING_PLACEHOLDER, WORDING_SEGMENTED,
+                         contract_sha256)
 from .provider_billing import log_billing_exhausted
 
 logger = logging.getLogger(__name__)
@@ -264,6 +270,14 @@ async def _build_claimed_row(row_id: UUID, *, llm_factory: Optional[LLMFactory],
         async with get_db_context() as db:
             await plan_store.mark_failed(db, row_id, "rubric or its contract vanished before the build")
         return
+    if row.config_hash != V5_CONFIG_HASH:
+        # [AM-G6] this builder produces v5 plans; writing one under another
+        # config's key would hand that planner's graders a plan it never made.
+        logger.error("plan_build_wrong_config row_id=%s config_hash=%s", row_id, row.config_hash)
+        async with get_db_context() as db:
+            await plan_store.mark_failed(
+                db, row_id, f"the v5 builder cannot build config {row.config_hash}")
+        return
     hb = asyncio.create_task(_heartbeat_loop(row_id))
     try:
         contract = GradingRubricContract.model_validate(contract_json)
@@ -290,7 +304,8 @@ async def _build_claimed_row(row_id: UUID, *, llm_factory: Optional[LLMFactory],
             compiler_version=result.plan.compiler_version or "",
             segmenter_model=result.segmenter_model, router_model=result.router_model,
             wording_source=result.wording_source, cost_usd=result.cost_usd,
-            error_message=result.error_message, sha=row.contract_sha256)
+            error_message=result.error_message, sha=row.contract_sha256,
+            config_hash=V5_CONFIG_HASH)
     logger.info("plan_build_ready row_id=%s rubric_id=%s wording=%s cost_usd=%s substituted=%d "
                 "router_failed=%d", row_id, row.rubric_id, result.wording_source,
                 result.cost_usd, result.substituted, len(result.router_failed))
@@ -321,13 +336,27 @@ class ResolvedPlan:
     row_id: UUID
     built_in_place: bool
     waited_s: float
+    # [AM-G6] the row's plan_hash — what a v6 runner pins onto the graded test
+    # (grading_inputs.pin_plan_hash). None for every v5 plan.
+    plan_hash: Optional[str] = None
 
 
 async def resolve_plan_for_grade(rubric_id: Optional[UUID], contract_json: Dict[str, Any], *,
                                  llm_factory: Optional[LLMFactory] = None,
                                  wait_s: Optional[float] = None) -> ResolvedPlan:
-    """ready → use it. building with a fresh heartbeat → wait (≤ wait_s, OD-W3).
-    queued / absent / failed / dead builder → build IN PLACE, then use it."""
+    """ready → use it. building with a fresh heartbeat → wait (OD-W3).
+    queued / absent / failed / dead builder → build IN PLACE, then use it.
+
+    The wait is bounded by PLAN_WAIT_S (`settings.plan_wait_s`, 240 s) and by
+    nothing else [AM-G6 — there is no separate build timeout]: the loop gives
+    up at 2 × wait_s, because a dead builder is only DETECTABLE once its
+    heartbeat is older than the 5-min TTL (300 s > 240 s) — under a 1× bound a
+    builder that dies while a grade waits on it could never be taken over; the
+    grade would give up first. (v5 behaviour, unchanged.) Giving up raises
+    PlanUnavailable, the existing failed path: the grade row lands `failed`
+    with that message and the revision chain's retry grades it again. The
+    plan row is not the waiter's to fail — its builder may still land it, and
+    plan_job_liveness reaps it if it never does."""
     sha = contract_sha256(contract_json)
     wait_s = float(settings.plan_wait_s if wait_s is None else wait_s)
     ttl = timedelta(minutes=settings.plan_build_heartbeat_ttl_minutes)
@@ -337,18 +366,20 @@ async def resolve_plan_for_grade(rubric_id: Optional[UUID], contract_json: Dict[
     while True:
         now = datetime.now(timezone.utc)
         async with get_db_context() as db:
-            row = await plan_store.find_live(db, sha)
+            row = await plan_store.find_live(db, sha, config_hash=V5_CONFIG_HASH)
             if row is not None and row.status == "ready":
                 plan = GradingPlan.model_validate(row.plan_json)
                 return ResolvedPlan(plan, row.wording_source or WORDING_PLACEHOLDER, row.id,
-                                    built, asyncio.get_event_loop().time() - t0)
+                                    built, asyncio.get_event_loop().time() - t0,
+                                    plan_hash=row.plan_hash)
             row_id = row.id if row is not None else None
             status = row.status if row is not None else None
             hb_at = row.updated_at if row is not None else None
             if row is None:
                 version = str(contract_json.get("contract_version") or "")
                 row, _created = await plan_store.insert_queued(db, rubric_id=rubric_id,
-                                                               contract_version=version, sha=sha)
+                                                               contract_version=version, sha=sha,
+                                                               config_hash=V5_CONFIG_HASH)
                 row_id, status, hb_at = row.id, row.status, row.updated_at
         if status == "queued":
             async with get_db_context() as db:

@@ -1,6 +1,5 @@
--- A-10 snapshot of Vivi-Test (eqnbojbxsdafwtxvuyuy), schema `public`, at ledger head 034.
--- Generated 2026-09-30 by `python scripts/local_test_db.py snapshot` — do not hand-edit; regenerate.
--- Reversed before dumping (on Vivi-Test, not in this checkout): 035_down_plan_cache_config_hash.sql
+-- A-10 snapshot of Vivi-Test (eqnbojbxsdafwtxvuyuy), schema `public`, at ledger head 035.
+-- Generated 2026-10-17 by `python scripts/local_test_db.py snapshot` — do not hand-edit; regenerate.
 --
 -- PostgreSQL database dump
 --
@@ -200,6 +199,7 @@ CREATE TABLE public.graded_tests (
     opened_at timestamp with time zone,
     returned_exam_key text,
     transcription_contract_version text,
+    plan_hash text,
     CONSTRAINT graded_tests_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('grading'::character varying)::text, ('draft'::character varying)::text, ('approved'::character varying)::text, ('failed'::character varying)::text]))),
     CONSTRAINT graded_tests_status_consistency CHECK (((((status)::text = 'pending'::text) AND (draft_json IS NULL) AND (contract_json IS NULL)) OR (((status)::text = 'grading'::text) AND (draft_json IS NULL) AND (contract_json IS NULL)) OR (((status)::text = 'draft'::text) AND (draft_json IS NOT NULL) AND (contract_json IS NULL)) OR (((status)::text = 'approved'::text) AND (draft_json IS NOT NULL) AND (contract_json IS NOT NULL) AND (approved_at IS NOT NULL)) OR (((status)::text = 'failed'::text) AND (error_message IS NOT NULL))))
 );
@@ -302,6 +302,8 @@ CREATE TABLE public.grading_plans (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     built_at timestamp with time zone,
+    config_hash text DEFAULT 'v5'::text NOT NULL,
+    plan_hash text,
     CONSTRAINT grading_plans_status_check CHECK ((status = ANY (ARRAY['queued'::text, 'building'::text, 'ready'::text, 'failed'::text, 'superseded'::text]))),
     CONSTRAINT grading_plans_status_consistency CHECK ((((status = 'ready'::text) AND (plan_json IS NOT NULL) AND (plan_version IS NOT NULL) AND (built_at IS NOT NULL) AND (wording_source IS NOT NULL)) OR ((status = 'superseded'::text) AND (plan_json IS NOT NULL)) OR ((status = 'failed'::text) AND (error_message IS NOT NULL)) OR (status = ANY (ARRAY['queued'::text, 'building'::text])))),
     CONSTRAINT grading_plans_wording_source_check CHECK ((wording_source = ANY (ARRAY['segmented'::text, 'placeholder'::text])))
@@ -1190,10 +1192,10 @@ CREATE INDEX idx_grading_batches_user ON public.grading_batches USING btree (use
 
 
 --
--- Name: idx_grading_plans_one_live_per_contract; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_grading_plans_one_live_per_contract_config; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_grading_plans_one_live_per_contract ON public.grading_plans USING btree (contract_sha256) WHERE (status = ANY (ARRAY['queued'::text, 'building'::text, 'ready'::text]));
+CREATE UNIQUE INDEX idx_grading_plans_one_live_per_contract_config ON public.grading_plans USING btree (contract_sha256, config_hash) WHERE (status = ANY (ARRAY['queued'::text, 'building'::text, 'ready'::text]));
 
 
 --

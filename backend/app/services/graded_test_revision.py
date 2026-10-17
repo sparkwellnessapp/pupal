@@ -95,6 +95,11 @@ async def extend_chain(
         # claim a provenance its predecessor never had, and would silently
         # "upgrade" a legacy NULL into a version nobody verified.
         transcription_contract_version=source.transcription_contract_version,
+        # [035, AM-G6] the plan pin travels WITH the draft it describes: a
+        # manual_edit successor carries its predecessor's draft verbatim, so it
+        # carries that draft's plan too; a regrade / retry successor has no
+        # draft yet and resolves the plan current for the new row (§5.7).
+        plan_hash=source.plan_hash if new_draft_json is not None else None,
         status=new_status,
         draft_json=new_draft_json,
         contract_json=None,

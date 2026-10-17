@@ -18,7 +18,7 @@ from app.database import get_db_context
 from app.models.grading import Rubric
 from app.models.grading_plan import GradingPlanRecord
 from app.services import plan_store
-from app.services.plan_store import contract_sha256, kick_plan_build
+from app.services.plan_store import V5_CONFIG_HASH as V5, contract_sha256, kick_plan_build
 
 pytestmark = pytest.mark.db          # both tests write grading_plans rows (A-10)
 
@@ -69,7 +69,7 @@ def test_kick_inserts_one_queued_row_and_enqueues_it():
             assert await kick_plan_build(rubric_id) is None
             enq.assert_awaited_once()
         async with get_db_context() as db:
-            live = await plan_store.find_live(db, sha)
+            live = await plan_store.find_live(db, sha, config_hash=V5)
             assert live is not None and live.status == "queued" and live.rubric_id == rubric_id
             assert live.contract_version == cj["contract_version"]
     try:

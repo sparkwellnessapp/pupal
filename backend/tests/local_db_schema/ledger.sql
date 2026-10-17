@@ -1,6 +1,5 @@
--- A-10 snapshot of Vivi-Test (eqnbojbxsdafwtxvuyuy), schema `public`, at ledger head 034.
--- Generated 2026-09-30 by `python scripts/local_test_db.py snapshot` — do not hand-edit; regenerate.
--- Reversed before dumping (on Vivi-Test, not in this checkout): 035_down_plan_cache_config_hash.sql
+-- A-10 snapshot of Vivi-Test (eqnbojbxsdafwtxvuyuy), schema `public`, at ledger head 035.
+-- Generated 2026-10-17 by `python scripts/local_test_db.py snapshot` — do not hand-edit; regenerate.
 --
 -- PostgreSQL database dump
 --
@@ -60,6 +59,7 @@ COPY public.schema_migrations (version, applied_at, note) FROM stdin;
 033	2026-09-23 13:00:19.429274+00	purge_failures — the student purge's ledger of object deletes that failed (M-B2, PRV-3)
 032	2026-09-23 13:08:14.877873+00	student-data FKs -> ON DELETE NO ACTION (AM-B1) + tenant constraints (AM-B4): a delete happens only when it is spelled out
 034	2026-09-28 15:03:04.613392+00	lockdown_public_schema — RLS on every public table, no anon/authenticated grants (SEC-1)
+035	2026-09-28 17:40:47.749067+00	plan cache keyed by (contract_sha256, config_hash) + grading_plans.plan_hash + graded_tests.plan_hash (grader-v6 AM-G6)
 \.
 
 

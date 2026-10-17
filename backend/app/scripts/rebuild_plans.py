@@ -56,7 +56,9 @@ def _canary() -> None:
 async def _ready_rows():
     async with get_db_context() as db:
         rows = (await db.execute(select(GradingPlanRecord)
-                                 .where(GradingPlanRecord.status == "ready")
+                                 .where(GradingPlanRecord.status == "ready",
+                                        # [035] this script rebuilds v5 plans only
+                                        GradingPlanRecord.config_hash == plan_store.V5_CONFIG_HASH)
                                  .order_by(GradingPlanRecord.built_at))).scalars().all()
         return [(r.id, r.rubric_id, r.contract_sha256, r.contract_version, r.wording_source,
                  r.router_model, r.cost_usd, r.built_at) for r in rows]
@@ -79,7 +81,8 @@ async def main(apply: bool, max_usd: Decimal) -> None:
             skipped.append(rid)
             continue
         async with get_db_context() as db:
-            new = await plan_store.requeue_for_rebuild(db, sha, rubric_id=rubric, contract_version=version)
+            new = await plan_store.requeue_for_rebuild(db, sha, rubric_id=rubric, contract_version=version,
+                                                       config_hash=plan_store.V5_CONFIG_HASH)
         await run_plan_build(new.id)
         async with get_db_context() as db:
             built = await db.get(GradingPlanRecord, new.id)

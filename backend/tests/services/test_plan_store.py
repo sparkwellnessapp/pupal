@@ -20,7 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from app.database import get_db_context
 from app.models.grading_plan import GradingPlanRecord
 from app.services import plan_store
-from app.services.plan_store import contract_sha256
+from app.services.plan_store import V5_CONFIG_HASH as V5, contract_sha256
 
 
 def _run(coro):
@@ -69,34 +69,36 @@ def test_queued_to_building_to_ready_and_a_rebuild_supersedes():
 
     async def scenario():
         async with get_db_context() as db:
-            row, created = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha)
+            row, created = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha, config_hash=V5)
             assert created and row.status == "queued"
             assert await plan_store.claim_building(db, row.id)
             assert not await plan_store.claim_building(db, row.id), "a second claim must lose"
             await plan_store.mark_ready(db, row.id, plan_json={"plan": 1}, plan_version="p1",
                                         skeleton_json=None, compiler_version="c", segmenter_model=None,
                                         router_model=None, wording_source="placeholder",
-                                        cost_usd=Decimal("0.1234"), sha=sha)
-            ready = await plan_store.get_ready(db, sha)
+                                        cost_usd=Decimal("0.1234"), sha=sha, config_hash=V5)
+            ready = await plan_store.get_ready(db, sha, config_hash=V5)
             assert ready.id == row.id and ready.plan_json == {"plan": 1} and ready.built_at is not None
             assert ready.cost_usd == Decimal("0.1234")
             # a rebuild: a NEW row; the old ready row is superseded, its plan_json untouched
-            row2, created2 = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha)
+            row2, created2 = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha, config_hash=V5)
             assert not created2 and row2.id == row.id, "one LIVE row per hash: ready blocks a new queued"
         # the supersede path, through the store: ready → superseded + a new queued, ONE txn
         async with get_db_context() as db:
-            row3 = await plan_store.requeue_for_rebuild(db, sha, rubric_id=None, contract_version="v")
+            row3 = await plan_store.requeue_for_rebuild(db, sha, rubric_id=None, contract_version="v",
+                                                        config_hash=V5)
             assert row3.status == "queued" and row3.id != row.id
             assert (await db.get(GradingPlanRecord, row.id)).status == "superseded"
             with pytest.raises(RuntimeError, match="no ready row"):
-                await plan_store.requeue_for_rebuild(db, sha, rubric_id=None, contract_version="v")
-            assert (await plan_store.find_live(db, sha)).id == row3.id, "the refusal changed nothing"
+                await plan_store.requeue_for_rebuild(db, sha, rubric_id=None, contract_version="v",
+                                                     config_hash=V5)
+            assert (await plan_store.find_live(db, sha, config_hash=V5)).id == row3.id,                 "the refusal changed nothing"
             assert await plan_store.claim_building(db, row3.id)
             await plan_store.mark_ready(db, row3.id, plan_json={"plan": 2}, plan_version="p2",
                                         skeleton_json=None, compiler_version="c", segmenter_model="m",
                                         router_model=None, wording_source="segmented",
-                                        cost_usd=Decimal("0.2"), sha=sha)
-            ready = await plan_store.get_ready(db, sha)
+                                        cost_usd=Decimal("0.2"), sha=sha, config_hash=V5)
+            ready = await plan_store.get_ready(db, sha, config_hash=V5)
             assert ready.id == row3.id and ready.plan_json == {"plan": 2}
             old = await db.get(GradingPlanRecord, row.id)
             assert old.status == "superseded" and old.plan_json == {"plan": 1}, "append-only"
@@ -112,8 +114,8 @@ def test_two_writers_race_and_the_index_decides():
 
     async def scenario():
         async with get_db_context() as a, get_db_context() as b:
-            ra, ca = await plan_store.insert_queued(a, rubric_id=None, contract_version="v", sha=sha)
-            rb, cb = await plan_store.insert_queued(b, rubric_id=None, contract_version="v", sha=sha)
+            ra, ca = await plan_store.insert_queued(a, rubric_id=None, contract_version="v", sha=sha, config_hash=V5)
+            rb, cb = await plan_store.insert_queued(b, rubric_id=None, contract_version="v", sha=sha, config_hash=V5)
             assert ca and not cb and rb.id == ra.id
     try:
         _run(scenario())
@@ -127,11 +129,11 @@ def test_a_failed_row_is_history_and_a_new_build_can_start():
 
     async def scenario():
         async with get_db_context() as db:
-            row, _ = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha)
+            row, _ = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha, config_hash=V5)
             await plan_store.claim_building(db, row.id)
             await plan_store.mark_failed(db, row.id, "CompilerBug: x")
-            assert await plan_store.find_live(db, sha) is None
-            row2, created = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha)
+            assert await plan_store.find_live(db, sha, config_hash=V5) is None
+            row2, created = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha, config_hash=V5)
             assert created and row2.id != row.id
             failed = await db.get(GradingPlanRecord, row.id)
             assert failed.status == "failed" and failed.error_message.startswith("CompilerBug")
@@ -147,7 +149,7 @@ def test_a_dead_builder_can_be_claimed_only_when_its_heartbeat_is_stale():
 
     async def scenario():
         async with get_db_context() as db:
-            row, _ = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha)
+            row, _ = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha, config_hash=V5)
             await plan_store.claim_building(db, row.id)
             now = datetime.now(timezone.utc)
             assert not await plan_store.claim_building(db, row.id, stale_before=now - timedelta(minutes=5)), \
@@ -172,7 +174,7 @@ def test_the_check_refuses_a_ready_row_without_a_plan():
 
     async def scenario():
         async with get_db_context() as db:
-            row, _ = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha)
+            row, _ = await plan_store.insert_queued(db, rubric_id=None, contract_version="v", sha=sha, config_hash=V5)
             with pytest.raises(IntegrityError):
                 await db.execute(update(GradingPlanRecord).where(GradingPlanRecord.id == row.id)
                                  .values(status="ready"))
@@ -190,10 +192,10 @@ def test_ensure_plan_for_contract_is_idempotent_on_content():
     sha = contract_sha256(contract)
 
     async def scenario():
-        first = await plan_store.ensure_plan_for_contract(rubric_id=None, contract_json=contract)
+        first = await plan_store.ensure_plan_for_contract(rubric_id=None, contract_json=contract, config_hash=V5)
         assert first is not None
         again = dict(contract, contract_version=str(uuid.uuid4()))
-        assert await plan_store.ensure_plan_for_contract(rubric_id=None, contract_json=again) is None
+        assert await plan_store.ensure_plan_for_contract(rubric_id=None, contract_json=again, config_hash=V5) is None
     try:
         _run(scenario())
     finally:
