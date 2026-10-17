@@ -3181,3 +3181,31 @@ second exam, not another dollar on this one.**
 - **Explainer arm B:** Sonnet 5.5 lowest (OO-3). Measured on run 4's recorded payloads (`arm_b.json`): $0.0818/test, 64% cache hit. Scaled to run 10's payloads by the measured Haiku-explainer token ratio (input ×1.015, output ×1.010) → **$0.0829**.
 - **Shipping: $0.1454/test** ($0.1443 with arm B exactly as measured), within the owner's expected $0.14–0.15. Feedback is reported separately in the STOP-3 package.
 - Recorded in `docs/EVAL_REPORT_v6.md` §1a with OO-1..OO-4.
+
+## 2026-10-17 · §7 MVC backend BUILT · T1 green · §10 query · §8 package drafted ($0)
+
+- **Spend:** none. Anthropic direct $0; **GCP $0 of $3** (every Vertex call is still refused on quota).
+- **§7 backend** (`cc93446`, `af8ad47`):
+  - **Grading:** the runner's v6 branch builds plans lazily under the v6 key (migration 035, cherry-picked as `0170e4b`) and pins `plan_hash`. It writes the explainer line at grading time; nothing else writes it. D-6 marks excluded scopes before feedback. D-7 cost covers verifier + explainer + feedback, each on its own card.
+  - **Review:** `GET /graded_test/{id}/v6` (owner-scoped; cross-tenant 404) and `PATCH …/v6/draft`, which merges and never replaces (A-3: the stamp survives). CW-3 is extended to check, option and terminal ids. Typed per-check amounts and evidence disputes → `not_supported` (v6.1).
+  - **Approval:** through the one pricer; `ContractV6` freezes the plan/config hash, pack, provider, per-check model/effective option + quote status, and per-criterion line + source.
+  - **Feedback:** reads the priced option, the absence pointer and the verified quote (AM-G7).
+  - **Tests:** `test_v6_review_mvc.py` (8), `test_graded_test_v6.py` (5), `test_grading_runner_v6.py` (1), `test_v6_production_leg_query.py` (1).
+- **T1** (local DB, `-n 6`):
+  - The first attempt never ran. xdist refused it because two older test files built parametrize ids from `uuid4()` (`erasure/test_storage_targets.py`, `api/test_users_auth.py`), so every worker collected different ids, and the `; echo` masked the exit code. Both now use fixed `uuid5` ids; CLAUDE.md A-10 records the rule.
+  - The re-run: **2033 passed, 3 skipped, 2 failed**, both mine and fixed in `af8ad47`:
+    - (1) The overlay-key guard flagged two reads of a field named `overrides` (an API response; the §10 query's output). The query key is now `criteria_overridden`, and the test reads the response through `body`, the guard's own wire-data exemption.
+    - (2) `pricing_v6_vectors.json` was stale since AM-G19 added `PlanCheckV6.element`. Regenerated; the only change is `"element": null` (544/544 changed lines pair exactly once it is removed).
+  - `import app.main` OK.
+- **§10:** `docs/plans/v6_production_leg_query.sql` is one read-only statement returning one JSON cell. Definitions are pending veto:
+  - override = final ≠ Vivi's points (v5's own flag; v6's wider `touched` is reported beside it);
+  - time-to-sign = `approved_at − opened_at` (PR-G8's stamp; no finer instrumentation exists), median and p75;
+  - K1 behaviour = Vivi > 0, she set 0 — those rows come first.
+  - Pinned by running the file verbatim on a seeded approved v6 batch (a real compiled contract) and a v5 batch.
+- **Feedback cost, estimated at $0** (`tools/v6_feedback_cost.py`): **≈ $0.043/test** (range $0.037–$0.051) on Sonnet 5.
+  - Calibration: 0.606 tokens/char, fitted on 226 run-10 single-call verifications (Sonnet 5.5).
+  - The planner-based fit was discarded: its uncached part carries a large fixed block.
+  - D-7 replaces this with production truth.
+- **§8 package:** `docs/EVAL_REPORT_v6.md` now carries the verdict with OO-1..4, the shipping cost by component, smoke 8a/8b, the Vertex section, the MVC status and the v6.1 backlog.
+- **G4 snapshot (ruling §7: "delete it now"): NOT deleted.** The local permission policy refused the `rm` of `C:\Users\ariel\vivi-private\grader-v6\g4_snapshot_20260927.json` (6.5 MB of production grades). It needs the owner's hand or approval. It sits outside the repo and was never committed.
+- **Remaining:** the v6 review frontend (in progress) → T2 → migration 035 to production → backend deploy (`GRADER_ARCHITECTURE=v5`) → frontend deploy. §5b/§5d/§6b/§9 wait on the Vertex quota.
