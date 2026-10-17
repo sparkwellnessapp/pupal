@@ -3244,3 +3244,43 @@ second exam, not another dollar on this one.**
   - English needs no planner call (C8-lite ladder compiles);
   - grading 6 tests (Math + English × A3/A2/A1), verifier Sonnet 5.5 low, k=1, NO explainer: ≈ $0.4.
   - **Total ≈ $1.6.** The tool checks the remaining budget before every step and never starts one past the cap.
+
+## 2026-10-17 · §6b smoke, attempt 1 — VOID (connection failures, not a grading result) · direct API · actual $0.262
+
+- **Run** `results/20261017-211002_v6-smoke` (direct API, eval key, cap $3).
+- **Canary:** OK.
+- **Math planning:** 6 of 23 scopes planned; **17 fell back** to the deterministic plan after connection failures. The wall was **3,842 s** (a healthy sequential plan is ~15–25 min). Actual **$0.2621**.
+- **Grading:** every verifier call of all 6 answers failed with `APIConnectionError: Connection error.` (both attempts) → every check undecided, every answer 0, grading $0.
+- **Not a grading result:** run immediately afterwards on the same key, route and model, the verifier's own call path succeeds. One English scope through the smoke's grader returned L1 (top level) on all 4 criteria for the full answer, ≈ $0.01. The run sat on a dead connection — most likely the machine sleeping mid-run (the standing memory: long local runs must hold the machine awake).
+- **Attempt 2:**
+  - re-plans Math live (the recording is mostly fallback, so replaying it would test nothing) and re-grades all 6;
+  - holds a Windows `SetThreadExecutionState(ES_CONTINUOUS|ES_SYSTEM_REQUIRED)` for the whole run;
+  - **estimate ≈ $1.35** (Math ≈ $1.0 at the measured $0.044 per planned scope; grading ≈ $0.35); `--max-usd 2.70`, so ruling B's total stays ≤ $3 (≈ $0.28 spent so far).
+
+## 2026-10-17 · §6b smoke, attempt 2 — ENGLISH PASS · MATH FAIL → STOP (f) · direct API · actual $1.2388
+
+- **Run** `results/20261017-212210_v6-smoke`: direct API, eval key, the machine held awake.
+  - Canaries OK (Opus 5.5, Sonnet 5.5).
+  - Renders: `docs/plans/v6_smoke_{mathematics,english}.md` and `…_plan.md`; recordings in `smoke/*.recorded.json`.
+- **Plan health:**
+  - Math plan `17372ec5`: 23 scopes, 20 planner + 3 repaired (q5.א/ב/ד, one repair each), **0 fallback**, 0 rule-7 downgrades, 46 checks, **$1.0366**.
+  - English plan `fcfd2b46`: compiled from the C8-lite ladder, $0.
+- **English — PASS:** K1 0 · A1 full on all 4 · 12/12 intended · validator clean · every criterion a compiled `levels` check. Grading $0.0120.
+- **Math — FAIL** against the bars registered before any run (PREDICTIONS.md: 0 K1-class events; A1 full; ≥ 52/57 intended):
+  - **K1-class events: 3 ❌.** In each, the PLAN carries a partial option for a structured-but-wrong attempt, and the verifier matched it correctly:
+    - A3 `q2.א.c0`: «h = 20 − 1 = 19» → the option "subtracted 1 instead of adding" → 1.25/2.5.
+    - A3 `q2.ד.c0`: «S = 20·19 = 380» → "base × height, not halved" → 1.5/6.
+    - A2 `q5.ד.c0`: «30x = 1000, x = 33» → "equation with one wrong expression" + "solved with one arithmetic error" → 3.5/7. The teacher's solution is `1000+20x = 30x → x = 100`, so the fixture's zero stands.
+  - **Intended share 51/57 = 89.5% ❌** (bar 52):
+    - the 3 above;
+    - **follow-through not credited:** `q1.ד` (4.4·6 = 26.4) and `q1.ה` (52.78%) carry the student's own earlier slip correctly, are intended full, and got 0. The plan checks the correct values; it has no carry-forward.
+    - **one verifier miss:** `q2.ב` «c = 23.6» (√541 ≈ 23.26) accepted as the correct leg → full where partial was intended.
+  - A1: 19/19 full ✅. Validator clean ✅. Grading $0.1902.
+- **Causes, read only (no iteration, ruling §6b):**
+  - (1) Math partials reward wrong-but-structured attempts. AM-G19 rule 7(b) forces a partial on every non-binary credit ≥ 2 pts, and on Math the planner fills it with a wrong-method state.
+  - (2) Plans do not express follow-through (error carried forward), which Math marking expects.
+  - (3) The verifier does not recompute arithmetic before `full` (the CS literal-check finding, again).
+- **Spend under ruling B (Anthropic direct, eval key):** attempt 1 $0.2621 + debug ≈ $0.01 + attempt 2 $1.2388 = **≈ $1.51 of $3**. GCP: $0.
+- **STOP (f)** per ruling §8/§12f: "§6b fails → STOP with the renders".
+  - The pre-registration allowed up to 2 Math pack-fragment iterations; the Oct 17 ruling ("no pack iterations") supersedes it, so none was run.
+  - **The §9 flip is NOT done** — production stays `GRADER_ARCHITECTURE=v5`.

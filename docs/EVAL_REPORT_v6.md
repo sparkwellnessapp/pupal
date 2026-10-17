@@ -52,9 +52,9 @@ With OO-1 and OO-2, ship criterion (1) is met by override. (5) is the Math/Engli
 | (2) G-D1 = G-D2 = 0 | ✅ 0 / 0 |
 | (3) K3 and G-Z no worse than v5 | ✅ K3 0.784 (v5 0.693) · G-Z 21.8% (v5 31.6%) |
 | (4) cost per test below v5 | ✅ shipping **$0.1454** (verifier + explainer arm B) against v5 $0.1774. Feedback (≈ $0.043, §4) is paid by both architectures and reported separately. |
-| (5) Math/English smoke | §6a ✅ ($0, structural). **§6b NOT RUN: blocked on the Vertex quota** (§10). Under ruling §8, STOP-3 GO waits on it. |
+| (5) Math/English smoke | §6a ✅ ($0, structural). **§6b: English ✅, Math ❌** (3 K1-class events, 51/57; §8b) → STOP (f). |
 
-**STOP-3 GO conditions (pre-granted when all hold):** §6b passes for Math and English — ⏳ (Vertex quota); the MVC deployed with T2 green — ⏳ (built; T1 green, §11); production Claude on Vertex (§5d) — ⏳ (Vertex quota).
+**STOP-3 GO conditions (pre-granted when all hold):** §6b passes for Math and English — ❌ **English passes, Math fails (§8b) → STOP (f)**; the MVC deployed with T2 green — ✅ (§11); production Claude on Vertex (§5d) — ⏳ (Google refused the quota; ruling B moved the smoke to the direct API).
 
 ## 2 · Kills and gates
 
@@ -219,14 +219,38 @@ Renders: `docs/plans/v6_smoke_structural.md`. Method: the deterministic FALLBACK
 
 **Partials the fallback plan cannot express** (single binary checks): Math A2 `q1.ג.c0`, `q1.ג.c2`, `q2.ב.c0`, `q4.ד.c0`, `q5.ב.c0`. That is expected of a fallback; §6b grades on the planner's plan.
 
-### 8b · Graded (§6b) — NOT RUN: blocked on the Vertex quota
+### 8b · Graded (§6b) — ENGLISH PASS · MATH FAIL → STOP (f)
 
-Under ruling §4, an eval call must not go to the Anthropic API, and Vertex refuses every Claude call (§10). The run is ready and pre-registered:
-- **Config:** the production configuration (§7): Opus 5.5 planner on `planner-v6.2`, Sonnet 5.5 verifier at effort low, k=1, NO explainer.
-- **Order:** plan Math, then English A3 (blank/wrong) → A2 (partial) → A1 (full), with a budget check before each step.
-- **Command:** `python -m tests.eval_common.eval_key tests.grading_eval_suite.tools.v6_smoke --confirm-spend --max-usd <remaining of $3>`.
-- **Pass criteria:** pre-registered in `PREDICTIONS.md`. There are no pack iterations.
-- **Estimate:** ≈ $1.2 Opus planning for Math (English needs no planner call) + ≈ $0.4 grading 6 tests ≈ **$1.6**, inside the $3.
+Run `results/20261017-212210_v6-smoke`.
+- **Route:** Anthropic direct API on the eval key (owner ruling B, cap $3; Vertex quota refused by Google).
+- **Config:** the production configuration (Opus 5.5 planner `planner-v6.2`, Sonnet 5.5 verifier at low), k=1, no explainer.
+- **Renders:** `docs/plans/v6_smoke_mathematics.md`, `docs/plans/v6_smoke_english.md` (+ `…_plan.md`).
+
+| pass condition (registered before any run) | Mathematics | English |
+|---|---|---|
+| 0 K1-class events | ❌ **3** | ✅ 0 |
+| A1 full on every criterion | ✅ 19/19 | ✅ 4/4 |
+| ≥ 90% in the intended class | ❌ **51/57 = 89.5%** (bar 52) | ✅ 12/12 |
+| no unrepaired validator error | ✅ 0 fallback (20 planner + 3 repaired) | ✅ |
+| English: compiled `levels` checks | — | ✅ |
+| cost | planner $1.0366 · grading $0.1902 | $0 · $0.0120 |
+
+**Math, cell by cell:**
+- **K1 (3).** In each, the PLAN offers partial credit for a structured-but-wrong attempt, and the verifier matched it correctly:
+  - A3 `q2.א.c0`: «h = 20 − 1 = 19» → 1.25/2.5 ("subtracted 1 instead of adding");
+  - A3 `q2.ד.c0`: «S = 20·19 = 380» → 1.5/6 ("base × height, not halved");
+  - A2 `q5.ד.c0`: «30x = 1000, x = 33» → 3.5/7. The teacher's solution is `1000+20x = 30x → x = 100`, so the intended zero stands.
+- **Follow-through (2).** `q1.ד` and `q1.ה` carry the student's own earlier slip correctly and are intended full; they got 0. The plan checks the correct values and has no carry-forward.
+- **Verifier (1).** `q2.ב` «c = 23.6» (√541 ≈ 23.26) was accepted as the correct leg.
+
+**Read only, not iterated** (ruling §6b: no pack iterations). Three causes:
+- (1) AM-G19's forced partial on ≥ 2-point credits is filled, on Math, with wrong-method states.
+- (2) Plans have no follow-through.
+- (3) The verifier does not recompute before `full` (the CS literal-check finding).
+
+All three are in §12.
+
+**Attempt 1** (`results/20261017-211002_v6-smoke`) is void and kept for the record. The run sat on dead connections, probably the machine sleeping: 17 of 23 Math scopes fell back, and every verifier call failed. That cost $0.2621.
 
 ## 9 · The decisions that were yours — resolved by the Oct 17 rulings
 
@@ -289,6 +313,7 @@ The canary is ≈ $0.002, recorded in the RUNLOG before it runs. §5d, the produ
 ## 12 · The v6.1 backlog
 
 **Quality**
+- **Math (from §6b):** partial options must not reward a wrong method (AM-G19's forced partial is filled with wrong-method states on Math); follow-through (error carried forward) must be expressible; the verifier must recompute arithmetic before `full`.
 - **The verifier literal-check rule:** a label's stated bound or form must be checked literally before `full`. It covers 21 of the 44 K2 cells.
 - **AM-G19 × split (rule 8):** apply the 2-point line to the criterion rather than to each split credit, or prefer a ladder over a split. It covers 11 of the 17 inexpressible K2 cells.
 - **K4 self-consistency** (CL-3, `sc_n = 2`, median).

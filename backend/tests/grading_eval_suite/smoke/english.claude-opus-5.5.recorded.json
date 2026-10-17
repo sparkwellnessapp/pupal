@@ -1,0 +1,20 @@
+{
+ "config_hash": "4d70ada42ab73b8ec49fe1d445e605aad5aa9e2ac49ff178b9ce49d190a9476a",
+ "cost_usd": 0.0,
+ "model_id": "claude-opus-5-5",
+ "model_key": "claude-opus-5.5",
+ "plan_hash": "fcfd2b467c723c7d2c9c371aa44cd382bb536ac128753158d63e59060c0801ee",
+ "planner_prompt_version": "planner-v6.2",
+ "scopes": {
+  "q1": {
+   "errors": [],
+   "origin": "compiled",
+   "outputs": [],
+   "telemetry": [],
+   "usage": []
+  }
+ },
+ "stage1_version": "plan-compiler/v2.0+stage1-v6.0",
+ "subject": "english",
+ "wall_s": 0.0
+}
