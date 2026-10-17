@@ -262,6 +262,14 @@ Recorded verbatim in substance. Code comments and RUNLOG cite the **AM-G** and *
   - The suspect q1.ג.c3 is not folded (−1 on a 3-point monolith stays a marker), nor are the −0.5 math markers.
   - Pinned by `test_an_unequal_deduction_is_never_folded`.
 - **2 · AM-G19:** `planner-v6.2`, details and the decided-pending-veto items in RUNLOG 2026-10-07.
+- **7.2–7.3 · Re-plan ($3.24):**
+  - Sonnet 5.5 29 / Opus 5.5 21 inexpressible cells; 0 repairs and 0 fallbacks on either.
+  - **Opus 5.5 pinned** (hobby `f068fa66…`, bagrut `773ea231…`).
+  - Of the Oct 6 run's cells, the new plans can price 27/50 K2 and 72/96 G-Z.
+- **7.4 · CS re-run (run 10, $3.80): STOP (a).**
+  - K2 15.0% against ≤ 10.2%, and K4 8.5 against ≤ 8.25, fire. K1 93/93 holds.
+  - Every gate holds: K3 0.784, G-Z 21.8%, G-D 0, $0.1054/test.
+  - Residual in `docs/EVAL_REPORT_v6.md` §6. No smoke, no second iteration. Ledger $22.39 of $25.
 
 ### Inherited from `main` since the census (not new rulings — applied as standing law)
 

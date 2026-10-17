@@ -3092,3 +3092,26 @@ second exam, not another dollar on this one.**
 - **RUN 10 ESTIMATE, the AM-G19 CS re-run** (`configs/v6-cs-sonnet55-amg19.json`, 12 fixtures, k=3): run 4's actual was $3.6566, and the pinned plans carry more options → **estimate $4.00**.
   - **Cumulative: 18.59 + 4.00 = $22.59 ≤ $25 → GO.**
   - The smoke is estimated again after run 10. It fits only if run 10 lands near its estimate.
+
+## 2026-10-17 · RUN 10, the AM-G19 CS re-run — STOP (a): K2 and K4 fire; every gate holds. Ledger $22.39 of $25
+
+- **Run 10** (`results/20261017-162850_v6-cs-sonnet55-amg19`, `configs/v6-cs-sonnet55-amg19.json`; Opus 5.5 v6.2 plans hobby `f068fa66…` · bagrut `773ea231…`; verifier Sonnet 5.5 effort low; explainer Haiku 4.5; k=3; 12 fixtures; canary OK on both models). **Actual $3.7962** against an estimate of $4.00.
+  - 50 scope retries on transient `APIConnectionError`. 4 scopes of dan r0 failed after their retry, and the runner re-ran that trial once. **36/36 valid**, model_fallback 0.
+- **Kills:**
+  - K1 **93/93 ✅** (it was 90/93; the din q2.ב.c1 wrong-target partial is gone);
+  - **K2 44/294 = 15.0% ❌** against the re-based ≤ 10.2%;
+  - **K4 8.5 ❌** against ≤ 8.25, all of it hobby din_ezra (51.25 / 42.75 / 42.75).
+- **Gates, all hold:** K3 **0.784** (v5 0.693) · G-Z **64/294 = 21.8%** (v5 31.6%) · G-D1 = G-D2 = 0 · G-B 0 · cost **$0.1054**/test (verifier $0.0625, 90% cache hit; explainer $0.0429) against v5's $0.1774 · E-pass 99.0%.
+- **Totals:** mean shortfall against GT 5.3 points (v5 14.5; v6 Oct 6 7.4). Every student is closer than under v5; roni is now +1.8 over.
+- **STOP (a), per ruling §7.6.** No smoke, no second iteration, no diagnosis re-run. The cell-level residual is in `docs/EVAL_REPORT_v6.md` §6 and `docs/plans/v6_amg19_residual_cells.md`:
+  - **17/44 K2 cells are inexpressible** (P-v6-12 = **38.6%**, FALSIFIED against < 30%; it was 68%):
+    - 11 are bagrut q3.ב.c5/c6, where Opus SPLIT 3-point criteria into three 1-point binaries. Rule 7(b) then forbids partials on each part. This is the AM-G19 × rule-8 interplay.
+    - 3 are hobby q2.ב.c5, a 1-point binary.
+    - 3 are the unwritten-ruling cell q2.ב.c4.s2.
+  - **27/44 had the GT value as an option and the verifier picked full:**
+    - 21 are verifier misses of a stated constraint or a fault: a loop from 0 credited as «1 to 20»; the «count printed» and getter faults not selected; `count*2+1` credited as `count*2`; a comparison credited as a call.
+    - 6 are the plan's own labels accepting the answer.
+  - **By full value:** at ≥ 2, G-Z fell 32.6% → 18.4% (122 → 59.5 points lost), while K2 barely moved (14.2% → 13.9%). At < 2, K2 fell 44% → 26% and G-Z rose 33% → 56% (9 points), as rule 7(b) implies.
+- **Predictions:** P-v6-11 FALSIFIED (K2, K4; G-Z and K1 hold) · P-v6-12 FALSIFIED (38.6%) · P-v6-2 CONFIRMED · P-v6-4 CONFIRMED · P-v6-7 FALSIFIED by $0.0054.
+- **Not run:** the Math/English smoke. It is prepared and pre-registered; ≈ $2.3 on the Opus planner, which does not fit the $2.61 left safely.
+- **Ledger:** runs 1–7 $15.3505 · 8 $1.1187 · 9 $2.1197 · 10 $3.7962 → **$22.3851 of $25. $2.61 left.**

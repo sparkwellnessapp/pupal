@@ -1,140 +1,187 @@
-# EVAL_REPORT_v6 — CS section (Oct 6)
+# EVAL_REPORT_v6 — CS section, after the AM-G19 iteration (Oct 17)
 
 Provisional: n = 12 fixtures on 2 exams (hobby 5, bagrut 7). Every conclusion is provisional.
 
 ## 1 · Verdict
 
-**STOP (a): kills fire after the pre-approved diagnosis.** v6 is not yet shippable on ship criteria (1)–(4).
+**STOP (a) again: two kills fire on the AM-G19 run.** Per ruling §7.6, this is a STOP with the cell-level residual. There is no smoke, no second iteration and no diagnosis re-run.
 
-- K2 fires under **every** configuration measured, including today's production pin.
-- K1 fires on one cell with the Sonnet 5.5 verifier.
+- **K2:** 44/294 = **15.0%**, against the re-based bar of ≤ v5 = 10.2%.
+- **K4:** **8.5**, against ≤ 8.25. All of it is one student, hobby din_ezra.
+- **K1 now holds:** 93/93 (it was 90/93).
 
-What v6 *does* show:
-- the totals sit much closer to the teacher's;
-- K3 is better than v5;
-- K4 holds on Sonnet 5.5;
-- there is no double charging (G-D1 = G-D2 = 0);
-- it costs 43% less than v5.
+**What AM-G19 bought:** every gate now holds, and the totals moved again.
 
-The cause of the kills is located (§6): **mostly the PLAN, not the verifier.** Two thirds of the K2 cells are partial grades the pinned plan has no option for.
+| | v5 (production pin) | v6 Oct 6 (v6.1 plans) | v6 Oct 17 (AM-G19 plans) |
+|---|---|---|---|
+| G-Z | 31.6% | 32.7% | **21.8%** |
+| K3 | 0.693 | 0.767 | **0.784** |
+| mean total shortfall vs GT | 14.5 points | 7.4 points | **5.3 points** |
 
-| ship criterion | v6 + Sonnet 5.5 verifier | met |
+Every one of the 12 students is closer to the teacher than under v5.
+
+| ship criterion | v6 · Oct 6 (v6.1 plans, Sonnet 5.5) | v6 · Oct 17 (AM-G19 plans, Opus 5.5) |
 |---|---|---|
-| (1) kills hold | K1 90/93 · K2 17.0% · K4 5.25 | ❌ |
-| (2) G-D1 = G-D2 = 0 | 0 · 0 | ✅ |
-| (3) K3 and G-Z no worse than v5 | K3 0.767 vs 0.693 ✅ · G-Z 32.7% vs 31.6% ❌ (+1.1 pt) | ❌ |
-| (4) cost per test below v5 | $0.1016 vs $0.1774 | ✅ |
-| (5) Math/English smoke | not run: STOP (a) came first | — |
+| (1) kills hold | ❌ K1 90/93 · K2 17.0% | ❌ **K2 15.0%** (bar 10.2%) · **K4 8.5** (bar 8.25) · K1 ✅ |
+| (2) G-D1 = G-D2 = 0 | ✅ | ✅ |
+| (3) K3 and G-Z no worse than v5 | ❌ (G-Z +1.1 pt) | ✅ K3 0.784 · G-Z 21.8% |
+| (4) cost per test below v5 | ✅ $0.1016 | ✅ $0.1054 |
+| (5) Math/English smoke | not run | **not run** (STOP first). Prepared and pre-registered (`smoke/known_answers.json`, PREDICTIONS) |
 
 ## 2 · Kills and gates
 
-Runs:
-- v6 = `results/20261006-172019_v6-cs-sonnet55` (k=3);
-- the diagnosis = `…173328_v6-cs-sonnet5-diag` (k=2);
-- v5 = `…172751_trackb-sonnet5-v54_rescore` (k=2).
+| | v5 production pin | v6 · Oct 6 (v6.1, Sonnet 5.5 verifier) | v6 · Sonnet 5 diagnosis | **v6 · Oct 17 (AM-G19)** | bar |
+|---|---|---|---|---|---|
+| **K1** GT-ZERO→AI-ZERO | 62/62 | 90/93 ❌ | 62/62 | **93/93 ✅** | 100% |
+| **K2** GT-PARTIAL→AI-FULL | 20/196 = 10.2% | 50/294 = 17.0% | 37/196 = 18.9% | **44/294 = 15.0% ❌** | kill ≤ v5 (10.2%) · target 2.4% |
+| **K4** max total spread | 10.25 | 5.25 | 9.5 | **8.5 ❌** | ≤ 8.25 |
+| K3 within-precision | 0.693 | 0.767 | 0.734 | **0.784** | ≥ v5 |
+| G-Z GT-PARTIAL→AI-ZERO | 62/196 = 31.6% | 96/294 = 32.7% | 53/196 = 27.0% | **64/294 = 21.8%** | ≤ v5 |
+| G-D1 / G-D2 | — | 0 / 0 | 0 / 0 | **0 / 0** | 0 |
+| G-B bounds_clamped | — | 0 | 0 | 0 | report |
+| valid trials · model_fallback | 24/24 · 0 | 36/36 · 0 | 24/24 · 0 | **36/36 · 0** | |
 
-All three use the same instrument. Contested cells are excluded. There were 0 model_fallback scopes and every trial was valid (36/36, 24/24, 24/24).
+- **Runs:**
+  - v5 = `results/20261006-172751_trackb-sonnet5-v54_rescore` (k=2);
+  - Oct 6 = `…20261006-172019_v6-cs-sonnet55` (k=3);
+  - diagnosis = `…173328_v6-cs-sonnet5-diag` (k=2);
+  - **Oct 17 = `…20261017-162850_v6-cs-sonnet55-amg19` (k=3)**.
+- All use the same instrument, with contested cells excluded.
+- One Oct 17 trial (dan r0) lost 4 scopes to a connection error and was re-run once by the runner, so all 36 trials are valid.
+- **The K2 kill is re-based** (owner, Oct 6 evening §4). The 2.4% was calibrated on 5 hobby fixtures and fails the production pin. The Oct 6 run fails the re-based bar too (17.0%), so the change rescues no result.
 
-| | v6 · Sonnet 5.5 | v6 · Sonnet 5 (diagnosis) | v5 production pin | bar |
-|---|---|---|---|---|
-| **K1** GT-ZERO→AI-ZERO | **90/93 ❌** (1 cell × 3 trials) | 62/62 ✅ | 62/62 ✅ | 100% |
-| **K2** GT-PARTIAL→AI-FULL | **50/294 = 17.0% ❌** | **37/196 = 18.9% ❌** | **20/196 = 10.2% ❌** | ≤ 2.4% |
-| **K4** max total spread | 5.25 ✅ | **9.5 ❌** | **10.25 ❌** | ≤ 8.25 |
-| K3 within-precision | **0.767** | 0.734 | 0.693 | ≥ v5 |
-| G-Z GT-PARTIAL→AI-ZERO | 96/294 = 32.7% | **53/196 = 27.0%** | 62/196 = 31.6% | ≤ v5 |
-| G-D1 / G-D2 (cell set D) | 0 / 0 | 0 / 0 | — | 0 |
-| G-B bounds_clamped | 0 | 0 | — | report |
+## 3 · Plan health (item 7.3)
 
-**The K2 bar (2.4%) was set on the hobby-only C2 baseline.** On the 12-fixture set, today's production pin is at 10.2%. The bar is yours; it has not been moved.
+| planner | prompt | inexpressible GT cells | planner / repaired / fallback | cost (both exams) | wall |
+|---|---|---|---|---|---|
+| Sonnet 5.5 | v6.1 (Oct 6 pin) | 34 | 18 / 0 / 0 | $1.13 | 497 s |
+| Opus 5.5 | v6.1 | 26 | 17 / 1 / 0 | $2.33 | 697 s |
+| Sonnet 5.5 | **v6.2 (AM-G19)** | 29 | 18 / 0 / 0 | $1.12 | 436 + 242 s |
+| **Opus 5.5** | **v6.2 (AM-G19) — pinned by §13.1** | **21** | 18 / 0 / 0 | $2.12 | 511 + 340 s |
 
-## 3 · Plan health (item 4)
+- **§13.1 choice:** Opus 5.5 (21 against 29, outside the 1-cell band). Pinned: hobby `f068fa66…` (85 checks) and bagrut `773ea231…` (109 checks).
+- 0 validator messages and 0 rule-7 downgrades on either planner.
+- **The Oct 6 run's own residual cells, re-read against each plan** (how many can the plan price at all?):
 
-| planner | inexpressible GT cells (both exams) | scopes planned / repaired / fallback | cost | wall |
-|---|---|---|---|---|
-| **Sonnet 5.5 — pinned (ruling §3.8)** | **34** (hobby 10 · bagrut 24) | 18 / 0 / 0 | $1.13 | 497 s |
-| Opus 5.5 (the item-4 comparison) | **26** (hobby 9 · bagrut 17) | 17 / 1 / 0 | $2.33 | 697 s |
-| Sonnet 5 (re-record) | 32 | 15 / 3 / 0 | $1.97 | 1,774 s |
-| G2 Sonnet 5 (Sep 28) | 33 | 16 / 1 / 1 | $2.97 | 970 s |
+  | plan | the Oct 6 run's 50 K2 cells | its 96 G-Z cells |
+  |---|---|---|
+  | the v6.1 plan that run used | 16 (32%) | 51 (53%) |
+  | Sonnet 5.5 v6.2 | 16 (32%) | 61 (64%) |
+  | **Opus 5.5 v6.2 (pinned)** | **27 (54%)** | **72 (75%)** |
 
-Renders and the health table are in the REVIEW-2 package (`docs/plans/REVIEW-2_package.md`). Every inexpressible cell is listed with the plan decision behind it in `docs/plans/v6_planner_rerecord_report.md`.
+Renders: `docs/plans/<exam>_v6_render.md`. Every plan check now shows its `element`.
 
 ## 4 · Cost per test (registry cards, cache writes at 1.25×)
 
-| component | v6 · Sonnet 5.5 | v5 production pin |
-|---|---|---|
-| verifier | $0.0596 (cache hit 90%) | $0.1774 (verifier incl. basis_he, uncached) |
-| explainer arm A — Haiku 4.5 | $0.0419 (cache hit 59%) | — |
-| explainer arm B — Sonnet 5.5, lowest | $0.0818 (cache hit 64%) | — |
-| **total with arm A** | **$0.1016** (target $0.10) | **$0.1774** |
-| student feedback | not run in the eval harness (G3–5) | — |
+| component | v6 · Oct 6 | **v6 · Oct 17** | v5 |
+|---|---|---|---|
+| verifier (Sonnet 5.5, effort low) | $0.0596 (cache hit 90%) | **$0.0625** (90%) | $0.1774 |
+| explainer arm A (Haiku 4.5) | $0.0419 (59%) | **$0.0429** (59%) | — |
+| **total** | $0.1016 | **$0.1054** | $0.1774 |
 
-- The diagnosis verifier (Sonnet 5, no thinking) cost $0.072 per test.
-- Prompt caching (CL-2) was added for this run. Without it, the M3 proof cost $0.18 per test.
+- The AM-G19 plans carry about 10% more options, which explains the 4% cost rise.
+- **Planner:** $2.12 per rubric pair on Opus, one-time per rubric. The system prompt is now cached.
+- E-1..E-5: 1450/1464 = 99.0% (14 E-4, replaced by the fallback line).
 
-## 5 · The twelve students — test totals (GT → AI range across repeats; Δ = mean − GT)
+## 5 · The twelve students — test totals (range across repeats; Δ = mean − GT; s = spread)
 
-| student | GT | v5 | v6 · Sonnet 5.5 | v6 · Sonnet 5 |
+| student | GT | v5 | v6 · Oct 6 | **v6 · Oct 17** |
 |---|---|---|---|---|
-| bagrut din | 91.5 | 58.00–64.25 (−30.4) | 67.75–73.00 (−21.5) | 67.00–67.25 (−24.4) |
-| bagrut itay | 79.5 | 62.00–62.75 (−17.1) | 69.25–74.25 (−7.1) | 72.00–75.00 (−6.0) |
-| bagrut noam | 83.75 | 77.25–79.50 (−5.4) | 74.75–77.25 (−7.6) | 75.25–79.50 (−6.4) |
-| bagrut raz | 82.25 | 68.00–69.25 (−13.6) | 71.75–76.75 (−7.2) | 73.00–73.25 (−9.1) |
-| bagrut roni | 94.0 | 71.25–72.50 (−22.1) | 88.75 (−5.2) | 84.50–88.00 (−7.8) |
-| bagrut yael | 91.0 | 63.50–73.75 (−22.4) | 83.00–84.50 (−7.3) | 80.00–81.00 (−10.5) |
-| bagrut yahli | 70.5 | 54.75–59.75 (−13.2) | 66.25–67.25 (−3.6) | 55.25–64.75 (−10.5) |
-| hobby dan | 84.0 | 71.50–73.50 (−11.5) | 74.50–75.50 (−9.0) | 78.00–80.50 (−4.8) |
-| hobby din | 55.5 | 43.25–45.75 (−11.0) | 45.75–48.75 (−8.6) | 42.75–43.75 (−12.2) |
-| hobby moran | 92 | 82.00–84.50 (−8.8) | 85.50–88.50 (−4.5) | 89.00–90.00 (−2.5) |
-| hobby omer | 89.0 | 82.50–83.50 (−6.0) | 83.00–84.50 (−5.5) | 86.50–88.00 (−1.8) |
-| hobby yonatan | 92.5 | 79.25–80.75 (−12.5) | 89.00–92.00 (−1.8) | 82.75–85.00 (−8.6) |
+| bagrut din | 91.5 | 58.00–64.25 (−30.4) | 67.75–73.00 (−21.5) | **75.00–78.00 (−14.7)** s 3.0 |
+| bagrut itay | 79.5 | 62.00–62.75 (−17.1) | 69.25–74.25 (−7.1) | **65.50–71.00 (−10.8)** s 5.5 |
+| bagrut noam | 83.75 | 77.25–79.50 (−5.4) | 74.75–77.25 (−7.6) | **78.50–80.50 (−4.1)** s 2.0 |
+| bagrut raz | 82.25 | 68.00–69.25 (−13.6) | 71.75–76.75 (−7.2) | **76.00–79.00 (−5.1)** s 3.0 |
+| bagrut roni | 94.0 | 71.25–72.50 (−22.1) | 88.75 (−5.2) | **95.00–96.50 (+1.8)** s 1.5 |
+| bagrut yael | 91.0 | 63.50–73.75 (−22.4) | 83.00–84.50 (−7.3) | **87.50–89.50 (−2.7)** s 2.0 |
+| bagrut yahli | 70.5 | 54.75–59.75 (−13.2) | 66.25–67.25 (−3.6) | **65.00–67.50 (−4.0)** s 2.5 |
+| hobby dan | 84.0 | 71.50–73.50 (−11.5) | 74.50–75.50 (−9.0) | **73.50–74.00 (−10.3)** s 0.5 |
+| hobby din | 55.5 | 43.25–45.75 (−11.0) | 45.75–48.75 (−8.6) | **42.75–51.25 (−7.4)** **s 8.5** |
+| hobby moran | 92 | 82.00–84.50 (−8.8) | 85.50–88.50 (−4.5) | **91.00–92.00 (−0.3)** s 1.0 |
+| hobby omer | 89.0 | 82.50–83.50 (−6.0) | 83.00–84.50 (−5.5) | **86.50–87.50 (−2.2)** s 1.0 |
+| hobby yonatan | 92.5 | 79.25–80.75 (−12.5) | 89.00–92.00 (−1.8) | **85.50–90.00 (−4.2)** s 4.5 |
 
-The mean shortfall against GT drops from **14.5 points (v5) to 7.4 points (v6 · Sonnet 5.5)**. 11 of 12 students are closer; noam is the exception.
+Mean shortfall: **v5 14.5 → v6 Oct 6 7.4 → v6 Oct 17 5.3 points.** Roni is now over GT, by 1.8.
 
-## 6 · Residual failure classes
+## 6 · The residual, cell by cell (the STOP's evidence)
 
-1. **Inexpressible teacher partials: the main cause of K2 and a large share of G-Z.**
-   - **34 of the 50 K2 cells (68%)** and **45 of the 96 G-Z cells (47%)** sit on a GT award the pinned plan has no option for.
-   - On those cells the verifier must pick full or zero, whatever it sees.
-   - The largest: bagrut `q3.ב.c6`, binary [3/0] against GT 2.5 / 2 / 1.5 (12 K2 + 9 G-Z cells); bagrut `q1.א.2.c0` (6 K2); hobby `q2.ב.c4.s1` and `q1.ב.c6` (4 K2 each).
-   - This is the planner's rule 7 (*concrete partials only*) meeting how these teachers actually grade. It is a REVIEW-2 matter.
-2. **K1, one cell: din `q2.ב.c1` (the accumulator array), 3/3 trials on Sonnet 5.5.**
-   - The plan gives that credit a partial option. The Sonnet 5.5 verifier took it for `int[] arr = new int[tv]`, a wrong-target array that GT zeroes under PL-9.
-   - The Sonnet 5 verifier did not (K1 62/62). The partial's label is too permissive for a wrong-target answer.
-3. **G-Z on folded deduction cells.** hobby `q1.ג.c7` / `q1.ג.c3` / `q1.ג.c6` (the zero-guard and null-loop cells, census App. B) are zeroed where the teacher took off a point.
-4. **K4 depends on the verifier.** Sonnet 5.5 is stable (5.25); Sonnet 5 is not (9.5, yahli 55.25 ↔ 64.75).
-5. **Cosmetic:** the verifier's absence pointers come back in the first person («חיפשתי…»). That wording comes from the CS fragment's v5 *absence audit* rule, read through the vocabulary map. Pointers are evidence, not teacher copy, but they would surface in the expanded row.
+Full detail: every K2 cell with the plan's options and the verifier's pick and quote, plus din's K4 cells, is in `docs/plans/v6_amg19_residual_cells.md`.
 
-## 7 · Math / English smoke
+### 6.1 K2 and G-Z by full value (ruling §9; for reading, never for tuning)
 
-Not run. STOP (a) came first, and the remaining budget is $3.65.
+| run | band | GT-partial cells | K2 cells | K2 points over-credited | G-Z cells | G-Z points lost |
+|---|---|---|---|---|---|---|
+| v5 | < 2 | 18 | 6 (33.3%) | 4 | 8 (44.4%) | 4 |
+| v5 | ≥ 2 | 178 | 14 (7.9%) | 18 | 54 (30.3%) | 78 |
+| v6 Oct 6 | < 2 | 27 | 12 (44.4%) | 7.5 | 9 (33.3%) | 4.5 |
+| v6 Oct 6 | ≥ 2 | 267 | 38 (14.2%) | 46 | 87 (32.6%) | 122 |
+| v6 diag | < 2 | 18 | 9 (50.0%) | 5.5 | 7 (38.9%) | 3.5 |
+| v6 diag | ≥ 2 | 178 | 28 (15.7%) | 32.5 | 46 (25.8%) | 58.5 |
+| **v6 Oct 17** | **< 2** | 27 | **7 (25.9%)** | 3.5 | **15 (55.6%)** | 9 |
+| **v6 Oct 17** | **≥ 2** | 267 | **37 (13.9%)** | 32.5 | **49 (18.4%)** | 59.5 |
 
-## 8 · Explainer (§13.4)
+- **Reading:** AM-G19 moved the error where its rule says it would.
+  - On ≥ 2 cells, G-Z falls 32.6% → 18.4% (122 → 59.5 points lost). The new partials catch partial work.
+  - On < 2 cells (no partial allowed by 7(b)), K2 falls 44% → 26% and G-Z rises 33% → 56%. A small criterion is now all-or-nothing in both directions. That is 9 points in all.
+  - K2 at ≥ 2 barely moves (14.2% → 13.9%). That is the residual that fires the kill.
 
-| arm | lines passing E-1..E-5 | cost per test |
+### 6.2 The 44 K2 cells, by cause
+
+**17 sit on GT values the plan cannot express** (P-v6-12: 38.6%, down from 68%, not under 30%):
+
+| cells | where | why it is inexpressible |
 |---|---|---|
-| A — Haiku 4.5 | **1449/1464 = 99.0%** (15 failed E-4, replaced by the fallback line) | $0.0419 |
-| B — Sonnet 5.5, lowest (thinking `between_tools`, effort low) | 1436/1464 = 98.1% | $0.0818 |
+| 11 | bagrut `q3.ב.c6` (GT 2.5/3 ×7), `q3.ב.c5` (GT 2.5 ×3, 1.5 ×1) | Opus **split** each 3-point criterion into three 1-point binary credits. Each is under 2, so rule 7(b) gives it no partial, and the teacher's half-point deductions have no option. **An interplay of AM-G19 with rule 8 (split):** the 2-point line applies to each split credit, not to the criterion. |
+| 3 | hobby `q2.ב.c5` (GT 0.5/1) | a 1-point binary «return», by rule. |
+| 3 | hobby `q2.ב.c4.s2` (yonatan, GT 1.5/2) | an UNWRITTEN-RULING cell (A-5), reported apart in every run. |
 
-**Your read:** `docs/plans/v6_explainer_read_sheet.md`.
-- 80 lines: 40 terminals × 2 arms (10 full · 10 partial · 10 zero · 10 with a deduction), blind and shuffled.
-- The arm key is stored apart, in the run directory.
-- An arm ships iff faithful 40/40, clear ≥ 36 and concise ≥ 36; the cheapest qualifying arm wins. If arm A qualifies, it is also the cheaper.
+**27 had the GT value as an option, and the verifier picked full:**
 
-## 9 · Recommendation and the decisions that are yours
+| cells | where | what happened |
+|---|---|---|
+| 6 | bagrut `q3.ב.c6` (GT 2/3) | The credit reads «a loop over the counter array **from index 1 to 20**»; loops `for (i = 0; …)` were credited full. The verifier ignored a constraint its own label states. |
+| 4 | bagrut `q6.c6` (GT 1/2) | The fault «printed the count instead of the index» was not selected (raz prints `big`). |
+| 4 | bagrut `q6.c7` (GT 3/4) | `new int[count * 2 + 1]` credited as «size twice the count». |
+| 3 | hobby `q2.ב.c3.s0` (GT 2/3) | The getter fault (direct `tvRate.Length` access) was not selected. |
+| 3 | bagrut `q3.א.c2` (GT 1/2) | **The plan's own label** accepts allocation `new int[21]` as zeroing; the teacher took 1 off. Plan wording against teacher, not the verifier. |
+| 3 | hobby `q2.ב.c4.s1` (GT 0.5/1) | **The plan's own label** accepts any initialization (`" "`); the teacher took half off. |
+| 2 | hobby `q2.ג.c0.s1` (din, GT 1.5/3) | `LowestRateChannel == …getName()` (a comparison, not a call) credited as «calls LowestRateChannel». |
+| 1 + 1 | hobby `q1.ב.c2` (din r1), bagrut `q6.c1` | single-trial picks. |
 
-The architecture result is encouraging: totals land much closer to the teacher's, at 43% lower cost, with no double charging. The kills are concentrated in plan decisions you can see and amend. My recommendation, in order:
+So **21 of the 44 K2 cells are verifier misses of a constraint or a fault its options state.** 17 are split-induced or rule-induced inexpressibility; 6 are plan wording.
 
-1. **REVIEW-2 AMEND on the plans (algebra):**
-   - give the criteria in §6.1 the partial values the teachers actually use, starting with bagrut `q3.ב.c6` and `q1.א.2.c0`, and hobby `q2.ב.c4.s1` and `q1.ב.c6`;
-   - tighten din `q2.ב.c1`'s partial so a wrong-target array is not a partial.
+### 6.3 K4 — one student
 
-   Or decide whether the planner's rule 7 should allow the partials teachers grade by, which is a prompt change, re-pinned via REVIEW-2.
-2. **Planner model:**
-   - Opus 5.5 plans express 8 more GT cells for +$1.20 per rubric build (one-time per rubric, about $0.04 per test over a class of 30).
-   - Ruling §3.8 pins Sonnet 5.5, so switching is your call.
-3. **The K2 bar:** at 2.4% it fails today's production pin (10.2%) on this fixture set. Keep it, or re-base it on the 12-fixture v5 baseline. Gates are yours.
-4. **Budget:**
-   - A CS re-run on amended plans is pre-approved, but costs about $3.70 against $3.65 left. The Math/English smoke needs about $2 as well.
-   - A cap raise of about $3, or dropping one of the two, is needed.
+hobby din_ezra totals 51.25 / 42.75 / 42.75, a spread of 8.5. Nine cells oscillate across the three trials: `q1.ב.c2` 0/3/0, `q2.ב.c4.s3` 3/0/0, `q2.ג.c0.s1` 3/3/1.5, `q2.ב.c4.s4` 1/0/0, `q1.ב.c3` 2/3/2, `q2.ב.c0`, `q2.ב.c4.s2`, `q2.ג.c0.s0`, `q1.ב.c7`. Din's answer is the messiest transcription in the set. Every other student's spread is ≤ 5.5.
 
-Ledger: **$15.35 of $19** (RUNLOG).
+## 7 · Predictions
+
+| | prediction | result |
+|---|---|---|
+| **P-v6-11** | under AM-G19: K2 ≤ 10.2%, G-Z ≤ 31.6%, K1 = 100%, K4 ≤ 8.25 | **FALSIFIED**: K2 15.0% ❌, K4 8.5 ❌; G-Z 21.8% ✅, K1 100% ✅ |
+| **P-v6-12** | K2 cells on inexpressible GT fall from 68% to < 30% | **FALSIFIED**: 38.6% (17/44); it moved the predicted way |
+| P-v6-1 | K2 below the v5 baseline | FALSIFIED (15.0% vs 10.2%) |
+| P-v6-2 | G-Z not above v5 | **CONFIRMED** (21.8% vs 31.6%) |
+| P-v6-4 | G-D1 = G-D2 = 0 | CONFIRMED |
+| P-v6-7 | ≤ $0.10 per test without CL-3..5 | FALSIFIED by $0.0054 ($0.1054) |
+| P-v6-9 | v6 + 5.5 holds K1/K2/K4, K3 and G-Z no worse than v5, cheaper | FALSIFIED on K2 and K4; holds on everything else |
+
+## 8 · Math / English smoke
+
+Not run: STOP (a) came first. It is ready to run at $0 of preparation.
+- **Data:** `smoke/known_answers.json`. Math is math3, 19 criteria × 3 answers, including one follow-through error. English is the Ministry F/G rubric with exam 016584's own writing task, a 4 band-ladder × 3 answers.
+- **Tool:** `tools/v6_smoke.py`.
+- **Pre-registration:** the intended classes and the ruled pass bar are in PREDICTIONS.md.
+- **Estimate:** ≈ $2.3 with the Opus planner (23 Math scopes, no English planner call) plus grading 6 tests. It does **not** fit the $2.61 left without risk; ≈ $1.5 with Sonnet 5.5.
+
+## 9 · The decisions that are yours
+
+1. **The K2 kill at ≥ 2 is now mostly the verifier** (21 cells of 44: stated constraints and faults not applied).
+   - The verifier text is frozen during the eval (ruling 8).
+   - Options: (a) a verifier rule that a label's stated bound or form must be checked literally before `full`; this is a REVIEW-able verifier change plus one re-run (≈ $3.9); (b) accept K2 at ~15% given G-Z −10 pts, K3 +0.09 and a mean shortfall of 5.3 (a gate change, yours); (c) both.
+2. **AM-G19 × split (rule 8):** 11 of the 17 inexpressible K2 cells come from 3-point criteria split into 1-point binaries.
+   - Options: apply the 2-point line to the criterion rather than to each split credit, or prefer a ladder over a split when the parts would fall under 2.
+   - Either is a planner change, so one re-plan (≈ $2.1 Opus) and one re-run.
+3. **K4 (din, 8.5 vs 8.25):** self-consistency (`sc_n = 2`, median) is the built lever (CL-3), at about 2× verifier cost on the scopes it covers. Or accept K4 at 8.5 on n = 12.
+4. **Budget:** **$22.39 of $25 spent.** Any of (1)–(3) plus the smoke needs about $6–8 more.
+
+Ledger and run actuals: RUNLOG 2026-10-17.
