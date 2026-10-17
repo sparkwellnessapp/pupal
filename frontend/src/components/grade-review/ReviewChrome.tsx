@@ -232,10 +232,18 @@ export function QueueLine({ queue, eta }: { queue: QueueState; eta: string | nul
 }
 
 // ── R3 ─────────────────────────────────────────────────────────────────────
+/**
+ * What the rail reads of one scope — and nothing else. Typed as a `Pick` so the
+ * grader-v6 surface (whose scopes carry the same six facts) shares this rail
+ * instead of growing a second one (§0.4).
+ */
+export type ScopeNavItem = Pick<
+    ReviewScope, 'scopeId' | 'title' | 'awarded' | 'possible' | 'gradedBy' | 'overridden'>;
+
 export function ScopeNav({
     scopes, markersByScope, activeScopeId, onJump,
 }: {
-    scopes: ReviewScope[];
+    scopes: readonly ScopeNavItem[];
     /** From `markerCountByScope` — the SAME count F walks and look_count
      *  reports. The model's own per-scope tally omitted flag markers, so the
      *  rail could show no dot on a question F would stop at twice. */
@@ -343,8 +351,15 @@ export type SaveState = 'saved' | 'saving' | 'failed';
 
 export function ReviewBottomBar({
     saveState, approving, canApprove, onApprove, onShowKeys,
-    blocked = false, onBlocked,
+    blocked = false, onBlocked, keyboardHints = true,
 }: {
+    /**
+     * The ↓↑ hint and «כל המקשים» describe the v5 checklist's keymap. A surface
+     * that does not implement those keys (grader-v6) turns them off — a hint
+     * naming a key that does nothing makes the product look broken. `Ctrl ↵`
+     * stays: it approves on every surface.
+     */
+    keyboardHints?: boolean;
     saveState: SaveState;
     approving: boolean;
     canApprove: boolean;
@@ -389,17 +404,21 @@ export function ReviewBottomBar({
                     <span className="hidden desk:inline">
                         <Kbd>Ctrl ↵</Kbd> {RV_KEY_APPROVE}
                     </span>
-                    <span className="hidden desk:inline">
-                        <Kbd>↓</Kbd><Kbd>↑</Kbd> {RV_KEY_MOVE}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={onShowKeys}
-                        title={RV_KEYS_REST}
-                        className="text-primary-700 underline underline-offset-link"
-                    >
-                        {RV_KEYS_ALL}
-                    </button>
+                    {keyboardHints ? (
+                        <>
+                            <span className="hidden desk:inline">
+                                <Kbd>↓</Kbd><Kbd>↑</Kbd> {RV_KEY_MOVE}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={onShowKeys}
+                                title={RV_KEYS_REST}
+                                className="text-primary-700 underline underline-offset-link"
+                            >
+                                {RV_KEYS_ALL}
+                            </button>
+                        </>
+                    ) : null}
                 </div>
 
                 <div className="flex items-center gap-3">

@@ -948,6 +948,49 @@ export interface paths {
         patch: operations["save_stamp_position_api_v0_grading_graded_test__graded_test_id__stamp_position_patch"];
         trace?: never;
     };
+    "/api/v0/grading/graded_test/{graded_test_id}/v6": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Graded Test V6
+         * @description The v6 review model: the draft's v6 block, her overlay, the server's price and
+         *     the line she reads per criterion. Owner-scoped; another teacher's id is a 404.
+         */
+        get: operations["get_graded_test_v6_api_v0_grading_graded_test__graded_test_id__v6_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/grading/graded_test/{graded_test_id}/v6/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Save Draft V6
+         * @description Her option flips, criterion grades and comments on a v6 draft — merged, gated
+         *     (CW-3 extended to checks and options; 422 lists every violation), re-priced by the
+         *     server. Only `teacher_overrides` is rewritten; Vivi's record is never modified.
+         */
+        patch: operations["save_draft_v6_api_v0_grading_graded_test__graded_test_id__v6_draft_patch"];
+        trace?: never;
+    };
     "/api/v0/grading/graded_tests": {
         parameters: {
             query?: never;
@@ -2553,6 +2596,75 @@ export interface components {
              */
             verdict: "met" | "partially_met" | "not_met";
         };
+        /**
+         * CheckDecision
+         * @description Her decision on one check (AM-G3). `amount` is valid on credit checks
+         *     only — CW-3 refuses it elsewhere; the pricer ignores it elsewhere.
+         */
+        CheckDecision: {
+            /** Amount */
+            amount?: string | null;
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Evidence Disputed
+             * @default false
+             */
+            evidence_disputed: boolean;
+            /** Option Id */
+            option_id?: string | null;
+        };
+        /**
+         * CheckOption
+         * @description One possible answer to a check. Values are exact Decimals on the grid:
+         *     credit 0..max, fault <= 0, note 0 (V12, V17).
+         */
+        CheckOption: {
+            /** Label He */
+            label_he: string;
+            /** Marker Id */
+            marker_id?: string | null;
+            /** Option Id */
+            option_id: string;
+            /** Value */
+            value: string;
+        };
+        /**
+         * CheckPatchV6
+         * @description Her decision on one check. `option_id` None with a comment keeps Vivi's pick and
+         *     adds her note; both None is the same as withdrawing the record.
+         */
+        CheckPatchV6: {
+            /** Comment */
+            comment?: string | null;
+            /** Option Id */
+            option_id?: string | null;
+        };
+        /**
+         * CheckRecordV6
+         * @description One plan check as graded: the full plan copy + the model's selection.
+         */
+        CheckRecordV6: {
+            /**
+             * Absence Pointer He
+             * @default
+             */
+            absence_pointer_he: string;
+            /**
+             * Evidence Quote
+             * @default
+             */
+            evidence_quote: string;
+            /** Flags */
+            flags?: string[];
+            /** Model Option Id */
+            model_option_id?: string | null;
+            plan: components["schemas"]["PlanCheckV6"];
+            /** Plan Index */
+            plan_index: number;
+            /** Quote Status */
+            quote_status?: ("exact" | "fuzzy" | "not_found") | null;
+        };
         /** ClassDetailResponse */
         ClassDetailResponse: {
             /**
@@ -2766,6 +2878,52 @@ export interface components {
              */
             was_overridden: boolean;
         };
+        /**
+         * ContractCheckV6
+         * @description [grader-v6 MVC §7] one plan check as APPROVED: what Vivi picked, what priced.
+         *
+         *     `model_option_id` is the verifier's own pick (None when it gave none); the
+         *     effective option is what the one pricer resolved after her overlay and the
+         *     evidence gate (`resolution`: overlay | model | gated | default). Values are the
+         *     plan's, frozen here because the plan row can be superseded later.
+         */
+        ContractCheckV6: {
+            /** Check Id */
+            check_id: string;
+            /** Description He */
+            description_he: string;
+            /** Effective Label He */
+            effective_label_he?: string | null;
+            /** Effective Option Id */
+            effective_option_id?: string | null;
+            /** Effective Value */
+            effective_value: string;
+            /**
+             * Evidence Quote
+             * @default
+             */
+            evidence_quote: string;
+            /** Model Option Id */
+            model_option_id?: string | null;
+            /** Priced Terminal Id */
+            priced_terminal_id: string;
+            /** Quote Status */
+            quote_status?: string | null;
+            /** Resolution */
+            resolution: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "credit" | "fault" | "note";
+            /** Teacher Comment */
+            teacher_comment?: string | null;
+            /**
+             * Was Overridden
+             * @default false
+             */
+            was_overridden: boolean;
+        };
         /** ContractFeedback */
         ContractFeedback: {
             /** Scopes */
@@ -2870,6 +3028,49 @@ export interface components {
             /** Was Overridden */
             was_overridden: boolean;
         };
+        /**
+         * ContractTerminalV6
+         * @description [§7] the reasoning line she approved, and where it came from: the model's
+         *     (explainer at grade time), the fallback composer's (after her edit, or when the
+         *     explainer could not write one), or the manual line (she set the grade).
+         */
+        ContractTerminalV6: {
+            /** Reasoning He */
+            reasoning_he: string;
+            /**
+             * Reasoning Source
+             * @enum {string}
+             */
+            reasoning_source: "model" | "fallback" | "teacher_override";
+            /** Terminal Id */
+            terminal_id: string;
+        };
+        /**
+         * ContractV6
+         * @description [grader-v6 MVC, owner 2026-10-17 §7] the v6 facts frozen at approval — the plan
+         *     a grade was priced against (`plan_hash`, `config_hash`, pack), the PROVIDER route
+         *     its calls took, and per check / per terminal what priced and what she read.
+         */
+        ContractV6: {
+            /** Checks */
+            checks: components["schemas"]["ContractCheckV6"][];
+            /** Config Hash */
+            config_hash: string;
+            /** Explainer Prompt Version */
+            explainer_prompt_version?: string | null;
+            /** Pack Id */
+            pack_id: string;
+            /** Pack Version */
+            pack_version: string;
+            /** Plan Hash */
+            plan_hash: string;
+            /** Provider */
+            provider?: string | null;
+            /** Terminals */
+            terminals: components["schemas"]["ContractTerminalV6"][];
+            /** Verifier Prompt Version */
+            verifier_prompt_version: string;
+        };
         /** CreateClassRequest */
         CreateClassRequest: {
             /** Name */
@@ -2963,6 +3164,43 @@ export interface components {
             /** Sub Criterion Outcomes */
             sub_criterion_outcomes?: components["schemas"]["SubCriterionOutcome"][] | null;
         };
+        /** DraftV6Content */
+        DraftV6Content: {
+            /** Checks */
+            checks: components["schemas"]["CheckRecordV6"][];
+            /** Config Hash */
+            config_hash: string;
+            /** Explainer Payloads */
+            explainer_payloads?: {
+                [key: string]: unknown;
+            }[];
+            /** Explainer Prompt Version */
+            explainer_prompt_version?: string | null;
+            explainer_usage?: components["schemas"]["UsageV6"] | null;
+            /** Explanations */
+            explanations?: components["schemas"]["ExplanationV6"][];
+            pack: components["schemas"]["PackRef"];
+            /** Plan Hash */
+            plan_hash: string;
+            /**
+             * Plan Schema
+             * @default plan/v6
+             * @constant
+             */
+            plan_schema: "plan/v6";
+            /** Precision */
+            precision: string;
+            /** Scopes */
+            scopes: components["schemas"]["ScopeRecordV6"][];
+            selection: components["schemas"]["SelectionView"];
+            /** Terminals */
+            terminals: components["schemas"]["TerminalPlanV6"][];
+            /** Verifier Prompt Version */
+            verifier_prompt_version: string;
+            verifier_usage?: components["schemas"]["UsageV6"] | null;
+            /** View Terminals */
+            view_terminals: components["schemas"]["ViewTerminal"][];
+        };
         /**
          * EditStep
          * @description One primitive edit to the draft tree — the unit of a SuggestedFix.
@@ -3037,6 +3275,23 @@ export interface components {
              * @default 400
              */
             status_code: number;
+        };
+        /**
+         * ExplanationV6
+         * @description The reasoning line for one CREDIT terminal (§7.5).
+         */
+        ExplanationV6: {
+            /** Failed Rules */
+            failed_rules?: string[];
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "model" | "fallback" | "teacher_override";
+            /** Terminal Id */
+            terminal_id: string;
+            /** Text He */
+            text_he: string;
         };
         /**
          * ExtractRubricResponse
@@ -3337,6 +3592,7 @@ export interface components {
             total_score: string;
             /** Transcription Contract Version */
             transcription_contract_version: string;
+            v6?: components["schemas"]["ContractV6"] | null;
         };
         /**
          * GradedTestDraft
@@ -3359,6 +3615,8 @@ export interface components {
             grading_duration_ms: number;
             /** Llm Calls Count */
             llm_calls_count: number;
+            /** Llm Provider */
+            llm_provider?: string | null;
             /** Model Version */
             model_version: string;
             /** Plan Version */
@@ -3395,6 +3653,10 @@ export interface components {
             transcription_contract_version: string;
             /** Unmatched Transcription Answers */
             unmatched_transcription_answers?: components["schemas"]["UnmatchedAnswer"][];
+            /** V6 */
+            v6?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * GradedTestDraftResponse
@@ -3517,6 +3779,10 @@ export interface components {
             terminals?: {
                 [key: string]: components["schemas"]["TeacherOverride-Input"][];
             };
+            /** V6 */
+            v6?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * GradedTestOverrides
@@ -3540,6 +3806,10 @@ export interface components {
             terminals?: {
                 [key: string]: components["schemas"]["TeacherOverride-Output"][];
             };
+            /** V6 */
+            v6?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * GradedTestStatusResponse
@@ -3555,6 +3825,35 @@ export interface components {
             status: string;
             /** Student Name */
             student_name: string;
+        };
+        /**
+         * GradedTestV6Response
+         * @description GET /graded_test/{id}/v6 and PATCH /graded_test/{id}/v6/draft.
+         *
+         *     `content` is the draft's v6 block (the plan checks with their options and values,
+         *     Vivi's selections and evidence) — the TS pricer re-prices it live from this alone
+         *     (PRC-7). `overrides` is her FULL working copy, the body POST /approve takes;
+         *     `overlay` is its v6 part, typed. `priced` is the SERVER's price of content +
+         *     overlay, which the client compares with its own.
+         */
+        GradedTestV6Response: {
+            /** Ai Total Score */
+            ai_total_score: string;
+            content: components["schemas"]["DraftV6Content"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Lines */
+            lines: components["schemas"]["V6ReasoningLine"][];
+            overlay: components["schemas"]["PricingOverlay"];
+            overrides: components["schemas"]["GradedTestOverrides-Output"];
+            priced: components["schemas"]["PricedTest"];
+            /** Status */
+            status: string;
+            /** Undecided Check Ids */
+            undecided_check_ids: string[];
         };
         /** GradingAnnotation */
         GradingAnnotation: {
@@ -3780,6 +4079,29 @@ export interface components {
             whatsapp_opt_in: boolean;
         };
         /**
+         * OverlayPatchV6
+         * @description MERGE semantics: a key PRESENT sets (or, with null, withdraws) that decision;
+         *     an absent key leaves hers untouched. `extra=forbid`: a misspelt field is a 422,
+         *     never a silent no-op.
+         */
+        OverlayPatchV6: {
+            /** Checks */
+            checks?: {
+                [key: string]: components["schemas"]["CheckPatchV6"] | null;
+            };
+            /** Terminal Points */
+            terminal_points?: {
+                [key: string]: number | string | null;
+            };
+        };
+        /** PackRef */
+        PackRef: {
+            /** Pack Id */
+            pack_id: string;
+            /** Pack Version */
+            pack_version: string;
+        };
+        /**
          * PagePreview
          * @description Preview of a single PDF page.
          */
@@ -3924,6 +4246,51 @@ export interface components {
          */
         PedagogicalMistakeKind: "point_sum_mismatch" | "selection_normalization" | "structural_mislabel" | "orphan_criterion";
         /**
+         * PlanCheckV6
+         * @description One check. Display order of `options`: credit highest-first; fault and
+         *     note `none` first.
+         */
+        PlanCheckV6: {
+            /** Charge Group */
+            charge_group?: string | null;
+            /** Check Id */
+            check_id: string;
+            /** Description He */
+            description_he: string;
+            /** Element */
+            element?: ("binary" | "non_binary") | null;
+            /** Equivalence Note He */
+            equivalence_note_he?: string | null;
+            /**
+             * Evidence Required
+             * @default true
+             */
+            evidence_required: boolean;
+            /** Options */
+            options: components["schemas"]["CheckOption"][];
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "compiler" | "planner" | "fallback" | "legacy";
+            /** Priced Terminal Id */
+            priced_terminal_id: string;
+            /** Requires */
+            requires?: string | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "credit" | "fault" | "note";
+            /**
+             * Shape
+             * @enum {string}
+             */
+            shape: "binary" | "ladder" | "levels" | "count" | "fault" | "note";
+            /** Source Span */
+            source_span: string;
+        };
+        /**
          * PreviewStudentTestResponse
          * @description Response from preview_student_test endpoint.
          */
@@ -3936,6 +4303,94 @@ export interface components {
             page_count: number;
             /** Pages */
             pages?: components["schemas"]["PagePreview"][];
+        };
+        /** PricedCharge */
+        PricedCharge: {
+            /** Amount */
+            amount: string;
+            /** Charged */
+            charged: string;
+            /** Check Id */
+            check_id: string;
+            /**
+             * Moved By Pin
+             * @default false
+             */
+            moved_by_pin: boolean;
+            /** Moved From Terminal Id */
+            moved_from_terminal_id?: string | null;
+            /** Option Id */
+            option_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "inactive" | "no_fault" | "applied" | "capped" | "superseded" | "floored";
+        };
+        /** PricedScope */
+        PricedScope: {
+            /** Awarded */
+            awarded: string;
+            /** Counted */
+            counted: boolean;
+            /** Points Possible */
+            points_possible: string;
+            /** Question Id */
+            question_id: string;
+            /** Sub Question Id */
+            sub_question_id: string | null;
+        };
+        /** PricedTerminal */
+        PricedTerminal: {
+            /** Awarded */
+            awarded: string;
+            /** Charges */
+            charges: components["schemas"]["PricedCharge"][];
+            /**
+             * Chip
+             * @enum {string}
+             */
+            chip: "full" | "partial" | "zero";
+            /** Credit Points */
+            credit_points: string;
+            /** Flags */
+            flags: string[];
+            /** Notes Observed */
+            notes_observed: string[];
+            /** Overridden */
+            overridden: boolean;
+            /** Primary Check Id */
+            primary_check_id: string | null;
+            /** Terminal Id */
+            terminal_id: string;
+            /** Typed */
+            typed: boolean;
+        };
+        /** PricedTest */
+        PricedTest: {
+            /** Checks */
+            checks: components["schemas"]["ResolvedCheck"][];
+            /** Flags */
+            flags: string[];
+            /** Scopes */
+            scopes: components["schemas"]["PricedScope"][];
+            /** Terminals */
+            terminals: components["schemas"]["PricedTerminal"][];
+            /** Total Possible */
+            total_possible: string;
+            /** Total Score */
+            total_score: string;
+        };
+        /** PricingOverlay */
+        PricingOverlay: {
+            /** Checks */
+            checks?: {
+                [key: string]: components["schemas"]["CheckDecision"];
+            };
+            /** Terminal Points */
+            terminal_points?: {
+                [key: string]: string;
+            };
         };
         /**
          * PurgePreviewResponse
@@ -4095,6 +4550,27 @@ export interface components {
              * Format: email
              */
             email: string;
+        };
+        /** ResolvedCheck */
+        ResolvedCheck: {
+            /** Check Id */
+            check_id: string;
+            /** Claimed Option Id */
+            claimed_option_id?: string | null;
+            /**
+             * Missing
+             * @default false
+             */
+            missing: boolean;
+            /** Option Id */
+            option_id: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "amount" | "overlay" | "model" | "gated" | "default";
+            /** Value */
+            value: string;
         };
         /** RetryJobResponse */
         RetryJobResponse: {
@@ -4392,6 +4868,24 @@ export interface components {
             overrides: components["schemas"]["GradedTestOverrides-Input"];
         };
         /**
+         * SaveDraftV6Request
+         * @description PATCH /graded_test/{id}/v6/draft — MERGED into her stored working copy (A-3):
+         *     a key present in `v6` sets (null: withdraws) that decision, an absent key is left
+         *     alone, and everything outside the v6 overlay — `stamp_position` included — stays.
+         */
+        SaveDraftV6Request: {
+            /** Client Total */
+            client_total?: number | string | null;
+            /**
+             * Feedback
+             * @default {}
+             */
+            feedback: {
+                [key: string]: string | null;
+            };
+            v6?: components["schemas"]["OverlayPatchV6"] | null;
+        };
+        /**
          * SaveOntologyDraftRequest
          * @description Request to save an ExtractRubricResponse with atomic compilation.
          *
@@ -4637,6 +5131,26 @@ export interface components {
             /** Sub Question Id */
             sub_question_id?: string | null;
         };
+        /** ScopeRecordV6 */
+        ScopeRecordV6: {
+            /** Flags */
+            flags?: string[];
+            /**
+             * Graded By
+             * @enum {string}
+             */
+            graded_by: "llm" | "skipped_no_answer" | "failed" | "excluded_by_selection";
+            /** Question Id */
+            question_id: string;
+            /**
+             * Retry Count
+             * @default 0
+             */
+            retry_count: number;
+            /** Sub Question Id */
+            sub_question_id?: string | null;
+            usage?: components["schemas"]["UsageV6"] | null;
+        };
         /**
          * SelectionGroup
          * @description A 'choose k of N' selection constraint over a set of questions.
@@ -4675,6 +5189,26 @@ export interface components {
              * @description Question ids in this group, e.g. ['q1','q2','q3'].
              */
             of_question_ids: string[];
+        };
+        /** SelectionGroupView */
+        SelectionGroupView: {
+            /** Choose K */
+            choose_k: number;
+            /** Of Question Ids */
+            of_question_ids: string[];
+        };
+        /**
+         * SelectionView
+         * @description What `score_with_selection` reads from the contract: the ACHIEVABLE
+         *     total, the question order (its tie-break), and the groups.
+         */
+        SelectionView: {
+            /** Groups */
+            groups?: components["schemas"]["SelectionGroupView"][];
+            /** Question Order */
+            question_order: string[];
+            /** Total Points */
+            total_points: string;
         };
         /**
          * ShareRubricRequest
@@ -5196,6 +5730,15 @@ export interface components {
              */
             verdict: "met" | "partially_met" | "not_met";
         };
+        /** TerminalPlanV6 */
+        TerminalPlanV6: {
+            /** Interpretation Notes He */
+            interpretation_notes_he?: string[];
+            /** Points Possible */
+            points_possible: string;
+            /** Terminal Id */
+            terminal_id: string;
+        };
         /**
          * TerminalPointsOverride
          * @description Her typed amount for a WHOLE terminal (leaf criterion / sub-criterion),
@@ -5526,6 +6069,48 @@ export interface components {
             subject_matter_ids: number[];
         };
         /**
+         * UsageV6
+         * @description Tokens of one component (verifier or explainer), with its served model ids.
+         */
+        UsageV6: {
+            /**
+             * Cache Write Input Tokens
+             * @default 0
+             */
+            cache_write_input_tokens: number;
+            /**
+             * Cached Input Tokens
+             * @default 0
+             */
+            cached_input_tokens: number;
+            /**
+             * Calls
+             * @default 0
+             */
+            calls: number;
+            /**
+             * Input Tokens
+             * @default 0
+             */
+            input_tokens: number;
+            /** Model */
+            model: string;
+            /**
+             * Model Fallback
+             * @default false
+             */
+            model_fallback: boolean;
+            /**
+             * Output Tokens
+             * @default 0
+             */
+            output_tokens: number;
+            /** Provider */
+            provider?: string | null;
+            /** Served Models */
+            served_models?: string[];
+        };
+        /**
          * UserResponse
          * @description Response schema for user profile.
          *
@@ -5621,6 +6206,19 @@ export interface components {
             /** Shared Count */
             shared_count: number;
         };
+        /**
+         * V6ReasoningLine
+         * @description The line she reads under one criterion: the explainer's (grade time), the
+         *     fallback composer's (after her edit), or the manual line (she set the grade).
+         */
+        V6ReasoningLine: {
+            /** Source */
+            source: string;
+            /** Terminal Id */
+            terminal_id: string;
+            /** Text He */
+            text_he: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -5639,6 +6237,17 @@ export interface components {
              * Format: email
              */
             email: string;
+        };
+        /** ViewTerminal */
+        ViewTerminal: {
+            /** Points Possible */
+            points_possible: string;
+            /** Question Id */
+            question_id: string;
+            /** Sub Question Id */
+            sub_question_id?: string | null;
+            /** Terminal Id */
+            terminal_id: string;
         };
     };
     responses: never;
@@ -7067,6 +7676,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StampPositionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_graded_test_v6_api_v0_grading_graded_test__graded_test_id__v6_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                graded_test_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradedTestV6Response"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_draft_v6_api_v0_grading_graded_test__graded_test_id__v6_draft_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                graded_test_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveDraftV6Request"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradedTestV6Response"];
                 };
             };
             /** @description Validation Error */

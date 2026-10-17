@@ -21,6 +21,13 @@
  * Below `desk` the module yields to an honest interstitial. The answer, the
  * checklist and the evidence must be readable side by side; a phone cannot do
  * that, and pretending otherwise would produce approvals made half-blind.
+ *
+ * ── grader-v6 (owner rulings 2026-10-17 §7) ──────────────────────────────
+ * A draft whose `v6` block is present (`plan_schema` "plan/v6") is reviewed by
+ * `GradeReviewV6`, which owns its own overlay, autosave and approval against
+ * the v6 endpoints. Every other draft takes the v5 path below, unchanged: its
+ * overlay, its autosave and its approval never see a v6 draft, and a v6 draft
+ * never reaches them (this page's own overlay stays empty, so it never saves).
  */
 
 import Link from 'next/link';
@@ -35,6 +42,7 @@ import {
 } from '@/lib/api';
 import { surfaceError } from '@/lib/errorSurface';
 import { GradeReviewSurface } from '@/components/grade-review/GradeReviewSurface';
+import { GradeReviewV6 } from '@/components/grade-review/GradeReviewV6';
 import { ScanViewer } from '@/components/grade-review/ScanViewer';
 import { etaText } from '@/utils/grade-dashboard';
 import { useGradeReview } from '@/components/grade-review/GradeReviewContext';
@@ -43,6 +51,7 @@ import {
     advanceAfterApprove, queueState, step, type GradeCursor,
 } from '@/utils/grade-review-cursor';
 import { buildReviewModel, type WireDraft } from '@/utils/grade-review-model';
+import { isV6Draft } from '@/utils/grade-review-v6-model';
 import { emptyOverlay, type Overlay } from '@/utils/verdict-cycle';
 import type { NumericPolicy } from '@/lib/pricing';
 import {
@@ -321,6 +330,34 @@ export default function GradeReviewPage() {
             (scope) => scope.criteria.map((c) => [c.terminalId, c.awarded])))
         : {};
 
+    /**
+     * What follows a successful /approve — ONE sequence for both review
+     * surfaces (v5's `onApprove` below, and grader-v6's `GradeReviewV6`), so the
+     * cursor, the stamp and the advance can never drift apart between them.
+     */
+    const afterApproval = useCallback(async (total: string) => {
+        setPayload((p) => (p ? { ...p, status: 'approved' } : p));
+        // The cursor must learn this BEFORE the advance decision, or the
+        // walk can hand her back the test she just signed.
+        markApproved(params.gradedTestId);
+        const fresh = getCursor() ?? liveCursor;
+        const target = fresh ? advanceAfterApprove(fresh, params.gradedTestId) : null;
+        const nextName = target && fresh
+            ? fresh.byId[target]?.student_name ?? null : null;
+        // R12's order is the whole point: the stamp presses on the mini
+        // thumb, and only then does she move on. Advancing first would
+        // leave the signature happening on a screen she has already left,
+        // which is the one moment in the flow worth showing her.
+        setStampPressed(true);
+        toast.success(RV_APPROVED_TOAST(total, nextName));
+        await new Promise((resolve) => { setTimeout(resolve, 420); });
+        // OD-F4: auto-advance. Nothing landed left → the dashboard, which is
+        // where the batch's own state lives.
+        router.push(target
+            ? `/batches/${params.id}/grade-review/${target}`
+            : `/batches/${params.id}`);
+    }, [params.gradedTestId, params.id, liveCursor, getCursor, markApproved, router]);
+
     const onApprove = useCallback(async () => {
         if (!model || approving) return;
         if (!(await flush())) return;
@@ -328,33 +365,13 @@ export default function GradeReviewPage() {
         try {
             await approveGradeReview(
                 params.gradedTestId, buildOverlayPayload(), model.total);
-            setPayload((p) => (p ? { ...p, status: 'approved' } : p));
-            // The cursor must learn this BEFORE the advance decision, or the
-            // walk can hand her back the test she just signed.
-            markApproved(params.gradedTestId);
-            const fresh = getCursor() ?? liveCursor;
-            const target = fresh ? advanceAfterApprove(fresh, params.gradedTestId) : null;
-            const nextName = target && fresh
-                ? fresh.byId[target]?.student_name ?? null : null;
-            // R12's order is the whole point: the stamp presses on the mini
-            // thumb, and only then does she move on. Advancing first would
-            // leave the signature happening on a screen she has already left,
-            // which is the one moment in the flow worth showing her.
-            setStampPressed(true);
-            toast.success(RV_APPROVED_TOAST(model.total, nextName));
-            await new Promise((resolve) => { setTimeout(resolve, 420); });
-            // OD-F4: auto-advance. Nothing landed left → the dashboard, which is
-            // where the batch's own state lives.
-            router.push(target
-                ? `/batches/${params.id}/grade-review/${target}`
-                : `/batches/${params.id}`);
+            await afterApproval(model.total);
         } catch (err) {
             surfaceError(err);
         } finally {
             setApproving(false);
         }
-    }, [model, approving, flush, params.gradedTestId, params.id,
-        buildOverlayPayload, liveCursor, getCursor, markApproved, router]);
+    }, [model, approving, flush, params.gradedTestId, buildOverlayPayload, afterApproval]);
 
     const onFeedbackRegenerate = useCallback(async (target: string) => {
         setFeedbackBusy(true);
@@ -439,7 +456,10 @@ export default function GradeReviewPage() {
             </Shell>
         );
     }
-    if (!payload.draft || !policy) {
+    // A v6 grade carries its own grid (`content.precision`); only v5 needs the
+    // rubric's numeric policy to re-price.
+    const v6 = isV6Draft(payload.draft);
+    if (!payload.draft || (!policy && !v6)) {
         return <Shell><p className="text-grade-pencil">{RV_NOT_FOUND}</p></Shell>;
     }
 
@@ -487,8 +507,8 @@ export default function GradeReviewPage() {
      */
     const scanSource = (transcriptionId ? scanByTranscription[transcriptionId] : undefined)
         ?? scanByTest[params.gradedTestId] ?? null;
-    const openScan = (scopeId: string) => {
-        const scope = model?.scopes.find((s) => s.scopeId === scopeId);
+    const openScan = (scopeId: string, title?: string) => {
+        const scope = title ? { title } : model?.scopes.find((s) => s.scopeId === scopeId);
         const [q, sub] = scopeId.split('.');
         const number = Number(q.replace(/^q/i, ''));
         const answers = scanSource?.answers ?? [];
@@ -541,6 +561,41 @@ export default function GradeReviewPage() {
                 narrower than the content it frames. */}
             <main className="mx-auto hidden max-w-review px-6 pb-24 pt-6
                 split:max-w-review-wide desk:block">
+                {v6 ? (
+                    // grader-v6: its own overlay, autosave and approval; the
+                    // frame (identity, queue, prev/next, scan, stamp) is this page's.
+                    <GradeReviewV6
+                        gradedTestId={params.gradedTestId}
+                        draft={payload.draft}
+                        approved={payload.status === 'approved'}
+                        questions={questions}
+                        subject={rubricSubject}
+                        studentName={payload.student_name}
+                        identityMeta={RV_IDENTITY_META([className, position, landedAgo])}
+                        thumbUrl={thumbUrl}
+                        stampPressed={stampPressed}
+                        versionBanner={versionBanner}
+                        revision={{
+                            status: payload.status,
+                            contractStale: Boolean(payload.rubric_contract_stale),
+                            busy: revisionBusy,
+                            onRegrade: () => { void runRevision('regrade'); },
+                            onManualEdit: () => { void runRevision('manual_edit'); },
+                            onRetry: () => { void runRevision('retry'); },
+                        }}
+                        queue={queue}
+                        eta={queueEta}
+                        batchHref={batchHref}
+                        prevId={prevId}
+                        nextId={nextId}
+                        onNavigate={(targetId) => { void goTo(targetId); }}
+                        onOpenPreview={() => router.push(
+                            `/graded-tests/${params.gradedTestId}/returned?batch=${params.id}`)}
+                        onShowScan={openScan}
+                        modalOpen={scan !== null}
+                        onApproved={afterApproval}
+                    />
+                ) : policy ? (
                 <GradeReviewSurface
                     draft={payload.draft}
                     questions={questions}
@@ -599,6 +654,7 @@ export default function GradeReviewPage() {
                     onNotice={(message) => toast(message)}
                     modalOpen={scan !== null}
                 />
+                ) : null}
                 {scan ? (
                     <ScanViewer
                         scopeTitle={scan.title}
