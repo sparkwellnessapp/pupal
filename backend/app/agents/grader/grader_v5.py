@@ -44,7 +44,7 @@ from app.agents.grader.grader import (
     _scope_target_id,
     is_permanent_provider_error,
 )
-from app.agents.grader.llm_factory import build_chat_model
+from app.agents.grader.llm_factory import build_chat_model, provider_of
 from app.agents.grader.plan_schemas import (
     CheckVerdict,
     GradingPlan,
@@ -145,6 +145,7 @@ class PlanVerifyGrader:
         self.billing_exhausted: Optional[BaseException] = None
         base = llm if llm is not None else build_chat_model(
             "openai", settings.openai_model)
+        self._provider = provider_of(base)                         # [§5a]
         self._structured_llm = base.with_structured_output(
             ScopeVerificationResponse, include_raw=True)
 
@@ -462,6 +463,7 @@ class PlanVerifyGrader:
             plan_version=self._plan.plan_version,
             plan_wording_source=self._plan_wording_source,
             served_models=sorted(self._served_models) or None,
+            llm_provider=self._provider,
             scope_outcomes=scope_outcomes,
             teacher_overrides={},
             annotations=all_annotations,

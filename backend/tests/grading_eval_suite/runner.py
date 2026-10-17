@@ -334,6 +334,7 @@ def _provenance(config_name: str, config: dict, spec: ModelSpec, *,
     import dataclasses
     prov = {
         "config": config_name, "mode": mode, "k": k, "fixtures": fixtures,
+        "claude_route": _claude_route_label(),           # [§5a] the provider, in the ledger
         "scopes": scopes,
         "model_key": spec.key, "model_version": spec.model_id,
         "registry_as_of": REGISTRY_AS_OF,
@@ -489,6 +490,14 @@ def _plans_provenance(config: dict, bundles: List[FixtureBundle],
     for entry in out.values():
         entry["fixtures"].sort()
     return out
+
+
+def _claude_route_label() -> str:
+    """[Oct 17 §5a] where this run's Claude calls went: `vertex:<region>` or `direct`."""
+    from app.agents.grader.llm_factory import claude_route
+    from app.config import settings
+    route = claude_route()
+    return f"vertex:{settings.claude_vertex_region}" if route == "vertex" else route
 
 
 def _load_plan_v6(config: dict, bundle: FixtureBundle, suite_dir: Path):

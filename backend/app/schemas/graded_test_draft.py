@@ -430,6 +430,10 @@ class GradedTestDraft(BaseModel):
     # requested). None = the provider did not report one — surfaced as
     # "unreported", never silently equated with the request.
     served_models: Optional[List[str]] = None
+    # [Vertex route, owner 2026-10-17 §5a] the ROUTE the grading calls took —
+    # `vertex:<region>`, `anthropic` (direct), `openai`, `gemini` (`llm_factory.provider_of`).
+    # None = graded before the field existed; never back-filled (VER-3's rule).
+    llm_provider: Optional[str] = None
     # [grader-v6, M3] the v6 block (`graded_test_draft_v6.DraftV6Content`, as its JSON
     # document): the plan-check copy + the model's options and evidence, from which the
     # ONE v6 pricer re-derives every number. Validated on write and on every read

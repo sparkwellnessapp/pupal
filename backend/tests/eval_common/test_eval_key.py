@@ -1,33 +1,53 @@
-"""[Oct 6 rulings §2] the spend guard: a run spends ONLY on the eval key."""
+"""[Oct 17 rulings §4] the spend guard: eval runs spend ONLY on Vertex, never on the Anthropic
+direct API. No provider is called here."""
 from __future__ import annotations
+
+import os
 
 import pytest
 
 from tests.eval_common import eval_key
 
 
+def _settings(monkeypatch, route="vertex", key=""):
+    from pydantic import SecretStr
+
+    from app.config import settings
+    monkeypatch.setattr(settings, "claude_route", route)
+    monkeypatch.setattr(settings, "anthropic_api_key", SecretStr(key) if key is not None else None)
+
+
 def test_require_refuses_without_the_launcher(monkeypatch):
-    monkeypatch.delenv("VIVI_EVAL_KEY_SHA256", raising=False)
-    with pytest.raises(SystemExit, match="eval key"):
+    monkeypatch.delenv("VIVI_EVAL_ROUTE", raising=False)
+    _settings(monkeypatch)
+    with pytest.raises(SystemExit, match="ONLY on Vertex"):
         eval_key.require_eval_key()
 
 
-def test_require_refuses_a_different_key(monkeypatch):
-    monkeypatch.setenv("VIVI_EVAL_KEY_SHA256", eval_key._sha("not-the-settings-key"))
-    with pytest.raises(SystemExit, match="eval key"):
+def test_require_refuses_the_direct_route(monkeypatch):
+    monkeypatch.setenv("VIVI_EVAL_ROUTE", "vertex")
+    _settings(monkeypatch, route="direct")
+    with pytest.raises(SystemExit, match="Anthropic direct eval spend is ZERO"):
         eval_key.require_eval_key()
 
 
-def test_load_reads_the_file_and_never_echoes_it(tmp_path, monkeypatch, capsys):
-    f = tmp_path / "vivi-eval.env"
-    f.write_text("# eval\nANTHROPIC_API_KEY=sk-test-123\n", encoding="utf-8")
-    monkeypatch.setenv("VIVI_EVAL_ENV", str(f))
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("VIVI_EVAL_KEY_SHA256", raising=False)   # restored at teardown
-    eval_key.load_eval_key()
-    import os
-    assert os.environ["VIVI_EVAL_KEY_SHA256"] == eval_key._sha("sk-test-123")
-    assert "sk-test-123" not in capsys.readouterr().out
-    monkeypatch.setenv("VIVI_EVAL_ENV", str(tmp_path / "missing.env"))
-    with pytest.raises(SystemExit, match="Nothing was spent"):
-        eval_key.load_eval_key()
+def test_require_refuses_a_visible_anthropic_key(monkeypatch):
+    monkeypatch.setenv("VIVI_EVAL_ROUTE", "vertex")
+    _settings(monkeypatch, key="sk-ant-test")
+    with pytest.raises(SystemExit, match="must be blank"):
+        eval_key.require_eval_key()
+
+
+def test_require_passes_on_vertex_with_no_key(monkeypatch):
+    monkeypatch.setenv("VIVI_EVAL_ROUTE", "vertex")
+    _settings(monkeypatch)
+    eval_key.require_eval_key()
+
+
+def test_the_launcher_sets_vertex_and_blanks_the_key(monkeypatch):
+    for k in ("CLAUDE_ROUTE", "ANTHROPIC_API_KEY", "VIVI_EVAL_ROUTE"):
+        monkeypatch.setenv(k, "before")                 # restored at teardown
+    eval_key.load_eval_route()
+    assert os.environ["CLAUDE_ROUTE"] == "vertex"
+    assert os.environ["ANTHROPIC_API_KEY"] == ""
+    assert os.environ["VIVI_EVAL_ROUTE"] == "vertex"

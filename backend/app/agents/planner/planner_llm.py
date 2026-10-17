@@ -28,7 +28,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from langchain_core.messages import HumanMessage
 
-from app.agents.grader.llm_factory import build_chat_model, serves_requested
+from app.agents.grader.llm_factory import build_chat_model, provider_of, serves_requested
 from app.agents.grader.prompt_cache import cache_write_tokens, supports_cache, system_message
 from app.agents.plan_compiler.models import MODEL_CARDS, ROUTER_MODEL_KEY, cost_fn
 from app.services.docx_v3.pipeline import _Deadline, _transport_retry_async
@@ -59,6 +59,7 @@ def build_planner_call(*, model_key: str = PLANNER_MODEL_KEY, effort: str = PLAN
     runner = llm.with_structured_output(ScopePlanOutput, method="json_schema", include_raw=True)
     cost = cost_fn(model_key)
     cache = supports_cache(llm)
+    provider = provider_of(llm)                     # [§5a] the route, into every usage record
 
     async def call(system: str, user: str) -> Tuple[ScopePlanOutput, Dict[str, Any]]:
         res = await _transport_retry_async(
@@ -76,7 +77,7 @@ def build_planner_call(*, model_key: str = PLANNER_MODEL_KEY, effort: str = PLAN
         cached = int((meta.get("input_token_details") or {}).get("cache_read") or 0)
         written = cache_write_tokens(meta)
         usd = cost(in_tok, out_tok, cached) + CACHE_WRITE_PREMIUM * written * card.price.in_per_mtok / 1e6
-        usage = {"model": card.model_id, "served_model": served,
+        usage = {"model": card.model_id, "served_model": served, "provider": provider,
                  "model_fallback": bool(served) and not serves_requested(card.model_id, served),
                  "stop_reason": rmeta.get("stop_reason"),
                  "input_tokens": in_tok, "output_tokens": out_tok, "cached_input_tokens": cached,

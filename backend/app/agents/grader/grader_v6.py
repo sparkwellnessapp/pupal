@@ -47,7 +47,7 @@ from app.agents.grader.grader import (
     is_permanent_provider_error,
 )
 from app.agents.grader.grader_v5 import V5_TRANSIENT_EXCEPTIONS
-from app.agents.grader.llm_factory import serves_requested
+from app.agents.grader.llm_factory import provider_of, serves_requested
 from app.agents.grader.plan_schemas import (CheckVerdictV6, GradingPlanV6, PlanCheckV6,
                                             ScopeVerdictsV6)
 from app.agents.grader.plan_values import plan_hash as compute_plan_hash
@@ -128,6 +128,7 @@ class OptionsVerifyGrader:
         self._explainer_prompt_version = explainer_prompt_version
         self._system = verifier_v6_system_prompt(profile)
         self._cache = supports_cache(llm)                          # [CL-2]
+        self._provider = provider_of(llm)                          # [§5a]
         self._structured_llm = llm.with_structured_output(ScopeVerdictsV6, include_raw=True)
         self._plan_terminals = {t.terminal_id: t for t in plan.terminals}
         self.billing_exhausted: Optional[BaseException] = None       # [A-8] reported upward
@@ -298,7 +299,8 @@ class OptionsVerifyGrader:
                            cached_input_tokens=sum(u.cached_input_tokens for u in scope_usages),
                            cache_write_input_tokens=sum(u.cache_write_input_tokens for u in scope_usages),
                            served_models=sorted({m for u in scope_usages for m in u.served_models}),
-                           model_fallback=any(u.model_fallback for u in scope_usages))
+                           model_fallback=any(u.model_fallback for u in scope_usages),
+                           provider=self._provider)
         return DraftV6Content(
             plan_hash=self._plan.plan_hash, config_hash=self._plan.config_hash,
             pack=self._plan.subject_pack, verifier_prompt_version=VERIFIER_V6_PROMPT_VERSION,
@@ -425,6 +427,7 @@ class OptionsVerifyGrader:
             prompt_version=_subject_prompt_version(VERIFIER_V6_PROMPT_VERSION, self._profile),
             plan_version=None,                # a v5 field (PR-G1 per-check records); v6 stamps v6.plan_hash
             served_models=(v.served_models or None) if v else None,
+            llm_provider=self._provider,
             scope_outcomes=outcomes, teacher_overrides={}, annotations=annotations,
             unmatched_transcription_answers=list(gradable_test.unmatched_transcription_answers),
             llm_calls_count=sum(1 for r in runs if r.record.graded_by == "llm"),

@@ -1,63 +1,57 @@
-"""The eval-only Anthropic key (Oct 6 rulings §2) — the ONE key eval and plan runs spend on.
+"""The eval spend guard — since the owner rulings of 2026-10-17 (§4): eval and plan runs
+spend ONLY on Claude-on-Vertex (GCP credits), and NEVER on the Anthropic direct API.
 
     python -m tests.eval_common.eval_key <module> [args...]
     e.g.  python -m tests.eval_common.eval_key tests.grading_eval_suite.runner --config X -k 2
 
-The launcher reads `backend/vivi-eval.env` (gitignored; override the path with
-VIVI_EVAL_ENV) and puts its ANTHROPIC_API_KEY into the process environment BEFORE
-any app module is imported — the environment outranks `.env`, so Settings resolves
-the eval key — then runs the module. Every spend path calls `require_eval_key()`,
-which refuses unless the key Settings resolved IS the one loaded here (compared by
-hash; the key is never printed, logged or written anywhere).
+The launcher, BEFORE any app module is imported (the environment outranks `.env`):
+  * sets CLAUDE_ROUTE=vertex, so every Claude call the factory builds goes to Vertex
+    (`llm_factory.claude_route`), on local ADC;
+  * BLANKS ANTHROPIC_API_KEY, which shadows the key in `backend/.env` — so a call that
+    somehow bypassed the route could not even authenticate on the direct API;
+  * marks the process as launched.
+Every spend path calls `require_eval_key()` (the historical name, kept so every call site
+and RUNLOG reference stays valid), which refuses unless all three hold. Nothing is printed.
+
+History: Oct 6 §2 ran eval spend on a dedicated Anthropic key in `backend/vivi-eval.env`;
+Oct 17 §4 set Anthropic direct eval spend to ZERO, so that file is no longer read.
 """
 from __future__ import annotations
 
-import hashlib
 import os
 import runpy
 import sys
-from pathlib import Path
 
-BACKEND = Path(__file__).resolve().parents[2]
-_MARK = "VIVI_EVAL_KEY_SHA256"
+_MARK = "VIVI_EVAL_ROUTE"
 
 
-def _env_path() -> Path:
-    return Path(os.environ.get("VIVI_EVAL_ENV") or BACKEND / "vivi-eval.env")
-
-
-def _sha(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
-def load_eval_key() -> None:
-    path = _env_path()
-    if not path.exists():
-        raise SystemExit(f"STOP: {path} not found — eval and plan runs spend ONLY on the "
-                         f"eval key (Oct 6 rulings §2). Nothing was spent.")
-    key = None
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip().startswith("ANTHROPIC_API_KEY="):
-            key = line.split("=", 1)[1].strip().strip('"').strip("'")
-    if not key:
-        raise SystemExit(f"STOP: {path} has no ANTHROPIC_API_KEY — nothing was spent.")
-    os.environ["ANTHROPIC_API_KEY"] = key
-    os.environ[_MARK] = _sha(key)
+def load_eval_route() -> None:
+    os.environ["CLAUDE_ROUTE"] = "vertex"
+    os.environ["ANTHROPIC_API_KEY"] = ""          # shadows backend/.env: no direct call can authenticate
+    os.environ[_MARK] = "vertex"
 
 
 def require_eval_key() -> None:
-    """Refuse a spend unless Settings resolved the key the launcher loaded."""
+    """Refuse a spend unless this process was launched on the Vertex route with no Anthropic key."""
+    from app.agents.grader.llm_factory import claude_route
     from app.config import settings
-    want = os.environ.get(_MARK)
-    have = settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else ""
-    if not want or _sha(have) != want:
-        raise SystemExit("STOP: this run would spend on a key other than the eval key. Launch it "
-                         "through `python -m tests.eval_common.eval_key <module> …`.")
+    if os.environ.get(_MARK) != "vertex":
+        raise SystemExit("STOP: eval spend runs ONLY on Vertex (Oct 17 §4). Launch it through "
+                         "`python -m tests.eval_common.eval_key <module> …`. Nothing was spent.")
+    if claude_route() != "vertex":
+        raise SystemExit("STOP: CLAUDE_ROUTE is not vertex — Anthropic direct eval spend is ZERO "
+                         "(Oct 17 §4). Nothing was spent.")
+    if settings.anthropic_api_key and settings.anthropic_api_key.get_secret_value():
+        raise SystemExit("STOP: an Anthropic API key is visible to this eval run — it must be blank "
+                         "(Oct 17 §4). Nothing was spent.")
+
+
+require_eval_route = require_eval_key
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         raise SystemExit(__doc__)
-    load_eval_key()
+    load_eval_route()
     module, sys.argv = sys.argv[1], sys.argv[1:]
     runpy.run_module(module, run_name="__main__", alter_sys=True)

@@ -389,6 +389,16 @@ class Settings(BaseSettings):
     # test log. Declaring them is the fix; the __repr_args__ net below covers
     # whatever `extra` swallows next.
     anthropic_api_key: Optional[SecretStr] = None
+    # [Vertex route, owner ruling 2026-10-17 §5] WHERE every Claude call goes — one switch for the
+    # whole factory (v5 grader, plan builder, feedback, the v6 planner/verifier/explainer):
+    #   "direct" — api.anthropic.com with ANTHROPIC_API_KEY (the historical route);
+    #   "vertex" — Claude on Vertex AI with GCP credentials (the Cloud Run service account in
+    #              production, local ADC on a laptop), paid from the GCP credits.
+    # The same logical model ids on both; `llm_factory.VERTEX_MODEL_IDS` maps them. Rollback is
+    # this value.
+    claude_route: str = "direct"
+    claude_vertex_region: str = "eu"                 # the EU multi-region: serves all four models
+    claude_vertex_project: Optional[str] = None      # unset → google_cloud_project
     xai_api_key: Optional[SecretStr] = None
     supabase_access_token: Optional[SecretStr] = None
     gmail_service_account_json: Optional[SecretStr] = None

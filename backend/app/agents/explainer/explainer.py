@@ -176,7 +176,7 @@ async def run_scopes(inputs: Sequence[ScopeExplainerInput], *, llm, model_id: st
                      timeout_s: float) -> ScopeRun:
     """One call per input, all in parallel, all under ONE wall. A scope that does not
     finish (late, failed, unparseable) has no verdicts here — its terminals fall back."""
-    usage = _UsageAcc(model_id)
+    usage = _UsageAcc(model_id, provider=_provider_of(llm))
     telemetry: List[str] = []
     verdicts: List[Optional[Dict[str, LineVerdict]]] = [None] * len(inputs)
     if not inputs:
@@ -292,8 +292,14 @@ def _retry_backoff_s() -> float:
     return random.uniform(RETRY_BACKOFF_MIN, RETRY_BACKOFF_MAX)
 
 
+def _provider_of(llm) -> str:
+    from app.agents.grader.llm_factory import provider_of
+    return provider_of(llm)
+
+
 class _UsageAcc:
-    def __init__(self, model_id: str) -> None:
+    def __init__(self, model_id: str, provider: Optional[str] = None) -> None:
+        self.provider = provider
         self.model_id = model_id
         self.calls = 0
         self.input_tokens = 0
@@ -323,7 +329,8 @@ class _UsageAcc:
                        cache_write_input_tokens=self.cache_write_input_tokens,
                        served_models=sorted(self.served),
                        model_fallback=any(not serves_requested(self.model_id, s)
-                                          for s in self.served))
+                                          for s in self.served),
+                       provider=self.provider)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -22,6 +22,14 @@ Providers:
   anthropic  ChatAnthropic; ANTHROPIC_API_KEY read from the environment by the
              SDK. Structured output rides Anthropic tool-use — same LangChain
              surface, include_raw works, usage_metadata is normalized.
+             [Vertex route, owner 2026-10-17 §5] `settings.claude_route` decides WHERE
+             every Claude call goes: "direct" (api.anthropic.com) or "vertex" (Claude
+             on Vertex AI, GCP credentials). The Vertex variant is ChatAnthropic with
+             ONLY its SDK client swapped for `anthropic.AnthropicVertex` — prompts,
+             structured output, thinking, effort, cache_control and usage parsing are
+             the same code on both routes. Logical model ids map to Vertex ids through
+             the closed table VERTEX_MODEL_IDS; an unmapped model is refused, never
+             guessed. `provider_of(llm)` names the route for provenance and the ledger.
   gemini     APPROVED (owner RULING REVERSAL, 2026-08-28 — §1.7's isolation
              condition withdrawn: DSQ headroom dwarfs three months of launch
              volume, so eval traffic on the production project is immaterial).
@@ -89,12 +97,9 @@ def build_chat_model(provider: str, model_id: str, *,
             raise ValueError(f"{model_id}: effort and thinking ({THINKING_MODES}) are set "
                              f"explicitly on every call (AM-G18); got effort={reasoning_effort!r} "
                              f"thinking={thinking!r}")
-        cls = _native_schema_chat_anthropic()
-        return cls(model=model_id, thinking={"type": thinking},
-                   api_key=settings.anthropic_api_key.get_secret_value()
-                   if settings.anthropic_api_key else None, **params)
+        cls = _anthropic_class(native_schema=True)
+        return cls(thinking={"type": thinking}, **_anthropic_target(model_id), **params)
     if provider == "anthropic":
-        from langchain_anthropic import ChatAnthropic
         if thinking is not None:
             params["thinking"] = {"type": thinking}
         # The key comes from SETTINGS, like the openai branch below. Relying on
@@ -102,9 +107,8 @@ def build_chat_model(provider: str, model_id: str, *,
         # that `.env` never exports, and `attach_feedback` swallows the failure
         # into `feedback_unavailable` — so the symptom was silently feedbackless
         # exams, not an error anyone would see (OD-B3, 2026-08-31).
-        return ChatAnthropic(model=model_id,
-                             api_key=settings.anthropic_api_key.get_secret_value()
-                             if settings.anthropic_api_key else None, **params)
+        cls = _anthropic_class(native_schema=False)
+        return cls(**_anthropic_target(model_id), **params)
 
     from langchain_openai import ChatOpenAI
     return ChatOpenAI(model=model_id, api_key=settings.openai_api_key.get_secret_value(), **params)
@@ -132,7 +136,7 @@ NATIVE_SCHEMA_MODELS = ("claude-sonnet-5-5",)
 THINKING_MODES = ("adaptive", "between_tools")      # between_tools ≡ no thinking without tools
 _CLAUDE_5 = ("claude-sonnet-5", "claude-opus-5", "claude-haiku-5", "claude-fable")
 
-_SNAPSHOT = re.compile(r"-(?:\d{8}|\d{4}-\d{2}-\d{2})")
+_SNAPSHOT = re.compile(r"[-@](?:\d{8}|\d{4}-\d{2}-\d{2})")   # `-20251001`, or Vertex's `@20251001`
 
 
 def serves_requested(requested: str, served: str) -> bool:
@@ -142,13 +146,76 @@ def serves_requested(requested: str, served: str) -> bool:
     5.5 request served by 5 passes any prefix test in either direction."""
     if served == requested:
         return True
-    return served.startswith(requested) and _SNAPSHOT.fullmatch(served[len(requested):]) is not None
+    if served.startswith(requested) and _SNAPSHOT.fullmatch(served[len(requested):]) is not None:
+        return True
+    # [Vertex route] the request went out under the VERTEX id; the served id may echo it
+    vertex = VERTEX_MODEL_IDS.get(requested)
+    return vertex is not None and served in (vertex, vertex.replace("@", "-"))
 
 
-def _native_schema_chat_anthropic():
+# ---------------------------------------------------------------------------
+# Claude routes — direct and Vertex (owner ruling 2026-10-17 §5)
+# ---------------------------------------------------------------------------
+
+# Logical (first-party) id → Vertex AI model id. CLOSED: every row was confirmed to exist
+# on Vertex by the 2026-10-17 probe (a 429 quota answer, not a 404, in the `eu`
+# multi-region and `global`). Current-generation models keep their bare id on Vertex;
+# a dated snapshot takes Vertex's `@` separator. A model not listed here is REFUSED on
+# the Vertex route — add a row only after confirming the id on Vertex.
+VERTEX_MODEL_IDS = {
+    "claude-opus-5-5": "claude-opus-5-5",
+    "claude-sonnet-5-5": "claude-sonnet-5-5",
+    "claude-sonnet-5": "claude-sonnet-5",
+    "claude-haiku-4-5": "claude-haiku-4-5@20251001",
+}
+CLAUDE_ROUTES = ("direct", "vertex")
+
+
+def claude_route() -> str:
+    route = (settings.claude_route or "direct").strip().lower()
+    if route not in CLAUDE_ROUTES:
+        raise ValueError(f"CLAUDE_ROUTE must be one of {CLAUDE_ROUTES}, got {settings.claude_route!r}")
+    return route
+
+
+def vertex_model_id(model_id: str) -> str:
+    try:
+        return VERTEX_MODEL_IDS[model_id]
+    except KeyError:
+        raise ValueError(f"{model_id!r} has no confirmed Vertex model id (VERTEX_MODEL_IDS) — "
+                         f"refused rather than guessed") from None
+
+
+def _anthropic_target(model_id: str) -> dict:
+    """The constructor kwargs that pick the route: the model id, and the credentials."""
+    if claude_route() == "vertex":
+        project = settings.claude_vertex_project or settings.google_cloud_project
+        # the Vertex client never reads an Anthropic key: pass none, so no key can leave
+        return {"model": vertex_model_id(model_id), "api_key": "",
+                "vertex_region": settings.claude_vertex_region, "vertex_project": project}
+    return {"model": model_id,
+            "api_key": settings.anthropic_api_key.get_secret_value()
+            if settings.anthropic_api_key else None}
+
+
+_CLASSES: dict = {}
+
+
+def _anthropic_class(*, native_schema: bool):
+    """ChatAnthropic, or its Vertex variant, optionally defaulting structured output to
+    the native json_schema mode. Built once per (route, native_schema): a class per
+    call would defeat isinstance checks (`prompt_cache.supports_cache`)."""
+    route = claude_route()
+    key = (route, native_schema)
+    if key in _CLASSES:
+        return _CLASSES[key]
     from langchain_anthropic import ChatAnthropic
+    base = _vertex_chat_anthropic() if route == "vertex" else ChatAnthropic
+    if not native_schema:
+        _CLASSES[key] = base
+        return base
 
-    class NativeSchemaChatAnthropic(ChatAnthropic):
+    class NativeSchemaChatAnthropic(base):
         """ChatAnthropic whose structured output defaults to the native json_schema
         mode (no forced tool) — the only structured output these models accept.
         Both grader agents call `with_structured_output(schema, include_raw=True)`
@@ -158,7 +225,67 @@ def _native_schema_chat_anthropic():
             kwargs.setdefault("method", "json_schema")
             return super().with_structured_output(schema, include_raw=include_raw, **kwargs)
 
+    _CLASSES[key] = NativeSchemaChatAnthropic
     return NativeSchemaChatAnthropic
+
+
+def _native_schema_chat_anthropic():
+    return _anthropic_class(native_schema=True)
+
+
+_VERTEX_CLS = None
+
+
+def _vertex_chat_anthropic():
+    """ChatAnthropic with its SDK client swapped for `anthropic.AnthropicVertex` (GCP
+    credentials: the Cloud Run service account in production, ADC locally). Everything
+    else — payloads, betas, output_config, cache_control, response and usage parsing —
+    is ChatAnthropic's own code, unchanged. The SDK's retry policy is the factory's
+    (`max_retries` from `_llm_params`, i.e. 0: one retry layer, owned in-pipeline)."""
+    global _VERTEX_CLS
+    if _VERTEX_CLS is not None:
+        return _VERTEX_CLS
+    from functools import cached_property
+
+    from anthropic import NOT_GIVEN, AnthropicVertex, AsyncAnthropicVertex
+    from langchain_anthropic import ChatAnthropic
+
+    class VertexChatAnthropic(ChatAnthropic):
+        vertex_region: str
+        vertex_project: str
+
+        def _vertex_kwargs(self) -> dict:
+            p = self._client_params
+            return {"region": self.vertex_region, "project_id": self.vertex_project,
+                    "max_retries": p["max_retries"], "default_headers": p["default_headers"],
+                    "timeout": p["timeout"] if "timeout" in p else NOT_GIVEN}
+
+        @cached_property
+        def _client(self):
+            return AnthropicVertex(**self._vertex_kwargs())
+
+        @cached_property
+        def _async_client(self):
+            return AsyncAnthropicVertex(**self._vertex_kwargs())
+
+    _VERTEX_CLS = VertexChatAnthropic
+    return VertexChatAnthropic
+
+
+def provider_of(llm) -> str:
+    """[§5a] The route a model's calls take — stamped into draft provenance and the
+    cost ledger: `vertex:<region>`, `anthropic`, `openai`, `gemini`, or the class name."""
+    region = getattr(llm, "vertex_region", None)
+    if region:
+        return f"vertex:{region}"
+    name = type(llm).__name__
+    if "Anthropic" in name:
+        return "anthropic"
+    if "OpenAI" in name:
+        return "openai"
+    if name == "_GenAIChat":
+        return "gemini"
+    return name
 
 
 class _GenAIChat:

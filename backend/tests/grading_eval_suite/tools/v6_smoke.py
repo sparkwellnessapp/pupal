@@ -12,8 +12,11 @@ Per subject, from `smoke/known_answers.json` (written, with every intended class
      call per scope that needs language, ≤ 1 repair, rule 7 strict → lenient. Recorded to
      `smoke/<subject>.<planner>.recorded.json` (replayable, $0), rendered for REVIEW.
   2. GRADE — each known answer as an approved transcription contract (P1 out of scope),
-     compiled to a GradableTest, graded by v6 k=1: verifier Sonnet 5.5 (adaptive, effort
-     low, as registered for the CS eval), explainer arm A (Haiku 4.5).
+     compiled to a GradableTest, graded by v6 k=1 on the PRODUCTION config (Oct 17 §6b, §7):
+     verifier Sonnet 5.5 (adaptive, effort low), NO explainer — the renders show the
+     fallback composer line. Order (§6b): the blank/wrong answers, then the partial ones,
+     then the fully correct ones; a step whose estimate exceeds what is left of `--max-usd`
+     does not start, and the report says what ran.
   3. SCORE — every criterion's class (full / partial / zero) from THE pricer, against the
      intended class, and the five pre-registered pass conditions:
        · 0 K1-class events (credit on a criterion intended zero — blank or wrong work);
@@ -25,8 +28,8 @@ Per subject, from `smoke/known_answers.json` (written, with every intended class
   4. RENDER — `docs/plans/v6_smoke_<subject>.md`: her criterion rows for every answer with
      the reasoning line; the expanded checks for the partial answer and for every miss.
 
-The spend rules are the eval's: the eval key only (`require_eval_key`), a one-token canary
-per model before any call, a hard `--max-usd` (a scope never starts past it).
+The spend rules are the eval's: Vertex only (`require_eval_key`, Oct 17 §4), a one-token
+canary per model before any call, a hard `--max-usd` (a scope never starts past it).
 """
 from __future__ import annotations
 
@@ -63,7 +66,8 @@ SMOKE = SUITE / "smoke"
 DOCS = BACKEND.parent / "docs" / "plans"
 VERIFIER_KEY = "claude-sonnet-5.5"
 VERIFIER_PARAMS = {"reasoning_effort": "low", "thinking": "adaptive"}     # as registered (CS eval)
-EXPLAINER_KEY = "claude-haiku-4.5"
+EXPLAINER_KEY = "claude-sonnet-5.5"                                     # OO-3 arm B (unused in §6b)
+WITH_EXPLAINER = False                                                  # §6b: NO explainer
 INTENDED_SHARE = Decimal("0.90")
 
 
@@ -171,23 +175,41 @@ def _grader(the_plan, contract):
     s = spec(VERIFIER_KEY)
     llm = build_chat_model(s.provider, s.model_id, reasoning_effort=VERIFIER_PARAMS["reasoning_effort"],
                            thinking=VERIFIER_PARAMS["thinking"])
+    if not WITH_EXPLAINER:                                  # §6b: no explainer — fallback lines
+        return OptionsVerifyGrader(the_plan, contract, llm=llm, model_version=s.model_id, profile=profile)
     explain = _build_explain({"explainer": {"model_key": EXPLAINER_KEY, "params": {}},
                               "record_explainer_payloads": False}, profile)
     return OptionsVerifyGrader(the_plan, contract, llm=llm, model_version=s.model_id, profile=profile,
                                explain=explain, explainer_prompt_version=EXPLAINER_PROMPT_VERSION)
 
 
-async def grade(entry, contract, the_plan, run_dir: Path) -> Dict[str, Path]:
+# §6b: the blank/wrong answers first, then the partial ones, then the fully correct ones
+GRADE_ORDER = ("A3", "A2", "A1")
+# a step's estimate before it starts: run 10's measured verifier cost per call (Sonnet 5.5,
+# effort low, cached) × the answered scopes, with headroom; actuals come from the drafts
+VERIFIER_USD_PER_CALL = 0.0100
+
+
+def _answered_scopes(answers) -> int:
+    return sum(1 for subs in answers.values() for text in subs.values() if text.strip()) or 1
+
+
+async def grade_one(contract, the_plan, name: str, answers, run_dir: Path) -> Path:
     from app.services import gradable_compiler
-    out = {}
-    for name, answers in entry["answers"].items():
-        gradable = gradable_compiler.compile(contract, transcription(answers))
-        draft = await _grader(the_plan, contract).grade(gradable)
-        p = run_dir / f"{name}.json"
-        p.write_text(draft.model_dump_json(indent=1), encoding="utf-8")
-        out[name] = p
-        print(f"  graded {name}", flush=True)
-    return out
+    gradable = gradable_compiler.compile(contract, transcription(answers))
+    draft = await _grader(the_plan, contract).grade(gradable)
+    p = run_dir / f"{name}.json"
+    p.write_text(draft.model_dump_json(indent=1), encoding="utf-8")
+    return p
+
+
+def draft_cost(path: Path) -> float:
+    from app.schemas.graded_test_draft import GradedTestDraft
+    from app.schemas.graded_test_draft_v6 import v6_content
+    from tests.grading_eval_suite.v6_cost import usage_cost
+    c = v6_content(GradedTestDraft.model_validate_json(path.read_text(encoding="utf-8")))
+    return (usage_cost(c.verifier_usage.model_dump() if c.verifier_usage else None)
+            + usage_cost(c.explainer_usage.model_dump() if c.explainer_usage else None))
 
 
 # ── 3 · score ──────────────────────────────────────────────────────────────────
@@ -219,7 +241,8 @@ def score(entry, the_plan, results, drafts: Dict[str, Path]) -> dict:
     full_name = next(n for n in entry["intended"] if n.startswith("A1"))
     a1_not_full = [r for r in rows if r["answer"] == full_name and r["got"] != "full"]
     hit = sum(r["got"] == r["intended"] for r in rows)
-    share = Decimal(hit) / Decimal(len(rows))
+    share = Decimal(hit) / Decimal(len(rows)) if rows else Decimal(0)
+    missing = [n for n in entry["intended"] if n not in drafts]
     plan_fallbacks = [r.scope for r in results if r.origin == "fallback"]
     downgraded = [r.scope for r in results if any(x.startswith("am_g19_downgraded") for x in r.telemetry)]
     levels_ok = None
@@ -236,6 +259,7 @@ def score(entry, the_plan, results, drafts: Dict[str, Path]) -> dict:
     if levels_ok is not None:
         checks["english_levels"] = (levels_ok, "every credit a compiled `levels` check" if levels_ok
                                     else "NOT every credit is a compiled levels check")
+    checks["all_answers_ran"] = (not missing, f"not run: {missing}" if missing else "3/3")
     return {"rows": rows, "checks": checks, "pass": all(ok for ok, _ in checks.values()),
             "grading_cost": cost, "model_fallback_scopes": fallbacks, "contents": contents}
 
@@ -256,7 +280,7 @@ def render(subject: str, entry, contract, the_plan, results, scored, planner_key
     L = [f"# grader-v6 known-answer smoke — {subject}", "",
          f"**Verdict: {'PASS' if scored['pass'] else 'FAIL'}** · planner `{planner_key}` "
          f"(planner-v6.2) · plan `{the_plan.plan_hash[:12]}…` · verifier Sonnet 5.5 (effort low) · "
-         f"explainer Haiku 4.5 · k=1", "",
+         f"no explainer (the fallback composer's lines) · k=1 · route `{_route()}`", "",
          f"Cost: planner ${plan_cost:.4f} · grading ${scored['grading_cost']:.4f} "
          f"({len(entry['answers'])} answers) · run `{run_dir.name}`", "",
          "| pass condition | result | |", "|---|---|---|"]
@@ -296,46 +320,84 @@ def render(subject: str, entry, contract, the_plan, results, scored, planner_key
 
 # ── main ───────────────────────────────────────────────────────────────────────
 
+SUBJECTS = ("mathematics", "english")                  # §6b: plan Math, then English
+
+
+def _route() -> str:
+    from app.agents.grader.llm_factory import claude_route
+    from app.config import settings
+    return f"vertex:{settings.claude_vertex_region}" if claude_route() == "vertex" else "direct"
+
+
 async def main_async(a) -> int:
-    entry, contract = load_subject(a.subject)
+    subjects = SUBJECTS if a.subject == "both" else (a.subject,)
     live = a.confirm_spend
     if live:
+        from tests.eval_common.canary import canary
         from tests.eval_common.eval_key import require_eval_key
-        from tests.grading_eval_suite.tools.plan_v6 import _canary
         from tests.eval_common.models_registry import spec
         require_eval_key()
-        for mid in sorted({MODEL_CARDS[a.planner].model_id, spec(VERIFIER_KEY).model_id,
-                           spec(EXPLAINER_KEY).model_id}):
-            _canary(mid)
-    s1, results, the_plan, plan_cost = await plan(a.subject, contract, a.planner, live=live, max_usd=a.max_usd)
-    print(f"== plan {the_plan.plan_hash[:12]} · ${plan_cost:.4f}", flush=True)
+        for mid in sorted({MODEL_CARDS[a.planner].model_id, spec(VERIFIER_KEY).model_id}):
+            canary(mid)
+    spent, ran, stopped = 0.0, [], None
+    state = {}
+    for subject in subjects:                           # 1 · plan every subject first
+        entry, contract = load_subject(subject)
+        s1, results, the_plan, plan_cost = await plan(subject, contract, a.planner, live=live,
+                                                      max_usd=max(a.max_usd - spent, 0.0))
+        spent += plan_cost
+        state[subject] = dict(entry=entry, contract=contract, results=results, plan=the_plan,
+                              plan_cost=plan_cost, drafts={})
+        print(f"== plan {subject} {the_plan.plan_hash[:12]} · ${plan_cost:.4f} · spent ${spent:.4f}", flush=True)
     if a.run_dir:
         run_dir = Path(a.run_dir)
-        drafts = {p.stem: p for p in sorted(run_dir.glob("A*.json"))}
+        for subject, st in state.items():
+            st["drafts"] = {p.stem.split("__", 1)[1]: p for p in sorted(run_dir.glob(f"{subject}__A*.json"))}
     else:
         if not live:
             raise SystemExit("grading spends money: pass --confirm-spend, or --run-dir to re-score")
-        run_dir = SUITE / "results" / f"{datetime.now():%Y%m%d-%H%M%S}_v6-smoke-{a.subject}"
+        run_dir = SUITE / "results" / f"{datetime.now():%Y%m%d-%H%M%S}_v6-smoke"
         run_dir.mkdir(parents=True)
-        drafts = await grade(entry, contract, the_plan, run_dir)
-    scored = score(entry, the_plan, results, drafts)
-    md = render(a.subject, entry, contract, the_plan, results, scored, a.planner, plan_cost, run_dir)
-    (DOCS / f"v6_smoke_{a.subject}.md").write_text(md, encoding="utf-8")
-    (run_dir / "smoke.json").write_text(json.dumps({
-        "subject": a.subject, "planner": a.planner, "plan_hash": the_plan.plan_hash,
-        "pass": scored["pass"], "checks": {k: [ok, d] for k, (ok, d) in scored["checks"].items()},
-        "planner_cost_usd": round(plan_cost, 6), "grading_cost_usd": round(scored["grading_cost"], 6),
-        "model_fallback_scopes": scored["model_fallback_scopes"],
-        "rows": [{**r, "awarded": str(r["awarded"]), "possible": str(r["possible"])} for r in scored["rows"]],
-    }, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(md)
-    return 0 if scored["pass"] else 1
+        for prefix in GRADE_ORDER:                     # 2 · wrong → partial → full, across subjects
+            for subject, st in state.items():
+                name = next(n for n in st["entry"]["answers"] if n.startswith(prefix))
+                est = VERIFIER_USD_PER_CALL * _answered_scopes(st["entry"]["answers"][name])
+                if spent + est > a.max_usd:
+                    stopped = f"{subject} {name}: estimate ${est:.4f} > ${a.max_usd - spent:.4f} left"
+                    break
+                path = await grade_one(st["contract"], st["plan"], f"{subject}__{name}",
+                                       st["entry"]["answers"][name], run_dir)
+                st["drafts"][name] = path
+                cost = draft_cost(path)
+                spent += cost
+                ran.append(f"{subject} {name} ${cost:.4f}")
+                print(f"  graded {subject} {name} · ${cost:.4f} · spent ${spent:.4f}", flush=True)
+            if stopped:
+                print(f"STOPPED before {stopped}", flush=True)
+                break
+    verdicts = {}
+    for subject, st in state.items():                  # 3 · score + render what ran
+        scored = score(st["entry"], st["plan"], st["results"], st["drafts"])
+        md = render(subject, st["entry"], st["contract"], st["plan"], st["results"], scored, a.planner,
+                    st["plan_cost"], run_dir)
+        (DOCS / f"v6_smoke_{subject}.md").write_text(md, encoding="utf-8")
+        verdicts[subject] = scored["pass"]
+        (run_dir / f"smoke_{subject}.json").write_text(json.dumps({
+            "subject": subject, "planner": a.planner, "plan_hash": st["plan"].plan_hash, "route": _route(),
+            "pass": scored["pass"], "checks": {k: [ok, d] for k, (ok, d) in scored["checks"].items()},
+            "planner_cost_usd": round(st["plan_cost"], 6), "grading_cost_usd": round(scored["grading_cost"], 6),
+            "model_fallback_scopes": scored["model_fallback_scopes"],
+            "rows": [{**r, "awarded": str(r["awarded"]), "possible": str(r["possible"])} for r in scored["rows"]],
+        }, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(md)
+    print(f"== smoke: {verdicts} · total ${spent:.4f} · ran {ran}" + (f" · stopped before {stopped}" if stopped else ""))
+    return 0 if all(verdicts.values()) else 1
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--subject", required=True, choices=("mathematics", "english"))
-    ap.add_argument("--planner", required=True, choices=sorted(MODEL_CARDS))
+    ap.add_argument("--subject", default="both", choices=("both",) + SUBJECTS)
+    ap.add_argument("--planner", default="claude-opus-5.5", choices=sorted(MODEL_CARDS))   # §7 production
     ap.add_argument("--confirm-spend", action="store_true")
     ap.add_argument("--replay", action="store_true", help="plan from the recording ($0)")
     ap.add_argument("--run-dir", default=None, help="re-score the drafts of an earlier run ($0)")

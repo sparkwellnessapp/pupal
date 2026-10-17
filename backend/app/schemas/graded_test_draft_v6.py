@@ -55,6 +55,7 @@ class UsageV6(BaseModel):
     cache_write_input_tokens: int = 0                 # cache WRITES (billed at 1.25× input)
     served_models: List[str] = Field(default_factory=list)
     model_fallback: bool = False                     # [AM-G18] a call served by another model
+    provider: Optional[str] = None                   # [§5a] the route: `vertex:<region>` | `anthropic`
 
 
 class ScopeRecordV6(BaseModel):

@@ -3115,3 +3115,62 @@ second exam, not another dollar on this one.**
 - **Predictions:** P-v6-11 FALSIFIED (K2, K4; G-Z and K1 hold) · P-v6-12 FALSIFIED (38.6%) · P-v6-2 CONFIRMED · P-v6-4 CONFIRMED · P-v6-7 FALSIFIED by $0.0054.
 - **Not run:** the Math/English smoke. It is prepared and pre-registered; ≈ $2.3 on the Opus planner, which does not fit the $2.61 left safely.
 - **Ledger:** runs 1–7 $15.3505 · 8 $1.1187 · 9 $2.1197 · 10 $3.7962 → **$22.3851 of $25. $2.61 left.**
+
+## 2026-10-17 · OWNER RULINGS, 17:30 consolidated — recorded (supersedes earlier rulings where they conflict)
+
+- **Owner overrides (OO; overrides, NOT bar changes; gate code unchanged):**
+  - **OO-1, K2:** 15.0% (44/294) accepted on n=12. The recorded trade, v6 vs v5: over-credited 36 points vs 22; G-Z points lost 68.5 vs 82; total gap 5.3 vs 14.5; K3 0.784 vs 0.693. Rationale (owner): the teacher reviews every grade, and over-credit is visible on expand.
+  - **OO-2, K4:** 8.5 accepted on n=12 (one student, hobby din_ezra). No self-consistency.
+  - **OO-3, explainer:** Sonnet 5.5 at its lowest effort (arm B), by the owner's read. This overrides the cheapest-qualifier rule. The exact cost per test of the shipping configuration is computed from the recorded runs ($0).
+  - **OO-4, minimum viable cutover:** the §7 scope replaces the G3–5 remainder. OD-G6 is reversed for this PR: `/similar` moves to v6.1 with the other MVC deferrals.
+- **§3, Decided — pending veto: all five accepted** (rule-7-only repair keeps the output; planner prompt cached; the re-based K2 bar in `tools/v6_report.py`, superseded for shipping by OO-1; a teacher-stated partial quoted verbatim with a matching value; the smoke fixtures math3 + the Ministry rubric with exam 016584's task).
+- **Deferred to v6.1** (backlog):
+  - **Quality:** AM-G19 × split; the verifier literal-check rule; K4 self-consistency; first-person absence pointers; CL-4..6.
+  - **Product:** `/similar` (OD-G6); `/explanations` and `criterion_explanations`; typed per-check amounts and the evidence-dispute UI for v6; the legacy v5→v6 view, the G4 parity gate and A-1.
+  - **Other:** Track C; F-4.
+  - **Freeze:** planner-v6.2 / Opus 5.5, and the verifier and explainer prompts exactly as evaluated in run 10 (arm B for the explainer). A provider-route change is not a prompt or model change.
+- **Budget and providers (§4):**
+  - Anthropic direct API: **ZERO eval spend** from now on. Its ≈ $2 serves v5 production only, until production moves to Vertex.
+  - GCP credits ≈ $20, shared with existing Vertex use. **This PR may spend at most $3** (route canaries + the graded smoke).
+  - Each run: an estimate before and an actual after, with the provider named. GCP billing is the source of truth.
+- **Vertex route GO (§5):** a Claude-on-Vertex provider route in the model factory, by config. An EU region if Sonnet 5.5 and Opus 5.5 are both served there, else `global`. Verify caching, effort/thinking, structured output, provenance and usage per model. **§5d is authorized:** switch ALL production Claude calls to Vertex by config, as its own small deploy, after the canaries pass.
+- **Smoke (§6):** a $0 structural pass now; the graded pass on Vertex (k=1, NO explainer, the production config) inside the $3; no pack iterations.
+- **MVC build (§7), STOP-3 GO pre-granted (§8), the flip (§9), the production leg (§10), DoD (§11), STOP conditions (§12)** as written in the owner's text.
+
+## 2026-10-17 · SPEND ESTIMATE · Vertex route canaries (GCP; this PR's GCP ledger opens at $0 of $3)
+
+- **What:** the region and model-availability probe for the Vertex route.
+  - One `max_tokens=1` call per model: `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-sonnet-5`, `claude-haiku-4-5@20251001`.
+  - Per candidate region: the EU regions first (`europe-west1`, `europe-west4`, the `eu` multi-region), then `global`.
+- **Client:** `anthropic.AnthropicVertex`, project `gen-lang-client-0438328890`, from local ADC.
+- **Estimate:** at most 16 calls × ≈ 20 input + 1 output tokens ≈ **$0.002**.
+
+## 2026-10-17 · VERTEX ROUTE — STOP (§12e): Claude quota is 0 on the project. Actual GCP spend $0
+
+- **Probe** (`anthropic.AnthropicVertex`, local ADC, project `gen-lang-client-0438328890`): 16 calls = {opus-5-5, sonnet-5-5, sonnet-5, haiku-4-5@20251001} × {europe-west1, europe-west4, eu, global}.
+  - **Every call returned 429 RESOURCE_EXHAUSTED**, e.g. «Quota exceeded for aiplatform.googleapis.com/eu_multi_region_online_prediction_requests_per_base_model with base model: anthropic-claude-sonnet. Please submit a quota increase request.»
+  - Sonnet 5 and Haiku 4.5 returned **404** in europe-west1/west4: not served there.
+  - The Cloud Quotas API (`gcloud beta quotas info list`): every Anthropic base-model quota (Global*/Eu*/Us*/regional; requests, input TPM, output TPM) has **no value set, which means 0**.
+- **Availability read from it** (a 429 means the model exists; a 404 means it does not): opus-5-5 and sonnet-5-5 are served in europe-west1, europe-west4, `eu` and `global`; sonnet-5 and haiku-4-5 in `eu` and `global` only.
+- **Region: `eu` multi-region** (decided, pending veto). EU data residency, matching the Frankfurt database, and the only EU location serving all four models that production v5 and v6 need.
+  - The regional-endpoint price premium, if any, could not be read: the pricing page renders client-side. GCP billing is the source of truth.
+- **The owner must:**
+  1. request the three `Eu*PerBaseModel` quotas for `anthropic-claude-sonnet` (300 RPM / 2M ITPM / 200k OTPM), `anthropic-claude-opus` (30 / 300k / 100k) and `anthropic-claude-haiku-4-5` (30 / 100k / 20k). Sizing is from run 10's measured per-call tokens;
+  2. confirm the GCP credits apply to Vertex AI partner (Anthropic) models.
+- **Actual: $0** (all rejected, nothing billed). **GCP ledger $0 of $3.** Continuing the $0 work (§5a code + tests, §6a, §7, OO-3).
+
+## 2026-10-17 · §5a route BUILT (offline) · §6a structural smoke PASSES ($0)
+
+- **§5a, the Claude-on-Vertex route** (offline; live verification waits on the quota):
+  - **Switch:** `settings.claude_route` (`CLAUDE_ROUTE`: `direct` | `vertex`), with `claude_vertex_region` (default `eu`) and `claude_vertex_project` (default `GOOGLE_CLOUD_PROJECT`). One switch for every factory-built Claude call: the v5 grader, the plan builder, feedback, grader selection, and the v6 planner/verifier/explainer.
+  - **Vertex variant:** ChatAnthropic with only its SDK client swapped for `AnthropicVertex`, so payloads, json_schema structured output, thinking/effort, cache_control and usage parsing are unchanged code. It uses 0 SDK retries and sends no Anthropic key.
+  - **Model ids:** the closed `VERTEX_MODEL_IDS` table (opus-5-5, sonnet-5-5, sonnet-5 bare; haiku-4-5 → `@20251001`). An unmapped id is refused. `serves_requested` accepts the `@` snapshot form.
+  - **Provenance:** `GradedTestDraft.llm_provider` and `UsageV6.provider` (`vertex:eu` | `anthropic`); the planner usage records `provider`; runner provenance records `claude_route`.
+  - **Tests:** the provider guard now also blocks `aiplatform.<eu|us>.rep.googleapis.com` (the multi-region hosts it missed); `test_claude_vertex_route.py` has 18 tests.
+- **Eval guard (§4):** the launcher (`python -m tests.eval_common.eval_key …`) now sets `CLAUDE_ROUTE=vertex` and BLANKS `ANTHROPIC_API_KEY`, shadowing `backend/.env`. `require_eval_key()` refuses unless the run is on Vertex with no Anthropic key. The canaries (`tests.eval_common.canary`, `plan_v6._canary`) call Vertex. `vivi-eval.env` is no longer read.
+- **Regressions:** agents + subjects + grading_eval_suite + services + eval_common: 1350 passed. 1 failure under xdist: `test_plan_compiler_stage0::test_depth_2_scopes…`, a bagrut GT hash pin. It **passes alone**, and no data file changed; a parallel test touches the file transiently.
+- **§6a structural smoke** (`tools/v6_smoke_structural.py` → `docs/plans/v6_smoke_structural.md`), math3 + the English writing rubric:
+  - Stage 1 compiles with no error. English: 4 `levels` checks from the C8-lite band ladder (8/5/2/0 · 10/6/3/0 · 16/10/5/0 · 6/4/2/0). Math: 23 scopes, 31 single-component criteria.
+  - The deterministic FALLBACK plans pass V12–V20 clean; V21: 0.
+  - Every answer's verifier payload: aliases only, value-invariant. Every rendered explainer message: aliases only.
+  - Hand-selected pricing: 0 for wrong/blank ✅, full for fully correct ✅, partial wherever the plan can express it ✅. **Not expressible on the fallback plan** (single binary checks): Math A2 `q1.ג.c0`, `q1.ג.c2`, `q2.ב.c0`, `q4.ד.c0`, `q5.ב.c0`. That is expected of a fallback; the planner's plan is what §6b grades.

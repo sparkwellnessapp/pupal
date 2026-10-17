@@ -44,6 +44,8 @@ def is_provider_host(host) -> bool:
     h = host.strip().lower().rstrip(".")
     if h.endswith("-aiplatform.googleapis.com"):   # Vertex regional: europe-west1-aiplatform…
         return True
+    if h.startswith("aiplatform.") and h.endswith(".rep.googleapis.com"):   # Vertex multi-region: eu, us
+        return True
     return any(h == s or h.endswith("." + s) for s in PROVIDER_HOST_SUFFIXES)
 
 

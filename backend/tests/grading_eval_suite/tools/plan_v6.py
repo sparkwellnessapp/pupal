@@ -60,16 +60,10 @@ RENDER_DIR = BACKEND.parent / "docs" / "plans"
 
 
 def _canary(model_id: str) -> None:
-    """One token to the planner's provider before any spend; refuses on failure."""
-    import anthropic
-    from app.config import settings
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key.get_secret_value())
-    try:
-        client.messages.create(model=model_id, max_tokens=1,
-                               messages=[{"role": "user", "content": "ok"}])
-    except anthropic.APIStatusError as e:
-        raise SystemExit(f"credit canary FAILED ({e.status_code}) — no spend; offline work continues")
-    print(f"credit canary: {model_id} OK")
+    """One call to the planner's model before any spend, on the route the run spends on
+    (Vertex since 2026-10-17 §4 — `tests.eval_common.canary`); refuses on failure."""
+    from tests.eval_common.canary import canary
+    canary(model_id)
 
 
 def _recorded_call(recorded: dict):
