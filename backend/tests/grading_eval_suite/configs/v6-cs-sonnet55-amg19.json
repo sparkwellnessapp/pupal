@@ -1,0 +1,19 @@
+{
+ "model_key": "claude-sonnet-5.5",
+ "architecture": "v6",
+ "plans": {
+  "hobby_tvshow": "plans/v6/hobby_tvshow.plan.json",
+  "bagrut_899371": "plans/v6/bagrut_899371.plan.json"
+ },
+ "params": {
+  "reasoning_effort": "low",
+  "thinking": "adaptive"
+ },
+ "explainer": {
+  "model_key": "claude-haiku-4.5",
+  "params": {}
+ },
+ "record_explainer_payloads": true,
+ "cost_ceiling": 0.15,
+ "notes": "AM-G19 CS re-run (owner rulings 2026-10-06 evening §7.4): the plans are the §13.1 winner of the planner-v6.2 re-plan (Sonnet 5.5 vs Opus 5.5, effort high), pinned by plan_hash; verifier Sonnet 5.5 at adaptive thinking / effort low (as registered), explainer arm A = Haiku 4.5, payloads recorded. 12 fixtures, k=3. Gates as pre-registered in PREDICTIONS.md «the AM-G19 iteration»."
+}

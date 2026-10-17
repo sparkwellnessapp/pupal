@@ -193,6 +193,7 @@ gen-lang-client-*.json
 !tests/grading_eval_suite/fixtures/*.json
 !tests/grading_eval_suite/benchmarks/**/*.json
 !tests/grading_eval_suite/plans/**/*.json
+!tests/grading_eval_suite/smoke/**/*.json
 # [D-5, owner ruling Track B 2026-09-27] exam 2 (bagrut_899371) landed its
 # rubric and transcription contracts at the suite root, outside the negations
 # above — so they never left one working tree and the exam could not run from

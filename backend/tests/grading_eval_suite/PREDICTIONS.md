@@ -628,3 +628,29 @@ Provenance for all three: the served model id is recorded from every response. A
 - **P-v6-12:** the share of K2 cells sitting on inexpressible GT values falls from 68% (34/50) to under 30%.
 
 **Reported beside them, never gated, never tuned on tonight:** K2 and G-Z split by the cell's full value (the terminal's points, < 2 vs ≥ 2), in cells and in points over-credited / lost. The split covers v5, v6 on the v6.1 plans (Sonnet 5.5 and the Sonnet 5 diagnosis) and v6 on the AM-G19 plans (`tools/v6_residual.py`).
+
+### The Math / English known-answer smoke — intended classes (registered BEFORE any smoke run)
+
+Ruling Oct 6 §3 item 7c; it runs only if the AM-G19 CS re-run holds its kills and gates (§7.5), on the same planner choice.
+- **Data:** `smoke/known_answers.json` (answers + every intended class). Neither rubric has real student answers, so there are three typed answers per rubric, injected as approved transcription contracts.
+- **Math** (math3, the 3-unit rubric; choose 4 of 5): the answers cover q1, q2, q4 and q5, 19 criteria each.
+  - **A1, fully correct:** 19 × full.
+  - **A2, partial:** 9 full · 5 partial · 5 zero.
+    - It carries ONE follow-through error: 25% of 3.6 slipped to 0.8, so side a = 4.4 (q1.ג.c0 partial).
+    - q1.ד (4.4 · 6 = 26.4) and q1.ה (52.78%) carry that value correctly and are intended **full**.
+    - Partial: q1.ג.c0, q1.ג.c2, q2.ב (√541 mis-taken as 23.6), q4.ד (60x = 1620 → x = 28), q5.ב (offer A only).
+    - Zero: q1.ב (a diagonal by adding sides), q2.ג (blank), q4.ג (y = 90 + x), q5.א (blank), q5.ד (30x = 1000).
+  - **A3, wrong:** 19 × zero (on-topic but wrong attempts).
+  - math4 was not chosen because parts of it have no content at all (q2 has no scheme; q4.ו and q5.ד are bare labels), so a "fully correct" answer cannot be known there.
+- **English** (the Ministry F/G writing rubric, 4 band-ladder criteria, 40 points):
+  - The rubric gets exam 016584's own writing task as its question text («Would you like to go on a last-chance tour?…», english_1 q2, verbatim). This is the A-9 merge, done by hand for the smoke.
+  - **A1, a 100–120-word composition at the top band:** 4 × full.
+  - **A2, a middle level:** 4 × partial (PARTIALLY or MINIMALLY CORRECT — both are the partial class).
+  - **A3, blank:** 4 × zero.
+- **Pass (as ruled), per subject:**
+  - 0 K1-class events (credit on a criterion intended zero);
+  - A1 at full on every criterion;
+  - ≥ 90% of criteria in their intended class (Math ≥ 52/57, English ≥ 11/12);
+  - no unrepaired validator error (a fallback or a rule-7 downgrade counts), every fallback reported;
+  - English: every criterion a compiled `levels` check on its C8-lite bands.
+- **On failure:** up to 2 fix iterations, touching ONLY that subject's pack fragment, then STOP (g).

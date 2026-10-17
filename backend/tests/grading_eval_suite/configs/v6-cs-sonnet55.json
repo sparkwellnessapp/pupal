@@ -2,8 +2,8 @@
  "model_key": "claude-sonnet-5.5",
  "architecture": "v6",
  "plans": {
-  "hobby_tvshow": "plans/v6/hobby_tvshow.plan.json",
-  "bagrut_899371": "plans/v6/bagrut_899371.plan.json"
+  "hobby_tvshow": "plans/v6/archive/hobby_tvshow.planner-v6.1.plan.json",
+  "bagrut_899371": "plans/v6/archive/bagrut_899371.planner-v6.1.plan.json"
  },
  "params": {"reasoning_effort": "low", "thinking": "adaptive"},
  "explainer": {"model_key": "claude-haiku-4.5", "params": {}},
