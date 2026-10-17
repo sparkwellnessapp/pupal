@@ -3222,3 +3222,25 @@ second exam, not another dollar on this one.**
   - **Fix:** the test now SERVES the changed bytes through a patched `Path.read_bytes`, scoped to its own process, and never writes the file. The demonstrated property is unchanged.
   - The suite's other file-writing tests are all `tmp_path`-rooted.
 - **The §7 deploy is gated now only by production access.** The local permission policy refuses production reads, so the pre-035 dump, migration 035 and therefore the backend deploy wait on the owner. Runbook delivered.
+
+## 2026-10-17 · §7 DEPLOYED (035 + backend + frontend) · Vertex quota REFUSED by Google · OWNER RULING B
+
+- **§7 deploy** (owner switched Claude Code to Manual mode; each production command approved by him):
+  1. **Preflight** (read-only): ledger 001–034, 035 absent; grading_plans 6 · graded_tests 34 · rubrics 3 · users 3.
+  2. **Dump:** `pg_dump -Fc --schema=public` via the session pooler → `vivi_pre035_20261017.dump` (858 KB; 264 TOC entries, 26 tables with data). Local: `~/vivi-private/db-archive/`. Archived to `gs://grader-vision-pdfs-0438328890/db-archive/`.
+  3. **035 applied** in one transaction (`psql -v ON_ERROR_STOP=1`): `UPDATE 6` (every plan → `config_hash='v5'`), the new live-row index before the old one's drop, commit token.
+  4. **Verified:** ledger 001–035; `config_hash` NOT NULL default 'v5'; `plan_hash` on both tables; only the new index; counts unchanged.
+  5. **Backend:** revision **`gradervision-backend-00054-h5b`** (main `ab53a01`, clean worktree; `.env`/keys excluded by `.gcloudignore`), 100% traffic, env unchanged (`GRADER_ARCHITECTURE` unset ⇒ v5, `CLAUDE_ROUTE` unset ⇒ direct).
+  6. **Gate:** `/health` 200; boot log `SCHEMA OK: migration head 035 (35 applied; 1 constraint attribute(s) + 8 partial index(es) verified)`; no ERROR; `GET …/graded_test/{id}/v6` unauthenticated → 401 (the route exists).
+  7. **Frontend:** mirrored (18 files; `frontend` tree == `grader-frontend` tree `55e37b3a`), `frontend-deployment` → `2ae1041`.
+- **Vertex quota: REFUSED by Google Cloud Support** ("unable to grant additional quota at this time… new project, wait 48h or until the billing account has history; contact Sales").
+  - Probe ($0, 429s): the quota `base_model` per model is Opus 5.5 → `anthropic-claude-opus`, Haiku 4.5 → `anthropic-claude-haiku-4-5`, **Sonnet 5.5 AND Sonnet 5 → `anthropic-claude-sonnet` (one shared quota)**.
+  - Advised: Sales now; resubmit in 48h at starter values (Sonnet 60 RPM / 500k / 50k; Opus 10 / 100k / 20k; Haiku 10 / 50k / 10k); confirm the credits cover partner models.
+- **OWNER RULING B (2026-10-17): "B, cap $3".** The §6b smoke runs on the **Anthropic direct API**, capped at $3, on the dedicated EVAL key (`backend/vivi-eval.env`, never `.env` or the production key). Then the §9 flip to `GRADER_ARCHITECTURE=v6` on the direct route; the move to Vertex follows by config when quota lands.
+  - The launcher gained `--direct` (`tests/eval_common/eval_key.py`). It loads only the eval-key file, refuses without it, and `require_eval_key()` refuses any route/key/mark disagreement. The canary is route-aware; 16 guard tests.
+- **SPEND ESTIMATE · §6b smoke · provider: Anthropic direct API (eval key) · cap $3.00:**
+  - credit canary (Opus 5.5, Sonnet 5.5): ≈ $0.001;
+  - planning Math on Opus 5.5 (effort high, planner-v6.2): ≈ $1.2;
+  - English needs no planner call (C8-lite ladder compiles);
+  - grading 6 tests (Math + English × A3/A2/A1), verifier Sonnet 5.5 low, k=1, NO explainer: ≈ $0.4.
+  - **Total ≈ $1.6.** The tool checks the remaining budget before every step and never starts one past the cap.
