@@ -223,6 +223,46 @@ Recorded verbatim in substance. Code comments and RUNLOG cite the **AM-G** and *
   - D-13 deployed → production plans rebuilt → eval plans re-routed ($0.50; hobby 13/13 routed, 189/190; bagrut 14/15, 288/298) → canary + a live smoke of both request shapes → **both arms running** (12 fixtures, k=3, guard report-only).
 - **A-10 amendments:** in progress in their own worktree (a native Postgres 17.6 cluster, since Docker Desktop fails to start: decided, pending veto).
 
+### Oct 6, final rulings (owner) — recorded late; RUNLOG 2026-10-06 «OWNER RULINGS» holds the detail
+
+| Ruling | Content |
+|---|---|
+| **Ship goal (STOP-3 GO)** | (1) the kills hold on the CS eval; (2) G-D1 = G-D2 = 0; (3) K3 and G-Z no worse than the v5 baseline; (4) cost per test below v5's; (5) the Math and English known-answer smokes pass. |
+| **Closed / accepted** | A-10 closed (T1 12:33 accepted; `pytest-xdist` in the test deps). Native PG 17.6 + the schema copy with 035 reversed accepted (regenerate when 035 merges). Data API: `public` removed. The seed accounts do not exist in production. Track C PAUSED. Per-subject cutover REJECTED. |
+| **Budget** | Only `backend/vivi-eval.env`, through the eval-key launcher; never printed, logged or committed; never the production key. $19 hard cap. Before each spend run: the estimate in RUNLOG and a one-token canary per provider; after it, actuals and the cumulative total. |
+| **Critical path** | 1 SEC-1 · 2 D-13+A-8 · 3 AM-G17/18 · 4 the v6 planner on Sonnet 5.5 + REVIEW-2 · 5 the v5 baseline (k=2) + EVAL_ANALYSIS · 6 G3–5 with M3 · 7 Phase 6 (CS eval k=3, Sonnet 5.5 verifier, explainer arm A Haiku 4.5 with payloads recorded, arm B Sonnet 5.5 lowest; the pre-approved diagnosis if a kill fires; the Math/English smoke; the explainer read; EVAL_REPORT_v6.md) · 8 cutover; the production-leg DoD. |
+| **STOP conditions** | (a) a kill fires, after the pre-approved diagnosis; (b) a contradiction with a named invariant or ruling that no reading resolves; (c) a new trade-off between two defensible options; (d) spend would cross the cap; (e) a production action beyond 034, the D-13+A-8 deploy, the G3–5 deploy and the cutover; (f) a SEC-1 verification fails; (g) the Math/English smoke still fails after 2 pack iterations. |
+| **AMENDMENT (same day)** | The CS eval moves into Oct 6. REVIEW-2 no longer gates it: an algebra AMEND means a pre-approved re-run within the cap; a wording-only AMEND means no re-run. G3–5 order: M3 → Phase-4 schemas + codegen → Phase-4 remainder → Phase 5 → T2 → deploy with v5. |
+
+**Done against these rulings:** items 1–5 and M3, then the CS eval → **STOP (a)**, reported in `docs/EVAL_REPORT_v6.md` (main `3200073`). Ledger $15.35 of $19.
+
+### After STOP (a) (owner, 2026-10-06 evening)
+
+| Ruling | Content |
+|---|---|
+| **0 · Reading** | v6 beats v5 on the totals (mean shortfall 14.5 → 7.4), on stability (K4) and on cost. K2 and G-Z fail mainly because the plans carry too few partials: OD-G1 took the verifier's free half away, so the plan must carry the partials, and P-7 made the planner stingy. The fix is a PLANNER RULE that generalizes to unseen rubrics. One iteration tonight. |
+| **1 · REJECTED** | Editing plans toward GT values. No plan, prompt, few-shot or pack may contain anything derived from the eval's GT or tuned to specific fixture criteria (the Q-5 / PB-* principle). Plans come only from the planner. |
+| **2 · AM-G19** | **P-7 amended (planner core, subject-agnostic).** (a) BINARY vs NON-BINARY, decided by the planner per credit check and recorded in the plan. BINARY: one atomic element, present or absent (a return statement, a keyword, a signature token, a single condition). NON-BINARY: anything an answer can satisfy in part (several sub-elements, a computation, a loop with a body, a structure). (b) Every NON-BINARY credit worth ≥ 2 points has ≥ 1 partial. Prefer a concrete partial state; else HALF with an observable descriptor («present but incomplete or containing an error»). When the criterion allows, two levels: a minor slip (THREE_QUARTERS) and a major gap (HALF or QUARTER). (c) Credits under 2 points and all BINARY credits have no partial, unless the teacher's own text states a partial value for that element (then express exactly what she wrote). (d) A partial never applies to an answer about a different object, variable, collection or quantity: that answer takes the zero option (PL-9's target rule, generalized into the core; the CS pack keeps its PL-9 wording). (e) OD-G1 unchanged: every option is written once per rubric by the planner; the verifier only picks. The few-shots demonstrate (a)–(d), domain-shifted; the planner prompt version is bumped. **This is the owner's REVIEW-2 ruling for the change; there is no separate REVIEW-2 cycle.** |
+| **3 · Compiler check (OD-21 folds)** | Verify a deduction folds into its component ONLY at exactly equal amounts. If an unequal fold ever happens (suspects: hobby q1.ג.c3/c6/c7), fix it so the marker becomes a fault option, add a test, and report. Rule-level only; nothing fixture-specific. |
+| **4 · Gates** | **K2's kill is re-based:** GT-PARTIAL→AI-FULL ≤ the v5 baseline on the same fixtures (10.2%). 2.4% stays the target and is reported. The reason, recorded in RUNLOG: the 2.4% was calibrated on 5 hobby fixtures and fails the production pin; v6 at 17.0% fails the re-based bar too, so the change rescues no result. Unchanged: K1 = 100%; K4 ≤ 8.25; K3 ≥ v5; G-Z ≤ v5; G-D1 = G-D2 = 0; cost per test < v5. |
+| **5 · Budget** | The eval cap rises to **$25** (the owner tops up and raises the workspace limit). Every other budget rule stands. |
+| **6 · Security check** | `git log --all -- backend/vivi-eval.env` in both repos, plus a history search for the key's prefix (never printed). If any commit ever held it: STOP; the owner rotates the key before any further spend. Report «never committed» or the commit ids. |
+| **7 · Tonight's run** | (1) items 6 and 3, then AM-G19; (2) re-plan both CS exams on Sonnet 5.5 AND Opus 5.5 (effort high), ≈ $3.5; (3) choose by §13.1 offline: fewer inexpressible GT cells wins, and within 1 cell Sonnet 5.5; pin the winner by plan_hash; report both planners' counts and the share of the previous run's K2/G-Z cells now expressible; (4) the CS re-run on the winning plans: verifier Sonnet 5.5 (effort low), explainer arm A, k=3, ≈ $3.7, reusing the trials of scopes whose plan algebra is byte-identical (declared); (5) if the kills and gates hold, the Math/English smoke (same planner choice, ≈ $2), then the STOP-3 package (EVAL_REPORT_v6.md, old and new columns); (6) if any kill fires: STOP with the cell-level residual. No second iteration without the owner; no diagnosis re-run. |
+| **8 · Deferred** | First-person absence pointers («חיפשתי…»): the verifier text stays frozen during the eval; fixed after the cutover. The explainer read: the owner is reading now, and lines whose explanation contradicts their own quote are flagged separately as grading errors. The G3–5 remainder resumes after STOP-3. |
+| **9 · Pre-registration** | P-v6-11 and P-v6-12 in PREDICTIONS.md before any spend. K2 and G-Z are reported split by full value (< 2 vs ≥ 2), in cells and in points, for v5 and both v6 runs. The kill stays on cells; the split is for reading, never for re-tuning tonight. |
+
+**Done against these rulings (2026-10-06/07):**
+- **6 · Security: never committed.**
+  - `git log --all` (with reflog) on every ref of `origin` (pupal) and `vivi-origin` (vivi-codebase), both freshly fetched: 0 commits for any `*vivi-eval*` path.
+  - Pickaxe for a 24-character prefix and a 16-character suffix of the key: 0 commits. Unreachable blobs: 0.
+  - The eval key is **not** the production key (sha256 compare against Secret Manager `anthropic-api-key`, nothing printed).
+  - Noted: it is also the `ANTHROPIC_API_KEY` of the local, untracked, gcloudignored `backend/.env` (since Sep 28) and of its six worktree copies, so any local dev Anthropic call draws on the eval workspace.
+- **3 · Folds: no unequal fold exists. No fix.**
+  - Every OD-21 fold in both contracts sits at exact equality: hobby q1.ב.c6, q1.ג.c6 and q1.ג.c7 (−1 on a 1-point component each); bagrut q5.א.c0 and q6.c0 (−1 on a 1-point terminal).
+  - The suspect q1.ג.c3 is not folded (−1 on a 3-point monolith stays a marker), nor are the −0.5 math markers.
+  - Pinned by `test_an_unequal_deduction_is_never_folded`.
+- **2 · AM-G19:** `planner-v6.2`, details and the decided-pending-veto items in RUNLOG 2026-10-07.
+
 ### Inherited from `main` since the census (not new rulings — applied as standing law)
 
 `e760e35` (2026-09-27, GATE-1 / CWV-1..6 / OD-4) changed v5 semantics the census described:

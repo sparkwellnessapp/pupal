@@ -44,7 +44,8 @@ def scope_planner_input(scope: V6Scope) -> ScopePlannerInput:
             terminals.append(TerminalInput(
                 terminal_id=a(t.terminal_id), points_possible=t.points_possible,
                 teacher_text=mask(t.text),
-                components=tuple(SkeletonComponent(a(c.component_id), mask(c.source_span), status)
+                components=tuple(SkeletonComponent(a(c.component_id), mask(c.source_span), status,
+                                                   points=c.points)
                                  for c in t.components)))
         else:
             terminals.append(TerminalInput(

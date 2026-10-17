@@ -29,6 +29,7 @@ def _fmt(d: Decimal) -> str:
 
 def _check_lines(c: PlanCheckV6) -> List[str]:
     head = (f"- **{c.check_id}** · {c.role} · {c.shape} · origin `{c.origin}`"
+            + (f" · element `{c.element}`" if c.element else "")
             + (f" · requires `{c.requires}`" if c.requires else "")
             + (f" · group `{c.charge_group}`" if c.charge_group else ""))
     lines = [head, f"  - {c.description_he}"]

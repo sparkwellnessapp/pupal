@@ -24,17 +24,25 @@ import json
 from decimal import Decimal
 from typing import List, get_args
 
-from app.agents.grader.plan_schemas import PartialFraction
+from app.agents.grader.plan_schemas import CreditElement, PartialFraction
 
 from .examples import FEW_SHOTS, FewShot
 from .inputs import AMOUNT_MASK, SPLIT_REFS, ScopePlannerInput, TerminalInput
 from .schemas import Decomposition
 
-PLANNER_PROMPT_VERSION = "planner-v6.1"
+PLANNER_PROMPT_VERSION = "planner-v6.2"          # [AM-G19] rule 7 amended; element; teacher_span
 
 DECOMPOSITIONS = get_args(Decomposition)         # ("as_compiled", "binary", "ladder", "split")
 FRACTIONS = tuple(f.value for f in PartialFraction)
 DISPOSITIONS = ("fault", "merged", "not_a_deduction")
+ELEMENTS = get_args(CreditElement)               # ("binary", "non_binary")
+PRE_AM_G19_VERSIONS = ("planner-v6.0", "planner-v6.1")
+
+
+def am_g19_applies(prompt_version: str) -> bool:
+    """[AM-G19] Rule 7 binds outputs of planner-v6.2 on. A recording made under an earlier
+    prompt replays without it, so its plan — and its hash — are what they were."""
+    return prompt_version not in PRE_AM_G19_VERSIONS
 
 PLANNER_CORE = f"""\
 You plan how ONE scope of a teacher's rubric (a question, or one sub-question) will be
@@ -47,9 +55,12 @@ amounts are never yours.
 === WHAT YOU RECEIVE ===
 - The question, and the teacher's example solution when she wrote one.
 - Per TERMINAL (her finest scoring unit): its id, its points (context only), her text, and
-  the compiler's COMPONENTS. A `fixed` component was enumerated by her text: phrase it, never
-  split, merge or reorder it. A `monolith` is one undivided requirement: you choose how it is
-  checked. A terminal marked COMPILED (levels or count) is read-only: do not plan it.
+  the compiler's COMPONENTS, each with its points (context only). A `fixed` component was
+  enumerated by her text: phrase it, never split, merge or reorder it. A `monolith` is one
+  undivided requirement: you choose how it is checked. A terminal marked COMPILED (levels or
+  count) is read-only: do not plan it.
+- What a credit is worth: a fixed component's points; for a monolith checked as one credit,
+  its points; the credits of a split share the monolith's points evenly.
 - NOTE CHECKS: lines she asked to remark on without deducting. Compiled and read-only; never
   turn one into a credit or a fault.
 - MARKERS: deduction phrases found in her text, each with its polarity, the terminal where
@@ -63,9 +74,11 @@ amounts are never yours.
   - ladder — a monolith checked as one credit with 1 or 2 partials; component_ref = its id.
   - split — a monolith split into 2 to 6 credits; component_ref = "n1", "n2", … in order.
   Each credit: description_he (the thing checked), source_span (verbatim from her text, the
-  question or the solution), full_label_he and absent_label_he (what an answer looks like at
-  full credit and at none), 0 to 2 partials (label_he + fraction), and equivalence_note_he
-  (forms she accepts) or null. Up to 3 interpretation_notes_he per terminal.
+  question or the solution), element (binary or non_binary, rule 7), full_label_he and
+  absent_label_he (what an answer looks like at full credit and at none), 0 to 2 partials
+  (label_he + fraction + teacher_span: her verbatim words when rule 7(b) keeps the partial,
+  else null), and equivalence_note_he (forms she accepts) or null. Up to 3
+  interpretation_notes_he per terminal.
 - `faults`: one per fault. anchor_terminal_id is a candidate anchor of EVERY marker among its
   options; requires_component_ref is the credit on that anchor whose behavior the fault
   modifies, or null; options are 1 to 7 of (marker_id, label_he).
@@ -90,9 +103,23 @@ amounts are never yours.
 6. SAME CONDITION, DIFFERENT AMOUNTS → MERGE. Markers that state the same condition are
    merged even when their (masked) amounts differ: one stays an option, the others are
    `merged` into it, and reason_he says so. Code applies the lenient amount.
-7. CONCRETE PARTIALS ONLY. Add a partial only where a partial state can be identified in an
-   answer. Describe it observably: what is present and what is missing. Never a generic
-   "partially correct".
+7. PARTIAL CREDIT. Decide every credit's `element` first, then its partials.
+   - binary: the credit names one atomic element that is either present or absent (a return
+     statement, a keyword, a signature token, a single condition).
+   - non_binary: an answer can satisfy it in part (several sub-elements, a computation, a
+     loop with its body, a structure).
+   (a) A non_binary credit worth 2 points or more has at least one partial. Prefer a concrete
+       partial state: what is present, and what is missing or wrong. If none can be named,
+       use HALF with an observable label of the form "present, but incomplete or containing
+       an error". When the credit allows, give two levels: a minor slip (THREE_QUARTERS) and
+       a major gap (HALF or QUARTER).
+   (b) A credit worth less than 2 points, and every binary credit, has no partial — unless
+       the teacher's own text states a partial value for that element. Then write exactly the
+       partial she states, and quote her words verbatim in its teacher_span.
+   (c) A partial never applies to an answer that addresses a different object, variable,
+       collection or quantity than the credit names: that answer takes the absent option. Name
+       the credit's own object in every partial label, so it cannot match work on another.
+   Never a bare "partially correct".
 8. SPLIT ALONG INDEPENDENT FAILURES. Split where one part can be present without the other;
    otherwise don't.
 9. AMBIGUITY. (a) Choose the reading most consistent with the question and the example
@@ -154,6 +181,10 @@ def _points(d: Decimal) -> str:
     return s.rstrip("0").rstrip(".") if "." in s else s
 
 
+def _component_points(c) -> str:
+    return "" if c.points is None else f" · points (context only): {_points(c.points)}"
+
+
 def _ids(values) -> str:
     values = list(values)
     return ", ".join(values) if values else "none"
@@ -181,6 +212,7 @@ def render_scope_input(inp: ScopePlannerInput) -> str:
         f"marker_id: {_ids(m.marker_id for m in inp.markers)}",
         "anchor_terminal_id: a candidate anchor of every marker in the fault (listed per marker)",
         f"decomposition: {' | '.join(DECOMPOSITIONS)}",
+        f"element: {' | '.join(ELEMENTS)}",
         f"fraction: {' | '.join(FRACTIONS)}",
         f"disposition: {' | '.join(DISPOSITIONS)}",
         "Never output a number: no points, no value and no amount, in any field or label "
@@ -201,7 +233,8 @@ def render_scope_input(inp: ScopePlannerInput) -> str:
             lines += [f"COMPILED ({t.compiled.shape}), read-only: «{t.compiled.source_span}»"]
         else:
             lines += ["Components:"]
-            lines += [f"  {c.component_id} [{c.status}]: «{c.source_span}»" for c in t.components]
+            lines += [f"  {c.component_id} [{c.status}]{_component_points(c)}: «{c.source_span}»"
+                      for c in t.components]
     if inp.notes:
         lines += ["", "=== NOTE CHECKS (compiled, read-only) ==="]
         lines += [f"  {n.terminal_id}: «{n.text_span}»" for n in inp.notes]

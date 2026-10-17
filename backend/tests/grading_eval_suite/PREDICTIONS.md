@@ -598,3 +598,33 @@ Provenance for all three: the served model id is recorded from every response. A
 - **P-v6-8** (judged at item 4, at no spend): the Sonnet 5.5 planner has no more inexpressible cells and no more repairs than the Sonnet 5 planner.
 - **P-v6-9:** v6 + Sonnet 5.5 holds K1, K2 and K4; K3 and G-Z are no worse than v5; and cost per test is lower than v5's.
 - **Dropped by the Oct 6 rulings:** P-v6-5 and P-v6-10.
+
+## GRADER v6 — the AM-G19 iteration (owner rulings 2026-10-06 evening; registered BEFORE any of its spend)
+
+**One iteration (ruling §7).**
+1. **Planner `planner-v6.2` = AM-G19.** Rule 7 is amended:
+   - every credit states `element` (binary | non_binary);
+   - a non_binary credit worth ≥ 2 points has at least one partial;
+   - a binary credit, and any credit worth < 2, has none, unless her own text states one (`teacher_span`, verbatim);
+   - a partial never applies to an answer about a different object (that answer takes the absent option).
+
+   The rule is enforced in code (`planner/assemble.py`): strict → the one repair → lenient, never a whole-scope fallback for rule 7 alone. The few-shots are rewritten, still domain-shifted.
+2. **Re-plan** both CS exams on Sonnet 5.5 AND Opus 5.5, effort high, the system prompt cached.
+3. **Choice (§13.1, offline):** fewer inexpressible GT cells wins; within 1 cell, Sonnet 5.5. The winner is pinned by plan_hash.
+4. **CS re-run on the winning plans:** verifier Sonnet 5.5 (adaptive, effort low, as registered), explainer arm A Haiku 4.5, k=3, the same 12 fixtures.
+   - **Reuse rule:** a scope reuses the previous run's trials only when the verifier would receive a byte-identical rubric part for it: the same algebra AND the same wording. The owner's algebra criterion is necessary, not sufficient here, so a reused trial is exactly the trial the new plan would produce. Reused scopes are declared.
+5. **Gates:**
+   - K1 = 100%;
+   - **K2 ≤ the v5 baseline on the same fixtures, 20/196 = 10.2%** (re-based; 2.4% stays the target and is reported);
+   - K4 ≤ 8.25;
+   - K3 ≥ v5 (0.693);
+   - G-Z ≤ v5 (62/196 = 31.6%);
+   - G-D1 = G-D2 = 0;
+   - cost per test < v5 ($0.1774).
+6. **If they hold:** the Math/English smoke, then STOP-3. **If a kill fires:** STOP with the cell-level residual. No second iteration, and no diagnosis re-run.
+
+**Predictions:**
+- **P-v6-11:** under AM-G19, K2 ≤ 10.2% and G-Z ≤ 31.6% on the CS fixtures, with K1 = 100% and K4 ≤ 8.25.
+- **P-v6-12:** the share of K2 cells sitting on inexpressible GT values falls from 68% (34/50) to under 30%.
+
+**Reported beside them, never gated, never tuned on tonight:** K2 and G-Z split by the cell's full value (the terminal's points, < 2 vs ≥ 2), in cells and in points over-credited / lost. The split covers v5, v6 on the v6.1 plans (Sonnet 5.5 and the Sonnet 5 diagnosis) and v6 on the AM-G19 plans (`tools/v6_residual.py`).

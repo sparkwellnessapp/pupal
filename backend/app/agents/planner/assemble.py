@@ -15,6 +15,15 @@ validator (V12–V20):
   * compiled terminals (`levels`, `count`) and notes are built by code on both
                       paths; the planner only ever sees them read-only.
 
+[AM-G19, owner 2026-10-06] RULE 7, enforced here and never left to the prompt alone:
+every planner credit states `element`; a non_binary credit worth >= AM_G19_PARTIAL_MIN
+carries a partial; a binary or smaller credit carries none unless her own text states it
+(`teacher_span`, verbatim — and its figure, when it has one, is the partial's value). The
+mode is the caller's: "strict" (violations go to the ONE repair call), "lenient" (after a
+failed repair: an unbacked partial is DROPPED, a missing one is reported, never invented —
+the fallback would lose every partial of the scope instead), "off" (replaying a
+planner-v6.1 recording, which predates the rule).
+
 Two decisions this module makes (recorded as "decided — pending owner veto"):
   1. V10 forbids point text in descriptions and labels, and a teacher's verbatim
      span usually carries it («(1 נקודה)», «להוריד 1»). The fallback therefore
@@ -28,13 +37,14 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Literal, Optional, Sequence, Tuple
 
 from app.agents.grader import plan_values as pv
 from app.agents.grader.plan_schemas import (CheckOption, DeductionMarker, MarkerDisposition,
                                             PlanCheckV6, TerminalPlanV6)
 from app.agents.grader.plan_validator import _POINT_TEXT
-from app.agents.grader.plan_validator_v6 import PlanContext, SkeletonComponent, validate_plan_v6
+from app.agents.grader.plan_validator_v6 import (PlanContext, SkeletonComponent, normalize_span,
+                                                 validate_plan_v6)
 from app.agents.grader.validator import strip_out_of_world
 from app.agents.plan_compiler.compile import scan_deductions
 from app.agents.plan_compiler.patterns_v6 import V6_PATTERNS
@@ -43,6 +53,11 @@ from app.agents.plan_compiler.stage1_v6 import V6Scope, V6Terminal
 from .inputs import AMOUNT_MASK, SPLIT_REFS
 from .schemas import PlannedCredit, ScopePlanOutput
 from .stage1_input import planner_aliases, unmask_span
+
+AM_G19_PARTIAL_MIN = Decimal("2")       # [AM-G19] a non_binary credit worth this or more has a partial
+AmG19Mode = Literal["strict", "lenient", "off"]
+_FIGURE = re.compile(r"(?<![0-9.,])\d+(?:[.,]\d+)?(?![0-9])")
+_WORDED = {"חצי": Decimal("0.5"), "רבע": Decimal("0.25")}
 
 FALLBACK_FAULT_DESCRIPTION = "טעות שהמחוון מפרט"      # the fault check's own line, point-free
 FALLBACK_NOTE_DESCRIPTION = "הערה מהמחוון"
@@ -115,6 +130,61 @@ def _note_checks(t: V6Terminal) -> List[PlanCheckV6]:
     return out
 
 
+def _figures(text: str) -> set:
+    """The figures a teacher's span states: numerals, and «חצי» / «רבע» as words."""
+    out = {Decimal(m.group(0).replace(",", ".")) for m in _FIGURE.finditer(text or "")}
+    return out | {v for w, v in _WORDED.items() if w in (text or "")}
+
+
+def _teacher_states(partial, value: Decimal, grid: Decimal, teacher_text: str) -> Tuple[bool, str]:
+    """[AM-G19 b] (kept?, why not). Her span must be verbatim in her text; when it states a
+    figure, one of them is this partial's value — «express exactly what she wrote»."""
+    span = partial.teacher_span
+    if not span or not span.strip():
+        return False, "no teacher_span"
+    verbatim = unmask_span(span, (teacher_text,))
+    if verbatim is None or normalize_span(verbatim) not in normalize_span(teacher_text):
+        return False, f"teacher_span «{span[:50]}» is not verbatim in the teacher's text"
+    figures = _figures(verbatim)
+    v = pv.snap_half_up(value * pv.FRACTION_VALUE[partial.fraction], grid)
+    if figures and v not in figures:
+        return False, f"teacher_span «{span[:50]}» states another value than this partial's"
+    return True, ""
+
+
+def _am_g19(tid: str, credit: PlannedCredit, value: Decimal, grid: Decimal, teacher_text: str,
+            mode: AmG19Mode) -> Tuple[PlannedCredit, List[str], List[str]]:
+    """(credit, errors for the repair call, telemetry). Pure; the rule in the module docstring."""
+    if mode == "off":
+        return credit, [], []
+    ref, errors, tel = credit.component_ref, [], []
+    if credit.element is None:
+        msg = f"{tid}: credit {ref!r} states no element — choose binary or non_binary (rule 7)"
+        return credit, ([msg] if mode == "strict" else []), [f"am_g19_element_missing {tid}/{ref}"]
+    if credit.element == "binary" or value < AM_G19_PARTIAL_MIN:
+        why = "binary" if credit.element == "binary" else "worth less than 2 points"
+        kept, dropped = [], []
+        for p in credit.partials:
+            ok, reason = _teacher_states(p, value, grid, teacher_text)
+            (kept if ok else dropped).append((p, reason))
+        if dropped:
+            if mode == "strict":
+                errors += [f"{tid}: credit {ref!r} is {why}, so it takes no partial unless the teacher's "
+                           f"own text states one ({reason}): remove the partial «{p.label_he[:40]}», or "
+                           f"quote her words in its teacher_span (rule 7b)" for p, reason in dropped]
+            else:
+                credit = credit.model_copy(update={"partials": [p for p, _ in kept]})
+                tel.append(f"am_g19_partial_dropped {tid}/{ref}: {len(dropped)} ({why})")
+    elif not credit.partials:
+        msg = (f"{tid}: credit {ref!r} is non_binary and worth 2 points or more, so it needs at least "
+               f"one partial (rule 7a)")
+        if mode == "strict":
+            errors.append(msg)
+        else:
+            tel.append(f"am_g19_partial_missing {tid}/{ref}")
+    return credit, errors, tel
+
+
 def _credit_check(tid: str, n: int, value: Decimal, credit: PlannedCredit, grid: Decimal,
                   origin: str) -> Tuple[PlanCheckV6, List[str]]:
     partials = [(p.label_he, p.fraction) for p in credit.partials]
@@ -128,7 +198,7 @@ def _credit_check(tid: str, n: int, value: Decimal, credit: PlannedCredit, grid:
     return PlanCheckV6(check_id=pv.check_id(tid, "credit", n), role="credit", shape=shape,
                        description_he=credit.description_he, source_span=credit.source_span,
                        options=options, equivalence_note_he=credit.equivalence_note_he,
-                       priced_terminal_id=tid, origin=origin), collapsed
+                       priced_terminal_id=tid, origin=origin, element=credit.element), collapsed
 
 
 def _ordered(scope: V6Scope, checks: Sequence[PlanCheckV6]) -> List[PlanCheckV6]:
@@ -205,7 +275,7 @@ def _unalias(scope: V6Scope, out: ScopePlanOutput) -> Tuple[ScopePlanOutput, Lis
                                   "dispositions": dispositions}), tel
 
 
-def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal
+def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal, *, am_g19: AmG19Mode = "strict"
               ) -> Tuple[List[TerminalPlanV6], List[PlanCheckV6], List[MarkerDisposition], List[str]]:
     """(terminals, checks, dispositions, telemetry). `out` is in alias space (AM-G17);
     every id below is real. Raises MappingError (real ids — `planner_aliases(scope).redact`
@@ -290,10 +360,17 @@ def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal
                 errors.append(f"{t.terminal_id}: credit {credit.component_ref!r} has "
                               f"{len(credit.partials)} partials (at most 2)")
                 continue
+            credit, am_errors, am_tel = _am_g19(t.terminal_id, credit, value, grid, t.text, am_g19)
+            errors += am_errors
+            telemetry += am_tel
+            if am_g19 == "off":
+                credit = credit.model_copy(update={"element": None})   # a v6.1 plan, unchanged
             check, collapsed = _credit_check(t.terminal_id, n, value, credit, grid, "planner")
             checks.append(check)
             credit_ref[(t.terminal_id, credit.component_ref)] = check.check_id
             telemetry += [f"partial_collapsed {check.check_id}: {lab}" for lab in collapsed]
+            telemetry += [f"partial_teacher_stated {check.check_id}: «{p.teacher_span}»"
+                          for p in credit.partials if p.teacher_span and am_g19 != "off"]
 
     markers = {m.marker_id: m for m in scope.markers}
     disp = {d.marker_id: d for d in out.dispositions}

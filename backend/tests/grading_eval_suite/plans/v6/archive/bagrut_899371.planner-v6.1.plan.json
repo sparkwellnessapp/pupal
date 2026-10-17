@@ -1,0 +1,3451 @@
+{
+ "plan_schema": "plan/v6",
+ "plan_hash": "229c46a8c7b4d5f5785da9839db697a2a666d8a2032c25835a053ce9c2175540",
+ "config_hash": "b799ef5f5be7874e6812afaf68a17a40f264c0181f2a0120edaa4d1819d71be9",
+ "rubric_contract_version": "d7f1d3c8-7c74-44c3-9fcd-aa4bc0b9e8cb",
+ "subject_pack": {
+  "pack_id": "computer_science",
+  "pack_version": "v1"
+ },
+ "terminals": [
+  {
+   "terminal_id": "q1.א.1.c0",
+   "points_possible": "12",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.א.2.c0",
+   "points_possible": "1.5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.א.2.c1",
+   "points_possible": "1.5",
+   "interpretation_notes_he": [
+    "שני הרכיבים נוסחו באותו טקסט; הם נקראו כשני תנאים נפרדים: האיבר שונה מ-1, והאיבר שונה מ-x עצמו."
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.1.c0",
+   "points_possible": "6",
+   "interpretation_notes_he": [
+    "השאלה מבקשת רק את הערך המוחזר, ולכן הצגת טבלת מעקב או חישוב הביניים אינה נדרשת."
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.2.c0",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ב.2.c1",
+   "points_possible": "2",
+   "interpretation_notes_he": [
+    "המילה «אחר» הובנה כמחלק שנמצא במערך ואינו האיבר עצמו, בהתאם לפתרון לדוגמה; תשובה שמציינת מחלק במערך ללא הבהרה מפורשת של כך מתקבלת."
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c0",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.א.c1",
+   "points_possible": "0.5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.א.c2",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.א.c3",
+   "points_possible": "1.5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.א.c4",
+   "points_possible": "4",
+   "interpretation_notes_he": [
+    "החיפוש נבדק בלי קשר לבדיקת תוצאתו מחוץ ללולאה, שנבדקת בסעיף נפרד."
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c5",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.א.c6",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c0",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c1",
+   "points_possible": "0.5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c2",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c3",
+   "points_possible": "4.5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c4",
+   "points_possible": "3",
+   "interpretation_notes_he": [
+    "נקבע שהאפשרות של הנחת מערך מראה ומציאת הנגדי בלולאה נוספת שקולות, כפי שכתבה המורה."
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c5",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q3.א.c0",
+   "points_possible": "0.5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q3.א.c1",
+   "points_possible": "0.5",
+   "interpretation_notes_he": [
+    "הסעיף מנה שני רכיבים נבדלים, משתנים משמעותיים וקוד קריא, ולכן נבדקים בנפרד."
+   ]
+  },
+  {
+   "terminal_id": "q3.א.c2",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q3.א.c3",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q3.א.c4",
+   "points_possible": "3",
+   "interpretation_notes_he": [
+    "פתרון עם לולאה פנימית שמעדכן את מערך המונים רק כאשר arr[i] שווה למונה הלולאה הפנימית מתקבל במלואו, בהתאם להערת המורה."
+   ]
+  },
+  {
+   "terminal_id": "q3.א.c5",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q3.ב.c0",
+   "points_possible": "0.5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q3.ב.c1",
+   "points_possible": "0.5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q3.ב.c2",
+   "points_possible": "2",
+   "interpretation_notes_he": [
+    "יצירת מערך מונים חדש ו/או הרצת DiceStatistics בתוך לולאה תוך העתקת כל תא אינן מורידות כלום (חוסר יעילות), כפי שכתבה המורה."
+   ]
+  },
+  {
+   "terminal_id": "q3.ב.c3",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q3.ב.c4",
+   "points_possible": "4",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q3.ב.c5",
+   "points_possible": "3",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q3.ב.c6",
+   "points_possible": "3",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q4.א.c0",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q4.א.c1",
+   "points_possible": "4",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q4.ב.c0",
+   "points_possible": "0.5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q4.ב.c1",
+   "points_possible": "0.5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q4.ב.c2",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q4.ב.c3",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q4.ב.c4",
+   "points_possible": "5",
+   "interpretation_notes_he": [
+    "ההנחיה «לקנוס פעם אחת» נקראת ככזו החלה על היעדר בדיקת null, בשתי הלולאות יחד."
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c5",
+   "points_possible": "3",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q4.ב.c6",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q4.ב.c7",
+   "points_possible": "5",
+   "interpretation_notes_he": [
+    "ההערה «להוריד רק פעם אחת» נקראת ככזו החלה על היעדר בדיקת null בלולאה השנייה, ולא על השימוש ב-Getter.",
+    "טעות בתנאי בלולאה השנייה נקנסת פעם אחת, כיוון שהתנאי מופיע גם בלולאה הראשונה."
+   ]
+  },
+  {
+   "terminal_id": "q4.ב.c8",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q5.א.c0",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q5.א.c1",
+   "points_possible": "4",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q5.ב.c0",
+   "points_possible": "0.5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q5.ב.c1",
+   "points_possible": "0.5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q5.ב.c2",
+   "points_possible": "6",
+   "interpretation_notes_he": [
+    "ריצה עד Length עם בדיקה שהאיבר שונה מ-null מתקבלת כניהול תקין של גבולות הלולאה."
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c3",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q5.ב.c4",
+   "points_possible": "5",
+   "interpretation_notes_he": [
+    "אי-עדכון התכונה כאשר הסך חושב נכון נבחן לפי ההנחיה הייעודית לכך, ולא כאי-שימוש בפעולות הפנימיות."
+   ]
+  },
+  {
+   "terminal_id": "q5.ב.c5",
+   "points_possible": "3",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q5.ב.c6",
+   "points_possible": "3",
+   "interpretation_notes_he": [
+    "הרכיב הראשון נקרא כהחזרת true והשני כהחזרת false, בהתאם לניסוח «ל-true» ו-«ל-false»."
+   ]
+  },
+  {
+   "terminal_id": "q6.c0",
+   "points_possible": "1",
+   "interpretation_notes_he": [
+    "כל טעות בחתימה מאבדת את הזיכוי של הסעיף."
+   ]
+  },
+  {
+   "terminal_id": "q6.c1",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q6.c2",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q6.c3",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q6.c4",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q6.c5",
+   "points_possible": "4",
+   "interpretation_notes_he": [
+    "סוף הטקסט בסעיף מסתיים במילה «ו» בלי המשך, והקריטריון נקרא כפי שנכתב עד אותה נקודה."
+   ]
+  },
+  {
+   "terminal_id": "q6.c6",
+   "points_possible": "2",
+   "interpretation_notes_he": [
+    "בטקסט המורה מופיעות שתי חלופות לסכום הניכוי על הדפסת הכמות, והסכום המקל הוא שמוחל."
+   ]
+  },
+  {
+   "terminal_id": "q6.c7",
+   "points_possible": "4",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q6.c8",
+   "points_possible": "8",
+   "interpretation_notes_he": []
+  }
+ ],
+ "checks": [
+  {
+   "check_id": "q1.א.1.c0.c1",
+   "role": "credit",
+   "shape": "count",
+   "description_he": "ניקוד טבלת מעקב סה\"כ ודות: 17 תאים 0.7 כל תא",
+   "source_span": "ניקוד טבלת מעקב סה\"כ 12 נקודות: 17 תאים  0.7 כל תא",
+   "options": [
+    {
+     "option_id": "n17",
+     "label_he": "17 מתוך 17 נכונים",
+     "value": "12",
+     "marker_id": null
+    },
+    {
+     "option_id": "n16",
+     "label_he": "16 מתוך 17 נכונים",
+     "value": "11.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "n15",
+     "label_he": "15 מתוך 17 נכונים",
+     "value": "10.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "n14",
+     "label_he": "14 מתוך 17 נכונים",
+     "value": "10.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "n13",
+     "label_he": "13 מתוך 17 נכונים",
+     "value": "9.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "n12",
+     "label_he": "12 מתוך 17 נכונים",
+     "value": "8.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "n11",
+     "label_he": "11 מתוך 17 נכונים",
+     "value": "7.75",
+     "marker_id": null
+    },
+    {
+     "option_id": "n10",
+     "label_he": "10 מתוך 17 נכונים",
+     "value": "7.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "n9",
+     "label_he": "9 מתוך 17 נכונים",
+     "value": "6.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "n8",
+     "label_he": "8 מתוך 17 נכונים",
+     "value": "5.75",
+     "marker_id": null
+    },
+    {
+     "option_id": "n7",
+     "label_he": "7 מתוך 17 נכונים",
+     "value": "5.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "n6",
+     "label_he": "6 מתוך 17 נכונים",
+     "value": "4.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "n5",
+     "label_he": "5 מתוך 17 נכונים",
+     "value": "3.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "n4",
+     "label_he": "4 מתוך 17 נכונים",
+     "value": "2.75",
+     "marker_id": null
+    },
+    {
+     "option_id": "n3",
+     "label_he": "3 מתוך 17 נכונים",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "n2",
+     "label_he": "2 מתוך 17 נכונים",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "n1",
+     "label_he": "1 מתוך 17 נכונים",
+     "value": "0.75",
+     "marker_id": null
+    },
+    {
+     "option_id": "n0",
+     "label_he": "0 מתוך 17 נכונים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.א.1.c0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "compiler"
+  },
+  {
+   "check_id": "q1.א.2.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "הבנת הבדיקה של \"מחלק ללא שארית\"",
+   "source_span": "הבנת הבדיקה של \"מחלק ללא שארית\"",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "התשובה מציינת שהפעולה בודקת האם קיים במערך איבר שמחלק את x ללא שארית (x מתחלק בו ללא שארית)",
+     "value": "1.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "התשובה אינה מציינת שהפעולה בודקת חלוקה ללא שארית של x באיבר מהמערך",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.א.2.c0",
+   "equivalence_note_he": "ניסוח בלשון \"מחלק של x\", \"x מתחלק באיבר\" או \"שארית החלוקה היא אפס\" שקול",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q1.א.2.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "התייחסות לתנאי שהאיבר שונה מ-1",
+   "source_span": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו  0.5 נק'",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "התשובה מציינת שהאיבר המחלק צריך להיות שונה מ-1",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "התשובה אינה מתייחסת לכך שהאיבר צריך להיות שונה מ-1",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.א.2.c1",
+   "equivalence_note_he": "ניסוח כגון \"מחלק שאינו 1\" או \"חוץ מ-1\" שקול",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q1.א.2.c1.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "התייחסות לתנאי שהאיבר שונה מ-x עצמו",
+   "source_span": "התייחסות לתנאי שהאיבר שונה מ-1 ומ-x עצמו  0.5 נק'",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "התשובה מציינת שהאיבר המחלק צריך להיות שונה מ-x עצמו",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "התשובה אינה מתייחסת לכך שהאיבר צריך להיות שונה מ-x עצמו",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.א.2.c1",
+   "equivalence_note_he": "ניסוח כגון \"מחלק שאינו x\" או \"חוץ מ-x עצמו\" שקול",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q1.ב.1.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "כתיבת הערך המוחזר מהפעולה What(arr)B",
+   "source_span": "מהו הערך המוחזר מהפעולה What(arr)B",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "נכתב הערך המוחזר הנכון מהפעולה, התואם לערך בפתרון לדוגמה",
+     "value": "6",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא נכתב ערך מוחזר, או שהערך שנכתב שונה מהערך בפתרון לדוגמה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.1.c0",
+   "equivalence_note_he": "הערך המוחזר יכול להופיע כתוצאה סופית בסוף טבלת המעקב או בכתיבה ישירה, ושתי הצורות שקולות",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q1.ב.2.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "זיהוי שמדובר בפעולת סכימה של איברי המערך",
+   "source_span": "זיהוי שמדובר בפעולת סכימה של איברי המערך",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "התשובה קובעת שהפעולה מחשבת ומחזירה סכום של איברים במערך",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "התשובה אינה מזהה סכימה של איברי המערך (למשל מתארת ספירה, מציאת מקסימום או פעולה אחרת)",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.2.c0",
+   "equivalence_note_he": "כל ניסוח שמבטא חישוב סכום של איברי המערך שקול, למשל «מחברת», «מחשבת את סכום האיברים» או «מחזירה את הסכום»",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q1.ב.2.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "הגדרה נכונה של תנאי הסכימה: איברים שיש להם מחלק אחר במערך",
+   "source_span": "הגדרה נכונה של תנאי הסכימה (איברים שיש להם מחלק אחר במערך)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "התשובה מציינת שנסכמים רק האיברים שיש להם מחלק אחר שנמצא בתוך המערך",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "התשובה אינה מציינת תנאי סכימה של איבר שיש לו מחלק במערך, או שהתנאי שהוגדר שונה מכך",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.2.c1",
+   "equivalence_note_he": "ניסוח כמו «איבר שמתחלק באיבר אחר במערך» או «איבר שיש לו מחלק בתוך המערך» שקול",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.א.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חתימת הפעולה IsMirror",
+   "source_span": "חתימת הפעולה public static bool IsMirror(int[] arr)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה הוגדרה כ-public static, מחזירה bool, בשם IsMirror, ומקבלת מערך מספרים שלמים",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "חתימת הפעולה אינה מתאימה: שם, טיפוס מוחזר או פרמטר שונים מהנדרש",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c0",
+   "equivalence_note_he": "שם אחר לפרמטר המערך שקול, כל עוד הפרמטר הוא מערך של מספרים שלמים",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.א.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "שמות משתנים משמעותיים וקוד קריא",
+   "source_span": "שמות משתנים משמעותיים וקוד קריא",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שמות המשתנים מבטאים את תפקידם והקוד כתוב בצורה קריאה",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "שמות המשתנים אינם משמעותיים או שהקוד אינו קריא",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c1",
+   "equivalence_note_he": "שמות התואמים את הפתרון לדוגמה תקפים תמיד; משתני לולאה מקובלים כמו i ו-j תקפים",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.א.c2.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בדיקה האם המערך לא באורך זוגי",
+   "source_span": "סעיף א: בדיקה האם המערך לא באורך זוגי, להחזיר false (if נק' 1",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "קיים תנאי if הבודק אם אורך המערך אינו זוגי",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין בדיקה של זוגיות אורך המערך",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c2",
+   "equivalence_note_he": "בדיקה שקולה כמו arr.Length % 2 == 1 או בדיקה שאורך המערך זוגי עם החזרת false בענף החלופי תקפה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.א.c2.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "החזרת false כשהאורך אינו זוגי",
+   "source_span": ", החזרת false נקודה 1",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כאשר אורך המערך אינו זוגי הפעולה מחזירה false",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "כאשר אורך המערך אינו זוגי הפעולה אינה מחזירה false",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.א.c3.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "לולאה על המערך",
+   "source_span": "לולאה על המערך",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "קיימת לולאה העוברת על כל איברי המערך",
+     "value": "1.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה העוברת על איברי המערך",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c3",
+   "equivalence_note_he": "כל סוג לולאה (for, foreach, while) העוברת על כל איברי המערך שקול",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.א.c4.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קביעת המספר הנגדי של arr[i]",
+   "source_span": "חיפוש אחר המספר הנגדי של arr[i]: int target = -arr[i];",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה מחושב או נקבע הערך הנגדי של האיבר הנוכחי",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הערך הנגדי של האיבר הנוכחי אינו נקבע",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c4",
+   "equivalence_note_he": "שימוש ישיר ב-arr[i]*-1 או ב-(-arr[i]) בהשוואה, בלי משתנה נפרד, שקול",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.א.c4.c2",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "חיפוש הערך הנגדי בין איברי המערך",
+   "source_span": "bool found = false; for (int j = 0; j < arr.Length && found == false; j++) { if (arr[j] == target) { found = true; } }",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לולאה פנימית עוברת על איברי המערך, משווה כל איבר לערך הנגדי ורושמת אם הוא נמצא",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "לולאה פנימית משווה איברים לערך הנגדי, אך תוצאת החיפוש (נמצא או לא נמצא) אינה נרשמת",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין חיפוש של הערך הנגדי בין איברי המערך",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c4",
+   "equivalence_note_he": "דרך חיפוש אחרת שקולה, כגון שימוש ב-break, השוואת סכום שני איברים לאפס, או החזרה מיידית כשנמצא",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.א.c5.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בדיקה מחוץ ללולאה הפנימית אם לא נמצא המספר הנגדי",
+   "source_span": "סעיף א: מחוץ ללואה אם לא מצאנו את המספר הנגדי (1 נקודה)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לאחר החיפוש קיימת בדיקה האם הערך הנגדי לא נמצא",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין בדיקה אם הערך הנגדי לא נמצא לאחר החיפוש",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c5",
+   "equivalence_note_he": "בדיקה שקולה בכל צורה שמזהה שלא נמצא נגדי, כמו found == false או !found",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.א.c5.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "החזרת false כשלא נמצא הערך הנגדי",
+   "source_span": "להחזיר false (1 נקודה)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כאשר לא נמצא הערך הנגדי הפעולה מחזירה false",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "כאשר לא נמצא הערך הנגדי הפעולה אינה מחזירה false",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c5",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.א.c6.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "שורה אחרונה: החזרת true",
+   "source_span": "שורה אחרונה: להחזיר true",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בסוף הפעולה, אחרי הלולאה, מוחזר true",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "בסוף הפעולה לא מוחזר true",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c6",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.ב.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חתימת הפעולה ArrangeMirror",
+   "source_span": "חתימת הפעולה public static void ArrangeMirror(int[] arr)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה מוגדרת כ-public static void, בשם ArrangeMirror, ומקבלת פרמטר מערך של מספרים שלמים",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "חתימת הפעולה אינה תואמת: חסר שם הפעולה, סוג ההחזרה או פרמטר המערך",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c0",
+   "equivalence_note_he": "שם הפרמטר אינו חייב להיות arr",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.ב.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "שמות משתנים משמעותיים וקוד קריא",
+   "source_span": "שמות משתנים משמעותיים וקוד קריא",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שמות המשתנים מבטאים את תפקידם והקוד קריא",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "שמות המשתנים אינם משמעותיים או שהקוד אינו קריא",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c1",
+   "equivalence_note_he": "שמות התואמים את הפתרון לדוגמה (temp, tempIndex) תקפים תמיד",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.ב.c2.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "יצירת מערך עזר באותו גודל של הפרמטר",
+   "source_span": "סעיף ב: יצירת מערך עזר באותו גודל של הפרמטר",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "נוצר מערך עזר חדש שאורכו כאורך מערך הפרמטר",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא נוצר מערך עזר באותו גודל של הפרמטר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.ב.c2.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "משתנה למציין של מערך העזר",
+   "source_span": "משתנה למציין של מערך העזר",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הוגדר משתנה המשמש כמציין (אינדקס) למערך העזר",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוגדר משתנה מציין למערך העזר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.ב.c2.c3",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "אתחול משתנה המציין ל-0",
+   "source_span": "אתחול ל",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "משתנה המציין של מערך העזר מאותחל ל-0",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "משתנה המציין אינו מאותחל ל-0",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.ב.c3.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "לולאה על מערך הפרמטר",
+   "source_span": "סעיף ב: סריקת המערך הפרמטר ומציאת המספרים החיוביים והעתקם למערך הזמני פלוס קידום האנדקס לולאה על המערך הפרמטר 0.5",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "קיימת לולאה הסורקת את כל איברי מערך הפרמטר",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה הסורקת את מערך הפרמטר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3",
+   "equivalence_note_he": "כל סוג לולאה שסורק את כל איברי המערך שקול",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.ב.c3.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בדיקה אם המספר הנוכחי במערך הפרמטר חיובי",
+   "source_span": "אם המספר הנוכחי במערך הפרמטר חיובי 2",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה נבדק אם האיבר הנוכחי חיובי",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא נבדק אם האיבר הנוכחי חיובי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.ב.c3.c3",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "העתקת המספר החיובי למערך העזר",
+   "source_span": "העתק המספר החיובי למערך העזר 1",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "המספר החיובי מועתק למערך העזר במקום המצוין במציין",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "המספר החיובי אינו מועתק למערך העזר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.ב.c3.c4",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קידום האינדקס",
+   "source_span": "קידום האנדקס 1",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "מציין מערך העזר מקודם לאחר ההעתקה",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "מציין מערך העזר אינו מקודם",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.ב.c4.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "השמת המספר הנגדי למערך העזר בתוך הלולאה",
+   "source_span": "temp[tempIndex] = -arr[i];",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה, במקום העוקב למספר החיובי במערך העזר, מושם המספר הנגדי לו (בהנחה שהמערך מערך מראה, או לאחר מציאתו בלולאה נוספת)",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "המספר הנגדי אינו מושם במערך העזר מיד אחרי המספר החיובי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c4",
+   "equivalence_note_he": "שתי האפשרויות שקולות: השמת -arr[i] ישירות, או מציאת הנגדי בלולאה נוספת והשמתו בצמוד לחיובי",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.ב.c4.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קידום האינדקס לאחר השמת המספר הנגדי",
+   "source_span": "tempIndex++;",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "מציין מערך העזר מקודם לאחר השמת המספר הנגדי",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "מציין מערך העזר אינו מקודם לאחר השמת המספר הנגדי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c4",
+   "equivalence_note_he": "קידום אחד של המציין ב-2 אחרי השמת שני המספרים שקול",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q2.ב.c5.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "העתקה מסודרת של כל איברי מערך העזר חזרה למערך המקורי",
+   "source_span": "העתקה מסודרת של כל איברי מערך העזר חזרה למערך המקורי שנתקבל כפרמטר",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כל איברי מערך העזר מועתקים, לפי הסדר, למקומותיהם במערך הפרמטר",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "חלק מאיברי מערך העזר מועתקים למערך הפרמטר או שההעתקה אינה לפי הסדר, אך קיימת לולאת העתקה",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "איברי מערך העזר אינם מועתקים חזרה למערך הפרמטר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c5",
+   "equivalence_note_he": "שימוש בפעולת העתקה מובנית שקולה ללולאה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.א.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חתימת הפעולה DiceStatistics",
+   "source_span": "חתימת הפעולה public static int[] DiceStatistics(int[] arr)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה מוגדרת כ-public static, מחזירה מערך של מספרים שלמים, נקראת DiceStatistics ומקבלת מערך מספרים שלמים arr",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "חתימת הפעולה אינה מתאימה לנדרש: חסר שם הפעולה, סוג ההחזרה או הפרמטר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.א.c0",
+   "equivalence_note_he": "שם הפרמטר זהה לזה שבשאלה או שונה ממנו אך ברור, בתנאי שסוגו מערך מספרים שלמים",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.א.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "משתנים משמעותיים",
+   "source_span": "משתנים משמעותיים",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שמות המשתנים מתארים את תפקידם בקוד, למשל מערך המונים ותוצאת ההטלה",
+     "value": "0.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "שמות המשתנים אינם מתארים את תפקידם",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.א.c1",
+   "equivalence_note_he": "שם התואם את הפתרון לדוגמה תקף תמיד; שמות קצרים כמו i למונה לולאה מקובלים",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.א.c1.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קוד קריא",
+   "source_span": "קוד קריא",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הקוד כתוב בצורה מסודרת וקריאה, וניתן לעקוב אחר מהלכו",
+     "value": "0.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הקוד מבולגן עד שקשה לעקוב אחר מהלכו",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.א.c1",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.א.c2.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "הגדרה והקצאה נכונה של מערך המונים",
+   "source_span": "סעיף א: הגדרה והקצאה נכונה של מערך המונים בגודל 21",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הוגדר והוקצה מערך מונים של מספרים שלמים בגודל שמכיל אינדקס לכל ערך אפשרי בקובייה, כולל תא אפס",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוגדר והוקצה מערך מונים, או שגודלו אינו מכיל אינדקס לכל ערך אפשרי בקובייה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.א.c2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.א.c2.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "איפוס מערך מונים",
+   "source_span": "איפוס מערך מונים",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כל תאי מערך המונים מתחילים באפס, בלולאת איפוס או בהסתמכות על איפוס ברירת המחדל של השפה",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "מערך המונים אינו מאופס",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.א.c2",
+   "equivalence_note_he": "הסתמכות על איפוס אוטומטי של השפה בהקצאת המערך שקולה ללולאת איפוס, כמו בפתרון לדוגמה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.א.c3.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "לולאה הסורקת את מערך הקלט",
+   "source_span": "לולאה הסורקת את מערך הקלט",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "קיימת לולאה שעוברת על כל תאי מערך הקלט arr",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה שעוברת על מערך הקלט",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.א.c3",
+   "equivalence_note_he": "כל סוג לולאה (for, foreach, while) שעוברת על כל תאי המערך תקף",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.א.c4.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "בתוך הלולאה, קידום תקין של המונה המתאים",
+   "source_span": "קידום תקין של המונה המתאים",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה, עבור כל תוצאת הטלה מקודם המונה שבאינדקס השווה לערך התוצאה",
+     "value": "3",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "בתוך הלולאה מקודם מונה, אך לא המונה שבאינדקס של ערך ההטלה",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "בתוך הלולאה לא מקודם אף מונה בהתאם לערך ההטלה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.א.c4",
+   "equivalence_note_he": "שימוש ישיר ב-arr[i] כאינדקס ללא משתנה עזר שקול. לולאה פנימית שמקדמת את המונה רק כאשר arr[i] שווה למונה הלולאה הפנימית תקפה במלואה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.א.c4.n1",
+   "role": "note",
+   "shape": "note",
+   "description_he": "כלום (לא ביקשנו פתרון עם מערך מונים",
+   "source_span": "לא להוריד כלום (לא ביקשנו פתרון עם מערך מונים)",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "לא רלוונטי",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "observed",
+     "label_he": "כלום (לא ביקשנו פתרון עם מערך מונים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.א.c4",
+   "equivalence_note_he": null,
+   "evidence_required": false,
+   "origin": "compiler"
+  },
+  {
+   "check_id": "q3.א.c5.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "אחרי הלולאה: החזרת מערך המונים המלא",
+   "source_span": "החזרת מערך המונים המלא",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "אחרי סיום הלולאה הפעולה מחזירה את מערך המונים כולו",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הפעולה אינה מחזירה את מערך המונים המלא אחרי הלולאה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.א.c5",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.ב.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חתימת הפעולה PrintStatistics",
+   "source_span": "חתימת הפעולה public static void PrintStatistics(int[] arr)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה הוגדרה כ-public static, מחזירה void, בשם PrintStatistics ומקבלת מערך שלמים arr",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "חתימת הפעולה שונה מהנדרש: שם, סוג ההחזרה או הפרמטר אינם תואמים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.ב.c0",
+   "equivalence_note_he": "שם אחר לפרמטר המערך שקול, כל עוד הפעולה מקבלת מערך שלמים",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.ב.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "משתנים משמעותיים וקוד קריא",
+   "source_span": "משתנים משמעותיים + קוד קריא",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שמות המשתנים מבטאים את תפקידם והקוד כתוב באופן קריא",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "שמות המשתנים אינם משמעותיים והקוד אינו קריא",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.ב.c1",
+   "equivalence_note_he": "שם התואם את הפתרון לדוגמה תקף תמיד",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.ב.c2.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קריאה נכונה לפעולה DiceStatistics עם המערך arr",
+   "source_span": "קריאה נכונה לפעולה DiceStatistics(arr)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה DiceStatistics מזומנת עם המערך arr שהתקבל",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הפעולה DiceStatistics אינה מזומנת עם המערך arr",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.ב.c2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.ב.c2.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "שמירת המערך המוחזר מהפעולה DiceStatistics",
+   "source_span": "ושמירת המערך המוחזר",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "המערך שהוחזר מהפעולה נשמר במשתנה ובו נעשה שימוש בהמשך",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "המערך המוחזר אינו נשמר ואין בו שימוש",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.ב.c2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.ב.c2.n1",
+   "role": "note",
+   "shape": "note",
+   "description_he": "כלום (חוסר יעילות",
+   "source_span": "לא להוריד כלום (חוסר יעילות)",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "לא רלוונטי",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "observed",
+     "label_he": "כלום (חוסר יעילות",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.ב.c2",
+   "equivalence_note_he": null,
+   "evidence_required": false,
+   "origin": "compiler"
+  },
+  {
+   "check_id": "q3.ב.c3.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "הגדרת משתנה שלם לשמירת הערך המקסימלי maxCount",
+   "source_span": "סעיף ב: הגדרת משתנה שלם לשמירת הערך המקסימלי maxCount",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הוגדר משתנה שלם השומר את הערך המקסימלי",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוגדר משתנה שלם לשמירת הערך המקסימלי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.ב.c3",
+   "equivalence_note_he": "שם אחר למשתנה שקול כל עוד הוא שומר את הערך המקסימלי",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.ב.c3.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "אתחול משתנה המקסימום לתא הראשון או לערך מאוד נמוך",
+   "source_span": "אתחול לתא הראשון או לערך מאוד נמוך) (אתחול 1 נקודות)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "משתנה המקסימום אותחל לערך התא הראשון או לערך מאוד נמוך",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "משתנה המקסימום לא אותחל לתא הראשון או לערך מאוד נמוך",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.ב.c3",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.ב.c4.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "אלגוריתם למציאת הערך המקסימלי",
+   "source_span": "אלגוריתם נכון למציאת הערך המקסימלי (השכיחות הגבוהה ביותר)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כל ערך נבדק מול המקסימום הנוכחי, והמקסימום מתעדכן כשנמצא ערך גדול ממנו",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין אלגוריתם שמוצא ערך מקסימלי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.ב.c4",
+   "equivalence_note_he": "שימוש בפעולת מקסימום מובנית, או בעדכון המקסימום בצורה אחרת, שקול",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.ב.c4.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "הריצה על מערך המונים בטווח ערכי הקובייה",
+   "source_span": "מתוך מערך המונים (ריצה מאינדקס 1 עד 20)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "המקסימום נמצא בתוך מערך המונים, בריצה על האינדקסים של ערכי הקובייה",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "המקסימום לא נמצא בתוך מערך המונים, או שהריצה אינה על אינדקסי ערכי הקובייה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.ב.c4",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.ב.c5.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "לולאה נפרדת הסורקת ומדפיסה את כל האינדקסים שערכם שווה ל-maxCount",
+   "source_span": "לולאה נפרדת הסורקת ומדפיסה את כל האינדקסים שערכם שווה ל-maxCount (תמיכה בריבוי שכיחים)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לולאה נפרדת עוברת על מערך המונים בטווח ערכי הקובייה ומדפיסה כל אינדקס שערכו שווה ל-maxCount, כך שכל הערכים השכיחים מודפסים",
+     "value": "3",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "נסרק מערך המונים והודפס ערך שכיח, אך רק אחד מהם ולא כל הערכים השכיחים",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה שמדפיסה אינדקסים שערכם שווה ל-maxCount",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.ב.c5",
+   "equivalence_note_he": "הדפסה באמצעות משתנה הלולאה או באמצעות כל דרך אחרת להדפסת האינדקס שקולה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q3.ב.c6.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "לולאה הסורקת ומדפיסה את האינדקסים שבהם המונה שווה לאפס",
+   "source_span": "לולאה הסורקת ומדפיסה את האינדקסים שבהם המונה שווה ל-0 (ערכים שלא הופיעו)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לולאה עוברת על מערך המונים בטווח ערכי הקובייה ומדפיסה כל אינדקס שהמונה שלו שווה לאפס",
+     "value": "3",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה שמדפיסה את האינדקסים שהמונה שלהם שווה לאפס",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q3.ב.c6",
+   "equivalence_note_he": "סריקה שמשולבת בלולאה אחרת שקולה כל עוד האינדקסים הללו מודפסים",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.א.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חתימת הפעולה public double TotalEarnings() ללא המילה static",
+   "source_span": "חתימת הפעולה (ללא מילה static!) public double TotalEarnings()",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה הוגדרה כפעולה פנימית ציבורית (public) מטיפוס double בשם TotalEarnings, ללא פרמטרים וללא המילה static",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "חתימת הפעולה שגויה או חסרה: שם אחר, טיפוס החזרה שאינו double, או שימוש במילה static",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.א.c0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.א.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חישוב מכפלת מספר העונות בשכר לעונה",
+   "source_span": "this.seasonsPlayed * this.seasonSalary",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "מחושבת מכפלה של התכונה seasonsPlayed בתכונה seasonSalary",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא מחושבת מכפלה של מספר העונות בשכר לעונה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.א.c1",
+   "equivalence_note_he": "סדר הגורמים במכפלה, כתיבה ללא this, או גישה לתכונות דרך פעולות Get שקולים",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.א.c1.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "החזרת תוצאת החישוב",
+   "source_span": "החזרת החישוב",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "תוצאת המכפלה מוחזרת מהפעולה באמצעות return",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "תוצאת החישוב אינה מוחזרת מהפעולה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.א.c1",
+   "equivalence_note_he": "החזרה דרך משתנה עזר שבו נשמרה המכפלה שקולה להחזרה ישירה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חתימת הפעולה",
+   "source_span": "public static string[] TopEarners(BasketballPlayer[] arr, double amount)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה הוגדרה כ-public static, מחזירה string[], בשם TopEarners ומקבלת מערך BasketballPlayer וערך double",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "חתימת הפעולה אינה תואמת: חסר static, או שסוג ההחזרה, השם או הפרמטרים שונים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "משתנים משמעותיים",
+   "source_span": "משתנים משמעותיים",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שמות המשתנים מתארים את תפקידם (למשל מונה, אינדקס, מערך השמות)",
+     "value": "0.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "שמות המשתנים אינם מתארים את תפקידם",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c1",
+   "equivalence_note_he": "שם התואם את הפתרון לדוגמה תקף תמיד",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c1.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קוד קריא",
+   "source_span": "קוד קריא",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הקוד מסודר וקריא, עם הזחות ובלוקים ברורים",
+     "value": "0.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הקוד אינו מסודר ואינו קריא",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c1",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c2.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "משתנה למניית השחקניות שמקיימות את התנאי",
+   "source_span": "סעיף ב: משתנה למניית השחקניות שמקיימות את התנאי",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הוגדר משתנה מונה לשחקניות שהכנסותיהן גבוהות מ-amount",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוגדר משתנה למניית השחקניות",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c2",
+   "equivalence_note_he": "כל שם משתנה המבטא מונה תקף",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c2.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "איפוס המונה",
+   "source_span": "איפוס",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "המונה אותחל לאפס לפני הלולאה",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "המונה לא אופס לפני הלולאה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c3.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "לולאה (A) על מערך השחקניות לספירה נכונה וקידום מונה תקין",
+   "source_span": "לולאה (A) על מערך השחקניות (לספירה נכונה וקידום מונה תקין)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לולאה עוברת על כל איברי מערך השחקניות וקידום המונה תקין",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "קיימת לולאה על מערך השחקניות, אך היא אינה עוברת על כל האיברים או שקידום המשתנה בה אינו תקין",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה על מערך השחקניות לצורך הספירה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c3",
+   "equivalence_note_he": "לולאה מסוג אחר (while או foreach) שקולה ל-for",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c4.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בדיקה אם המערך במקום ה-i שונה מ-null",
+   "source_span": "סעיף ב:בתוך הלולאה (A) : בדיקה אם המערך במקום ה- i שונה מ- null (1 נקודות)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה נבדק ש-arr[i] שונה מ-null לפני הגישה אליו",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "בתוך הלולאה אין בדיקה ש-arr[i] שונה מ-null",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c4",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c4.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "זימון הפעולה הפנימית TotalEarnings עבור המערך במקום ה-i",
+   "source_span": "זימון של פעולה פנימית TotalEarnings עבור המערך במקום ה- i (3 נקודות)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה TotalEarnings מזומנת על arr[i] בתוך הלולאה",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הפעולה TotalEarnings אינה מזומנת על arr[i]",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c4",
+   "equivalence_note_he": "שמירת תוצאת הזימון במשתנה ושימוש בו בהשוואה שקולים",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c4.c3",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "השוואה אם התוצאה גבוהה מהפרמטר",
+   "source_span": "(לקנוס פעם אחת אם לא בדקו אם arr[i]!=null , הערה למטה) השוואה אם התוצאה גבוהה מהפרמטר (1 נקודה)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "תוצאת TotalEarnings מושווית ל-amount בתנאי של גדול ממש",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין השוואה של התוצאה לפרמטר amount",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c4",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c4.c4",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קידום המונה",
+   "source_span": "קידום המונה (1 נקודה)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "המונה מקודם כאשר התנאי מתקיים",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "המונה אינו מקודם כאשר התנאי מתקיים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c4",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c4.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "היעדר בדיקת arr[i]!=null בלולאה הראשונה",
+   "source_span": "לקנוס פעם אחת אם לא בדקו אם arr[i]!=null , הערה למטה)",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "לא נבדק ש-arr[i] שונה מ-null לפני הגישה אליו",
+     "value": "-1",
+     "marker_id": "q4.ב.c4.m1"
+    }
+   ],
+   "requires": null,
+   "charge_group": "q4.ב:once:2aa8e26f",
+   "priced_terminal_id": "q4.ב.c4",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c5.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "הקצאת מערך ה-string החדש בדיוק בגודל שנספר (count)",
+   "source_span": "הקצאת מערך ה-string החדש בדיוק בגודל שנספר (count)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הוקצה מערך string חדש שגודלו שווה לערך המונה",
+     "value": "3",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "הוקצה מערך string חדש, אך גודלו אינו ערך המונה (למשל אורך מערך השחקניות)",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוקצה מערך string חדש",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c5",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c6.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "משתנה לאינדקס מערך השמות",
+   "source_span": "סעיף ב: משתנה לאנדקס מערך השמות",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הוגדר משתנה נפרד המשמש אינדקס למערך השמות",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוגדר משתנה נפרד לאינדקס מערך השמות",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c6",
+   "equivalence_note_he": "כל שם משתנה המבטא אינדקס תקף",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c6.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "איפוס אינדקס מערך השמות",
+   "source_span": "איפוס",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "האינדקס אותחל לאפס לפני הלולאה",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "האינדקס לא אופס לפני הלולאה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c6",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c7.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "לולאה שנייה (B) נכונה",
+   "source_span": "סעיף ב: לולאה שנייה (B) נכונה (1 נקודה)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לולאה שנייה עוברת על כל איברי מערך השחקניות לצורך איסוף השמות",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה שנייה על מערך השחקניות",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c7",
+   "equivalence_note_he": "לולאה מסוג אחר שקולה ל-for",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c7.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בדיקה אם המערך במקום ה-i שונה מ-null בלולאה השנייה",
+   "source_span": "בדיקה אם המערך במקום ה- i שונה מ- null(1 נקודות)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בלולאה השנייה נבדק ש-arr[i] שונה מ-null לפני הגישה אליו",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "בלולאה השנייה אין בדיקה ש-arr[i] שונה מ-null",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c7",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c7.c3",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "שימוש ב-Getter לקבלת השם",
+   "source_span": ", להוריד רק פעם אחת שימוש ב-Getter לקבלת השם arr[i].GetName() (3 נקודות)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שם השחקנית מתקבל באמצעות arr[i].GetName()",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "שם השחקנית אינו מתקבל באמצעות פעולת Get",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c7",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c7.c4",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "השמה במערך החדש",
+   "source_span": "השמה במערך החדש (1 נקודה)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "השם מושם במערך השמות החדש",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "השם אינו מושם במערך השמות החדש",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c7",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c7.c5",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קידום אינדקס נפרד (namesIndex)",
+   "source_span": "תוך קידום אינדקס נפרד (namesIndex)(1 נקודה)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "אינדקס נפרד למערך השמות מקודם לאחר כל השמה",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין קידום של אינדקס נפרד למערך השמות",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c7",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c7.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "היעדר בדיקת null בלולאה השנייה",
+   "source_span": "להוריד רק פעם אחת",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "בלולאה השנייה לא נבדק ש-arr[i] שונה מ-null",
+     "value": "-1",
+     "marker_id": "q4.ב.c7.m1"
+    }
+   ],
+   "requires": null,
+   "charge_group": "q4.ב:once:2aa8e26f",
+   "priced_terminal_id": "q4.ב.c7",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c7.f2",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "טעות בתנאי בלולאה השנייה",
+   "source_span": "אם טעו פה,להוריד 3 רק פעם 1",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "התנאי בלולאה השנייה שגוי: ההשוואה של הכנסות השחקנית ל-amount או זימון TotalEarnings אינם תקינים",
+     "value": "-3",
+     "marker_id": "q4.ב.c7.m2"
+    }
+   ],
+   "requires": "q4.ב.c7.c1",
+   "charge_group": "q4.ב:once:d754e274",
+   "priced_terminal_id": "q4.ב.c7",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q4.ב.c8.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "החזרת מערך השמות",
+   "source_span": "החזרת מערך השמות",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה מחזירה את מערך השמות שנבנה",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הפעולה אינה מחזירה את מערך השמות",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q4.ב.c8",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.א.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חתימת הפעולה",
+   "source_span": "חתימת הפעולה (ללא מילה static!) public bool IsSimilarWorkshop(Workshop other)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה מוגדרת כפעולה פנימית (ללא המילה static) בשם IsSimilarWorkshop, מחזירה bool ומקבלת פרמטר אחד מטיפוס Workshop בשם other",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "חתימת הפעולה שונה מהנדרש: שם, טיפוס מוחזר, פרמטר או הרשאת public שונים, או שנכתבה המילה static",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.א.c0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.א.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חישוב השוואה בין שם הסדנה הנוכחית לשם הסדנה האחרת",
+   "source_span": "this.name == other.GetName()",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שם הסדנה הנוכחית מושווה לשם הסדנה שהתקבלה כפרמטר",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין השוואה בין שמות שתי הסדנאות, או שהושוותה תכונה אחרת",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.א.c1",
+   "equivalence_note_he": "גישה לשם בעזרת GetName או ישירות לתכונה, וכן שימוש ב-Equals, שקולים להשוואה עם ==",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.א.c1.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "החזרת תוצאת ההשוואה",
+   "source_span": "החזרת החישוב",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה מחזירה ערך בוליאני המבטא את תוצאת ההשוואה בין השמות",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הפעולה אינה מחזירה את תוצאת ההשוואה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.א.c1",
+   "equivalence_note_he": "החזרת true או false בעזרת if/else לפי תוצאת ההשוואה שקולה להחזרה ישירה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חתימת הפעולה HandleNewWorkshop כפעולה פנימית (לא static) המחזירה bool ומקבלת Workshop ws",
+   "source_span": "חתימת הפעולה (לא static!!) public bool HandleNewWorkshop(Workshop ws)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה HandleNewWorkshop מוגדרת במחלקה Schedule ללא static, מחזירה bool ומקבלת פרמטר מטיפוס Workshop",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הפעולה מוגדרת כ-static, או שסוג ההחזרה או הפרמטר שגויים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c0",
+   "equivalence_note_he": "שם הפרמטר אינו חייב להיות ws, כל עוד הוא מטיפוס Workshop",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "משתנים משמעותיים וקוד קריא",
+   "source_span": "משתנים משמעותיים + קוד קריא",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שמות המשתנים מתארים את תפקידם והקוד קריא ומסודר",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "שמות המשתנים אינם משמעותיים או שהקוד אינו קריא",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c1",
+   "equivalence_note_he": "שמות התואמים את הפתרון לדוגמה תקפים תמיד",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c2.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "לולאת החיפוש רצה על הסדנאות הקיימות בפועל, עד countWorkshops",
+   "source_span": "ריצה עד countWorkshops",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הלולאה עוברת על האיברים מהמקום הראשון ועד countWorkshops בלבד",
+     "value": "3.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה שעוברת על הסדנאות הקיימות במערך",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c2",
+   "equivalence_note_he": "ריצה עד Length יחד עם בדיקה שהאיבר שונה מ-null שקולה לריצה עד countWorkshops",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c2.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "עצירת החיפוש כאשר תנאי השילוב מתקיים",
+   "source_span": "ועצירה במידה ותנאי השילוב מתקיים",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "משנמצאה סדנה דומה שיש בה מקום לכל המשתתפים, הסדנאות מאוחדות והחיפוש נעצר",
+     "value": "3.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "החיפוש אינו נעצר כאשר תנאי השילוב מתקיים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c2",
+   "equivalence_note_he": "עצירה באמצעות return, break או תנאי בלולאה while שקולה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c2.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "גבולות לולאת החיפוש שגויים",
+   "source_span": "להוריד 2",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "הלולאה רצה עד Length ולא נבדק שהאיבר שונה מ-null",
+     "value": "-2",
+     "marker_id": "q5.ב.c2.m1"
+    },
+    {
+     "option_id": "f2",
+     "label_he": "גבולות הלולאה שגויים בדרך אחרת: לא עד countWorkshops, ולא עד Length עם בדיקת null",
+     "value": "-1",
+     "marker_id": "q5.ב.c2.m2"
+    }
+   ],
+   "requires": "q5.ב.c2.c1",
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c3.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "זימון הפעולה IsSimilarWorkshop מסעיף א' על איבר מהמערך עם הסדנה החדשה",
+   "source_span": "this.workshops[i].IsSimilarWorkshop(ws)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה IsSimilarWorkshop מופעלת על איבר מהמערך workshops, והסדנה החדשה מועברת לה כפרמטר",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הפעולה מסעיף א' לא זומנה, או שזומנה שלא על איבר מהמערך",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c3",
+   "equivalence_note_he": "זימון ללא this, או על משתנה עזר המחזיק איבר מהמערך, שקול",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c4.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בדיקת תנאי הקיבולת: סך המשתתפים בשתי הסדנאות קטן או שווה למגבלת הסדנה",
+   "source_span": "סעיף ב: בדיקת תנאי הקיבולת (קטן או שווה ל-40) ועדכון נכון של התכונה people בעזרת SetPeople ו-GetPeople הבדיקת הקיבולת עצמה 1 נקודה",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "נבדק שסך המשתתפים בסדנה הקיימת ובסדנה החדשה אינו עולה על הקיבולת המותרת",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין בדיקה של סך המשתתפים מול הקיבולת המותרת",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c4",
+   "equivalence_note_he": "תנאי שקול, למשל הבדיקה שאין חריגה מהקיבולת, תקף",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c4.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "עדכון התכונה people של הסדנה הקיימת בסך המשתתפים, בעזרת SetPeople ו-GetPeople",
+   "source_span": "אם לא השתמשו בפעולה הפנימית להוריד 2, אם לא השתמשו באף אחת מהן להוריד 3 אם חישבו נכון את סה\"כ ולא עדכנו את התכונה (כמובן ע\"י setter) להוריד 2",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "סך המשתתפים חושב ונקבע בסדנה הקיימת באמצעות SetPeople, תוך שימוש ב-GetPeople",
+     "value": "4",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "התכונה people של הסדנה הקיימת לא עודכנה בסך המשתתפים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c4",
+   "equivalence_note_he": "חישוב הסכום במשתנה עזר ואחר כך SetPeople, או חישוב ישירות בתוך הקריאה, שקולים",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c4.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "אי-שימוש בפעולות Get ו-Set של המחלקה Workshop",
+   "source_span": "אם לא השתמשו בפעולה הפנימית להוריד 2",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "נעשה שימוש רק באחת מהפעולות Get או Set, והשנייה לא שימשה",
+     "value": "-2",
+     "marker_id": "q5.ב.c4.m1"
+    },
+    {
+     "option_id": "f2",
+     "label_he": "לא נעשה שימוש באף אחת מהפעולות Get ו-Set",
+     "value": "-3",
+     "marker_id": "q5.ב.c4.m2"
+    }
+   ],
+   "requires": "q5.ב.c4.c2",
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c4",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c4.f2",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "סך המשתתפים חושב נכון אך התכונה people לא עודכנה באמצעות setter",
+   "source_span": "להוריד 2",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "סך המשתתפים חושב נכון, אך התכונה people של הסדנה הקיימת לא עודכנה באמצעות SetPeople",
+     "value": "-2",
+     "marker_id": "q5.ב.c4.m3"
+    }
+   ],
+   "requires": "q5.ב.c4.c2",
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c4",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c5.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "הוספת הסדנה החדשה למקום ה-countWorkshops במערך, כשלא בוצע איחוד והמערך אינו מלא",
+   "source_span": "הוספת הסדנה החדשה למקום ה-countWorkshops",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כשלא בוצע איחוד והמערך אינו מלא, הסדנה החדשה נשמרת באינדקס countWorkshops",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הסדנה החדשה אינה מתווספת למקום הראשון הפנוי במערך",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c5",
+   "equivalence_note_he": "בדיקה שהמערך אינו מלא, באמצעות 200 או Length, שקולה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c5.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קידום מונה הסדנאות countWorkshops באחד לאחר ההוספה",
+   "source_span": "וקידום המונה ב-1",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "countWorkshops גדל באחד לאחר הוספת הסדנה החדשה",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "countWorkshops אינו מקודם לאחר ההוספה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c5",
+   "equivalence_note_he": "כל צורת קידום באחד שקולה, למשל ++ או השמה של ערך גדול באחד",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c6.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "החזרת true בתרחישים שבהם האיחוד או ההוספה הצליחו",
+   "source_span": "סעיף ב: החזרת הערכים הבוליאניים הנכונים (true / false) בכל אחד מהתרחישים 1.5",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה מחזירה true לאחר איחוד עם סדנה קיימת ולאחר הוספת סדנה חדשה",
+     "value": "1.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "מוחזר true באחד משני תרחישי ההצלחה בלבד (איחוד או הוספה)",
+     "value": "0.75",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הפעולה אינה מחזירה true בתרחישי ההצלחה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c6",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q5.ב.c6.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "החזרת false כשהמערכת מלאה ולא ניתן להוסיף סדנה חדשה",
+   "source_span": "ל-true, 1.5",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כשהמערכת מלאה ואין איחוד אפשרי, הפעולה מחזירה false",
+     "value": "1.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הפעולה אינה מחזירה false כשהמערכת מלאה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q5.ב.c6",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חתימת הפעולה (עם המילה static!)",
+   "source_span": "חתימת הפעולה (עם המילה static!)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "חתימת הפעולה נכונה: פעולה חיצונית עם המילה static, מחזירה מערך שלמים, בשם AnalyzeMechina, ומקבלת מערך שלמים",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "בחתימת הפעולה יש טעות, למשל חסרה המילה static, או שהשם, סוג ההחזרה או הפרמטר שגויים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c0",
+   "equivalence_note_he": "שם הפרמטר שונה משם בפתרון לדוגמה תקף, כל עוד הוא מערך שלמים",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "משתנים משמעותיים",
+   "source_span": "משתנים משמעותיים",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שמות המשתנים מבטאים את תפקידם בפעולה",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "שמות המשתנים אינם מבטאים את תפקידם",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c1",
+   "equivalence_note_he": "שם התואם את הפתרון לדוגמה תקף תמיד",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c1.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קוד קריא",
+   "source_span": "קוד קריא",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הקוד מסודר וקריא, עם הזחה ומבנה ברור",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הקוד מבולגן ואינו קריא",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c1",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c2.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "יצירה של מערך מונים עם הקצאה נכונה (לפחות בגודל 31)",
+   "source_span": "יצירה של מערך מונים עם הקצאה נכונה (לפחות בגודל 31)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "נוצר מערך מונים של מספרים שלמים שגודלו מאפשר גישה לכל מספרי המכינות, לפחות בגודל 31",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "נוצר מערך מונים, אך גודלו קטן מדי ואינו מכסה את כל מספרי המכינות",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא נוצר מערך מונים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c2",
+   "equivalence_note_he": "גודל גדול מ-31 תקף",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c3.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "איפוס מערך המונים או הערה שיש איפוס ע\"י השפה",
+   "source_span": "איפוס מערך המונים או הערה שיש איפוס ע\"י השפה",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "מערך המונים מאופס בלולאה, או שנכתבה הערה שהשפה מאפסת אותו",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין איפוס למערך המונים ואין הערה על איפוס ע\"י השפה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c3",
+   "equivalence_note_he": "הערה בלשון חופשית על כך שהמערך מאופס אוטומטית מספיקה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c4.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "סריקה של מערך הקלט",
+   "source_span": "סריקה נכונה של מערך הקלט",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הלולאה עוברת על כל תאי מערך הקלט, מהראשון ועד האחרון",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין סריקה של מערך הקלט, או שהיא אינה עוברת על כל התאים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c4",
+   "equivalence_note_he": "כל צורת לולאה שעוברת על כל התאים שקולה, כולל foreach",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c4.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "עדכון מונים",
+   "source_span": "לעדכון מונים",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "עבור כל תא בקלט, המונה שהאינדקס שלו הוא מספר המכינה שבתא גדל באחד",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "המונים אינם מתעדכנים לפי מספר המכינה שבתא הקלט",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c4",
+   "equivalence_note_he": "קידום בדרכים שקולות כמו ‎+= 1‎ או ‎counters[x] = counters[x] + 1‎ תקף",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c5.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "סריקת מערך המונים",
+   "source_span": "סריקת מערך המונים",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הלולאה עוברת על תאי מערך המונים של כל המכינות",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין סריקה של מערך המונים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c5",
+   "equivalence_note_he": "התחלה מאינדקס 0 או מ-1 תקפה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c5.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "מציאת המונה הגבוה ביותר",
+   "source_span": "המונה הגבוה ביותר",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "במהלך הסריקה מושווה כל מונה למקסימום שנשמר, והמקסימום מתעדכן כשנמצא מונה גבוה יותר",
+     "value": "1.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין השוואה בין המונים ואין שמירה של המקסימום",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c5",
+   "equivalence_note_he": "מציאת המקסימום ישירות לפי מערך המונים, בלי משתנה נפרד לכמות, תקפה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c5.c3",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "שמירת המכינה (האינדקס) בעלת המונה הגבוה ביותר",
+   "source_span": "המכינה (האינדקס) עם המונה הגבוה ביותר",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "נשמר האינדקס של המונה הגבוה ביותר, כלומר מספר המכינה, ולא רק ערך המונה",
+     "value": "1.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא נשמר מספר המכינה של המונה הגבוה ביותר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c5",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c6.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "הדפסת מספר המכינה בעלת כמות מקסימלית",
+   "source_span": "הדפסת מספר המכינה בעלת כמות מקסימלית",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "מודפס מספר המכינה שאליה נרשמו הכי הרבה תלמידים",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא מודפס מספר המכינה בעלת הכמות המקסימלית",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c6",
+   "equivalence_note_he": "הדפסה באמצעות Console.WriteLine עם טקסט מקדים או בלעדיו תקפה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c6.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "הדפסת כמות התלמידים במקום מספר המכינה",
+   "source_span": "אם הדפיסו את הכמות להוריד 2 (או 1?)",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "הודפסה כמות התלמידים של המכינה הפופולרית ביותר ולא מספר המכינה",
+     "value": "-1",
+     "marker_id": "q6.c6.m1"
+    }
+   ],
+   "requires": "q6.c6.c1",
+   "charge_group": null,
+   "priced_terminal_id": "q6.c6",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c7.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "סריקת מערך המונים לצורך חישוב גודל מערך היעד",
+   "source_span": "חישוב גודל מערך היעד: סריקת מערך המונים(1 נק')",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "מערך המונים נסרק כדי לחשב את גודל מערך היעד",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "מערך המונים אינו נסרק לצורך חישוב גודל מערך היעד",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c7",
+   "equivalence_note_he": "סריקה אחת המשמשת גם למציאת המקסימום שקולה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c7.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "ספירת התאים שגדולים מ-0",
+   "source_span": ", ספירת התאים שגדולים מ-0 (1 נקודה)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "נספרים התאים במערך המונים שערכם גדול מ-0, כלומר המכינות שנרשמו אליהן תלמידים",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא נספרים התאים שערכם גדול מ-0",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c7",
+   "equivalence_note_he": "אי-שוויון שקול, כמו שונה מ-0, תקף",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c7.c3",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "יצירה והקצאת מערך חדש בגודל count * 2",
+   "source_span": ", ויצירה והקצאת מערך חדש בגודל count * 2 (2 נקודות)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "מוקצה מערך חדש שגודלו כפול ממספר המכינות שנרשמו אליהן תלמידים",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוקצה מערך חדש בגודל הנדרש",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c7",
+   "equivalence_note_he": "כתיבה שקולה, כמו count + count, תקפה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c8.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "כתיבת מספר המכינה בתא הראשון של הזוג",
+   "source_span": "קודם את result[resIndex] = i",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בכל זוג, מספר המכינה נכתב בתא הנוכחי של מערך היעד",
+     "value": "2.75",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "מספר המכינה אינו נכתב במערך היעד בתא הראשון של הזוג",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c8",
+   "equivalence_note_he": "המילוי נעשה רק עבור מכינות שנרשמו אליהן תלמידים, כמו בפתרון לדוגמה",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c8.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "כתיבת מספר התלמידים בתא העוקב",
+   "source_span": "ומיד לאחר מכן result[resIndex+1] = counters[i]",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "מיד אחרי מספר המכינה, בתא העוקב, נכתב ערך המונה של אותה מכינה",
+     "value": "2.75",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "ערך המונה אינו נכתב בתא העוקב למספר המכינה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c8",
+   "equivalence_note_he": "קידום האינדקס בין שתי הכתיבות וכתיבה אחרי כן תקפים, כל עוד הסדר נשמר: מספר מכינה ואחריו כמות",
+   "evidence_required": true,
+   "origin": "planner"
+  },
+  {
+   "check_id": "q6.c8.c3",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קידום ידני של אינדקס מערך היעד",
+   "source_span": "תוך קידום ידני תקין של אינדקס מערך היעד ב-2 בכל פעם",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "אינדקס מערך היעד מקודם בשני תאים אחרי כל זוג",
+     "value": "2.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אינדקס מערך היעד אינו מקודם בשני תאים אחרי כל זוג",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q6.c8",
+   "equivalence_note_he": "קידום בשתי פעולות של הגדלה באחד שקול, כל עוד בסוף הזוג האינדקס התקדם בשניים",
+   "evidence_required": true,
+   "origin": "planner"
+  }
+ ]
+}

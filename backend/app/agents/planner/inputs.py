@@ -60,6 +60,9 @@ class SkeletonComponent:
     component_id: str
     source_span: str
     status: ComponentStatus
+    # [AM-G19] context only, like `points_possible`: whether a credit is worth 2 or more
+    # decides if it must carry a partial (rule 7). Her figure or the compiler's split.
+    points: Optional[Decimal] = None
 
 
 @dataclass(frozen=True)

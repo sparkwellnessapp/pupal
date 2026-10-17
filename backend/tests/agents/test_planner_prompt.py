@@ -19,7 +19,9 @@ from app.agents.planner.inputs import (AMOUNT_MASK, SPLIT_REFS, MarkerInput, Not
                                        PlannerInputError, ScopePlannerInput, SkeletonComponent,
                                        TerminalInput, mask_amount, mask_marker_amounts,
                                        marker_input)
-from app.agents.planner.prompt import (PLANNER_PROMPT_VERSION, planner_system_prompt,
+from app.agents.grader import plan_values as pv
+from app.agents.planner.assemble import AM_G19_PARTIAL_MIN
+from app.agents.planner.prompt import (PLANNER_PROMPT_VERSION, am_g19_applies, planner_system_prompt,
                                        render_scope_input)
 from app.agents.planner.schemas import ScopePlanOutput
 from app.subjects import get_profile, subject_keys
@@ -57,10 +59,10 @@ def _synthetic_scope() -> ScopePlannerInput:
         terminals=(
             TerminalInput("t1", Decimal("7"), mask_marker_amounts(_TEXT_1, _MARKERS),
                           components=(SkeletonComponent("k1", "חישוב מהירות הרכב בקמ\"ש",
-                                                        "monolith"),)),
+                                                        "monolith", Decimal("7")),)),
             TerminalInput("t2", Decimal("4"), mask_marker_amounts(_TEXT_2, _MARKERS),
                           components=(SkeletonComponent("k2", "הסבר קצר של הקשר בין מהירות לדרך",
-                                                        "fixed"),)),
+                                                        "fixed", Decimal("4")),)),
         ),
         notes=(NoteInput("t2", "ניסוח לא מדויק — לא להוריד, לכתוב הערה"),),
         markers=tuple(marker_input(m) for m in _MARKERS),
@@ -226,6 +228,50 @@ def test_few_shot_outputs_validate_and_use_only_their_own_ids(i: int) -> None:
     assert parsed == ex.output
     assert render_scope_input(ex.input) in system
     assert _closed_world_errors(ex.input, parsed) == []
+    assert _rule7_errors(ex.input, parsed) == []
+
+
+def _credit_values(t, pt) -> list:
+    """What each credit is worth — the input's component points, a split's even share."""
+    if pt.decomposition == "split":
+        return pv.even_split(t.points_possible, len(pt.credits), Decimal("0.25"))
+    return [c.points for c in t.components]
+
+
+def _rule7_errors(inp: ScopePlannerInput, out: ScopePlanOutput) -> list:
+    """[AM-G19] rule 7 as a plain checker: every credit states its element; a non_binary credit
+    worth 2 or more has a partial; a binary or smaller one has none unless it quotes her words."""
+    errs = []
+    planned = {t.terminal_id: t for t in inp.planned_terminals}
+    for pt in out.terminals:
+        t = planned[pt.terminal_id]
+        for c, v in zip(pt.credits, _credit_values(t, pt)):
+            if c.element is None:
+                errs.append(f"{c.component_ref}: no element")
+            elif c.element == "non_binary" and v >= AM_G19_PARTIAL_MIN and not c.partials:
+                errs.append(f"{c.component_ref}: non_binary {v} with no partial")
+            elif c.element == "binary" or v < AM_G19_PARTIAL_MIN:
+                for p in c.partials:
+                    if not p.teacher_span or p.teacher_span not in t.teacher_text:
+                        errs.append(f"{c.component_ref}: unbacked partial on a {c.element} {v}")
+    return errs
+
+
+def test_few_shots_demonstrate_am_g19() -> None:
+    """(a) a two-level ladder (a minor slip and a major gap); (b) a binary credit worth 2 or
+    more with no partial, and a small credit keeping the partial she states, quoted; (d) an
+    absent label that takes the wrong-target answer. Domain-shifted: §5.4 is checked below."""
+    credits = [(t, pt, c, v) for ex in FEW_SHOTS for pt in ex.output.terminals
+               for t in [ex.input.terminal(pt.terminal_id)]
+               for c, v in zip(pt.credits, _credit_values(t, pt))]
+    fractions = [{p.fraction.value for p in c.partials} for _t, _pt, c, _v in credits]
+    assert any({"THREE_QUARTERS", "HALF"} <= f for f in fractions)
+    assert any(c.element == "binary" and v >= AM_G19_PARTIAL_MIN and not c.partials
+               for _t, _pt, c, v in credits)
+    assert any(v < AM_G19_PARTIAL_MIN and c.partials and all(p.teacher_span for p in c.partials)
+               for _t, _pt, c, v in credits)
+    assert sum("אחר" in c.absent_label_he for _t, _pt, c, _v in credits) >= 2
+    assert {c.element for _t, _pt, c, _v in credits} == {"binary", "non_binary"}
 
 
 def test_few_shots_cover_what_section_5_4_names() -> None:
@@ -270,7 +316,15 @@ def test_planner_system_prompt_per_pack(key: str) -> None:
     assert p.verifier_fragment not in text            # the verifier's rules are not the planner's
     # no rule id reaches the model: its Hebrew is the teacher's to read (CWV-5)
     assert not _RULE_ID.search(text), _RULE_ID.search(text).group(0)
-    assert PLANNER_PROMPT_VERSION == "planner-v6.1"
+    assert PLANNER_PROMPT_VERSION == "planner-v6.2"                   # [AM-G19]
+    assert am_g19_applies(PLANNER_PROMPT_VERSION) and not am_g19_applies("planner-v6.1")
+    # AM-G19, owner 2026-10-06: rule 7 carries (a)-(d) in the owner's own terms
+    flat = " ".join(text.split())
+    for phrase in ("A non_binary credit worth 2 points or more has at least one partial",
+                   "a minor slip (THREE_QUARTERS) and a major gap (HALF or QUARTER)",
+                   "unless the teacher's own text states a partial value for that element",
+                   "that answer takes the absent option"):
+        assert phrase in flat, phrase
     # REVIEW-2 (owner-approved 2026-09-30): the cross-criterion rule, verbatim
     assert " ".join(("A fault check lives on one criterion. The same mistake at two criteria is "
                      "two fault checks; code links them.").split()) in " ".join(text.split())
@@ -282,5 +336,7 @@ def test_render_preamble_names_every_closed_list() -> None:
     for token in ("t1, t2", "t1: k1 [monolith]", "n6", "t2: k2 [fixed]",
                   "m1, m2, m3", "as_compiled | binary | ladder | split",
                   "QUARTER | HALF | THREE_QUARTERS", "fault | merged | not_a_deduction",
-                  "Never output a number"):
+                  "binary | non_binary", "Never output a number"):
         assert token in head, token
+    assert "k1 [monolith] · points (context only): 7" in user          # [AM-G19] values are context
+    assert "k2 [fixed] · points (context only): 4" in user

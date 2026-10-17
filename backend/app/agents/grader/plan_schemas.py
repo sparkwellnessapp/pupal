@@ -178,6 +178,10 @@ class PartialFraction(str, Enum):
 CheckRole = Literal["credit", "fault", "note"]
 CheckShape = Literal["binary", "ladder", "levels", "count", "fault", "note"]
 CheckOrigin = Literal["compiler", "planner", "fallback", "legacy"]
+# [AM-G19, owner 2026-10-06] the planner's call per credit: ONE atomic element that is
+# present or absent (`binary`), or something an answer can satisfy in part (`non_binary`).
+# It decides whether the credit must carry a partial (planner/assemble.py, rule 7).
+CreditElement = Literal["binary", "non_binary"]
 
 
 class CheckOption(BaseModel):
@@ -212,6 +216,9 @@ class PlanCheckV6(BaseModel):
     equivalence_note_he: Optional[str] = None
     evidence_required: bool = True       # [AM-G2]
     origin: CheckOrigin
+    # [AM-G19] planner credits only; None everywhere else and on every plan built
+    # before planner-v6.2, whose hashes it therefore never moves (plan_values._check_doc)
+    element: Optional[CreditElement] = None
 
     def option(self, option_id: Optional[str]) -> Optional[CheckOption]:
         for o in self.options:

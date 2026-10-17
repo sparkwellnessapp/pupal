@@ -43,8 +43,10 @@ def test_planner_schema_has_no_numeric_fields():
     assert found == []
 
 
-def _credit(ref, span, desc="רכיב", partials=()):
-    return PlannedCredit(component_ref=ref, description_he=desc, source_span=span,
+def _credit(ref, span, desc="רכיב", partials=(), element="binary"):
+    # [AM-G19] binary with no partial is rule-7-clean at any value; a test that gives
+    # partials states the element its value needs
+    return PlannedCredit(component_ref=ref, description_he=desc, source_span=span, element=element,
                          full_label_he="קיים ומלא", absent_label_he="חסר",
                          partials=[PlannedPartial(label_he=l, fraction=f) for l, f in partials])
 
@@ -63,7 +65,7 @@ def test_planner_output_maps_to_checks(stage1):
     terms = [_as_compiled(t) if t.fixed else PlannedTerminal(
         terminal_id=t.terminal_id, decomposition="ladder",
         credits=[_credit(t.components[0].component_id, "לולאה על מערך התחביבים",
-                         desc="לולאה על מערך התחביבים",
+                         desc="לולאה על מערך התחביבים", element="non_binary",
                          partials=[("הלולאה נכונה אך בלי בדיקת null", PartialFraction.HALF)])])
         for t in scope.terminals]
     faults = [PlannedFault(anchor_terminal_id=m.home_terminal_id,

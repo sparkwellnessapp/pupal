@@ -210,14 +210,17 @@ def _check_doc(c: PlanCheckV6) -> dict:
     # Built from attributes, not model_dump: the models' serializers turn
     # Decimals into their literal spelling, and "4" vs "4.00" must not move
     # the hash.
-    return {"check_id": c.check_id, "role": c.role, "shape": c.shape,
-            "description_he": c.description_he, "source_span": c.source_span,
-            "options": [{"option_id": o.option_id, "label_he": o.label_he,
-                         "value": o.value, "marker_id": o.marker_id} for o in c.options],
-            "requires": c.requires, "charge_group": c.charge_group,
-            "priced_terminal_id": c.priced_terminal_id,
-            "equivalence_note_he": c.equivalence_note_he,
-            "evidence_required": c.evidence_required, "origin": c.origin}
+    doc = {"check_id": c.check_id, "role": c.role, "shape": c.shape,
+           "description_he": c.description_he, "source_span": c.source_span,
+           "options": [{"option_id": o.option_id, "label_he": o.label_he,
+                        "value": o.value, "marker_id": o.marker_id} for o in c.options],
+           "requires": c.requires, "charge_group": c.charge_group,
+           "priced_terminal_id": c.priced_terminal_id,
+           "equivalence_note_he": c.equivalence_note_he,
+           "evidence_required": c.evidence_required, "origin": c.origin}
+    if c.element is not None:            # [AM-G19] only when set: older plans keep their hash
+        doc["element"] = c.element
+    return doc
 
 
 def plan_hash(terminals: Sequence[TerminalPlanV6], checks: Sequence[PlanCheckV6]) -> str:

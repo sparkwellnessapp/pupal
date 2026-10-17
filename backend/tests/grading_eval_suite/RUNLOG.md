@@ -2993,3 +2993,67 @@ second exam, not another dollar on this one.**
   - `docs/plans/v6_explainer_read_sheet.md` (80 blind items; the key is in the run directory, kept out of the repo);
   - `tests/grading_eval_suite/EVAL_ANALYSIS_v5_baseline_20261006.md`.
 - **Ledger: $15.3505 of $19** (runs 1 $3.9032 · 2 $0.2378 · 2b $2.3301 · 3 $0.1837 · 4 $3.6566 · 5 $0.3537 · 6 $1.7394 · 7 $2.9460). **$3.65 left.**
+
+## 2026-10-07 · OWNER RULINGS after STOP (a) — recorded; items 6 and 3 done; AM-G19 built; the re-plan estimate (ledger $15.35 of $25)
+
+- **Recorded:** census §1a «After STOP (a)», plus the Oct 6 final rulings, which had reached RUNLOG only.
+  - **K2's kill is re-based** to the v5 baseline on the same fixtures (10.2%); 2.4% stays the target and is reported.
+  - **Reason (owner):** the 2.4% was calibrated on 5 hobby fixtures and fails the production pin. v6 at 17.0% fails the re-based bar too, so the change rescues no result.
+  - **Where:** `tools/v6_report.py` reads the bar from the baseline run passed to it. The shared instrument `gates.py` is unchanged. The previous run, re-read under it, still fails: 17.0% > 10.2%.
+  - **Cap:** $25.
+- **Item 6, security: NEVER COMMITTED.** Both remotes were fetched first (`origin` pupal, `vivi-origin` vivi-codebase).
+  - `git log --all --reflog` finds 0 commits touching any `*vivi-eval*` path.
+  - Pickaxe for a 24-character prefix and a 16-character suffix of the key: 0 commits. Unreachable blobs containing it: 0.
+  - The eval key is NOT the production key: a sha256 compare against Secret Manager `anthropic-api-key` (version 1), nothing printed.
+  - **Noted:** the same key is the `ANTHROPIC_API_KEY` of the local `backend/.env` (untracked, gitignored, gcloudignored, unchanged since Sep 28) and of its 6 worktree copies. Any local dev Anthropic call therefore draws on the eval workspace. Tests never call providers (network guard).
+- **Item 3, OD-21 folds: no unequal fold. No fix.**
+  - Stage 1 was instrumented over both contracts. Every fold is `amount == the component's own value`:
+    - hobby q1.ב.c6, q1.ג.c6, q1.ג.c7: −1 on a 1-point component;
+    - bagrut q5.א.c0, q6.c0: −1 on a 1-point terminal.
+  - Not folded, and correctly so: q1.ג.c3 (−1 on a 3-point monolith → a marker), every −0.5 math marker, and the charge-once deductions.
+  - An amountless deduction takes its host's value (OD-15) and therefore folds by construction. There are none in either contract. A Case-3 component folds against the teacher's stated figure (documented design); there are none either.
+  - Pinned by `test_an_unequal_deduction_is_never_folded`.
+  - So the G-Z on the folded cells (q1.ג.c6/c7) is not a fold artefact: the fold leaves a 1-point credit the verifier zeroed.
+- **AM-G19 → `planner-v6.2`:**
+  - **Rule 7, rewritten in the owner's terms.** Every credit states `element` (binary | non_binary), decoded before its labels. Then:
+    - (a) a non_binary credit worth ≥ 2 has ≥ 1 partial: concrete, or HALF «present, but incomplete or containing an error»; two levels when the credit allows;
+    - (b) a binary credit or one worth < 2 has none unless her text states it, quoted in `teacher_span`;
+    - (c) a different object takes the absent option, and every partial label names its own object.
+  - **Enforced in code** (`planner/assemble.py`, `AM_G19_PARTIAL_MIN = 2`), with a credit's worth taken as its component points, a split's even share, or a monolith's points:
+    - **strict:** violations are messages to the ONE repair call;
+    - **lenient:** after a failed repair, or a failed repair CALL, an unbacked partial is dropped and a missing one reported (`am_g19_*` telemetry). Nothing is invented, and there is no whole-scope fallback for rule 7 alone;
+    - **off:** replaying a planner-v6.1 recording (`am_g19_applies(version)`). All v6.1 recordings replay to their recorded plan hashes.
+  - **Recorded in the plan:** `PlanCheckV6.element`. It enters the hash doc only when set, so every v6.1 plan keeps its hash.
+  - **Input:** each component's points, «context only», like the terminal's.
+  - **Few-shots rewritten, domain-shifted:**
+    - a two-level ladder (THREE_QUARTERS + HALF) whose absent label takes the wrong target;
+    - a teacher-stated HALF on a 1-point component;
+    - a 2.5-point binary return with no partial;
+    - a 1-point binary monolith;
+    - a non_binary split credit whose partial leaves the fault to its fault check;
+    - a two-level writing credit whose absent option takes a paragraph on another topic.
+
+    The paragraph example's criterion became «a paragraph about a trip, with correct grammar», so its length partials invent nothing.
+  - **Pins and archive:** the CS planner pin moved (planner-v6.2/computer_science@v1, `45b8e610…`). The v6.1 pinned plans are archived as `plans/v6/archive/<exam>.planner-v6.1.plan.json` for the old-vs-new report.
+  - **Tests:** `test_planner_v6_am_g19.py` (10) and the rule-7 checker on the few-shots; agents + subjects + grading_eval_suite + services: **1325 passed, 2 skipped**.
+- **Decided — pending owner veto:**
+  1. The lenient downgrade after a failed repair, instead of the fallback.
+  2. Prompt caching on the planner's system prompt (CL-2 extended). Cache writes are priced at 1.25× in the recorded cost; outputs are unchanged.
+  3. `teacher_span` must be verbatim, and when it states a figure, that figure is the partial's value.
+  4. Full value for the split = the cell's terminal points.
+  5. The reuse rule for the CS re-run is the stricter reading: algebra AND wording byte-identical, i.e. the verifier would receive the same rubric part.
+- **New, $0:** `tools/v6_residual.py`. It splits K2 and G-Z by full value and reads each plan's expressibility of a run's cells through the gate instrument's own row filter.
+  - It reproduces the old figures: K2 34/50 inexpressible under the v6.1 plans, G-Z 45/96.
+  - The previous runs, split:
+
+    | run | K2 < 2 | K2 ≥ 2 | G-Z < 2 | G-Z ≥ 2 |
+    |---|---|---|---|---|
+    | v5 | 6/18 (33.3%) · +4 pts | 14/178 (7.9%) · +18 | 8/18 · −4 | 54/178 (30.3%) · −78 |
+    | v6 S5.5 | 12/27 (44.4%) · +7.5 | 38/267 (14.2%) · +46 | 9/27 · −4.5 | 87/267 (32.6%) · −122 |
+    | v6 S5 diag | 9/18 (50.0%) · +5.5 | 28/178 (15.7%) · +32.5 | 7/18 · −3.5 | 46/178 (25.8%) · −58.5 |
+
+- **Pre-registered:** P-v6-11, P-v6-12 and the run's rules (PREDICTIONS.md «the AM-G19 iteration»).
+- **SPEND ESTIMATE, runs 8–9, the AM-G19 re-plan** (both exams; `tools/plan_v6.py --confirm-spend`, effort high; the canary runs inside the tool):
+  - Run 8, Sonnet 5.5: the v6.1 actual was $1.13. Add 20% for AM-G19's longer output and possible repairs, less about $0.25 of cached system prompt → **estimate $1.25**; cap $1.20 per exam.
+  - Run 9, Opus 5.5: the v6.1 actual was $2.33 (hobby + bagrut) → **estimate $2.55**; cap $2.00 per exam.
+  - **Cumulative estimate: 15.35 + 3.80 = $19.15 ≤ $25 → GO.** The CS re-run (~$3.7) and the smoke (~$2) are estimated again before they start.

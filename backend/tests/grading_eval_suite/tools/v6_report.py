@@ -15,6 +15,10 @@ invalid; counted here). What only v6 has is read from the v6 block of every draf
         at one terminal whose markers are tiers of ONE fault (TIER_SETS: the census
         Appendix-B terminals that carry several markers of one fault).
   G-B   every bounds_clamped, with its plan cause.
+  K2    [owner 2026-10-06 evening, §4] the KILL is re-based: v6's GT-PARTIAL→AI-FULL rate must
+        not exceed the v5 baseline's on the same fixtures (read from the baseline run passed
+        in). The 2.4% bar of `gates.py` stays the TARGET and is reported beside it; the shared
+        instrument itself is unchanged.
   cost  per test by component (verifier · explainer arm A · arm B), on registry cards;
         the cache-hit rate (CL-2); the E-1..E-5 pass rate.
 """
@@ -93,6 +97,12 @@ def _gate_numbers(res, points, contested) -> Dict[str, Any]:
     return {"kills": k, "K3": g["GA-2"]["value"], "GZ": (p2z, gt_partial),
             "cost_mean": (agg.get("cost_usd") or {}).get("mean"),
             "n_valid": agg.get("n_valid"), "n_trials": len(trials)}
+
+
+def _k2_rate(res, points, contested) -> float:
+    tab = cross_tab(res["trials"], points, contested)
+    gt_partial = sum(n for (gc, _), n in tab.items() if gc == "PARTIAL")
+    return tab.get(("PARTIAL", "FULL"), 0) / gt_partial if gt_partial else 0.0
 
 
 def _drafts(run_dir: Path):
@@ -178,7 +188,9 @@ def render(v6_dir: Path, v5_dir: Path, arm_b: Optional[dict]) -> str:
     res5, pts5, con5, _ = _load_run(v5_dir)
     g6, g5 = _gate_numbers(res6, pts6, con6), _gate_numbers(res5, pts5, con5)
     m = v6_measures(v6_dir, bundles)
-    kills_ok = all(x["pass"] for x in g6["kills"].values())
+    k2_6, k2_5 = _k2_rate(res6, pts6, con6), _k2_rate(res5, pts5, con5)
+    k2_kill_ok = k2_6 <= k2_5                       # re-based kill (§4); 2.4% is the target
+    kills_ok = g6["kills"]["K1"]["pass"] and g6["kills"]["K4"]["pass"] and k2_kill_ok
     k3_ok = g6["K3"] is not None and g5["K3"] is not None and g6["K3"] >= g5["K3"]
     gz6 = g6["GZ"][0] / g6["GZ"][1] if g6["GZ"][1] else 0.0
     gz5 = g5["GZ"][0] / g5["GZ"][1] if g5["GZ"][1] else 0.0
@@ -197,8 +209,11 @@ def render(v6_dir: Path, v5_dir: Path, arm_b: Optional[dict]) -> str:
     L += [f"| | {n} | {'✅' if ok else '❌'} |" for n, ok in criteria]
     L += ["", "### Kills and gates", "", "| | v6 | v5 baseline | bar |", "|---|---|---|---|"]
     for k in ("K1", "K2", "K4"):
-        L.append(f"| {k} | {g6['kills'][k]['value']} {'✅' if g6['kills'][k]['pass'] else '❌'} | "
-                 f"{g5['kills'][k]['value']} | {g6['kills'][k]['bar']} |")
+        ok = k2_kill_ok if k == "K2" else g6["kills"][k]["pass"]
+        bar = (f"kill: ≤ v5 on the same fixtures ({k2_5:.1%}); target 2.4% "
+               f"{'met' if g6['kills']['K2']['pass'] else 'not met'}") if k == "K2" else g6["kills"][k]["bar"]
+        L.append(f"| {k} | {g6['kills'][k]['value']} {'✅' if ok else '❌'} | "
+                 f"{g5['kills'][k]['value']} | {bar} |")
     L.append(f"| K3 within-precision | {g6['K3']} | {g5['K3']} | ≥ v5 |")
     L.append(f"| G-Z GT-PARTIAL→AI-ZERO | {g6['GZ'][0]}/{g6['GZ'][1]} ({gz6:.1%}) | "
              f"{g5['GZ'][0]}/{g5['GZ'][1]} ({gz5:.1%}) | ≤ v5 |")

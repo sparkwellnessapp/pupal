@@ -44,8 +44,8 @@ from app.agents.plan_compiler.models import MODEL_CARDS                         
 from app.agents.plan_compiler.stage1_v6 import STAGE1_V6_VERSION, compile_stage1_v6  # noqa: E402
 from app.agents.planner.planner import (ScopePlanResult, assemble_plan,             # noqa: E402
                                         plan_scope)
-from app.agents.planner.prompt import (PLANNER_PROMPT_VERSION, planner_system_prompt,  # noqa: E402
-                                       render_scope_input)
+from app.agents.planner.prompt import (PLANNER_PROMPT_VERSION, am_g19_applies,  # noqa: E402
+                                       planner_system_prompt, render_scope_input)
 from app.agents.planner.render import render_plan_md                                # noqa: E402
 from app.agents.planner.schemas import ScopePlanOutput                              # noqa: E402
 from app.agents.planner.stage1_input import scope_planner_input                     # noqa: E402
@@ -91,8 +91,12 @@ async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scop
     recorded_path = OUT_DIR / f"{exam}.{model_key}.recorded.json"
 
     live_scopes = set(live_scopes)
+    am_g19 = True                                 # [AM-G19] a live call is planner-v6.2
     if replay or live_scopes:
         rec = json.loads(recorded_path.read_text(encoding="utf-8"))
+        am_g19 = am_g19_applies(rec["planner_prompt_version"])
+        if live_scopes and not am_g19:
+            raise SystemExit("--live-scopes mixes prompts: this recording predates AM-G19; re-record it whole")
         outputs = {s: [ScopePlanOutput.model_validate(o) for o in r["outputs"]]
                    for s, r in rec["scopes"].items()}
 
@@ -132,7 +136,7 @@ async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scop
                   f"system {len(system)} chars · user {len(user)} chars")
             continue
         r: ScopePlanResult = await plan_scope(scope, precision=s1.precision, system_prompt=system,
-                                              user_message=user, call=call_for(scope))
+                                              user_message=user, call=call_for(scope), am_g19=am_g19)
         cost = sum(u.get("cost_usd", 0.0) for u in r.usage)
         spent += cost
         results.append(r)
@@ -144,8 +148,9 @@ async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scop
     if skipped:
         print(f"  CAP ${max_usd} reached — scopes NOT planned: {skipped}")
         return
+    prompt_version = rec["planner_prompt_version"] if (replay and not live_scopes) else PLANNER_PROMPT_VERSION
     config = pv.config_hash(compiler_version=STAGE1_V6_VERSION, planner_model=card.model_id,
-                            planner_prompt_version=PLANNER_PROMPT_VERSION,
+                            planner_prompt_version=prompt_version,
                             pack_id=profile.pack_id, pack_version=profile.pack_version)
     plan = assemble_plan(results, config_hash=config, rubric_contract_version=str(contract.contract_version),
                          pack=PackRef(pack_id=profile.pack_id, pack_version=profile.pack_version))

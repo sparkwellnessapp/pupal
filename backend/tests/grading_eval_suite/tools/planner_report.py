@@ -28,6 +28,7 @@ from app.agents.grader.plan_schemas import PackRef                              
 from app.agents.grader.plan_validator_v6 import v19_fault_leak_candidates           # noqa: E402
 from app.agents.plan_compiler.stage1_v6 import compile_stage1_v6                    # noqa: E402
 from app.agents.planner.planner import assemble_plan, plan_scope                    # noqa: E402
+from app.agents.planner.prompt import am_g19_applies                                # noqa: E402
 from app.agents.planner.schemas import ScopePlanOutput                              # noqa: E402
 from tests.grading_eval_suite.fixtures import SUITE_DIR, load_bundle, read_gt_judgments  # noqa: E402
 from tests.grading_eval_suite.plan_v6_expressibility import (expressibility_v6,     # noqa: E402
@@ -53,7 +54,8 @@ async def _replay(exam: str, rec: dict):
             return q.pop(0), (u.pop(0) if u else {})
 
         results.append(await plan_scope(scope, precision=s1.precision, system_prompt="S",
-                                        user_message="U", call=call))
+                                        user_message="U", call=call,
+                                        am_g19=am_g19_applies(rec["planner_prompt_version"])))
     plan = assemble_plan(results, config_hash=rec["config_hash"], rubric_contract_version="x",
                          pack=PackRef(pack_id="computer_science", pack_version="v1"))
     return s1, results, plan

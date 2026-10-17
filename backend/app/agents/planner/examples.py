@@ -8,16 +8,24 @@ so the core the three share stays subject-agnostic (§3.3).
 
 Each example is DATA — a `ScopePlannerInput` and the `ScopePlanOutput` a correct plan
 returns — so `prompt.py` renders the input through the same `render_scope_input` a real
-scope goes through, and the test validates every output against the schema and against
-its own input's closed lists. Inputs are written as a real input arrives: marker
-amounts already masked, and every id an AM-G17 alias (t1, k1, m1, n1). `scope_id` is
-never rendered.
+scope goes through, and the test validates every output against the schema, against
+its own input's closed lists, and against rule 7. Inputs are written as a real input
+arrives: marker amounts already masked, every id an AM-G17 alias (t1, k1, m1, n1), and
+every component's points shown. `scope_id` is never rendered.
 
-  1  a monolith becomes a LADDER (beside a fixed, as-compiled terminal)
-  2  a criterion plus a deduction: the P-3 rewrite and `requires` (on a split monolith;
-     a no-deduct marker is not_a_deduction)
-  3  a tier ladder with overlapping conditions: the P-5 rewrite and a P-6 merge
-     (plus one P-9 interpretation note)
+  1  a monolith becomes a LADDER with two levels — a minor slip and a major gap — whose
+     absent option takes the wrong-target answer (AM-G19 a, d); beside it a fixed
+     terminal: a small credit keeps the partial the teacher STATES (teacher_span) and a
+     binary one has none (AM-G19 b)
+  2  a criterion plus a deduction: the P-3 rewrite and `requires`, on a split monolith
+     whose non_binary credit has a partial that leaves the fault to its fault check, and
+     whose binary credit (a return) has none however much it is worth (AM-G19 a, b); a
+     small binary monolith; a no-deduct marker is not_a_deduction
+  3  a tier ladder with overlapping conditions: the P-5 rewrite and a P-6 merge, on a
+     non_binary writing credit with two levels whose absent option takes a paragraph on
+     another topic (AM-G19 a, d), plus one P-9 interpretation note
+
+[AM-G19, planner-v6.2] Rewritten with rule 7: every credit states `element`.
 """
 from __future__ import annotations
 
@@ -41,26 +49,28 @@ class FewShot:
 
 
 _M = AMOUNT_MASK
+_D = Decimal
 
-# ── 1 · a monolith becomes a ladder ─────────────────────────────────────────────
+# ── 1 · a monolith becomes a ladder; a stated partial; a binary credit ─────────────
+_EX1_STATED = "חצי נקודה אם הוצב רק השיפוע"
 _EX1 = FewShot(
-    title="a monolith becomes a ladder",
+    title="a monolith becomes a two-level ladder; a small credit keeps only the partial she states",
     input=ScopePlannerInput(
         scope_id="q4",
         question_text="נתונות הנקודות A(1, 2) ו-B(3, 8). חשבו את שיפוע הישר AB וכתבו את משוואת הישר.",
         example_solution="m = (8 − 2) / (3 − 1) = 6 / 2 = 3\ny − 2 = 3(x − 1)\ny = 3x − 1",
         terminals=(
             TerminalInput(
-                terminal_id="t1", points_possible=Decimal("4"),
+                terminal_id="t1", points_possible=_D("4"),
                 teacher_text="חישוב שיפוע הישר AB (4 נק')",
-                components=(SkeletonComponent("k1", "חישוב שיפוע הישר AB", "monolith"),)),
+                components=(SkeletonComponent("k1", "חישוב שיפוע הישר AB", "monolith", _D("4")),)),
             TerminalInput(
-                terminal_id="t2", points_possible=Decimal("2"),
-                teacher_text=("משוואת הישר: הצבת השיפוע ונקודה על הישר (1 נק'), "
+                terminal_id="t2", points_possible=_D("2"),
+                teacher_text=(f"משוואת הישר: הצבת השיפוע ונקודה על הישר (1 נק', {_EX1_STATED}), "
                               "כתיבת המשוואה בצורה y = mx + b (1 נק')"),
                 components=(
-                    SkeletonComponent("k2", "הצבת השיפוע ונקודה על הישר", "fixed"),
-                    SkeletonComponent("k3", "כתיבת המשוואה בצורה y = mx + b", "fixed"),
+                    SkeletonComponent("k2", "הצבת השיפוע ונקודה על הישר", "fixed", _D("1")),
+                    SkeletonComponent("k3", "כתיבת המשוואה בצורה y = mx + b", "fixed", _D("1")),
                 )),
         ),
     ),
@@ -72,11 +82,20 @@ _EX1 = FewShot(
                     component_ref="k1",
                     description_he="חישוב שיפוע הישר AB",
                     source_span="חישוב שיפוע הישר AB",
-                    full_label_he="הפרש ערכי y חולק בהפרש ערכי x של אותן נקודות, והחישוב נכון",
-                    absent_label_he="לא חושב שיפוע מהפרשי הקואורדינטות",
-                    partials=[PlannedPartial(
-                        label_he="הפרשי הקואורדינטות הוצבו בנוסחת השיפוע, אך בחישוב נפלה טעות",
-                        fraction=PartialFraction.HALF)],
+                    element="non_binary",
+                    full_label_he="הפרש ערכי y של A ו-B חולק בהפרש ערכי x שלהן, והחישוב נכון",
+                    absent_label_he=("לא חושב שיפוע מהפרשי הקואורדינטות של A ו-B, או שחושב שיפוע "
+                                     "של נקודות אחרות"),
+                    partials=[
+                        PlannedPartial(
+                            label_he=("שיפוע הישר AB חושב מהפרשי הקואורדינטות של A ו-B, אך נפלה "
+                                      "טעות חשבון אחת"),
+                            fraction=PartialFraction.THREE_QUARTERS),
+                        PlannedPartial(
+                            label_he=("רק אחד מהפרשי הקואורדינטות של A ו-B נכון, או שהפרש ערכי x "
+                                      "חולק בהפרש ערכי y"),
+                            fraction=PartialFraction.HALF),
+                    ],
                     equivalence_note_he="החסרה בסדר ההפוך, במונה ובמכנה יחד, שקולה",
                 )]),
             PlannedTerminal(
@@ -86,12 +105,17 @@ _EX1 = FewShot(
                         component_ref="k2",
                         description_he="הצבת השיפוע ונקודה על הישר",
                         source_span="הצבת השיפוע ונקודה על הישר",
-                        full_label_he="השיפוע ונקודה מהישר הוצבו במשוואת ישר",
-                        absent_label_he="לא הוצבו שיפוע ונקודה במשוואת ישר"),
+                        element="non_binary",
+                        full_label_he="השיפוע ונקודה מהישר AB הוצבו במשוואת ישר",
+                        absent_label_he="לא הוצבו שיפוע ונקודה של הישר AB במשוואת ישר",
+                        partials=[PlannedPartial(
+                            label_he="שיפוע הישר AB הוצב במשוואת ישר, אך בלי נקודה מהישר",
+                            fraction=PartialFraction.HALF, teacher_span=_EX1_STATED)]),
                     PlannedCredit(
                         component_ref="k3",
                         description_he="כתיבת המשוואה בצורה y = mx + b",
                         source_span="כתיבת המשוואה בצורה y = mx + b",
+                        element="binary",
                         full_label_he="המשוואה כתובה בצורה y = mx + b",
                         absent_label_he="המשוואה אינה כתובה בצורה y = mx + b"),
                 ]),
@@ -121,37 +145,58 @@ _EX2 = FewShot(
                           "}"),
         terminals=(
             TerminalInput(
-                terminal_id="t1", points_possible=Decimal("5"), teacher_text=_EX2_TEXT,
-                components=(SkeletonComponent("k1", "ספירת התנועות במחרוזת והחזרת מספרן",
-                                              "monolith"),)),
+                terminal_id="t1", points_possible=_D("1"),
+                teacher_text="כותרת הפעולה (1 נק')",
+                components=(SkeletonComponent("k1", "כותרת הפעולה", "monolith", _D("1")),)),
+            TerminalInput(
+                terminal_id="t2", points_possible=_D("5"), teacher_text=_EX2_TEXT,
+                components=(SkeletonComponent("k2", "ספירת התנועות במחרוזת והחזרת מספרן",
+                                              "monolith", _D("5")),)),
         ),
         markers=(
             MarkerInput("m1", f"לא נספרות תנועות באותיות גדולות — יורדו {_M} נק'",
-                        "deduct", "t1", ("t1",)),
+                        "deduct", "t2", ("t2",)),
             MarkerInput("m2", "על שכחת נקודה-פסיק לא מורידים",
-                        "no_deduct", "t1", ("t1",)),
+                        "no_deduct", "t2", ("t2",)),
         ),
     ),
     output=ScopePlanOutput(
-        terminals=[PlannedTerminal(
-            terminal_id="t1", decomposition="split",
-            credits=[
-                PlannedCredit(
-                    component_ref="n1",
-                    description_he="ספירת התנועות במחרוזת",
-                    source_span="ספירת התנועות במחרוזת",
-                    full_label_he="מעבר על כל תווי המחרוזת והגדלת מונה על כל תנועה",
-                    absent_label_he="אין ספירה של התנועות במחרוזת",
-                    equivalence_note_he="זיהוי תנועה בהשוואה לכל אחת מהאותיות, במקום חיפוש במחרוזת aeiou, שקול"),
-                PlannedCredit(
-                    component_ref="n2",
-                    description_he="החזרת מספר התנועות",
-                    source_span="והחזרת מספרן",
-                    full_label_he="הפעולה מחזירה את המונה",
-                    absent_label_he="הפעולה אינה מחזירה את מספר התנועות"),
-            ])],
+        terminals=[
+            PlannedTerminal(
+                terminal_id="t1", decomposition="binary",
+                credits=[PlannedCredit(
+                    component_ref="k1",
+                    description_he="כותרת הפעולה",
+                    source_span="כותרת הפעולה",
+                    element="binary",
+                    full_label_he="כותרת הפעולה CountVowels מקבלת מחרוזת ומחזירה מספר שלם",
+                    absent_label_he="אין כותרת לפעולה CountVowels, או שהיא אינה מקבלת מחרוזת")]),
+            PlannedTerminal(
+                terminal_id="t2", decomposition="split",
+                credits=[
+                    PlannedCredit(
+                        component_ref="n1",
+                        description_he="ספירת התנועות במחרוזת",
+                        source_span="ספירת התנועות במחרוזת",
+                        element="non_binary",
+                        full_label_he="מעבר על כל תווי המחרוזת והגדלת מונה על כל תנועה",
+                        absent_label_he="אין ספירה של התנועות במחרוזת, או שנספרים תווים שאינם תנועות",
+                        partials=[PlannedPartial(
+                            label_he=("יש מעבר על תווי המחרוזת ומונה לתנועות, אך הזיהוי מחמיץ חלק "
+                                      "מהתנועות הקטנות או שהמונה אינו גדל כראוי"),
+                            fraction=PartialFraction.HALF)],
+                        equivalence_note_he=("זיהוי תנועה בהשוואה לכל אחת מהאותיות, במקום חיפוש "
+                                             "במחרוזת aeiou, שקול")),
+                    PlannedCredit(
+                        component_ref="n2",
+                        description_he="החזרת מספר התנועות",
+                        source_span="והחזרת מספרן",
+                        element="binary",
+                        full_label_he="הפעולה מחזירה את מונה התנועות",
+                        absent_label_he="הפעולה אינה מחזירה את מונה התנועות"),
+                ])],
         faults=[PlannedFault(
-            anchor_terminal_id="t1",
+            anchor_terminal_id="t2",
             requires_component_ref="n1",
             description_he="תנועות באותיות גדולות אינן נספרות",
             options=[PlannedFaultOption(
@@ -177,9 +222,10 @@ _EX3 = FewShot(
         example_solution=None,
         terminals=(
             TerminalInput(
-                terminal_id="t1", points_possible=Decimal("6"),
-                teacher_text=f"דקדוק (6 נק'): {_EX3_M1}. {_EX3_M2}. {_EX3_M3}.",
-                components=(SkeletonComponent("k1", "דקדוק", "monolith"),)),
+                terminal_id="t1", points_possible=_D("6"),
+                teacher_text=f"כתיבת פסקה על טיול, בדקדוק תקין (6 נק'): {_EX3_M1}. {_EX3_M2}. {_EX3_M3}.",
+                components=(SkeletonComponent("k1", "כתיבת פסקה על טיול, בדקדוק תקין", "monolith",
+                                              _D("6")),)),
         ),
         markers=(
             MarkerInput("m1", _EX3_M1, "deduct", "t1", ("t1",)),
@@ -189,13 +235,22 @@ _EX3 = FewShot(
     ),
     output=ScopePlanOutput(
         terminals=[PlannedTerminal(
-            terminal_id="t1", decomposition="binary",
+            terminal_id="t1", decomposition="ladder",
             credits=[PlannedCredit(
                 component_ref="k1",
-                description_he="כתיבת הפסקה",
-                source_span="Write a paragraph",
-                full_label_he="נכתבה פסקה באנגלית על טיול",
-                absent_label_he="לא נכתבה פסקה")],
+                description_he="כתיבת פסקה על טיול",
+                source_span="כתיבת פסקה על טיול",
+                element="non_binary",
+                full_label_he="נכתבה באנגלית פסקה על טיול של הכותב, באורך שהשאלה מבקשת",
+                absent_label_he="לא נכתבה פסקה, או שהפסקה עוסקת בנושא אחר ולא בטיול",
+                partials=[
+                    PlannedPartial(
+                        label_he="נכתבה פסקה על טיול, אך אורכה מעט מחוץ לטווח שהשאלה מבקשת",
+                        fraction=PartialFraction.THREE_QUARTERS),
+                    PlannedPartial(
+                        label_he="נכתבו על הטיול משפטים בודדים בלבד, הרבה פחות מפסקה באורך המבוקש",
+                        fraction=PartialFraction.HALF),
+                ])],
             interpretation_notes_he=["שגיאת כתיב אינה נספרת כשגיאת דקדוק."])],
         faults=[PlannedFault(
             anchor_terminal_id="t1",

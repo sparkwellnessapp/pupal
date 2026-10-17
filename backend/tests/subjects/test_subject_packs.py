@@ -25,7 +25,7 @@ BACKEND = Path(__file__).resolve().parents[2]
 
 PINS = {
     # name                          version                          sha256
-    "cs.planner_system_prompt": ("planner-v6.1/computer_science@v1", "ff72866c026aec6be256fe8fa4fd30d255339a8dbe95011436d1da5a2bdfd66b"),
+    "cs.planner_system_prompt": ("planner-v6.2/computer_science@v1", "45b8e610409954f9f01b56f6ec047b51b913b66b67d5c62241d56ec3c9f9a9a8"),
     "cs.verifier_fragment":     ("computer_science@v1",              "305158a2c207b927504480b686487b233c2eb9b44ba45ea2549b637de39cfb8e"),
     "cs.explainer_fragment":    ("computer_science@v1",              "ea68000e0e3f5be372b056dad265e71c9bcc8b2d41c68226627ac18d3c59426b"),
 }

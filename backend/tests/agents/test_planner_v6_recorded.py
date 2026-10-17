@@ -13,7 +13,7 @@ from app.agents.plan_compiler.stage1_v6 import compile_stage1_v6
 from app.agents.planner.assemble import map_scope, validate_scope
 from app.agents.planner.inputs import SPLIT_REFS
 from app.agents.planner.planner import assemble_plan, plan_scope
-from app.agents.planner.prompt import PLANNER_PROMPT_VERSION
+from app.agents.planner.prompt import PLANNER_PROMPT_VERSION, PRE_AM_G19_VERSIONS, am_g19_applies
 from app.agents.planner.schemas import (PlannedCredit, PlannedTerminal, ScopePlanOutput)
 from app.agents.planner.stage1_input import planner_aliases
 from app.agents.grader.plan_schemas import PackRef
@@ -42,9 +42,18 @@ def test_there_is_a_recording_per_exam_and_planner_arm():
             assert f"{exam}.{model}.recorded.json" in names
 
 
+def _mode(rec, scope_record) -> str:
+    """[AM-G19] how plan_scope took this scope: off before planner-v6.2; strict, or the
+    lenient downgrade a failed repair recorded in its telemetry."""
+    if not am_g19_applies(rec["planner_prompt_version"]):
+        return "off"
+    tel = scope_record.get("telemetry") or []
+    return "lenient" if any(x.startswith("am_g19_downgraded") for x in tel) else "strict"
+
+
 def test_recordings_are_of_the_current_prompt_and_in_alias_space(recorded):
     exam, rec, _s1 = recorded
-    assert rec["planner_prompt_version"] == PLANNER_PROMPT_VERSION
+    assert rec["planner_prompt_version"] in (PLANNER_PROMPT_VERSION, *PRE_AM_G19_VERSIONS)
     for scope_id, r in rec["scopes"].items():
         for o in r["outputs"]:
             out = ScopePlanOutput.model_validate(o)
@@ -66,7 +75,7 @@ def test_planner_output_maps_to_checks(recorded):
             continue
         out = ScopePlanOutput.model_validate(r["outputs"][-1])
         scope = s1.scope(scope_id)
-        terminals, checks, disps, _ = map_scope(scope, out, s1.precision)
+        terminals, checks, disps, _ = map_scope(scope, out, s1.precision, am_g19=_mode(rec, r))
         assert validate_scope(scope, terminals, checks, disps, s1.precision) == [], (exam, scope_id)
 
 
@@ -80,7 +89,8 @@ async def test_the_recording_replays_to_its_plan_hash(recorded):
             return q.pop(0), {}
 
         results.append(await plan_scope(scope, precision=s1.precision, system_prompt="S",
-                                        user_message="U", call=call))
+                                        user_message="U", call=call,
+                                        am_g19=am_g19_applies(rec["planner_prompt_version"])))
     assert [r.origin for r in results] == [rec["scopes"][s.scope]["origin"] for s in s1.scopes]
     plan = assemble_plan(results, config_hash=rec["config_hash"], rubric_contract_version="x",
                          pack=PackRef(pack_id="computer_science", pack_version="v1"))
@@ -98,7 +108,7 @@ def test_a_fixed_components_span_is_copied_from_the_compiler():
     out = ScopePlanOutput(terminals=[PlannedTerminal(
         terminal_id=a(t.terminal_id), decomposition="as_compiled",
         credits=[PlannedCredit(component_ref=a(c.component_id), description_he="רכיב",
-                               source_span="משהו אחר לגמרי", full_label_he="קיים",
+                               source_span="משהו אחר לגמרי", element="binary", full_label_he="קיים",
                                absent_label_he="חסר") for c in t.components])])
     _terms, checks, _d, _tel = map_scope(only, out, s1.precision)
     assert [c.source_span for c in checks if c.role == "credit"] == [c.source_span for c in t.components]

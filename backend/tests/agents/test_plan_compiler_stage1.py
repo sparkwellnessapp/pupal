@@ -177,6 +177,17 @@ class TestC1Deductions:
         assert _alg(t) == [("required", "1"), ("required", "1"), ("tariff", "0.5", False)]
         assert any(f.code == "tariff_folded_into_component" for f in t.flags)
 
+    def test_an_unequal_deduction_is_never_folded(self):
+        """[owner 2026-10-06, item 3] OD-21 folds ONLY at exact equality with the component the
+        deduction modifies. Unequal — a 1 against a 3-point monolith, a 0.5 against a 1-point
+        component — stays a tariff (in v6: a marker, then a fault option)."""
+        mono = _compile_one("לולאה עד length ולא בדקו בפנים שהתא שונה מ-null להוריד 1", "3")
+        assert _alg(mono) == [("required", "3"), ("tariff", "1", False)]
+        assert not any(f.code == "tariff_folded_into_component" for f in mono.flags)
+        two = _compile_one("הדפסת הממוצע (2) אם לא מנעו חלוקה באפס להוריד 1", "2")
+        assert ("tariff", "1", False) in _alg(two)
+        assert not any(f.code == "tariff_folded_into_component" for f in two.flags)
+
     def test_a_dash_value_closing_a_clause_is_not_a_tariff(self):
         t = _compile_one("זיהוי שמדובר בפעולת סכימה – 2 נק'", "2")
         assert _alg(t) == [("required", "2")]

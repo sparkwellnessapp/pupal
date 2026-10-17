@@ -25,7 +25,8 @@ def hobby():
 
 
 def _credit(ref, span):
-    return PlannedCredit(component_ref=ref, description_he="רכיב", source_span=span,
+    # [AM-G19] binary with no partial is rule-7-clean at any value
+    return PlannedCredit(component_ref=ref, description_he="רכיב", source_span=span, element="binary",
                          full_label_he="קיים", absent_label_he="חסר")
 
 
