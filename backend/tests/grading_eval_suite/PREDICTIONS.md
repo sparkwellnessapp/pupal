@@ -654,3 +654,25 @@ Ruling Oct 6 §3 item 7c; it runs only if the AM-G19 CS re-run holds its kills a
   - no unrepaired validator error (a fallback or a rule-7 downgrade counts), every fallback reported;
   - English: every criterion a compiled `levels` check on its C8-lite bands.
 - **On failure:** up to 2 fix iterations, touching ONLY that subject's pack fragment, then STOP (g).
+
+### Item A (owner rulings Oct 18 §1) — the HELD-OUT Math set (registered BEFORE any Math-pack change)
+
+- **File:** `smoke/known_answers_heldout.json`. Three new answers on math3 **q2–q5** (choose 4 of 5).
+  - q3, the trigonometry question, is not in the smoke at all.
+  - All numbers and errors are new; nothing is reused from the smoke answers.
+  - 24 criteria per answer, 72 in all. q3 is answered per block (א, ב), the way production segments it.
+- **A3_wrong_method:** every step uses an invalid method, and no step is a valid operation on a carried value. Examples: halving the base for the height; adding sides for the leg; angle-proportion instead of trigonometry; the wrong multiple-choice expression; dividing the subscription by the per-lesson price. **24 × zero.**
+- **A2_follow_through:** three slips, each carried correctly. **21 × full · 3 × partial.**
+  - q2.ב: 21² written as 421, so c = √521 ≈ 22.83 → **partial**. q2.ג then uses 22.83 correctly → **full**.
+  - q4.ג: y = 80x (90 copied as 80) → **partial**. q4.ד then solves 1620 + 30x = 80x correctly → **full**.
+  - q5.ב: offer A slips to 4600; offer B is right, and the comparison on her own values is right → **partial**.
+- **A1_full:** fully correct, worded differently from the smoke's A1. **24 × full.**
+- **Pass (the smoke's criteria):**
+  - 0 K1-class events;
+  - A1 at full on every criterion;
+  - ≥ 90% in the intended class (**≥ 65/72**);
+  - no unrepaired validator error in the plan graded.
+- **Protocol:**
+  - Graded ONCE, on the plan of the passing attempt (replayed from its recording, $0 planning), or after the 2nd attempt.
+  - Never graded or inspected during the attempts.
+  - The attempts re-plan math3 and re-grade the three original smoke answers against the original bar (0 K1 · A1 full · ≥ 52/57 · validator clean).
