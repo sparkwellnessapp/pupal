@@ -118,6 +118,8 @@ def load_plans(spec: str) -> Dict[str, GradingPlanV6]:
         elif spec.startswith("recorded:"):
             out[exam] = asyncio.run(_replay(exam, spec.split(":", 1)[1]))
             continue
+        elif spec.startswith("dir:"):                       # [Item C] e.g. dir:run11 → plans/v6/run11/
+            p = PLAN_DIR / spec.split(":", 1)[1] / f"{exam}.plan.json"
         else:
             raise SystemExit(f"unknown plan spec {spec!r}")
         out[exam] = GradingPlanV6.model_validate_json(p.read_text(encoding="utf-8"))
