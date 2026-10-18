@@ -3381,3 +3381,27 @@ second exam, not another dollar on this one.**
   - then the held-out set ≈ $0.25;
   - **Item A total ≈ $2.87** against the $2.97 left ($1.31 already spent);
   - `--max-usd 1.80` (the tool's per-answer bound is conservative).
+
+## 2026-10-18 · ITEM A · attempt 2 — FAIL (K1 1, validator: 1 fallback) → STOP, no attempt 3 · actual $1.3436
+
+- **Run** `results/20261018-160002_v6-smoke` (Math pack v3, plan `d2d838a9`, Opus 5.5 high).
+  - 16 planner + 6 repaired + **1 fallback** (`q5.ב`), 39 checks, $1.2015.
+  - Grading $0.1421 at `GRADER_MAX_CONCURRENT_SCOPES=4`: **0 connection retries** (the bursts are gone).
+
+  | bar (registered; A2 q1.ג.c2 corrected to full) | attempt 1 (v2) | **attempt 2 (v3)** |
+  |---|---|---|
+  | K1-class events = 0 | 2 | **1 ❌** |
+  | A1 full on every criterion | 18/19 | **19/19 ✅** |
+  | ≥ 52/57 intended | 52 | **52 ✅** |
+  | validator clean | ✅ | **❌ fallback `q5.ב`** |
+
+- **The 5 misses (render `docs/plans/v6_smoke_mathematics.md`):**
+  - A3 `q1.ג.c2` «3.6 + 25 = 28.6» (adds 25 m) → **7/7: K1.** The verifier credited «lengths as computed» on values from an INVALID method; R2's no-follow-through was not applied.
+  - A2 `q1.ד` «4.4 · 6 = 26.4» → 0 (intended full). The check now asks only for the product (the wording fix worked), but the carried 4.4 (a slip) was judged wrong: **follow-through not applied**.
+  - A2 `q1.ה` «152.78%» → 2.5/3.25 (intended full). Judged an arithmetic error against the expected 156.25%: **follow-through not applied**.
+  - A2 `q2.ב` «c = 23.6» (√541 ≈ 23.26) → full (intended partial). The verifier does not recompute (the known gap; V-8-class).
+  - A2 `q5.ב` → 0 (intended partial). **Fallback scope:** V12, two zero-option labels > 140 chars, not shortened by the repair. A fallback is binary, so it cannot express the partial.
+- **Reading:** the wording fix took effect (attempt 1's `q2.ג` miss is gone; A1 is 19/19). The verifier did NOT apply R2 in either direction: no follow-through from the valid slip (q1.ד, q1.ה), and credit flowed from the invalid method (q1.ג.c2). The new rules also made the planner's labels longer (the V12 fallback).
+- **Held-out set: NOT graded** (attempt 2 failed; ruling §2e). It stays sealed.
+- **Item A ledger:** $1.3112 + $1.3436 = **$2.6548**. Eval total Oct 18: C $5.7191 + A $2.6548 = **$8.3739 of $10**; the owner's +$1 (Item D only) unused.
+- **Outcome:** STOP (ruling §2e). The Math pack v3 does NOT join production; main keeps the v1 Math pack. **Item B (the flip) does not proceed:** it requires Item A to pass.
