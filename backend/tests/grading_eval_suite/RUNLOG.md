@@ -3531,3 +3531,16 @@ second exam, not another dollar on this one.**
   - `q4.ד` «1620 + 30x = 80x, x = 32.4»: intended full → 8.25/9.5. The equation check charged the copying error AGAIN (a charge-once miss); the solving step got full follow-through.
 - **§2 spend:** §2b $0.0161 + §2c $0.1566 = **$0.1727 of $0.40**. **Eval total Oct 18: $8.5466 of $10.**
 - **§2 CLEARED.** Pack v3 + the V12 cap 200 + the q1.ג.c2 artifact record go to main. The flip waits only on the §8 conditions (see the report).
+
+## 2026-10-18 · OWNER VERDICT «A»: flip now on the DIRECT Anthropic API
+
+- The flip's «production Claude calls on Vertex» condition cannot hold: Google refused the quota.
+- The owner chose **A**: flip on the direct Anthropic API, as production runs today and as ruling B allowed. The move to Vertex follows as a config-only change once quota lands.
+- **Plan:**
+  1. T2 on main `87ffeea`.
+  2. Backend deploy from a clean worktree of main with `GRADER_ARCHITECTURE=v6` (pack v3 + the V12 cap are code, so the flip IS that deploy). `CLAUDE_ROUTE` stays unset (direct).
+  3. Health + `SCHEMA OK` + no ERROR.
+  4. Production smoke: the owner uploads one real test and approves it.
+  5. Read back the provider and served-model stamps.
+  6. Report the credit on the paying account.
+- **Rollback:** `GRADER_ARCHITECTURE=v5` (or the previous revision).
