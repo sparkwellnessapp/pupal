@@ -3651,3 +3651,26 @@ second exam, not another dollar on this one.**
 - **Verified:** 0 rows and 0 objects left; the user row is kept.
 - **Not used:** the student purge machinery (`services/erasure`, which is per-student). This was a one-off, owner-ordered, scripted delete; the scripts are outside the repo.
 
+## 2026-10-18 · ANTHROPIC CREDIT EXHAUSTED in production (17:07–17:09 UTC) · plan-at-save seen working
+
+- **What the owner saw:** batch `f2ca728a…`, both tests «הבדיקה נכשלה». Every v6 verifier call returned 400 `Your credit balance is too low to access the Anthropic API`.
+  - 6/6 scopes failed on both tests → `AllScopesFailed`.
+  - `PROVIDER_BILLING_EXHAUSTED site=grading` fired once per test (`cb0222a9…`, `f9ca0d92…`).
+- **Plan-at-save, seen live (mechanics):**
+  - `plan_build_task_enqueued` at the save (17:07:41);
+  - `plan_build_v6_ready` at 17:07:48;
+  - both grades `built_in_place=False waited_s=0.1`.
+- **DEFECT found:** that build ran in the same outage.
+  - 7 s, `cost_usd=0.0000`, `wording=placeholder`: every planner call was refused and each scope took the deterministic fallback.
+  - The all-fallback plan was then cached as `ready`, so a retry after the top-up would have graded against it.
+  - A re-save of unchanged content maps to the same row, so it would not rebuild.
+  - No billing alert fires on this path: the per-scope planner errors are swallowed into the fallback.
+  - **Proposed fix (awaiting the owner):** a build in which every planned scope fell back on a PROVIDER failure lands `failed` (retryable) plus the billing alert, never `ready`.
+- **Then deleted at the owner's order («as before»):** census → dry run → execute → verify.
+  - Rows: graded_tests 2, transcription_jobs 2, transcriptions 2, grading_batches 1, grading_plans 1 (the degraded `ccf867c4`), rubrics 1, rubric_extraction_jobs 1, students 2.
+  - Bucket: 5 objects, 7.6 MB.
+  - 0 left; the user row is kept.
+- **Open:**
+  - the owner tops up the production Anthropic account;
+  - plan-at-save with a REAL plan and Sonnet 5.5 feedback are still not seen live.
+
