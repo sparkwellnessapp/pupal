@@ -41,6 +41,7 @@ import {
     type GradeReviewOverlay,
 } from '@/lib/api';
 import { surfaceError } from '@/lib/errorSurface';
+import { demoObserveScores, demoTestApproved } from '@/lib/demo';
 import { GradeReviewSurface } from '@/components/grade-review/GradeReviewSurface';
 import { GradeReviewV6 } from '@/components/grade-review/GradeReviewV6';
 import { ScanViewer } from '@/components/grade-review/ScanViewer';
@@ -330,6 +331,9 @@ export default function GradeReviewPage() {
             (scope) => scope.criteria.map((c) => [c.terminalId, c.awarded])))
         : {};
 
+    useEffect(() => { demoObserveScores('v5', params.gradedTestId, model); },
+        [params.gradedTestId, model]);
+
     /**
      * What follows a successful /approve — ONE sequence for both review
      * surfaces (v5's `onApprove` below, and grader-v6's `GradeReviewV6`), so the
@@ -341,6 +345,7 @@ export default function GradeReviewPage() {
         // walk can hand her back the test she just signed.
         markApproved(params.gradedTestId);
         const fresh = getCursor() ?? liveCursor;
+        demoTestApproved(batch, fresh);
         const target = fresh ? advanceAfterApprove(fresh, params.gradedTestId) : null;
         const nextName = target && fresh
             ? fresh.byId[target]?.student_name ?? null : null;
@@ -356,7 +361,7 @@ export default function GradeReviewPage() {
         router.push(target
             ? `/batches/${params.id}/grade-review/${target}`
             : `/batches/${params.id}`);
-    }, [params.gradedTestId, params.id, liveCursor, getCursor, markApproved, router]);
+    }, [params.gradedTestId, params.id, liveCursor, getCursor, markApproved, router, batch]);
 
     const onApprove = useCallback(async () => {
         if (!model || approving) return;

@@ -135,6 +135,7 @@ export function PointsInput({
                 data-points-target={target}
                 data-points-typed={typed ? 'true' : 'false'}
                 data-points-editing="false"
+                data-demo="grade-input"
                 onClick={(event) => { event.stopPropagation(); onEditingChange(true); }}
                 className={[
                     'rounded-grade-ctl px-1 -mx-1 text-left font-light leading-none',
@@ -165,6 +166,7 @@ export function PointsInput({
             className="relative inline-flex items-baseline"
             data-points-target={target}
             data-points-editing="true"
+            data-demo="grade-input"
             // The row beneath focuses on click and the keymap acts on keys;
             // neither has business inside a field she is typing in.
             onClick={(event) => event.stopPropagation()}

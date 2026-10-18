@@ -87,6 +87,7 @@ import {
 import { computeReviewOrder } from '@/utils/batch-review-cursor';
 import { takeSkipNotice, takeUploadFailures } from '@/utils/skip-notice';
 import { SHOW_GRADING_LANE, USE_GRADE_REVIEW_MODULE } from '@/lib/flags';
+import { demoBatchZipDownloaded, observeBatch } from '@/lib/demo';
 
 // ---------------------------------------------------------------------------
 // Grade-review section — per-test rows opening the S9 panel (pre-redesign
@@ -123,6 +124,7 @@ function GradeReviewSection({ batch, batchId, onRefresh, durationMinutes }: {
             anchor.href = url;
             anchor.download = `${batch.name ?? 'מבחן'}_מבחנים_חתומים.zip`;
             anchor.click();
+            demoBatchZipDownloaded(batch);
             // Firefox starts a blob: download asynchronously; revoking on the same
             // tick aborts it. Ten seconds is the conventional margin — the cost
             // of a URL that lives ten seconds too long is nothing.
@@ -365,6 +367,7 @@ export default function BatchDetailPage() {
             const data = await getBatch(batchId);
             if (!mountedRef.current) return;
             setBatch(data);
+            observeBatch(data);
             // F1: a successful poll CLEARS the error — a transient failure is
             // a banner over live content, never a sticky page-death.
             setError(null);
@@ -753,7 +756,7 @@ export default function BatchDetailPage() {
                     </div>
 
                     {/* D2 — honesty bar */}
-                    <div className="mt-4">
+                    <div className="mt-4" data-demo="batch-progress">
                         <SegmentBar segments={segments} />
                     </div>
                 </div>

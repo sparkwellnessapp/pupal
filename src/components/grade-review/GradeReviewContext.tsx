@@ -37,6 +37,7 @@ import {
 } from '@/utils/grade-review-cursor';
 import type { AnswerItem, QuestionText } from '@/utils/grade-review-model';
 import { RV_LOAD_ERROR } from '@/copy/grade-review';
+import { observeBatch } from '@/lib/demo';
 
 /**
  * Where a test's SCAN is, for «הצגת הסריקה» (R4): the transcription that
@@ -195,6 +196,7 @@ export function GradeReviewProvider({ batchId, children }: {
             const payload = await getBatch(batchId);
             if (!aliveRef.current) return;
             setBatch(payload);
+            observeBatch(payload);
             // Append-only: an existing id NEVER moves, whatever its status now
             // says (OD2). Only a fresh entry re-freezes the order.
             const items = toCursorItems(payload);

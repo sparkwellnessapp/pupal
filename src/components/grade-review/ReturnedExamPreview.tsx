@@ -181,7 +181,7 @@ export function ReturnedExamPreview(props: ReturnedExamPreviewProps) {
     const stale = isReturnedExamStale(returnedExamState);
 
     return (
-        <div data-returned-exam className="mx-auto max-w-review px-4 py-6">
+        <div data-returned-exam data-demo="feedback-view" className="mx-auto max-w-review px-4 py-6">
             {/* ── P1 · header + toolbar ─────────────────────────────────── */}
             <div className="mb-appx-foot flex flex-wrap items-center justify-between gap-4">
                 <div>
@@ -247,6 +247,7 @@ export function ReturnedExamPreview(props: ReturnedExamPreviewProps) {
                     <button
                         type="button"
                         data-download-pdf
+                        data-demo="pdf-download"
                         onClick={handleDownload}
                         className="inline-flex items-center gap-2 rounded-grade-ctl border
                             border-primary-600 bg-primary-600 px-4 py-2.5 text-gr-body
