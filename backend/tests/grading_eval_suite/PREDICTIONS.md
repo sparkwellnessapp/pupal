@@ -679,3 +679,47 @@ Ruling Oct 6 §3 item 7c; it runs only if the AM-G19 CS re-run holds its kills a
   - Adopt iff K1 = 100%, K2 < 15.0%, G-Z ≤ 22.8%, K3 ≥ 0.774, K4 ≤ 9.0, cost ≤ the bar above, AND Item D passes.
   - Otherwise keep the production config, record for v6.1, stop. No second iteration.
   - A K1 failure stops at once: no diagnosis spend.
+### Item A (owner rulings Oct 18 §1) — the HELD-OUT Math set (registered BEFORE any Math-pack change)
+
+- **File:** `smoke/known_answers_heldout.json`. Three new answers on math3 **q2–q5** (choose 4 of 5).
+  - q3, the trigonometry question, is not in the smoke at all.
+  - All numbers and errors are new; nothing is reused from the smoke answers.
+  - 24 criteria per answer, 72 in all. q3 is answered per block (א, ב), the way production segments it.
+- **A3_wrong_method:** every step uses an invalid method, and no step is a valid operation on a carried value. Examples: halving the base for the height; adding sides for the leg; angle-proportion instead of trigonometry; the wrong multiple-choice expression; dividing the subscription by the per-lesson price. **24 × zero.**
+- **A2_follow_through:** three slips, each carried correctly. **21 × full · 3 × partial.**
+  - q2.ב: 21² written as 421, so c = √521 ≈ 22.83 → **partial**. q2.ג then uses 22.83 correctly → **full**.
+  - q4.ג: y = 80x (90 copied as 80) → **partial**. q4.ד then solves 1620 + 30x = 80x correctly → **full**.
+  - q5.ב: offer A slips to 4600; offer B is right, and the comparison on her own values is right → **partial**.
+- **A1_full:** fully correct, worded differently from the smoke's A1. **24 × full.**
+- **Pass (the smoke's criteria):**
+  - 0 K1-class events;
+  - A1 at full on every criterion;
+  - ≥ 90% in the intended class (**≥ 65/72**);
+  - no unrepaired validator error in the plan graded.
+- **Protocol:**
+  - Graded ONCE, on the plan of the passing attempt (replayed from its recording, $0 planning), or after the 2nd attempt.
+  - Never graded or inspected during the attempts.
+  - The attempts re-plan math3 and re-grade the three original smoke answers against the original bar (0 K1 · A1 full · ≥ 52/57 · validator clean).
+
+### Item A — REGISTRATION CORRECTIONS before attempt 2 (owner rulings Oct 18, 15:40 §3)
+
+- **The rules they are checked against:**
+  - **R2:** follow-through (טעות גוררת) applies only to a value produced by a VALID method containing a slip (a calculation or copying error). A value from an invalid method (a wrong operation, model or equation) earns none; later steps built on it take the zero option for the parts that depend on it.
+  - **Charge-once:** an earlier error is charged once, where it occurred.
+- **Smoke, A2 `q1.ג.c2`: partial → FULL.**
+  - The slip (25% of 3.6 written as 0.8) is charged at `q1.ג.c0`, where it occurred.
+  - `c2` (stating both lengths) is a correct statement of her own values, which came from a valid method with a slip.
+  - Under charge-once it is not charged again.
+  - A2 is now 10 full · 4 partial · 5 zero. The bar is unchanged: 0 K1 · A1 full · ≥ 52/57 · validator clean.
+- **Smoke, the other cells re-read against R2:** no change.
+  - A3 `q1.ג.c2` (adds 25 m, an invalid model) and A2 `q5.ד` (30x = 1000, an invalid equation) stay **zero**: R2 gives no follow-through from an invalid method.
+  - A2 `q1.ד` / `q1.ה` (built on the 0.8 slip) stay **full**.
+- **Held-out set** (`smoke/known_answers_heldout.json`): each of the 72 classes was checked against R2 and charge-once by reading the registration alone. It was NOT graded and NOT sent to any model. **No correction needed:**
+  - **A3_wrong_method (24 × zero):** every step is an invalid method, and no step operates validly on a carried value. R2 → zero throughout.
+  - **A2_follow_through:** each chain starts from a slip in a valid method.
+    - q2.ב 21² → 421 (calculation) **partial**; q2.ג builds on it **full**.
+    - q4.ג 90 → 80 (copying) **partial**; q4.ד builds on it **full**.
+    - q5.ב 20·150 → 3600 inside its own criterion **partial**.
+    - Each slip is charged once, where it occurred.
+  - **A1_full (24 × full):** unchanged.
+- **v6.1 backlog:** confirm R2 with a math teacher.

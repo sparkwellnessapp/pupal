@@ -3369,3 +3369,123 @@ second exam, not another dollar on this one.**
   - Not the verifier's V-8 rule: a double charge needs two checks.
   - Rule 4's text is unchanged v6.2 → v6.3.
 - **EVAL_REPORT_v6.md:** new §13 (run 11, both gates failed; the K4 k=2 caveat) and the owner's v6.1 backlog additions in §12.
+## 2026-10-18 · OWNER RULINGS (Oct 18): the $10 eval budget, Items A–D — recorded
+
+- **Budget:**
+  - $10 on the EVAL key only (workspace limit $10); production runs on its own budget.
+  - Reservations: **Item A ≤ $2.8** · **Items C + D $6.9**; neither borrows from the other.
+  - Before each step: an estimate; don't start a step that would exceed its item's reservation.
+- **Item A:**
+  - Held-out Math set first (`f4c552f`, pre-registered in PREDICTIONS).
+  - Then the Math pack only (planner + verifier fragments), ≤ 2 attempts: re-plan math3 on Opus high → re-grade the 3 smoke answers against the original bar.
+  - Then the held-out set ONCE.
+  - Pass both → the new Math pack joins the production config → Item B (the flip).
+- **Item C** (v6.1 RC, CS; in parallel): AM-G20 (planner-v6.3: AM-G19(b) on the teacher's criterion; every non-binary split part gets a partial) + AM-G21 (verifier V-8 literal check, fault rule, V-3 neutral third person). Pre-register, then re-plan both CS exams + a CS re-run at k=2. Mechanical adoption rule, and Item D must also pass.
+- **Item D:** after C meets its CS criteria and A has concluded: the Math/English smoke on the run-11 config.
+- **Decided — pending veto:**
+  - (1) C's cost bar is read like for like on the shipped explainer (run 10 verifier $0.0625 + arm B $0.0829 = $0.1454 → bar $0.1527). Read literally against run 10's $0.1054 (arm A), arm B alone would fail it.
+  - (2) C + D are estimated at ≈ $5.6 + ≈ $1.3 = ≈ $6.9 = the reservation exactly; the per-step check is the guard.
+  - (3) Run 11's prompts become config-selectable so adoption is a config change.
+  - (4) A and C run in separate worktrees/branches.
+  - (5) The flip's "production on Vertex" condition is read through ruling B (direct API until the quota lands); confirmed with the owner before flipping.
+
+## 2026-10-18 · ITEM A · attempt 1 — the Math pack v2 · SPEND ESTIMATE (eval key, Item A reservation $2.8)
+
+- **Change** (branch `itemA-math-pack`; Math pack only, `PACK_VERSION` v1 → **v2**; CS/English pins untouched; the pack's ≤ 12-line guard holds):
+  - **Planner:** OPERATIONS NOT RESULTS; PARTIALS NEED A VALID METHOD; FOLLOW-THROUGH.
+  - **Verifier:** FOLLOW-THROUGH made operational (check the operation on HER value; the earlier error charged once); VALID METHOD FIRST.
+  - Examples shifted to speed/distance/time and averages; nothing from the smoke or held-out text.
+- **Run:** `v6_smoke --subject mathematics`: re-plan math3 (Opus 5.5 high) + grade the 3 smoke answers.
+- **Estimate ≈ $1.25** (plan $1.04 measured on v1 + grading $0.19); `--max-usd 1.35`. Item A ledger before: $0.
+
+## 2026-10-18 · ITEM A · attempt 1 — planned and A3 graded; stopped by the per-step guard · actual $1.2434
+
+- **Plan** `c5fb3d41` (Math pack v2): 23 scopes = 17 planner + 6 repaired, **0 fallback**, 0 rule-7 downgrades, 42 checks, **$1.1194**. More repairs than v1, as the new rules bite.
+- **A3** graded: $0.1240.
+- Then the tool's guard **stopped before A2**: its $0.15 estimate exceeded the $0.107 left of the attempt's $1.35 cap. The "FAIL" printed means only that not all answers ran.
+- **Completion (no re-plan, no re-grade of A3):** the tool now grades on a REPLAYED plan (`--replay` with `--confirm-spend`: $0 planning) and RESUMES a run (`--run-dir`: grades only the missing answers).
+  - Run dir: `results/20261018-150350_v6-smoke`.
+  - **Estimate:** A2 + A1 ≈ $0.30 (the tool's per-answer bound); `--max-usd 0.40`.
+  - **Item A ledger:** $1.2434 spent, $1.5566 left.
+- **Note:** if attempt 1 fails, attempt 2 (≈ $1.12 plan + ≈ $0.30 grading) plus the held-out set (≈ $0.5 bound) will not fit the reservation. That would be the §6 STOP, before attempt 2 starts.
+
+## 2026-10-18 · ITEM A · attempt 1 COMPLETE — FAIL · STOP before attempt 2 (§12b + the reservation) · Item A ledger $1.3112
+
+- **Completion:** replayed plan `c5fb3d41` (identical hash, $0); A2 graded $0.0313, A1 $0.0365. Run `results/20261018-150350_v6-smoke`; render `docs/plans/v6_smoke_mathematics.md`.
+
+  | bar (registered Oct 6) | v1 pack (smoke) | **v2 pack (attempt 1)** |
+  |---|---|---|
+  | K1-class events = 0 | 3 | **2 ❌** |
+  | A1 full on every criterion | 19/19 | **18/19 ❌** |
+  | ≥ 52/57 intended | 51 | **52 ✅** |
+  | validator clean | ✅ | ✅ (17 planner + 6 repaired, 0 fallback) |
+
+- **What v2 fixed:**
+  - the smoke's 3 K1 cells (q2.א, q2.ד, q5.ד's wrong-method partials are gone);
+  - follow-through now earns (q1.ה, q2.ב, q4.ד partials price correctly).
+- **The 5 misses:**
+  - **Plan wording, mine (2):** "operations not results" made the planner re-check, in a later part, an operation done in an earlier one:
+    - A1 `q2.ג` (leg via Pythagoras, done in ב, required again in the perimeter part → 3/6);
+    - A2 `q1.ד` (side enlargement, done in ג, required again in the area part → 0, intended full).
+    - Fixable: "a step checks only the operation performed in its own part; an earlier result is an input".
+  - **Follow-through vs the registered classes (3):**
+    - A3 `q1.ג.c2`: «3.6 + 25 = 28.6» (adds 25 m, not 25%); stating those lengths earned 7/7 by follow-through. Registered: zero → **K1**.
+    - A2 `q5.ד`: «30x = 1000, x = 33»; solving her own equation correctly earned 3.5/7 by follow-through. Registered: zero → **K1**.
+    - A2 `q1.ג.c2`: the slip was charged at c0, and the final statement got full by follow-through. Registered: partial.
+- **The open decision (STOP §12b):** the Oct 18 rules do not say whether follow-through applies to a value produced by an INVALID method.
+  - **R1, any carried value:** the registered classes are wrong on all 3 cells.
+  - **R2, only a value from a valid method with a slip** (the conventional «טעות גוררת»): the registered classes stand on A3 `q1.ג.c2` and A2 `q5.ד`. They still conflict with the rule's own «charged only where it occurred» on A2 `q1.ג.c2`.
+  - Attempt 2 cannot be written to a reading the owner has not chosen, and no pack can pass the registered bar under R1.
+- **Budget:** Item A has $1.4888 left.
+  - Attempt 2 ≈ $1.31 (plan $1.12 measured + grading ≈ $0.19 measured).
+  - The held-out set ≈ $0.20–0.30 (measured per-answer rates; the tool's bound is $0.54).
+  - Together they do not fit the reservation, so attempt 2 would not start under §0 regardless.
+- **Not done:** attempt 2, the held-out set (still sealed: not graded, not inspected). Item B (the flip) waits on Item A.
+
+## 2026-10-18 · OWNER RULINGS 15:40 + 15:55 (final for this budget) — recorded · ITEM A attempt 2 · SPEND ESTIMATE
+
+- **Rulings:**
+  - **Item C:** CLOSED, not adopted. It failed two gates: K1 60/62 AND **G-D2 = 4** (ship criterion 2; a failure, not «—»). The run-11 code stays merged and off.
+  - **Item A:**
+    - **R2:** follow-through only from a VALID method with a slip.
+    - Wording fix: a part covers only its own work.
+    - Registration corrections before attempt 2 (`d84a6ae`).
+    - Item A may use **all of the remaining $2.97** (reservations dissolved; C and D closed). The held-out step runs on its measured estimate.
+    - Lower the eval concurrency.
+    - Attempt 2 → held-out once → both pass ⇒ the Math pack joins production. A failure ⇒ STOP; no attempt 3.
+  - **Item B:** the flip, as ruled (§8 conditions incl. production on Vertex).
+  - **v6.1 backlog:** one core principle (no partial / follow-through for a structurally wrong approach); re-test V-8 alone on the run-10 plans; split cells at criterion level; the planner-v6.3 G-D2 regression; confirm R2 with a math teacher.
+- **Registration corrections done** (PREDICTIONS «Item A — REGISTRATION CORRECTIONS»): smoke A2 `q1.ג.c2` partial → full. Every other smoke cell and all 72 held-out classes checked against R2 + charge-once: no other correction.
+- **Attempt 2 change:** Math pack **v3** (`PACK_VERSION` v2 → v3; ≤ 12 lines each; CS/English untouched).
+  - **Planner:** a part's checks cover only its own work; FOLLOW-THROUGH only from a valid method with a slip.
+  - **Verifier:** A PART IS JUDGED ON ITS OWN WORK; FOLLOW-THROUGH FROM A VALID METHOD ONLY (domain-shifted example: speed/time/fuel).
+- **Run:** `v6_smoke --subject mathematics`, re-plan (Opus 5.5 high) + grade the 3 smoke answers, with **`GRADER_MAX_CONCURRENT_SCOPES=4`** (was 16) to stop the dropped-connection bursts.
+- **Estimate:**
+  - **≈ $1.31** (plan $1.12 + grading $0.19, both measured on attempt 1);
+  - then the held-out set ≈ $0.25;
+  - **Item A total ≈ $2.87** against the $2.97 left ($1.31 already spent);
+  - `--max-usd 1.80` (the tool's per-answer bound is conservative).
+
+## 2026-10-18 · ITEM A · attempt 2 — FAIL (K1 1, validator: 1 fallback) → STOP, no attempt 3 · actual $1.3436
+
+- **Run** `results/20261018-160002_v6-smoke` (Math pack v3, plan `d2d838a9`, Opus 5.5 high).
+  - 16 planner + 6 repaired + **1 fallback** (`q5.ב`), 39 checks, $1.2015.
+  - Grading $0.1421 at `GRADER_MAX_CONCURRENT_SCOPES=4`: **0 connection retries** (the bursts are gone).
+
+  | bar (registered; A2 q1.ג.c2 corrected to full) | attempt 1 (v2) | **attempt 2 (v3)** |
+  |---|---|---|
+  | K1-class events = 0 | 2 | **1 ❌** |
+  | A1 full on every criterion | 18/19 | **19/19 ✅** |
+  | ≥ 52/57 intended | 52 | **52 ✅** |
+  | validator clean | ✅ | **❌ fallback `q5.ב`** |
+
+- **The 5 misses (render `docs/plans/v6_smoke_mathematics.md`):**
+  - A3 `q1.ג.c2` «3.6 + 25 = 28.6» (adds 25 m) → **7/7: K1.** The verifier credited «lengths as computed» on values from an INVALID method; R2's no-follow-through was not applied.
+  - A2 `q1.ד` «4.4 · 6 = 26.4» → 0 (intended full). The check now asks only for the product (the wording fix worked), but the carried 4.4 (a slip) was judged wrong: **follow-through not applied**.
+  - A2 `q1.ה` «152.78%» → 2.5/3.25 (intended full). Judged an arithmetic error against the expected 156.25%: **follow-through not applied**.
+  - A2 `q2.ב` «c = 23.6» (√541 ≈ 23.26) → full (intended partial). The verifier does not recompute (the known gap; V-8-class).
+  - A2 `q5.ב` → 0 (intended partial). **Fallback scope:** V12, two zero-option labels > 140 chars, not shortened by the repair. A fallback is binary, so it cannot express the partial.
+- **Reading:** the wording fix took effect (attempt 1's `q2.ג` miss is gone; A1 is 19/19). The verifier did NOT apply R2 in either direction: no follow-through from the valid slip (q1.ד, q1.ה), and credit flowed from the invalid method (q1.ג.c2). The new rules also made the planner's labels longer (the V12 fallback).
+- **Held-out set: NOT graded** (attempt 2 failed; ruling §2e). It stays sealed.
+- **Item A ledger:** $1.3112 + $1.3436 = **$2.6548**. Eval total Oct 18: C $5.7191 + A $2.6548 = **$8.3739 of $10**; the owner's +$1 (Item D only) unused.
+- **Outcome:** STOP (ruling §2e). The Math pack v3 does NOT join production; main keeps the v1 Math pack. **Item B (the flip) does not proceed:** it requires Item A to pass.
