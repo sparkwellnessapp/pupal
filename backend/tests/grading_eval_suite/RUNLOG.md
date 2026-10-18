@@ -3436,3 +3436,14 @@ second exam, not another dollar on this one.**
   - **validator clean** ✅.
   - The 3 misses left are all non-K1: A2 q1.ד and q1.ה (follow-through not applied → under-credit) and A2 q2.ב (no recompute → over-credit to full).
 - **§2c estimate:** the held-out set ONCE on plan `a79166be` (`--answers known_answers_heldout.json --tag _heldout --replay --reassemble q5.ב`), 3 answers × q2–q5. **≈ $0.15–0.25** measured; the tool's bound is $0.42. `--max-usd 0.38` (what is left of §2's $0.40).
+
+## 2026-10-18 · §2c RESULT — the held-out set PASSES (graded once, plan `a79166be`) · actual $0.1566 · §2 CLEARED
+
+- **Run** `results/*_v6-smoke_heldout`; render `docs/plans/v6_smoke_heldout_mathematics.md`.
+  - **K1 0 ✅ · A1 24/24 full ✅ · 70/72 intended (97.2%, bar 65) ✅ · validator clean ✅ · 3/3 ran.**
+  - A3_wrong_method 24/24 · A2_follow_through 22/24 · A1_full 24/24.
+- **The 2 misses, both A2 and both UNDER-credit (no K1-class event → report and proceed, §2c):**
+  - `q4.ג` «y = 80x» (a copying slip): intended partial → 0. The verifier read it as «a different expression».
+  - `q4.ד` «1620 + 30x = 80x, x = 32.4»: intended full → 8.25/9.5. The equation check charged the copying error AGAIN (a charge-once miss); the solving step got full follow-through.
+- **§2 spend:** §2b $0.0161 + §2c $0.1566 = **$0.1727 of $0.40**. **Eval total Oct 18: $8.5466 of $10.**
+- **§2 CLEARED.** Pack v3 + the V12 cap 200 + the q1.ג.c2 artifact record go to main. The flip waits only on the §8 conditions (see the report).

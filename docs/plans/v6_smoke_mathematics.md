@@ -142,3 +142,19 @@ Reasoning lines and the checks behind them:
 | `q5.ג.c0` | ג. 20% | full | 5.5/5.5 full | ✅ |
 | `q5.ד.c0` | ד. 25% | full | 7/7 full | ✅ |
 
+
+## `q1.ג.c2` — an EXTRACTION ARTIFACT, excluded from the grader verdict (owner rulings Oct 18 16:15 §2a)
+
+- **Evidence.** Source: `tests/rubric_eval_suite/fixtures/Math_rubrics/3 יחל מבחן ומחוון.docx`, which is image-only. Question 1's marking scheme is `word/media/image7.jpeg`.
+  - The teacher's pink margin weights for question 1 are **א 10% · ב 20% · ג 40% · ד 10% · ה 20% = 100%**.
+  - Inside ג she writes **20%** beside the table for side *a* and **20%** beside the table for side *b*.
+  - The margin **40%** beside «ג.» is the SUBTOTAL of those two, not a third criterion.
+- **What extraction did.** It emitted the subtotal as `q1.ג.c2` (7 of q1's 24 points). q1's weights therefore sum to 140% (100% without it), and every q1 weight was rescaled over 140: א is 1.75 instead of 2.4, and so on.
+- **Effect on this verdict.** Attempt 2's only K1-class event (A3 `q1.ג.c2`, 7/7 on «3.6 + 25») sat on this cell. With it excluded, and `q5.ב` re-graded on the re-assembled plan `a79166be` (§2b: 3/3 intended):
+
+  | bar | attempt 2 as graded | **after §2a + §2b** |
+  |---|---|---|
+  | K1-class events = 0 | 1 | **0 ✅** |
+  | A1 full on every criterion | 19/19 | **18/18 ✅** |
+  | ≥ 90% intended | 52/57 | **51/54 ✅** |
+  | validator clean | ❌ fallback `q5.ב` | **✅** (re-assembled from the recorded output) |
