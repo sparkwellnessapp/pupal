@@ -70,6 +70,7 @@ import {
 import { playCompletionChime, flipTabTitleToReady, restoreTabTitle } from '@/utils/completion-signal';
 import { pushSnapshot, popSnapshot, type RubricSnapshot } from '@/utils/rubric-history';
 import { USE_DOCUMENT_MIRROR } from '@/lib/flags';
+import { demoLog } from '@/lib/demo';
 import {
   Upload,
   Settings,
@@ -567,6 +568,7 @@ export default function Home() {
       // (metadata-only) or inferred; the subject is the one input extraction
       // depends on (D-10) and it is the teacher's pick, never inferred.
       const submitted = await submitExtractionJob(file, { subject: rubricSubject });
+      demoLog('rubric_uploaded', undefined, 'rubric-upload');
       // Double-click / re-upload of the same doc converges on the same job
       // (reused=true) — the hook picks it up either way.
       setExtractionJobId(submitted.job_id);
@@ -938,6 +940,7 @@ export default function Home() {
         setPendingSaveDraft(draft);
       } else {
         setSavedRubricId(response.rubric_id);
+        demoLog('rubric_saved', { rubricId: response.rubric_id }, 'rubric-save');
         dirtyRef.current = false;     // saved — review work is now clean (S1-8)
         clearRubricHistory();         // E-1: history is session-scoped, clears on save
         setRubricStep('saved');
@@ -986,6 +989,7 @@ export default function Home() {
         setPendingWarnings(resp);
       } else {
         setSavedRubricId(resp.rubric_id);
+        demoLog('rubric_saved', { rubricId: resp.rubric_id }, 'rubric-save');
         setPendingWarnings(null);
         setPendingSaveDraft(null);
         dirtyRef.current = false;     // saved — clean (S1-8)
@@ -1076,6 +1080,7 @@ export default function Home() {
       setUploadBusyBatchId(begun.blockedBy);
       return;
     }
+    demoLog('scans_uploaded', { count: testFiles.length }, 'scans-upload');
     router.push(`/batches/${created.batch_id}`);
   };
 
@@ -1208,7 +1213,7 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-                <div className="bg-white rounded-xl shadow-lg p-8">
+                <div className="bg-white rounded-xl shadow-lg p-8" data-demo="rubric-upload">
                   <div className="text-center mb-6">
                     <Upload className="mx-auto text-primary-500 mb-3" size={48} />
                     <h2 className="text-xl font-semibold">העלאת מחוון</h2>
@@ -1577,6 +1582,7 @@ export default function Home() {
                     <div className="mt-6 pt-4 border-t border-surface-200 flex items-center justify-between">
                       <BackButton onClick={() => { if (confirmDiscardIfDirty()) { dirtyRef.current = false; clearRubricHistory(); setRubricStep('upload'); } }} />
                       <button
+                        data-demo="rubric-save"
                         onClick={hasBlockingErrors
                           ? () => errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
                           : handleSaveRubric}
@@ -1659,7 +1665,7 @@ export default function Home() {
 
             {gradingStep === 'upload_batch' && selectedRubric && (
               <div className="max-w-2xl mx-auto animate-fade-in">
-                <div className="bg-white rounded-xl shadow-lg p-8">
+                <div className="bg-white rounded-xl shadow-lg p-8" data-demo="scans-upload">
                   {/* §5.2 — the rubric, named, with a way back to change it.
                       She is about to commit thirty papers; what they will be
                       graded against belongs on THIS page, not two screens

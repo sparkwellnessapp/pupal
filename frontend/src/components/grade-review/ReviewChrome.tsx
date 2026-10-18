@@ -432,6 +432,7 @@ export function ReviewBottomBar({
                     </span>
                     <button
                         type="button"
+                        data-demo="approve-button"
                         onClick={blocked ? onBlocked : onApprove}
                         disabled={!canApprove || approving}
                         data-blocked={blocked ? 'true' : undefined}

@@ -31,6 +31,7 @@ export function DownloadAllButton({ busy, onClick, className = '', children }: {
             <button
                 type="button"
                 data-download
+                data-demo="pdf-download"
                 aria-busy={busy}
                 aria-disabled={busy || undefined}
                 onClick={() => { if (!busy) onClick(); }}

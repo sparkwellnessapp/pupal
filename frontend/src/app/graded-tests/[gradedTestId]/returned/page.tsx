@@ -46,6 +46,7 @@ import {
     type GradeReviewApprovedResponse, type StampPositionWire,
 } from '@/lib/api';
 import { surfaceError } from '@/lib/errorSurface';
+import { demoFeedbackViewOpened, demoPdfDownloaded, observeBatch } from '@/lib/demo';
 import { ReturnedExamPreview } from '@/components/grade-review/ReturnedExamPreview';
 import { resolveReturnContext } from '@/utils/return-context';
 import type { GradedTestContract } from '@/utils/returned-exam';
@@ -85,7 +86,7 @@ export default function ReturnedExamPage() {
                     // whole page over them would be the larger failure.
                     try {
                         const detail = await getBatch(batchId);
-                        if (!cancelled) setBatch(detail);
+                        if (!cancelled) { setBatch(detail); observeBatch(detail); }
                     } catch {
                         if (!cancelled) setBatch(null);
                     }
@@ -213,6 +214,7 @@ export default function ReturnedExamPage() {
         anchor.href = url;
         anchor.download = `${payload?.student_name ?? 'מבחן'}_חתום.pdf`;
         anchor.click();
+        demoPdfDownloaded();
         // Firefox starts a blob: download asynchronously; revoking on the same
         // tick aborts it. Ten seconds is the conventional margin — a URL that
         // lives ten seconds too long costs nothing.
@@ -225,6 +227,13 @@ export default function ReturnedExamPage() {
             ? `/batches/${batchId}/grade-review/${params.gradedTestId}`
             : `/graded-tests/${params.gradedTestId}/returned`);
     }, [batchId, params.gradedTestId, router]);
+
+    // The preview is on screen exactly when the early returns below let it through.
+    const previewShown = !loading && !error
+        && payload?.status === 'approved' && Boolean(payload.contract);
+    useEffect(() => {
+        if (previewShown) demoFeedbackViewOpened(params.gradedTestId);
+    }, [previewShown, params.gradedTestId]);
 
     if (loading) {
         return <p className="p-8 text-center text-gr-body text-grade-pencil">{PV_LOADING}</p>;
