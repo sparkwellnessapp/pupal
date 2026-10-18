@@ -68,7 +68,7 @@
                    "q2.א.c0": "full", "q2.ב.c0": "full", "q2.ג.c0": "full", "q2.ד.c0": "full",
                    "q4.א.c0": "full", "q4.ב.c0": "full", "q4.ג.c0": "full", "q4.ד.c0": "full",
                    "q5.א.c0": "full", "q5.ב.c0": "full", "q5.ג.c0": "full", "q5.ד.c0": "full"},
-    "A2_partial": {"q1.א.c0": "full", "q1.ב.c0": "zero", "q1.ג.c0": "partial", "q1.ג.c1": "full", "q1.ג.c2": "partial", "q1.ד.c0": "full", "q1.ה.c0": "full",
+    "A2_partial": {"q1.א.c0": "full", "q1.ב.c0": "zero", "q1.ג.c0": "partial", "q1.ג.c1": "full", "q1.ג.c2": "full", "q1.ד.c0": "full", "q1.ה.c0": "full",
                    "q2.א.c0": "full", "q2.ב.c0": "partial", "q2.ג.c0": "zero", "q2.ד.c0": "full",
                    "q4.א.c0": "full", "q4.ב.c0": "full", "q4.ג.c0": "zero", "q4.ד.c0": "partial",
                    "q5.א.c0": "zero", "q5.ב.c0": "partial", "q5.ג.c0": "full", "q5.ד.c0": "zero"},

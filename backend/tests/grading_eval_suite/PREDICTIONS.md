@@ -676,3 +676,26 @@ Ruling Oct 6 §3 item 7c; it runs only if the AM-G19 CS re-run holds its kills a
   - Graded ONCE, on the plan of the passing attempt (replayed from its recording, $0 planning), or after the 2nd attempt.
   - Never graded or inspected during the attempts.
   - The attempts re-plan math3 and re-grade the three original smoke answers against the original bar (0 K1 · A1 full · ≥ 52/57 · validator clean).
+
+### Item A — REGISTRATION CORRECTIONS before attempt 2 (owner rulings Oct 18, 15:40 §3)
+
+- **The rules they are checked against:**
+  - **R2:** follow-through (טעות גוררת) applies only to a value produced by a VALID method containing a slip (a calculation or copying error). A value from an invalid method (a wrong operation, model or equation) earns none; later steps built on it take the zero option for the parts that depend on it.
+  - **Charge-once:** an earlier error is charged once, where it occurred.
+- **Smoke, A2 `q1.ג.c2`: partial → FULL.**
+  - The slip (25% of 3.6 written as 0.8) is charged at `q1.ג.c0`, where it occurred.
+  - `c2` (stating both lengths) is a correct statement of her own values, which came from a valid method with a slip.
+  - Under charge-once it is not charged again.
+  - A2 is now 10 full · 4 partial · 5 zero. The bar is unchanged: 0 K1 · A1 full · ≥ 52/57 · validator clean.
+- **Smoke, the other cells re-read against R2:** no change.
+  - A3 `q1.ג.c2` (adds 25 m, an invalid model) and A2 `q5.ד` (30x = 1000, an invalid equation) stay **zero**: R2 gives no follow-through from an invalid method.
+  - A2 `q1.ד` / `q1.ה` (built on the 0.8 slip) stay **full**.
+- **Held-out set** (`smoke/known_answers_heldout.json`): each of the 72 classes was checked against R2 and charge-once by reading the registration alone. It was NOT graded and NOT sent to any model. **No correction needed:**
+  - **A3_wrong_method (24 × zero):** every step is an invalid method, and no step operates validly on a carried value. R2 → zero throughout.
+  - **A2_follow_through:** each chain starts from a slip in a valid method.
+    - q2.ב 21² → 421 (calculation) **partial**; q2.ג builds on it **full**.
+    - q4.ג 90 → 80 (copying) **partial**; q4.ד builds on it **full**.
+    - q5.ב 20·150 → 3600 inside its own criterion **partial**.
+    - Each slip is charged once, where it occurred.
+  - **A1_full (24 × full):** unchanged.
+- **v6.1 backlog:** confirm R2 with a math teacher.
