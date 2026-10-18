@@ -3357,3 +3357,27 @@ second exam, not another dollar on this one.**
   - The held-out set ≈ $0.20–0.30 (measured per-answer rates; the tool's bound is $0.54).
   - Together they do not fit the reservation, so attempt 2 would not start under §0 regardless.
 - **Not done:** attempt 2, the held-out set (still sealed: not graded, not inspected). Item B (the flip) waits on Item A.
+
+## 2026-10-18 · OWNER RULINGS 15:40 + 15:55 (final for this budget) — recorded · ITEM A attempt 2 · SPEND ESTIMATE
+
+- **Rulings:**
+  - **Item C:** CLOSED, not adopted. It failed two gates: K1 60/62 AND **G-D2 = 4** (ship criterion 2; a failure, not «—»). The run-11 code stays merged and off.
+  - **Item A:**
+    - **R2:** follow-through only from a VALID method with a slip.
+    - Wording fix: a part covers only its own work.
+    - Registration corrections before attempt 2 (`d84a6ae`).
+    - Item A may use **all of the remaining $2.97** (reservations dissolved; C and D closed). The held-out step runs on its measured estimate.
+    - Lower the eval concurrency.
+    - Attempt 2 → held-out once → both pass ⇒ the Math pack joins production. A failure ⇒ STOP; no attempt 3.
+  - **Item B:** the flip, as ruled (§8 conditions incl. production on Vertex).
+  - **v6.1 backlog:** one core principle (no partial / follow-through for a structurally wrong approach); re-test V-8 alone on the run-10 plans; split cells at criterion level; the planner-v6.3 G-D2 regression; confirm R2 with a math teacher.
+- **Registration corrections done** (PREDICTIONS «Item A — REGISTRATION CORRECTIONS»): smoke A2 `q1.ג.c2` partial → full. Every other smoke cell and all 72 held-out classes checked against R2 + charge-once: no other correction.
+- **Attempt 2 change:** Math pack **v3** (`PACK_VERSION` v2 → v3; ≤ 12 lines each; CS/English untouched).
+  - **Planner:** a part's checks cover only its own work; FOLLOW-THROUGH only from a valid method with a slip.
+  - **Verifier:** A PART IS JUDGED ON ITS OWN WORK; FOLLOW-THROUGH FROM A VALID METHOD ONLY (domain-shifted example: speed/time/fuel).
+- **Run:** `v6_smoke --subject mathematics`, re-plan (Opus 5.5 high) + grade the 3 smoke answers, with **`GRADER_MAX_CONCURRENT_SCOPES=4`** (was 16) to stop the dropped-connection bursts.
+- **Estimate:**
+  - **≈ $1.31** (plan $1.12 + grading $0.19, both measured on attempt 1);
+  - then the held-out set ≈ $0.25;
+  - **Item A total ≈ $2.87** against the $2.97 left ($1.31 already spent);
+  - `--max-usd 1.80` (the tool's per-answer bound is conservative).
