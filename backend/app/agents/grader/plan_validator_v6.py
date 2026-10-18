@@ -48,7 +48,7 @@ _CREDIT_SHAPES = {"binary", "ladder", "levels", "count"}
 _OPTION_COUNT = {"binary": (2, 2), "ladder": (3, 4), "levels": (2, 8), "fault": (2, 8),
                  "note": (2, 2)}
 _MAX_COUNT_OPTIONS = 41
-_LABEL_MAX = 140
+_LABEL_MAX = 200                 # [owner 2026-10-18 16:15 §2b] was 140; UI legibility holds at 200
 _LATIN_IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]{2,}")
 
 

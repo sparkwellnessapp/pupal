@@ -327,6 +327,18 @@ planner-v6.3 (AM-G20) + grader-v6.1 (AM-G21), re-planned on Opus 5.5, k=2. Gates
 - **Two gates failed:** K1 and G-D2. Production keeps planner-v6.2 + grader-v6.0; the run-11 code stays merged and switched off.
 - † **Run 11's K4 (2.5) is at k=2 and is not comparable to run 10's (8.5, k=3):** a spread over two trials cannot be wider than over three of the same draws.
 
+## 14 · Math (Item A, Oct 18): pack v3 ships
+
+- **Pack v3:** R2 follow-through (only from a valid method with a slip), and a part judged on its own work.
+- **Smoke** (after §2a + §2b): K1 0 · A1 18/18 · 51/54 · validator clean. `docs/plans/v6_smoke_mathematics.md`.
+  - **§2a:** `q1.ג.c2` («40%») is an extraction artifact — the subtotal of ג's two 20% criteria, per the teacher's page image. It is excluded from the verdict.
+  - **§2b:** V12's label cap 140 → 200. `q5.ב` re-assembled from its recorded output: fallback → repaired, plan `a79166be`; its re-grade is 3/3 intended.
+- **Held-out set** (sealed until then, graded once on `a79166be`): **K1 0 · A1 24/24 · 70/72 · validator clean**. `docs/plans/v6_smoke_heldout_mathematics.md`.
+  - Its two misses are under-credit on follow-through: A2 `q4.ג` and `q4.ד`.
+- **Compared with v1** (the smoke as first graded): credit for wrong work 3 → 0 · full 19/19 → 18/18 · intended 51/57 → 51/54.
+  - v5 was never measured on Math, so the ship comparison is v6 against v5 (owner 16:15 §1).
+- **The bytes shipped are pinned** to the bytes evaluated (`tests/subjects/test_math_pack_v3_pin.py`).
+
 ## 12 · The v6.1 backlog
 
 **Quality**
@@ -359,6 +371,11 @@ planner-v6.3 (AM-G20) + grader-v6.1 (AM-G21), re-planned on Opus 5.5, k=2. Gates
 - **The split cells:** a criterion-level ladder (or a partial granularity that reaches the teacher's typical half-point deduction) instead of per-part ¾ partials. Run 11's AM-G20 fixed 0 of 5 split criteria.
 - **The G-D2 regression in planner-v6.3:** fix per the classification in `docs/plans/v6_run11_per_class.md` (a P-4 violation: one fault's tiers split into two checks) before any v6.3 reuse.
 - **Confirm R2 with a math teacher** (follow-through only from a valid method with a slip).
+
+**Added by the owner, Oct 18 16:15 (record; not in this PR):**
+- **Extraction:** a subtotal line must never be emitted as a criterion. Math math3 `q1.ג.c2` confirms the bagrut TOTAL-LABEL issue: «40%» is the subtotal of ג's two 20% criteria, which made q1's weights sum to 140%. Cheap guard, any subject: a criterion whose text is nothing but a number or a percentage → a WARNING at the rubric gate.
+- **Math arithmetic:** verify numeric claims in Math answers deterministically in code (e.g. √541 ≠ 23.6) instead of relying on the verifier.
+- **R2 consistency:** the verifier applies R2 inconsistently. It withheld follow-through on a valid slip (smoke A2 q1.ד/ה; held-out A2 q4.ג/ד, where a copying slip was charged twice), and it credited an invalid method's result (smoke A3 q1.ג.c2, the phantom cell). Covered by the core «no credit for a structurally wrong approach» principle above.
 
 **Follow-up (§11):** delete the v5 path after 14 days on v6.
 
