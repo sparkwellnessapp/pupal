@@ -3610,3 +3610,44 @@ second exam, not another dollar on this one.**
   - feedback only: `FEEDBACK_MODEL_KEY=claude-sonnet-5`;
   - everything: traffic back to `00055-9sm`.
 
+## 2026-10-18 · PRODUCTION SMOKE READBACK (before the owner's deletion) — v6 graded correctly on `00055-9sm`
+
+- **Source:** the owner's account `1dddf7a4…`; rubric «מחוון יסודות מדמ"ח» and its 18.10 batch; two approved tests. Read-only, just before the owner had the account's data deleted (entry below).
+- **Plans:**
+  - v6 plan `ee943b32a62e` (config `49bfd891…`), built IN PLACE at the first grade: 13:41:52 → 13:43:21 UTC (≈89 s), **$0.9880**, Opus 5.5, `wording_source=segmented` (no scope fell back).
+  - A v5 plan was ALSO built at save: 13:40 UTC, **$0.1022**, used by no grade. That is exactly the spend plan-at-save removes.
+- **Tests** (`354daa7f`, `e7bb1700`):
+  - both have the `draft.v6` block;
+  - verifier `claude-sonnet-5-5` on `grader-v6.0`;
+  - `llm_provider=anthropic`, and the frozen `contract.v6.provider=anthropic`;
+  - both pinned to plan `ee943b32a62e`;
+  - cost **$0.1683** and **$0.2936**;
+  - grading wall ≈2m14s each, including the in-place plan build;
+  - feedback `claude-sonnet-5` / `feedback-v1`, 6 scopes each (they predate `00056-5fj`).
+- **Not yet verified live:** plan-at-save and Sonnet 5.5 feedback (`00056-5fj`). They need a new save and grade.
+
+## 2026-10-18 · OWNER-ORDERED DELETION — every rubric, exam and student of `noamtapicer@gmail.com`
+
+- **Ruling (owner):** «Delete from the db and Storage bucket all rubrics and exams of user noamtapicer@gmail.com», and, asked, «Delete students too». The account row stays.
+- **Census first** (read-only):
+  - nothing in flight;
+  - no other user referenced any of it (rubrics, scans, plan hashes: 0).
+  - A dry run (one transaction, rolled back) matched the census exactly.
+- **Deleted, in one transaction, children first:**
+  - graded_tests 23 (11 approved, 12 draft);
+  - transcription_jobs 30;
+  - transcriptions 30;
+  - grading_batches 7;
+  - grading_plans 4;
+  - rubrics 2;
+  - rubric_extraction_jobs 2;
+  - class_memberships 0;
+  - students 11.
+- **Bucket:** 90 objects, 218.3 MB. Every name was checked against its allowed shape before deletion:
+  - 30 scans;
+  - 47 page images;
+  - 11 signed exams;
+  - 2 rubric sources.
+- **Verified:** 0 rows and 0 objects left; the user row is kept.
+- **Not used:** the student purge machinery (`services/erasure`, which is per-student). This was a one-off, owner-ordered, scripted delete; the scripts are outside the repo.
+
