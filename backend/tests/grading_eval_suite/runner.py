@@ -324,6 +324,9 @@ def _effective_prompt_version_for(config: dict) -> str:
     if config.get("architecture") == "v5":
         from app.agents.grader.verifier_prompt import VERIFIER_PROMPT_VERSION
         return VERIFIER_PROMPT_VERSION
+    if config.get("architecture") == "v6":       # [Item C] the v6 verifier's own version, as configured
+        from app.agents.grader.verifier_prompt_v6 import VERIFIER_V6_PROMPT_VERSION
+        return config.get("verifier_prompt_version", VERIFIER_V6_PROMPT_VERSION)
     return effective_prompt_version()
 
 
@@ -598,10 +601,13 @@ def build_agent(bundle: FixtureBundle, agent_factory=None, *,
         if config.get("explainer"):
             from app.agents.explainer.prompt import EXPLAINER_PROMPT_VERSION
             explain, ex_version = _build_explain(config, profile), EXPLAINER_PROMPT_VERSION
+        from app.agents.grader.verifier_prompt_v6 import VERIFIER_V6_PROMPT_VERSION
         return OptionsVerifyGrader(plan, bundle.rubric_contract, llm=llm,
                                    model_version=spec.model_id, profile=profile,
                                    sc_n=int(config.get("sc_n", 1)), explain=explain,
-                                   explainer_prompt_version=ex_version)
+                                   explainer_prompt_version=ex_version,
+                                   verifier_prompt_version=config.get("verifier_prompt_version",
+                                                                      VERIFIER_V6_PROMPT_VERSION))
     if config.get("architecture", "v3") == "v5":
         # the pre-spend gate (_plans_provenance) already recorded any report-only
         # expressibility misses for this bundle; the sink keeps them from being

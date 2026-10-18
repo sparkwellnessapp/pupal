@@ -31,6 +31,13 @@ from .inputs import AMOUNT_MASK, SPLIT_REFS, ScopePlannerInput, TerminalInput
 from .schemas import Decomposition
 
 PLANNER_PROMPT_VERSION = "planner-v6.2"          # [AM-G19] rule 7 amended; element; teacher_span
+# [AM-G20, owner rulings 2026-10-18 Item C] rule 7's 2-point line is evaluated on the
+# TEACHER'S criterion, so a non_binary part of a split keeps a partial whatever its share.
+# Selectable by config (`settings.v6_planner_prompt_version`): v6.2 stays the production
+# default until run 11 is adopted, and a v6.2 plan replays to the same bytes and hash.
+PLANNER_PROMPT_V63 = "planner-v6.3"
+PLANNER_PROMPT_VERSIONS = (PLANNER_PROMPT_VERSION, PLANNER_PROMPT_V63)
+AM_G20_VERSIONS = (PLANNER_PROMPT_V63,)
 
 DECOMPOSITIONS = get_args(Decomposition)         # ("as_compiled", "binary", "ladder", "split")
 FRACTIONS = tuple(f.value for f in PartialFraction)
@@ -43,6 +50,11 @@ def am_g19_applies(prompt_version: str) -> bool:
     """[AM-G19] Rule 7 binds outputs of planner-v6.2 on. A recording made under an earlier
     prompt replays without it, so its plan — and its hash — are what they were."""
     return prompt_version not in PRE_AM_G19_VERSIONS
+
+
+def am_g20_applies(prompt_version: str) -> bool:
+    """[AM-G20] rule 7(a)/(b) read the teacher's criterion, not the credit's share."""
+    return prompt_version in AM_G20_VERSIONS
 
 PLANNER_CORE = f"""\
 You plan how ONE scope of a teacher's rubric (a question, or one sub-question) will be
@@ -132,6 +144,39 @@ Everything you write in Hebrew is read by the teacher. Never mention a rule, an 
 an option, the verifier, a model or AI in it.
 """
 
+_RULE_7AB_V62 = """\
+   (a) A non_binary credit worth 2 points or more has at least one partial. Prefer a concrete
+       partial state: what is present, and what is missing or wrong. If none can be named,
+       use HALF with an observable label of the form "present, but incomplete or containing
+       an error". When the credit allows, give two levels: a minor slip (THREE_QUARTERS) and
+       a major gap (HALF or QUARTER).
+   (b) A credit worth less than 2 points, and every binary credit, has no partial — unless
+       the teacher's own text states a partial value for that element. Then write exactly the
+       partial she states, and quote her words verbatim in its teacher_span.
+"""
+
+_RULE_7AB_V63 = """\
+   (a) A non_binary credit has at least one partial when the teacher's CRITERION it comes
+       from is worth 2 points or more: the component she priced, or the whole monolith when
+       you split it — whatever the credit's own share. (A 3-point chemistry requirement
+       split into three parts: «balancing the equation» is non_binary and keeps a partial
+       although the part is worth 1 point.) Prefer a concrete partial state: what is
+       present, and what is missing or wrong. If none can be named, use HALF with an
+       observable label of the form "present, but incomplete or containing an error". When
+       the credit allows, give two levels: a minor slip (THREE_QUARTERS) and a major gap
+       (HALF or QUARTER).
+   (b) A credit whose criterion is worth less than 2 points, and every binary credit —
+       a binary part of a split included — has no partial, unless the teacher's own text
+       states a partial value for that element. Then write exactly the partial she states,
+       and quote her words verbatim in its teacher_span.
+"""
+
+# [AM-G20] v6.3 = v6.2's exact bytes with rule 7 (a)/(b) replaced; built by replacement so a
+# drift in the shared text fails here, and v6.2 itself never moves.
+assert PLANNER_CORE.count(_RULE_7AB_V62) == 1, "rule 7(a)/(b) drifted: update both versions"
+PLANNER_CORE_V63 = PLANNER_CORE.replace(_RULE_7AB_V62, _RULE_7AB_V63)
+_CORES = {PLANNER_PROMPT_VERSION: PLANNER_CORE, PLANNER_PROMPT_V63: PLANNER_CORE_V63}
+
 PRECEDENTS_HEADER = """\
 === PRECEDENTS OF THIS SUBJECT ===
 Apply them when you phrase credits and choose partials and faults. Never quote or name them."""
@@ -147,9 +192,12 @@ Return one JSON object: {"terminals": [...], "faults": [...], "dispositions": [.
 Every marker has exactly one disposition; a scope with no markers returns empty lists."""
 
 
-def planner_system_prompt(profile) -> str:
-    """The planner system prompt for a subject pack (`registry.get_profile(key)`)."""
-    parts: List[str] = [PLANNER_CORE.rstrip("\n")]
+def planner_system_prompt(profile, version: str = PLANNER_PROMPT_VERSION) -> str:
+    """The planner system prompt for a subject pack (`registry.get_profile(key)`), in a
+    selectable prompt version (`PLANNER_PROMPT_VERSIONS`)."""
+    if version not in _CORES:
+        raise ValueError(f"unknown planner prompt version {version!r}; known {PLANNER_PROMPT_VERSIONS}")
+    parts: List[str] = [_CORES[version].rstrip("\n")]
     if profile.planner_fragment and profile.planner_fragment.strip():
         parts += ["", "=== SUBJECT GUIDANCE ===", profile.planner_fragment.rstrip("\n")]
     if profile.precedents:

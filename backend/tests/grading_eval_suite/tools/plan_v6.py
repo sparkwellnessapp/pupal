@@ -44,7 +44,8 @@ from app.agents.plan_compiler.models import MODEL_CARDS                         
 from app.agents.plan_compiler.stage1_v6 import STAGE1_V6_VERSION, compile_stage1_v6  # noqa: E402
 from app.agents.planner.planner import (ScopePlanResult, assemble_plan,             # noqa: E402
                                         plan_scope)
-from app.agents.planner.prompt import (PLANNER_PROMPT_VERSION, am_g19_applies,  # noqa: E402
+from app.agents.planner.prompt import (PLANNER_PROMPT_VERSION, PLANNER_PROMPT_VERSIONS,  # noqa: E402
+                                       am_g19_applies, am_g20_applies,
                                        planner_system_prompt, render_scope_input)
 from app.agents.planner.render import render_plan_md                                # noqa: E402
 from app.agents.planner.schemas import ScopePlanOutput                              # noqa: E402
@@ -57,6 +58,10 @@ SUBJECT = {"hobby_tvshow": "computer_science", "bagrut_899371": "computer_scienc
 PLANNER_ARMS = ("claude-sonnet-5", "claude-sonnet-5.5", "claude-opus-5.5")   # AM-G18 planner arms
 OUT_DIR = SUITE_DIR / "plans" / "v6"
 RENDER_DIR = BACKEND.parent / "docs" / "plans"
+# [Item C, Oct 18] the prompt version a LIVE plan uses, and where its recording/plan go
+# (run 11: planner-v6.3 into plans/v6/run11 — run 10's pins are never overwritten).
+PROMPT_VERSION = PLANNER_PROMPT_VERSION
+RENDER_TAG = ""
 
 
 def _canary(model_id: str) -> None:
@@ -80,15 +85,19 @@ async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scop
     sha = hashlib.sha256(contract.model_dump_json().encode("utf-8")).hexdigest()
     s1 = compile_stage1_v6(contract, exam_id=exam, rubric_contract_sha256=sha)
     profile = get_profile(SUBJECT[exam])
-    system = planner_system_prompt(profile)
+    system = planner_system_prompt(profile, PROMPT_VERSION)
     card = MODEL_CARDS[model_key]
     recorded_path = OUT_DIR / f"{exam}.{model_key}.recorded.json"
 
     live_scopes = set(live_scopes)
-    am_g19 = True                                 # [AM-G19] a live call is planner-v6.2
+    am_g19 = True                                 # [AM-G19] a live call is planner-v6.2+
+    am_g20 = am_g20_applies(PROMPT_VERSION)       # [AM-G20] planner-v6.3
     if replay or live_scopes:
         rec = json.loads(recorded_path.read_text(encoding="utf-8"))
         am_g19 = am_g19_applies(rec["planner_prompt_version"])
+        am_g20 = am_g20_applies(rec["planner_prompt_version"])
+        if not replay and rec["planner_prompt_version"] != PROMPT_VERSION:
+            raise SystemExit("--live-scopes mixes prompt versions: re-record this exam whole")
         if live_scopes and not am_g19:
             raise SystemExit("--live-scopes mixes prompts: this recording predates AM-G19; re-record it whole")
         outputs = {s: [ScopePlanOutput.model_validate(o) for o in r["outputs"]]
@@ -130,7 +139,8 @@ async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scop
                   f"system {len(system)} chars · user {len(user)} chars")
             continue
         r: ScopePlanResult = await plan_scope(scope, precision=s1.precision, system_prompt=system,
-                                              user_message=user, call=call_for(scope), am_g19=am_g19)
+                                              user_message=user, call=call_for(scope), am_g19=am_g19,
+                                              am_g20=am_g20)
         cost = sum(u.get("cost_usd", 0.0) for u in r.usage)
         spent += cost
         results.append(r)
@@ -142,7 +152,7 @@ async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scop
     if skipped:
         print(f"  CAP ${max_usd} reached — scopes NOT planned: {skipped}")
         return
-    prompt_version = rec["planner_prompt_version"] if (replay and not live_scopes) else PLANNER_PROMPT_VERSION
+    prompt_version = rec["planner_prompt_version"] if (replay and not live_scopes) else PROMPT_VERSION
     config = pv.config_hash(compiler_version=STAGE1_V6_VERSION, planner_model=card.model_id,
                             planner_prompt_version=prompt_version,
                             pack_id=profile.pack_id, pack_version=profile.pack_version)
@@ -156,7 +166,7 @@ async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scop
     if publish:
         (OUT_DIR / f"{exam}.plan.json").write_text(plan.model_dump_json(indent=1), encoding="utf-8")
         RENDER_DIR.mkdir(parents=True, exist_ok=True)
-        (RENDER_DIR / f"{exam}_v6_render.md").write_text(
+        (RENDER_DIR / f"{exam}_v6_render{RENDER_TAG}.md").write_text(
             render_plan_md(exam, plan, s1, results), encoding="utf-8")
         print(f"  published {exam}.plan.json and docs/plans/{exam}_v6_render.md from {recorded_path.name}")
         return
@@ -164,7 +174,7 @@ async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scop
         return
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     recorded_path.write_text(json.dumps({
-        "exam": exam, "stage1_version": s1.version, "planner_prompt_version": PLANNER_PROMPT_VERSION,
+        "exam": exam, "stage1_version": s1.version, "planner_prompt_version": PROMPT_VERSION,
         "model_key": model_key, "model_id": card.model_id, "served_models": served,
         "model_fallback_scopes": fallbacks,
         "config_hash": config, "plan_hash": plan.plan_hash, "cost_usd": round(spent, 4),
@@ -187,7 +197,16 @@ def main() -> None:
                     help="with --replay: write the committed plan and render from this model's recording")
     ap.add_argument("--live-scopes", default="",
                     help="comma-separated scopes to re-plan LIVE; every other scope replays its recording")
+    ap.add_argument("--prompt-version", choices=PLANNER_PROMPT_VERSIONS, default=PLANNER_PROMPT_VERSION,
+                    help="the planner prompt of a LIVE plan (Item C: planner-v6.3)")
+    ap.add_argument("--out-dir", default=None,
+                    help="recordings and published plans go here (Item C: plans/v6/run11)")
     args = ap.parse_args()
+    global PROMPT_VERSION, OUT_DIR, RENDER_TAG
+    PROMPT_VERSION = args.prompt_version
+    if args.out_dir:
+        OUT_DIR = SUITE_DIR / args.out_dir
+        RENDER_TAG = "_" + Path(args.out_dir).name
     live_scopes = [x for x in args.live_scopes.split(",") if x]
     if not (args.dry_run or args.confirm_spend or args.replay):
         raise SystemExit("pass --dry-run, --replay, or --confirm-spend (a live run spends money)")

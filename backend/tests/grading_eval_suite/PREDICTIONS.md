@@ -654,3 +654,28 @@ Ruling Oct 6 §3 item 7c; it runs only if the AM-G19 CS re-run holds its kills a
   - no unrepaired validator error (a fallback or a rule-7 downgrade counts), every fallback reported;
   - English: every criterion a compiled `levels` check on its C8-lite bands.
 - **On failure:** up to 2 fix iterations, touching ONLY that subject's pack fragment, then STOP (g).
+
+### Item C (owner rulings Oct 18 §3) — run 11, the v6.1 release candidate (registered BEFORE any run-11 spend)
+
+- **What changes:**
+  - **AM-G20 (planner-v6.3):** rule 7(a)/(b) is evaluated on the teacher's CRITERION. Every non_binary part of a split of a ≥ 2-point criterion keeps a partial; binary parts stay binary. Enforced in `planner/assemble.py`.
+  - **AM-G21 (grader-v6.1):** rule 9 is V-8, the literal check (every concrete claim in a label must hold, or the option is ineligible; the highest eligible option wins). Rule 10: a shown mistake is selected, with its line quoted. Rule 4 (V-3): absence pointers in neutral third person.
+  - Both are selectable by config. The production defaults stay planner-v6.2 / grader-v6.0 until adoption.
+- **Frozen classes:** run 10's 44 K2 cells, from `docs/plans/v6_run11_k2_frozen.json` (`tools/v6_freeze_k2.py`): split 11 · verifier-miss 21 · plan-wording 6 · other 6.
+- **Run:**
+  - Re-plan both CS exams on Opus 5.5 at effort high, planner-v6.3, into `plans/v6/run11/`.
+  - Validators and expressibility offline.
+  - CS re-run, config `v6-cs-run11`: verifier Sonnet 5.5 at low on grader-v6.1; explainer arm B as shipped; k=2; the same 12 fixtures and instrument as run 10.
+- **Predictions:**
+  - **P-v6-13:** K2 ≤ 10.2%.
+  - **P-v6-14:** K1 = 100%.
+  - **P-v6-15:** G-Z ≤ 22.8%.
+  - **P-v6-16:** K3 ≥ 0.774.
+  - **P-v6-17:** K4 ≤ 9.0. Note k=2: a spread over 2 trials, not 3.
+  - **P-v6-18:** cost per test ≤ 1.05 × run 10.
+- **The cost comparator (decided — pending veto):** like for like on the SHIPPED explainer. Run 10's verifier $0.0625 + arm B $0.0829 = **$0.1454**, so the bar is **$0.1527**. The verifier alone is reported beside it (run 10 $0.0625 → $0.0656). Run 10's literal $0.1054 was arm A, which production does not ship.
+- **Report, per class:** for each frozen class, run-10 cells fixed / still failing. Plus every NEW failing cell (K1, K2 or G-Z) not failing in run 10, with its quote.
+- **Adoption rule (mechanical):**
+  - Adopt iff K1 = 100%, K2 < 15.0%, G-Z ≤ 22.8%, K3 ≥ 0.774, K4 ≤ 9.0, cost ≤ the bar above, AND Item D passes.
+  - Otherwise keep the production config, record for v6.1, stop. No second iteration.
+  - A K1 failure stops at once: no diagnosis spend.

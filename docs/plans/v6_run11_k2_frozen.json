@@ -1,0 +1,452 @@
+{
+ "_about": "grader-v6 Item C (owner rulings 2026-10-18 §3c) — FREEZE run 10's K2 cells into their classes,",
+ "run10": "20261017-162850_v6-cs-sonnet55-amg19",
+ "counts": {
+  "split": 11,
+  "verifier-miss": 21,
+  "plan-wording": 6,
+  "other": 6
+ },
+ "cells": [
+  {
+   "fixture": "bagrut_899371.din_ezra",
+   "exam": "bagrut_899371",
+   "trial": 0,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2.5",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "split"
+  },
+  {
+   "fixture": "bagrut_899371.din_ezra",
+   "exam": "bagrut_899371",
+   "trial": 1,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2.5",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "split"
+  },
+  {
+   "fixture": "bagrut_899371.din_ezra",
+   "exam": "bagrut_899371",
+   "trial": 2,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2.5",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "split"
+  },
+  {
+   "fixture": "bagrut_899371.noam_breinshtein",
+   "exam": "bagrut_899371",
+   "trial": 0,
+   "terminal_id": "q3.ב.c5",
+   "gt": "2.5",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "split"
+  },
+  {
+   "fixture": "bagrut_899371.noam_breinshtein",
+   "exam": "bagrut_899371",
+   "trial": 0,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2.5",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "split"
+  },
+  {
+   "fixture": "bagrut_899371.noam_breinshtein",
+   "exam": "bagrut_899371",
+   "trial": 0,
+   "terminal_id": "q6.c7",
+   "gt": "3",
+   "ai": "4",
+   "possible": "4",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.noam_breinshtein",
+   "exam": "bagrut_899371",
+   "trial": 1,
+   "terminal_id": "q3.ב.c5",
+   "gt": "2.5",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "split"
+  },
+  {
+   "fixture": "bagrut_899371.noam_breinshtein",
+   "exam": "bagrut_899371",
+   "trial": 1,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2.5",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "split"
+  },
+  {
+   "fixture": "bagrut_899371.noam_breinshtein",
+   "exam": "bagrut_899371",
+   "trial": 2,
+   "terminal_id": "q3.ב.c5",
+   "gt": "2.5",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "split"
+  },
+  {
+   "fixture": "bagrut_899371.noam_breinshtein",
+   "exam": "bagrut_899371",
+   "trial": 2,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2.5",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "split"
+  },
+  {
+   "fixture": "bagrut_899371.raz_cohen",
+   "exam": "bagrut_899371",
+   "trial": 0,
+   "terminal_id": "q6.c1",
+   "gt": "0.5",
+   "ai": "1.0",
+   "possible": "1",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.raz_cohen",
+   "exam": "bagrut_899371",
+   "trial": 2,
+   "terminal_id": "q3.ב.c5",
+   "gt": "1.5",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "split"
+  },
+  {
+   "fixture": "bagrut_899371.raz_cohen",
+   "exam": "bagrut_899371",
+   "trial": 2,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.raz_cohen",
+   "exam": "bagrut_899371",
+   "trial": 2,
+   "terminal_id": "q6.c6",
+   "gt": "1",
+   "ai": "2",
+   "possible": "2",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.roni_ben_ezra",
+   "exam": "bagrut_899371",
+   "trial": 0,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.roni_ben_ezra",
+   "exam": "bagrut_899371",
+   "trial": 0,
+   "terminal_id": "q6.c6",
+   "gt": "1",
+   "ai": "2",
+   "possible": "2",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.roni_ben_ezra",
+   "exam": "bagrut_899371",
+   "trial": 0,
+   "terminal_id": "q6.c7",
+   "gt": "3",
+   "ai": "4",
+   "possible": "4",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.roni_ben_ezra",
+   "exam": "bagrut_899371",
+   "trial": 1,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.roni_ben_ezra",
+   "exam": "bagrut_899371",
+   "trial": 1,
+   "terminal_id": "q6.c6",
+   "gt": "1",
+   "ai": "2",
+   "possible": "2",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.roni_ben_ezra",
+   "exam": "bagrut_899371",
+   "trial": 1,
+   "terminal_id": "q6.c7",
+   "gt": "3",
+   "ai": "4",
+   "possible": "4",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.roni_ben_ezra",
+   "exam": "bagrut_899371",
+   "trial": 2,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.roni_ben_ezra",
+   "exam": "bagrut_899371",
+   "trial": 2,
+   "terminal_id": "q6.c6",
+   "gt": "1",
+   "ai": "2",
+   "possible": "2",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.roni_ben_ezra",
+   "exam": "bagrut_899371",
+   "trial": 2,
+   "terminal_id": "q6.c7",
+   "gt": "3",
+   "ai": "4",
+   "possible": "4",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.yael_kogan",
+   "exam": "bagrut_899371",
+   "trial": 0,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.yael_kogan",
+   "exam": "bagrut_899371",
+   "trial": 1,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "bagrut_899371.yahli_cohen",
+   "exam": "bagrut_899371",
+   "trial": 0,
+   "terminal_id": "q3.א.c2",
+   "gt": "1",
+   "ai": "2",
+   "possible": "2",
+   "class": "plan-wording"
+  },
+  {
+   "fixture": "bagrut_899371.yahli_cohen",
+   "exam": "bagrut_899371",
+   "trial": 0,
+   "terminal_id": "q3.ב.c6",
+   "gt": "2.5",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "split"
+  },
+  {
+   "fixture": "bagrut_899371.yahli_cohen",
+   "exam": "bagrut_899371",
+   "trial": 1,
+   "terminal_id": "q3.א.c2",
+   "gt": "1",
+   "ai": "2",
+   "possible": "2",
+   "class": "plan-wording"
+  },
+  {
+   "fixture": "bagrut_899371.yahli_cohen",
+   "exam": "bagrut_899371",
+   "trial": 2,
+   "terminal_id": "q3.א.c2",
+   "gt": "1",
+   "ai": "2",
+   "possible": "2",
+   "class": "plan-wording"
+  },
+  {
+   "fixture": "din_ezra",
+   "exam": "hobby_tvshow",
+   "trial": 0,
+   "terminal_id": "q2.ב.c4.s1",
+   "gt": "0.5",
+   "ai": "1.0",
+   "possible": "1",
+   "class": "plan-wording"
+  },
+  {
+   "fixture": "din_ezra",
+   "exam": "hobby_tvshow",
+   "trial": 0,
+   "terminal_id": "q2.ב.c5",
+   "gt": "0.5",
+   "ai": "1",
+   "possible": "1",
+   "class": "other"
+  },
+  {
+   "fixture": "din_ezra",
+   "exam": "hobby_tvshow",
+   "trial": 0,
+   "terminal_id": "q2.ג.c0.s1",
+   "gt": "1.5",
+   "ai": "3",
+   "possible": "3",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "din_ezra",
+   "exam": "hobby_tvshow",
+   "trial": 1,
+   "terminal_id": "q1.ב.c2",
+   "gt": "1.5",
+   "ai": "3.00",
+   "possible": "3",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "din_ezra",
+   "exam": "hobby_tvshow",
+   "trial": 1,
+   "terminal_id": "q2.ב.c4.s1",
+   "gt": "0.5",
+   "ai": "1.0",
+   "possible": "1",
+   "class": "plan-wording"
+  },
+  {
+   "fixture": "din_ezra",
+   "exam": "hobby_tvshow",
+   "trial": 1,
+   "terminal_id": "q2.ב.c5",
+   "gt": "0.5",
+   "ai": "1",
+   "possible": "1",
+   "class": "other"
+  },
+  {
+   "fixture": "din_ezra",
+   "exam": "hobby_tvshow",
+   "trial": 1,
+   "terminal_id": "q2.ג.c0.s1",
+   "gt": "1.5",
+   "ai": "3",
+   "possible": "3",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "din_ezra",
+   "exam": "hobby_tvshow",
+   "trial": 2,
+   "terminal_id": "q2.ב.c4.s1",
+   "gt": "0.5",
+   "ai": "1.0",
+   "possible": "1",
+   "class": "plan-wording"
+  },
+  {
+   "fixture": "din_ezra",
+   "exam": "hobby_tvshow",
+   "trial": 2,
+   "terminal_id": "q2.ב.c5",
+   "gt": "0.5",
+   "ai": "1",
+   "possible": "1",
+   "class": "other"
+  },
+  {
+   "fixture": "yonatan_basiuk",
+   "exam": "hobby_tvshow",
+   "trial": 0,
+   "terminal_id": "q2.ב.c3.s0",
+   "gt": "2",
+   "ai": "3",
+   "possible": "3",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "yonatan_basiuk",
+   "exam": "hobby_tvshow",
+   "trial": 0,
+   "terminal_id": "q2.ב.c4.s2",
+   "gt": "1.5",
+   "ai": "2",
+   "possible": "2",
+   "class": "other"
+  },
+  {
+   "fixture": "yonatan_basiuk",
+   "exam": "hobby_tvshow",
+   "trial": 1,
+   "terminal_id": "q2.ב.c3.s0",
+   "gt": "2",
+   "ai": "3",
+   "possible": "3",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "yonatan_basiuk",
+   "exam": "hobby_tvshow",
+   "trial": 1,
+   "terminal_id": "q2.ב.c4.s2",
+   "gt": "1.5",
+   "ai": "2",
+   "possible": "2",
+   "class": "other"
+  },
+  {
+   "fixture": "yonatan_basiuk",
+   "exam": "hobby_tvshow",
+   "trial": 2,
+   "terminal_id": "q2.ב.c3.s0",
+   "gt": "2",
+   "ai": "3",
+   "possible": "3",
+   "class": "verifier-miss"
+  },
+  {
+   "fixture": "yonatan_basiuk",
+   "exam": "hobby_tvshow",
+   "trial": 2,
+   "terminal_id": "q2.ב.c4.s2",
+   "gt": "1.5",
+   "ai": "2",
+   "possible": "2",
+   "class": "other"
+  }
+ ]
+}

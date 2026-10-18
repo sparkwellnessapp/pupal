@@ -25,6 +25,11 @@ from app.agents.grader.prompt import _render_context_sections
 from app.schemas.gradable import GradableScope
 
 VERIFIER_V6_PROMPT_VERSION = "grader-v6.0"
+# [AM-G21, owner rulings 2026-10-18 Item C] V-8 literal check, the fault rule, V-3 in neutral
+# third person. Selectable by config (`settings.v6_verifier_prompt_version`); v6.0 stays the
+# production default until run 11 is adopted.
+VERIFIER_V6_PROMPT_V61 = "grader-v6.1"
+VERIFIER_V6_PROMPT_VERSIONS = (VERIFIER_V6_PROMPT_VERSION, VERIFIER_V6_PROMPT_V61)
 
 _RULE = "═" * 79
 
@@ -63,6 +68,39 @@ RULES
    (o1, o2, …).
 """
 
+_RULE_4_V60 = """\
+4. ABSENCE IS NAMED, NOT QUOTED. For a CREDIT check's zero option, leave evidence_quote empty
+   and write absence_pointer_he: one Hebrew line of at most 120 characters naming what the
+   answer contains in its place, or «אין תשובה». For every other option absence_pointer_he is "".
+"""
+
+_RULE_4_V61 = """\
+4. ABSENCE IS NAMED, NOT QUOTED. For a CREDIT check's zero option, leave evidence_quote empty
+   and write absence_pointer_he: one Hebrew line of at most 120 characters, in neutral third
+   person, describing what the answer contains in its place (e.g. «התשובה מחשבת ממוצע במקום
+   חציון»), or «אין תשובה». Never write in the first person («לא מצאתי», «חיפשתי»). For every
+   other option absence_pointer_he is "".
+"""
+
+_RULES_9_10_V61 = """\
+9. CHECK THE LABEL LITERALLY. Before you select an option, check every concrete claim its
+   description makes — a bound, a start or end point, a value, a size, a target name, an
+   operation, an output — against the span you quoted. An option with any claim the answer does
+   not satisfy is not eligible: choose the highest eligible option (for a CREDIT check, its zero
+   option when no other is eligible). From another subject: «converts each temperature by
+   multiplying by 9/5 and adding 32» is not eligible for an answer that adds 32 but multiplies
+   by 5/9.
+10. A SHOWN MISTAKE IS SELECTED. For a FAULT check, if the answer exhibits the error one of its
+   options describes, select that option and quote the line that shows it — even when the credit
+   it modifies is otherwise earned.
+"""
+
+# [AM-G21] v6.1 = v6.0's exact bytes with rule 4 reworded and rules 9–10 appended; built by
+# replacement so a drift in the shared text fails here, and v6.0 itself never moves.
+assert VERIFIER_V6_CORE.count(_RULE_4_V60) == 1, "rule 4 drifted: update both versions"
+VERIFIER_V6_CORE_V61 = VERIFIER_V6_CORE.replace(_RULE_4_V60, _RULE_4_V61) + _RULES_9_10_V61
+_CORES = {VERIFIER_V6_PROMPT_VERSION: VERIFIER_V6_CORE, VERIFIER_V6_PROMPT_V61: VERIFIER_V6_CORE_V61}
+
 SUBJECT_HEADER = """\
 === SUBJECT GUIDANCE ===
 Part of this guidance may use an older vocabulary: read «met» as a CREDIT check's full option
@@ -78,8 +116,12 @@ one entry per check, evidence before the decision."""
 _ROLE = {"credit": "CREDIT", "fault": "FAULT", "note": "NOTE"}
 
 
-def verifier_v6_system_prompt(profile) -> str:
-    parts = [VERIFIER_V6_CORE.rstrip("\n")]
+def verifier_v6_system_prompt(profile, version: str = VERIFIER_V6_PROMPT_VERSION) -> str:
+    """The verifier system prompt for a pack, in a selectable version
+    (`VERIFIER_V6_PROMPT_VERSIONS`)."""
+    if version not in _CORES:
+        raise ValueError(f"unknown verifier prompt version {version!r}; known {VERIFIER_V6_PROMPT_VERSIONS}")
+    parts = [_CORES[version].rstrip("\n")]
     if profile.verifier_fragment and profile.verifier_fragment.strip():
         parts += ["", SUBJECT_HEADER, profile.verifier_fragment.rstrip("\n")]
     parts += ["", OUTPUT_CONTRACT]

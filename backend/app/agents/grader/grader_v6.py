@@ -111,7 +111,8 @@ class OptionsVerifyGrader:
 
     def __init__(self, plan: GradingPlanV6, contract, *, llm, model_version: str,
                  profile, sc_n: int = 1, explain: Optional[Explain] = None,
-                 explainer_prompt_version: Optional[str] = None) -> None:
+                 explainer_prompt_version: Optional[str] = None,
+                 verifier_prompt_version: str = VERIFIER_V6_PROMPT_VERSION) -> None:
         if sc_n < 1 or sc_n % 2 == 0:
             raise ValueError(f"sc_n must be an odd positive integer, got {sc_n}")
         recomputed = compute_plan_hash(plan.terminals, plan.checks)
@@ -126,7 +127,8 @@ class OptionsVerifyGrader:
         self._sc_n = sc_n
         self._explain = explain
         self._explainer_prompt_version = explainer_prompt_version
-        self._system = verifier_v6_system_prompt(profile)
+        self._verifier_version = verifier_prompt_version          # [AM-G21] config-selected
+        self._system = verifier_v6_system_prompt(profile, verifier_prompt_version)
         self._cache = supports_cache(llm)                          # [CL-2]
         self._provider = provider_of(llm)                          # [§5a]
         self._structured_llm = llm.with_structured_output(ScopeVerdictsV6, include_raw=True)
@@ -303,7 +305,7 @@ class OptionsVerifyGrader:
                            provider=self._provider)
         return DraftV6Content(
             plan_hash=self._plan.plan_hash, config_hash=self._plan.config_hash,
-            pack=self._plan.subject_pack, verifier_prompt_version=VERIFIER_V6_PROMPT_VERSION,
+            pack=self._plan.subject_pack, verifier_prompt_version=self._verifier_version,
             explainer_prompt_version=self._explainer_prompt_version,
             precision=self._precision, terminals=list(self._plan.terminals),
             view_terminals=view_terminals, selection=self._selection(), checks=records,
@@ -424,7 +426,7 @@ class OptionsVerifyGrader:
             rubric_contract_version=gradable_test.rubric_contract_version,
             transcription_contract_version=gradable_test.transcription_contract_version,
             model_version=self._model_version,
-            prompt_version=_subject_prompt_version(VERIFIER_V6_PROMPT_VERSION, self._profile),
+            prompt_version=_subject_prompt_version(self._verifier_version, self._profile),
             plan_version=None,                # a v5 field (PR-G1 per-check records); v6 stamps v6.plan_hash
             served_models=(v.served_models or None) if v else None,
             llm_provider=self._provider,

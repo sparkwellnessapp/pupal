@@ -76,9 +76,10 @@ def repair_message(user_message: str, prior_output_json: str, errors: Sequence[s
             + "\n".join(f"- {e}" for e in errors))
 
 
-def _attempt(scope: V6Scope, out: ScopePlanOutput, precision: Decimal, am_g19: str = "strict"):
+def _attempt(scope: V6Scope, out: ScopePlanOutput, precision: Decimal, am_g19: str = "strict",
+             am_g20: bool = False):
     try:
-        terminals, checks, disps, tel = map_scope(scope, out, precision, am_g19=am_g19)
+        terminals, checks, disps, tel = map_scope(scope, out, precision, am_g19=am_g19, am_g20=am_g20)
     except MappingError as e:
         return None, e.errors
     errs = validate_scope(scope, terminals, checks, disps, precision)
@@ -94,7 +95,9 @@ def _fallback(scope: V6Scope, precision: Decimal, origin: Origin, reason: str,
 
 
 async def plan_scope(scope: V6Scope, *, precision: Decimal, system_prompt: str, user_message: str,
-                     call: LLMCall, am_g19: bool = True) -> ScopePlanResult:
+                     call: LLMCall, am_g19: bool = True, am_g20: bool = False) -> ScopePlanResult:
+    """[AM-G20] `am_g20` (planner-v6.3) moves rule 7's 2-point line onto the teacher's
+    criterion; it is carried by every attempt of this scope (strict, repair, lenient)."""
     if not scope.needs_planner:
         return _fallback(scope, precision, "compiled", "all terminals compiled")
     mode = "strict" if am_g19 else "off"
@@ -106,7 +109,7 @@ async def plan_scope(scope: V6Scope, *, precision: Decimal, system_prompt: str, 
         return _fallback(scope, precision, "fallback", f"call_failed: {type(e).__name__}")
     outputs.append(out.model_dump(mode="json"))
     usage.append(u)
-    done, errs = _attempt(scope, out, precision, mode)
+    done, errs = _attempt(scope, out, precision, mode, am_g20)
     if done:
         t, c, d, tel = done
         return ScopePlanResult(scope.scope, "planner", t, c, d, tel, outputs, usage)
@@ -115,7 +118,7 @@ async def plan_scope(scope: V6Scope, *, precision: Decimal, system_prompt: str, 
         """[AM-G19] the latest output, rule 7 downgraded to telemetry; None if anything else fails."""
         if not am_g19:
             return None
-        got, _ = _attempt(scope, o, precision, "lenient")
+        got, _ = _attempt(scope, o, precision, "lenient", am_g20)
         if not got:
             return None
         t, c, d, tel = got
@@ -133,7 +136,7 @@ async def plan_scope(scope: V6Scope, *, precision: Decimal, system_prompt: str, 
                          errs, outputs, usage)
     outputs.append(out2.model_dump(mode="json"))
     usage.append(u2)
-    done, errs2 = _attempt(scope, out2, precision, mode)
+    done, errs2 = _attempt(scope, out2, precision, mode, am_g20)
     if done:
         t, c, d, tel = done
         return ScopePlanResult(scope.scope, "repaired", t, c, d, tel, outputs, usage, list(errs))
@@ -144,15 +147,16 @@ async def plan_scope(scope: V6Scope, *, precision: Decimal, system_prompt: str, 
 
 
 async def plan_all(stage1: Stage1V6, *, system_prompt: str, render: Callable[[V6Scope], str],
-                   call: LLMCall, concurrency: int = PLANNER_MAX_CONCURRENCY, am_g19: bool = True
-                   ) -> List[ScopePlanResult]:
+                   call: LLMCall, concurrency: int = PLANNER_MAX_CONCURRENCY, am_g19: bool = True,
+                   am_g20: bool = False) -> List[ScopePlanResult]:
     """Every scope, in parallel under `concurrency`, results in rubric order."""
     sem = asyncio.Semaphore(concurrency)
 
     async def one(scope: V6Scope) -> ScopePlanResult:
         async with sem:
             return await plan_scope(scope, precision=stage1.precision, system_prompt=system_prompt,
-                                    user_message=render(scope), call=call, am_g19=am_g19)
+                                    user_message=render(scope), call=call, am_g19=am_g19,
+                                    am_g20=am_g20)
 
     return list(await asyncio.gather(*(one(s) for s in stage1.scopes)))
 

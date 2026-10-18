@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     v6_verifier_model: str = "claude-sonnet-5-5"
     v6_verifier_effort: str = "low"
     v6_verifier_thinking: str = "adaptive"
+    # [Item C, owner rulings 2026-10-18] the prompt versions are CONFIG, so adopting run 11
+    # (planner-v6.3 + grader-v6.1) is a config change and the rollback is the previous value.
+    v6_planner_prompt_version: str = "planner-v6.2"   # app.agents.planner.prompt.PLANNER_PROMPT_VERSIONS
+    v6_verifier_prompt_version: str = "grader-v6.0"   # app.agents.grader.verifier_prompt_v6.VERIFIER_V6_PROMPT_VERSIONS
     v6_explainer_model: str = "claude-sonnet-5-5"     # "" ⇒ no explainer: the fallback composer's lines
     v6_explainer_effort: str = "low"
     v6_explainer_thinking: str = "between_tools"

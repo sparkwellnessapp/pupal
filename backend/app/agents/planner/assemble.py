@@ -24,6 +24,11 @@ failed repair: an unbacked partial is DROPPED, a missing one is reported, never 
 the fallback would lose every partial of the scope instead), "off" (replaying a
 planner-v6.1 recording, which predates the rule).
 
+[AM-G20, owner 2026-10-18] With planner-v6.3 (`am_g20=True`) the 2-point line reads the
+TEACHER'S CRITERION a credit comes from — the component she priced, or the whole monolith
+when the planner split it — not the credit's own share: every non_binary part of a split of
+a ≥ 2-point monolith carries a partial; binary parts stay binary. planner-v6.2 is unchanged.
+
 Two decisions this module makes (recorded as "decided — pending owner veto"):
   1. V10 forbids point text in descriptions and labels, and a teacher's verbatim
      span usually carries it («(1 נקודה)», «להוריד 1»). The fallback therefore
@@ -153,16 +158,22 @@ def _teacher_states(partial, value: Decimal, grid: Decimal, teacher_text: str) -
 
 
 def _am_g19(tid: str, credit: PlannedCredit, value: Decimal, grid: Decimal, teacher_text: str,
-            mode: AmG19Mode) -> Tuple[PlannedCredit, List[str], List[str]]:
-    """(credit, errors for the repair call, telemetry). Pure; the rule in the module docstring."""
+            mode: AmG19Mode, rule_value: Optional[Decimal] = None) -> Tuple[PlannedCredit, List[str], List[str]]:
+    """(credit, errors for the repair call, telemetry). Pure; the rule in the module docstring.
+
+    [AM-G20] `rule_value` is the teacher's CRITERION the credit comes from (the component she
+    priced, or the whole monolith of a split); rule 7's 2-point line reads it when given. None
+    (planner-v6.2) reads the credit's own `value`, so a v6.2 plan is unchanged."""
     if mode == "off":
         return credit, [], []
     ref, errors, tel = credit.component_ref, [], []
+    line_value = value if rule_value is None else rule_value
+    worth = "worth" if rule_value is None else "from a criterion worth"
     if credit.element is None:
         msg = f"{tid}: credit {ref!r} states no element — choose binary or non_binary (rule 7)"
         return credit, ([msg] if mode == "strict" else []), [f"am_g19_element_missing {tid}/{ref}"]
-    if credit.element == "binary" or value < AM_G19_PARTIAL_MIN:
-        why = "binary" if credit.element == "binary" else "worth less than 2 points"
+    if credit.element == "binary" or line_value < AM_G19_PARTIAL_MIN:
+        why = "binary" if credit.element == "binary" else f"{worth} less than 2 points"
         kept, dropped = [], []
         for p in credit.partials:
             ok, reason = _teacher_states(p, value, grid, teacher_text)
@@ -176,8 +187,8 @@ def _am_g19(tid: str, credit: PlannedCredit, value: Decimal, grid: Decimal, teac
                 credit = credit.model_copy(update={"partials": [p for p, _ in kept]})
                 tel.append(f"am_g19_partial_dropped {tid}/{ref}: {len(dropped)} ({why})")
     elif not credit.partials:
-        msg = (f"{tid}: credit {ref!r} is non_binary and worth 2 points or more, so it needs at least "
-               f"one partial (rule 7a)")
+        msg = (f"{tid}: credit {ref!r} is non_binary and {worth} 2 points or more, so it needs at "
+               f"least one partial (rule 7a)")
         if mode == "strict":
             errors.append(msg)
         else:
@@ -275,7 +286,8 @@ def _unalias(scope: V6Scope, out: ScopePlanOutput) -> Tuple[ScopePlanOutput, Lis
                                   "dispositions": dispositions}), tel
 
 
-def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal, *, am_g19: AmG19Mode = "strict"
+def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal, *, am_g19: AmG19Mode = "strict",
+              am_g20: bool = False
               ) -> Tuple[List[TerminalPlanV6], List[PlanCheckV6], List[MarkerDisposition], List[str]]:
     """(terminals, checks, dispositions, telemetry). `out` is in alias space (AM-G17);
     every id below is real. Raises MappingError (real ids — `planner_aliases(scope).redact`
@@ -307,6 +319,7 @@ def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal, *, am_g19: Am
         notes[t.terminal_id] = list(pt.interpretation_notes_he[:3])
         refs = [c.component_ref for c in pt.credits]
         comp_ids = [c.component_id for c in t.components]
+        criteria = None          # [AM-G20] the priced unit per credit; None ⇒ the credit's own value
         if t.fixed or pt.decomposition == "as_compiled":
             if pt.decomposition != "as_compiled":
                 errors.append(f"{t.terminal_id}: enumerated components are fixed input — "
@@ -335,6 +348,8 @@ def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal, *, am_g19: Am
                     errors.append(f"{t.terminal_id}: split credits are {expected}, got {refs}")
                     continue
                 values = pv.even_split(t.points_possible, k, grid)
+                # [AM-G20] every part of a split comes from the one monolith she priced
+                criteria = [t.components[0].points] * k
             else:
                 if refs != comp_ids:
                     errors.append(f"{t.terminal_id}: the monolith's credit is {comp_ids[0]!r}, got {refs}")
@@ -348,7 +363,8 @@ def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal, *, am_g19: Am
                     continue
                 values = [t.points_possible]
         sources = (t.text, scope.question_text, scope.example_solution)
-        for n, (credit, value) in enumerate(zip(pt.credits, values), start=1):
+        criteria = criteria or values
+        for n, (credit, value, criterion) in enumerate(zip(pt.credits, values, criteria), start=1):
             if AMOUNT_MASK in credit.source_span:           # the exact inverse of our input mask
                 verbatim = unmask_span(credit.source_span, sources)
                 if verbatim is None:
@@ -360,7 +376,8 @@ def map_scope(scope: V6Scope, out: ScopePlanOutput, grid: Decimal, *, am_g19: Am
                 errors.append(f"{t.terminal_id}: credit {credit.component_ref!r} has "
                               f"{len(credit.partials)} partials (at most 2)")
                 continue
-            credit, am_errors, am_tel = _am_g19(t.terminal_id, credit, value, grid, t.text, am_g19)
+            credit, am_errors, am_tel = _am_g19(t.terminal_id, credit, value, grid, t.text, am_g19,
+                                                rule_value=criterion if am_g20 else None)
             errors += am_errors
             telemetry += am_tel
             if am_g19 == "off":

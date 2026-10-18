@@ -83,7 +83,8 @@ def build_grader_v6(plan, contract, *, gradable_test=None):
                 profile.pack_id)
     return OptionsVerifyGrader(plan, contract, llm=llm, model_version=settings.v6_verifier_model,
                                profile=profile, explain=explain,
-                               explainer_prompt_version=explainer_version)
+                               explainer_prompt_version=explainer_version,
+                               verifier_prompt_version=settings.v6_verifier_prompt_version)
 
 
 def _validate_plan_against(plan, gradable_test, precision) -> None:

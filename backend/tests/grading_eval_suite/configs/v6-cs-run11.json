@@ -1,0 +1,24 @@
+{
+ "model_key": "claude-sonnet-5.5",
+ "architecture": "v6",
+ "verifier_prompt_version": "grader-v6.1",
+ "plans": {
+  "hobby_tvshow": "plans/v6/run11/hobby_tvshow.plan.json",
+  "bagrut_899371": "plans/v6/run11/bagrut_899371.plan.json"
+ },
+ "params": {
+  "reasoning_effort": "low",
+  "thinking": "adaptive"
+ },
+ "explainer": {
+  "model_key": "claude-sonnet-5.5",
+  "params": {
+   "reasoning_effort": "low",
+   "thinking": "between_tools",
+   "max_output_tokens": 4000
+  }
+ },
+ "record_explainer_payloads": true,
+ "cost_ceiling": 0.16,
+ "notes": "Run 11 (owner rulings 2026-10-18 Item C): plans re-planned on Opus 5.5 at effort high with planner-v6.3 (AM-G20), pinned by plan_hash in plans/v6/run11/; verifier Sonnet 5.5 at adaptive / effort low on grader-v6.1 (AM-G21: V-8 literal check, the shown-mistake rule, V-3 neutral third person); explainer arm B AS SHIPPED (Sonnet 5.5, effort low, thinking between_tools, 4000 max output, as app.config's v6_explainer_*). 12 fixtures, k=2. Predictions and the adoption rule in PREDICTIONS.md «Item C — run 11»."
+}

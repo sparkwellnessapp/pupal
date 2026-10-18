@@ -55,11 +55,10 @@ def _profile(contract):
 def v6_config_hash(contract) -> str:
     from app.agents.plan_compiler.models import MODEL_CARDS
     from app.agents.plan_compiler.stage1_v6 import STAGE1_V6_VERSION
-    from app.agents.planner.prompt import PLANNER_PROMPT_VERSION
     profile = _profile(contract)
     return pv.config_hash(compiler_version=STAGE1_V6_VERSION,
                           planner_model=MODEL_CARDS[settings.v6_planner_model_key].model_id,
-                          planner_prompt_version=PLANNER_PROMPT_VERSION,
+                          planner_prompt_version=settings.v6_planner_prompt_version,
                           pack_id=profile.pack_id, pack_version=profile.pack_version)
 
 
@@ -68,15 +67,17 @@ async def build_plan_v6(contract, *, sha: str, call=None) -> Tuple[GradingPlanV6
     (tests); production builds the live one from the settings."""
     from app.agents.plan_compiler.stage1_v6 import compile_stage1_v6
     from app.agents.planner.planner import assemble_plan, plan_all
-    from app.agents.planner.prompt import planner_system_prompt, render_scope_input
+    from app.agents.planner.prompt import am_g20_applies, planner_system_prompt, render_scope_input
     from app.agents.planner.stage1_input import scope_planner_input
     profile = _profile(contract)
     s1 = compile_stage1_v6(contract, exam_id=str(contract.rubric_id), rubric_contract_sha256=sha)
     if call is None:
         from app.agents.planner.planner_llm import build_planner_call
         call = build_planner_call(model_key=settings.v6_planner_model_key, effort=settings.v6_planner_effort)
-    results = await plan_all(s1, system_prompt=planner_system_prompt(profile),
-                             render=lambda scope: render_scope_input(scope_planner_input(scope)), call=call)
+    version = settings.v6_planner_prompt_version              # [Item C] config-selected
+    results = await plan_all(s1, system_prompt=planner_system_prompt(profile, version),
+                             render=lambda scope: render_scope_input(scope_planner_input(scope)), call=call,
+                             am_g20=am_g20_applies(version))
     plan = assemble_plan(results, config_hash=v6_config_hash(contract),
                          rubric_contract_version=str(contract.contract_version),
                          pack=PackRef(pack_id=profile.pack_id, pack_version=profile.pack_version))

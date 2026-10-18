@@ -3284,3 +3284,22 @@ second exam, not another dollar on this one.**
 - **STOP (f)** per ruling §8/§12f: "§6b fails → STOP with the renders".
   - The pre-registration allowed up to 2 Math pack-fragment iterations; the Oct 17 ruling ("no pack iterations") supersedes it, so none was run.
   - **The §9 flip is NOT done** — production stays `GRADER_ARCHITECTURE=v5`.
+
+## 2026-10-18 · ITEM C · run 11 BUILT and PRE-REGISTERED ($0) · SPEND ESTIMATE for the re-plan (eval key, C+D reservation $6.9)
+
+- **Code** (branch `itemC-run11`, worktree `v6c`, cut from main `6012481`, without Item A's Math pack):
+  - **AM-G20:** `planner-v6.3` (rule 7 on the teacher's criterion; `assemble._am_g19(rule_value=…)`, threaded through `map_scope → _attempt → plan_scope → plan_all`).
+  - **AM-G21:** `grader-v6.1` (rule 9 = V-8 literal check, rule 10 = shown mistake, rule 4 = V-3 neutral third person).
+  - **Config:** `settings.v6_planner_prompt_version` / `v6_verifier_prompt_version`, defaults v6.2 / v6.0. The CS assembly pins do not move.
+  - **Tools:** `plan_v6 --prompt-version --out-dir`; runner config `verifier_prompt_version` (and the runner now records the v6 verifier version in provenance).
+  - **Tests:** 14 new; regression 1369 passed (pure half: agents, subjects, grading_eval_suite, services, eval_common).
+- **Pre-registered** (PREDICTIONS «Item C — run 11»):
+  - the frozen classes, `docs/plans/v6_run11_k2_frozen.json`: 11 / 21 / 6 / 6;
+  - P-v6-13..18;
+  - the like-for-like cost bar $0.1527;
+  - the mechanical adoption rule.
+- **Estimate:**
+  - re-plan both CS exams on Opus 5.5 high, planner-v6.3: **≈ $2.12** (run 10's Opus v6.2 re-plan, measured);
+  - then the CS re-run k=2: 24 trials × ($0.0625 + $0.0829) ≈ **$3.49**;
+  - C ≈ $5.6. D ≈ $1.3 (measured: Math plan ≈ $1.1, grading ≈ $0.2).
+  - **C + D ≈ $6.9 = the reservation, no headroom.** Each step is checked before it starts.
