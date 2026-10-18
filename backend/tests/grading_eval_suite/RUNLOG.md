@@ -3319,3 +3319,45 @@ second exam, not another dollar on this one.**
   - `v6-cs-run11`, 12 fixtures, k=2: 24 × ($0.0625 verifier + $0.0829 arm B) ≈ **$3.49**;
   - fits; C ≈ $5.60;
   - **D then has ≈ $1.19–1.30 left against a measured ≈ $1.33.** D is checked before it starts.
+
+## 2026-10-18 · ITEM C · run 11 — K1 FIRES (60/62) → NOT ADOPTED; production config kept; STOP (no diagnosis spend) · actual $3.6118
+
+- **Run** `results/20261018-153424_v6-cs-run11` (config `v6-cs-run11`, plans bagrut `a1033b91` · hobby `2b9df3dd`, verifier grader-v6.1, explainer Sonnet 5.5 as shipped, k=2).
+  - 24/24 valid, 0 model_fallback.
+  - 75 first-attempt connection errors, all retried; 6 scopes lost after retry. Their trials were re-run by the runner, which explains the overrun above the $3.49 estimate.
+  - Gates: `docs/plans/v6_run11_gates.md`. Per class: `docs/plans/v6_run11_per_class.md`.
+
+  | | **run 11** | run 10 | v5 | adoption bar |
+  |---|---|---|---|---|
+  | K1 GT-ZERO→AI-ZERO | **60/62 ❌** | 93/93 | 62/62 | = 100% |
+  | K2 | **14.80%** (29/196) | 15.0% | 10.2% | < 15.0% ✅ (P-v6-13 ≤ 10.2% ✗) |
+  | G-Z | **16.3%** | 21.8% | 31.6% | ≤ 22.8% ✅ |
+  | K3 | **0.811** | 0.784 | 0.693 | ≥ 0.774 ✅ |
+  | K4 | **2.5** | 8.5 | 10.25 | ≤ 9.0 ✅ |
+  | cost / test | **$0.1505** (verifier $0.0652 + explainer $0.0853) | $0.1454 like-for-like | $0.1774 | ≤ $0.1527 ✅ |
+  | G-D2 | **4** (bagrut q5.ב.c4: f1 and f2 both charged, 2 students × 2 trials) | 0 | | 0 (ship criterion 2) |
+
+- **K1, the two cells:** hobby `din_ezra` `q2.ב.c1`, both trials, GT 0 → AI 1/2.
+  - The run-11 plan offers a partial «הוגדר מערך צוברים לערוצים, אך גודלו אינו מכסה את כל הערוצים 1-100…».
+  - The verifier matched it correctly on «int[] arr = new int[tv]»; the teacher gave 0.
+  - The same shape as Item A's Math finding: a partial that rewards a structurally wrong attempt.
+- **Per frozen class** (fixed / still failing, by fixture · criterion):
+  - split 0 / 5. As the expressibility check predicted: the 0.75 partial cannot price her 2.5.
+  - verifier-miss **4** / 7.
+  - plan-wording 0 / 2.
+  - other 1 / 1.
+  - **New failing cells: 10** (2 K1, 4 K2, 4 G-Z), each with its quote, in the per-class file.
+- **Predictions:** P-v6-13 ✗ · P-v6-14 ✗ · P-v6-15 ✅ · P-v6-16 ✅ · P-v6-17 ✅ · P-v6-18 ✅.
+- **Decision (mechanical, §3f + §6):** K1 ≠ 100% → **NOT ADOPTED**. Production keeps planner-v6.2 / grader-v6.0; the run-11 code stays config-selectable and off. No diagnosis spend, no second iteration. **Item D does not run** (C did not meet its CS criteria).
+- **For v6.1 (recorded, not acted on):**
+  - (1) partials that reward a structurally wrong attempt (CS `q2.ב.c1`, and Math in Item A): a partial must describe a correct approach with a flaw;
+  - (2) rule 7's "minor slip" fraction vs a half-point grid (the 11 split cells);
+  - (3) G-D2 on q5.ב.c4 (two tiers of one fault charged together);
+  - (4) V-8 fixed 4 of 11 verifier-miss criteria — worth keeping;
+  - (5) local runs: lower verifier parallelism; this machine drops bursts of concurrent connections.
+- **Ledger, eval key, Oct 18 ($10):**
+  - **Item A $1.3112** of $2.80;
+  - **Item C $5.7191** (re-plan $2.1073 + run $3.6118);
+  - **Item D $0**;
+  - C + D reservation $6.90 → **$1.18 unspent**;
+  - **total $7.03 of $10**.

@@ -120,6 +120,7 @@ def v6_measures(run_dir: Path, bundles) -> Dict[str, Any]:
     e_total = e_model = 0
     failed_rules = Counter()
     fallback_scopes = 0
+    explainer_models = set()
     for fixture, r, draft in _drafts(run_dir):
         content = v6_content(draft)
         if content is None:
@@ -151,6 +152,8 @@ def v6_measures(run_dir: Path, bundles) -> Dict[str, Any]:
             if len(tids) > 1:
                 gd1.append((fixture, r, f"marker {m}", sorted(tids)))
         v, e = content.verifier_usage, content.explainer_usage
+        if e:
+            explainer_models.add(e.model)
         comp["verifier"].append(_usage_cost(v.model_dump() if v else None))
         comp["explainer_a"].append(_usage_cost(e.model_dump() if e else None))
         for name, u in (("verifier", v), ("explainer_a", e)):
@@ -168,6 +171,7 @@ def v6_measures(run_dir: Path, bundles) -> Dict[str, Any]:
             failed_rules.update(x.failed_rules)
     mean = {k: (statistics.mean(v) if v else 0.0) for k, v in comp.items()}
     return {"G-D1": gd1, "G-D2": gd2, "G-B": gb, "cost_mean": mean,
+            "explainer_models": sorted(explainer_models),
             "cache": {k: (a / b if b else 0.0) for k, (a, b) in cache.items()},
             "e_pass": (e_model, e_total), "failed_rules": dict(failed_rules),
             "model_fallback_scopes": fallback_scopes}
@@ -227,11 +231,11 @@ def render(v6_dir: Path, v5_dir: Path, arm_b: Optional[dict]) -> str:
     L += ["", "### Cost per test (registry cards)", "",
           "| component | v6 mean $ | cache hit |", "|---|---|---|",
           f"| verifier (Sonnet 5.5) | {m['cost_mean'].get('verifier', 0):.4f} | {m['cache'].get('verifier', 0):.0%} |",
-          f"| explainer arm A (Haiku 4.5) | {m['cost_mean'].get('explainer_a', 0):.4f} | {m['cache'].get('explainer_a', 0):.0%} |"]
+          f"| explainer ({', '.join(m['explainer_models']) or 'none'}) | {m['cost_mean'].get('explainer_a', 0):.4f} | {m['cache'].get('explainer_a', 0):.0%} |"]
     if arm_b:
         L.append(f"| explainer arm B (Sonnet 5.5, lowest) | {arm_b['cost_per_test']:.4f} | "
                  f"{arm_b.get('cache_hit', 0):.0%} |")
-    L += [f"| **v6 total, arm A** | **{v6_cost:.4f}** | |",
+    L += [f"| **v6 total (verifier + explainer)** | **{v6_cost:.4f}** | |",
           f"| v5 baseline (verifier, incl. basis_he) | {g5['cost_mean'] or 0:.4f} | |",
           "| aspirational target (AM-G11) | 0.1000 | |",
           "| student feedback | not run in the eval harness (reported at G3–5) | |", "",
