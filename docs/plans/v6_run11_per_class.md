@@ -60,3 +60,17 @@
   - credit · הבנת הבדיקה של "מחלק ללא שארית" → **התשובה מתארת שהפעולה בודקת אם קיים במערך איבר שהוא מחלק של x, כלומר ש-x מתחלק בו ללא שארית** · «לבדוק אם יש במערך מספר המתחלק בX ללא שארית»
 - **K2** · bagrut_899371.raz_cohen r1 · `q1.א.2.c0` · GT 0.75 / AI 1.5 of 1.5
   - credit · הבנת הבדיקה של "מחלק ללא שארית" → **התשובה מתארת שהפעולה בודקת אם קיים במערך איבר שהוא מחלק של x, כלומר ש-x מתחלק בו ללא שארית** · «לבדוק אם יש במערך מספר המתחלק בX ללא שארית»
+
+### The 4 G-D2 cells — classified by cause (owner rulings Oct 18 15:55 §1; $0, offline)
+
+All four sit at bagrut `q5.ב.c4`: din_ezra r0/r1 and roni_ben_ezra r0/r1. In each, two fault checks are charged on one line, «workshop[i].getpeople() += ws.getpeople();».
+
+| plan | fault checks at `q5.ב.c4` | what the verifier charged |
+|---|---|---|
+| run 10 `773ea231` | **one** check `f1`, options m1 (one of Set/GetPeople, −2) · m2 (neither, −3) · m3 (total computed, `people` not updated, −2) | **one** option in every trial (6/6: f2 ×4, f1 ×2) |
+| run 11 `a1033b91` | **two** checks: `f1` (m1 · m2) and `f2` (m3 alone) | **both** checks, in all 4 cells: `f1.f1` + `f2.f1` |
+
+- **Cause, all 4 cells: the planner split one fault's tiers into separate fault checks — a P-4 violation.** Rule 4: markers that are severities of one fault form ONE fault whose options are the severities. The census's tier set (Appendix B) and run 10's plan both place m3 with m1/m2.
+- The verifier's two selections are each defensible inside their own check. The shown-mistake rule (AM-G21 rule 10) may have made charging both likelier. But a double charge is structurally impossible without the split, so the cause is not the verifier's V-8 fault rule.
+- Rule 4's text is identical in planner-v6.2 and planner-v6.3. This is a plan-to-plan variation in rule-4 compliance, not a consequence of AM-G20's wording.
+- **v6.1:** fix before any planner-v6.3 reuse. Enforce P-4 in code: refuse two fault checks at one terminal whose markers belong to one tier set, as V7 refuses a charge group across scopes.

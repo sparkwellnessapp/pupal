@@ -310,6 +310,23 @@ The canary is ≈ $0.002, recorded in the RUNLOG before it runs. §5d, the produ
 
 **The production leg (§10):** `docs/plans/v6_production_leg_query.sql`, pinned by a test.
 
+## 13 · Run 11 — the v6.1 release candidate (Item C, Oct 18): NOT ADOPTED
+
+planner-v6.3 (AM-G20) + grader-v6.1 (AM-G21), re-planned on Opus 5.5, k=2. Gates: `docs/plans/v6_run11_gates.md`; per class and G-D2 causes: `docs/plans/v6_run11_per_class.md`.
+
+| | run 11 | run 10 | adoption bar |
+|---|---|---|---|
+| K1 | **60/62 ❌** | 93/93 | 100% |
+| **G-D2** | **4 ❌** (ship criterion 2) | 0 | 0 |
+| K2 | 14.8% | 15.0% | < 15.0% |
+| G-Z | 16.3% | 21.8% | ≤ 22.8% |
+| K3 | 0.811 | 0.784 | ≥ 0.774 |
+| K4 | 2.5 † | 8.5 | ≤ 9.0 |
+| cost / test | $0.1505 | $0.1454 like-for-like | ≤ $0.1527 |
+
+- **Two gates failed:** K1 and G-D2. Production keeps planner-v6.2 + grader-v6.0; the run-11 code stays merged and switched off.
+- † **Run 11's K4 (2.5) is at k=2 and is not comparable to run 10's (8.5, k=3):** a spread over two trials cannot be wider than over three of the same draws.
+
 ## 12 · The v6.1 backlog
 
 **Quality**
@@ -335,6 +352,13 @@ The canary is ≈ $0.002, recorded in the RUNLOG before it runs. §5d, the produ
 - **Feedback `basis_hash` for v6:** its staleness key flattens v5-shaped checks. A v6 draft needs its own key once she can re-request feedback.
 - **Plan builds:** they are only lazy (inside the grade job). Build at rubric compile on the plan-build queue, and give plan builds LIV-1's absolute arm (already deferred in CLAUDE.md).
 - **Feedback cost:** replace the §4 estimate with D-7's production figure once a v6 batch has run.
+
+**Added by the owner, Oct 18 15:55 (record; not in this PR):**
+- **ONE CORE PRINCIPLE:** no partial credit and no follow-through for a structurally wrong approach (wrong method, model, target or object). It unifies Math R2 and CS PL-9 / AM-G19(d). Lift it into the planner and verifier core, replacing the pack-level copies. Evidence: run 11's K1 cell (hobby din `q2.ב.c1`, a partial for a wrong-size array) and Item A's wrong-method cells.
+- **Re-test V-8 (the literal check) ALONE**, on the pinned run-10 plans, so its effect is attributable. Run 11 changed planner and verifier together.
+- **The split cells:** a criterion-level ladder (or a partial granularity that reaches the teacher's typical half-point deduction) instead of per-part ¾ partials. Run 11's AM-G20 fixed 0 of 5 split criteria.
+- **The G-D2 regression in planner-v6.3:** fix per the classification in `docs/plans/v6_run11_per_class.md` (a P-4 violation: one fault's tiers split into two checks) before any v6.3 reuse.
+- **Confirm R2 with a math teacher** (follow-through only from a valid method with a slip).
 
 **Follow-up (§11):** delete the v5 path after 14 days on v6.
 

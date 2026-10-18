@@ -3361,3 +3361,11 @@ second exam, not another dollar on this one.**
   - **Item D $0**;
   - C + D reservation $6.90 → **$1.18 unspent**;
   - **total $7.03 of $10**.
+
+## 2026-10-18 · ITEM C · CLOSED (owner 15:55): two gates failed — K1 AND G-D2 · G-D2 classified ($0)
+
+- **Correction:** the run-11 entry above recorded the adoption decision on K1 alone. **G-D2 = 4 also fails** (ship criterion 2, a failure, not «—»).
+- **G-D2 cause** (`docs/plans/v6_run11_per_class.md`): all 4 cells are bagrut `q5.ב.c4`. The run-11 planner split one fault's tiers (m1/m2 vs m3) into two fault checks — **a P-4 violation**. Run 10's plan held all three markers in ONE check, and its verifier charged one option in 6/6 trials.
+  - Not the verifier's V-8 rule: a double charge needs two checks.
+  - Rule 4's text is unchanged v6.2 → v6.3.
+- **EVAL_REPORT_v6.md:** new §13 (run 11, both gates failed; the K4 k=2 caveat) and the owner's v6.1 backlog additions in §12.
