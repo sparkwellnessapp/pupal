@@ -1,0 +1,2622 @@
+{
+ "plan_schema": "plan/v6",
+ "plan_hash": "2b9df3ddcac3cae230a00f2833ca54090cc498c9895e1b5eaa418ea5c0f8aec8",
+ "config_hash": "6501d086dc65fcab72a92c4e4ce8e0227361c1589acc358de1e8ea725c996e9f",
+ "rubric_contract_version": "9a6c82dc-dc00-4362-872c-e2a07402a4a7",
+ "subject_pack": {
+  "pack_id": "computer_science",
+  "pack_version": "v1"
+ },
+ "terminals": [
+  {
+   "terminal_id": "q1.א.c0",
+   "points_possible": "4",
+   "interpretation_notes_he": [
+    "הרשאת הגישה של התכונות (private) אינה נבדקת בנפרד, כיוון שלא נכתבה כדרישה."
+   ]
+  },
+  {
+   "terminal_id": "q1.א.c1",
+   "points_possible": "4",
+   "interpretation_notes_he": [
+    "הצבה כמו hobbyName = hobbyName, כשלפרמטר ולתכונה אותו שם ואין this, אינה קובעת את ערך התכונה ולכן אינה נחשבת הצבה לתכונה."
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.c0",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ב.c1",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ב.c2",
+   "points_possible": "3",
+   "interpretation_notes_he": [
+    "שני התנאים צריכים להיות משולבים כך שכל אחד מהם לבדו (סוף המקום או תשובה שלילית) עוצר את הלולאה.",
+    "גם עצירה על תשובה N או n, כנוסח השאלה, וגם המשך על תשובה Y או y, כנוסח המחוון, מתקבלים."
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.c3",
+   "points_possible": "3",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ב.c4",
+   "points_possible": "3",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ב.c5",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ב.c6",
+   "points_possible": "2",
+   "interpretation_notes_he": [
+    "הצגת ההודעה בלי לבדוק האם יש עדיין מקום אינה מזכה ברכיב הבדיקה והשאלה, בהתאם להנחיה להוריד על כך."
+   ]
+  },
+  {
+   "terminal_id": "q1.ב.c7",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ג.c0",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ג.c1",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ג.c2",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ג.c3",
+   "points_possible": "3",
+   "interpretation_notes_he": [
+    "לולאה עד countHobbies אינה דורשת בדיקה שהתא שונה מ-null."
+   ]
+  },
+  {
+   "terminal_id": "q1.ג.c4",
+   "points_possible": "3",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ג.c5",
+   "points_possible": "3",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ג.c6",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q1.ג.c7",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.א.c0",
+   "points_possible": "5",
+   "interpretation_notes_he": [
+    "הפעולה הבונה נבדקה לפי ארבע ההשמות שבתיאור הפעולה בשאלה: שם, ערוץ, דירוג ומצב שידור."
+   ]
+  },
+  {
+   "terminal_id": "q2.א.c1",
+   "points_possible": "10",
+   "interpretation_notes_he": [
+    "כותרת הפעולה הבונה המופיעה בטקסט של הפעולה UpdateRate נקראה כשארית העתקה, והבדיקה עוסקת בפעולה UpdateRate בלבד.",
+    "הדרישה לסכום הדירוגים «שנקלטו אי פעם» נקראה כהוספה לערך הקיים של rate, ללא איפוסו בתחילת הפעולה."
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c0",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c1",
+   "points_possible": "2",
+   "interpretation_notes_he": [
+    "מערך צוברים בגודל 100 עם היסט עקבי של אחד בגישה לתאים מתקבל כשקול."
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c2",
+   "points_possible": "3",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c3.s0",
+   "points_possible": "3",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c3.s1",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c3.s2",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c3.s3",
+   "points_possible": "5",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c4.s0",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c4.s1",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c4.s2",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c4.s3",
+   "points_possible": "3",
+   "interpretation_notes_he": [
+    "בדיקה שהתא במערך הצוברים גדול מאפס אינה מזכה ואינה מורידה; היעדרה מקבל הערה בלבד."
+   ]
+  },
+  {
+   "terminal_id": "q2.ב.c4.s4",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c4.s5",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ב.c5",
+   "points_possible": "1",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ג.c0.s0",
+   "points_possible": "2",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ג.c0.s1",
+   "points_possible": "3",
+   "interpretation_notes_he": [
+    "השאלה מורה שאי שימוש בפעולות הקיימות יגרור הורדת ניקוד, ולכן חישוב הערוץ המינימלי בקוד עצמאי מזכה בחלק מהניקוד ולא באפס."
+   ]
+  },
+  {
+   "terminal_id": "q2.ג.c0.s2",
+   "points_possible": "3",
+   "interpretation_notes_he": []
+  },
+  {
+   "terminal_id": "q2.ג.c0.s3",
+   "points_possible": "8",
+   "interpretation_notes_he": []
+  }
+ ],
+ "checks": [
+  {
+   "check_id": "q1.א.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "כותרת המחלקה Hobby",
+   "source_span": "כותרת ותכונות המחלקה Hobby",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "קיימת כותרת מחלקה בשם Hobby",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין כותרת למחלקה Hobby, או שהכותרת מגדירה מחלקה בשם אחר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.א.c0",
+   "equivalence_note_he": "כותרת עם public, internal או בלי הרשאת גישה שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.א.c0.c2",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "תכונות המחלקה Hobby: שם התחביב (מחרוזת), האם ספורטיבי (בוליאני), זמן הפעילות בדקות (מספר שלם)",
+   "source_span": "ותכונות המחלקה Hobby",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שלוש התכונות של Hobby מוגדרות: שם התחביב מטיפוס מחרוזת, isSportive מטיפוס בוליאני, וזמן הפעילות בדקות מטיפוס שלם",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "שתיים משלוש התכונות של Hobby הוגדרו בטיפוס הנכון, ואחת חסרה או מוגדרת בטיפוס שגוי",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "p2",
+     "label_he": "רק אחת משלוש התכונות של Hobby הוגדרה בטיפוס הנכון",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוגדרו תכונות למחלקה Hobby, או שהוגדרו תכונות שאינן שם התחביב, isSportive וזמן הפעילות",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.א.c0",
+   "equivalence_note_he": "שם התכונה לזמן הפעילות יכול להיות minutes או durationInMinutes, כבפתרון לדוגמה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.א.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "כותרת הפעולה הבונה Hobby עם שלושת הפרמטרים",
+   "source_span": "Hobby(string hobbyName, bool isSportive, int minutes)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כותרת הפעולה הבונה Hobby מקבלת מחרוזת, בוליאני ומספר שלם, ללא טיפוס החזרה",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין כותרת לפעולה הבונה Hobby, או שהיא אינה מקבלת את שלושת הפרמטרים בטיפוסים שהוגדרו",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.א.c1",
+   "equivalence_note_he": "שמות פרמטרים שונים מאלה שבכותרת שהוגדרה שקולים, כל עוד הטיפוסים והסדר נכונים",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.א.c1.c2",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "קביעת ערכי התכונות של Hobby לפי הפרמטרים",
+   "source_span": "מקבלת את כל הפרמטרים וקובעת את ערכי התכונות בהתאם",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כל אחת משלוש התכונות של Hobby מקבלת את ערך הפרמטר המתאים לה",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "שתיים משלוש התכונות של Hobby מקבלות את ערך הפרמטר המתאים, ואחת אינה נקבעת או מקבלת ערך שגוי",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "p2",
+     "label_he": "רק אחת משלוש התכונות של Hobby מקבלת את ערך הפרמטר המתאים",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "התכונות של Hobby אינן מקבלות את ערכי הפרמטרים, או שהערכים מוצבים במשתנים שאינם תכונות המחלקה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.א.c1",
+   "equivalence_note_he": "בדיקת טווח לזמן הפעילות לפני ההצבה אינה נדרשת, והצבה עם בדיקה כזו או בלעדיה שקולה; גם הצבה דרך פעולות Set שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ב.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "כותרת הפעולה הפנימית PopulateHobbies",
+   "source_span": "סעיף ב: פעולה פנימית בשם PopulateHobbies (סה\"כ 16)כותרת הפעולה",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "נכתבה כותרת של פעולה פנימית (ללא static) בשם PopulateHobbies",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין כותרת לפעולה PopulateHobbies, או שהפעולה הוגדרה כפעולה סטטית ולא כפעולה פנימית",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ב.c0.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "טיפוס מוחזר bool",
+   "source_span": "טיפוס מוחזר bool",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בכותרת הפעולה PopulateHobbies הטיפוס המוחזר הוא bool",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "בכותרת הפעולה PopulateHobbies הטיפוס המוחזר אינו bool או חסר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ב.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "לפני הלולאה - לבדוק אם המערך מלא, להחזיר false",
+   "source_span": "לפני הלולאה - לבדוק אם המערך מלא, להחזיר false",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לפני הלולאה נבדק אם המערך hobbies מלא (countHobbies שווה לאורך המערך), ובמקרה זה הפעולה מחזירה false",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לפני הלולאה בדיקה אם המערך hobbies מלא, או שבמקרה זה הפעולה אינה מחזירה false",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c1",
+   "equivalence_note_he": "בדיקה שקולה, כגון countHobbies >= hobbies.Length, תקפה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ב.c2.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "לולאה עד שאין מקום במערך",
+   "source_span": "לולאה עד שאין מקום במערך (כל עוד countHobbies קטן מ-length)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הקליטה מתבצעת בלולאה שממשיכה רק כל עוד countHobbies קטן מאורך המערך hobbies, ונעצרת כשנגמר המקום גם אם המשתמש רוצה להמשיך",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "יש לולאה שתנאיה משווה את countHobbies לאורך המערך hobbies, אך בגבול שגוי (למשל קטן או שווה) כך שנעשה ניסיון לכתוב מעבר לסוף המערך",
+     "value": "0.75",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה, או שהלולאה אינה נעצרת כשנגמר המקום במערך hobbies",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c2",
+   "equivalence_note_he": "עצירה באמצעות break או בדיקה שקולה בתוך הלולאה תקפה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ב.c2.c2",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "הלולאה נמשכת כל עוד המשתמש עונה Y או y לשאלה",
+   "source_span": "או כל עוד המשתמש יענה Y או y לשאלה",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הלולאה נעצרת כשהמשתמש עונה N או n לשאלה אם להמשיך (או ממשיכה רק כשהוא עונה Y או y), בשתי צורות האות",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "תשובת המשתמש לשאלה אם להמשיך עוצרת את הלולאה, אך רק עבור אחת מצורות האות (רק אות גדולה או רק אות קטנה)",
+     "value": "0.75",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "תשובת המשתמש לשאלה אם להמשיך אינה משפיעה על המשך הלולאה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c2",
+   "equivalence_note_he": "השוואה לתו בודד או למחרוזת, ובדיקה ש-N ו-n לא נענו במקום בדיקה ש-Y או y נענו, שקולות",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ב.c3.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בתוך הלולאה קליטה של שם התחביב",
+   "source_span": "סעיף ב בתוך PopulateHobbies: בתוך הלולאה קליטה של 3 נתוני התחביב (name, isSportive, minutes)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה נקלט מהמשתמש שם התחביב כמחרוזת",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "שם התחביב אינו נקלט מהמשתמש בתוך הלולאה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c3",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ב.c3.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בתוך הלולאה קליטה של isSportive",
+   "source_span": "סעיף ב בתוך PopulateHobbies: בתוך הלולאה קליטה של 3 נתוני התחביב (name, isSportive, minutes)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה נקלט מהמשתמש הנתון האם התחביב ספורטיבי ומומר לערך בוליאני",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הנתון isSportive אינו נקלט מהמשתמש בתוך הלולאה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c3",
+   "equivalence_note_he": "המרה באמצעות bool.Parse, Convert.ToBoolean או השוואת התשובה לערך מוסכם שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ב.c3.c3",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בתוך הלולאה קליטה של minutes",
+   "source_span": "סעיף ב בתוך PopulateHobbies: בתוך הלולאה קליטה של 3 נתוני התחביב (name, isSportive, minutes)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה נקלט מהמשתמש זמן הפעילות בדקות ומומר למספר שלם",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הנתון minutes אינו נקלט מהמשתמש בתוך הלולאה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c3",
+   "equivalence_note_he": "המרה באמצעות int.Parse או Convert.ToInt32 שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ב.c4.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "בתוך הלולאה יצירה של עצם חדש מטיפוס Hobby",
+   "source_span": "בתוך הלולאה יצירה של עצם חדש מטיפוס Hobby",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה נוצר עצם חדש מטיפוס Hobby באמצעות הפעולה הבונה, עם שלושת הנתונים שנקלטו בסדר הנכון",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "נוצר עצם חדש מטיפוס Hobby, אך אחד הנתונים שנקלטו לא הועבר לפעולה הבונה או הועבר במקום שגוי",
+     "value": "0.75",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא נוצר בתוך הלולאה עצם חדש מטיפוס Hobby",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c4",
+   "equivalence_note_he": "יצירת העצם במשתנה עזר ושמירתו אחר כך בתא שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ב.c4.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "שמירת העצם בתא המתאים במערך (hobbies[countHobbies])",
+   "source_span": "בתא המתאים במערך (hobbies[countHobbies])",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "העצם החדש מטיפוס Hobby נשמר בתא hobbies[countHobbies], התא הפנוי הראשון במערך",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "העצם החדש אינו נשמר במערך hobbies, או שהוא נשמר בתא שאינו התא הפנוי הראשון",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c4",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ב.c5.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בתוך הלולאה קידום countHobbies",
+   "source_span": "בתוך הלולאה קידום countHobbies",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה, אחרי הוספת התחביב, countHobbies גדל באחד",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "countHobbies אינו מקודם בתוך הלולאה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c5",
+   "equivalence_note_he": "קידום בתוך האינדקס, כגון hobbies[countHobbies++], שקול",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ב.c6.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בדיקה אם עדיין יש מקום ושאלה למשתמש האם להמשיך",
+   "source_span": "סעיף ב בתוך PopulateHobbies: בדיקה אם עדיין יש מקום ושאלה למשתמש האם להמשיך",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "השאלה למשתמש האם להמשיך מוצגת רק לאחר בדיקה שעדיין יש מקום במערך hobbies",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין שאלה למשתמש האם להמשיך, או שההודעה מוצגת בלי לבדוק האם יש עדיין מקום במערך",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c6",
+   "equivalence_note_he": "יציאה מהלולאה לפני השאלה כשהמערך התמלא שקולה לבדיקה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ב.c6.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קליטת תשובה",
+   "source_span": "קליטת תשובהאם הציגו את ההודעה בלי לבדוק האם יש עדיין מקום להוריד 1",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "תשובת המשתמש לשאלה האם להמשיך נקלטת למשתנה",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "תשובת המשתמש לשאלה האם להמשיך אינה נקלטת",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c6",
+   "equivalence_note_he": "קליטת התשובה כתו בודד או כמחרוזת שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ב.c7.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "מחוץ ללולאה - להחזיר ערך true",
+   "source_span": "מחוץ ללולאה - להחזיר ערך true",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "אחרי הלולאה הפעולה מחזירה true כאשר נוסף לפחות תחביב אחד",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אחרי הלולאה הפעולה אינה מחזירה true",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ב.c7",
+   "equivalence_note_he": "החזרת משתנה בוליאני שערכו true כשנוסף לפחות תחביב אחד שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ג.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "כותרת פעולה פנימית בשם PrintAverages",
+   "source_span": "סעיף ג': פעולה פנימית בשם PrintAverages (סה\"כ 16)כותרת הפעולה",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "נכתבה כותרת לפעולה פנימית בשם PrintAverages במחלקה SchoolHobbies",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין כותרת לפעולה PrintAverages, או שנכתבה כותרת לפעולה בשם אחר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ג.c0.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "טיפוס ההחזרה void בכותרת הפעולה",
+   "source_span": "void",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בכותרת הפעולה PrintAverages מופיע טיפוס ההחזרה void",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "בכותרת הפעולה PrintAverages אין void, או שמופיע טיפוס החזרה אחר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ג.c1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "יצירת 2 מונים לכמות החוגים הספורטיביים והלא ספורטיביים",
+   "source_span": "סעיף ג' בתוך PrintAverages : יצירת 2 מונה לכמות החוגים בספורטיבים והלא ספורטיבים",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הוגדרו שני מונים נפרדים: אחד לכמות החוגים הספורטיביים ואחד לכמות החוגים הלא ספורטיביים",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוגדרו שני מונים נפרדים לכמות החוגים הספורטיביים והלא ספורטיביים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c1",
+   "equivalence_note_he": "הגדרת שני המונים באותה שורת הצהרה שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ג.c1.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "אתחול שני המונים ב-0",
+   "source_span": "אתחולם ב-0 (0.5 כ\"א)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שני המונים של החוגים הספורטיביים והלא ספורטיביים אותחלו ב-0 לפני הלולאה",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אחד ממוני החוגים או שניהם לא אותחלו ב-0",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c1",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ג.c2.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "יצירת 2 צוברים לדקות של החוגים הספורטיביים והלא ספורטיביים",
+   "source_span": "סעיף ג' בתוך PrintAverages : יצירת 2 צוברים לדקות של החוגים הספורטיבים והלא ספורטיבים",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הוגדרו שני צוברים נפרדים: אחד לדקות של החוגים הספורטיביים ואחד לדקות של החוגים הלא ספורטיביים",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוגדרו שני צוברים נפרדים לדקות של החוגים הספורטיביים והלא ספורטיביים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c2",
+   "equivalence_note_he": "הגדרת הצוברים מטיפוס ממשי במקום שלם שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ג.c2.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "אתחול שני הצוברים ב-0",
+   "source_span": "אתחולם ב-0 (0.5 כ\"א)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שני צוברי הדקות של החוגים הספורטיביים והלא ספורטיביים אותחלו ב-0 לפני הלולאה",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אחד מצוברי הדקות או שניהם לא אותחלו ב-0",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ג.c3.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "לולאה על מערך התחביבים מ-0 עד countHobbies או עד hobbies.length",
+   "source_span": "לולאה על מערך התחביבים מ-0 עד countHobbiesאו לולאה על מערך התחביבים עד hobbies.length",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לולאה עוברת על תאי מערך התחביבים hobbies מאינדקס 0 עד countHobbies (לא כולל), או עד hobbies.length",
+     "value": "3",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "יש לולאה על מערך התחביבים hobbies, אך נפלה טעות קטנה בגבולותיה, כגון ריצה עד countHobbies כולל או התחלה מאינדקס 1",
+     "value": "2.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "p2",
+     "label_he": "יש לולאה על מערך התחביבים hobbies, אך הגבול שלה אינו countHobbies ואינו אורך המערך, כך שאינה עוברת על התחביבים הקיימים",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה שעוברת על מערך התחביבים hobbies",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c3",
+   "equivalence_note_he": "לולאת foreach על המערך שקולה ללולאה עד hobbies.length",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ג.c3.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "לולאה עד length בלי בדיקה שהתא שונה מ-null",
+   "source_span": "אם עשו לולאה עד length ולא בדקו בפנים שהתא שונה מ-null להוריד 1",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "הלולאה רצה עד hobbies.length ואין בתוכה בדיקה שהתא hobbies[i] שונה מ-null",
+     "value": "-1",
+     "marker_id": "q1.ג.c3.m1"
+    }
+   ],
+   "requires": "q1.ג.c3.c1",
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c3",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": null
+  },
+  {
+   "check_id": "q1.ג.c4.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בתוך הלולאה, בדיקה האם החוג הנוכחי ספורטיבי",
+   "source_span": "סעיף ג' בתוך PrintAverages : בתוך הלולאה, בדיקת האם החוג הנוכחי ספורטיבי (1)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה יש תנאי הבודק האם החוג הנוכחי hobbies[i] ספורטיבי",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין בתוך הלולאה בדיקה האם החוג הנוכחי ספורטיבי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c4",
+   "equivalence_note_he": "השוואה GetIsSportive() == true שקולה לבדיקה ישירה של הערך",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ג.c4.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "צבירה של הדקות של החוג הספורטיבי",
+   "source_span": "+ צבירה של הדקות שלו (1)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כאשר החוג הנוכחי ספורטיבי, הדקות שלו מתווספות לצובר של החוגים הספורטיביים",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הדקות של החוג הספורטיבי אינן מתווספות לצובר של החוגים הספורטיביים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c4",
+   "equivalence_note_he": "פעולת Get של הדקות בשם GetMinutes או GetDurationInMinutes תקפה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ג.c4.c3",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קידום המונה של החוגים הספורטיביים",
+   "source_span": "+ קידום המונה שלו (1 כ\"א)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כאשר החוג הנוכחי ספורטיבי, מונה החוגים הספורטיביים גדל באחד",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "מונה החוגים הספורטיביים אינו מקודם כאשר החוג הנוכחי ספורטיבי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c4",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ג.c5.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בתוך הלולאה, טיפול במקרה שהחוג הנוכחי לא ספורטיבי (else)",
+   "source_span": "סעיף ג' בתוך PrintAverages : בתוך הלולאה, אם החוג הנוכחי לא ספורטיבי (else) (1)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה יש ענף else, או תנאי מפורש, המטפל בחוג הנוכחי כשאינו ספורטיבי",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין בתוך הלולאה טיפול במקרה שהחוג הנוכחי לא ספורטיבי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c5",
+   "equivalence_note_he": "תנאי מפורש שהחוג אינו ספורטיבי שקול ל-else",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ג.c5.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "צבירה של הדקות של החוג הלא ספורטיבי",
+   "source_span": "+ צבירה של הדקות שלו (1)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כאשר החוג הנוכחי לא ספורטיבי, הדקות שלו מתווספות לצובר של החוגים הלא ספורטיביים",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הדקות של החוג הלא ספורטיבי אינן מתווספות לצובר של החוגים הלא ספורטיביים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c5",
+   "equivalence_note_he": "פעולת Get של הדקות בשם GetMinutes או GetDurationInMinutes תקפה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ג.c5.c3",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קידום המונה של החוגים הלא ספורטיביים",
+   "source_span": "+ קידום המונה שלו (1)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כאשר החוג הנוכחי לא ספורטיבי, מונה החוגים הלא ספורטיביים גדל באחד",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "מונה החוגים הלא ספורטיביים אינו מקודם כאשר החוג הנוכחי לא ספורטיבי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c5",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ג.c6.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "מחוץ ללולאה, בדיקה האם המונה של התחביבים הספורטיביים שונה מאפס",
+   "source_span": "סעיף ג' בתוך PrintAverages : מחוץ ללולאה, בדיקה האם המונה של התחביבים הספורטיבים שונה מאפס (1)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לפני חישוב ממוצע התחביבים הספורטיביים נבדק שהמונה שלהם שונה מאפס, כך שנמנעת חלוקה באפס",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין בדיקה שמונה התחביבים הספורטיביים שונה מאפס לפני החלוקה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c6",
+   "equivalence_note_he": "בדיקה שהמונה גדול מאפס שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ג.c6.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חישוב ממוצע הדקות של התחביבים הספורטיביים והדפסתו",
+   "source_span": "אם לא מנעו חלוקה באפס להוריד 1חישוב הממוצע והדפסה (1)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "צובר הדקות של התחביבים הספורטיביים מחולק במונה שלהם והממוצע מודפס",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "ממוצע התחביבים הספורטיביים אינו מחושב מהצובר והמונה שלהם, או שאינו מודפס",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c6",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ג.c6.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "טעות בחישוב מתמטי של ממוצע התחביבים הספורטיביים",
+   "source_span": "אם טעו בחישוב מתמטי להוריד 0.5)",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "בחישוב ממוצע התחביבים הספורטיביים נפלה טעות מתמטית, כגון סדר פעולות שגוי או סוגריים חסרים",
+     "value": "-0.5",
+     "marker_id": "q1.ג.c6.m1"
+    }
+   ],
+   "requires": "q1.ג.c6.c2",
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c6",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": null
+  },
+  {
+   "check_id": "q1.ג.c6.f2",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "לא המירו לממשי בחישוב ממוצע התחביבים הספורטיביים",
+   "source_span": "אם לא המירו לממשי בחישוב הממוצע להוריד 0.5 (רק פעם אחת)",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "חישוב ממוצע התחביבים הספורטיביים הוא חלוקת שלמים, בלי המרה לממשי",
+     "value": "-0.5",
+     "marker_id": "q1.ג.c6.m2"
+    }
+   ],
+   "requires": "q1.ג.c6.c2",
+   "charge_group": "q1.ג:once:c2ce2a97",
+   "priced_terminal_id": "q1.ג.c6",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": null
+  },
+  {
+   "check_id": "q1.ג.c7.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "מחוץ ללולאה, בדיקה האם המונה של התחביבים הלא ספורטיביים שונה מאפס",
+   "source_span": "סעיף ג' בתוך PrintAverages : מחוץ ללולאה,בדיקה האם המונה של התחביבים הלא-הספורטיבים שונה מאפס (1)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לפני חישוב ממוצע התחביבים הלא ספורטיביים נבדק שהמונה שלהם שונה מאפס, כך שנמנעת חלוקה באפס",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין בדיקה שמונה התחביבים הלא ספורטיביים שונה מאפס לפני החלוקה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c7",
+   "equivalence_note_he": "בדיקה שהמונה גדול מאפס שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q1.ג.c7.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "חישוב ממוצע הדקות של התחביבים הלא ספורטיביים והדפסתו",
+   "source_span": "אם לא מנעו חלוקה באפס להוריד 1חישוב הממוצע והדפסה (1)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "צובר הדקות של התחביבים הלא ספורטיביים מחולק במונה שלהם והממוצע מודפס",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "ממוצע התחביבים הלא ספורטיביים אינו מחושב מהצובר והמונה שלהם, או שאינו מודפס",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c7",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q1.ג.c7.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "טעות בחישוב מתמטי של ממוצע התחביבים הלא ספורטיביים",
+   "source_span": "אם טעו בחישוב מתמטי להוריד 0.5)",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "בחישוב ממוצע התחביבים הלא ספורטיביים נפלה טעות מתמטית, כגון סדר פעולות שגוי או סוגריים חסרים",
+     "value": "-0.5",
+     "marker_id": "q1.ג.c7.m1"
+    }
+   ],
+   "requires": "q1.ג.c7.c2",
+   "charge_group": null,
+   "priced_terminal_id": "q1.ג.c7",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": null
+  },
+  {
+   "check_id": "q1.ג.c7.f2",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "לא המירו לממשי בחישוב ממוצע התחביבים הלא ספורטיביים",
+   "source_span": "אם לא המירו לממשי בחישוב הממוצע להוריד 0.5 (רק פעם אחת)",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "חישוב ממוצע התחביבים הלא ספורטיביים הוא חלוקת שלמים, בלי המרה לממשי",
+     "value": "-0.5",
+     "marker_id": "q1.ג.c7.m2"
+    }
+   ],
+   "requires": "q1.ג.c7.c2",
+   "charge_group": "q1.ג:once:c2ce2a97",
+   "priced_terminal_id": "q1.ג.c7",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": null
+  },
+  {
+   "check_id": "q2.א.c0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "השמת השם name לתכונת השם של התוכנית",
+   "source_span": "פעולה הבונה תוכנית טלוויזיה ששמה name",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בפעולה הבונה התכונה name של העצם מקבלת את הפרמטר name",
+     "value": "1.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "התכונה name של העצם אינה מקבלת את הפרמטר name, או שהפרמטר מושם לתכונה אחרת",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c0",
+   "equivalence_note_he": "השמה עם this או בלעדיו, או באמצעות פעולת Set מתאימה, שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.א.c0.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "השמת הערוץ channel לתכונת מספר הערוץ chl",
+   "source_span": "והיא משודרת בערוץ הטלויזיה channel",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בפעולה הבונה התכונה chl מקבלת את הפרמטר channel",
+     "value": "1.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "התכונה chl אינה מקבלת את הפרמטר channel, או שהפרמטר מושם לתכונה אחרת",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c0",
+   "equivalence_note_he": "השמה עם this או בלעדיו, או באמצעות פעולת Set מתאימה, שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.א.c0.c3",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קביעת התכונה rate להיות אפס",
+   "source_span": "הפעולה הבונה קובעת את התכונה rate להיות אפס (0)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בפעולה הבונה התכונה rate נקבעת לאפס",
+     "value": "1.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "התכונה rate אינה נקבעת בפעולה הבונה, או שהיא נקבעת לערך שאינו אפס",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c0",
+   "equivalence_note_he": "השמה עם this או בלעדיו, או באמצעות פעולת Set מתאימה, שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.א.c0.c4",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "קביעת התכונה isOn להיות אמת",
+   "source_span": "ואת התכונה isOn להיות אמת (true)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בפעולה הבונה התכונה isOn נקבעת לאמת (true)",
+     "value": "1.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "התכונה isOn אינה נקבעת בפעולה הבונה, או שהיא נקבעת לשקר (false)",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c0",
+   "equivalence_note_he": "השמה עם this או בלעדיו, או באמצעות פעולת Set מתאימה, שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.א.c1.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "מעבר על כל אחד מהצופים המדרגים, לפי מספר הצופים numViewers",
+   "source_span": "הפעולה מקבלת את מספר הצופים המדרגים את תוכנית הטלוויזיה הנוכחית. עבור כל צופה",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לולאה שמתבצעת בדיוק numViewers פעמים, פעם אחת לכל צופה",
+     "value": "2.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "יש לולאה על הצופים התלויה ב-numViewers, אך היא מתבצעת פעם אחת יותר או פחות ממספר הצופים",
+     "value": "2.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה על הצופים, או שמספר הסבבים אינו תלוי ב-numViewers",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c1",
+   "equivalence_note_he": "לולאת for או while, ספירה מאפס או מאחת, שקולות כל עוד מספר הסבבים הוא numViewers",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.א.c1.c2",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "קליטת הדירוג של כל צופה",
+   "source_span": "עבור כל צופה הפעולה קולטת",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה נקלט מהקלט דירוג של הצופה הנוכחי, כמספר שלם",
+     "value": "2.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "דירוג צופה נקלט מהקלט, אך הקליטה נמצאת מחוץ ללולאה ולכן נקלט דירוג אחד בלבד",
+     "value": "1.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין קליטה של דירוג צופה מהקלט",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c1",
+   "equivalence_note_he": "הדפסת הודעה לפני הקליטה אינה נדרשת; כל צורת המרה של הקלט למספר שלם שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.א.c1.c3",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "הוספת הדירוג שנקלט לסכום",
+   "source_span": "ומוסיפה את הדירוג שלו",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בכל סבב הדירוג שנקלט נוסף לסכום הדירוגים (צבירה, לא דריסה)",
+     "value": "2.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "הדירוג שנקלט נוסף לסכום, אך ההוספה מתבצעת מחוץ ללולאה ולכן רק דירוג אחד נוסף",
+     "value": "1.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הדירוג שנקלט אינו נוסף לסכום, או שהסכום נדרס בכל סבב בדירוג החדש",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c1",
+   "equivalence_note_he": "צבירה במשתנה עזר שמתווסף בסוף לתכונה rate שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.א.c1.c4",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "עדכון התכונה rate להיות סכום הדירוגים שנקלטו אי פעם, כלומר הוספה לדירוג הקיים לתוכנית",
+   "source_span": "לדירוג הקיים לתכנית הטלוויזיה. הפעולה מעדכנת את התכונה rate להיות סכום הדירוגים שנקלטו אי פעם",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הדירוגים שנקלטו נוספים לתכונה rate של העצם, בלי לאפס את ערכה הקיים",
+     "value": "2.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "התכונה rate אינה מתעדכנת (הסכום נשאר במשתנה מקומי בלבד), או שהיא מאופסת או נדרסת כך שהדירוג הקיים אובד",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.א.c1",
+   "equivalence_note_he": "עדכון באמצעות פעולות Get ו-Set של התכונה rate שקול",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ב.c0.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "כותרת הפעולה החיצונית LowestRateChannel",
+   "source_span": "פעולה חיצונית LowestRateChannel כותרת הפעולה",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כותרת פעולה חיצונית (static) בשם LowestRateChannel המקבלת אובייקט מטיפוס TvRate ומחזירה int",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "כותרת LowestRateChannel מקבלת TvRate ומחזירה int, אך חסרה בה המילה static",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "p2",
+     "label_he": "כותרת LowestRateChannel קיימת, אך טיפוס ההחזרה אינו int או שהפרמטר אינו מטיפוס TvRate",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין כותרת לפעולה LowestRateChannel",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c0",
+   "equivalence_note_he": "כל שם לפרמטר תקף",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.ב.c1.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "הגדרת מערך צוברים int לכל 100 הערוצים",
+   "source_span": "הגדרת מערך צוברים int לכל 100 הערוצים (ערוצים 1-100, המערך אמור להיות בגודל 101)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הוגדר מערך צוברים מטיפוס int בגודל 101, כך שלכל ערוץ 1-100 יש תא",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "הוגדר מערך צוברים לערוצים, אך גודלו אינו מכסה את כל הערוצים 1-100 או שטיפוסו אינו int",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוגדר מערך צוברים לערוצים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c1",
+   "equivalence_note_he": "מערך בגודל 100 שהגישה אליו נעשית במקום מספר הערוץ פחות אחד שקול",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.ב.c2.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "לולאה על מערך הצוברים לאיפוס המערך",
+   "source_span": "לולאה על מערך הצוברים לאיפוס המערך",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "יש לולאה על כל תאי מערך הצוברים, ובה כל תא מקבל אפס",
+     "value": "3",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "לולאה על מערך הצוברים מאפסת את התאים, אך גבול הלולאה מחמיץ תא או חורג מהמערך",
+     "value": "2.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "p2",
+     "label_he": "יש לולאה על מערך הצוברים, אך התאים אינם מאופסים בה (מוצב ערך אחר או תא שגוי)",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה המאפסת את מערך הצוברים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.ב.c3.s0.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "הגדרת לולאה על מערך התוכניות",
+   "source_span": "הגדרת לולאה על מערך התוכניות TvShows",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "יש לולאה העוברת בזה אחר זה על תאי מערך התוכניות של אובייקט ה-TvRate",
+     "value": "3",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "יש לולאה על מערך התוכניות, אך היא אינה עוברת על תאיו בזה אחר זה (משתנה הלולאה אינו מתקדם או מתקדם בקפיצות)",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה על מערך התוכניות, או שהלולאה עוברת על מערך אחר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3.s0",
+   "equivalence_note_he": "לולאה הנעצרת בתא הריק הראשון שקולה, כי המערך מלא עד המקום הפנוי הראשון",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.ב.c3.s0.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "הלולאה על מערך התוכניות מתחילה מ-1 במקום מ-0",
+   "source_span": "אם התחילו מ-1 במקום מ-0 להוריד 0.5",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "הלולאה על מערך התוכניות מתחילה מ-1 ומדלגת על התא הראשון",
+     "value": "-0.5",
+     "marker_id": "q2.ב.c3.s0.m1"
+    }
+   ],
+   "requires": "q2.ב.c3.s0.c1",
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3.s0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": null
+  },
+  {
+   "check_id": "q2.ב.c3.s0.f2",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "גישה למערך התוכניות בלי Getter",
+   "source_span": "אם ניגשו למערך TvShows בלי Getter להוריד 1",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "הגישה למערך התוכניות נעשית ישירות לתכונה arrShows ולא דרך GetArrShows",
+     "value": "-1",
+     "marker_id": "q2.ב.c3.s0.m2"
+    }
+   ],
+   "requires": "q2.ב.c3.s0.c1",
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3.s0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": null
+  },
+  {
+   "check_id": "q2.ב.c3.s0.f3",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "טעות בגבול העליון של הלולאה על מערך התוכניות",
+   "source_span": "אם טעו בגבול העליון של הלולאה להוריד 0.5",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "הגבול העליון של הלולאה על מערך התוכניות שגוי: הלולאה חורגת מגבולות המערך או מחמיצה תאים בסופו",
+     "value": "-0.5",
+     "marker_id": "q2.ב.c3.s0.m3"
+    }
+   ],
+   "requires": "q2.ב.c3.s0.c1",
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3.s0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": null
+  },
+  {
+   "check_id": "q2.ב.c3.s1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בדיקה אם התא במערך התוכניות אינו null",
+   "source_span": "בדיקה אם התא אינו null",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לפני השימוש בתוכנית שבתא נבדק שהתא אינו null",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין בדיקה שהתא במערך התוכניות אינו null",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3.s1",
+   "equivalence_note_he": "תנאי null בכותרת הלולאה, העוצר בתא הריק הראשון, שקול",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ב.c3.s2.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "גישה לערוץ של התוכנית שבתא",
+   "source_span": "אם התא אינו null , גישה לערוץ GetChl",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "עבור תא שאינו null נלקח מספר הערוץ של התוכנית שבתא",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא נלקח מספר הערוץ של התוכנית שבתא",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3.s2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ב.c3.s2.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "גישה ישירה לתכונה chl",
+   "source_span": "אם ניגשו ישירות לתכונה chl להוריד 1",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "לפחות גישה אחת לערוץ התוכנית נעשית ישירות לתכונה chl ולא דרך GetChl",
+     "value": "-1",
+     "marker_id": "q2.ב.c3.s2.m1"
+    }
+   ],
+   "requires": "q2.ב.c3.s2.c1",
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3.s2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": null
+  },
+  {
+   "check_id": "q2.ב.c3.s3.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "צבירה של דירוג התוכנית לתוך מערך הצוברים",
+   "source_span": "צבירה של הדירוג של הערוץ (GetChl) לתוך מערך הצוברים",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "דירוג התוכנית שבתא מתווסף לערך הקיים בתא של מערך הצוברים",
+     "value": "2.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "דירוג התוכנית מוצב בתא של מערך הצוברים בהשמה הדורסת את הערך הקיים, בלי צבירה",
+     "value": "1.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "דירוג התוכנית אינו נצבר במערך הצוברים",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3.s3",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.ב.c3.s3.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "הצבירה נעשית במקום של ערוץ התוכנית במערך הצוברים",
+   "source_span": "לתוך מערך הצוברים במקום של הערוץ הזה",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "התא שאליו נצבר הדירוג הוא התא של ערוץ התוכנית (האינדקס הוא מספר הערוץ שלה)",
+     "value": "2.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הדירוג נצבר לתא שאינו התא של ערוץ התוכנית, למשל לפי מונה הלולאה",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3.s3",
+   "equivalence_note_he": "במערך בגודל 100, התא שבמקום מספר הערוץ פחות אחד שקול",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ב.c3.s3.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "גישה ישירה לתכונה rate במקום GetRate",
+   "source_span": "אם ניגשו ישירות לתכונה rate במקום GetRate להוריד 1",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "לפחות גישה אחת לדירוג התוכנית נעשית ישירות לתכונה rate ולא דרך GetRate",
+     "value": "-1",
+     "marker_id": "q2.ב.c3.s3.m1"
+    }
+   ],
+   "requires": "q2.ב.c3.s3.c1",
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c3.s3",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": null
+  },
+  {
+   "check_id": "q2.ב.c4.s0.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "הגדרת מינימום דירוג",
+   "source_span": "הגדרת מינימום דירוג",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הוגדר משתנה לשמירת הדירוג המינימלי",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוגדר משתנה לדירוג המינימלי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c4.s0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ב.c4.s0.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "אתחול מינימום הדירוג",
+   "source_span": "אתחול",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "משתנה מינימום הדירוג אותחל לערך גבוה מכל דירוג אפשרי או לדירוג של ערוץ קיים",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "משתנה מינימום הדירוג לא אותחל, או אותחל לערך שאינו מאפשר מציאת המינימום",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c4.s0",
+   "equivalence_note_he": "אתחול ל-int.MaxValue, לערך גבוה דיו או לדירוג של ערוץ קיים שקולים",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ב.c4.s1.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "הגדרת ערוץ מינימלי",
+   "source_span": "הגדרת ערוץ מינימלי",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הוגדר משתנה לשמירת מספר הערוץ המינימלי",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא הוגדר משתנה לערוץ המינימלי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c4.s1",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ב.c4.s1.c2",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "אתחול הערוץ המינימלי",
+   "source_span": "אתחול",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "משתנה הערוץ המינימלי אותחל לערך כלשהו לפני הלולאה",
+     "value": "0.5",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "משתנה הערוץ המינימלי לא אותחל",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c4.s1",
+   "equivalence_note_he": "כל ערך התחלתי תקף, כי הערך יוחלף בלולאה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ב.c4.s2.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "הגדרת לולאה על מערך צוברים מ-1 עד 100",
+   "source_span": "הגדרת לולאה על מערך צוברים מ-1 עד 100",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "יש לולאה על מערך הצוברים העוברת על תאי הערוצים 1 עד 100",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "יש לולאה על מערך הצוברים, אך אחד מגבולותיה שגוי ומחמיץ ערוץ או חורג מהמערך",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "p2",
+     "label_he": "יש לולאה על מערך הצוברים, אך שני גבולותיה שגויים",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה על מערך הצוברים, או שהלולאה עוברת על מערך אחר",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c4.s2",
+   "equivalence_note_he": "לולאה עד הגבול האחרון של המערך שקולה; במערך בגודל 100 עם היסט, לולאה על התאים 0 עד 99 שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.ב.c4.s3.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בדיקה האם סה\"כ הדירוגים קטן מהמינימום",
+   "source_span": "והאם סה\"כ הדירוגים קטן מהמינימום",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה על מערך הצוברים יש תנאי המשווה את סה\"כ הדירוגים בתא הערוץ למשתנה המינימום",
+     "value": "3",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין תנאי המשווה את התא במערך הצוברים למשתנה המינימום",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c4.s3",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ב.c4.s3.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "חיפוש המקסימום במקום המינימום",
+   "source_span": "פירוט ל-10:אם חיפשו את המקסימום אך הלוגיקה בסדר להוריד 3",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "ההשוואה מחפשת את הדירוג הגבוה ביותר במקום הנמוך ביותר, ושאר הלוגיקה בסדר",
+     "value": "-3",
+     "marker_id": "q2.ב.c4.s3.m1"
+    }
+   ],
+   "requires": "q2.ב.c4.s3.c1",
+   "charge_group": "q2.ב:q2.ב.c4:d1",
+   "priced_terminal_id": "q2.ב.c4.s3",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": null
+  },
+  {
+   "check_id": "q2.ב.c4.s3.n1",
+   "role": "note",
+   "shape": "note",
+   "description_he": "לכתוב הערהוהאם סה\"כ הדירוגים קטן מהמינימום",
+   "source_span": "לא להוריד, לכתוב הערהוהאם סה\"כ הדירוגים קטן מהמינימום",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "לא רלוונטי",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "observed",
+     "label_he": "לכתוב הערהוהאם סה\"כ הדירוגים קטן מהמינימום",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c4.s3",
+   "equivalence_note_he": null,
+   "evidence_required": false,
+   "origin": "compiler",
+   "element": null
+  },
+  {
+   "check_id": "q2.ב.c4.s4.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "החלפה של מינימום דירוג בתוך התנאי",
+   "source_span": "בתוך התנאי (בתוך הלולאה) - החלפה של מינימום דירוג",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך התנאי משתנה המינימום מקבל את סה\"כ הדירוגים של הערוץ הנוכחי",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "משתנה מינימום הדירוג אינו מתעדכן בתוך התנאי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c4.s4",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ב.c4.s5.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "החלפת הערוץ המינימלי בתוך התנאי",
+   "source_span": "בתוך התנאי (בתוך הלולאה) - החלפת הערוץ המינימלי",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך התנאי משתנה הערוץ המינימלי מקבל את מספר הערוץ הנוכחי",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "משתנה הערוץ המינימלי אינו מתעדכן בתוך התנאי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c4.s5",
+   "equivalence_note_he": "במערך עם היסט, עדכון למספר התא ועוד אחד שקול",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ב.c5.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "החזרת הערוץ המינימלי",
+   "source_span": "החזרת הערוץ המינימלי",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה מחזירה את משתנה הערוץ המינימלי",
+     "value": "1",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הפעולה אינה מחזירה את הערוץ המינימלי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ב.c5",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ג.c0.s0.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "כותרת הפעולה PrintLowRatingChannel",
+   "source_span": "כותרת הפעולה PrintLowRatingChannel",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "כותרת הפעולה PrintLowRatingChannel היא פעולה סטטית שאינה מחזירה ערך (void) ומקבלת פרמטר מטיפוס TvRate",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "כותרת הפעולה PrintLowRatingChannel מקבלת אובייקט מטיפוס TvRate, אך טיפוס ההחזרה אינו void או שחסרה המילה static",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין כותרת לפעולה PrintLowRatingChannel, או שהכותרת אינה מקבלת אובייקט מטיפוס TvRate וגם טיפוס ההחזרה שגוי",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ג.c0.s0",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.ג.c0.s1.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "מציאת הערוץ בעל דירוג מינימלי ע\"י זימון LowestRateChannel",
+   "source_span": "מציאת הערוץ בעל דירוג מינימלי ע\"י זימון LowestRateChannel",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "הפעולה LowestRateChannel מזומנת עם האובייקט מטיפוס TvRate שהתקבל, והערוץ שהיא מחזירה משמש להשוואה",
+     "value": "3",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "הערוץ בעל הדירוג המינימלי נמצא בקוד שנכתב בתוך הפעולה, ללא זימון LowestRateChannel",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "הערוץ בעל הדירוג המינימלי לא נמצא כלל, או שהזימון נעשה על אובייקט אחר ולא על האובייקט מטיפוס TvRate שהתקבל",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ג.c0.s1",
+   "equivalence_note_he": "זימון LowestRateChannel ישירות בתוך תנאי ההשוואה, במקום שמירת התוצאה במשתנה, שקול",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.ג.c0.s2.c1",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "הגדרת לולאה על מערך התוכניות מ-0 עד קטן ממש מ-length של המערך",
+   "source_span": "הגדרת לולאה על מערך התוכניות TvShows מ-0 עד קטן ממש מ- length של מערך ה -TvShows",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "לולאה העוברת על מערך התוכניות של האובייקט TvRate מהמקום 0 ועד קטן ממש מ-length של המערך",
+     "value": "3",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "יש לולאה על מערך התוכניות של האובייקט TvRate, אך גבול ההתחלה או הסיום שלה חורג באיבר אחד (למשל מתחילה מ-1 או רצה עד length כולל)",
+     "value": "2.25",
+     "marker_id": null
+    },
+    {
+     "option_id": "p2",
+     "label_he": "יש לולאה על מערך התוכניות של האובייקט TvRate, אך היא אינה עוברת על רוב איברי המערך",
+     "value": "1.50",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין לולאה העוברת על מערך התוכניות של האובייקט TvRate",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ג.c0.s2",
+   "equivalence_note_he": "לולאה העוברת על מערך התוכניות עד התא הפנוי הראשון (null) או עד סוף המערך שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.ג.c0.s2.f1",
+   "role": "fault",
+   "shape": "fault",
+   "description_he": "הגישה למערך התוכניות בלי getter",
+   "source_span": "אם הגישה למערך בלי getter להוריד 1",
+   "options": [
+    {
+     "option_id": "none",
+     "label_he": "ללא הטעות הזו",
+     "value": "0",
+     "marker_id": null
+    },
+    {
+     "option_id": "f1",
+     "label_he": "הגישה למערך התוכניות נעשית ישירות דרך התכונה arrShows, ולא ע\"י GetArrShows",
+     "value": "-1",
+     "marker_id": "q2.ג.c0.s2.m1"
+    }
+   ],
+   "requires": "q2.ג.c0.s2.c1",
+   "charge_group": null,
+   "priced_terminal_id": "q2.ג.c0.s2",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": null
+  },
+  {
+   "check_id": "q2.ג.c0.s3.c1",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "בדיקה שהתוכנית אינה null",
+   "source_span": "בתוך הלולאה על TvShows: בדיקה האם תוכנית מתאימה להדפסה:אינה null ב (2 נקודות)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "בתוך הלולאה נבדק שהתוכנית במקום הנוכחי במערך אינה null לפני השימוש בה",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "אין בדיקה שהתוכנית במקום הנוכחי במערך אינה null",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ג.c0.s3",
+   "equivalence_note_he": "לולאה שעוצרת בתא ה-null הראשון של מערך התוכניות שקולה לבדיקה זו",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ג.c0.s3.c2",
+   "role": "credit",
+   "shape": "ladder",
+   "description_he": "הערוץ של התוכנית תואם את הערוץ המינימלי, ע\"י GetChl והשוואתם",
+   "source_span": "הערוץ שלה תואם את הערוץ המינימלי (ע\"י GetChl והשוואתם (2 נקודות)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "ערוץ התוכנית הנוכחית מתקבל ע\"י GetChl ומושווה לערוץ בעל הדירוג המינימלי",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "p1",
+     "label_he": "ערוץ התוכנית הנוכחית מושווה לערוץ בעל הדירוג המינימלי, אך דרך גישה ישירה לתכונה chl ולא ע\"י GetChl",
+     "value": "1.00",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "ערוץ התוכנית אינו מושווה לערוץ בעל הדירוג המינימלי, או שמושווה ערך אחר במקום ערוץ התוכנית",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ג.c0.s3",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "non_binary"
+  },
+  {
+   "check_id": "q2.ג.c0.s3.c3",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "התוכנית באוויר, ע\"י GetIsOn",
+   "source_span": "היא באוויר (ע\"י GetIsOn ב 2 נקודות)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "נבדק ע\"י GetIsOn שהתוכנית הנוכחית משודרת כעת",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "לא נבדק שהתוכנית הנוכחית משודרת כעת",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ג.c0.s3",
+   "equivalence_note_he": "השוואת GetIsOn ל-true שקולה",
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  },
+  {
+   "check_id": "q2.ג.c0.s3.c4",
+   "role": "credit",
+   "shape": "binary",
+   "description_he": "הדפסה של השם של התוכנית ע\"י GetName",
+   "source_span": "הדפסה של השם של התוכנית (ע\"י GetName ב( 2 נקודות)",
+   "options": [
+    {
+     "option_id": "full",
+     "label_he": "שם התוכנית הנוכחית מודפס ע\"י GetName כאשר התנאים מתקיימים",
+     "value": "2",
+     "marker_id": null
+    },
+    {
+     "option_id": "absent",
+     "label_he": "שם התוכנית הנוכחית אינו מודפס, או שמודפס ערך אחר במקום השם",
+     "value": "0",
+     "marker_id": null
+    }
+   ],
+   "requires": null,
+   "charge_group": null,
+   "priced_terminal_id": "q2.ג.c0.s3",
+   "equivalence_note_he": null,
+   "evidence_required": true,
+   "origin": "planner",
+   "element": "binary"
+  }
+ ]
+}

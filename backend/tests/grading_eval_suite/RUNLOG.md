@@ -3303,3 +3303,19 @@ second exam, not another dollar on this one.**
   - then the CS re-run k=2: 24 trials × ($0.0625 + $0.0829) ≈ **$3.49**;
   - C ≈ $5.6. D ≈ $1.3 (measured: Math plan ≈ $1.1, grading ≈ $0.2).
   - **C + D ≈ $6.9 = the reservation, no headroom.** Each step is checked before it starts.
+
+## 2026-10-18 · ITEM C · re-plan DONE (planner-v6.3, Opus 5.5 high) · actual $2.1073 · offline checks · SPEND ESTIMATE for the CS run
+
+- **Plans** (`plans/v6/run11/`; recordings beside them; renders `docs/plans/*_v6_render_run11.md`). The replay reproduces both hashes.
+  - **bagrut** `a1033b91…`: 12 planner + 1 compiled, **0 repaired, 0 fallback**, $1.2848, 505 s.
+  - **hobby** `2b9df3dd…`: 6 planner, 0 repaired, 0 fallback, $0.8225, 328 s.
+  - One transient connection error was retried in place.
+- **Expressibility of run 10's cells** (`docs/plans/v6_run11_expressibility.md`): K2 27 → **30**/44; G-Z 44 → **47**/64.
+  - **The 11 split cells stay inexpressible.** AM-G20 did what it says: each split's non_binary part now carries a partial. But Opus chose THREE_QUARTERS (0.75 of a 1-point part), and the teacher's 2.5/3 needs a half step. So the reachable totals are 3 · 2.75 · 2 · …
+  - A run-11 K2 cell there still clears K2 if the verifier picks the 0.75 option (2.75 is partial, not full). The per-class report will show it.
+  - Recorded as a v6.1 finding (rule 7's "minor slip" fraction vs a half-point grid); not acted on (no iteration).
+- **Ledger, C + D reservation $6.90:** spent **$2.1073**, left $4.7927.
+- **CS run estimate:**
+  - `v6-cs-run11`, 12 fixtures, k=2: 24 × ($0.0625 verifier + $0.0829 arm B) ≈ **$3.49**;
+  - fits; C ≈ $5.60;
+  - **D then has ≈ $1.19–1.30 left against a measured ≈ $1.33.** D is checked before it starts.

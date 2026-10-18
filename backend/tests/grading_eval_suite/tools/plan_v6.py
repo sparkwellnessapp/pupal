@@ -168,7 +168,7 @@ async def _run(exam: str, *, live: bool, max_usd: float, replay: bool, live_scop
         RENDER_DIR.mkdir(parents=True, exist_ok=True)
         (RENDER_DIR / f"{exam}_v6_render{RENDER_TAG}.md").write_text(
             render_plan_md(exam, plan, s1, results), encoding="utf-8")
-        print(f"  published {exam}.plan.json and docs/plans/{exam}_v6_render.md from {recorded_path.name}")
+        print(f"  published {OUT_DIR.name}/{exam}.plan.json and docs/plans/{exam}_v6_render{RENDER_TAG}.md from {recorded_path.name}")
         return
     if replay and not live_scopes:
         return
