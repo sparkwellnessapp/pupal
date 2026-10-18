@@ -202,7 +202,7 @@ export function TranscriptionReviewSurface({
     )).sort((a, b) => a - b);
 
     return (
-        <div>
+        <div data-demo="transcription-panel">
             <GlobalAnnotations annotations={draft.annotations} />
 
             {/* Student assignment (RD-4): on the review screen, pre-seeded. */}

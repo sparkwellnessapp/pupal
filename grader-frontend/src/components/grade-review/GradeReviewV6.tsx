@@ -8,6 +8,7 @@ import {
     type GradedTestV6Response,
 } from '@/lib/api';
 import { cmp, dec } from '@/lib/decimal';
+import { demoObserveScores } from '@/lib/demo';
 import { surfaceError } from '@/lib/errorSurface';
 import type { NumericPolicy } from '@/lib/pricing';
 import { priceV6 } from '@/lib/pricing-v6';
@@ -279,6 +280,8 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
         feedbackOverrides: feedback,
         feedbackEdited,
     }) : null), [response, draft, overlay, questions, pending, saveState, feedback, feedbackEdited]);
+
+    useEffect(() => { demoObserveScores('v6', gradedTestId, model); }, [gradedTestId, model]);
 
     // ── approve ───────────────────────────────────────────────────────────
     const onApprove = useCallback(async () => {

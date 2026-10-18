@@ -3,6 +3,7 @@ import './globals.css'
 import { AuthProvider } from '@/lib/auth'
 import { OnboardingGate } from '@/components/OnboardingGate'
 import { UploadQueueProvider } from '@/contexts/UploadQueueProvider'
+import { DemoLogProvider } from '@/lib/demo/DemoLogProvider'
 import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
@@ -36,6 +37,8 @@ export default function RootLayout({
           </UploadQueueProvider>
         </AuthProvider>
         <Toaster position="top-center" richColors dir="rtl" />
+        {/* Demo-mode event log (`?demo=1`). Renders and attaches nothing when off. */}
+        <DemoLogProvider />
       </body>
     </html>
   )

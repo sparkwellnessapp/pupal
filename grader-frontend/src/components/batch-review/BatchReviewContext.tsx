@@ -50,6 +50,7 @@ import {
 } from '@/utils/batch-review-cursor';
 import { BATCH_LOAD_ERROR } from '@/copy/batch';
 import { isIdentityPending } from '@/utils/zone-assignment';
+import { observeBatch } from '@/lib/demo';
 
 const POLL_MS = 5000;
 
@@ -127,6 +128,7 @@ export function BatchReviewProvider({ batchId, children }: {
      *  and the walk's stop count agree. One predicate, shared with the
      *  dashboard (zone-assignment.ts). */
     const mergePayload = useCallback((b: BatchDetailResponse) => {
+        observeBatch(b);
         const walkItems = b.transcriptions.map((t) => ({
             transcription_id: String(t.transcription_id),
             flag_verdict: {
