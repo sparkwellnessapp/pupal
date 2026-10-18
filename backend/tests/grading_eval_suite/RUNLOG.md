@@ -3593,3 +3593,20 @@ second exam, not another dollar on this one.**
 - **Cost:** the same $2 / $10 per MTok card as Sonnet 5 (`claude-sonnet-5-5` is on `MODEL_CARDS`, so D-7 prices it).
 - **Rollback:** `FEEDBACK_MODEL_KEY=claude-sonnet-5` (one variable; the knobs are sent only to models that need them).
 - **Tests:** `test_feedback.py`: the pin, and both models driven through the REAL factory.
+
+## 2026-10-18 · DEPLOYED — plan at save + feedback on Sonnet 5.5 · revision `gradervision-backend-00056-5fj`
+
+- **Deploy:** `gcloud run deploy gradervision-backend --source backend` from a clean worktree of main **`2b46c0c`**. The env is unchanged: `GRADER_ARCHITECTURE=v6`, no `FEEDBACK_*` override, so the code default (Sonnet 5.5) applies.
+- **Gate:**
+  - `/health` 200;
+  - boot `SCHEMA OK: migration head 035`;
+  - no ERROR on the revision;
+  - the upload excluded docs, `scripts/` and `tests/` only.
+- **What the first real save and grade should show (the production smoke):**
+  - a save logs a queued `grading_plans` row under the v6 key, then `plan_build_v6_ready` on the plan-build queue minutes later;
+  - the first grade logs `grading_plan_v6_resolved … built_in_place=False`;
+  - the draft's `feedback.model_version` is `claude-sonnet-5-5`.
+- **Rollback:**
+  - feedback only: `FEEDBACK_MODEL_KEY=claude-sonnet-5`;
+  - everything: traffic back to `00055-9sm`.
+
