@@ -3544,3 +3544,22 @@ second exam, not another dollar on this one.**
   5. Read back the provider and served-model stamps.
   6. Report the credit on the paying account.
 - **Rollback:** `GRADER_ARCHITECTURE=v5` (or the previous revision).
+
+## 2026-10-18 · THE FLIP — v6 LIVE (all subjects; direct Anthropic API) · revision `gradervision-backend-00055-9sm`
+
+- **T2 on main `87ffeea`:** pure 1790 · DB 640 · transcription eval 152 · **0 failures**.
+  - The first DB run in the `.env`-less worktree failed 5 tests, all on missing local environment: `APP_ENV` (2 schema tests), `ALERT_EMAIL` (2 re-ask tests), and a gitignored results dir (hobby byte-identity).
+  - With those supplied, all 5 pass. No code involved.
+- **Deploy:** `gcloud run deploy gradervision-backend --source backend` from a clean worktree of main **`ccd99b5`**, `--update-env-vars GRADER_ARCHITECTURE=v6`.
+  - Revision **`00055-9sm`**, 100% traffic.
+  - `CLAUDE_ROUTE` unset ⇒ direct.
+  - Config:
+    - planner Opus 5.5 high on planner-v6.2;
+    - verifier Sonnet 5.5 low on grader-v6.0;
+    - explainer Sonnet 5.5 lowest (arm B);
+    - Math pack v3 (pinned);
+    - V12 cap 200;
+    - English unchanged.
+- **Gate:** `/health` 200; boot `SCHEMA OK: migration head 035 (35 applied; …)`; no ERROR.
+- **Rollback:** `gcloud run services update gradervision-backend --update-env-vars GRADER_ARCHITECTURE=v5` (or traffic back to `00054-h5b`).
+- **Next:** the production smoke (the owner uploads one real test and approves it), then read back the stamps and report the credit.
