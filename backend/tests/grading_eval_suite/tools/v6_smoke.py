@@ -420,8 +420,8 @@ def main() -> None:
     a = ap.parse_args()
     global ANSWERS_FILE, TAG
     ANSWERS_FILE, TAG = a.answers, a.tag
-    if a.confirm_spend and a.replay:
-        raise SystemExit("--replay is the $0 path; drop --confirm-spend")
+    # [Item A] --replay with --confirm-spend: the RECORDED plan ($0), graded live — the held-out
+    # set and the resume of an attempt grade on a plan that was already paid for.
     sys.exit(asyncio.run(main_async(a)))
 
 

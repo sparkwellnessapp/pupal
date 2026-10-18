@@ -3324,3 +3324,36 @@ second exam, not another dollar on this one.**
   - **Estimate:** A2 + A1 ≈ $0.30 (the tool's per-answer bound); `--max-usd 0.40`.
   - **Item A ledger:** $1.2434 spent, $1.5566 left.
 - **Note:** if attempt 1 fails, attempt 2 (≈ $1.12 plan + ≈ $0.30 grading) plus the held-out set (≈ $0.5 bound) will not fit the reservation. That would be the §6 STOP, before attempt 2 starts.
+
+## 2026-10-18 · ITEM A · attempt 1 COMPLETE — FAIL · STOP before attempt 2 (§12b + the reservation) · Item A ledger $1.3112
+
+- **Completion:** replayed plan `c5fb3d41` (identical hash, $0); A2 graded $0.0313, A1 $0.0365. Run `results/20261018-150350_v6-smoke`; render `docs/plans/v6_smoke_mathematics.md`.
+
+  | bar (registered Oct 6) | v1 pack (smoke) | **v2 pack (attempt 1)** |
+  |---|---|---|
+  | K1-class events = 0 | 3 | **2 ❌** |
+  | A1 full on every criterion | 19/19 | **18/19 ❌** |
+  | ≥ 52/57 intended | 51 | **52 ✅** |
+  | validator clean | ✅ | ✅ (17 planner + 6 repaired, 0 fallback) |
+
+- **What v2 fixed:**
+  - the smoke's 3 K1 cells (q2.א, q2.ד, q5.ד's wrong-method partials are gone);
+  - follow-through now earns (q1.ה, q2.ב, q4.ד partials price correctly).
+- **The 5 misses:**
+  - **Plan wording, mine (2):** "operations not results" made the planner re-check, in a later part, an operation done in an earlier one:
+    - A1 `q2.ג` (leg via Pythagoras, done in ב, required again in the perimeter part → 3/6);
+    - A2 `q1.ד` (side enlargement, done in ג, required again in the area part → 0, intended full).
+    - Fixable: "a step checks only the operation performed in its own part; an earlier result is an input".
+  - **Follow-through vs the registered classes (3):**
+    - A3 `q1.ג.c2`: «3.6 + 25 = 28.6» (adds 25 m, not 25%); stating those lengths earned 7/7 by follow-through. Registered: zero → **K1**.
+    - A2 `q5.ד`: «30x = 1000, x = 33»; solving her own equation correctly earned 3.5/7 by follow-through. Registered: zero → **K1**.
+    - A2 `q1.ג.c2`: the slip was charged at c0, and the final statement got full by follow-through. Registered: partial.
+- **The open decision (STOP §12b):** the Oct 18 rules do not say whether follow-through applies to a value produced by an INVALID method.
+  - **R1, any carried value:** the registered classes are wrong on all 3 cells.
+  - **R2, only a value from a valid method with a slip** (the conventional «טעות גוררת»): the registered classes stand on A3 `q1.ג.c2` and A2 `q5.ד`. They still conflict with the rule's own «charged only where it occurred» on A2 `q1.ג.c2`.
+  - Attempt 2 cannot be written to a reading the owner has not chosen, and no pack can pass the registered bar under R1.
+- **Budget:** Item A has $1.4888 left.
+  - Attempt 2 ≈ $1.31 (plan $1.12 measured + grading ≈ $0.19 measured).
+  - The held-out set ≈ $0.20–0.30 (measured per-answer rates; the tool's bound is $0.54).
+  - Together they do not fit the reservation, so attempt 2 would not start under §0 regardless.
+- **Not done:** attempt 2, the held-out set (still sealed: not graded, not inspected). Item B (the flip) waits on Item A.
