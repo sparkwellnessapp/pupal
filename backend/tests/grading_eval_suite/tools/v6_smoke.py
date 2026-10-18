@@ -337,7 +337,8 @@ def _route() -> str:
 
 async def main_async(a) -> int:
     subjects = SUBJECTS if a.subject == "both" else (a.subject,)
-    live = a.confirm_spend
+    live = a.confirm_spend                         # grading spends
+    plan_live = live and not a.replay              # [Item A] --replay grades on the recorded plan
     if live:
         from tests.eval_common.canary import canary
         from tests.eval_common.eval_key import require_eval_key
@@ -349,24 +350,29 @@ async def main_async(a) -> int:
     state = {}
     for subject in subjects:                           # 1 · plan every subject first
         entry, contract = load_subject(subject)
-        s1, results, the_plan, plan_cost = await plan(subject, contract, a.planner, live=live,
+        s1, results, the_plan, plan_cost = await plan(subject, contract, a.planner, live=plan_live,
                                                       max_usd=max(a.max_usd - spent, 0.0))
+        if not plan_live:
+            plan_cost = 0.0                        # a replayed plan spends nothing now
         spent += plan_cost
         state[subject] = dict(entry=entry, contract=contract, results=results, plan=the_plan,
                               plan_cost=plan_cost, drafts={})
         print(f"== plan {subject} {the_plan.plan_hash[:12]} · ${plan_cost:.4f} · spent ${spent:.4f}", flush=True)
-    if a.run_dir:
+    if a.run_dir:                                      # re-score, or [Item A] resume: grade what is missing
         run_dir = Path(a.run_dir)
         for subject, st in state.items():
             st["drafts"] = {p.stem.split("__", 1)[1]: p for p in sorted(run_dir.glob(f"{subject}__A*.json"))}
+    elif not live:
+        raise SystemExit("grading spends money: pass --confirm-spend, or --run-dir to re-score")
     else:
-        if not live:
-            raise SystemExit("grading spends money: pass --confirm-spend, or --run-dir to re-score")
         run_dir = SUITE / "results" / f"{datetime.now():%Y%m%d-%H%M%S}_v6-smoke{TAG}"
         run_dir.mkdir(parents=True)
+    if live:
         for prefix in GRADE_ORDER:                     # 2 · wrong → partial → full, across subjects
             for subject, st in state.items():
                 name = next(n for n in st["entry"]["answers"] if n.startswith(prefix))
+                if name in st["drafts"]:               # already graded in this run (resume)
+                    continue
                 est = VERIFIER_USD_PER_CALL * _answered_scopes(st["entry"]["answers"][name])
                 if spent + est > a.max_usd:
                     stopped = f"{subject} {name}: estimate ${est:.4f} > ${a.max_usd - spent:.4f} left"

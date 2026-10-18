@@ -3313,3 +3313,14 @@ second exam, not another dollar on this one.**
   - Examples shifted to speed/distance/time and averages; nothing from the smoke or held-out text.
 - **Run:** `v6_smoke --subject mathematics`: re-plan math3 (Opus 5.5 high) + grade the 3 smoke answers.
 - **Estimate ≈ $1.25** (plan $1.04 measured on v1 + grading $0.19); `--max-usd 1.35`. Item A ledger before: $0.
+
+## 2026-10-18 · ITEM A · attempt 1 — planned and A3 graded; stopped by the per-step guard · actual $1.2434
+
+- **Plan** `c5fb3d41` (Math pack v2): 23 scopes = 17 planner + 6 repaired, **0 fallback**, 0 rule-7 downgrades, 42 checks, **$1.1194**. More repairs than v1, as the new rules bite.
+- **A3** graded: $0.1240.
+- Then the tool's guard **stopped before A2**: its $0.15 estimate exceeded the $0.107 left of the attempt's $1.35 cap. The "FAIL" printed means only that not all answers ran.
+- **Completion (no re-plan, no re-grade of A3):** the tool now grades on a REPLAYED plan (`--replay` with `--confirm-spend`: $0 planning) and RESUMES a run (`--run-dir`: grades only the missing answers).
+  - Run dir: `results/20261018-150350_v6-smoke`.
+  - **Estimate:** A2 + A1 ≈ $0.30 (the tool's per-answer bound); `--max-usd 0.40`.
+  - **Item A ledger:** $1.2434 spent, $1.5566 left.
+- **Note:** if attempt 1 fails, attempt 2 (≈ $1.12 plan + ≈ $0.30 grading) plus the held-out set (≈ $0.5 bound) will not fit the reservation. That would be the §6 STOP, before attempt 2 starts.
