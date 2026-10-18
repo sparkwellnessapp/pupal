@@ -3405,3 +3405,23 @@ second exam, not another dollar on this one.**
 - **Held-out set: NOT graded** (attempt 2 failed; ruling §2e). It stays sealed.
 - **Item A ledger:** $1.3112 + $1.3436 = **$2.6548**. Eval total Oct 18: C $5.7191 + A $2.6548 = **$8.3739 of $10**; the owner's +$1 (Item D only) unused.
 - **Outcome:** STOP (ruling §2e). The Math pack v3 does NOT join production; main keeps the v1 Math pack. **Item B (the flip) does not proceed:** it requires Item A to pass.
+
+## 2026-10-18 · OWNER RULINGS 16:15 — flip v6, ALL subjects, with Math pack v3 · §2 before the flip (≤ $0.40)
+
+- **Rulings (recorded):**
+  - v6 goes live for ALL subjects. The comparison is v6 against v5, and v5 was never measured on Math.
+  - Math ships with pack v3, after §2. No per-subject switch.
+  - **§2** (≤ $0.40): (a) the phantom check; (b) V12 cap 140 → 200, q5.ב re-assembled from the RECORDED output, q5.ב re-graded for the 3 smoke answers; (c) the held-out set graded ONCE (a K1-class event on a real criterion → STOP; anything else → report and proceed).
+  - **§3:** the flip as ruled.
+  - **§4:** v6.1 backlog (extraction subtotal guard; deterministic Math arithmetic; R2 consistency under the core principle).
+- **§2a · PHANTOM CHECK — `q1.ג.c2` («40%») is an EXTRACTION ARTIFACT.**
+  - Source: `tests/rubric_eval_suite/fixtures/Math_rubrics/3 יחל מבחן ומחוון.docx`. It is image-only (`text_chars 0`); question 1's marking scheme is `word/media/image7.jpeg`.
+  - The teacher's pink margin weights for q1 read **א 10% · ב 20% · ג 40% · ד 10% · ה 20% = 100%**.
+  - Inside ג she writes **20%** beside the side-*a* table and **20%** beside the side-*b* table. The margin **40%** beside «ג.» is their SUBTOTAL, not a third criterion.
+  - Extraction emitted it as `q1.ג.c2` (7 pts). That is why q1's weights sum to 140% (100% without it), and why every q1 weight was rescaled over 140: א is 1.75 instead of 2.4.
+  - **`q1.ג.c2` is excluded from the grader verdict** (recorded with this evidence in `docs/plans/v6_smoke_mathematics.md`). Attempt 2's only K1-class event was that cell.
+- **§2b · FALLBACK FIX:**
+  - `plan_validator_v6._LABEL_MAX` 140 → **200**. Tests: 1,353 pass; no pinned CS plan moves.
+  - `v6_smoke --replay --reassemble q5.ב` re-assembles ONLY q5.ב from attempt 2's recorded outputs under the new cap. Every other scope replays as recorded at 140: **all@140 reproduces `d2d838a9`; no other scope changes**.
+  - **q5.ב: fallback → repaired** (the planner's own recorded repair; labels 144/145 chars). Plan **`a79166be`**: q5.ב.c0.c1 and c2 are ladders (2 · 1.5 · 1 · 0), c3 binary.
+- **§2b estimate:** re-grade ONLY q5.ב for the 3 smoke answers (`--only-scopes q5.ב`): **≈ $0.05**; `--max-usd 0.10`. Eval ledger before: $8.3739 of $10 (§2 budget $0.40).

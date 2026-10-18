@@ -77,6 +77,13 @@ INTENDED_SHARE = Decimal("0.90")
 # keeps the held-out renders and run dirs apart from the smoke's.
 ANSWERS_FILE = "known_answers.json"
 TAG = ""
+# [owner 2026-10-18 16:15 §2b] --reassemble: the listed scopes are re-assembled from their
+# RECORDED outputs under the CURRENT validator (V12 cap 200); every other scope replays exactly
+# as recorded, under the cap the recording ran with — so a graded plan never silently moves.
+# --only-scopes: grade and score only these scopes (a targeted re-grade).
+REASSEMBLE: tuple = ()
+ONLY_SCOPES: tuple = ()
+RECORDED_LABEL_MAX = 140                     # V12 cap of every recording made before 2026-10-18 16:15
 
 
 def load_subject(subject: str) -> Tuple[dict, GradingRubricContract]:
@@ -139,9 +146,16 @@ async def plan(subject: str, contract, planner_key: str, *, live: bool, max_usd:
                 if not q:
                     raise RuntimeError("replay exhausted")
                 return q.pop(0), (u.pop(0) if u else {})
-        r = await plan_scope(scope, precision=s1.precision, system_prompt=system,
-                             user_message=render_scope_input(scope_planner_input(scope)),
-                             call=call, am_g19=am_g19)
+        from app.agents.grader import plan_validator_v6 as _v12
+        current_cap = _v12._LABEL_MAX
+        if not live and REASSEMBLE and scope.scope not in REASSEMBLE:
+            _v12._LABEL_MAX = RECORDED_LABEL_MAX          # replay this scope exactly as recorded
+        try:
+            r = await plan_scope(scope, precision=s1.precision, system_prompt=system,
+                                 user_message=render_scope_input(scope_planner_input(scope)),
+                                 call=call, am_g19=am_g19)
+        finally:
+            _v12._LABEL_MAX = current_cap
         cost = sum(u.get("cost_usd", 0.0) for u in r.usage)
         spent += cost
         results.append(r)
@@ -164,7 +178,7 @@ async def plan(subject: str, contract, planner_key: str, *, live: bool, max_usd:
                                  "errors": r.errors, "telemetry": r.telemetry} for r in results},
         }, ensure_ascii=False, indent=1, sort_keys=True), encoding="utf-8")
     DOCS.mkdir(parents=True, exist_ok=True)
-    (DOCS / f"v6_smoke_{subject}_plan.md").write_text(
+    (DOCS / f"v6_smoke{TAG}_{subject}_plan.md").write_text(
         render_plan_md(f"smoke · {subject}", the_plan, s1, results), encoding="utf-8")
     return s1, results, the_plan, spent
 
@@ -203,6 +217,12 @@ def _answered_scopes(answers) -> int:
 async def grade_one(contract, the_plan, name: str, answers, run_dir: Path) -> Path:
     from app.services import gradable_compiler
     gradable = gradable_compiler.compile(contract, transcription(answers))
+    if ONLY_SCOPES:                                # [§2b] a targeted re-grade
+        keep = [sc for sc in gradable.scopes
+                if (sc.question_id if sc.sub_question_id is None
+                    else f"{sc.question_id}.{sc.sub_question_id}") in ONLY_SCOPES]
+        assert keep, f"no scope of {ONLY_SCOPES} in this test"
+        gradable = gradable.model_copy(update={"scopes": keep})
     draft = await _grader(the_plan, contract).grade(gradable)
     p = run_dir / f"{name}.json"
     p.write_text(draft.model_dump_json(indent=1), encoding="utf-8")
@@ -237,6 +257,8 @@ def score(entry, the_plan, results, drafts: Dict[str, Path]) -> dict:
         contents[name] = content
         priced = {t.terminal_id: t for t in price(content.to_view()).terminals}
         for tid, want in entry["intended"][name].items():
+            if ONLY_SCOPES and not any(tid.startswith(sc + ".") for sc in ONLY_SCOPES):
+                continue                              # [§2b] only the re-graded scopes
             got = _cls(priced[tid].awarded, possible[tid])
             rows.append({"answer": name, "terminal_id": tid, "intended": want, "got": got,
                          "awarded": priced[tid].awarded, "possible": possible[tid]})
@@ -417,9 +439,16 @@ def main() -> None:
     ap.add_argument("--answers", default="known_answers.json",
                     help="answer set under smoke/ (Item A: known_answers_heldout.json)")
     ap.add_argument("--tag", default="", help="suffix for renders and the run dir, e.g. _heldout")
+    ap.add_argument("--reassemble", default="", help="comma-separated scopes re-assembled under the "
+                    "current validator; all others replay exactly as recorded (with --replay)")
+    ap.add_argument("--only-scopes", default="", help="comma-separated scopes to grade and score")
     a = ap.parse_args()
-    global ANSWERS_FILE, TAG
+    global ANSWERS_FILE, TAG, REASSEMBLE, ONLY_SCOPES
     ANSWERS_FILE, TAG = a.answers, a.tag
+    REASSEMBLE = tuple(x for x in a.reassemble.split(",") if x)
+    ONLY_SCOPES = tuple(x for x in a.only_scopes.split(",") if x)
+    if REASSEMBLE and not a.replay:
+        raise SystemExit("--reassemble re-assembles a RECORDING: use it with --replay")
     # [Item A] --replay with --confirm-spend: the RECORDED plan ($0), graded live — the held-out
     # set and the resume of an attempt grade on a plan that was already paid for.
     sys.exit(asyncio.run(main_async(a)))
