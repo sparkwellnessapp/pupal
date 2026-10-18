@@ -211,6 +211,8 @@ VERIFIER_USD_PER_CALL = 0.0100
 
 
 def _answered_scopes(answers) -> int:
+    if ONLY_SCOPES:                                    # [§2b] a targeted re-grade calls only these
+        return len(ONLY_SCOPES)
     return sum(1 for subs in answers.values() for text in subs.values() if text.strip()) or 1
 
 

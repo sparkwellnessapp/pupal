@@ -3425,3 +3425,14 @@ second exam, not another dollar on this one.**
   - `v6_smoke --replay --reassemble q5.ב` re-assembles ONLY q5.ב from attempt 2's recorded outputs under the new cap. Every other scope replays as recorded at 140: **all@140 reproduces `d2d838a9`; no other scope changes**.
   - **q5.ב: fallback → repaired** (the planner's own recorded repair; labels 144/145 chars). Plan **`a79166be`**: q5.ב.c0.c1 and c2 are ladders (2 · 1.5 · 1 · 0), c3 binary.
 - **§2b estimate:** re-grade ONLY q5.ב for the 3 smoke answers (`--only-scopes q5.ב`): **≈ $0.05**; `--max-usd 0.10`. Eval ledger before: $8.3739 of $10 (§2 budget $0.40).
+
+## 2026-10-18 · §2b RESULT — q5.ב re-graded on plan `a79166be`: 3/3 intended · actual $0.0161 · §2c ESTIMATE
+
+- **Targeted re-grade** (`--only-scopes q5.ב`; render `docs/plans/v6_smoke_q5b_mathematics.md`): A3 zero ✅ · A2 partial ✅ · A1 full ✅. Validator clean (0 fallback). $0.0161.
+- **The smoke after §2a + §2b** (attempt 2's grades, `q1.ג.c2` excluded as the extraction artifact, `q5.ב` from the re-grade):
+  - **K1 0** ✅;
+  - **A1 18/18 full** ✅;
+  - **51/54 intended** (94.4%, bar 49) ✅;
+  - **validator clean** ✅.
+  - The 3 misses left are all non-K1: A2 q1.ד and q1.ה (follow-through not applied → under-credit) and A2 q2.ב (no recompute → over-credit to full).
+- **§2c estimate:** the held-out set ONCE on plan `a79166be` (`--answers known_answers_heldout.json --tag _heldout --replay --reassemble q5.ב`), 3 answers × q2–q5. **≈ $0.15–0.25** measured; the tool's bound is $0.42. `--max-usd 0.38` (what is left of §2's $0.40).
