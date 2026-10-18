@@ -3284,3 +3284,32 @@ second exam, not another dollar on this one.**
 - **STOP (f)** per ruling §8/§12f: "§6b fails → STOP with the renders".
   - The pre-registration allowed up to 2 Math pack-fragment iterations; the Oct 17 ruling ("no pack iterations") supersedes it, so none was run.
   - **The §9 flip is NOT done** — production stays `GRADER_ARCHITECTURE=v5`.
+
+## 2026-10-18 · OWNER RULINGS (Oct 18): the $10 eval budget, Items A–D — recorded
+
+- **Budget:**
+  - $10 on the EVAL key only (workspace limit $10); production runs on its own budget.
+  - Reservations: **Item A ≤ $2.8** · **Items C + D $6.9**; neither borrows from the other.
+  - Before each step: an estimate; don't start a step that would exceed its item's reservation.
+- **Item A:**
+  - Held-out Math set first (`f4c552f`, pre-registered in PREDICTIONS).
+  - Then the Math pack only (planner + verifier fragments), ≤ 2 attempts: re-plan math3 on Opus high → re-grade the 3 smoke answers against the original bar.
+  - Then the held-out set ONCE.
+  - Pass both → the new Math pack joins the production config → Item B (the flip).
+- **Item C** (v6.1 RC, CS; in parallel): AM-G20 (planner-v6.3: AM-G19(b) on the teacher's criterion; every non-binary split part gets a partial) + AM-G21 (verifier V-8 literal check, fault rule, V-3 neutral third person). Pre-register, then re-plan both CS exams + a CS re-run at k=2. Mechanical adoption rule, and Item D must also pass.
+- **Item D:** after C meets its CS criteria and A has concluded: the Math/English smoke on the run-11 config.
+- **Decided — pending veto:**
+  - (1) C's cost bar is read like for like on the shipped explainer (run 10 verifier $0.0625 + arm B $0.0829 = $0.1454 → bar $0.1527). Read literally against run 10's $0.1054 (arm A), arm B alone would fail it.
+  - (2) C + D are estimated at ≈ $5.6 + ≈ $1.3 = ≈ $6.9 = the reservation exactly; the per-step check is the guard.
+  - (3) Run 11's prompts become config-selectable so adoption is a config change.
+  - (4) A and C run in separate worktrees/branches.
+  - (5) The flip's "production on Vertex" condition is read through ruling B (direct API until the quota lands); confirmed with the owner before flipping.
+
+## 2026-10-18 · ITEM A · attempt 1 — the Math pack v2 · SPEND ESTIMATE (eval key, Item A reservation $2.8)
+
+- **Change** (branch `itemA-math-pack`; Math pack only, `PACK_VERSION` v1 → **v2**; CS/English pins untouched; the pack's ≤ 12-line guard holds):
+  - **Planner:** OPERATIONS NOT RESULTS; PARTIALS NEED A VALID METHOD; FOLLOW-THROUGH.
+  - **Verifier:** FOLLOW-THROUGH made operational (check the operation on HER value; the earlier error charged once); VALID METHOD FIRST.
+  - Examples shifted to speed/distance/time and averages; nothing from the smoke or held-out text.
+- **Run:** `v6_smoke --subject mathematics`: re-plan math3 (Opus 5.5 high) + grade the 3 smoke answers.
+- **Estimate ≈ $1.25** (plan $1.04 measured on v1 + grading $0.19); `--max-usd 1.35`. Item A ledger before: $0.

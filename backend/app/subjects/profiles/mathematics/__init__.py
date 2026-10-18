@@ -14,7 +14,7 @@ KEY = "mathematics"
 
 # The v6 pack identity (config_hash input, §3.5). Bump PACK_VERSION with ANY change to the pack files.
 PACK_ID = KEY
-PACK_VERSION = "v1"
+PACK_VERSION = "v2"   # v2 (Oct 18, Item A): planner + verifier fragments
 
 MODALITIES = ("math_notation", "prose", "figure")
 

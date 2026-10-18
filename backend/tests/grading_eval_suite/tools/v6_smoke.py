@@ -73,8 +73,14 @@ INTENDED_SHARE = Decimal("0.90")
 
 # ── the fixture ───────────────────────────────────────────────────────────────
 
+# [Oct 18 Item A] the answer set: the smoke's own, or the held-out set (`--answers`); `--tag`
+# keeps the held-out renders and run dirs apart from the smoke's.
+ANSWERS_FILE = "known_answers.json"
+TAG = ""
+
+
 def load_subject(subject: str) -> Tuple[dict, GradingRubricContract]:
-    ka = json.loads((SMOKE / "known_answers.json").read_text(encoding="utf-8"))
+    ka = json.loads((SMOKE / ANSWERS_FILE).read_text(encoding="utf-8"))
     entry = ka["subjects"][subject]
     contract = GradingRubricContract.model_validate_json(
         (SMOKE / entry["contract"]).read_text(encoding="utf-8"))
@@ -356,7 +362,7 @@ async def main_async(a) -> int:
     else:
         if not live:
             raise SystemExit("grading spends money: pass --confirm-spend, or --run-dir to re-score")
-        run_dir = SUITE / "results" / f"{datetime.now():%Y%m%d-%H%M%S}_v6-smoke"
+        run_dir = SUITE / "results" / f"{datetime.now():%Y%m%d-%H%M%S}_v6-smoke{TAG}"
         run_dir.mkdir(parents=True)
         for prefix in GRADE_ORDER:                     # 2 · wrong → partial → full, across subjects
             for subject, st in state.items():
@@ -380,7 +386,7 @@ async def main_async(a) -> int:
         scored = score(st["entry"], st["plan"], st["results"], st["drafts"])
         md = render(subject, st["entry"], st["contract"], st["plan"], st["results"], scored, a.planner,
                     st["plan_cost"], run_dir)
-        (DOCS / f"v6_smoke_{subject}.md").write_text(md, encoding="utf-8")
+        (DOCS / f"v6_smoke{TAG}_{subject}.md").write_text(md, encoding="utf-8")
         verdicts[subject] = scored["pass"]
         (run_dir / f"smoke_{subject}.json").write_text(json.dumps({
             "subject": subject, "planner": a.planner, "plan_hash": st["plan"].plan_hash, "route": _route(),
@@ -402,7 +408,12 @@ def main() -> None:
     ap.add_argument("--replay", action="store_true", help="plan from the recording ($0)")
     ap.add_argument("--run-dir", default=None, help="re-score the drafts of an earlier run ($0)")
     ap.add_argument("--max-usd", type=float, default=2.0)
+    ap.add_argument("--answers", default="known_answers.json",
+                    help="answer set under smoke/ (Item A: known_answers_heldout.json)")
+    ap.add_argument("--tag", default="", help="suffix for renders and the run dir, e.g. _heldout")
     a = ap.parse_args()
+    global ANSWERS_FILE, TAG
+    ANSWERS_FILE, TAG = a.answers, a.tag
     if a.confirm_spend and a.replay:
         raise SystemExit("--replay is the $0 path; drop --confirm-spend")
     sys.exit(asyncio.run(main_async(a)))
