@@ -217,7 +217,8 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
                         "built_in_place=%s waited_s=%.1f", graded_test_id, resolved.row_id,
                         resolved.wording_source, resolved.built_in_place, resolved.waited_s)
         elif kind == "v6":
-            # [grader-v6, §9] the plan builds LAZILY, here, on the production credentials
+            # [grader-v6, §9] the plan was queued at save (2026-10-18); ready → use it, a live
+            # builder → wait on it, else it builds here, on the production credentials
             from app.services.plan_build_v6 import resolve_plan_v6_for_grade
             resolved_v6 = await resolve_plan_v6_for_grade(graded_test.rubric_id, rubric.contract_json)
             logger.info(f"grading_plan_v6_resolved graded_test_id={graded_test_id} "

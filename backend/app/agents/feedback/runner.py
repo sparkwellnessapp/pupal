@@ -54,9 +54,13 @@ async def attach_feedback(draft, *, graded_test_id=None, usage: Optional[dict] =
     else:
         render = None
 
+    from app.agents.grader.llm_factory import NATIVE_SCHEMA_MODELS
+    # [owner 2026-10-18] Sonnet 5.5 is built only with an explicit effort and thinking (AM-G18)
+    knobs = ({"reasoning_effort": settings.feedback_effort, "thinking": settings.feedback_thinking}
+             if settings.feedback_model_key in NATIVE_SCHEMA_MODELS else {})
     try:
         llm = build_chat_model(settings.feedback_model_provider,
-                               settings.feedback_model_key)
+                               settings.feedback_model_key, **knobs)
     except Exception as exc:                        # noqa: BLE001
         logger.warning("feedback_model_unavailable",
                        extra={"exception_class": type(exc).__name__})

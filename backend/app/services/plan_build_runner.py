@@ -260,6 +260,26 @@ async def _load_row_contract(row_id: UUID, contract_json: Optional[Dict[str, Any
         return row, contract_json
 
 
+async def _build_v6_row(row, contract_json: Dict[str, Any]) -> None:
+    """[plan at save] A claimed v6 row, built by THE v6 builder (`plan_build_v6._build_row`:
+    heartbeat, ready | failed, never raises). Refuses a row whose key no longer matches the
+    active v6 configuration (settings moved between the save and the run): the plan would
+    carry a config hash its row does not — the grade path builds the current one instead."""
+    from app.schemas.ontology_types import GradingRubricContract
+
+    from .plan_build_v6 import _build_row, v6_config_hash
+    contract = GradingRubricContract.model_validate(contract_json)
+    current = v6_config_hash(contract)
+    if row.config_hash != current:
+        logger.error(f"plan_build_v6_config_moved row_id={row.id} queued={row.config_hash[:12]} "
+                     f"current={current[:12]}")
+        async with get_db_context() as db:
+            await plan_store.mark_failed(
+                db, row.id, "the v6 configuration changed since this build was queued")
+        return
+    await _build_row(row.id, contract, row.contract_sha256, row.config_hash)
+
+
 async def _build_claimed_row(row_id: UUID, *, llm_factory: Optional[LLMFactory],
                              contract_json: Optional[Dict[str, Any]] = None) -> None:
     """The row is `building` under THIS worker. Build, then ready | failed."""
@@ -270,13 +290,20 @@ async def _build_claimed_row(row_id: UUID, *, llm_factory: Optional[LLMFactory],
         async with get_db_context() as db:
             await plan_store.mark_failed(db, row_id, "rubric or its contract vanished before the build")
         return
-    if row.config_hash != V5_CONFIG_HASH:
-        # [AM-G6] this builder produces v5 plans; writing one under another
-        # config's key would hand that planner's graders a plan it never made.
-        logger.error("plan_build_wrong_config row_id=%s config_hash=%s", row_id, row.config_hash)
+    if plan_store.contract_sha256(contract_json) != row.contract_sha256:
+        # [plan at save] the rubric was re-saved with different content after this row was
+        # queued (its newer save queued its OWN row, under another key). Building from the
+        # rubric's current contract would file the NEW contract's plan under the OLD key.
+        # Skip before any spend; not live, so nothing waits on it.
+        logger.info(f"plan_build_superseded row_id={row_id} rubric_id={row.rubric_id}")
         async with get_db_context() as db:
             await plan_store.mark_failed(
-                db, row_id, f"the v5 builder cannot build config {row.config_hash}")
+                db, row_id, "superseded: the rubric was re-saved before this build started")
+        return
+    if row.config_hash != V5_CONFIG_HASH:
+        # [AM-G6] the v5 builder below produces v5 plans only; any other key is a v6 row
+        # (plan at save), built by the v6 builder under ITS key.
+        await _build_v6_row(row, contract_json)
         return
     hb = asyncio.create_task(_heartbeat_loop(row_id))
     try:

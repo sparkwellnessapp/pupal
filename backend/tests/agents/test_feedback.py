@@ -204,6 +204,70 @@ async def test_feedback_runs_once_per_test_on_already_priced_verdicts(monkeypatc
 # feedback-contract-carries-effective-text
 # ---------------------------------------------------------------------------
 
+def test_the_feedback_pin_is_sonnet_55_at_the_explainers_setting():
+    """[owner 2026-10-18] the class defaults (the test process blanks FEEDBACK_MODEL_KEY)."""
+    from app.config import Settings
+    f = Settings.model_fields
+    assert f["feedback_model_key"].default == "claude-sonnet-5-5"
+    assert (f["feedback_effort"].default, f["feedback_thinking"].default) == ("low", "between_tools")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model,knobs", [
+    ("claude-sonnet-5-5", {"reasoning_effort": "low", "thinking": "between_tools"}),
+    ("claude-sonnet-5", {}),                                    # the rollback: one variable
+])
+async def test_the_feedback_model_is_built_with_the_knobs_it_requires(monkeypatch, model, knobs):
+    """Sonnet 5.5 refuses construction without an explicit effort and thinking (AM-G18), and
+    attach_feedback swallows that into `feedback_unavailable` — so a bare model switch would
+    have silently stopped all feedback. The REAL factory must accept what the runner sends."""
+    import app.agents.feedback.runner as runner_mod
+    from pydantic import SecretStr
+
+    from app.agents.feedback.schemas import FeedbackResponse, ScopeFeedback
+    from app.agents.grader import llm_factory as lf
+    from app.schemas.graded_test_draft import CriterionOutcome, GradedTestDraft, ScopeOutcome
+
+    real = lf.build_chat_model
+    seen = []
+
+    class _Runner:
+        async def ainvoke(self, messages):
+            return FeedbackResponse(scopes=[ScopeFeedback(scope_id="q1", text="הגדרת נכון.")],
+                                    summary="ס.")
+
+    class _LLM:
+        def with_structured_output(self, _schema, include_raw=False):
+            return _Runner()
+
+    def checked(provider, model_id, **kw):
+        seen.append(kw)
+        real(provider, model_id, **kw)               # raises exactly where production would
+        return _LLM()
+
+    monkeypatch.setattr(runner_mod.settings, "feedback_model_key", model, raising=False)
+    monkeypatch.setattr(runner_mod.settings, "anthropic_api_key", SecretStr("sk-ant-placeholder"))
+    monkeypatch.setattr("app.agents.grader.llm_factory.build_chat_model", checked)
+    leaf = CriterionOutcome(
+        criterion_id="q1.c0", description="d", points_possible=Decimal("3"),
+        points_awarded=Decimal("3"), reasoning="r", confidence=0.9,
+        sub_criterion_outcomes=None, checks=[_check("q1.c0.k1", "met")])
+    scope = ScopeOutcome(
+        scope_kind="direct", question_id="q1", points_possible=Decimal("3"),
+        points_awarded=Decimal("3"), min_confidence=0.9,
+        criterion_outcomes=[leaf], graded_by="llm", input_tokens=1, output_tokens=1)
+    draft = GradedTestDraft(
+        rubric_contract_version="rc", transcription_contract_version="tc",
+        model_version="m", prompt_version="p", plan_version="plan/v1",
+        scope_outcomes=[scope], llm_calls_count=1, grading_duration_ms=1,
+        total_input_tokens=1, total_output_tokens=1)
+
+    out = await runner_mod.attach_feedback(draft)
+
+    assert seen == [knobs]
+    assert out.feedback is not None and out.feedback.model_version == model
+
+
 def test_contract_carries_the_effective_text_and_says_who_wrote_it():
     """Her edit wins and is recorded as hers (OD-G4.2). The returned exam
     renders from the contract, so what she approved is what the student gets."""

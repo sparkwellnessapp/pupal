@@ -252,9 +252,9 @@ def test_a_plan_is_refused_under_a_key_that_is_not_its_own_and_nothing_lands():
 
 
 @pytest.mark.db
-def test_the_v5_builder_refuses_a_row_keyed_for_another_config(hobby_json):
-    """run_plan_build is the v5 builder: a v6-keyed row reaching it fails LOUDLY
-    rather than being filled with a v5 plan."""
+def test_a_row_keyed_for_another_config_never_gets_a_v5_plan(hobby_json):
+    """[plan at save] a non-v5 row reaching run_plan_build goes to the v6 builder, never the v5
+    one; a key that is not the ACTIVE v6 configuration's fails loudly and nothing lands."""
     cj = dict(hobby_json, contract_version=str(uuid.uuid4()), rubric_name=f"cfg-{uuid.uuid4().hex[:8]}")
     sha = contract_sha256(cj)
 
@@ -267,7 +267,7 @@ def test_the_v5_builder_refuses_a_row_keyed_for_another_config(hobby_json):
             await pbr._build_claimed_row(row.id, llm_factory=_outage_factory, contract_json=cj)
         async with get_db_context() as db:
             r = await db.get(GradingPlanRecord, row.id)
-            assert r.status == "failed" and "v5 builder cannot build config" in r.error_message
+            assert r.status == "failed" and "v6 configuration changed" in r.error_message
             assert r.plan_json is None
     try:
         _run(scenario())

@@ -104,8 +104,17 @@ class Settings(BaseSettings):
     # gemini-3.1-pro was both too expensive and too rate-limited. Measured on
     # the five fixtures, k=2: gender-neutral lint 10/10 clean, $0.0564/test
     # (vs gemini-3.1-pro's $0.48-0.63 and the $0.15 OD10 ceiling), p50 44.8s.
+    # [owner 2026-10-18] MOVED to Sonnet 5.5 («better and cheaper, on average run»), at the
+    # setting the v6 explainer ships with (OO-3 arm B: effort low, thinking between_tools —
+    # the lowest). Sonnet 5.5 REFUSES to be built without an explicit effort and thinking
+    # (AM-G18), so these two are not optional for it: without them every feedback call
+    # would fail at construction and land as `feedback_unavailable`. Read only for a model
+    # that needs them (`llm_factory.NATIVE_SCHEMA_MODELS`), so the rollback is the one
+    # variable FEEDBACK_MODEL_KEY=claude-sonnet-5.
     feedback_model_provider: str = "anthropic"
-    feedback_model_key: Optional[str] = "claude-sonnet-5"
+    feedback_model_key: Optional[str] = "claude-sonnet-5-5"
+    feedback_effort: str = "low"
+    feedback_thinking: str = "between_tools"
 
     # [PR-G3] How many scopes of ONE test may be in flight at once. Was a
     # hardcoded 5, which made a 15-scope test three serial waves with no dial.
@@ -330,6 +339,10 @@ class Settings(BaseSettings):
     plan_build_envelope_usd: float = 1.0          # OD-W10: per-rubric spend cap; overrun → placeholder wording
     plan_route_min_points: int = 3                # OD-W5 / OD-24: monoliths at P ≥ 3 with a solution route
     plan_wait_s: float = 240.0                    # OD-W3: how long a grade waits on a LIVE builder
+    # [owner 2026-10-18, plan at save] a v6 grade waiting on a LIVE builder gets this much MORE
+    # before it fails as retryable (2 × plan_wait_s + grace = 600 s, inside the grade task's
+    # 900 s dispatch deadline).
+    plan_wait_grace_s: float = 120.0
     plan_build_heartbeat_ttl_minutes: int = 5     # building rows lapse after this without a heartbeat
     plan_build_dispatch_ttl_minutes: int = 90     # queued rows never claimed → failed (backstop)
     # Upload-declaration backstop (migration 025, ruling R9). NOT a LIV-1 arm:

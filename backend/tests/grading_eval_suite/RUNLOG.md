@@ -3563,3 +3563,33 @@ second exam, not another dollar on this one.**
 - **Gate:** `/health` 200; boot `SCHEMA OK: migration head 035 (35 applied; …)`; no ERROR.
 - **Rollback:** `gcloud run services update gradervision-backend --update-env-vars GRADER_ARCHITECTURE=v5` (or traffic back to `00054-h5b`).
 - **Next:** the production smoke (the owner uploads one real test and approves it), then read back the stamps and report the credit.
+
+## 2026-10-18 · PLAN AT SAVE — the v6 plan builds in the background when the rubric is saved (owner rulings)
+
+- **Rulings (owner, verbatim):** «1. Yes, build at save. 2. Yes, add it. (the 2 minutes addition to the fail as retryable tests) 3. No need to backfill.» and «if every rubric still pays for a v5 plan that nobody uses, turn it off, it is wastefull for no reason.»
+  - A proposed 2-minute START delay (a debounce for quick re-saves) was then REMOVED by the owner: «it is not needed».
+- **What changed:**
+  - `plan_store.kick_plan_build` (called by the three contract-writing endpoints after their commit) queues the plan of the ACTIVE grader. Under `GRADER_ARCHITECTURE=v6` that is the v6 row (its `v6_config_hash` key) and **no v5 row**. Under v5, unchanged.
+  - `plan_build_runner._build_claimed_row` hands a non-v5 row to the v6 builder (`plan_build_v6._build_row`) instead of refusing it. A row whose key is no longer the active v6 configuration's fails («the v6 configuration changed since this build was queued»).
+  - **Superseded skip:** a row whose `contract_sha256` no longer matches the rubric's CURRENT contract (re-saved between queue and run) is marked `failed` («superseded: …») before any spend. Before this, the background builder read the rubric's current contract and filed that plan under the OLD key.
+  - **The +2 minutes:** a v6 grade waiting on a LIVE builder now waits `wait_bound_s` = 2 × `PLAN_WAIT_S` + `PLAN_WAIT_GRACE_S` = **600 s** (was 480 s) before it fails as retryable. That is inside the grade task's 900 s dispatch deadline. A grade that waits the full 600 s has ≈300 s left to grade.
+  - No backfill: rubrics saved before this build in place at their first grade, as before.
+- **Tests:** `tests/services/test_plan_at_save.py`:
+  - under v6, the save queues the v6 row and no v5 row;
+  - `run_plan_build` builds it through the v6 builder, and the first grade reuses it (no second planner call);
+  - under v5, the save still queues v5;
+  - a re-saved rubric's old row skips without reaching the planner;
+  - the wait is 600 s.
+  - `test_plan_cache`'s refusal test was rewritten: a non-v5 row never gets a v5 plan.
+
+## 2026-10-18 · STUDENT FEEDBACK → Sonnet 5.5 (owner)
+
+- **Ruling (owner, verbatim):** «switch the student feedback to sonnet 5.5, it is better and cheaper (on average run)».
+- **Was:** `claude-sonnet-5` on `feedback-v1`, the code default since OD-B3 (2026-08-31). Production had no override.
+- **Now:** `feedback_model_key = claude-sonnet-5-5` at the v6 explainer's shipping setting: `feedback_effort = low`, `feedback_thinking = between_tools` (OO-3 arm B, the lowest). The prompt is unchanged (`feedback-v1`).
+  - The setting is my choice, mirroring the prose model the owner already adopted. It is a one-variable change if the owner wants another.
+- **The trap this avoided:** Sonnet 5.5 is built only with an explicit effort and thinking (AM-G18). `attach_feedback` catches a construction failure as `feedback_unavailable`, so a model-name-only switch would have silently stopped ALL feedback. The runner now sends both knobs for `NATIVE_SCHEMA_MODELS`.
+- **Schema:** the request schema was checked offline (the SDK's `transform_schema`): `$ref`, `anyOf` null, defaults moved to descriptions, `additionalProperties: false`, all within the documented structured-output rules. The first live call is the production smoke.
+- **Cost:** the same $2 / $10 per MTok card as Sonnet 5 (`claude-sonnet-5-5` is on `MODEL_CARDS`, so D-7 prices it).
+- **Rollback:** `FEEDBACK_MODEL_KEY=claude-sonnet-5` (one variable; the knobs are sent only to models that need them).
+- **Tests:** `test_feedback.py`: the pin, and both models driven through the REAL factory.

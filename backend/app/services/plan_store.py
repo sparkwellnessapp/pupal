@@ -303,11 +303,15 @@ async def ensure_plan_for_contract(*, rubric_id: Optional[UUID], contract_json: 
 
 
 async def kick_plan_build(rubric_id: UUID) -> Optional[UUID]:
-    """ensure + enqueue the v5 plan for a rubric that was just compiled, never
-    raises (the queued row is durable; the grade path builds on demand if the
-    enqueue is lost — OD-W1). Called by the three contract-writing endpoints
-    AFTER their commit, with the request session closed. Returns the new row
-    id, if any."""
+    """ensure + enqueue the plan of the ACTIVE grader for a rubric that was just
+    compiled, never raises (the queued row is durable; the grade path builds on
+    demand if the enqueue is lost — OD-W1). Called by the three contract-writing
+    endpoints AFTER their commit, with the request session closed. Returns the new
+    row id, if any.
+
+    [owner 2026-10-18, plan at save] Under GRADER_ARCHITECTURE=v6 this queues the v6
+    plan (its config key, `plan_build_v6.v6_config_hash`) and NO v5 plan — building a
+    plan no grader will read is spend for nothing. Otherwise the v5 plan, as before."""
     try:
         from ..models.grading import Rubric
         async with get_db_context() as db:
@@ -315,8 +319,15 @@ async def kick_plan_build(rubric_id: UUID) -> Optional[UUID]:
             contract_json = rubric.contract_json if rubric is not None else None
         if not contract_json:
             return None
+        from .grader_selection import grader_kind_for
+        if grader_kind_for(str(rubric_id)) == "v6":
+            from ..schemas.ontology_types import GradingRubricContract
+            from .plan_build_v6 import v6_config_hash
+            config_hash = v6_config_hash(GradingRubricContract.model_validate(contract_json))
+        else:
+            config_hash = V5_CONFIG_HASH
         row_id = await ensure_plan_for_contract(rubric_id=rubric_id, contract_json=contract_json,
-                                                config_hash=V5_CONFIG_HASH)
+                                                config_hash=config_hash)
         if row_id is None:
             return None
         from .cloud_tasks_service import enqueue_plan_build_task_or_log

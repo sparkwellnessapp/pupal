@@ -1,6 +1,8 @@
 """
-grader-v6 production plans — built LAZILY at grade time (owner rulings 2026-10-17 §9:
-"production v6 plans build lazily on the production credentials").
+grader-v6 production plans — built on the production credentials (owner rulings 2026-10-17
+§9), IN THE BACKGROUND AT RUBRIC SAVE since 2026-10-18 (owner: "build at save" — the
+`kick_plan_build` row runs `_build_row` below through `plan_build_runner`), and in place at
+grade time when that build has not landed.
 
     resolve_plan_v6_for_grade(rubric_id, contract_json) -> ResolvedPlanV6
 
@@ -115,6 +117,14 @@ async def _build_row(row_id: UUID, contract, sha: str, config_hash: str, *, call
                 f"wording={wording} cost_usd={cost}")
 
 
+def wait_bound_s(wait_s: float) -> float:
+    """How long a v6 grade waits on a LIVE builder before it fails as retryable: the v5
+    resolver's 2 × wait_s (a dead builder is only detectable once its heartbeat is older
+    than the TTL) + the owner's 2-minute grace (2026-10-18, plan at save) = 600 s by
+    default — inside the grade task's 900 s dispatch deadline with room to grade."""
+    return 2 * wait_s + float(settings.plan_wait_grace_s)
+
+
 @dataclass
 class ResolvedPlanV6:
     plan: GradingPlanV6
@@ -162,7 +172,7 @@ async def resolve_plan_v6_for_grade(rubric_id: Optional[UUID], contract_json: Di
                     await _build_row(row_id, contract, sha, config_hash, call=call)
                     built = True
                     continue
-            if loop.time() - t0 > 2 * wait_s:
+            if loop.time() - t0 > wait_bound_s(wait_s):
                 raise PlanUnavailable(f"v6 plan {row_id} still building after {loop.time() - t0:.0f}s")
             await asyncio.sleep(POLL_S)
             continue
