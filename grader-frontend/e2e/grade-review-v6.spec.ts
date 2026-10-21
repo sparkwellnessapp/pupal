@@ -135,3 +135,23 @@ test.describe('בדיקת ציונים — a grader-v6 grade', () => {
         expect(patched).toBe(false);
     });
 });
+
+test.describe('בדיקת ציונים v6 — «ציטוט מהתשובה» (owner 2026-10-21)', () => {
+    test('every criterion has the button; a click lights its quotes in the answer, a second click clears', async ({ page }) => {
+        await installV6(page);
+        await page.goto(REVIEW);
+        const buttons = page.locator('[data-quote-button]');
+        await expect(buttons.first()).toBeVisible();
+        expect(await buttons.count()).toBe(await page.locator('[data-v6-toggle]').count());
+
+        const first = page.locator('[data-quote-button]:not([disabled])').first();
+        const section = page.locator('section', { has: first });
+        await expect(section.locator('mark')).toHaveCount(0);
+        await first.click();
+        await expect(first).toHaveAttribute('aria-pressed', 'true');
+        await expect(section.locator('[data-answer-pane] mark').first()).toBeVisible();
+        if (process.env.QUOTE_SHOT) await page.screenshot({ path: process.env.QUOTE_SHOT });
+        await first.click();
+        await expect(section.locator('[data-answer-pane] mark')).toHaveCount(0);
+    });
+});
