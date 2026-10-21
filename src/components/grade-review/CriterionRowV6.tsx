@@ -5,7 +5,7 @@ import { useState } from 'react';
 import type { NumericPolicy } from '@/lib/pricing';
 import { answerRenderPlan } from '@/utils/answer-mode';
 import { formatPoints } from '@/utils/points-display';
-import type { V6Charge, V6Check, V6Criterion } from '@/utils/grade-review-v6-model';
+import { criterionQuoteSpans, type V6Charge, type V6Check, type V6Criterion } from '@/utils/grade-review-v6-model';
 import { PointsInput } from './PointsInput';
 import {
     RV_BREAKDOWN_COUNT, RV_BREAKDOWN_HIDE, RV_BREAKDOWN_SHOW,
@@ -16,7 +16,8 @@ import {
     V6_COMMENT_ADD, V6_COMMENT_CANCEL, V6_COMMENT_EDIT, V6_COMMENT_MINE,
     V6_COMMENT_PLACEHOLDER, V6_COMMENT_REMOVE, V6_COMMENT_SAVE, V6_FAULT_TAG, V6_GATED,
     V6_HER_TAG, V6_LINE_UPDATING, V6_MANUAL_CLEAR, V6_MANUAL_GRADE, V6_NOTE_PREFIX,
-    V6_QUOTE_PREFIX, V6_QUOTE_TITLE, V6_UNDECIDED, V6_VIVI_TAG, V6_WAITING,
+    V6_QUOTE_BUTTON, V6_QUOTE_NONE, V6_QUOTE_PREFIX, V6_QUOTE_TITLE, V6_UNDECIDED, V6_VIVI_TAG,
+    V6_WAITING,
 } from '@/copy/grade-review-v6';
 
 /**
@@ -371,6 +372,7 @@ export function CriterionRowV6({
     // is shown.
     const lineRepeatsLabel = criterion.pinned
         && criterion.line?.text.trim() === V6_MANUAL_GRADE;
+    const hasQuotes = criterionQuoteSpans(criterion).length > 0;
     return (
         <div
             data-v6-criterion={criterion.terminalId}
@@ -488,22 +490,30 @@ export function CriterionRowV6({
                     </p>
                 ) : null}
 
-                {criterion.primaryQuote ? (
-                    <p data-primary-quote className="mt-1">
+                {onToggleLit || criterion.primaryQuote ? (
+                    <p data-primary-quote={criterion.primaryQuote ? '' : undefined} className="mt-1">
                         {onToggleLit ? (
                             <button
                                 type="button"
-                                title={V6_QUOTE_TITLE}
-                                aria-pressed={lit}
+                                data-quote-button
+                                title={hasQuotes ? V6_QUOTE_TITLE : V6_QUOTE_NONE}
+                                aria-pressed={hasQuotes ? lit : undefined}
+                                disabled={!hasQuotes}
                                 onClick={onToggleLit}
-                                className="me-1 text-primary-700 underline underline-offset-link"
+                                className={`me-2 rounded-grade-ctl border px-2 py-0.5 ${
+                                    !hasQuotes
+                                        ? 'cursor-not-allowed border-grade-line-2 text-grade-pencil'
+                                        : lit
+                                            ? 'border-primary-700 bg-primary-50 text-primary-700'
+                                            : 'border-primary-200 text-primary-700 hover:bg-primary-50'}`}
                             >
-                                {V6_QUOTE_PREFIX}
+                                {V6_QUOTE_BUTTON}
                             </button>
                         ) : (
                             <span className="me-1">{V6_QUOTE_PREFIX}</span>
                         )}
-                        <Quote text={criterion.primaryQuote} subject={subject} />
+                        {criterion.primaryQuote
+                            ? <Quote text={criterion.primaryQuote} subject={subject} /> : null}
                     </p>
                 ) : null}
             </div>

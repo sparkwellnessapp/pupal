@@ -29,9 +29,16 @@ export const V6_LINE_UPDATING = 'ההסבר מתעדכן…'
 export const V6_MANUAL_GRADE = 'הציון נקבע ידנית'
 export const V6_MANUAL_CLEAR = 'חזרה לציון לפי הבדיקות'
 
-/** The evidence the criterion's main requirement was credited on. */
+/** The evidence a check was credited on (inside an opened row). */
 export const V6_QUOTE_PREFIX = 'מהתשובה:'
-export const V6_QUOTE_TITLE = 'הדגשת הציטוט בתשובה'
+/**
+ * [owner 2026-10-21] The button on EVERY criterion: lights all of the criterion's
+ * verified quotes in the answer and scrolls the answer to the first. Disabled,
+ * with the reason as its title, when there is nothing to light.
+ */
+export const V6_QUOTE_BUTTON = 'ציטוט מהתשובה'
+export const V6_QUOTE_TITLE = 'הדגשת הציטוטים של הקריטריון בתשובה'
+export const V6_QUOTE_NONE = 'אין לקריטריון הזה ציטוט מהתשובה להדגשה'
 
 /** «2 בדיקות מחכות לבחירה שלך» — on a closed row, so she knows to open it. */
 export const V6_WAITING = (n: number) =>

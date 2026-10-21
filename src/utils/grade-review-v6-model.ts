@@ -55,6 +55,7 @@ import {
     type WireDraft,
     type WireScope,
 } from './grade-review-model';
+import type { HighlightSpan } from './evidence-highlight';
 import { RV_BLOCK_GENERIC, RV_BLOCK_UNDECIDED } from '@/copy/grade-review';
 import { V6_BLOCK_FAILED } from '@/copy/grade-review-v6';
 
@@ -693,4 +694,16 @@ export function buildV6ReviewModel(options: BuildV6Options): V6ReviewModel {
         undecided,
         priced,
     };
+}
+
+
+/**
+ * [owner 2026-10-21] What the «ציטוט מהתשובה» button lights: every VERIFIED quote of
+ * the criterion's checks (exact or fuzzy; a `not_found` quote is never painted). One
+ * function, read by the button (enabled iff non-empty) and by the answer's highlight,
+ * so the two cannot disagree.
+ */
+export function criterionQuoteSpans(criterion: V6Criterion): HighlightSpan[] {
+    return criterion.checks.flatMap((c) => (c.quote && c.quoteKind
+        ? [{ quote: c.quote, kind: c.quoteKind }] : []));
 }
