@@ -261,3 +261,16 @@ describe('routing predicate', () => {
         expect(isV6Draft(null)).toBe(false);
     });
 });
+
+describe('criterionQuoteSpans — what «ציטוט מהתשובה» lights (owner 2026-10-21)', () => {
+    it('is every VERIFIED quote of the criterion, never a not_found one', async () => {
+        const { criterionQuoteSpans } = await import('./grade-review-v6-model');
+        const check = (quote: string | null, quoteKind: 'exact' | 'fuzzy' | null) =>
+            ({ quote, quoteKind }) as unknown as import('./grade-review-v6-model').V6Check;
+        const criterion = { checks: [check('a', 'exact'), check('b', 'fuzzy'), check(null, null),
+            check('c', null)] } as unknown as import('./grade-review-v6-model').V6Criterion;
+        expect(criterionQuoteSpans(criterion)).toStrictEqual([
+            { quote: 'a', kind: 'exact' }, { quote: 'b', kind: 'fuzzy' }]);
+    });
+});
+

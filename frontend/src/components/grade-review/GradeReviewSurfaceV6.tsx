@@ -6,7 +6,8 @@ import type { NumericPolicy } from '@/lib/pricing';
 import { NO_HIGHLIGHT, type Highlight } from '@/utils/evidence-highlight';
 import { resolveKeyAction } from '@/utils/grade-review-keymap';
 import type { QueueState } from '@/utils/grade-review-cursor';
-import type { V6ReviewModel, V6Scope } from '@/utils/grade-review-v6-model';
+import { criterionQuoteSpans, type V6ReviewModel, type V6Scope } from '@/utils/grade-review-v6-model';
+import { revealScrollTop } from '@/utils/grade-review-highlight-machine';
 import { REVIEW_LAYOUT_STACKED } from '@/lib/flags';
 import { AnswerBlock } from './AnswerBlock';
 import { CriterionRowV6 } from './CriterionRowV6';
@@ -166,6 +167,34 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
     const [editingPoints, setEditingPoints] = useState<string | null>(null);
     const [lit, setLit] = useState<string | null>(null);
 
+    // [owner 2026-10-21] After «ציטוט מהתשובה» lights a criterion's quotes, scroll THAT
+    // scope's answer body to the first mark. One element's scrollTop, never
+    // `scrollIntoView` (it would move the page too — HL-3). Post-commit, because the
+    // marks exist only once the lit state has painted. Nothing to reveal → nothing moves.
+    useEffect(() => {
+        if (!lit || typeof document === 'undefined') return;
+        const scopeId = model.scopes.find((s) =>
+            s.criteria.some((c) => c.terminalId === lit))?.scopeId;
+        if (!scopeId) return;
+        const body = document.querySelector<HTMLElement>(
+            `[data-answer-for="${CSS.escape(scopeId)}"]`);
+        const first = body?.querySelector<HTMLElement>('mark');
+        if (!body || !first) return;
+        const bodyTop = body.getBoundingClientRect().top + body.clientTop;
+        const box = first.getBoundingClientRect();
+        const top = revealScrollTop({
+            spanTop: box.top - bodyTop + body.scrollTop,
+            spanBottom: box.bottom - bodyTop + body.scrollTop,
+            scrollTop: body.scrollTop,
+            clientHeight: body.clientHeight,
+            scrollHeight: body.scrollHeight,
+        });
+        if (top === null) return;                      // already in view
+        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        body.scrollTo({ top, behavior: reduce ? 'auto' : 'smooth' });
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- reveal on the CLICK only
+    }, [lit]);
+
     const markersByScope = useMemo(() => Object.fromEntries(
         model.scopes.map((s) => [s.scopeId, s.undecidedCount])), [model.scopes]);
 
@@ -255,8 +284,7 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
                         const litHere = scope.criteria.find((c) => c.terminalId === lit);
                         const highlight: Highlight = litHere ? {
                             pinned: true,
-                            spans: litHere.checks.flatMap((c) => (c.quote && c.quoteKind
-                                ? [{ quote: c.quote, kind: c.quoteKind }] : [])),
+                            spans: criterionQuoteSpans(litHere),
                         } : NO_HIGHLIGHT;
                         return (
                             <section

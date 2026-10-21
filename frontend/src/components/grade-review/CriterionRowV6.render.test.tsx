@@ -4,13 +4,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { CriterionRowV6, signedPoints } from './CriterionRowV6';
 import { loadV6Fixture } from '@/mocks/grade_review/v6Fixture';
 import {
-    buildV6ReviewModel, overlayFromWire, setPin, emptyOverlayV6, type V6Criterion,
+    buildV6ReviewModel, criterionQuoteSpans, overlayFromWire, setPin, emptyOverlayV6, type V6Criterion,
     type GradedTestV6Response,
 } from '@/utils/grade-review-v6-model';
 import type { NumericPolicy } from '@/lib/pricing';
 import {
     V6_CHARGE_CAPPED, V6_CHARGE_MOVED, V6_CHIP, V6_HER_TAG, V6_LINE_UPDATING,
-    V6_MANUAL_GRADE, V6_UNDECIDED, V6_VIVI_TAG,
+    V6_MANUAL_GRADE, V6_QUOTE_BUTTON, V6_QUOTE_NONE, V6_QUOTE_TITLE, V6_UNDECIDED, V6_VIVI_TAG,
 } from '@/copy/grade-review-v6';
 
 /**
@@ -180,5 +180,44 @@ describe('signedPoints', () => {
         expect(signedPoints('1.00')).toBe('1');
         expect(signedPoints('0')).toBe('0');
         expect(signedPoints('-0')).toBe('0');
+    });
+});
+
+describe('CriterionRowV6 — «ציטוט מהתשובה» (owner 2026-10-21)', () => {
+    const base = criteriaOf(fx.base);
+    const button = (html: string) => html.match(/<button[^>]*data-quote-button[^>]*>[^<]*<\/button>/)?.[0];
+    const renderLit = (c: V6Criterion, lit = false) => renderToStaticMarkup(
+        <CriterionRowV6 criterion={c} policy={POLICY} open={false} onToggle={() => undefined}
+            lit={lit} onToggleLit={() => undefined} />,
+    );
+
+    it('is on every criterion, enabled where there is a verified quote, pressed when lit', () => {
+        for (const c of base.values()) {
+            const b = button(renderLit(c));
+            expect(b, c.terminalId).toBeDefined();
+            expect(text(b!)).toBe(V6_QUOTE_BUTTON);
+            expect(b).toContain(criterionQuoteSpans(c).length ? V6_QUOTE_TITLE : V6_QUOTE_NONE);
+        }
+        const quoted = [...base.values()].find((c) => criterionQuoteSpans(c).length)!;
+        expect(button(renderLit(quoted))).not.toContain('disabled');
+        expect(button(renderLit(quoted, true))).toContain('aria-pressed="true"');
+    });
+
+    it('is disabled, with the reason, when the criterion has no verified quote', () => {
+        const some = [...base.values()][0];
+        const none: V6Criterion = { ...some, primaryQuote: null,
+            checks: some.checks.map((k) => ({ ...k, quote: null, quoteKind: null })) };
+        const b = button(renderLit(none))!;
+        expect(b).toContain('disabled=""');
+        expect(b).toContain(`title="${V6_QUOTE_NONE}"`);
+        expect(b).not.toContain('aria-pressed');
+    });
+
+    it('lights ALL the criterion`s verified quotes, not only the main one', () => {
+        const multi = [...base.values()].find((c) =>
+            c.checks.filter((k) => k.quote && k.quoteKind).length > 1);
+        if (!multi) return;          // the fixture decides; the model test pins the rule
+        expect(criterionQuoteSpans(multi).length).toBe(
+            multi.checks.filter((k) => k.quote && k.quoteKind).length);
     });
 });
