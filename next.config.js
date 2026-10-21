@@ -32,6 +32,13 @@ const nextConfig = {
       },
     ],
   },
+  // The marketing site (Vercel project vivi-site-il) lives at /site-il.
+  async rewrites() {
+    return [
+      { source: '/site-il', destination: 'https://vivi-site-il.vercel.app/site-il' },
+      { source: '/site-il/:path*', destination: 'https://vivi-site-il.vercel.app/site-il/:path*' },
+    ]
+  },
 }
 
 module.exports = nextConfig
