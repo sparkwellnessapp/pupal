@@ -63,6 +63,9 @@ class ScopePlanResult:
     outputs: List[Dict[str, Any]] = field(default_factory=list)     # raw outputs, for recorded fixtures
     usage: List[Dict[str, Any]] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)                 # what sent it to repair / fallback
+    # [2026-10-18] the provider exception when a CALL failed (not the content): what lets the
+    # builder tell an outage from a plan the model could not get right
+    call_error: Optional[BaseException] = field(default=None, repr=False, compare=False)
 
     @property
     def model_fallback(self) -> bool:
@@ -87,11 +90,12 @@ def _attempt(scope: V6Scope, out: ScopePlanOutput, precision: Decimal, am_g19: s
 
 
 def _fallback(scope: V6Scope, precision: Decimal, origin: Origin, reason: str,
-              errors: Sequence[str] = (), outputs=(), usage=()) -> ScopePlanResult:
+              errors: Sequence[str] = (), outputs=(), usage=(),
+              call_error: Optional[BaseException] = None) -> ScopePlanResult:
     terminals, checks, disps = fallback_scope(scope, precision)
     telemetry = [] if origin == "compiled" else [f"planner_fallback {scope.scope}: {reason}"]
     return ScopePlanResult(scope.scope, origin, terminals, checks, disps, telemetry,
-                           list(outputs), list(usage), list(errors))
+                           list(outputs), list(usage), list(errors), call_error)
 
 
 async def plan_scope(scope: V6Scope, *, precision: Decimal, system_prompt: str, user_message: str,
@@ -106,7 +110,8 @@ async def plan_scope(scope: V6Scope, *, precision: Decimal, system_prompt: str, 
     try:
         out, u = await call(system_prompt, user_message)
     except Exception as e:                                    # noqa: BLE001 — isolated per scope (§3.6)
-        return _fallback(scope, precision, "fallback", f"call_failed: {type(e).__name__}")
+        return _fallback(scope, precision, "fallback", f"call_failed: {type(e).__name__}",
+                         call_error=e)
     outputs.append(out.model_dump(mode="json"))
     usage.append(u)
     done, errs = _attempt(scope, out, precision, mode, am_g20)
@@ -133,7 +138,7 @@ async def plan_scope(scope: V6Scope, *, precision: Decimal, system_prompt: str, 
         if kept:
             return ScopePlanResult(scope.scope, "planner", *kept, outputs, usage, list(errs))
         return _fallback(scope, precision, "fallback", f"repair_call_failed: {type(e).__name__}",
-                         errs, outputs, usage)
+                         errs, outputs, usage, call_error=e)
     outputs.append(out2.model_dump(mode="json"))
     usage.append(u2)
     done, errs2 = _attempt(scope, out2, precision, mode, am_g20)

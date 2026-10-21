@@ -3674,3 +3674,21 @@ second exam, not another dollar on this one.**
   - the owner tops up the production Anthropic account;
   - plan-at-save with a REAL plan and Sonnet 5.5 feedback are still not seen live.
 
+## 2026-10-18 · FIX (owner OK) — a plan built in an outage lands FAILED, never cached ready
+
+- **Rule:** when every scope that needed the planner fell back because its CALL failed, `build_plan_v6` raises `PlannerUnavailable` chained to the provider's error.
+  - The row lands `failed`.
+  - `PROVIDER_BILLING_EXHAUSTED site=plan_build_v6` fires.
+  - The next grade rebuilds once credit is back.
+  - Unchanged: a refused output (content) or a partial outage still lands a placeholder plan.
+- **Found while fixing it:** a grade that builds in place and fails used to re-insert and rebuild round after round until the task deadline. During an outage that is 15 minutes of refused calls per grade.
+  - The fix: `_raise_if_failed` ends the grade after the first failed build (retryable).
+  - Mutation-checked: with the stop removed, the test fails.
+  - The v5 resolver has the same loop; it is left alone (rollback path; it fails only on a `CompilerBug`) and noted in CLAUDE.md.
+- **Tests:** `tests/services/test_plan_outage.py`:
+  - the rule, pure;
+  - the builder's chained error;
+  - outage at save → failed + alert → the grade rebuilds once credit is back;
+  - outage at grade → failed after ONE round.
+  - Two tests that simulated an outage to obtain a placeholder plan now use a refused output.
+

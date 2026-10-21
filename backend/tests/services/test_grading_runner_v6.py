@@ -82,15 +82,16 @@ def test_v6_grades_build_the_plan_once_and_land_pinned_drafts(monkeypatch):
     bundle = load_bundle("din_ezra", require_gt=False)
     planner_calls = []
 
-    async def planner_outage(system, user):                 # every scope takes the fallback
+    async def planner_refused(system, user):                # every scope's output is refused → the
+        from app.agents.planner.schemas import ScopePlanOutput   # fallback (content, not an outage)
         planner_calls.append(1)
-        raise RuntimeError("planner unavailable in tests")
+        return ScopePlanOutput(terminals=[]), {}
 
     monkeypatch.setattr(settings, "grader_architecture", "v6")
     monkeypatch.setattr(settings, "v6_explainer_model", "")       # the fallback composer's lines
     monkeypatch.setattr(settings, "feedback_model_key", "")
     monkeypatch.setattr("app.agents.planner.planner_llm.build_planner_call",
-                        lambda **kw: planner_outage)
+                        lambda **kw: planner_refused)
     monkeypatch.setattr("app.agents.grader.llm_factory.build_chat_model",
                         lambda *a, **kw: _Fake(_full))
     sha = contract_sha256(bundle.rubric_contract.model_dump(mode="json"))

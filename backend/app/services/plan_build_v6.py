@@ -21,6 +21,14 @@ job's budget. The config hash is a function of the stage-1 version, the planner 
 prompt version, and the subject pack — so a change to any of them is a NEW key: old drafts
 keep their pinned plan (`graded_tests.plan_hash`), new grades build a new one.
 
+A provider outage is NOT a plan (owner OK 2026-10-18). When every planned scope fell back because
+its planner CALL failed — not because the model's output was refused — `build_plan_v6` raises
+`PlannerUnavailable` (chained to the provider's exception, so the A-8 billing alert fires), the
+row lands `failed`, and the next grade rebuilds once the provider is back. Seen live: a build
+during a credit outage finished in 7 s at $0 and was cached `ready` as an all-fallback plan,
+which every later grade of that rubric would have used, and which a re-save could not replace.
+A PARTIAL outage (some scopes planned) still lands `ready` with placeholder wording, as before.
+
 Two v5 columns are re-read for v6 rows (decided — pending owner veto): `wording_source` is
 `segmented` when every planned scope came from the model and `placeholder` when any scope
 fell back (the CHECK admits only those two); `plan_version` is `plan/v6:<hash12>`.
@@ -54,6 +62,23 @@ def _profile(contract):
     return get_profile(getattr(contract, "subject", None) or "computer_science")
 
 
+class PlannerUnavailable(Exception):
+    """Every planned scope's planner call failed: an outage, not a plan. Chained (`from`) to
+    the provider's own exception."""
+
+
+def provider_outage(results) -> Optional[BaseException]:
+    """The provider exception to fail the build on, or None. Only when EVERY scope that needed
+    the planner fell back on a failed CALL (a refused output is a content failure, not an
+    outage). A billing exception is preferred, so the alert names the real cause."""
+    from .provider_billing import is_billing_exhausted
+    planned = [r for r in results if r.origin != "compiled"]
+    if not planned or not all(r.origin == "fallback" and r.call_error is not None for r in planned):
+        return None
+    return next((r.call_error for r in planned if is_billing_exhausted(r.call_error)),
+                planned[0].call_error)
+
+
 def v6_config_hash(contract) -> str:
     from app.agents.plan_compiler.models import MODEL_CARDS
     from app.agents.plan_compiler.stage1_v6 import STAGE1_V6_VERSION
@@ -80,6 +105,11 @@ async def build_plan_v6(contract, *, sha: str, call=None) -> Tuple[GradingPlanV6
     results = await plan_all(s1, system_prompt=planner_system_prompt(profile, version),
                              render=lambda scope: render_scope_input(scope_planner_input(scope)), call=call,
                              am_g20=am_g20_applies(version))
+    cause = provider_outage(results)
+    if cause is not None:
+        n = sum(1 for r in results if r.origin != "compiled")
+        raise PlannerUnavailable(f"every planned scope's planner call failed ({n} scope(s)); "
+                                 f"first cause {type(cause).__name__}") from cause
     plan = assemble_plan(results, config_hash=v6_config_hash(contract),
                          rubric_contract_version=str(contract.contract_version),
                          pack=PackRef(pack_id=profile.pack_id, pack_version=profile.pack_version))
@@ -125,6 +155,16 @@ def wait_bound_s(wait_s: float) -> float:
     return 2 * wait_s + float(settings.plan_wait_grace_s)
 
 
+async def _raise_if_failed(row_id: UUID) -> None:
+    """After an in-place build: a `failed` row ends this grade (retryable). Without it the loop
+    finds no LIVE row, inserts a new one and builds again — round after round, against a
+    provider that is down, until the grade task's deadline."""
+    async with get_db_context() as db:
+        row = await db.get(GradingPlanRecord, row_id)
+    if row is not None and row.status == "failed":
+        raise PlanUnavailable(f"v6 plan build {row_id} failed: {row.error_message}")
+
+
 @dataclass
 class ResolvedPlanV6:
     plan: GradingPlanV6
@@ -161,6 +201,7 @@ async def resolve_plan_v6_for_grade(rubric_id: Optional[UUID], contract_json: Di
                 claimed = await plan_store.claim_building(db, row_id)
             if claimed:
                 await _build_row(row_id, contract, sha, config_hash, call=call)
+                await _raise_if_failed(row_id)
                 built = True
                 continue
         elif status == "building":
@@ -170,6 +211,7 @@ async def resolve_plan_v6_for_grade(rubric_id: Optional[UUID], contract_json: Di
                     claimed = await plan_store.claim_building(db, row_id, stale_before=now - ttl)
                 if claimed:
                     await _build_row(row_id, contract, sha, config_hash, call=call)
+                    await _raise_if_failed(row_id)
                     built = True
                     continue
             if loop.time() - t0 > wait_bound_s(wait_s):

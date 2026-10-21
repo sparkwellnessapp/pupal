@@ -47,10 +47,11 @@ def test_a_v6_grade_waits_600s_by_default_inside_the_dispatch_deadline():
 # ── the save: the v6 plan, and no v5 plan ───────────────────────────────────
 
 def _planner(calls):
-    async def planner_outage(system, user):                 # every scope takes the fallback
+    async def planner_refused(system, user):                # every scope's output is refused → the
+        from app.agents.planner.schemas import ScopePlanOutput   # fallback (content, not an outage)
         calls.append(1)
-        raise RuntimeError("planner unavailable in tests")
-    return planner_outage
+        return ScopePlanOutput(terminals=[]), {}
+    return planner_refused
 
 
 @pytest.mark.db
