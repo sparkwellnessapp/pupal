@@ -165,6 +165,15 @@ export interface ReviewCheck {
     pointsTyped: boolean;
     /** [OD-R2] The criterion above carries a typed total; this row is display only. */
     underPin: boolean;
+    /**
+     * [2026-09-15] Vivi's credit verdict cites a span the validator could not
+     * find, and she has not decided the row yet. The pricer refuses the credit
+     * (the invented-credit guard), so this ✓ is worth 0 until she confirms it —
+     * the glyph says so instead of pretending to be an ordinary ✓.
+     */
+    unverified: boolean;
+    /** She confirmed that unverified verdict: credited on her reading of the paper. */
+    evidenceConfirmed: boolean;
     note: string | null;
     evidenceDisputed: boolean;
     awarded: string;
@@ -552,6 +561,11 @@ export function buildReviewModel(options: BuildOptions): ReviewModel {
                     overridden,
                     pointsTyped: typedPointsFor(overlay, terminalId, check.check_id) !== null,
                     underPin: pinsHere[terminalId] !== undefined,
+                    unverified: override === undefined
+                        && (check.kind === 'required' || check.kind === 'counted')
+                        && (check.verdict === 'met' || check.verdict === 'partially_met')
+                        && check.quote_status !== 'exact' && check.quote_status !== 'fuzzy',
+                    evidenceConfirmed: Boolean(override?.evidence_confirmed),
                     note: override?.teacher_comment ?? null,
                     evidenceDisputed: Boolean(override?.evidence_disputed),
                     awarded,

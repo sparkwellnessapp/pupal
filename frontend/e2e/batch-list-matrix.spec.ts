@@ -25,27 +25,27 @@ const row = (over: Record<string, unknown>) => ({
 const POPULATED = [
     row({
         id: 'b-1', name: 'מתכונת קיץ · יא׳3 · 18.8.2026',
-        rollup: seedRollup({ transcribing: 3, transcribed: 2, approved: 1, total: 6 }),
+        rollup: seedRollup({ transcribing: 3, transcribed: 2, approved_transcription: 1, approved: 1, total: 6 }),
         created_at: minutesAgo(12),
     }),
     row({
         id: 'b-2', name: 'מבחן מחצית · יב׳1',
-        rollup: seedRollup({ transcribed: 5, approved: 2, total: 7 }),
+        rollup: seedRollup({ transcribed: 5, approved_transcription: 2, approved: 2, total: 7 }),
         created_at: minutesAgo(95),
     }),
     row({
         id: 'b-3', name: null, class_name: null,        // → fallback name, no class
-        rollup: seedRollup({ draft: 3, grading: 1, approved: 4, total: 8 }),
+        rollup: seedRollup({ approved_transcription: 8, draft: 3, grading: 1, approved: 4, total: 8 }),
         created_at: minutesAgo(400),
     }),
     row({
         id: 'b-4', name: 'הכול אושר', status: 'completed',
-        rollup: seedRollup({ approved: 5, total: 5 }),
+        rollup: seedRollup({ approved_transcription: 5, approved: 5, total: 5 }),
         created_at: minutesAgo(1500),
     }),
     row({
         id: 'b-5', name: 'עם כשלים', status: 'partially_completed',
-        rollup: seedRollup({ approved: 3, transcription_failed: 2, total: 5 }),
+        rollup: seedRollup({ approved_transcription: 3, approved: 3, transcription_failed: 2, total: 5 }),
         created_at: minutesAgo(2000),
     }),
 ];

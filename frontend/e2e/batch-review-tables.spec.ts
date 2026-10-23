@@ -92,7 +92,9 @@ test('transcription-table-rendering — grid by default, verbatim text one click
     const view = page.getByTestId('transcribed-answer-view');
     await expect(view).toBeVisible();
     await expect(view.locator('table')).toBeVisible();
-    await expect(view.locator('thead th').first()).toHaveText('returned');
+    // Since native table editing (2026-09-24) a header cell holds an INPUT over
+    // its span of the string — assert its value, not the cell's text content.
+    await expect(view.locator('thead th').first().getByTestId('answer-cell')).toHaveValue('returned');
     await expect(page.getByText('6 | 0 | 1 | F')).toHaveCount(0);
     await expect(page.getByTestId('transcription-editor')).toHaveCount(0);
     // The surrounding prose is untouched by the grid.

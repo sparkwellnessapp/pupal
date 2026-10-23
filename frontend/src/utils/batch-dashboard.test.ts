@@ -179,16 +179,30 @@ describe('pollCadenceMs (D12)', () => {
     })).toBe(5000)
   })
   it('stops when nothing moves', () => {
+    // A signed batch has a gate-passed transcription behind every grade —
+    // `approved_transcription` is what the wire actually carries here, and
+    // the accounting below is what tells this apart from a torn snapshot.
     expect(pollCadenceMs({
-      rollup: rollup({ approved: 2, total: 2 }), active_jobs: [],
+      rollup: rollup({ approved_transcription: 2, approved: 2, total: 2 }), active_jobs: [],
     })).toBeNull()
+  })
+
+  it('KEEPS polling over a document the rollup cannot place (the torn snapshot)', () => {
+    // 2026-09-19: a completed job whose transcription row was not yet visible
+    // produced `total 1` with every other count zero. That is byte-identical
+    // to "the one document already passed the gate", so this returned null,
+    // the dashboard stopped asking, and it froze on «הושלם» over an unreviewed
+    // paper. An unaccounted document is still moving — 3s, like any other.
+    expect(pollCadenceMs({
+      rollup: rollup({ total: 1 }), active_jobs: [],
+    })).toBe(3000)
   })
 })
 
 describe('completionReached (D10)', () => {
   it('requires no transcribing, no transcribed, no active jobs, and rows', () => {
     expect(completionReached({
-      rollup: rollup({ approved: 3, total: 3 }), active_jobs: [],
+      rollup: rollup({ approved_transcription: 3, approved: 3, total: 3 }), active_jobs: [],
     })).toBe(true)
     expect(completionReached({
       rollup: rollup({ transcribing: 1, total: 3 }), active_jobs: [],
@@ -197,10 +211,28 @@ describe('completionReached (D10)', () => {
       rollup: rollup({ transcribed: 1, total: 3 }), active_jobs: [],
     })).toBe(false)
     expect(completionReached({
-      rollup: rollup({ approved: 3, total: 3 }),
+      rollup: rollup({ approved_transcription: 3, approved: 3, total: 3 }),
       active_jobs: [{ state: 'queued' }],
     })).toBe(false)
     expect(completionReached({ rollup: rollup(), active_jobs: [] })).toBe(false)
+  })
+
+  it('is NEVER inferred from absence: a document the rollup cannot place is not done', () => {
+    // The identity `uploading + not_received + transcribing + transcription_failed
+    // + transcribed + approved_transcription === total` holds on every
+    // consistent server snapshot. The one way it fails is a torn read — and a
+    // torn read is precisely a document that has passed nothing.
+    expect(completionReached({
+      rollup: rollup({ total: 1 }), active_jobs: [],
+    })).toBe(false)
+    // Two of three accounted for, one not: still not done, whatever else is 0.
+    expect(completionReached({
+      rollup: rollup({ approved_transcription: 2, approved: 2, total: 3 }), active_jobs: [],
+    })).toBe(false)
+    // …and the fully accounted-for version of the same batch IS done.
+    expect(completionReached({
+      rollup: rollup({ approved_transcription: 3, approved: 3, total: 3 }), active_jobs: [],
+    })).toBe(true)
   })
 })
 
@@ -267,7 +299,7 @@ describe('signOffReached (§5.1F)', () => {
   it('does NOT fire on transcription completion — the mid-flow hero this replaced', () => {
     // Every transcription approved, every grade still a draft. `completionReached`
     // says true here, which is exactly why it could not be the celebration trigger.
-    const transcriptionsDone = batch({ total: 3, draft: 3 })
+    const transcriptionsDone = batch({ total: 3, approved_transcription: 3, draft: 3 })
     expect(completionReached(transcriptionsDone)).toBe(true)
     expect(signOffReached(transcriptionsDone)).toBe(false)
   })

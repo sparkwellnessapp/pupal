@@ -299,6 +299,13 @@ export const APPROVE_AND_CONTINUE = 'אישור והמשך'
 export const ANSWER_VIEW_SHOW_RAW = 'הצגת הטקסט המקורי'
 export const ANSWER_VIEW_SHOW_TABLE = 'הצגה כטבלה'
 export const ANSWER_VIEW_FLAGS_HIDDEN = 'שורות מסומנות מוצגות רק בטקסט המקורי'
+// Native table editing (2026-09-24): a cell edit never changes the grid (TBL-4).
+export const ANSWER_CELL_HINT_PIPE = 'התו | מפריד בין תאים, ולכן אי אפשר להקליד אותו בתוך תא'
+export const ANSWER_CELL_HINT_STRUCTURE =
+  'שינוי זה ישנה את מבנה הטבלה ולא יישמר — אפשר לערוך אותו בטקסט המקורי'
+export const ANSWER_CELL_ABSENT = 'אין תא כזה בטקסט המתומלל'
+export const ANSWER_CELL_LABEL = (row: number, col: number) => `תא בשורה ${row}, עמודה ${col}`
+export const ANSWER_TEXT_RUN_LABEL = 'טקסט התשובה'
 export const SOFT_REFETCH_NOTE = 'הרענון נכשל — הנתונים יתעדכנו בהמשך'
 export const INTERSTITIAL_TITLE = 'כל המבחנים שסומנו נבדקו'
 export const INTERSTITIAL_BODY = (n: number) =>
@@ -476,9 +483,7 @@ export const EXPLAINER_DISMISS = 'הבנתי'
  * UNDER A GROUP, COUNTS ONLY — never which questions are "missing". The student
  * chose; there is nothing to find.
  */
-/** §5.3D verbatim. The count is of LEAF KEYS — a question with three
- *  sub-questions contributes three — so they are סעיפים, never שאלות. */
-export const COMPLETE_ALL = (n: number) => `נמצאו תשובות לכל ${n} הסעיפים`
+export const COMPLETE_ALL = (n: number) => `נמצאו תשובות לכל ${n} השאלות`
 export const COMPLETE_MISSING = (found: number, total: number, keys: string) =>
   `נמצאו ${found} מתוך ${total} סעיפים — ${keys} לא נמצאו`
 export const COMPLETE_MISSING_PREFIX = (keys: string) => `${keys} לא נמצאו`

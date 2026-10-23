@@ -22,6 +22,7 @@ import {
     RV_NAV_HEADING,
     RV_NAV_NEXT,
     RV_NAV_PREV,
+    RV_NAV_TO_BATCH,
     RV_QUEUE_GRADING,
     RV_QUEUE_NEXT,
     RV_QUEUE_SEP,
@@ -64,6 +65,14 @@ export interface ReviewTopBarProps {
     onNext: () => void;
     onOpenPreview: () => void;
     /**
+     * The batch dashboard, rendered as a small link ABOVE «הבא». Until it was
+     * added the module had no exit of its own: the WaitCard's link appears
+     * only once the queue is exhausted, and the interstitial only below
+     * `desk`, so on a desktop with tests left to review the only way back to
+     * the pile was the browser's own back button.
+     */
+    batchHref: string;
+    /**
      * Play the stamp coming down (R12). Set for one beat right after
      * `/approve` returns: the signature is the moment the grade becomes hers,
      * and it is the only animation on this surface that marks a commitment.
@@ -83,13 +92,25 @@ export interface ReviewTopBarProps {
 
 export function ReviewTopBar({
     studentName, meta, total, possible, anyOverride, approved,
-    canPrev, canNext, onPrev, onNext, onOpenPreview,
+    canPrev, canNext, onPrev, onNext, onOpenPreview, batchHref,
     stampPressed = false, revision, thumbUrl = null,
 }: ReviewTopBarProps) {
     return (
-        <div className="sticky top-0 z-40 -mx-6 mb-4 border-b border-grade-line
-            bg-grade-canvas/90 px-6 pb-2.5 pt-3 backdrop-blur">
-            <div className="mx-auto flex max-w-review items-center justify-between gap-4">
+        <div
+            // OD-A12: the scope card's strip pins directly beneath this bar and
+            // the pane beneath that, so its height is a LAYOUT INPUT. It is
+            // measured (ResizeObserver, §5.4) rather than assumed, because the
+            // revision menu and a two-line identity both change it.
+            data-review-topbar
+            className="sticky top-0 z-40 -mx-6 mb-4 border-b border-grade-line
+            bg-grade-canvas/90 px-6 pb-2.5 pt-3 backdrop-blur"
+        >
+            {/* `items-end`, not `items-center`: the end column is two rows
+                tall (the dashboard link over «הבא»), and centering it would
+                float «הבא» half a row below «הקודם». Bottom-aligned, the two
+                nav buttons share one baseline and the link sits above it. */}
+            <div className="mx-auto flex max-w-review items-end justify-between gap-4
+                split:max-w-review-wide">
                 <button
                     type="button"
                     onClick={onPrev}
@@ -157,18 +178,32 @@ export function ReviewTopBar({
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    onClick={onNext}
-                    disabled={!canNext}
-                    className="flex min-w-nav-btn items-center justify-center gap-2
-                        rounded-grade-ctl border border-grade-line bg-grade-card px-3.5 py-2
-                        text-gr-body text-grade-ink-2 hover:border-grade-pencil-2
-                        disabled:opacity-40"
-                >
-                    {RV_NAV_NEXT}
-                    <span aria-hidden="true" className="text-gr-arrow leading-none">‹</span>
-                </button>
+                {/* One column, the width of a nav button, so the link and «הבא»
+                    share an edge and neither can jitter the other. */}
+                <div className="flex min-w-nav-btn flex-col items-stretch gap-1.5">
+                    <Link
+                        href={batchHref}
+                        data-nav-batch
+                        className="flex items-center justify-center rounded-grade-ctl border
+                            border-primary-600 bg-primary-600 px-2.5 py-1 text-gr-chip
+                            font-medium leading-tight text-white
+                            hover:border-primary-700 hover:bg-primary-700"
+                    >
+                        {RV_NAV_TO_BATCH}
+                    </Link>
+                    <button
+                        type="button"
+                        onClick={onNext}
+                        disabled={!canNext}
+                        className="flex items-center justify-center gap-2
+                            rounded-grade-ctl border border-grade-line bg-grade-card px-3.5 py-2
+                            text-gr-body text-grade-ink-2 hover:border-grade-pencil-2
+                            disabled:opacity-40"
+                    >
+                        {RV_NAV_NEXT}
+                        <span aria-hidden="true" className="text-gr-arrow leading-none">‹</span>
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -189,7 +224,8 @@ export function QueueLine({ queue, eta }: { queue: QueueState; eta: string | nul
     if (!parts.length) return null;
 
     return (
-        <p className="mx-auto mt-2 max-w-review text-center text-gr-meta text-grade-pencil">
+        <p className="mx-auto mt-2 max-w-review text-center text-gr-meta text-grade-pencil
+            split:max-w-review-wide">
             {parts.join(RV_QUEUE_SEP)}
         </p>
     );
@@ -324,9 +360,15 @@ export function ReviewBottomBar({
     onShowKeys: () => void;
 }) {
     return (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-grade-line
-            bg-grade-bar px-6 py-2.5">
-            <div className="mx-auto flex max-w-review items-center justify-between gap-4">
+        <div
+            // OD-A12: the pane's height cap subtracts this bar, so LAY-4 holds
+            // (the last line of a fully scrolled answer is never under it).
+            data-review-actionbar
+            className="fixed inset-x-0 bottom-0 z-50 border-t border-grade-line
+            bg-grade-bar px-6 py-2.5"
+        >
+            <div className="mx-auto flex max-w-review items-center justify-between gap-4
+                split:max-w-review-wide">
                 <div className="flex flex-wrap items-center gap-4 text-gr-meta text-grade-pencil">
                     <span
                         data-save-state={saveState}

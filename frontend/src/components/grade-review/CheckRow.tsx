@@ -11,6 +11,7 @@ import {
     RV_CHIP_NOT_FOUND,
     RV_COUNTED_OF,
     RV_NOTE_PLACEHOLDER,
+    RV_ORIG_CONFIRMED,
     RV_ORIG_MINE,
     RV_ORIG_PREFIX,
     RV_ORIG_REVERT,
@@ -62,6 +63,10 @@ export interface CheckRowCheck {
     pointsTyped: boolean;
     /** [OD-R2] The criterion above carries a typed total; this row is display only. */
     underPin: boolean;
+    /** Vivi's credit verdict on a span she could not verify, undecided by the teacher. */
+    unverified: boolean;
+    /** She confirmed that verdict — credited on her reading of the paper. */
+    evidenceConfirmed: boolean;
     text: string;
     kind: 'required' | 'tariff' | 'note_only' | 'counted';
     /** The model's one-line Hebrew basis, rendered small under the text. */
@@ -153,12 +158,33 @@ export function CheckRow({
             data-points-typed={check.pointsTyped ? 'true' : 'false'}
             data-under-pin={check.underPin ? 'true' : 'false'}
             data-check-kind={check.kind}
+            data-unverified={check.unverified ? 'true' : 'false'}
             tabIndex={-1}
             onClick={onFocus}
-            onMouseEnter={() => onHover(true)}
-            onMouseLeave={() => onHover(false)}
+            /*
+             * THE WHOLE ROW IS THE HOVER SURFACE (§6.5) — text, verdict, points
+             * control, not the quote button alone — and only when a mark will
+             * actually be painted: a row whose quote was never found offers no
+             * button and must not react to the pointer either (OD-12).
+             *
+             * `pointer*`, not `mouse*`, with TOUCH refused: a tap would arm the
+             * intent timer and light a row she only meant to press.
+             *
+             * `onPointerMove` as well as `onPointerEnter` (OD-A6): the boundary
+             * events fire BEFORE the `pointermove` that re-arms hover after a
+             * page scroll, so enter alone would leave a re-armed pointer resting
+             * on a row with nothing left to trigger it — «move the pointer and
+             * hover works again» would quietly be false. The reducer no-ops once
+             * this row is already pending or shown, so the extra calls cost no
+             * render.
+             */
+            onPointerEnter={check.canHighlight
+                ? (e) => { if (e.pointerType !== 'touch') onHover(true); } : undefined}
+            onPointerMove={check.canHighlight
+                ? (e) => { if (e.pointerType !== 'touch') onHover(true); } : undefined}
+            onPointerLeave={check.canHighlight ? () => onHover(false) : undefined}
             className={[
-                'relative grid grid-cols-[32px_1fr_auto_52px] items-center gap-3',
+                'gr-row-scroll relative grid grid-cols-[32px_1fr_auto_52px] items-center gap-3',
                 'border-t border-grade-line-2 px-3.5 py-2.5 outline-none transition-colors',
                 focused
                     ? 'bg-primary-50 before:absolute before:inset-y-0 before:start-0'
@@ -170,6 +196,7 @@ export function CheckRow({
                 verdict={effectiveVerdict}
                 overridden={overridden}
                 kind={check.kind}
+                unverified={check.unverified}
                 onCycle={onCycle}
             />
 
@@ -181,7 +208,18 @@ export function CheckRow({
                     </span>
                 ) : null}
 
-                {overridden ? (
+                {overridden && check.evidenceConfirmed && effectiveVerdict === check.aiVerdict ? (
+                    <div className="mt-1.5 text-gr-label text-grade-pencil" data-confirmed="true">
+                        <span className="text-primary-700">{RV_ORIG_CONFIRMED}</span> ·{' '}
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onRevert(); }}
+                            className="text-primary-700 underline underline-offset-link"
+                        >
+                            {RV_ORIG_REVERT}
+                        </button>
+                    </div>
+                ) : overridden ? (
                     <div className="mt-1.5 text-gr-label text-grade-pencil">
                         {RV_ORIG_PREFIX}{' '}
                         <s className="text-grade-pencil">

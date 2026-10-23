@@ -292,3 +292,95 @@ def test_empty_quote_on_nonzero_award():
 
     not_found_flags = [f for f in vg.flags if f.reason == FlagReason.QUOTE_NOT_FOUND]
     assert len(not_found_flags) == 1
+
+
+# ---------------------------------------------------------------------------
+# 2026-09-15 — the quote check is an ALIGNMENT, not a window. These pin the
+# class of failure that refused a genuine span by five thousandths.
+# ---------------------------------------------------------------------------
+
+from app.agents.grader.validator import _coverage_score, quote_match_status
+
+# graded_test a0cd07ff, q2.א, verbatim: the student's constructor carries an
+# inline Hebrew comment the model left out of its (otherwise exact) quote.
+_MORAN_ANSWER = (
+    "Public class TvShow\n{\n  public TvShow (string name, int channel) // פעולה בונה\n  {\n"
+    "    this.name = name;\n    this.chl = channel;\n    this.rate = 0;\n    this.isOn = true;\n  }\n\n"
+    "  Public void UpdateRate (int numViewers)\n  {\n    for (int i = 0; i < numViewers; i++)\n    {\n"
+    "      cw(\"enter your rate for the tv show:\");\n      int viewerRate = int.Parse(CR());\n\n"
+    "      SetRate (GetRate() + viewerRate);\n    } // שינוי דירוג התוכנית למה שהיה פלוס הדירוג החדש.\n  }\n}"
+)
+_MORAN_QUOTE = (
+    "public TvShow (string name, int channel)\n  {\n    this.name = name;\n    this.chl = channel;\n"
+    "    this.rate = 0;\n    this.isOn = true;\n  }"
+)
+
+
+def test_a_quote_missing_only_the_students_inline_comment_is_found():
+    """The production case. The windowed matcher scored this 0.845; the
+    alignment scores it on content alone."""
+    assert quote_match_status(_MORAN_QUOTE, _MORAN_ANSWER) == QuoteValidationStatus.FUZZY
+    nq = " ".join(_MORAN_QUOTE.lower().split())
+    na = " ".join(_MORAN_ANSWER.lower().split())
+    assert _coverage_score(nq, na) > 0.9      # 0.927: 14 comment chars at 0.6 each, over 115
+
+
+def test_the_score_does_not_depend_on_where_the_quote_sits():
+    """THE CLASS OF FAILURE, made impossible: the same quote embedded at every
+    offset of a long answer scores identically. A stride could never pass
+    this; an optimum over all alignments passes it by construction."""
+    filler = "int x = 0; while (x < 10) { x = x + 3; } // filler line\n"
+    quote = "for (int i = 0; i < n; i++) { sum += a[i]; }"
+    embedded = "for (int i = 0; i < n; i++) // סכימה\n{ sum += a[i]; }"
+    scores = set()
+    for pad in range(0, 60, 7):
+        answer = filler[:pad] + embedded + filler + filler
+        nq = " ".join(quote.lower().split())
+        na = " ".join(answer.lower().split())
+        scores.add(round(_coverage_score(nq, na), 6))
+        assert quote_match_status(quote, answer) == QuoteValidationStatus.FUZZY
+    assert len(scores) == 1, scores
+
+
+def test_a_quote_assembled_from_scattered_tokens_is_not_found():
+    """Every answer character the alignment steps over costs it, so a quote
+    whose characters are only present scattered across the answer fails —
+    the invented-credit guard still bites."""
+    answer = "int a = 1;\nint b = 2;\nstring s = \"x\";\nbool ok = true;\nreturn a + b;"
+    quote = "int total = 0; for (int i = 0; i < arr.Length; i++) total += arr[i];"
+    assert quote_match_status(quote, answer) == QuoteValidationStatus.NOT_FOUND
+
+
+def test_a_long_quote_is_scored_the_same_way_as_a_short_one():
+    """difflib's autojunk changed the arithmetic past 200 characters; the
+    alignment has no such cliff."""
+    body = "".join(f"    this.field{k} = value{k};\n" for k in range(12))
+    answer = "public Thing()\n{\n" + body.replace("field3", "field3 /* note */") + "}\n"
+    quote = "public Thing()\n{\n" + body + "}"
+    assert len(" ".join(quote.split())) > 250
+    assert quote_match_status(quote, answer) == QuoteValidationStatus.FUZZY
+
+
+def test_an_exact_quote_scores_one_and_a_wrong_one_scores_low():
+    assert _coverage_score("abc def", "xx abc def yy") == 1.0
+    assert _coverage_score("hello world", "goodbye moon") < 0.5
+
+
+
+def test_a_quote_stitched_from_two_distant_fragments_is_still_refused():
+    """The eval suite's T1-STITCHED signal rests on this: two fragments cited as
+    one span, with half a quote's worth of answer between them, must NOT pass.
+    The skip cost is what refuses it — a cost of 0.1 scored this 0.95."""
+    answer = "the loop runs over items and total accumulates each value correctly"
+    quote = "the loop runs over items\neach value correctly"
+    assert quote_match_status(quote, answer) == QuoteValidationStatus.NOT_FOUND
+    nq = " ".join(quote.lower().split()); na = " ".join(answer.lower().split())
+    assert _coverage_score(nq, na) < 0.75
+
+
+def test_a_comment_at_the_end_of_a_span_costs_nothing():
+    """Both ends of the alignment are free in the answer: the student's
+    trailing comment inside the last braces is simply not walked into."""
+    answer = "void F()\n{\n  x++;\n} // הערה ארוכה מאוד של התלמיד על מה שהפעולה עושה\n}"
+    quote = "void F()\n{\n  x++;\n}\n}"
+    assert quote_match_status(quote, answer) == QuoteValidationStatus.FUZZY

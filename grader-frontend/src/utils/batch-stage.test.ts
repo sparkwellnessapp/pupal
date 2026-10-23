@@ -202,7 +202,7 @@ describe('§5.1B — the turn line, one row at a time', () => {
         expect(deriveBatchStage(batch(
             { grading: 8, total: 8 },
             { eta: { kind: 'first_landing', seconds: 150 } },
-        )).turnLine).toBe('עכשיו: ויוי בודקת · הראשון יהיה מוכן בעוד כ-3 דקות')
+        )).turnLine).toBe('עכשיו: ויוי בודקת · הראשון יהיה מוכן בעוד כ-2 דקות')
     })
 
     it('grading, nothing ready, ETA unknown → the clause is dropped', () => {

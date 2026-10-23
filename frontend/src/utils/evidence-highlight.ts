@@ -1,14 +1,22 @@
 /**
  * Which quote is lit in the answer, and how (R6).
  *
- * ── PRECEDENCE (spec §3) ───────────────────────────────────────────────────
- *     activeQuote = hover ?? pin ?? focus
+ * ── PRECEDENCE (HL-1) ──────────────────────────────────────────────────────
+ *     displayed = hover ?? selected
  *
  * Read it as "the most momentary intent wins". Hover is what her mouse is
- * doing RIGHT NOW and beats a pin she set a second ago; a pin is a deliberate
- * act and beats mere keyboard focus; focus is where the arrows left her. Esc
- * releases the pin and the answer falls back to focus — nothing else clears it,
- * because a pin she has to re-set every time she moves the mouse is not a pin.
+ * doing RIGHT NOW and beats a selection she made a second ago; a selection is a
+ * deliberate act — an evidence button, or the row the keyboard walked to — and
+ * survives until she releases it with Esc or chooses another. Nothing else
+ * clears it, because a selection she has to re-set every time she moves the
+ * mouse is not a selection.
+ *
+ * THERE WERE THREE SLOTS UNTIL THE SIDE-BY-SIDE PR: `hover ?? pin ?? focus`,
+ * where `focus` was the keyboard caret. The caret is not a highlight concept —
+ * it is what Space and ⌫ act on — and every path that moves it now dispatches
+ * `KEY_NAV` as well, so the selection follows the caret through ONE writer
+ * (`grade-review-highlight-machine.ts`). A third slot here would be a second
+ * place for "what is lit" to be decided, which HL-1 forbids.
  *
  * ── THE THREE QUOTE STATES ─────────────────────────────────────────────────
  *   exact      solid teal mark. Vivi found the span verbatim.
@@ -31,64 +39,53 @@
 import type { QuoteStatus } from '@/lib/pricing';
 
 /**
- * What a deliberate click lit: one check's span, or a whole criterion's union.
+ * A row that can light the answer: one check's span, or a whole criterion's
+ * union.
  *
- * ONE PIN, EITHER KIND (owner ruling, S2). A criterion pin replaces a check pin
+ * ONE SELECTION, EITHER KIND (owner ruling, S2). A criterion replaces a check
  * and vice versa, so "what am I looking at" always has exactly one answer — and
  * nothing is lost by the replacement, because the criterion's union already
  * contains every one of its checks' spans.
+ *
+ * HOVER TAKES THE SAME SHAPE since the side-by-side PR: the criterion header is
+ * a hover surface too, and its quote is that union. One type for both slots is
+ * what stops the surface re-encoding the discriminant at every call site.
  */
 export type PinTarget =
     | { readonly kind: 'check'; readonly id: string }
     | { readonly kind: 'criterion'; readonly id: string };
 
-/**
- * hover ?? pin ?? focus — most momentary first.
- *
- * `hover` and `focus` stay CHECK ids: both are properties of a row. Only a pin
- * can name a criterion, because only a pin is a deliberate act.
- */
+/** hover ?? selected — most momentary first (HL-1). */
 export interface HighlightSource {
-    hover: string | null;
-    pin: PinTarget | null;
-    focus: string | null;
+    hover: PinTarget | null;
+    selected: PinTarget | null;
 }
 
 /**
- * What should be lit, by precedence — hover ?? pin ?? focus.
+ * What should be lit, by precedence — hover ?? selected.
  *
  * `inScope` narrows each candidate to the answer being resolved, and that makes
- * precedence PER ANSWER: a hover in question 2 outranks a pin in question 2,
- * but has no standing over a pin in question 1, whose answer it never touches.
- * Resolved globally, this blanked every pinned answer on the page the moment
- * the mouse crossed any row anywhere — and the module header's rule, «a pin
- * she has to re-set every time she moves the mouse is not a pin», does not
- * stop applying at a scope boundary.
+ * precedence PER ANSWER: a hover in question 2 outranks a selection in question
+ * 2, but has no standing over a selection in question 1, whose answer it never
+ * touches. Resolved globally, this blanked every selected answer on the page
+ * the moment the mouse crossed any row anywhere — and the module header's rule,
+ * «a selection she has to re-set every time she moves the mouse is not a
+ * selection», does not stop applying at a scope boundary.
  *
- * When the pin wins it is returned BY REFERENCE (`source.pin` itself), which is
- * what lets `resolveHighlight` tell "the pin is what lit this" apart from "a
- * hover on the very check that is pinned" — the latter must never draw the
- * persistent underline beneath the cursor.
+ * When the selection wins it is returned BY REFERENCE (`source.selected`
+ * itself), which is what lets `resolveHighlight` tell "the selection is what lit
+ * this" apart from "a hover on the very row that is selected" — the latter must
+ * never draw the persistent underline beneath the cursor.
  */
 export function activeTarget(
     source: HighlightSource,
     inScope: (target: PinTarget) => boolean = () => true,
 ): PinTarget | null {
-    const candidates: (PinTarget | null)[] = [
-        source.hover !== null ? { kind: 'check', id: source.hover } : null,
-        source.pin,
-        source.focus !== null ? { kind: 'check', id: source.focus } : null,
-    ];
+    const candidates: (PinTarget | null)[] = [source.hover, source.selected];
     for (const candidate of candidates) {
         if (candidate !== null && inScope(candidate)) return candidate;
     }
     return null;
-}
-
-/** The active target when it is a CHECK; null when a criterion is pinned. */
-export function activeCheckId(source: HighlightSource): string | null {
-    const target = activeTarget(source);
-    return target !== null && target.kind === 'check' ? target.id : null;
 }
 
 /** How a span was matched. `not_found` never becomes a mark, so it is absent. */
@@ -155,11 +152,11 @@ export function resolveHighlight(
     const target = activeTarget(source, inScope);
     if (target === null) return NO_HIGHLIGHT;
 
-    // Pinned iff THE PIN is what won here — by reference, on purpose. A hover
-    // on the very check that is pinned yields a different object, and must not
-    // draw the persistent underline beneath the cursor (it would flicker on and
-    // off as she moves between rows).
-    const pinned = target === source.pin;
+    // Pinned iff THE SELECTION is what won here — by reference, on purpose. A
+    // hover on the very row that is selected yields a different object, and must
+    // not draw the persistent underline beneath the cursor (it would flicker on
+    // and off as she moves between rows).
+    const pinned = target === source.selected;
 
     const checks: HighlightableCheck[] = [];
     for (const id of scopeCheckIds) {

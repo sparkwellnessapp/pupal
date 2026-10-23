@@ -42,6 +42,7 @@ import {
     TURN_GRADING_SOME_READY, TURN_TRANSCRIBED_ALL, TURN_TRANSCRIBED_NEEDS_LOOK,
     TURN_TRANSCRIBING_MIXED, TURN_TRANSCRIBING_ONLY, TURN_UPLOADING,
 } from '@/copy/batch'
+import { awaitingGraderCount, unaccountedCount } from './batch-dashboard'
 import { etaMinutes, type BatchEta } from './grade-dashboard'
 
 /** The six steps of §5.1A, in flow order. */
@@ -141,8 +142,23 @@ const STEP_OF: Record<ChipKey, BatchStep> = {
     failed: 'transcribe',
 }
 
+/**
+ * What Vivi is still working on: jobs the rollup counts as transcribing, jobs
+ * the feed lists as active — and any document the rollup cannot PLACE at all.
+ *
+ * The third term is the guard. A torn server snapshot (a completed job whose
+ * transcription row is not yet visible) produces a rollup whose every count is
+ * zero over a real document, and without this the cascade below fell through
+ * to its last return — `download`, «הושלם», no turn line — over a paper nobody
+ * had reviewed, while `completionReached` stopped the poll on the same zeros
+ * (2026-09-19, a single-test batch). A document the rollup cannot account for
+ * is read as MOVING: the stage stays on Vivi's side and the poll stays alive
+ * until the server can say where it is (CLAUDE.md §3.5a).
+ */
 function movingOf(b: StageBatch): number {
-    return b.rollup.transcribing + (b.active_jobs ?? []).length
+    return b.rollup.transcribing
+        + (b.active_jobs ?? []).length
+        + unaccountedCount(b.rollup)
 }
 
 /**
@@ -254,8 +270,11 @@ export function deriveBatchStage(batch: StageBatch): BatchStage {
     // the stale chip in a smaller costume — but `approved_transcription` is a
     // gate-passed tally that never decreases, so reading it directly would
     // report «ויוי בודקת» over a batch whose every grade was signed an hour ago.
-    const gradedRows = r.grading + r.draft + r.approved + r.failed
-    const awaitingGrader = Math.max(0, r.approved_transcription - gradedRows)
+    //
+    // ONE definition of that gap (`awaitingGraderCount`), shared with the
+    // batches list — which had re-derived it from the raw tally and told her
+    // «N ממתינים לך» over every batch she had already finished signing.
+    const awaitingGrader = awaitingGraderCount(r)
     if (r.grading > 0 || awaitingGrader > 0) {
         return {
             step: STEP_OF.grading,

@@ -25,7 +25,7 @@ import {
   LIST_ACTION_TRANSCRIBING,
   LIST_ACTION_UPLOADING,
 } from '@/copy/batch'
-import type { BarSegment } from './batch-dashboard'
+import { awaitingGraderCount, type BarSegment } from './batch-dashboard'
 
 export interface ListRollup {
   /** [Stage A] Declared files still on the wire. Optional and read as `?? 0`
@@ -62,7 +62,11 @@ export interface ListRollup {
  *                    failure: nothing broke, the file simply never reached us.
  */
 export function listBarSegments(rollup: ListRollup): BarSegment[] {
-  const inGrading = rollup.approved_transcription + rollup.grading + rollup.draft
+  // The GAP to graded rows, never the raw gate-passed tally: that tally never
+  // decreases, so read directly it painted a second «clean» segment the size
+  // of the whole batch beside the «approved» one on every signed batch
+  // (2026-09-19, live). One definition, shared with the dashboard's stage.
+  const inGrading = awaitingGraderCount(rollup) + rollup.grading + rollup.draft
   // Ruling 1 (Option A) — the split is REAL now: `needs_eyes` is the
   // flagged-or-touched subset, so the bulk-acceptable remainder is the rest
   // of `transcribed`. The interim merged segment is retired.
@@ -130,8 +134,15 @@ export function listActionLine(rollup: ListRollup): ListAction | null {
   }
   // Everything else past the transcription gate but short of `approved` still
   // owes her something — a bulk accept, or a grade review.
+  //
+  // The accepted-but-unclaimed count is the GAP to graded rows, never the raw
+  // `approved_transcription` tally — that tally never decreases, so summed
+  // directly it read «N מבחנים ממתינים לך» over every batch whose every grade
+  // she had already signed (found 2026-09-19 on three live batches; the
+  // fixture that should have caught it omitted the field). One definition,
+  // shared with the dashboard's stage (`awaitingGraderCount`).
   const pending = rollup.transcribed
-    + rollup.approved_transcription + rollup.grading + rollup.draft
+    + awaitingGraderCount(rollup) + rollup.grading + rollup.draft
   if (pending > 0) {
     return { kind: 'pending', text: LIST_ACTION_PENDING(pending) }
   }

@@ -1,7 +1,9 @@
 'use client';
 
 import type { CheckKind, Verdict } from '@/lib/pricing';
-import { RV_VERDICT_TITLE, RV_VERDICT_TITLE_TARIFF } from '@/copy/grade-review';
+import {
+    RV_VERDICT_TITLE, RV_VERDICT_TITLE_TARIFF, RV_VERDICT_TITLE_UNVERIFIED,
+} from '@/copy/grade-review';
 
 /**
  * The verdict control (R7/R8) — ✓ / ½ / ✗, one click or Space to cycle.
@@ -21,6 +23,13 @@ import { RV_VERDICT_TITLE, RV_VERDICT_TITLE_TARIFF } from '@/copy/grade-review';
  *
  * Points on a credit row are typeable beside this control (OD-R2); a tariff
  * row is toggle-only, because a yes/no has no number to type.
+ *
+ * AN UNVERIFIED ✓ LOOKS UNVERIFIED (2026-09-15). When Vivi's credit verdict
+ * cites a span the validator could not find, the pricer refuses the credit —
+ * the row is worth 0 — and this control used to draw the same green ✓ as a
+ * credited one, so a teacher read «fully correct» next to «0 / 5»
+ * (graded_test a0cd07ff). It now draws amber and dashed, says why in its
+ * title, and one press CONFIRMS it as hers (see `verdict-cycle.ts`).
  */
 
 const GLYPH: Readonly<Record<Verdict, string>> = {
@@ -50,15 +59,18 @@ export interface VerdictButtonProps {
     overridden: boolean;
     /** A tariff row toggles between two states and never shows ½. */
     kind?: CheckKind;
+    /** Vivi's credit verdict on a span she could not verify — worth 0 until confirmed. */
+    unverified?: boolean;
     onCycle: () => void;
     disabled?: boolean;
 }
 
 export function VerdictButton({
-    verdict, overridden, kind = 'required', onCycle, disabled = false,
+    verdict, overridden, kind = 'required', unverified = false, onCycle, disabled = false,
 }: VerdictButtonProps) {
     const shown = kind === 'tariff' && verdict === 'partially_met' ? 'not_met' : verdict;
-    const title = kind === 'tariff' ? RV_VERDICT_TITLE_TARIFF : RV_VERDICT_TITLE;
+    const title = unverified ? RV_VERDICT_TITLE_UNVERIFIED
+        : kind === 'tariff' ? RV_VERDICT_TITLE_TARIFF : RV_VERDICT_TITLE;
     return (
         <button
             type="button"
@@ -68,7 +80,7 @@ export function VerdictButton({
             aria-label={`${GLYPH[shown]} — ${title}`}
             title={title}
             data-verdict={verdict}
-            data-verdict-shown={shown}
+            data-verdict-shown={unverified ? 'unverified' : shown}
             data-overridden={overridden ? 'true' : 'false'}
             disabled={disabled}
             onClick={(event) => { event.stopPropagation(); onCycle(); }}
@@ -78,7 +90,9 @@ export function VerdictButton({
                 'disabled:cursor-not-allowed disabled:opacity-40',
                 overridden
                     ? 'border-decided border-primary-600 text-primary-600 ring-decided ring-primary-100'
-                    : `border-hairline border-current ${PROPOSAL_TONE[shown]}`,
+                    : unverified
+                        ? 'border-hairline border-dashed border-grade-amber-dot text-grade-amber'
+                        : `border-hairline border-current ${PROPOSAL_TONE[shown]}`,
             ].join(' ')}
         >
             {GLYPH[shown]}

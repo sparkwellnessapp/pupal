@@ -22,6 +22,15 @@
  *     alternative — a pin that silently outranks visible rows — the rows and
  *     the criterion total would disagree on one screen.
  *
+ * ── AN UNVERIFIED ✓ IS CONFIRMED, NOT CYCLED (2026-09-15) ─────────────────
+ * When Vivi's credit verdict cites a span the validator could not find, the
+ * pricer refuses the credit (the invented-credit guard) — so the row shows a
+ * ✓ worth 0. The first press of Space on such a row CONFIRMS it: a record at
+ * Vivi's own verdict with `evidence_confirmed`, which the pricer treats as her
+ * decision and credits. It used to cycle to ✗ — the opposite of what she
+ * wanted on a row she had just read as correct (graded_test a0cd07ff). A
+ * confirmed record is a decision and survives the empty-record rule.
+ *
  * ── THE CYCLE ORDER IS ✗ → ½ → ✓ → ✗ ──────────────────────────────────────
  * Deliberately upward from the harshest. The common correction is "Vivi was too
  * strict here", so one press of Space moves in the direction she most often
@@ -50,6 +59,8 @@ export interface TeacherOverride {
     points_awarded?: string | null;
     teacher_comment?: string | null;
     evidence_disputed?: boolean;
+    /** She confirmed Vivi's credit verdict over a span the validator could not find. */
+    evidence_confirmed?: boolean;
     decided_at?: string;
 }
 
@@ -125,7 +136,14 @@ export function isOverridden(
 ): boolean {
     const override = findOverride(overlay, terminalId, checkId);
     if (override === undefined) return false;
-    return override.verdict !== aiVerdict || override.points_awarded != null;
+    return override.verdict !== aiVerdict
+        || override.points_awarded != null
+        || Boolean(override.evidence_confirmed);
+}
+
+/** She confirmed the model's unverified credit verdict on this check. */
+export function isConfirmed(overlay: Overlay, terminalId: string, checkId: string): boolean {
+    return Boolean(findOverride(overlay, terminalId, checkId)?.evidence_confirmed);
 }
 
 /** [OD-R2] The amount she typed on this check, if any. */
@@ -164,7 +182,8 @@ function saysNothing(override: TeacherOverride, aiVerdict: Verdict): boolean {
     return override.verdict === aiVerdict
         && override.points_awarded == null
         && !override.teacher_comment
-        && !override.evidence_disputed;
+        && !override.evidence_disputed
+        && !override.evidence_confirmed;
 }
 
 function withTerminal(
@@ -225,13 +244,45 @@ export function setVerdict(
     now: () => string = () => new Date().toISOString(),
 ): Overlay {
     const found = findOverride(overlay, terminalId, checkId);
+    // a DIFFERENT verdict is a decision of its own: a confirmation of Vivi's
+    // verdict no longer describes it, so it does not ride along
+    const confirmed = verdict === aiVerdict ? Boolean(found?.evidence_confirmed) : false;
     const updated: TeacherOverride = found
-        ? { ...found, verdict, points_awarded: null, decided_at: now() }
+        ? { ...found, verdict, points_awarded: null, evidence_confirmed: confirmed, decided_at: now() }
         : { check_id: checkId, verdict, decided_at: now() };
     return upsert(withoutPin(overlay, terminalId), terminalId, updated, aiVerdict);
 }
 
-/** Space: advance the EFFECTIVE verdict one step round the cycle (a tariff flips). */
+/**
+ * She CONFIRMS Vivi's credit verdict on a row whose span did not verify.
+ *
+ * The record sits at Vivi's own verdict — nothing changes on the glyph — but
+ * carries `evidence_confirmed`, so it travels, the pricer skips the evidence
+ * gate for it, and the credit lands. Note and dispute already on the row
+ * survive. A confirmation is a decision on the check, so it releases a pin on
+ * the criterion above (OD-2 b) like any other.
+ */
+export function confirmVerdict(
+    overlay: Overlay,
+    terminalId: string,
+    checkId: string,
+    aiVerdict: Verdict,
+    now: () => string = () => new Date().toISOString(),
+): Overlay {
+    const found = findOverride(overlay, terminalId, checkId);
+    const updated: TeacherOverride = found
+        ? { ...found, verdict: aiVerdict, points_awarded: null, evidence_confirmed: true, decided_at: now() }
+        : { check_id: checkId, verdict: aiVerdict, evidence_confirmed: true, decided_at: now() };
+    return upsert(withoutPin(overlay, terminalId), terminalId, updated, aiVerdict);
+}
+
+/**
+ * Space: advance the EFFECTIVE verdict one step round the cycle (a tariff
+ * flips). On an UNVERIFIED row — Vivi's credit verdict, span not found, no
+ * decision of hers yet — the first press CONFIRMS instead; and cycling back
+ * round to Vivi's verdict on such a row confirms again rather than leaving a
+ * ✓ that prices at 0.
+ */
 export function cycleVerdict(
     overlay: Overlay,
     terminalId: string,
@@ -239,9 +290,17 @@ export function cycleVerdict(
     aiVerdict: Verdict,
     kind: CheckKind = 'required',
     now?: () => string,
+    unverified = false,
 ): Overlay {
+    if (unverified && findOverride(overlay, terminalId, checkId) === undefined) {
+        return confirmVerdict(overlay, terminalId, checkId, aiVerdict, now);
+    }
     const current = effectiveVerdict(overlay, terminalId, checkId, aiVerdict);
-    return setVerdict(overlay, terminalId, checkId, nextVerdict(current, kind), aiVerdict, now);
+    const next = nextVerdict(current, kind);
+    if (unverified && next === aiVerdict) {
+        return confirmVerdict(overlay, terminalId, checkId, aiVerdict, now);
+    }
+    return setVerdict(overlay, terminalId, checkId, next, aiVerdict, now);
 }
 
 /**

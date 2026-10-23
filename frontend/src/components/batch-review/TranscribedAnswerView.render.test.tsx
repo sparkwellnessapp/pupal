@@ -58,3 +58,52 @@ describe('TranscribedAnswerView', () => {
         expect(html).not.toContain('שורות מסומנות');
     });
 });
+
+/**
+ * Native table editing (2026-09-24). Given an `onChange`, the view is the
+ * EDITOR for a table-bearing answer: every text run is a textarea over its own
+ * span, every cell that owns bytes — header row included — is an input, and a
+ * virtual (end-padded) cell is visibly NOT one. Read-only keeps today's markup.
+ */
+describe('TranscribedAnswerView — editable segments', () => {
+    const P1_ANSWER = [
+        'א) 1)',
+        '| x | i | arr[i] | ret |',
+        '| 6 | 0 | 8 |  |',
+        '|  | 1 | 5 |  |',
+        '',
+        '(א, 2) הפעולה בודקת אם יש ערך במערך',
+    ].join('\n');
+    const editable = renderToStaticMarkup(<TranscribedAnswerView text={P1_ANSWER} onChange={() => {}} />);
+    const count = (html: string, needle: string) => html.split(needle).length - 1;
+
+    it('renders one input per cell, header row included', () => {
+        expect(count(editable, 'data-testid="answer-cell"')).toBe(12);
+        expect(editable).toMatch(/<th[^>]*>[^]*?<input[^>]*value="arr\[i\]"/);
+        expect(editable).toContain('value="8"');
+    });
+
+    it('renders every text run as its own textarea, holding exactly its span', () => {
+        expect(count(editable, 'data-testid="answer-text-run"')).toBe(2);
+        expect(editable).toContain('>א) 1)</textarea>');
+        expect(editable).toContain('>(א, 2) הפעולה בודקת אם יש ערך במערך</textarea>');
+    });
+
+    it('every cell is a pure LTR island — never unicode-bidi: plaintext', () => {
+        expect(editable).toMatch(/<input[^>]*dir="ltr"[^>]*data-testid="answer-cell"|<input[^>]*data-testid="answer-cell"[^>]*dir="ltr"/);
+        expect(editable).not.toContain('plaintext');
+    });
+
+    it('marks an end-padded cell as absent instead of offering an input', () => {
+        const html = renderToStaticMarkup(<TranscribedAnswerView text={REAL_ANSWER} onChange={() => {}} />);
+        // REAL_ANSWER: a 5-cell header over two 4-cell rows ⇒ 2 virtual cells.
+        expect(count(html, 'data-testid="answer-cell-absent"')).toBe(2);
+    });
+
+    it('read-only keeps the display markup: no inputs, no textareas', () => {
+        const ro = renderToStaticMarkup(<TranscribedAnswerView text={P1_ANSWER} onChange={() => {}} readOnly />);
+        expect(ro).not.toContain('<input');
+        expect(ro).not.toContain('<textarea');
+        expect(ro).toContain('<table');
+    });
+});

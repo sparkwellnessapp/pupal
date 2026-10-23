@@ -250,3 +250,7 @@ logs/
 # OS specific
 .DS_Store
 Thumbs.db
+
+# [Oct 6 rulings] the eval-only Anthropic key. Never commit: both remotes are public.
+vivi-eval.env
+.vivi-eval.env

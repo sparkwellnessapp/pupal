@@ -1,31 +1,16 @@
-[IMAGE: Image 1]
+שאלה 1 (20 נקודות)
 
-[IMAGE: Image 2]
+חשבו את הגבול של x 2 −1 x−1
 
-[IMAGE: Image 3]
+כאשר x שואף ל-1.
 
-[IMAGE: Image 4]
+[IMAGE: Picture 1]
 
-[IMAGE: Image 5]
+מחוון:
 
-[IMAGE: Image 6]
-
-[IMAGE: Image 7]
-
-[IMAGE: Image 8]
-
-[IMAGE: Image 9]
-
-[IMAGE: Image 10]
-
-[IMAGE: Image 11]
-
-[IMAGE: Image 12]
-
-[IMAGE: Image 13]
-
-[IMAGE: Image 14]
-
-[IMAGE: Image 15]
-
-[IMAGE: Image 16]
+[TABLE 1: 4x3 ltr]
+| קריטריון | רמה | נקודות |
+|---|---|---|
+| תוכן | מלא / חלקי / חסר | 10 / 5 / 0 |
+| ארגון | מלא / חלקי / חסר | 6 / 3 / 0 |
+| שפה | מלא / חלקי / חסר | 4 / 2 / 0 |

@@ -70,6 +70,13 @@ class TeacherOverride(BaseModel):
     # ALPHA-GAP A-9 (D-4b): deductions / follow-through are overridden by verdict only; alpha models them.
     teacher_comment: Optional[str] = None      # the "H" note; no new field
     evidence_disputed: bool = False
+    # [2026-09-15] She CONFIRMED a credit verdict whose cited span the validator
+    # could not verify. The pricer refuses such a verdict from the MODEL (the
+    # invented-credit guard) and skips that gate for anything she decided; this
+    # flag is what makes «I looked, the evidence is there» a decision that
+    # travels — a bare record at Vivi's own verdict would otherwise say nothing
+    # and be dropped as a no-op.
+    evidence_confirmed: bool = False
     decided_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @field_serializer("points_awarded")

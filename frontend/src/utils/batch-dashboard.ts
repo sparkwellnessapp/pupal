@@ -25,16 +25,81 @@ export interface RollupLike {
   not_received?: number
   transcribing: number
   transcribed: number
+  /** Transcriptions that PASSED the gate. Read as `?? 0`: a fixture that
+   *  predates the accounting below has none, and that reads as zero. */
+  approved_transcription?: number
   grading: number
+  /** Graded rows awaiting her signature. Read as `?? 0` where absent. */
+  draft?: number
   approved: number
+  /** Graded rows whose grade failed. Read as `?? 0` where absent. */
+  failed?: number
   transcription_failed: number
   total: number
+}
+
+/**
+ * Transcriptions she has ACCEPTED that the grader has not yet claimed — the
+ * window between the gate and the first `graded_tests` row reaching `pending`.
+ *
+ * THE GAP, NEVER THE RAW TALLY. `approved_transcription` counts every
+ * transcription that ever passed the gate and never goes back down, so a
+ * batch signed an hour ago still reports all of them. Read directly, that
+ * number said «ויוי בודקת» over a finished batch on the dashboard (the stale
+ * chip `batch-stage.ts` exists to close) and — found 2026-09-19, live on three
+ * of the reporting teacher's own batches — «N מבחנים ממתינים לך» in the LIST
+ * over every batch whose every grade was signed, with a mini bar that summed
+ * past the batch. The list had re-derived the same quantity from the raw
+ * tally; the fixture that would have caught it omitted the field entirely.
+ *
+ * ONE definition, consumed by both surfaces, so they cannot disagree again.
+ */
+export function awaitingGraderCount(rollup: RollupLike): number {
+  const gradedRows = rollup.grading + (rollup.draft ?? 0) + rollup.approved + (rollup.failed ?? 0)
+  return Math.max(0, (rollup.approved_transcription ?? 0) - gradedRows)
 }
 
 /** The upload stage as ONE number, read the same way by every consumer here.
  *  Files on the wire — not yet ours, and certainly not "transcribing". */
 export function uploadingCount(rollup: RollupLike): number {
   return rollup.uploading ?? 0
+}
+
+/**
+ * Documents the rollup cannot place in ANY stage — and there must be none.
+ *
+ * On a consistent snapshot the rollup's parts account for its denominator
+ * exactly: every declared file is either still on the wire (`uploading`), dead
+ * on the wire (`not_received`), or landed as a job — and every job is queued or
+ * running (`transcribing`), failed (`transcription_failed`), or completed into
+ * a transcription that is either awaiting her (`transcribed`) or past the gate
+ * (`approved_transcription`). So `total − Σ(parts)` is zero, always.
+ *
+ * ── WHEN IT IS NOT ZERO, THE SNAPSHOT IS TORN — and the client used to read
+ * that as "done". The server composes its rollup from several statements, each
+ * under its own READ COMMITTED snapshot; a document landing between two of
+ * them showed up as a completed job with no transcription row. That rollup —
+ * `total 1 · transcribing 0 · transcribed 0` — is indistinguishable, count by
+ * count, from "the one document already passed the gate": `completionReached`
+ * said true, polling stopped, the stepper jumped to «הורדה» over «הושלם», and a
+ * single-test batch froze on a screen that was never true (2026-09-19). The
+ * server now orders its reads so that particular tear cannot happen; THIS is
+ * the rule that no tear, present or future, can be read as completion
+ * (CLAUDE.md §3.5a: a degradation that keeps computing is the dangerous kind).
+ *
+ * The honest reading of a document the rollup cannot place is that it is
+ * still MOVING — Vivi is working — so it keeps the poll alive and keeps the
+ * stage on Vivi's side. Never negative: a legacy batch whose rows outnumber
+ * its stored count has nothing unaccounted, only an old denominator.
+ */
+export function unaccountedCount(rollup: RollupLike): number {
+  const placed = uploadingCount(rollup)
+    + (rollup.not_received ?? 0)
+    + rollup.transcribing
+    + rollup.transcription_failed
+    + rollup.transcribed
+    + (rollup.approved_transcription ?? 0)
+  return Math.max(0, rollup.total - placed)
 }
 
 interface BatchLike {
@@ -194,6 +259,14 @@ export function completionReached(batch: BatchLike): boolean {
     (r.not_received ?? 0) === 0 &&
     r.transcribing === 0 &&
     r.transcribed === 0 &&
+    // …and a document the rollup cannot PLACE is not "done" either. The three
+    // zeros above infer "every document passed the gate" from ABSENCE, and a
+    // torn server snapshot — a completed job whose transcription row is not
+    // yet visible — produces exactly those zeros over a document that has
+    // passed nothing. This is the clause that turns absence back into "still
+    // moving" (see `unaccountedCount`); without it the poll stopped and the
+    // dashboard froze on «הושלם» over one unreviewed paper.
+    unaccountedCount(r) === 0 &&
     (batch.active_jobs ?? []).length === 0
   )
 }

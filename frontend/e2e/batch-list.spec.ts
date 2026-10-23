@@ -21,7 +21,7 @@ const listItem = (over: Record<string, unknown> = {}) => ({
     class_name: 'יא׳3',
     status: 'in_progress',
     created_at: minutesAgo(90),
-    rollup: seedRollup({ transcribed: 5, needs_eyes: 5, approved: 2, total: 7 }),
+    rollup: seedRollup({ transcribed: 5, needs_eyes: 5, approved_transcription: 2, approved: 2, total: 7 }),
     ...over,
 });
 
@@ -53,7 +53,7 @@ test('list-populated (L1) — names, mini honesty bar, action line, zero אצו�
             id: 'b0000000-0000-0000-0000-00000000000b',
             name: null,                               // → BATCH_FALLBACK_NAME
             status: 'completed',
-            rollup: seedRollup({ approved: 4, total: 4 }),
+            rollup: seedRollup({ approved_transcription: 4, approved: 4, total: 4 }),
         }),
         listItem({
             id: 'b0000000-0000-0000-0000-00000000000c',

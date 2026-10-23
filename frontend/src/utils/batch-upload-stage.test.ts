@@ -99,14 +99,14 @@ describe('completionReached', () => {
 
   it('is TRUE once the last file lands and everything else is terminal', () => {
     expect(completionReached({
-      rollup: rollup({ uploading: 0, approved: 10, total: 10 }),
+      rollup: rollup({ uploading: 0, approved_transcription: 10, approved: 10, total: 10 }),
       active_jobs: [],
     })).toBe(true)
   })
 
   it('is unchanged for a payload with no uploading field at all', () => {
     expect(completionReached({
-      rollup: rollup({ approved: 3, total: 3 }),
+      rollup: rollup({ approved_transcription: 3, approved: 3, total: 3 }),
       active_jobs: [],
     })).toBe(true)
   })
@@ -133,7 +133,7 @@ describe('pollCadenceMs', () => {
 
   it('stops once nothing is uploading, transcribing or grading', () => {
     expect(pollCadenceMs({
-      rollup: rollup({ approved: 2, total: 2 }), active_jobs: [],
+      rollup: rollup({ approved_transcription: 2, approved: 2, total: 2 }), active_jobs: [],
     })).toBeNull()
   })
 })
@@ -265,7 +265,10 @@ describe('deriveBatchStage — the upload stage', () => {
   })
 
   it('does not announce completion while files are still arriving', () => {
-    const stage = stageOf({ uploading: 4, approved: 1, total: 5 })
+    // One signed grade means one gate-passed transcription; without that
+    // field the rollup describes a document it cannot place, and the reading
+    // stage (rightly) outranks the upload stage for a document that landed.
+    const stage = stageOf({ uploading: 4, approved_transcription: 1, approved: 1, total: 5 })
     expect(stage.chip.label).toBe(CHIP_UPLOADING)
     expect(stage.turnLine).not.toContain('סיימת')
   })
@@ -293,7 +296,7 @@ describe('review fixes', () => {
 
   it('still completes a batch where everything actually arrived', () => {
     expect(completionReached({
-      rollup: rollup({ approved: 10, total: 10 }),
+      rollup: rollup({ approved_transcription: 10, approved: 10, total: 10 }),
       active_jobs: [],
     })).toBe(true)
   })

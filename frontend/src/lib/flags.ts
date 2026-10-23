@@ -44,3 +44,20 @@ export const SHOW_GRADING_LANE = false;
  * same arrangement as USE_DOCUMENT_MIRROR and RubricEditor. It retires with F1.
  */
 export const USE_GRADE_REVIEW_MODULE = true;
+
+/**
+ * M-10 — the side-by-side review layout's kill switch.
+ *
+ * `NEXT_PUBLIC_REVIEW_LAYOUT=stacked` holds the scope card at ONE column at
+ * every width: today's stacked layout (answer above criteria), hover and
+ * selection still working. This is the core review loop in its launch month,
+ * and the two-column pin is the one change here that a real screen could
+ * falsify in a way no test would — so it gets a one-boolean revert that needs
+ * no code edit, no data migration and no backend deploy.
+ *
+ * It is a BUILD-time inline (`NEXT_PUBLIC_*`), which is why it can be a plain
+ * constant rather than a runtime read: Next substitutes the literal, so the
+ * branch is decided before the bundle ships. Removable after two stable weeks.
+ */
+export const REVIEW_LAYOUT_STACKED =
+    process.env.NEXT_PUBLIC_REVIEW_LAYOUT === 'stacked';

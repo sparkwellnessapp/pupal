@@ -14,7 +14,7 @@ import { initialCursor, queueState } from '@/utils/grade-review-cursor';
 import {
     RV_ANSWER_INHERITED, RV_ANSWER_NONE, RV_ANSWER_UNAVAILABLE, RV_CHIP_NOT_FOUND, RV_FB_ABSENT, RV_FB_FRESH,
     RV_NO_CHECKS, RV_QUOTE, RV_SCOPE_FAILED,
-    RV_QUOTE_ALL,
+    RV_QUOTE_ALL, RV_SHOW_SCAN,
 } from '@/copy/grade-review';
 
 /**
@@ -190,6 +190,19 @@ describe('GradeReviewSurface renders a real published draft', () => {
             ])).length;
         expect(totalChecks).toBeGreaterThan(20);
         expect((html.match(/data-check-id=/g) ?? []).length).toBeLessThan(totalChecks / 2);
+    });
+
+    it('offers the way back to the batch dashboard from the top bar, beside «הבא»', () => {
+        // Before this link the desktop module had no exit of its own while
+        // tests were left to review (the WaitCard shows only once the queue
+        // is exhausted). It is a real anchor to the batch route — the href the
+        // page passes — so it survives a stale in-memory router too.
+        const bar = html.slice(html.indexOf('data-review-topbar'), html.indexOf('data-scope-id'));
+        const anchor = bar.match(/<a [^>]*data-nav-batch[^>]*>/)?.[0] ?? '';
+        expect(anchor).toContain('href="/batches/x"');
+        expect(bar).toContain('חזרה לכל המבחנים');
+        // In the SAME column as «הבא»: the link precedes the button in the markup.
+        expect(bar.indexOf('data-nav-batch')).toBeLessThan(bar.indexOf('הבא<'));
     });
 
     it('re-opens the criteria she had already decided, and renders their rows', () => {
@@ -782,5 +795,104 @@ describe('the ink grammar (ruling 2026-09-13): verdicts carry their colour, her 
         const tariffRow = html.slice(html.indexOf('data-check-kind="tariff"'));
         const rowEnd = tariffRow.indexOf('data-check-id=');
         expect(tariffRow.slice(0, rowEnd > 0 ? rowEnd : undefined)).not.toContain('data-points-target="check"');
+    });
+});
+
+describe('an unverified ✓ looks unverified (2026-09-15)', () => {
+    it('draws the amber dashed glyph, and the confirmed one draws turquoise', () => {
+        const synthetic = readFixture('draft_SYNTHETIC_edge_cases.json');
+        // an empty overlay: a not_found row is needs-eyes, so its criterion opens itself
+        const html = render({ draft: synthetic, overlay: emptyOverlay() });
+        expect(html).toContain('data-verdict-shown="unverified"');
+        const glyph = html.match(/<button[^>]*data-verdict-shown="unverified"[^>]*>/)![0];
+        expect(glyph).toContain('border-dashed');
+        expect(glyph).toContain('text-grade-amber');
+        expect(glyph).not.toContain('text-grade-green');
+    });
+});
+
+/**
+ * THE SIDE-BY-SIDE LAYOUT — the half SSR can actually prove.
+ *
+ * What the browser owns (that the pane really pins, that the reveal moves only
+ * the pane, that a hover at rest lights a span) belongs to the Playwright
+ * suite. What lives HERE is the structure those behaviours stand on: the DOM
+ * order §5.2 calls normative, the one grid, the pane/criteria split, and the
+ * fact that the card carries no `overflow` of its own — the single most common
+ * way a sticky pane dies silently in review.
+ */
+describe('the scope card is a strip over two columns [§5.2, LAY-3]', () => {
+    const html = render();
+    const card = html.slice(
+        html.indexOf('data-scope-id="q1.א"'),
+        html.indexOf('</section>', html.indexOf('data-scope-id="q1.א"')),
+    );
+
+    it('is ordered strip → pane → criteria, which is the 1-column reading order (M-6)', () => {
+        const strip = card.indexOf('gr-card__strip');
+        const pane = card.indexOf('gr-card__pane"');
+        const criteria = card.indexOf('gr-card__criteria');
+        expect(strip).toBeGreaterThan(-1);
+        expect(pane).toBeGreaterThan(strip);
+        expect(criteria).toBeGreaterThan(pane);
+    });
+
+    it('puts the answer and its scan link in the PANE, the checklist in the criteria', () => {
+        const pane = card.slice(card.indexOf('gr-card__pane"'), card.indexOf('gr-card__criteria'));
+        expect(pane).toContain('data-answer-pane="q1.א"');
+        expect(pane).toContain('data-answer-for="q1.א"');
+        expect(pane).toContain(RV_SHOW_SCAN);
+        expect(pane).not.toContain('data-terminal-id=');
+
+        const criteria = card.slice(card.indexOf('gr-card__criteria'));
+        expect(criteria).toContain('data-terminal-id=');
+        expect(criteria).not.toContain('data-answer-for=');
+    });
+
+    it('has exactly ONE grid per card, and the strip is not inside it', () => {
+        expect((card.match(/gr-card__cols/g) ?? []).length).toBe(1);
+        // The strip precedes the grid: a sticky GRID ITEM is confined to its own
+        // grid area, so a strip in a row of its own height would never pin.
+        expect(card.indexOf('gr-card__strip')).toBeLessThan(card.indexOf('gr-card__cols'));
+    });
+
+    it('carries no `overflow` between the pane and the page — the sticky killer', () => {
+        // `overflow: hidden|auto|clip` on ANY ancestor of a sticky element
+        // silently disables it, and a rounded card is the classic offender
+        // (§5.6). The criterion boxes inside the criteria column may clip; the
+        // chain from the pane up to the card may not.
+        const upToPane = card.slice(0, card.indexOf('gr-card__pane"'));
+        expect(upToPane).not.toMatch(/\boverflow-(hidden|auto|clip|scroll)\b/);
+        const section = html.slice(html.indexOf('<section', html.indexOf('data-scope-id="q1.א"') - 400),
+            html.indexOf('data-scope-id="q1.א"'));
+        expect(section).not.toMatch(/\boverflow-(hidden|auto|clip|scroll)\b/);
+    });
+
+    it('scopes the keyboard scroll margins to the rows the keyboard walks', () => {
+        const criteria = card.slice(card.indexOf('gr-card__criteria'));
+        expect(criteria).toContain('gr-row-scroll');
+    });
+
+    it('mounts the sticky chain on one root, with the kill switch off by default', () => {
+        expect(html).toContain('class="gr-review pb-24"');
+        expect(html).not.toContain('data-review-layout="stacked"');
+    });
+});
+
+describe('hover affordances exist exactly where a mark can be painted [OD-12]', () => {
+    it('a row with no placeable quote offers no quote button', () => {
+        // `canHighlight`, not `quote_status`, decides both — so a row that
+        // cannot be lit is inert to the pointer for the same reason it has no
+        // button, rather than by two places happening to agree.
+        const synthetic = readFixture('draft_SYNTHETIC_edge_cases.json');
+        const html = render({ draft: synthetic, overlay: emptyOverlay() });
+        const notFound = html.indexOf('data-chip="not_found"');
+        expect(notFound).toBeGreaterThan(-1);
+        const row = html.slice(
+            html.lastIndexOf('data-check-id=', notFound),
+            html.indexOf('data-check-id=', notFound) > -1
+                ? html.indexOf('data-check-id=', notFound) : undefined,
+        );
+        expect(row).not.toContain(RV_QUOTE);
     });
 });

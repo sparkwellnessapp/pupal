@@ -313,11 +313,12 @@ export const DASH_SUB = (parts: (string | null | undefined)[]) =>
     parts.filter(Boolean).join(' · ')
 /**
  * §5.4 — the download button is HIDDEN until at least one test is signed, so
- * these never render a «(0)». The label is the §5.6 product term: what she gets
- * is the signed exam, and the file type is named because she is about to hand
- * it to thirty students.
+ * these never render a «(0)». Owner-ruled label (2026-09-24). ONE constant for
+ * both sites that offer the ZIP — `DownloadAllButton` is the only reader.
  */
-export const DASH_DOWNLOAD = 'הורדת כל המבחנים החתומים (PDF)'
+export const DASH_DOWNLOAD = 'הורדת כל הבדיקות שאושרו'
+/** DL-1 — announced (aria-live) while the ZIP is being built and fetched. */
+export const DASH_DOWNLOAD_PREPARING = 'מכינים את הקובץ להורדה…'
 export const DASH_CONTINUE = 'המשיכי לבדיקת ציונים'
 
 // ── §5.4 · the grading stage, in her words ────────────────────────────────

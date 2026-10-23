@@ -167,3 +167,44 @@ describe('TranscriptionReviewSurface — the answer view/edit split', () => {
         expect(html).not.toContain('data-testid="transcribed-answer-view"');
     });
 });
+
+/**
+ * Native table editing (2026-09-24) — the report: on a table-bearing answer the
+ * DEFAULT view must be editable in place. Prose and every cell are editable
+ * without «הצגת הטקסט המקורי», which stays as the escape hatch (OD-3).
+ */
+describe('TranscriptionReviewSurface — a table-bearing answer is editable in place', () => {
+    const TABLE_ANSWER = [
+        'if:',
+        '| x | i | arr[i] |',
+        '| 6 | 0 | 8 |',
+        '|  | 1 | 5 |',
+    ].join('\n');
+
+    it('the default grid view carries editable cells and an editable text run', () => {
+        const html = render(draftWith([[1, null, TABLE_ANSWER]]));
+        expect(html).toContain('data-testid="transcribed-answer-view"');
+        expect(html.split('data-testid="answer-cell"').length - 1).toBe(9);
+        expect(html).toContain('data-testid="answer-text-run"');
+        // The escape hatch is still offered.
+        expect(html).toContain('הצגת הטקסט המקורי');
+    });
+
+    it('a read-only surface (accepted item) renders no cell inputs', () => {
+        const html = renderToStaticMarkup(
+            <TranscriptionReviewSurface
+                draft={draftWith([[1, null, TABLE_ANSWER]])}
+                editedAnswers={{}}
+                onAnswerChange={() => {}}
+                studentId={null}
+                onStudentPick={() => {}}
+                readOnly
+                getPage={() => Promise.resolve('')}
+                isDissolved={() => false}
+                markDissolved={() => {}}
+            />,
+        );
+        expect(html).not.toContain('data-testid="answer-cell"');
+        expect(html).toContain('<table');
+    });
+});

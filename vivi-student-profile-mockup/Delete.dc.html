@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>מחיקת תלמיד/ה — אישור</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Heebo',system-ui,sans-serif;background:#F7F7F3;color:#1F2A2E}
+a{color:#1F2A2E;text-decoration:none}a:hover{color:#0F766E}
+</style>
+</helmet>
+<div style="width: 720px; height: 560px; box-sizing: border-box; direction: rtl; background: rgba(31,42,46,0.42); display: flex; align-items: center; justify-content: center; overflow: hidden;">
+  <section aria-label="אישור מחיקה" style="width: 520px; box-sizing: border-box; background: #FFFFFF; border-radius: 20px; padding: 28px 28px 24px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 20px 48px rgba(31,42,46,0.22);">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+      <h2 style="margin: 0; font-size: 24px; font-weight: 700; line-height: 1.2;">למחוק את מורן אהרון?</h2>
+      <button aria-label="סגירה" style="width: 44px; height: 44px; margin: -8px -10px 0 0; border: 0; background: transparent; color: #6B7A80; display: flex; align-items: center; justify-content: center; border-radius: 10px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <p style="margin: 0; font-size: 16px; line-height: 1.55; color: #3C4A50;">יימחקו לצמיתות גם <strong style="color: #1F2A2E;">3 המבחנים הבדוקים</strong> — הסריקות, הבדיקות והקבצים להורדה. אי אפשר לבטל את הפעולה.</p>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <label for="confirm-name" style="font-size: 14px; color: #3C4A50;">כדי לאשר, הקלידי את השם המלא</label>
+      <input id="confirm-name" type="text" value="מורן" placeholder="מורן אהרון" style="height: 48px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid {{accent}}; border-radius: 12px; font-family: inherit; font-size: 16px; color: #1F2A2E; background: #FFFFFF; outline: none;">
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
+      <button style="height: 46px; padding: 0 20px; border: 1px solid #D5DBD9; border-radius: 12px; background: #FFFFFF; color: #3C4A50; font-family: inherit; font-size: 15px;">ביטול</button>
+      <button disabled="disabled" style="height: 46px; padding: 0 22px; border: 0; border-radius: 12px; background: #E9C7C9; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 500;">מחיקה לצמיתות</button>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#2AB3A2","options":["#2AB3A2","#0F766E","#3A7BD5"],"section":"Theme"},"$preview":{"width":720,"height":560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#2AB3A2' };
+  }
+}
+</script>
+</body>
+</html>

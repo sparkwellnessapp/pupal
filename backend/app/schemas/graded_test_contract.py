@@ -69,6 +69,9 @@ class ContractCheck(BaseModel):
     final_verdict: Literal["met", "partially_met", "not_met"]
     was_overridden: bool = False
     evidence_disputed: bool = False
+    # [2026-09-15] She confirmed the model's credit verdict over a span the
+    # validator could not verify — the credit stands on HER reading of the paper.
+    evidence_confirmed: bool = False
     teacher_comment: Optional[str] = None
     # [OD-R2, OD-5] The amount she TYPED on this check, when she did; None when
     # the check was priced from its verdict. Kept beside `final_verdict` (which

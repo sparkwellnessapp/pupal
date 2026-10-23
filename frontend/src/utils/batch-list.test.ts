@@ -47,20 +47,36 @@ describe('listBarSegments — the REAL clean|eyes split (Ruling 1)', () => {
   })
 
   it('counts every post-transcription decision state as clean-waiting (nothing vanishes mid-pipeline)', () => {
-    // approved_transcription/grading/draft are past the transcription gate but
-    // not yet fully approved — they must still occupy the bar, or a batch in
-    // grading would render as half-empty.
+    // Past the gate but not yet signed — accepted-and-unclaimed, grading, and
+    // drafts — must still occupy the bar, or a batch in grading renders as
+    // half-empty.
+    //
+    // `approved_transcription` is the wire's GATE-PASSED TALLY, and it never
+    // decreases: every one of the 3 grading + 4 draft + 5 signed rows has a
+    // gate-passed transcription behind it, plus the 2 accepted ones the grader
+    // has not claimed yet — 14. The first version of this fixture wrote `2`
+    // there, treating the tally as the unclaimed bucket alone, which is
+    // precisely the misreading that put «N מבחנים ממתינים לך» on every signed
+    // batch in the live list (2026-09-19). Same bar, honest input.
     const segs = listBarSegments(rollup({
-      transcribed: 1, approved_transcription: 2, grading: 3, draft: 4, approved: 5, total: 15,
+      transcribed: 1, approved_transcription: 14, grading: 3, draft: 4, approved: 5, total: 15,
     }))
     expect(segs).toEqual([
       { kind: 'approved', count: 5 },
-      { kind: 'clean', count: 10 },    // 2+3+4 in grading + 1 bulk-acceptable
+      { kind: 'clean', count: 10 },    // 2 unclaimed + 3 + 4 in grading + 1 bulk-acceptable
     ])
   })
 
+  it('a FULLY SIGNED batch is one approved segment — the tally never leaks into «clean»', () => {
+    // Found live on three of the reporting teacher's batches: with the tally
+    // carried (as the wire always carries it) the bar drew a second «clean»
+    // segment the size of the whole batch beside the «approved» one.
+    expect(listBarSegments(rollup({ approved_transcription: 4, approved: 4, total: 4 })))
+      .toEqual([{ kind: 'approved', count: 4 }])
+  })
+
   it('drops zero-count segments and returns [] for an empty batch', () => {
-    expect(listBarSegments(rollup({ approved: 3, total: 3 })))
+    expect(listBarSegments(rollup({ approved_transcription: 3, approved: 3, total: 3 })))
       .toEqual([{ kind: 'approved', count: 3 }])
     expect(listBarSegments(rollup())).toEqual([])
   })
@@ -75,12 +91,19 @@ describe('listActionLine — one line per §3.2, precedence top-down', () => {
   })
 
   it('all approved → the §3.2 completion line', () => {
-    expect(listActionLine(rollup({ approved: 6, total: 6 })))
+    // WITH the gate-passed tally, because the wire always carries it and a
+    // signed grade implies a gate-passed transcription behind it. Without the
+    // field this fixture could never see the live defect: summing the raw tally
+    // into «pending» read «6 מבחנים ממתינים לך» over exactly this batch — found
+    // 2026-09-19 on three of the reporting teacher's own signed batches.
+    expect(listActionLine(rollup({ approved_transcription: 6, approved: 6, total: 6 })))
       .toEqual({ kind: 'done', text: 'הכל אושר ✓' })
   })
 
   it('needs-eyes wins and reads §3.2 verbatim — the sharp signal, not a paraphrase', () => {
-    expect(listActionLine(rollup({ transcribed: 5, needs_eyes: 4, approved: 1, total: 6 })))
+    expect(listActionLine(rollup({
+      transcribed: 5, needs_eyes: 4, approved_transcription: 1, approved: 1, total: 6,
+    })))
       .toEqual({ kind: 'eyes', text: '4 דורשים מבט' })
     expect(listActionLine(rollup({ transcribed: 1, needs_eyes: 1, total: 1 })))
       .toEqual({ kind: 'eyes', text: 'מבחן אחד דורש מבט' })   // AM3
@@ -94,12 +117,16 @@ describe('listActionLine — one line per §3.2, precedence top-down', () => {
   it('a batch whose work is entirely in grading is NOT "all approved"', () => {
     // The completion line must mean COMPLETE — draft/grading rows still owe
     // the teacher a grade review.
-    expect(listActionLine(rollup({ approved: 2, draft: 3, grading: 1, total: 6 }))?.kind)
+    expect(listActionLine(rollup({
+      approved_transcription: 6, approved: 2, draft: 3, grading: 1, total: 6,
+    }))?.kind)
       .toBe('pending')
   })
 
   it('failures alone → the failure line, never a false completion', () => {
-    expect(listActionLine(rollup({ approved: 2, transcription_failed: 1, total: 3 })))
+    expect(listActionLine(rollup({
+      approved_transcription: 2, approved: 2, transcription_failed: 1, total: 3,
+    })))
       .toEqual({ kind: 'failed', text: 'תמלול אחד נכשל' })
   })
 
@@ -112,7 +139,7 @@ describe('listActionLine — one line per §3.2, precedence top-down', () => {
 describe('degrade by omission — needs_eyes === null (owner ruling, closeout)', () => {
   it('falls back to ONE merged awaiting segment instead of inventing a split', () => {
     const segs = listBarSegments(rollup({
-      approved: 1, transcribed: 6, needs_eyes: null, total: 7,
+      approved_transcription: 1, approved: 1, transcribed: 6, needs_eyes: null, total: 7,
     }))
     expect(segs).toEqual([
       { kind: 'approved', count: 1 },
@@ -128,7 +155,9 @@ describe('degrade by omission — needs_eyes === null (owner ruling, closeout)',
   })
 
   it('a null count never reads as "all clear"', () => {
-    const a = listActionLine(rollup({ transcribed: 3, needs_eyes: null, approved: 1, total: 4 }))
+    const a = listActionLine(rollup({
+      transcribed: 3, needs_eyes: null, approved_transcription: 1, approved: 1, total: 4,
+    }))
     expect(a?.kind).not.toBe('done')
   })
 })

@@ -15,7 +15,7 @@ import {
     type WireScope,
 } from './grade-review-model';
 import {
-    cycleVerdict, emptyOverlay, setCheckPoints, setTerminalPoints, type Overlay,
+    confirmVerdict, cycleVerdict, emptyOverlay, setCheckPoints, setTerminalPoints, type Overlay,
 } from './verdict-cycle';
 import { basisHash } from './feedback-staleness';
 import type { NumericPolicy } from '@/lib/pricing';
@@ -554,5 +554,40 @@ describe('typed amounts in the model [OD-R2]', () => {
         // and K2 typed + K1 cycled: decided one by one
         const both = setCheckPoints(cycleVerdict(emptyOverlay(), T, K1, 'met'), T, K2, '1', '2', 'met');
         expect(build(failed, both).blockers).toEqual([]);
+    });
+});
+
+describe('an unverified ✓ (2026-09-15)', () => {
+    const T = 'q1.א.c0';
+    const K1 = 'q1.א.c0.k1';
+    const unverifiedDraft = () => draftOf([scope({
+        criterion_outcomes: [{
+            ...scope().criterion_outcomes![0],
+            checks: [{ ...scope().criterion_outcomes![0].checks![0], quote_status: 'not_found' },
+                     scope().criterion_outcomes![0].checks![1]],
+        }],
+    })]);
+
+    it('is flagged on the row, priced at 0, and not marked as her decision', () => {
+        const row = build(unverifiedDraft()).scopes[0].criteria[0].checks.find((c) => c.check_id === K1)!;
+        expect(row.unverified).toBe(true);
+        expect(row.verdict).toBe('met');
+        expect(row.awarded).toBe('0');
+        expect(row.overridden).toBe(false);
+        expect(row.evidenceConfirmed).toBe(false);
+    });
+
+    it('confirming it credits the row and clears the flag', () => {
+        const row = build(unverifiedDraft(), confirmVerdict(emptyOverlay(), T, K1, 'met'))
+            .scopes[0].criteria[0].checks.find((c) => c.check_id === K1)!;
+        expect(row.unverified).toBe(false);
+        expect(row.evidenceConfirmed).toBe(true);
+        expect(row.overridden).toBe(true);
+        expect(row.awarded).toBe('2');
+    });
+
+    it('a verified ✓, a ✗, and a tariff are never unverified', () => {
+        const rows = build(draftOf([scope()])).scopes[0].criteria[0].checks;
+        expect(rows.every((c) => !c.unverified)).toBe(true);
     });
 });

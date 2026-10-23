@@ -165,16 +165,55 @@ test.describe('בדיקת ציונים — the review module', () => {
     });
 
     /**
-     * The quote button's SCROLL, and the two ways it went wrong.
+     * THE CLICK NO LONGER HAS TO MOVE THE PAGE — the layout removed the cause.
      *
-     * The button sits in the checklist, below the answer it cites, so the
-     * answer is usually off-screen above and the toast was the teacher's only
-     * evidence anything had happened. The first fix derived the scroll from
-     * HIGHLIGHT STATE — which also changes on hover and on keyboard focus — so
-     * the page jumped whenever the mouse crossed a criterion. It is now
-     * commanded by the click, and only by the click.
+     * This guard used to assert the opposite, and was right to: the button sat
+     * in the checklist BELOW the answer it cited, the answer was usually
+     * off-screen above, and the toast was the teacher's only evidence that
+     * anything had happened. (An earlier fix derived the scroll from HIGHLIGHT
+     * STATE — which also changes on hover and on keyboard focus — so the page
+     * jumped whenever the mouse crossed a criterion; that is now structurally
+     * impossible, HL-3.)
+     *
+     * At two columns the answer is pinned beside the criteria of its own scope
+     * (LAY-1), so the evidence she asked for is already on screen and the only
+     * thing that may move is the pane's own `scrollTop`. The one-column band
+     * keeps the old behaviour and has the test below.
      */
-    test('quote-button-scrolls-to-its-own-answer: the click brings the answer into view', async ({ page }) => {
+    test('quote-button-reveals-without-moving-the-page: the pane scrolls, the page does not',
+        async ({ page }) => {
+            await installGradeReviewMocks(page);
+            await page.goto(REVIEW);
+
+            await openAllBreakdowns(page);
+            const quoteButton = page.getByRole('button', { name: /ציטוט רלוונטי מהתשובה/ }).first();
+            await quoteButton.scrollIntoViewIfNeeded();
+            await page.waitForTimeout(300);
+
+            // LAY-1: she is on a criterion row, so that scope's answer is beside
+            // it — which is exactly why nothing has to scroll.
+            const paneVisible = await quoteButton.evaluate((btn) => {
+                const pane = btn.closest('[data-scope-id]')!
+                    .querySelector('[data-answer-pane]')!.getBoundingClientRect();
+                return pane.bottom > 0 && pane.top < window.innerHeight;
+            });
+            expect(paneVisible).toBe(true);
+
+            const before = await page.evaluate(() => window.scrollY);
+            await quoteButton.click();
+            await page.waitForTimeout(700);              // the pane's scroll is smooth
+
+            expect(await page.evaluate(() => window.scrollY)).toBe(before);
+            await page.mouse.move(0, 0);
+            await expect(page.locator('mark[data-pinned="true"]').first()).toBeVisible();
+        });
+
+    test('one-column band: the click still brings the answer into view', async ({ page }) => {
+        // Between `desk` (941) and `split` (1180) the same grid reflows to one
+        // column and the answer sits above a long checklist again. Honest
+        // degradation (§1.5): no co-visibility guarantee, but the click must
+        // still show her what it claims to be showing (OD-A11).
+        await page.setViewportSize({ width: 1100, height: 800 });
         await installGradeReviewMocks(page);
         await page.goto(REVIEW);
 
@@ -187,7 +226,7 @@ test.describe('בדיקת ציונים — the review module', () => {
         await page.mouse.wheel(0, 1200);
         await page.waitForTimeout(300);
 
-        const answer = page.locator('[data-answer-for]').first();
+        const answer = page.locator('[data-answer-pane]').first();
         const before = await answer.boundingBox();
 
         await quoteButton.click();
@@ -345,23 +384,83 @@ test.describe('בדיקת ציונים — the review module', () => {
  * that the keyboard can still reach a row behind it.
  */
 test.describe('בדיקת ציונים — the criterion fold (S4/S5)', () => {
-    test('the criterion quote button lights nothing on HOVER — only the click does', async ({ page }) => {
-        // Owner question (2026-09-11). By construction the answer is "click":
-        // the only thing that can set `hover` is a CheckRow's mouseenter, and
-        // the header button carries one handler, onClick. Pinned here so a
-        // future "helpful" hover preview cannot arrive unnoticed.
+    /**
+     * ⚠ THIS GUARD WAS INVERTED BY RULING OD-8, deliberately.
+     *
+     * It used to assert that the criterion header lights nothing on hover, and
+     * said so: «pinned here so a future "helpful" hover preview cannot arrive
+     * unnoticed». The hover preview is now the point of the screen — the whole
+     * reason the answer moved beside the criteria — so the guard is rewritten
+     * rather than deleted, and what it protects is the DISTINCTION the ruling
+     * actually cares about: hover is TRANSIENT (no persistent underline, no
+     * selection), a click is not.
+     */
+    test('the criterion header lights its union on HOVER — transiently; the click keeps it',
+        async ({ page }) => {
+            await installGradeReviewMocks(page);
+            await page.goto(REVIEW);
+            const union = page.locator('[data-terminal-quote]').first();
+            await expect(union).toBeVisible();
+
+            await union.hover();
+            // HL-5 — it takes a REST of ~150 ms, not a crossing.
+            await expect(page.locator('mark').first()).toBeVisible();
+            // HL-2 — and it wrote no selection: no persistent underline, and
+            // the button is not pressed.
+            await expect(page.locator('mark[data-pinned="true"]')).toHaveCount(0);
+            await expect(page.locator('[data-terminal-quote][data-pinned="true"]')).toHaveCount(0);
+
+            // Leaving reverts to the selection — which is nothing, here (M-1).
+            await page.mouse.move(0, 0);
+            await expect(page.locator('mark')).toHaveCount(0);
+
+            await union.click();
+            await page.mouse.move(0, 0);
+            expect(await page.locator('mark').count()).toBeGreaterThan(0);
+            await expect(page.locator('[data-terminal-quote][data-pinned="true"]')).toHaveCount(1);
+        });
+
+    test('a SWEEP down the checklist changes nothing at all [HL-5]', async ({ page }) => {
+        // P3: nothing reacts faster than her intent. A pointer crossing four
+        // rows on its way somewhere is not a request to see four quotations.
         await installGradeReviewMocks(page);
         await page.goto(REVIEW);
-        const union = page.locator('[data-terminal-quote]').first();
-        await expect(union).toBeVisible();
+        await openAllBreakdowns(page);
 
-        await union.hover();
-        await page.waitForTimeout(300);
+        const rows = page.locator('[data-check-id]');
+        const count = Math.min(5, await rows.count());
+        for (let i = 0; i < count; i += 1) {
+            const box = await rows.nth(i).boundingBox();
+            if (!box) continue;
+            await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        }
+        // No rest anywhere — so no timer fired, and nothing is lit.
         await expect(page.locator('mark')).toHaveCount(0);
+    });
 
-        await union.click();
-        await page.mouse.move(0, 0);
-        expect(await page.locator('mark').count()).toBeGreaterThan(0);
+    test('a wheel under a stationary pointer changes no highlight [AM-1]', async ({ page }) => {
+        // The loop this closes: hover reveals → something scrolls → a different
+        // row slides under the pointer → hover fires again. Arming is what
+        // makes it unreachable.
+        await installGradeReviewMocks(page);
+        await page.goto(REVIEW);
+        await openAllBreakdowns(page);
+
+        const row = page.locator(
+            '[data-check-id]:has(button:has-text("ציטוט רלוונטי מהתשובה"))').first();
+        await row.scrollIntoViewIfNeeded();
+        const box = await row.boundingBox();
+        expect(box).not.toBeNull();
+
+        // Rest on it — it lights.
+        await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+        await expect(page.locator('mark').first()).toBeVisible();
+
+        // Now turn the wheel WITHOUT moving the mouse. Rows slide beneath it;
+        // none of them may light.
+        await page.mouse.wheel(0, 400);
+        await page.waitForTimeout(500);
+        await expect(page.locator('mark')).toHaveCount(0);
     });
 
     /**
@@ -425,7 +524,8 @@ test.describe('בדיקת ציונים — the criterion fold (S4/S5)', () => {
             `[data-terminal-id="${terminalId}"] [data-check-id]:has(button:has-text("ציטוט רלוונטי מהתשובה"))`,
         ).first();
         await row.hover();
-        expect(await page.locator('mark').count()).toBeGreaterThan(0);
+        // The intent delay (HL-5) means this is not true on the same tick.
+        await expect(page.locator('mark').first()).toBeVisible();
 
         // Collapse WITHOUT moving the mouse: focus the disclosure and press
         // Enter. The hovered row unmounts and its mouseleave never fires.
@@ -891,5 +991,58 @@ test.describe('deduction rows', () => {
         await row.click();
         await page.keyboard.press('Enter');
         await expect(page.locator('input[data-points-input]')).toHaveCount(0);
+    });
+});
+
+/**
+ * An UNVERIFIED ✓ (2026-09-15): Vivi's credit verdict whose cited span the
+ * validator could not find. It prices at 0, it says so, and one press of
+ * Space confirms it as hers — it used to cycle to ✗, the opposite of what a
+ * teacher who has just read the answer as correct wants (graded_test a0cd07ff).
+ */
+test.describe('unverified ✓ — confirm, do not cycle', () => {
+    test('the row is marked, worth 0, and Space confirms it into her credited ✓', async ({ page }) => {
+        await installGradeReviewMocks(page, { draftOverride: readDraft('SYNTHETIC_edge_cases') });
+        await page.goto(REVIEW);
+        await openAllBreakdowns(page);
+
+        // Pin the row by ID: a locator keyed on the state this test changes
+        // would re-resolve to the NEXT unverified row after the first press.
+        const firstUnverified = page.locator('[data-check-id][data-unverified="true"]').first();
+        await expect(firstUnverified).toBeVisible();
+        const rowId = await firstUnverified.getAttribute('data-check-id');
+        const row = page.locator(`[data-check-id="${rowId}"]`);
+        const verdict = row.locator('[data-verdict]');
+        await expect(verdict).toHaveAttribute('data-verdict', 'met');
+        await expect(verdict).toHaveAttribute('data-verdict-shown', 'unverified');
+        await expect(row).toHaveAttribute('data-overridden', 'false');
+        const figure = row.locator('button[data-points-target="check"]');
+        expect((await figure.textContent())!.trim().startsWith('0')).toBe(true);
+
+        await row.click();
+        await page.keyboard.press('Space');
+
+        await expect(row).toHaveAttribute('data-unverified', 'false');
+        await expect(row).toHaveAttribute('data-overridden', 'true');
+        await expect(verdict).toHaveAttribute('data-verdict-shown', 'met');
+        await expect(row.locator('[data-confirmed="true"]')).toBeVisible();
+        expect((await figure.textContent())!.trim().startsWith('0')).toBe(false);
+
+        const saved = page.waitForRequest(
+            (r) => r.method() === 'PATCH' && r.url().includes('/draft'));
+        await page.keyboard.press('Control+s');
+        const body = (await saved).postDataJSON();
+        const checkId = await row.getAttribute('data-check-id');
+        const decisions = Object.values(body.overrides.terminals as Record<string, {
+            check_id: string; verdict: string; evidence_confirmed?: boolean;
+        }[]>).flat();
+        expect(decisions).toContainEqual(expect.objectContaining(
+            { check_id: checkId, verdict: 'met', evidence_confirmed: true }));
+
+        // ⌫ withdraws the confirmation: back to the unverified, uncredited state
+        await page.keyboard.press('Backspace');
+        await expect(row).toHaveAttribute('data-unverified', 'true');
+        await expect(verdict).toHaveAttribute('data-verdict-shown', 'unverified');
+        expect((await figure.textContent())!.trim().startsWith('0')).toBe(true);
     });
 });

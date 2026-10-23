@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 
 import { answerLines, answerRenderPlan } from '@/utils/answer-mode';
 import { markRangesForAll, segmentsForLine, type Highlight, type LineRange }
@@ -21,9 +21,15 @@ import { markRangesForAll, segmentsForLine, type Highlight, type LineRange }
  * Playwright bounding-box test is the standing guard; do not reintroduce it
  * from first principles (CLAUDE.md §10).
  *
- * The active mark is scrolled into view, but only when the highlight came from
- * the KEYBOARD or a pin. Scrolling on hover would yank the page out from under
- * the mouse that caused it.
+ * ── IT SCROLLS NOTHING ────────────────────────────────────────────────────
+ * This block used to centre the first mark inside its own container whenever
+ * the highlight changed and the change had not come from a hover. That was a
+ * SECOND reveal, living beside `GradeReviewSurface.reveal`, deciding from state
+ * what the other decides from intent — and two reveals cannot stay in agreement
+ * (§0.4). The surface now owns it outright: it knows WHY the highlight changed,
+ * it lands the span at the pane's upper third (OD-9), and it skips the scroll
+ * when the span is already comfortably in view (M-2). Nothing here reads or
+ * writes a scroll offset; this is a pure render of `(answer, highlight)`.
  */
 
 export interface AnswerBlockProps {
@@ -31,8 +37,6 @@ export interface AnswerBlockProps {
     /** Anchors this answer so the quote button can scroll to THIS one. */
     scopeId?: string;
     highlight: Highlight;
-    /** Suppress auto-scroll: the highlight is following the mouse. */
-    transient?: boolean;
     /**
      * The rubric's subject key (multisubject Phase 3a). Decides the render plan:
      * english → prose LTR, mathematics → prose RTL, computer_science / absent →
@@ -41,10 +45,7 @@ export interface AnswerBlockProps {
     subject?: string | null;
 }
 
-export function AnswerBlock({ answer, highlight, transient = false, subject, scopeId }: AnswerBlockProps) {
-    const markRef = useRef<HTMLElement | null>(null);
-    const containerRef = useRef<HTMLDivElement | null>(null);
-
+export function AnswerBlock({ answer, highlight, subject, scopeId }: AnswerBlockProps) {
     // WHERE THE SPANS LIVE, decided ONCE over the whole answer. Per line it was
     // undecidable: a five-line quote is a substring of no single line.
     //
@@ -71,42 +72,16 @@ export function AnswerBlock({ answer, highlight, transient = false, subject, sco
         return out;
     }, [ranges]);
 
-    useEffect(() => {
-        // Centre the mark inside the ANSWER'S OWN scroll box — nothing else.
-        //
-        // This deliberately does NOT scroll the page. Bringing the answer into
-        // view is a response to a CLICK on the quote button, and it is owned by
-        // `GradeReviewSurface.togglePin`, which knows a click happened. Deriving
-        // it from highlight state here was wrong twice over: the state also
-        // changes on HOVER and on keyboard focus, and the effect ran even when
-        // there was no quote at all — so the page jumped whenever the mouse
-        // crossed a criterion. `scrollIntoView` is avoided for the same reason:
-        // it scrolls every scrollable ancestor, the page included.
-        if (transient || !markRef.current || !containerRef.current) return;
-        const container = containerRef.current;
-        const mark = markRef.current.getBoundingClientRect();
-        const box = container.getBoundingClientRect();
-        if (mark.top < box.top || mark.bottom > box.bottom) {
-            container.scrollTop += (mark.top - box.top)
-                - (box.height - mark.height) / 2;
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [spanKey, transient]);
-
     const plan = answerRenderPlan(answer, subject);
     const mode = plan.mode;
     const lines = answerLines(answer, mode);
-    let markAssigned = false;
 
     const renderSegments = (text: string, lineIndex: number) =>
         segmentsForLine(text, rangesByLine.get(lineIndex) ?? []).map((segment, i) => {
             if (!segment.marked) return <span key={i}>{segment.text}</span>;
-            const isFirst = !markAssigned;
-            markAssigned = true;
             return (
                 <mark
                     key={i}
-                    ref={isFirst ? markRef : undefined}
                     // The kind is recorded PER SEGMENT as data (a criterion's
                     // union can mix exact and fuzzy spans), but since the owner
                     // ruling of 2026-09-11 it is not PAINTED differently: one
@@ -130,12 +105,11 @@ export function AnswerBlock({ answer, highlight, transient = false, subject, sco
     if (mode === 'prose') {
         return (
             <div
-                ref={containerRef}
                 dir={plan.dir}
                 data-answer-for={scopeId}
                 data-answer-mode="prose"
                 data-answer-dir={plan.dir}
-                className={`mb-3.5 scroll-mt-scope max-h-answer-max overflow-auto rounded-grade-ctl border
+                className={`gr-card__pane-body scroll-mt-scope rounded-grade-ctl border
                     border-grade-line-2 bg-grade-bar px-4 py-3 text-gr-prose ${
                     plan.dir === 'ltr' ? 'text-left' : 'text-right'}`}
             >
@@ -150,11 +124,10 @@ export function AnswerBlock({ answer, highlight, transient = false, subject, sco
 
     return (
         <div
-            ref={containerRef}
             dir="ltr"
             data-answer-for={scopeId}
             data-answer-mode="code"
-            className="mb-3.5 scroll-mt-scope max-h-answer-max overflow-auto rounded-grade-ctl border
+            className="gr-card__pane-body scroll-mt-scope rounded-grade-ctl border
                 border-grade-line-2 bg-grade-bar py-3 pl-2 pr-3.5 text-left
                 font-mono text-gr-answer"
         >

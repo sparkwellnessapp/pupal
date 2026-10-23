@@ -27,7 +27,7 @@ describe('no selection groups — every leaf is owed', () => {
         const r = deriveCompleteness([
             a(1, null, 'x'), a(2, 'א', 'y'), a(2, 'ב', 'z'),
         ], [])
-        expect(r.sentence).toBe('נמצאו תשובות לכל 3 הסעיפים')
+        expect(r.sentence).toBe('נמצאו תשובות לכל 3 השאלות')
         expect(r.needsLook).toBe(false)
         expect(r.reasons).toEqual([])
     })
@@ -52,9 +52,9 @@ describe('no selection groups — every leaf is owed', () => {
 
     it('an absent `groups` is the same as an empty one', () => {
         expect(deriveCompleteness([a(1, null, 'x')], undefined).sentence)
-            .toBe('נמצאו תשובות לכל 1 הסעיפים')
+            .toBe('נמצאו תשובות לכל 1 השאלות')
         expect(deriveCompleteness([a(1, null, 'x')], null).sentence)
-            .toBe('נמצאו תשובות לכל 1 הסעיפים')
+            .toBe('נמצאו תשובות לכל 1 השאלות')
     })
 
     it('a transcription with no answer entries says nothing at all', () => {
