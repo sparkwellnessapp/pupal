@@ -1,0 +1,26 @@
+{
+  "_why": "Verdict-level corrections that make each terminal price to the teacher-validated GT (gt/yonatan_basiuk.gt.json). Points are never written here: the build re-prices through services/pricing.py and refuses unless every terminal equals GT.",
+  "checks": {
+    "q1.א.c1.k4": {
+      "verdict": "met",
+      "basis_he": "ההשמה this.durationInMinutes = Minutes מגיעה לתכונה הנכונה. Minutes באות גדולה היא החלקת כתיב של הפרמטר minutes מאותה חתימה, לא טעות בהבנה."
+    },
+    "q1.ג.c1.k1": {
+      "verdict": "met",
+      "quote": "int count = 0;",
+      "basis_he": ""
+    },
+    "q1.ג.c7.k2": {
+      "verdict": "met",
+      "basis_he": "יש חישוב והדפסה של ממוצע לחוגים הלא-ספורטיביים. השימוש במשתנים השגויים (sumSportive, count) מחויב בניכוי הנפרד על חישוב שגוי."
+    },
+    "q1.ג.c7.k4": {
+      "verdict": "met",
+      "basis_he": "המשתנים מטיפוס double, כך שהחלוקה מתבצעת כחלוקה ממשית."
+    },
+    "q2.ב.c4.s5.k1": {
+      "verdict": "met",
+      "basis_he": "בתוך התנאי minRate = i: הערוץ המינימלי מתעדכן כנדרש."
+    }
+  }
+}

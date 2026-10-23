@@ -1,0 +1,46 @@
+{
+  "_why": "Verdict-level corrections that make each terminal price to the teacher-validated GT (gt/dan_basiuk.gt.json). Points are never written here: the build re-prices through services/pricing.py and refuses unless every terminal equals GT. Each basis_he restates the GT note in teacher language.",
+  "checks": {
+    "q1.ב.c2.k1": {
+      "verdict": "met",
+      "basis_he": "הלולאה עוברת על תאי המערך עד סופו, ולכן נעצרת כשאין יותר מקום פנוי."
+    },
+    "q1.ב.c2.k2": {
+      "verdict": "not_met",
+      "basis_he": "תשובת המשתמש נבדקת בתוך הלולאה אבל אינה חלק מתנאי ההמשך: גם אחרי 'n' הלולאה ממשיכה לרוץ ולשאול שוב."
+    },
+    "q1.ב.c4.k2": {
+      "verdict": "met",
+      "basis_he": "העצם נכנס לתא הפנוי הראשון (hobbies[i] == null). במערך ללא רווחים זה בדיוק התא hobbies[countHobbies]."
+    },
+    "q1.ג.c3.k1": {
+      "verdict": "met",
+      "basis_he": "הלולאה עוברת על המערך מ-0 עד Length, בגבולות תקינים. היעדר בדיקת null מחויב בניכוי הנפרד."
+    },
+    "q1.ג.c6.k2": {
+      "verdict": "partially_met",
+      "basis_he": "החישוב וההדפסה קיימים, אבל הם בתוך הלולאה ולא אחריה, ולכן הממוצע מחושב ומודפס מחדש בכל סיבוב."
+    },
+    "q1.ג.c7.k2": {
+      "verdict": "partially_met",
+      "basis_he": "החישוב וההדפסה קיימים, אבל הם בתוך הלולאה ולא אחריה, ולכן הממוצע מחושב ומודפס מחדש בכל סיבוב."
+    },
+    "q2.ב.c3.s0.k1": {
+      "verdict": "met",
+      "basis_he": "הלולאה עוברת על כל מערך התוכניות מ-0. הגישה הישירה ל-A.Length בלי Getter מחויבת בניכוי הנפרד."
+    },
+    "q2.ב.c4.s0.k1": {
+      "verdict": "met",
+      "quote": "int maxch = 1;",
+      "basis_he": "המינימום נשמר דרך אינדקס הערוץ (maxch) וההשוואה ל-Rates[maxch], דרך שקולה למשתנה מינימום מאותחל."
+    }
+  },
+  "variant_q1a": {
+    "_why": "The demo's control moment: the teacher decides the this.minutes slip deserves the full point. Applied as a TEACHER override at approval (never baked into the proposal).",
+    "terminal_id": "q1.א.c1",
+    "check_id": "q1.א.c1.k4",
+    "verdict": "met",
+    "expect_terminal": "4",
+    "expect_total": "84.5"
+  }
+}

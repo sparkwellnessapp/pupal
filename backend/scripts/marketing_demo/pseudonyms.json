@@ -1,0 +1,22 @@
+{
+  "_why": "Owner ruling 2026-10-23: the marketing demo shows these two real exams under pseudonyms only. Slugs are the existing fixture ids; nothing here names a real student.",
+  "batch_name": "מבחן יא׳ במדעי המחשב",
+  "students": {
+    "dan_basiuk": {
+      "id": "student-a",
+      "display_name": "איתי כהן",
+      "graded_test_id": "d3e00000-0000-4000-8000-00000000000a",
+      "transcription_id": "d3e00000-0000-4000-8000-0000000000a1",
+      "contract_version": "d3e00000-0000-4000-8000-0000000000a2",
+      "variant_contract_version": "d3e00000-0000-4000-8000-0000000000a3"
+    },
+    "yonatan_basiuk": {
+      "id": "student-b",
+      "display_name": "יואב מזרחי",
+      "graded_test_id": "d3e00000-0000-4000-8000-00000000000b",
+      "transcription_id": "d3e00000-0000-4000-8000-0000000000b1",
+      "contract_version": "d3e00000-0000-4000-8000-0000000000b2"
+    }
+  },
+  "approved_at": "2026-10-23T17:30:00+00:00"
+}
