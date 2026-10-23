@@ -1,0 +1,12 @@
+# scan-service — pinned (PR_in_house_scanning.md §7). Pure image work: no DB.
+# Shared libraries pinned EQUAL to backend/requirements.txt so the two
+# deployables never disagree about a Pillow or a FastAPI.
+fastapi==0.128.0
+uvicorn==0.40.0
+pydantic==2.12.5
+google-cloud-storage==3.7.0
+Pillow==12.1.0
+pillow-heif==1.1.1
+numpy==2.2.6
+opencv-python-headless==4.12.0.88
+img2pdf==0.6.1

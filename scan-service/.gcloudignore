@@ -1,0 +1,7 @@
+# Anchored (see CLAUDE.md §12: an unanchored pattern once un-deployed a package).
+/.venv/
+/tests/
+/deploy/
+/.pytest_cache/
+__pycache__/
+*.pyc
