@@ -76,6 +76,10 @@ class Graph:
     pdf_ids: list[uuid.UUID] = field(default_factory=list)
     objects: set[tuple[str, str]] = field(default_factory=set)
     student_keys: set[str] = field(default_factory=lambda: {"alpha", "beta"})
+    # [036] capture subtrees, by key: {"sub", "pages", "versions", "student"}.
+    # A capture's transcription is t[key]; its jobs are j[f"{key}_v1"], j[f"{key}_v2"].
+    captures: dict[str, dict] = field(default_factory=dict)
+    link_id: uuid.UUID | None = None
 
     # ---- what a correct plan for S contains -------------------------------
     def expected_rows(self) -> dict[str, set[uuid.UUID]]:
@@ -84,17 +88,25 @@ class Graph:
             "graded_tests": {self.g[k] for k in self.g if k.split("_")[0] in self.student_keys},
             "transcription_jobs": {self.j[k] for k in self.j if k.split("_")[0] in self.student_keys},
             "transcriptions": {self.t[k] for k in self.student_keys},
+            "capture_pages": {p for k in self._own_captures() for p in self.captures[k]["pages"]},
+            "capture_versions": {v for k in self._own_captures() for v in self.captures[k]["versions"]},
+            "capture_submissions": {self.captures[k]["sub"] for k in self._own_captures()},
             "students": {self.student_id},
         }
+
+    def _own_captures(self) -> list[str]:
+        return [k for k, c in self.captures.items() if c["student"] == self.student_id]
 
     def expected_objects(self) -> set[tuple[str, str]]:
         own_t = {str(self.t[k]) for k in self.student_keys}
         own_g = {str(self.g[k]) for k in self.g if k.split("_")[0] in self.student_keys}
         own_scans = {self.scans[k] for k in self.student_keys}
+        own_subs = {str(self.captures[k]["sub"]) for k in self._own_captures()}
         return {(b, n) for (b, n) in self.objects
                 if n in own_scans
                 or (n.startswith("thumbs/") and n.split("/")[1] in own_t)
-                or (n.startswith("returned_exams/") and n.split("/")[1] in own_g)}
+                or (n.startswith("returned_exams/") and n.split("/")[1] in own_g)
+                or (n.startswith("captures/") and n.split("/")[1] in own_subs)}
 
     def control_objects(self) -> set[tuple[str, str]]:
         return self.objects - self.expected_objects()
@@ -331,6 +343,89 @@ async def add_student(g: Graph, *, draft_only: bool = False, scan_only: bool = F
     return sid
 
 
+async def add_capture(g: Graph, key: str, *, student_id=None, pending_name: str | None = None,
+                      approve: bool = False) -> uuid.UUID:
+    """[036] A saved capture submission with two pages and two versions:
+    v1 superseded (its job failed and was WITHDRAWN, no transcription), v2
+    current (its job completed: a `transcribed` scan at the version's PDF
+    path, or `approve=True` -> approved for `student_id`). With `student_id`
+    it is a teacher capture CONFIRMED for that student; with `pending_name`
+    it is a student-link capture whose typed name was never resolved.
+    `key` must not contain "_" (the graph keys jobs by its prefix)."""
+    from app.models.capture import CaptureLink, CapturePage, CaptureSubmission, CaptureVersion
+    from app.models.transcription import Transcription
+    from app.models.transcription_job import TranscriptionJob
+    from app.services.capture import paths
+
+    assert "_" not in key
+    sub = uuid.uuid4()
+    async with session() as db:
+        if pending_name is not None and g.link_id is None:
+            g.link_id = uuid.uuid4()
+            db.add(CaptureLink(id=g.link_id, batch_id=g.batch_id, user_id=g.user_id,
+                               token_hash=uuid.uuid4().bytes, exam_date=_now().date()))
+            await db.flush()
+        db.add(CaptureSubmission(
+            id=sub, batch_id=g.batch_id, user_id=g.user_id,
+            source="teacher" if pending_name is None else "student_link",
+            link_id=None if pending_name is None else g.link_id,
+            device_secret_hash=None if pending_name is None else uuid.uuid4().bytes,
+            student_id=student_id,
+            student_state="confirmed" if student_id is not None else "pending",
+            pending_student_name=pending_name, status="draft"))
+        await db.flush()
+        pages = [uuid.uuid4(), uuid.uuid4()]
+        for i, pid in enumerate(pages, 1):
+            db.add(CapturePage(
+                id=pid, submission_id=sub, raw_gcs_uri=f"gs://{BUCKET}/{paths.raw_path(sub, pid)}",
+                preview_gcs_uri=f"gs://{BUCKET}/{paths.preview_path(sub, pid)}",
+                content_type="image/jpeg", status="analyzed", image_w=3000, image_h=4000,
+                corners=[[0, 0], [1, 0], [1, 1], [0, 1]], corners_source="full_frame", position=i))
+            g.objects.add((BUCKET, paths.raw_path(sub, pid)))
+            g.objects.add((BUCKET, paths.preview_path(sub, pid)))
+        versions = [uuid.uuid4(), uuid.uuid4()]
+        for n, vid in enumerate(versions, 1):
+            db.add(CaptureVersion(id=vid, submission_id=sub, version_no=n,
+                                  pages_snapshot=[{"page_id": str(p)} for p in pages],
+                                  scan_pipeline_version="scan-v1.0"))
+            g.objects.add((BUCKET, paths.pdf_path(sub, vid)))
+        await db.flush()
+        await db.execute(text("UPDATE capture_submissions SET status = 'saved', "
+                              "current_version_id = :v WHERE id = :s"),
+                         {"v": versions[1], "s": sub})
+
+        j1 = uuid.uuid4()
+        db.add(TranscriptionJob(
+            id=j1, user_id=g.user_id, batch_id=g.batch_id, rubric_id=g.rubric_id, status="failed",
+            source_gcs_object_path=paths.pdf_path(sub, versions[0]), source_filename=f"{key}.pdf",
+            capture_version_id=versions[0], withdrawn_at=_now(), started_at=_now(),
+            finished_at=_now(), error_message="boom"))
+        tid, path = uuid.uuid4(), paths.pdf_path(sub, versions[1])
+        db.add(Transcription(
+            id=tid, user_id=g.user_id, rubric_id=g.rubric_id, batch_id=g.batch_id,
+            student_id=student_id if approve else None, gcs_uri=f"gs://{BUCKET}/{path}",
+            gcs_bucket=BUCKET, gcs_object_path=path, filename=f"{key}.pdf",
+            draft_json={"page_count": 2, "answers": [], "annotations": []},
+            contract_json={"answers": []} if approve else None,
+            approved_at=_now() if approve else None,
+            status="approved" if approve else "transcribed"))
+        await db.flush()
+        j2 = uuid.uuid4()
+        db.add(TranscriptionJob(
+            id=j2, user_id=g.user_id, batch_id=g.batch_id, rubric_id=g.rubric_id,
+            status="completed", source_gcs_object_path=path, source_filename=f"{key}.pdf",
+            capture_version_id=versions[1], transcription_id=tid, started_at=_now(),
+            finished_at=_now()))
+        await db.commit()
+    g.objects.add((BUCKET, f"thumbs/{tid}/p1_1200x80-150.webp"))
+    g.t[key], g.scans[key], g.filenames[key] = tid, path, f"{key}.pdf"
+    g.j[f"{key}_v1"], g.j[f"{key}_v2"] = j1, j2
+    g.captures[key] = {"sub": sub, "pages": pages, "versions": versions, "student": student_id}
+    if student_id == g.student_id:
+        g.student_keys.add(key)
+    return sub
+
+
 async def set_graded_student(g: Graph, graded_key: str, student_id: uuid.UUID) -> None:
     async with session() as db:
         await db.execute(text("UPDATE graded_tests SET student_id = :s WHERE id = :g"),
@@ -361,6 +456,12 @@ async def row_counts(g: Graph) -> dict[str, int]:
                             [g.batch_id, *g.extra_batches]),
         "rubrics": ("SELECT COUNT(*) FROM rubrics WHERE id = ANY(:ids)", [g.rubric_id]),
         "users": ("SELECT COUNT(*) FROM users WHERE id = ANY(:ids)", [g.user_id]),
+        "capture_submissions": ("SELECT COUNT(*) FROM capture_submissions WHERE id = ANY(:ids)",
+                                [c["sub"] for c in g.captures.values()]),
+        "capture_pages": ("SELECT COUNT(*) FROM capture_pages WHERE id = ANY(:ids)",
+                          [p for c in g.captures.values() for p in c["pages"]]),
+        "capture_versions": ("SELECT COUNT(*) FROM capture_versions WHERE id = ANY(:ids)",
+                             [v for c in g.captures.values() for v in c["versions"]]),
     }
     out = {}
     async with session() as db:
@@ -381,6 +482,7 @@ async def drop_graph(g: Graph) -> None:
     """Explicit, dependency-ordered, idempotent. Deletes by the seeded ids only,
     so it is safe on a shared session user (`user_a`)."""
     ts, js, gs = list(g.t.values()), list(g.j.values()), list(g.g.values())
+    subs = [c["sub"] for c in g.captures.values()]
     stmts = [
         ("DELETE FROM graded_test_pdfs WHERE id = ANY(:ids) OR graded_test_id = ANY(:gs)",
          {"ids": g.pdf_ids, "gs": gs}),
@@ -391,6 +493,11 @@ async def drop_graph(g: Graph) -> None:
         ("DELETE FROM transcription_jobs WHERE id = ANY(:js) OR transcription_id = ANY(:ts)",
          {"js": js, "ts": ts}),
         ("DELETE FROM transcriptions WHERE id = ANY(:ts)", {"ts": ts}),
+        # [036] pages, then versions + submissions together (they reference each other)
+        ("DELETE FROM capture_pages WHERE submission_id = ANY(:subs)", {"subs": subs}),
+        ("WITH v AS (DELETE FROM capture_versions WHERE submission_id = ANY(:subs) RETURNING 1)"
+         " DELETE FROM capture_submissions WHERE id = ANY(:subs)", {"subs": subs}),
+        ("DELETE FROM capture_links WHERE batch_id = :b", {"b": g.batch_id}),
         ("DELETE FROM class_memberships WHERE class_id = :c", {"c": g.class_id}),
         ("DELETE FROM students WHERE id = ANY(:ss)",
          {"ss": [g.student_id, g.other_student_id, *g.extra_students]}),

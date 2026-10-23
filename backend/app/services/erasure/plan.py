@@ -4,8 +4,18 @@ AM-B5; docs/PURGE_CENSUS.md §19).
 
 The unit is a TRANSCRIPTION SUBTREE: the scan, its jobs, `thumbs/{id}/`, and
 every graded-test chain on it with `returned_exams/{id}/`. A student's purge
-is the subtrees of her scans, plus her memberships, plus the student row.
-Execution deletes exactly this plan and discovers nothing (PRV-6).
+is the subtrees of her scans, plus her CAPTURE SUBTREES (036), plus her
+memberships, plus the student row. Execution deletes exactly this plan and
+discovers nothing (PRV-6).
+
+A capture subtree is a `capture_submissions` row naming her, its pages, its
+frozen versions, every job compiled from those versions, those jobs'
+transcriptions — approved or not, current or withdrawn — and everything under
+`captures/{submission_id}/`. An unapproved capture transcription is hers to
+delete where an unassigned upload is not: a human (she, or her teacher)
+CONFIRMED the student on the capture submission; nothing was name-matched. A
+submission holding only a typed, unresolved name is not hers (OD-B6): once
+compiled it is an unassigned scan, counted below like any other.
 
 The plan REFUSES — raising `PurgeRefused`, having made no storage call — when
 it cannot promise a correct purge:
@@ -18,6 +28,11 @@ it cannot promise a correct purge:
   unknown_bucket      a scan names a bucket outside the known set
   unsafe_target       a scan path outside the PRV-11 allow-list
   shared_object       a scan another row still points at (PRV-12)
+  capture_mismatch    a scan compiled from her capture submission was approved
+                      for ANOTHER student — the approval paths write the
+                      approved student back onto the submission (OD-3), so a
+                      disagreement is news, and deleting the photos under it
+                      would delete someone else's exam
 
 Blockers (a grade `pending`/`grading`, a job `queued`/`running`) do not refuse
 the PLAN — the preview shows them — they refuse the purge (PRV-5).
@@ -36,14 +51,17 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.capture.paths import split_gs_uri
 from app.services.student_signed_tests import signed_tests_count
 
 from .storage import GuardedStorage
-from .targets import UnsafeStorageTarget, returned_exams_prefix, thumbs_prefix, validate_target
+from .targets import (
+    UnsafeStorageTarget, captures_prefix, returned_exams_prefix, thumbs_prefix, validate_target,
+)
 
 BLOCKING_GRADE = ("pending", "grading")
 BLOCKING_JOB = ("queued", "running")
-OBJECT_FAMILIES = ("transcriptions", "thumbs", "returned_exams")
+OBJECT_FAMILIES = ("transcriptions", "thumbs", "returned_exams", "captures")
 
 
 class StudentNotFound(LookupError):
@@ -94,7 +112,8 @@ class PurgePlan:
         """The Delete dialog's three cases (PR §15)."""
         if self.signed_tests_count > 0:
             return "signed_tests"
-        if self.rows["transcriptions"] or self.rows["graded_tests"]:
+        if (self.rows["transcriptions"] or self.rows["graded_tests"]
+                or self.rows["capture_submissions"]):
             return "data_only"
         return "nothing"
 
@@ -123,8 +142,34 @@ async def plan_purge(db: AsyncSession, *, user_id: UUID, student_id: UUID,
     if owned is None:
         raise StudentNotFound(str(student_id))
 
+    # --- her capture subtrees (036) -----------------------------------------
+    submissions = [r[0] for r in await _ids(
+        db, "SELECT id FROM capture_submissions WHERE student_id = :s", s=student_id)]
+    version_rows = await _ids(
+        db, "SELECT id, submission_id FROM capture_versions WHERE submission_id = ANY(:subs)",
+        subs=submissions)
+    versions = [r[0] for r in version_rows]
+    page_rows = await _ids(
+        db, "SELECT id, submission_id, raw_gcs_uri FROM capture_pages "
+            "WHERE submission_id = ANY(:subs)", subs=submissions)
+    pages = [r[0] for r in page_rows]
+    # A capture PDF lives beside its submission's photos (capture/paths.py), so
+    # a job with no scan yet takes its bucket from the photos' recorded uri.
+    sub_bucket = {r[1]: split_gs_uri(r[2])[0] for r in page_rows}
+    bucket_of_version = {r[0]: sub_bucket.get(r[1]) for r in version_rows}
+    capture_scans = await _ids(
+        db, "SELECT t.id, t.student_id FROM transcription_jobs j "
+            "JOIN transcriptions t ON t.id = j.transcription_id "
+            "WHERE j.capture_version_id = ANY(:v)", v=versions)
+    foreign = sorted(str(r[0]) for r in capture_scans if r[1] not in (None, student_id))
+    if foreign:
+        raise PurgeRefused("capture_mismatch",
+                           f"compiled from her capture submissions, approved for another "
+                           f"student: transcriptions {foreign}")
+
     scans = await _ids(db, "SELECT id, batch_id, gcs_bucket, gcs_object_path, filename "
-                           "FROM transcriptions WHERE student_id = :s", s=student_id)
+                           "FROM transcriptions WHERE student_id = :s OR id = ANY(:c)",
+                       s=student_id, c=[r[0] for r in capture_scans])
     t_ids = [r[0] for r in scans]
     by_scan = await _ids(db, "SELECT id, status, batch_id FROM graded_tests "
                              "WHERE transcription_id = ANY(:t)", t=t_ids)
@@ -136,9 +181,12 @@ async def plan_purge(db: AsyncSession, *, user_id: UUID, student_id: UUID,
             f"through her scans only: {sorted(map(str, g_ids - by_student))}; "
             f"naming her only: {sorted(map(str, by_student - g_ids))}"))
 
+    # A capture job is hers through its VERSION — including one still queued,
+    # failed, or withdrawn with no transcription at all.
     jobs = await _ids(db, "SELECT id, status, batch_id, source_gcs_object_path, source_filename, "
-                          "transcription_id FROM transcription_jobs WHERE transcription_id = ANY(:t)",
-                      t=t_ids)
+                          "transcription_id, capture_version_id FROM transcription_jobs "
+                          "WHERE transcription_id = ANY(:t) OR capture_version_id = ANY(:v)",
+                      t=t_ids, v=versions)
     j_ids = [r[0] for r in jobs]
     pdfs = await _ids(db, "SELECT id FROM graded_test_pdfs WHERE graded_test_id = ANY(:g)",
                       g=list(g_ids))
@@ -159,9 +207,11 @@ async def plan_purge(db: AsyncSession, *, user_id: UUID, student_id: UUID,
     rows_of: dict[tuple[str, str], list[str]] = {}
     for tid, _, bucket, path, _ in scans:
         rows_of.setdefault((bucket, path), []).append(f"transcription {tid}")
-    for jid, _, _, path, _, tid in jobs:
-        # a job's scan lives in its scan's bucket
-        rows_of.setdefault((bucket_of[tid], path), []).append(f"job {jid}")
+    for jid, _, _, path, _, tid, cv in jobs:
+        # a job's scan lives in its scan's bucket; a capture job with no scan
+        # yet, beside its submission's photos
+        bucket = bucket_of[tid] if tid is not None else bucket_of_version.get(cv)
+        rows_of.setdefault((bucket, path), []).append(f"job {jid}")
     scan_objects = set(rows_of)
     for key in sorted(scan_objects):
         if key[0] not in storage.known_buckets:
@@ -199,9 +249,12 @@ async def plan_purge(db: AsyncSession, *, user_id: UUID, student_id: UUID,
         n = sum(1 for f in (failures or []) if isinstance(f, dict) and f.get("filename") in her_files)
         if n:
             scrubs[bid] = n
+    # Her unapproved CAPTURE scans are NULL-student too, and they are in the
+    # plan — they are hers, not unassigned.
     unassigned_t = [r[0] for r in await _ids(
-        db, "SELECT id FROM transcriptions WHERE batch_id = ANY(:b) AND student_id IS NULL",
-        b=list(batches))]
+        db, "SELECT id FROM transcriptions WHERE batch_id = ANY(:b) AND student_id IS NULL "
+            "AND NOT (id = ANY(:t))",
+        b=list(batches), t=t_ids)]
     unassigned_jobs = {r[0] for r in await _ids(
         db, "SELECT id FROM transcription_jobs WHERE transcription_id = ANY(:t)", t=unassigned_t)}
 
@@ -209,6 +262,7 @@ async def plan_purge(db: AsyncSession, *, user_id: UUID, student_id: UUID,
     targets = sorted(
         {(kb, thumbs_prefix(t)) for kb in storage.known_buckets for t in t_ids}
         | {(kb, returned_exams_prefix(g)) for kb in storage.known_buckets for g in g_ids}
+        | {(kb, captures_prefix(sub)) for kb in storage.known_buckets for sub in submissions}
         | scan_objects)
 
     def _list() -> set[tuple[str, str]]:
@@ -230,6 +284,9 @@ async def plan_purge(db: AsyncSession, *, user_id: UUID, student_id: UUID,
             "graded_tests": frozenset(g_ids),
             "transcription_jobs": frozenset(j_ids),
             "transcriptions": frozenset(t_ids),
+            "capture_pages": frozenset(pages),
+            "capture_versions": frozenset(versions),
+            "capture_submissions": frozenset(submissions),
             "students": frozenset({student_id}),
         },
         objects=frozenset(objects),

@@ -24,7 +24,9 @@ from sqlalchemy.exc import IntegrityError
 
 from tests.services.erasure.seed import add_pdf, row_counts, session
 
-FIVE = ("students", "transcriptions", "graded_tests", "graded_test_pdfs", "transcription_jobs")
+FIVE = ("students", "transcriptions", "graded_tests", "graded_test_pdfs", "transcription_jobs",
+        # [036] her capture subtrees are student data too (photos of her exam)
+        "capture_submissions", "capture_pages", "capture_versions")
 
 # One row per constraint (not per column): information_schema, as ruled.
 DELETE_RULES = """
@@ -138,6 +140,9 @@ TENANT_FKS = {
         ("graded_tests", ["transcription_id", "user_id"], "transcriptions", ["id", "user_id"]),
     "transcription_jobs_transcription_tenant_fkey":
         ("transcription_jobs", ["transcription_id", "user_id"], "transcriptions", ["id", "user_id"]),
+    # [036]
+    "capture_submissions_student_tenant_fkey":
+        ("capture_submissions", ["student_id", "user_id"], "students", ["id", "user_id"]),
 }
 TENANT_UNIQUES = {
     "students_id_user_id_key": ("students", ["id", "user_id"]),
@@ -174,12 +179,14 @@ def test_am_b4_the_tenant_constraints_are_mirrored_in_the_orm():
     """For the schema-canon suite: the ORM declares what the database enforces."""
     from sqlalchemy import ForeignKeyConstraint, UniqueConstraint
 
+    from app.models.capture import CaptureSubmission
     from app.models.grading import GradedTest
     from app.models.student import Student
     from app.models.transcription import Transcription
     from app.models.transcription_job import TranscriptionJob
 
-    tables = {m.__tablename__: m.__table__ for m in (Student, Transcription, GradedTest, TranscriptionJob)}
+    tables = {m.__tablename__: m.__table__
+              for m in (Student, Transcription, GradedTest, TranscriptionJob, CaptureSubmission)}
     for name, (table, cols, ref, ref_cols) in TENANT_FKS.items():
         (fk,) = [c for c in tables[table].constraints
                  if isinstance(c, ForeignKeyConstraint) and c.name == name] or [None]

@@ -28,7 +28,8 @@ class Disposition(str, Enum):
 # The tables the plan DELETES from — dependency order is the executor's
 # business (children first, the student row last).
 PURGED_TABLES: tuple[str, ...] = (
-    "class_memberships", "graded_tests", "transcription_jobs", "transcriptions", "students",
+    "class_memberships", "graded_tests", "transcription_jobs", "transcriptions",
+    "capture_pages", "capture_versions", "capture_submissions", "students",
 )
 
 # Dead tables: empty, and nothing writes to them. The purge never deletes from
@@ -56,6 +57,15 @@ PII_REGISTRY: dict[tuple[str, str], Disposition] = {
     ("transcriptions", "gcs_object_path"): D.OBJECT_POINTER,
     ("transcription_jobs", "source_filename"): D.DELETED_WITH_ROW,   # deleted, never NULLed
     ("transcription_jobs", "source_gcs_object_path"): D.OBJECT_POINTER,
+    # --- her capture subtrees (036): the prefix captures/{submission}/ is LISTED,
+    # so these pointers are what the objects were, not how they are found ---
+    ("capture_submissions", "pending_student_name"): D.DELETED_WITH_ROW,  # a typed name
+    ("capture_pages", "raw_gcs_uri"): D.OBJECT_POINTER,
+    ("capture_pages", "preview_gcs_uri"): D.OBJECT_POINTER,
+    ("capture_pages", "corners"): D.DELETED_WITH_ROW,                     # geometry only
+    ("capture_pages", "auto_corners"): D.DELETED_WITH_ROW,
+    ("capture_pages", "quality"): D.DELETED_WITH_ROW,
+    ("capture_versions", "pages_snapshot"): D.OBJECT_POINTER,             # names her raw photos
     # --- the teacher's batch survives; its dormant 015 ledger is scrubbed ---
     ("grading_batches", "transcription_failures"): D.SCRUBBED_IN_PLACE,
     ("grading_batches", "stamp_position_default"): D.NO_STUDENT_DATA,

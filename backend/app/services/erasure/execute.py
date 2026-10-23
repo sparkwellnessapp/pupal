@@ -93,6 +93,24 @@ async def _delete_rows(db: AsyncSession, plan: PurgePlan) -> dict[str, int]:
             raise PurgeRefused("plan_stale", f"{table}: planned {len(rows[table])}, "
                                              f"deleted {result.rowcount}")
 
+    # [036] Her capture subtrees, after the jobs that referenced their versions.
+    # Pages first; then versions and submissions in ONE statement — the two
+    # reference each other (a submission names its current version), and NO
+    # ACTION is checked at statement end.
+    result = await db.execute(text("DELETE FROM capture_pages WHERE id = ANY(:ids)"),
+                              {"ids": list(rows["capture_pages"])})
+    deleted["capture_pages"] = result.rowcount
+    v_n, sub_n = (await db.execute(text(
+        "WITH v AS (DELETE FROM capture_versions WHERE id = ANY(:v) RETURNING 1),"
+        "     sub AS (DELETE FROM capture_submissions WHERE id = ANY(:subs) RETURNING 1)"
+        " SELECT (SELECT COUNT(*) FROM v), (SELECT COUNT(*) FROM sub)"),
+        {"v": list(rows["capture_versions"]), "subs": list(rows["capture_submissions"])})).one()
+    deleted["capture_versions"], deleted["capture_submissions"] = v_n, sub_n
+    for table in ("capture_pages", "capture_versions", "capture_submissions"):
+        if deleted[table] != len(rows[table]):
+            raise PurgeRefused("plan_stale", f"{table}: planned {len(rows[table])}, "
+                                             f"deleted {deleted[table]}")
+
     if plan.failure_scrubs:
         await db.execute(text(
             "UPDATE grading_batches SET transcription_failures = ("

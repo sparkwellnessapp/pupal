@@ -64,6 +64,9 @@ _ROWS = {
     "transcriptions": "SELECT COUNT(*) FROM transcriptions WHERE id = ANY(:ids)",
     "students": "SELECT COUNT(*) FROM students WHERE id = ANY(:ids)",
     "class_memberships": "SELECT COUNT(*) FROM class_memberships WHERE class_id = ANY(:ids) AND student_id = :s",
+    "capture_pages": "SELECT COUNT(*) FROM capture_pages WHERE id = ANY(:ids)",
+    "capture_versions": "SELECT COUNT(*) FROM capture_versions WHERE id = ANY(:ids)",
+    "capture_submissions": "SELECT COUNT(*) FROM capture_submissions WHERE id = ANY(:ids)",
 }
 
 
@@ -76,7 +79,8 @@ async def verify_purged(plan: PurgePlan, *, storage: GuardedStorage) -> VerifyRe
         refs = (await db.execute(text(
             "SELECT (SELECT COUNT(*) FROM graded_tests WHERE student_id = :s)"
             "     + (SELECT COUNT(*) FROM transcriptions WHERE student_id = :s)"
-            "     + (SELECT COUNT(*) FROM class_memberships WHERE student_id = :s)"),
+            "     + (SELECT COUNT(*) FROM class_memberships WHERE student_id = :s)"
+            "     + (SELECT COUNT(*) FROM capture_submissions WHERE student_id = :s)"),
             {"s": plan.student_id})).scalar_one()
         dead_rows = 0
         for table in DEAD_TABLES:

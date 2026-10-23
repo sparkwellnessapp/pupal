@@ -50,3 +50,12 @@ from app.models.auth_verification import (  # noqa: F401,E402
 
 # [026] Compiled grading plans, keyed by contract hash (PLAN COMPILER v2).
 from app.models.grading_plan import GradingPlanRecord  # noqa: F401,E402
+
+# [036] In-house scanning — the capture domain.
+from app.models.capture import (  # noqa: F401,E402
+    CaptureHandoff,
+    CaptureLink,
+    CapturePage,
+    CaptureSubmission,
+    CaptureVersion,
+)

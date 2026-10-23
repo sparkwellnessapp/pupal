@@ -2,13 +2,19 @@
 PRV-11 PrefixSafety — the allow-list every storage target passes BEFORE any
 storage call (ruling 2026-09-22; docs/PURGE_CENSUS.md §19).
 
-Three families, and nothing else:
+Four families, and nothing else:
 
     ^thumbs/[0-9a-f-]{36}/$                               a scan's rendered pages
     ^returned_exams/[0-9a-f-]{36}/$                       a graded test's signed exams
-    ^transcriptions/[0-9a-f-]{36}/[0-9a-f-]{36}\\.pdf$     one scan
+    ^captures/[0-9a-f-]{36}/$                             a capture submission's photos,
+                                                          previews and compiled PDFs (036)
+    ^transcriptions/[0-9a-f-]{36}/[0-9a-f-]{36}\\.pdf$     one uploaded scan
+    ^captures/[0-9a-f-]{36}/[0-9a-f-]{36}\\.pdf$           one compiled capture scan (036)
 
-and the bucket must be in the known set. A prefix that is empty, `None`-shaped,
+and the bucket must be in the known set. The capture layout is spelled once,
+in `app/services/capture/paths.py`; the patterns here restate it on purpose —
+this is the allow-list, and an allow-list that imported the thing it guards
+would admit whatever that thing produced. A prefix that is empty, `None`-shaped,
 missing its trailing slash, or in a foreign bucket raises here — so a bad id can
 never widen a delete to a whole family or to someone else's bucket. There is
 deliberately no fourth pattern (ruled 2026-09-23): `graded_test_pdfs` is a dead
@@ -24,8 +30,9 @@ from app.config import settings
 _PREFIX_FAMILIES = (
     re.compile(r"^thumbs/[0-9a-f-]{36}/$"),
     re.compile(r"^returned_exams/[0-9a-f-]{36}/$"),
+    re.compile(r"^captures/[0-9a-f-]{36}/$"),
 )
-_SCAN = re.compile(r"^transcriptions/[0-9a-f-]{36}/[0-9a-f-]{36}\.pdf$")
+_SCAN = re.compile(r"^(transcriptions|captures)/[0-9a-f-]{36}/[0-9a-f-]{36}\.pdf$")
 # An object inside a listed prefix: one path segment, never "." or "..".
 _BASENAME = re.compile(r"^[^/]+$")
 
@@ -83,3 +90,7 @@ def thumbs_prefix(transcription_id) -> str:
 
 def returned_exams_prefix(graded_test_id) -> str:
     return f"returned_exams/{_canonical(graded_test_id)}/"
+
+
+def captures_prefix(submission_id) -> str:
+    return f"captures/{_canonical(submission_id)}/"

@@ -24,6 +24,10 @@ Named invariants under test:
   OD-B3  the soft-delete window is reported, not hidden
   OD-B6  unassigned scans are counted in verify + audit, never deleted
   census E  a pre-jobs-era batch is excluded from the recount, and reported
+  036    her CAPTURE subtrees (submission, pages, versions, every job compiled
+         from them — withdrawn too — their scans, `captures/{submission}/`) go;
+         an unresolved typed name is not hers (counted as unassigned); a
+         capture scan approved for another student refuses (capture_mismatch)
   ruling  the student row is deleted LAST — never first with the constraints doing the rest
 
 RED until the erasure core, migration 032 and migration 033 exist.
@@ -40,6 +44,7 @@ from sqlalchemy import event, text
 from tests.services.erasure.conftest import guarded
 from tests.services.erasure.seed import (
     BUCKET,
+    add_capture,
     add_graded_blocker,
     add_legacy_batch_scan,
     add_pdf,
@@ -149,7 +154,21 @@ REFUSALS = [
     # allowed family on purpose — the refusal is about the table, not PRV-11.
     ("a graded_test_pdfs row under her grade (a dead table)",
      lambda g: add_pdf(g, "beta", f"returned_exams/{g.g['beta']}/k-legacy.pdf"), "dead_table_rows"),
+    # [036] the approval paths write the approved student back onto the
+    # submission; a disagreement means her photos are someone else's exam.
+    ("a scan from her capture submission approved for another student (036)",
+     lambda g: _capture_approved_for_other(g), "capture_mismatch"),
 ]
+
+
+async def _capture_approved_for_other(g):
+    await add_capture(g, "capx", student_id=g.student_id)
+    async with session() as db:
+        await db.execute(text(
+            "UPDATE transcriptions SET status = 'approved', student_id = :s, "
+            " contract_json = '{}'::jsonb, approved_at = now() WHERE id = :t"),
+            {"s": g.other_student_id, "t": g.t["capx"]})
+        await db.commit()
 
 
 @pytest.mark.parametrize("label,mutate,reason", REFUSALS, ids=[r[0] for r in REFUSALS])
@@ -373,3 +392,78 @@ async def test_verify_and_the_audit_line_carry_the_unassigned_count_and_never_a_
     everything = "\n".join(r.getMessage() for r in caplog.records)
     assert graph.student_name not in everything
     assert not any(f in everything for f in graph.filenames.values())
+
+
+# ---------------------------------------------------------------------------
+# [036] capture subtrees
+# ---------------------------------------------------------------------------
+
+async def _with_captures(graph, store):
+    """Hers (confirmed, unapproved), S2's (control), and one whose typed name
+    was never resolved — the three shapes a capture can take in her batch."""
+    await add_capture(graph, "caps", student_id=graph.student_id)
+    await add_capture(graph, "capo", student_id=graph.other_student_id)
+    await add_capture(graph, "capp", pending_name=graph.student_name)   # her name, typed
+    store.live |= graph.objects
+
+
+async def test_the_plan_takes_her_capture_subtree_and_nothing_else(graph, store):
+    await _with_captures(graph, store)
+    plan = await _plan(graph, store)
+
+    assert _as_sets(plan.rows) == graph.expected_rows()
+    assert set(plan.objects) == graph.expected_objects()
+    cap = graph.captures["caps"]
+    # Every job compiled from her versions — the withdrawn v1 (failed, no scan) too.
+    assert {graph.j["caps_v1"], graph.j["caps_v2"]} <= plan.rows["transcription_jobs"]
+    # Her capture scan is hers although unapproved: a human confirmed the student.
+    assert graph.t["caps"] in plan.rows["transcriptions"]
+    # The photos are found by LISTING her submission's prefix.
+    assert (BUCKET, f"captures/{cap['sub']}/raw-{cap['pages'][0]}") in plan.objects
+    assert not set(plan.objects) & graph.control_objects()
+
+
+async def test_a_typed_name_is_never_a_match_and_is_counted_as_unassigned(graph, store):
+    """OD-B6 for captures: a submission holding only her typed name is not
+    hers. Once compiled it is an unassigned scan — counted, never deleted."""
+    await _with_captures(graph, store)
+    plan = await _plan(graph, store)
+
+    pending = graph.captures["capp"]
+    assert pending["sub"] not in plan.rows["capture_submissions"]
+    assert graph.t["capp"] not in plan.rows["transcriptions"]
+    assert graph.j["capp_v2"] in plan.unassigned.job_ids
+    # Her OWN unapproved capture scan is in the plan, so it is not "unassigned".
+    assert graph.j["caps_v2"] not in plan.unassigned.job_ids
+    # t_gamma + capp + capo: S2's capture scan is unapproved, so to HER purge it
+    # is as unassigned as any upload — it is S2's purge that takes it.
+    assert plan.unassigned.count == 3
+
+
+async def test_the_purge_deletes_her_capture_subtree_and_verifies_clean(graph, store):
+    await _with_captures(graph, store)
+    result = await _purge(graph, store)
+
+    assert result.verify.clean
+    assert result.rows_deleted["capture_submissions"] == 1
+    assert result.rows_deleted["capture_versions"] == 2
+    assert result.rows_deleted["capture_pages"] == 2
+    after = await row_counts(graph)
+    assert after["capture_submissions"] == 2                          # capo, capp
+    assert after["capture_versions"] == 4
+    assert after["capture_pages"] == 4
+    mine = str(graph.captures["caps"]["sub"])
+    assert not any(n.startswith(f"captures/{mine}/") for (_, n) in store.live)
+    for key in ("capo", "capp"):
+        other = str(graph.captures[key]["sub"])
+        assert any(n.startswith(f"captures/{other}/") for (_, n) in store.live)
+
+
+async def test_an_approved_capture_scan_of_hers_is_purged_like_any_scan(graph, store):
+    await add_capture(graph, "capa", student_id=graph.student_id, approve=True)
+    store.live |= graph.objects
+    result = await _purge(graph, store)
+
+    assert result.verify.clean
+    assert graph.captures["capa"]["sub"] in result.plan.rows["capture_submissions"]
+    assert graph.t["capa"] in result.plan.rows["transcriptions"]

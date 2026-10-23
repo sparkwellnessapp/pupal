@@ -150,7 +150,7 @@ EXPECTED_MIGRATIONS = (
     "001", "002", "003", "004", "005", "006", "007",
     "008", "009", "010", "011", "012", "013", "014", "015", "016", "017",
     "018", "019", "020", "021", "022", "023", "024", "025", "026", "027",
-    "028", "029", "030", "031", "032", "033", "034", "035",
+    "028", "029", "030", "031", "032", "033", "034", "035", "036",
 )
 
 # Attribute-level invariants the version ledger CANNOT see (the 010 lesson,
@@ -226,6 +226,13 @@ EXPECTED_PARTIAL_INDEXES: dict = {
     # forbid a v5 and a v6 plan of one contract living side by side (AM-G6).
     "idx_grading_plans_one_live_per_contract_config": (
         "(contract_sha256, config_hash) where (status = any", "035",
+    ),
+    # 036: a capture page's position is unique among LIVE pages only. Without
+    # the predicate a soft-deleted page would keep holding its slot, so deleting
+    # page 2 of 3 and recompacting would collide with the corpse — reorder and
+    # delete would both fail while the index was still "present" by name.
+    "capture_pages_position_uq": (
+        "(submission_id, \"position\") where (deleted_at is null)", "036",
     ),
 }
 

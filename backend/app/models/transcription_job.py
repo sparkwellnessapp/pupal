@@ -57,6 +57,18 @@ class TranscriptionJob(Base):
     # (batch_id, client_file_id) partial-unique — a retried append returns the
     # existing job. NULL on pre-017 rows and legacy-created jobs.
     client_file_id = Column(UUID(as_uuid=True), nullable=True)
+    # [036] In-house scanning. A capture-sourced job is born at SAVE, before
+    # its PDF exists: `source_gcs_object_path` is the version's deterministic
+    # PDF path, and step 0 of the runner compiles it when the object is missing
+    # (OD-1). UNIQUE — one job per version (SCN-4). NULL for every upload.
+    capture_version_id = Column(UUID(as_uuid=True),
+                                ForeignKey("capture_versions.id"),
+                                nullable=True, unique=True)
+    # [036] OD-2: set in the SAME transaction that supersedes or discards the
+    # capture submission/version this job came from. A withdrawn job is no
+    # longer part of its batch: every batch read filters it out, and accept /
+    # retry refuse it with 409. The job itself is left to finish (D7).
+    withdrawn_at = Column(DateTime(timezone=True), nullable=True)
 
     # Outcome
     transcription_id = Column(UUID(as_uuid=True),
