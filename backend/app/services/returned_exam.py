@@ -42,7 +42,10 @@ logger = logging.getLogger(__name__)
 # this bump every already-rendered exam keeps serving the old page — the
 # staleness failure the cache key exists to prevent, and the one that looks
 # entirely correct to everyone who receives it (§3.5a).
-RENDERER_VERSION = "returned-exam-v2"
+# [2026-10-23] BUMPED again: multi-line paragraphs that mix Hebrew and code
+# rendered with their LINES SCRAMBLED (see `_escape`). Every exam drawn by v2
+# carries that defect, so every one of them must be redrawn on next request.
+RENDERER_VERSION = "returned-exam-v3"
 
 FONT_DIR = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 FONT_FILE = "Assistant-Regular.ttf"
@@ -141,19 +144,28 @@ def returned_exam_cache_key(contract_version: str,
 # the appendix
 # ---------------------------------------------------------------------------
 
+# The type size of every appendix element, in ONE place: the CSS sets them and
+# `_wrap_logical` measures with them. Two copies would drift, and a wrap
+# measured at the wrong size lets Story re-wrap a line — reintroducing the
+# scrambled order `_escape` exists to prevent. Story's px is the PDF point
+# (measured: 232.36 rendered vs 232.50 from `Font.text_length`, same string).
+_SIZE = {"body": 11, "h1": 17, "h2": 13, "meta": 10, "total": 30, "pts": 11,
+         "crit": 10, "foot": 9}
+
+
 def _css() -> str:
     return f"""
 @font-face {{ font-family: {FONT_FAMILY}; src: url({FONT_FILE}); }}
 * {{ font-family: {FONT_FAMILY}; }}
-body {{ direction: rtl; text-align: right; font-size: 11px; color: #16181d; }}
-h1 {{ font-size: 17px; margin: 0 0 4px; }}
-h2 {{ font-size: 13px; margin: 14px 0 4px; }}
+body {{ direction: rtl; text-align: right; font-size: {_SIZE["body"]}px; color: #16181d; }}
+h1 {{ font-size: {_SIZE["h1"]}px; margin: 0 0 4px; }}
+h2 {{ font-size: {_SIZE["h2"]}px; margin: 14px 0 4px; }}
 p  {{ margin: 0 0 6px; line-height: 1.6; }}
-.meta {{ color: #5a6068; font-size: 10px; margin-bottom: 12px; }}
-.total {{ color: #C8102E; font-size: 30px; margin: 2px 0 14px; }}
-.pts {{ color: #16181d; font-size: 11px; margin: 0 0 4px; }}
-.crit {{ color: #5a6068; font-size: 10px; margin: 2px 0 0 0; }}
-.foot {{ color: #5a6068; font-size: 9px; margin-top: 18px; }}
+.meta {{ color: #5a6068; font-size: {_SIZE["meta"]}px; margin-bottom: 12px; }}
+.total {{ color: #C8102E; font-size: {_SIZE["total"]}px; margin: 2px 0 14px; }}
+.pts {{ color: #16181d; font-size: {_SIZE["pts"]}px; margin: 0 0 4px; }}
+.crit {{ color: #5a6068; font-size: {_SIZE["crit"]}px; margin: 2px 0 0 0; }}
+.foot {{ color: #5a6068; font-size: {_SIZE["foot"]}px; margin-top: 18px; }}
 """
 
 
@@ -209,17 +221,70 @@ def _bidi_for_pymupdf(text: str, base_dir: str = "R") -> str:
     return "".join(out)
 
 
-def _escape(text: str, base_dir: str = "R") -> str:
-    """The ONE text boundary into the appendix HTML: reorder, then escape.
+# The text column the Story actually fills: `render_appendix_pdf`'s `where`
+# less MuPDF's default 1em body margin on each side (MEASURED: in the 50–545 box
+# at 11px, text spans x 61–534), less a 2% belt for shaping. A line measured as
+# fitting must never be re-wrapped by Story — that would put one word on a line
+# of its own, and a test pins that the engine's line count equals ours.
+_COLUMN_PT = (_A4.width - 2 * _MARGIN - 2 * _SIZE["body"]) * 0.98
+_font_cache: List[fitz.Font] = []
 
-    Order matters. Escaping first would turn `i < n` into `i &lt; n` and hand
+
+def _measure(text: str, size: float) -> float:
+    if not _font_cache:
+        _font_cache.append(fitz.Font(fontfile=str(FONT_DIR / FONT_FILE)))
+    return _font_cache[0].text_length(text, fontsize=size)
+
+
+def _wrap_logical(text: str, size: float, width: float = _COLUMN_PT) -> List[str]:
+    """Break `text` into lines in LOGICAL (reading) order, each fitting `width`.
+
+    Greedy on spaces, as HTML would; whitespace collapses exactly as the HTML
+    did before. A single token wider than the column (a long code expression)
+    is cut by characters rather than allowed to overflow, because an
+    overflowing line is one Story would wrap itself — out of order.
+    """
+    lines: List[str] = []
+    current = ""
+    for word in str(text or "").split():
+        candidate = f"{current} {word}" if current else word
+        if current and _measure(candidate, size) > width:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+        while _measure(current, size) > width and len(current) > 1:
+            cut = len(current) - 1
+            while cut > 1 and _measure(current[:cut], size) > width:
+                cut -= 1
+            lines.append(current[:cut])
+            current = current[cut:]
+    lines.append(current)
+    return lines
+
+
+def _escape(text: str, size: float, base_dir: str = "R") -> str:
+    """The ONE text boundary into the appendix HTML: wrap, reorder, escape.
+
+    WRAP FIRST, IN LOGICAL ORDER, THEN REORDER EACH LINE (2026-10-23). The
+    Bidirectional Algorithm reorders per LINE, after line breaking (UAX #9,
+    L1-L4). This used to reorder the whole paragraph as one line and let Story
+    wrap the visual string — so in any paragraph that wrapped AND mixed Hebrew
+    with code, the end of the paragraph landed on the first line and the lines
+    came out scrambled. A pure-Hebrew paragraph hid it (its transform is the
+    identity), and the glyph-order guard only ever rendered one-line text.
+    Every CS feedback paragraph mixes the two. Each line is now reordered on
+    its own and the lines are joined with explicit breaks, in reading order.
+
+    Escaping last: escaping first would turn `i < n` into `i &lt; n` and hand
     the bidi pass four Latin letters of markup to reason about; this way the
     algorithm sees the text the reader sees, and the entity is re-decoded by
     the HTML parser afterwards.
     """
-    reordered = _bidi_for_pymupdf(text, base_dir)
-    return (reordered.replace("&", "&amp;")
-            .replace("<", "&lt;").replace(">", "&gt;"))
+    return "<br/>".join(
+        _bidi_for_pymupdf(line, base_dir).replace("&", "&amp;")
+        .replace("<", "&lt;").replace(">", "&gt;")
+        for line in _wrap_logical(text, size))
 
 
 def render_appendix_pdf(student_name: str,
@@ -244,8 +309,8 @@ def render_appendix_pdf(student_name: str,
     unbounded prose, and a fixed box silently TRUNCATES — dropping the pointer
     at the end, which is the part the student most needs.
     """
-    parts = [f"<h1>{_escape(student_name)}</h1>",
-             '<p class="meta">' + _escape("משוב על המבחן") + '</p>']
+    parts = [f"<h1>{_escape(student_name, _SIZE['h1'])}</h1>",
+             '<p class="meta">' + _escape("משוב על המבחן", _SIZE["meta"]) + '</p>']
     if total is not None:
         # The grade, in the red a teacher's pen would use. Digits are LTR, so
         # the pair is assembled and escaped as ONE line — reordering «87.5» and
@@ -256,20 +321,20 @@ def render_appendix_pdf(student_name: str,
         # two different answers to "what did I get".
         shown = (format_points_pair(total, possible) if possible is not None
                  else format_points(total))
-        parts.append('<p class="total">' + _escape(shown, base_dir="L") + '</p>')
+        parts.append('<p class="total">' + _escape(shown, _SIZE["total"], base_dir="L") + '</p>')
     for scope in scopes:
         # The TITLE is prose — «שאלה 1, סעיף א» — so it takes an RTL base, unlike
         # the raw scope id it replaced. An id is an identifier and had to read
         # identically everywhere; a sentence must read as a sentence. The digit
         # next to Hebrew is exactly the shape that exposed the half-bidi defect,
         # so this is pinned by a per-character render assertion, not an eyeball.
-        parts.append('<h2>' + _escape(scope.title, base_dir="R") + '</h2>')
+        parts.append('<h2>' + _escape(scope.title, _SIZE["h2"], base_dir="R") + '</h2>')
         parts.append('<p class="pts">'
                      + _escape(format_points_pair(scope.awarded, scope.possible),
-                               base_dir="L")
+                               _SIZE["pts"], base_dir="L")
                      + '</p>')
         if scope.feedback:
-            parts.append(f"<p>{_escape(scope.feedback)}</p>")
+            parts.append(f"<p>{_escape(scope.feedback, _SIZE['body'])}</p>")
         criteria = scope.criteria
         if include_criteria and criteria:
             for description, awarded, possible in criteria:
@@ -277,13 +342,13 @@ def render_appendix_pdf(student_name: str,
                 # separately would place three correct fragments in the wrong
                 # order, which is the defect this function exists to prevent.
                 parts.append('<p class="crit">'
-                             + _escape(f"{description} — {awarded}/{possible}")
+                             + _escape(f"{description} — {awarded}/{possible}", _SIZE["crit"])
                              + '</p>')
     if summary:
-        parts.append('<h2>' + _escape("סיכום") + '</h2>')
-        parts.append(f"<p>{_escape(summary)}</p>")
+        parts.append('<h2>' + _escape("סיכום", _SIZE["h2"]) + '</h2>')
+        parts.append(f"<p>{_escape(summary, _SIZE['body'])}</p>")
     parts.append('<p class="foot">' + _escape(
-        "הופק על ידי Vivi. הציון נקבע על ידי המורה.") + '</p>')
+        "הופק על ידי Vivi. הציון נקבע על ידי המורה.", _SIZE["foot"]) + '</p>')
 
     story = fitz.Story(html=f"<body>{''.join(parts)}</body>",
                        user_css=_css(), archive=fitz.Archive(str(FONT_DIR)))

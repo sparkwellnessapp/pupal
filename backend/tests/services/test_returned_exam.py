@@ -392,6 +392,51 @@ def test_appendix_glyph_order_matches_the_bidi_reference(label, text):
         f"  expected: {expected!r}\n  rendered: {rendered!r}")
 
 
+def test_a_wrapped_mixed_paragraph_reads_in_order_line_by_line():
+    """[2026-10-23] A paragraph that WRAPS and mixes Hebrew with code must read
+    top-to-bottom in logical order, and right-to-left within every line.
+
+    The case above renders one-line text only, and that is how the defect
+    shipped: the paragraph was reordered as ONE line and Story wrapped the
+    visual string, so the paragraph's END landed on its first line. Every CS
+    feedback paragraph is this shape. Unique Latin tokens let the PDF's own
+    word positions say where each piece of the sentence ended up.
+    """
+    import fitz
+    from app.services.returned_exam import render_appendix_pdf
+
+    tokens = [f"tok{i:02d}" for i in range(40)]
+    text = " ".join(f"המשתנה {t} מתעדכן בתוך הלולאה" for t in tokens)
+    pdf = render_appendix_pdf(student_name="דן", scopes=[_sc("q1.א", text)],
+                              summary=None, include_criteria=False)
+    doc = fitz.open(stream=pdf, filetype="pdf")
+    where = {}
+    for pageno, page in enumerate(doc):
+        for x0, y0, x1, y1, word, *_ in page.get_text("words"):
+            if word in tokens:
+                where[word] = (pageno, round(y1, 1), x0)
+    assert set(where) == set(tokens), f"tokens lost: {set(tokens) - set(where)}"
+
+    rows = [where[t][:2] for t in tokens]
+    assert len(set(rows)) >= 3, "the paragraph did not wrap; the test proves nothing"
+    # Story must lay out exactly the lines we wrapped. One more means it
+    # re-wrapped a line we measured as fitting: a lone word on its own line.
+    from app.services.returned_exam import _SIZE, _wrap_logical
+    vocabulary = set(text.split())
+    body_rows = {(p, round(w[3], 1)) for p, page in enumerate(doc)
+                 for w in page.get_text("words") if w[4] in vocabulary}
+    assert len(body_rows) == len(_wrap_logical(text, _SIZE["body"])), (
+        f"Story drew {len(body_rows)} lines for "
+        f"{len(_wrap_logical(text, _SIZE['body']))} wrapped ones")
+    assert rows == sorted(rows), (
+        "lines are out of reading order: "
+        + str([(t, where[t][:2]) for t in tokens]))
+    for a, b in zip(tokens, tokens[1:]):
+        if where[a][:2] == where[b][:2]:
+            assert where[a][2] > where[b][2], (
+                f"{a} should sit to the RIGHT of {b} on an RTL line")
+
+
 def test_the_appendix_no_longer_prints_the_raw_scope_id():
     """SUPERSEDED, deliberately. This used to assert that the heading «q1.א»
     rendered with an LTR base, because an identifier must read identically
