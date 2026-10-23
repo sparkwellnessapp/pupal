@@ -45,7 +45,8 @@ logger = logging.getLogger(__name__)
 # [2026-10-23] BUMPED again: multi-line paragraphs that mix Hebrew and code
 # rendered with their LINES SCRAMBLED (see `_escape`). Every exam drawn by v2
 # carries that defect, so every one of them must be redrawn on next request.
-RENDERER_VERSION = "returned-exam-v3"
+# [2026-10-23, later] v4: brackets inside Hebrew rendered facing the wrong way.
+RENDERER_VERSION = "returned-exam-v4"
 
 FONT_DIR = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 FONT_FILE = "Assistant-Regular.ttf"
@@ -169,6 +170,11 @@ p  {{ margin: 0 0 6px; line-height: 1.6; }}
 """
 
 
+# Paired punctuation that a right-to-left run displays MIRRORED (Unicode's
+# Bidi_Mirrored pairs that occur in prose). See `_bidi_for_pymupdf`.
+_MIRROR = str.maketrans("()[]{}<>«»‹›", ")(][}{><»«›‹")
+
+
 def _bidi_for_pymupdf(text: str, base_dir: str = "R") -> str:
     """Make one line of mixed Hebrew/Latin read right-to-left. MEASURED, not
     assumed (2026-08-31, per-character bbox probe).
@@ -190,6 +196,15 @@ def _bidi_for_pymupdf(text: str, base_dir: str = "R") -> str:
     plain `get_display()` with no flip-back came out backwards (PyMuPDF
     reversed it a second time). Known limitation: niqqud (`NSM`) travels inside
     the reversed run and would be misplaced; this content carries none.
+
+    BRACKETS INSIDE A RUN ARE UN-MIRRORED TOO (2026-10-23, renderer v4).
+    `get_display` already gives every bracket its displayed (mirrored) shape,
+    and PyMuPDF flips the shape of a bracket inside an RTL run again when it
+    re-reverses the run, so «(שם התכונה)» came out «)שם התכונה(». A bracket
+    touching code sits OUTSIDE the run and is flipped once, which is why
+    «(A.Length)» was always right. Cancelling the second flip in advance is
+    the same move this function already makes for character order. Measured
+    against a render, pinned by the bracket cases in the glyph-order test.
     """
     visual = get_display(str(text or ""), base_dir=base_dir)
     chars = list(visual)
@@ -215,7 +230,9 @@ def _bidi_for_pymupdf(text: str, base_dir: str = "R") -> str:
             if strong_rtl[j]:
                 last_rtl = j
             j += 1
-        out.extend(reversed(chars[i:last_rtl + 1]))     # trailing neutrals stay put
+        # reversed AND un-mirrored: PyMuPDF will redo both (see the docstring)
+        out.extend("".join(reversed(chars[i:last_rtl + 1])).translate(_MIRROR))
+        # trailing neutrals stay put
         out.extend(chars[last_rtl + 1:j])
         i = j
     return "".join(out)

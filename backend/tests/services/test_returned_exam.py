@@ -342,9 +342,19 @@ def _visual_glyph_order(pdf_bytes) -> str:
                         # it emits one of those per direction run, so a single
                         # visual row arrives in three pieces.
                         rows[(pageno, round(c["bbox"][3], 1))].append(
-                            (c["bbox"][0], c["c"]))
+                            (c["bbox"][0], c["c"], round(c["bbox"][2], 1)))
+
+    def seen(chars):
+        # A PHANTOM space: PyMuPDF sometimes reports a space in the exact box of
+        # a neighbouring glyph (measured 2026-10-23: «כך» extracted as «ך כ»
+        # with the space at 368.2–373.4, the box of «כ»). It occupies no room
+        # of its own, so the eye cannot see it; only spaces with their own box
+        # are kept.
+        boxes = {(round(x0, 1), x1) for x0, ch, x1 in chars if ch != " "}
+        return [(x0, ch) for x0, ch, x1 in chars
+                if not (ch == " " and (round(x0, 1), x1) in boxes)]
     return chr(10).join(
-        "".join(ch for _, ch in sorted(chars)) for _, chars in sorted(rows.items()))
+        "".join(ch for _, ch in sorted(seen(chars))) for _, chars in sorted(rows.items()))
 
 
 BIDI_CASES = [
@@ -352,6 +362,14 @@ BIDI_CASES = [
     ("Hebrew with code", "הלולאה משתמשת ב־ i+=2 במקום ב־ i++ ולכן מדלגת."),
     ("Hebrew with a Latin name", "הופק על ידי Vivi. הציון נקבע על ידי המורה."),
     ("criterion line", "סכימה לכל ערוץ — 3/3"),
+    # [2026-10-23] Brackets INSIDE a Hebrew run came out facing the wrong way
+    # (flipped twice); brackets touching code were always right. These pin both.
+    ("brackets inside Hebrew", "התכונות (שם התכונה) כך"),
+    ("bracket opens on Hebrew, closes on code", "התכונות (שם הוא durationInMinutes) כך"),
+    ("bracket opens on code, closes on Hebrew", "התכונות (durationInMinutes הוא שם) כך"),
+    ("square and curly brackets", "הפעולה [אינדקס i] ו-{גוף הלולאה} כאן"),
+    ("guillemets", "המורה כתבה «מצוין» בסוף"),
+    ("brackets around code only", "הגישה לגבול הלולאה (A.Length) נעשתה ישירות"),
 ]
 
 
