@@ -23,7 +23,10 @@ test('transient poll failure shows a banner over live content, then clears', asy
         const url = route.request().url();
         if (url.includes('/api/v0/auth/me')) return fulfillJson(route, AUTH_ME);
 
-        if (url.includes(`/api/v0/batches/${SEED_BATCH_ID}`)) {
+        // The batch endpoint ITSELF — not its sub-resources (the capture
+        // section's /capture-link and /capture-submissions share the prefix
+        // and would eat the one failure this test schedules).
+        if (url.split('?')[0].endsWith(`/api/v0/batches/${SEED_BATCH_ID}`)) {
             batchCalls += 1;
             // Entry pair (StrictMode) → good. Call 3 (first poll tick) → 500.
             // Call 4+ → good again.
