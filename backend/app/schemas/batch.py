@@ -252,6 +252,10 @@ class BatchDetailResponse(BaseModel):
     #: predates the field shows the explanation rather than withholding it —
     #: too often is the recoverable direction.
     is_first_batch: bool = True
+    #: [036, OD-10] The batch's capture link, if it has one — its COMPUTED state
+    #: (not_yet_open | open | closed). A capture-first batch starts EMPTY, and
+    #: without this fact the stage derivation reads an empty batch as finished.
+    capture_link_state: Optional[Literal["not_yet_open", "open", "closed"]] = None
     rollup: BatchRollup
     transcriptions: list[BatchTranscriptionItem]
     # B3: in-flight documents (queued/running), doc_priority order, built
@@ -288,6 +292,10 @@ class BatchListItem(BaseModel):
     class_name: Optional[str] = None
     status: str
     created_at: str
+    #: [036, OD-10] The batch's capture link, if it has one — its COMPUTED state
+    #: (not_yet_open | open | closed). A capture-first batch starts EMPTY, and
+    #: without this fact the stage derivation reads an empty batch as finished.
+    capture_link_state: Optional[Literal["not_yet_open", "open", "closed"]] = None
     rollup: BatchRollup
 
 

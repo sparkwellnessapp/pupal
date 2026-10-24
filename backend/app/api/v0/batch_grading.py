@@ -74,7 +74,9 @@ from ...services.batch_ingest import (
     live_transcriptions,
 )
 from ...services.batch_triage import FlagVerdict, compute_flag_verdict, match_student
+from ...services.capture import links as capture_links
 from ...services.capture.overlay import capture_students, overlay_for, sync_on_approval
+from ...models.capture import CaptureLink
 from ...services.selection_expectation import answer_space_groups
 from ...services.thumbnail import page_image_path
 from ...services.returned_exam_store import (
@@ -799,6 +801,14 @@ async def list_batches(
     # 3 classes instead of ~40, using the same roster SQL the single path uses.
     verdict_inputs, degraded_batches = await _verdict_inputs_bulk(
         db, list(batches), current_user.id)
+    # [036] one query for every batch's capture link (never one per row)
+    today = capture_links.today_il()
+    link_states = {
+        link.batch_id: capture_links.link_state(link, today)
+        for link in (await db.execute(
+            select(CaptureLink).where(CaptureLink.user_id == current_user.id)
+        )).scalars().all()
+    }
 
     items = []
     for batch in batches:
@@ -866,6 +876,7 @@ async def list_batches(
             class_name=class_names.get(batch.class_id) if batch.class_id else None,
             status=_derive_batch_status(rollup),
             created_at=batch.created_at.isoformat(),
+            capture_link_state=link_states.get(batch.id),
             rollup=rollup,
         ))
     return items
@@ -1330,7 +1341,10 @@ async def get_batch(
         ).limit(1)
     )).scalar_one_or_none()
     is_first_batch = earlier_exists is None
+    link = await capture_links.get_link(db, batch.id)
     return BatchDetailResponse(
+        capture_link_state=(capture_links.link_state(link, capture_links.today_il())
+                            if link is not None else None),
         selection_groups=selection_groups,
         transcription_failures=failure_items,
         active_jobs=active_jobs,

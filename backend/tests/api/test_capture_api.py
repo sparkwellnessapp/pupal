@@ -500,3 +500,17 @@ def test_the_handoff_is_single_use_and_its_session_reaches_only_its_batch(client
     assert client.get(f"/api/v0/batches/{env['batch']}", headers=session).status_code == 401
     bearer = {"Authorization": f"Bearer {ex.json()['capture_session']}"}
     assert client.get("/api/v0/auth/me", headers=bearer).status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# OD-10 — the batch payloads say a capture link exists
+# ---------------------------------------------------------------------------
+
+def test_the_batch_payloads_carry_the_capture_link_state(client, headers_a, env):
+    detail = lambda: client.get(f"/api/v0/batches/{env['batch']}", headers=headers_a).json()  # noqa: E731
+    assert detail()["capture_link_state"] is None
+    _link(client, headers_a, env)
+    assert detail()["capture_link_state"] == "open"
+    (row,) = [b for b in client.get("/api/v0/batches", headers=headers_a).json()
+              if b["id"] == str(env["batch"])]
+    assert row["capture_link_state"] == "open"
