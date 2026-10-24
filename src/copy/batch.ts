@@ -53,6 +53,9 @@ export const STEP_LABELS: Record<string, { label: string; owner: string }> = {
 /** ── §5.1B · the turn line, one row per line of the spec's table ──────── */
 
 export const TURN_UPLOADING = 'עכשיו: המבחנים בהעלאה'
+/** [036] A capture-first batch before its first photographed exam arrives. */
+export const TURN_CAPTURE_OPEN = 'עכשיו: מחכים לצילומי המבחנים'
+export const TURN_CAPTURE_NOT_YET = 'הקישור לצילום ייפתח ביום המבחן'
 /** No transcription ETA exists on the wire (only a GRADING one), so the
  *  «תורך בעוד כ-N דקות» clause the spec allows is OMITTED rather than filled
  *  from the wrong stage's estimate. See batch-stage.ts. */
@@ -258,6 +261,9 @@ export const REASON_LOW_CONFIDENCE = 'חלק מהעמודים לא נקראו ב
 export const REASON_LOW_LOGPROB = 'ויוי לא בטוחה בקריאה של חלק מהמילים'
 export const REASON_STUDENT_UNIDENTIFIED = 'התלמיד לא זוהה'
 export const REASON_STUDENT_UNMATCHED = 'השם לא נמצא ברשימת הכיתה'
+// [036] capture-link identity facts — her decision, one item at a time.
+export const REASON_CAPTURE_PENDING = 'השם שנכתב בקישור לא נמצא ברשימה — אשרי תלמיד חדש או שייכי לתלמיד קיים'
+export const REASON_CAPTURE_CONFLICT = 'יש מבחן נוסף לאותו תלמיד בקבוצה — בחרי איזה לשמור'
 export const REASON_EDITED = 'ערכת את התמלול — אישור פרטני'
 /** The catch-all for `grounding_retry` and `segmentation_mismatch`: both mean
  *  «Vivi is unsure about part of the transcription» and neither has a sentence

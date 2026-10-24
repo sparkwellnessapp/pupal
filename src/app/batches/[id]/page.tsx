@@ -86,7 +86,8 @@ import {
 } from '@/utils/batch-dashboard';
 import { computeReviewOrder } from '@/utils/batch-review-cursor';
 import { takeSkipNotice, takeUploadFailures } from '@/utils/skip-notice';
-import { SHOW_GRADING_LANE, USE_GRADE_REVIEW_MODULE } from '@/lib/flags';
+import { CAPTURE_ENABLED, SHOW_GRADING_LANE, USE_GRADE_REVIEW_MODULE } from '@/lib/flags';
+import { CaptureSection } from '@/components/capture/CaptureSection';
 import { demoBatchZipDownloaded, observeBatch } from '@/lib/demo';
 
 // ---------------------------------------------------------------------------
@@ -768,6 +769,14 @@ export default function BatchDetailPage() {
                     files that were LEFT BEHIND down with it — the silent-drop
                     class U4 exists to kill. It hides itself when it has nothing
                     left to say. */}
+                {/* [036] In-house scanning: photograph the exams (teacher or
+                    student link). Compiled PDFs arrive as ordinary documents
+                    in the triage below (OD-S9). */}
+                {CAPTURE_ENABLED && (
+                    <CaptureSection batchId={batchId} hasClass={!!batch.class_id}
+                                    onChanged={() => void refresh()} />
+                )}
+
                 {myUploadQueue && (
                     <UploadLane
                         queue={myUploadQueue}

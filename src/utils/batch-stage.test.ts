@@ -266,6 +266,15 @@ describe('§5.1B — the turn line, one row at a time', () => {
         expect(deriveBatchStage(batch({})).turnLine).toBeNull()
     })
 
+    it('[036] an empty capture batch with an open link is ARRIVING, never הושלם', () => {
+        const s = deriveBatchStage(batch({}, { capture_link_state: 'open' }))
+        expect([s.step, s.chip.key, s.turnLine]).toEqual(['upload', 'uploading', 'עכשיו: מחכים לצילומי המבחנים'])
+        expect(deriveBatchStage(batch({}, { capture_link_state: 'not_yet_open' })).turnLine)
+            .toBe('הקישור לצילום ייפתח ביום המבחן')
+        // closed with nothing in it: nothing is coming — the pre-036 empty line
+        expect(deriveBatchStage(batch({}, { capture_link_state: 'closed' })).turnLine).toBeNull()
+    })
+
     it('THE TORN SNAPSHOT: a document the rollup cannot place is MOVING, never הושלם', () => {
         // 2026-09-19, a single-test batch. The server built its rollup from
         // several statements, each under its own snapshot, and the document

@@ -9,9 +9,31 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Loader2, AlertCircle, Check, X } from 'lucide-react';
+import { Search, Plus, Loader2, AlertCircle, Check, Sparkles } from 'lucide-react';
 import { listStudents, createStudent, ClassroomConflictError } from '@/lib/api';
-import type { StudentResponse } from '@/types/classroom';
+import { nameMatchesQuery } from '@/utils/batch-partition';
+
+/** What the picker lists and creates through. The default is the classroom
+ *  API; the capture page on a phone (a capture session, which the classroom
+ *  API rejects) injects its own (§8.3). */
+export interface StudentSource {
+    list(): Promise<{ id: string; full_name: string }[]>;
+    /** Throw an Error whose message is the Hebrew line to show. */
+    create(name: string): Promise<{ id: string; full_name: string }>;
+}
+
+const CLASSROOM_SOURCE: StudentSource = {
+    list: async () => (await listStudents()).students,
+    create: async (name) => {
+        try {
+            return await createStudent({ full_name: name });
+        } catch (err) {
+            throw new Error(err instanceof ClassroomConflictError ? err.detail : 'שגיאה ביצירת התלמיד');
+        }
+    },
+};
+
+type StudentResponse = { id: string; full_name: string };
 
 export interface StudentPickerProps {
     value: string | null;
@@ -25,15 +47,30 @@ export interface StudentPickerProps {
      * state only, never a selection (Δ14: viewing is not commitment).
      */
     suggestedName?: string | null;
+    /** [036] Where to list and create — defaults to the classroom API. */
+    source?: StudentSource;
+    /** [036] A roster match a name reader proposed: shown FIRST, marked, one
+     *  click to choose. Never selected for her (OD-S4: a human click). */
+    suggestedMatch?: { id: string; name: string } | null;
+    suggestedMatchLabel?: (name: string) => string;
+    /** [036] A line with a spinner while the suggestion is being read. */
+    detecting?: boolean;
+    detectingLabel?: string;
+    /** [036] Open the list on mount (the teacher capture page). */
+    autoOpen?: boolean;
 }
 
-export function StudentPicker({ value, onChange, placeholder = 'חפש תלמיד...', disabled, suggestedName }: StudentPickerProps) {
+export function StudentPicker({
+    value, onChange, placeholder = 'חפש תלמיד...', disabled, suggestedName,
+    source = CLASSROOM_SOURCE, suggestedMatch, suggestedMatchLabel, detecting, detectingLabel, autoOpen,
+}: StudentPickerProps) {
     const [students, setStudents] = useState<StudentResponse[]>([]);
     const [loadingList, setLoadingList] = useState(true);
     const [listError, setListError] = useState<string | null>(null);
 
     const [query, setQuery] = useState((suggestedName ?? '').trim());
-    const [isOpen, setIsOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(!!autoOpen);
+    useEffect(() => { if (autoOpen) setIsOpen(true); }, [autoOpen]);
 
     // Reactive seeding: the identity hint can arrive AFTER mount (async batch
     // payload / payload refresh), and initial state alone misses it — observed
@@ -56,11 +93,11 @@ export function StudentPicker({ value, onChange, placeholder = 'חפש תלמי�
 
     // Load students on mount
     useEffect(() => {
-        listStudents()
-            .then(r => setStudents(r.students))
+        source.list()
+            .then(list => setStudents(list))
             .catch(() => setListError('שגיאה בטעינת התלמידים'))
             .finally(() => setLoadingList(false));
-    }, []);
+    }, [source]);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -77,9 +114,10 @@ export function StudentPicker({ value, onChange, placeholder = 'חפש תלמי�
 
     const selectedStudent = students.find(s => s.id === value) ?? null;
 
-    const filtered = students.filter(s =>
-        s.full_name.toLowerCase().includes(query.toLowerCase())
-    );
+    // The ONE name normalization (niqqud, geresh, case, token order) — the
+    // same rule the server's auto-match uses.
+    const filtered = students.filter(s => nameMatchesQuery(s.full_name, query)
+        && s.id !== suggestedMatch?.id);
 
     const handleSelect = (student: StudentResponse) => {
         onChange(student.id);
@@ -94,7 +132,7 @@ export function StudentPicker({ value, onChange, placeholder = 'חפש תלמי�
         setCreating(true);
         setCreateError(null);
         try {
-            const created = await createStudent({ full_name: name.trim() });
+            const created = await source.create(name.trim());
             setStudents(prev => [...prev, created].sort((a, b) => a.full_name.localeCompare(b.full_name, 'he')));
             onChange(created.id);
             setNewName('');
@@ -103,7 +141,7 @@ export function StudentPicker({ value, onChange, placeholder = 'חפש תלמי�
             setIsOpen(false);
             return true;
         } catch (err) {
-            setCreateError(err instanceof ClassroomConflictError ? err.detail : 'שגיאה ביצירת התלמיד');
+            setCreateError(err instanceof Error && err.message ? err.message : 'שגיאה ביצירת התלמיד');
             return false;
         } finally {
             setCreating(false);
@@ -175,7 +213,25 @@ export function StudentPicker({ value, onChange, placeholder = 'חפש תלמי�
                         </div>
                     ) : (
                         <>
-                            {filtered.length === 0 && !showCreateInput && (
+                            {detecting && (
+                                <div className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-500" role="status">
+                                    <Loader2 size={14} className="animate-spin shrink-0" />
+                                    <span>{detectingLabel}</span>
+                                </div>
+                            )}
+                            {suggestedMatch && (
+                                <button
+                                    onClick={() => handleSelect({ id: suggestedMatch.id, full_name: suggestedMatch.name })}
+                                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-right bg-primary-50 text-primary-800 font-medium hover:bg-primary-100 border-b border-primary-100"
+                                    data-testid="picker-suggested-match"
+                                >
+                                    <Sparkles size={14} className="shrink-0" />
+                                    <span className="flex-1 text-right">
+                                        {suggestedMatchLabel ? suggestedMatchLabel(suggestedMatch.name) : suggestedMatch.name}
+                                    </span>
+                                </button>
+                            )}
+                            {filtered.length === 0 && !showCreateInput && !suggestedMatch && (
                                 <p className="px-4 py-3 text-sm text-gray-400 text-right">
                                     {query ? 'לא נמצאו תלמידים תואמים' : 'אין תלמידים עדיין'}
                                 </p>

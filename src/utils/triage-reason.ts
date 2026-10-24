@@ -20,6 +20,7 @@
  */
 
 import {
+    REASON_CAPTURE_CONFLICT, REASON_CAPTURE_PENDING,
     REASON_EDITED, REASON_GENERIC, REASON_LOW_CONFIDENCE, REASON_LOW_LOGPROB,
     REASON_STUDENT_UNIDENTIFIED, REASON_STUDENT_UNMATCHED, REASON_UNCLEAR_PLACES,
 } from '@/copy/batch'
@@ -66,6 +67,9 @@ export function reasonLinesFor(
     // student who does not exist yet.
     if (reasons.has('student_unmatched')) lines.push(REASON_STUDENT_UNIDENTIFIED)
     else if (reasons.has('student_unassigned')) lines.push(REASON_STUDENT_UNMATCHED)
+    // [036] A capture-link submission's identity is a decision, not a lookup.
+    if (reasons.has('capture_student_pending')) lines.push(REASON_CAPTURE_PENDING)
+    if (reasons.has('capture_conflict')) lines.push(REASON_CAPTURE_CONFLICT)
 
     // 2. Missing answers speak through the completeness sentence — the same
     //    selection-aware rule the clean cards use, so the two never disagree
@@ -126,4 +130,5 @@ export function reasonLinesFor(
 const MAPPED: ReadonlySet<string> = new Set([
     'student_unmatched', 'student_unassigned', 'missing_answers',
     'unparseable', 'low_logprob_span', 'low_confidence',
+    'capture_student_pending', 'capture_conflict',
 ])

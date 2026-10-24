@@ -24,6 +24,13 @@ const VECTORS: Array<[string, string]> = [
   ['Dana Levi', 'dana levi'],           // casefold
   ['נועהְ שריד', 'נועה שריד'],     // combining sheva stripped
   ['אִיתַי כֹּהֵן', 'איתי כהן'],
+  // [036, OD-6 / D16] — the twin of the Python table, row for row
+  ['כהן דני', 'דני כהן'],                // token order: surname-first is the same name
+  ['דני   כהן', 'דני כהן'],              // internal whitespace collapsed
+  ['ג׳ורג׳ חביב', "ג'ורג' חביב"],          // geresh U+05F3 → apostrophe
+  ['ג’ורג’ חביב', "ג'ורג' חביב"],          // typographic apostrophe → apostrophe
+  ['שלום בן״ק', 'בן"ק שלום'],            // gershayim → quote (and token order)
+  ['Dana LEVI', 'dana levi'],
 ]
 
 describe('normalizeName (server-mirrored)', () => {
@@ -133,5 +140,18 @@ describe('partitionItems (D4/D5/D6 partitions)', () => {
     expect(p.identityPills).toEqual([])
     expect(p.clean).toEqual([])
     expect(p.approved).toEqual([])
+  })
+})
+
+// [036] The picker's search runs on the SAME tokens as the match.
+import { nameMatchesQuery } from './batch-partition'
+
+describe('nameMatchesQuery — the picker search', () => {
+  it('finds a name by any of its tokens, in any order, under one normalization', () => {
+    expect(nameMatchesQuery('דני כהן', 'כהן ד')).toBe(true)
+    expect(nameMatchesQuery('דָּנִי כֹּהֵן', 'דני')).toBe(true)
+    expect(nameMatchesQuery("ג'ורג' חביב", 'ג׳ורג׳')).toBe(true)
+    expect(nameMatchesQuery('דני כהן', 'לוי')).toBe(false)
+    expect(nameMatchesQuery('דני כהן', '')).toBe(true)
   })
 })

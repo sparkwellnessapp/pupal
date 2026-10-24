@@ -119,6 +119,8 @@ export interface TranscriptionFailureItem {
 
 export interface BatchDetailResponse {
   id: string
+  /** [036, OD-10] The batch's capture link state, when it has one. */
+  capture_link_state?: 'not_yet_open' | 'open' | 'closed' | null
   name: string | null
   rubric_id: string
   class_id: string | null
@@ -162,6 +164,8 @@ export interface BatchDetailResponse {
 
 export interface BatchListItem {
   id: string
+  /** [036, OD-10] The batch's capture link state, when it has one. */
+  capture_link_state?: 'not_yet_open' | 'open' | 'closed' | null
   name: string | null
   rubric_id: string
   class_id: string | null
@@ -208,6 +212,11 @@ export const FLAG_REASON_LABELS: Record<string, string> = {
   // extracted but no such student exists yet vs. no name found at all.
   student_unassigned: 'תלמיד חדש - טרם נוצר',
   student_unmatched: 'שם תלמיד לא זוהה',
+  // [036, OD-3] A capture-link submission whose typed name is not on the
+  // roster, and two submissions claiming one student. Both are NEEDS-EYES
+  // (not identity-wave): each is one decision of hers, never a bulk create.
+  capture_student_pending: 'תלמיד חדש ממתין לאישור',
+  capture_conflict: 'שני מבחנים לאותו תלמיד',
 }
 
 /** One graded test on the batch feed (spec §1.5). */

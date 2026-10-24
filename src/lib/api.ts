@@ -1567,6 +1567,8 @@ export async function deleteStudent(id: string): Promise<PurgeReport> {
 export const GRADING_IN_PROGRESS = 'grading_in_progress';
 /** The plan could not promise a correct purge: nothing was touched. */
 export const PURGE_REFUSED = 'purge_refused';
+/** A capture submission naming her awaits the teacher's decision (036). */
+export const CAPTURE_CONFLICT = 'capture_conflict';
 
 export type SignedTestsResponse = components['schemas']['SignedTestsResponse'];
 export type SignedTestItem = components['schemas']['SignedTestItem'];

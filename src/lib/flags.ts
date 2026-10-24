@@ -61,3 +61,11 @@ export const USE_GRADE_REVIEW_MODULE = true;
  */
 export const REVIEW_LAYOUT_STACKED =
     process.env.NEXT_PUBLIC_REVIEW_LAYOUT === 'stacked';
+
+/**
+ * [036] In-house scanning — the frontend half of the backend's CAPTURE_ENABLED.
+ * Inlined at BUILD time (Vercel project env + frontend/.env.local), so it must
+ * be flipped together with the backend flag: with the backend off every capture
+ * route answers 404, which the link panel would read as "no link yet".
+ */
+export const CAPTURE_ENABLED = process.env.NEXT_PUBLIC_CAPTURE_ENABLED === 'true';

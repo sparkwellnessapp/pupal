@@ -50,22 +50,40 @@ export interface Partition {
 export const IDENTITY_REASONS = new Set(['student_unassigned', 'student_unmatched'])
 
 /**
- * EXACT mirror of the server's batch_triage._normalize_name — NFC + lowercase
- * + trim + strip Hebrew niqqud/cantillation U+0591–U+05C7. Cross-pinned
- * vectors: batch-partition.test.ts ⇄ backend/tests/test_name_normalization_vectors.py
- * (the segmentation-grammar precedent — change one side, change the other).
- * (Python uses casefold(); toLowerCase() is identical over Hebrew, and the
- * vector table is the binding contract.)
+ * EXACT mirror of the server's batch_triage.normalize_name — NFC + lowercase
+ * + strip Hebrew niqqud/cantillation U+0591–U+05C7 + unify geresh/gershayim
+ * look-alikes + collapse whitespace + token order independence (036, OD-6 /
+ * D16). Cross-pinned vectors: batch-partition.test.ts ⇄
+ * backend/tests/test_name_normalization_vectors.py (the segmentation-grammar
+ * precedent — change one side, change the other). (Python uses casefold();
+ * toLowerCase() is identical over Hebrew, and the vector table is the binding
+ * contract.)
  */
-export function normalizeName(name: string): string {
-  const nfc = name.normalize('NFC').toLowerCase().trim()
+const GERESH_LIKE = new Set(['׳', '’', '‘', '`', '´'])
+const GERSHAYIM_LIKE = new Set(['״', '“', '”'])
+
+/** The normalized tokens of a name, in their written order — the ONE
+ *  per-character rule; `normalizeName` sorts them, `nameMatchesQuery` searches. */
+export function nameTokens(name: string): string[] {
+  const nfc = name.normalize('NFC').toLowerCase()
   let out = ''
   for (const ch of nfc) {
     const cp = ch.codePointAt(0) as number
     if (cp >= 0x0591 && cp <= 0x05c7) continue
-    out += ch
+    out += GERESH_LIKE.has(ch) ? "'" : GERSHAYIM_LIKE.has(ch) ? '"' : ch
   }
-  return out
+  return out.split(/\s+/).filter(Boolean)
+}
+
+export function normalizeName(name: string): string {
+  return nameTokens(name).sort().join(' ')
+}
+
+/** The picker's search: every typed token appears in the name, in any order,
+ *  under the same normalization — «כהן ד» finds «דני כהן». */
+export function nameMatchesQuery(name: string, query: string): boolean {
+  const hay = nameTokens(name).join(' ')
+  return nameTokens(query).every((t) => hay.includes(t))
 }
 
 export function partitionItems(items: PartitionItem[]): Partition {
