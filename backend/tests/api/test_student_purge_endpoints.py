@@ -74,7 +74,7 @@ def test_the_preview_is_the_plan_summarised_and_never_writes(client, headers_a, 
     objects = g.expected_objects()
     assert body["objects"] == {
         family: sum(1 for (_, n) in objects if n.startswith(family + "/"))
-        for family in ("transcriptions", "thumbs", "returned_exams")}
+        for family in ("transcriptions", "thumbs", "returned_exams", "captures")}   # [036]
     assert asyncio.run(row_counts(g)) == before
     assert store.delete_calls() == []
 

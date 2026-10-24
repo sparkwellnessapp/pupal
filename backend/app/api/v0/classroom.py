@@ -60,6 +60,7 @@ from ...services.student_signed_tests import (
     signed_tests_for_student,
 )
 from ...services.thumbnail import page_image_path
+from ...services import classroom as classroom_service
 
 logger = logging.getLogger(__name__)
 
@@ -76,17 +77,14 @@ async def create_student(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    student = Student(
-        user_id=current_user.id,
-        full_name=body.full_name,
-    )
-    db.add(student)
     try:
-        await db.commit()
-        await db.refresh(student)
-    except IntegrityError:
+        student = await classroom_service.create_student(
+            db, user_id=current_user.id, full_name=body.full_name)
+    except classroom_service.NameTaken:
         await db.rollback()
         raise HTTPException(status_code=409, detail="כבר קיים תלמיד בשם זה")
+    await db.commit()
+    await db.refresh(student)
     # A student who was just created has no history — no query needed to know.
     return _student_response(student, signed_tests=0)
 
@@ -260,19 +258,14 @@ async def create_class(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    school_class = Class(
-        user_id=current_user.id,
-        name=body.name,
-        subject_matter_id=body.subject_matter_id,
-        school_year=body.school_year,
-    )
-    db.add(school_class)
     try:
-        await db.commit()
-        await db.refresh(school_class)
-    except IntegrityError:
+        school_class = await classroom_service.create_class(
+            db, user_id=current_user.id, name=body.name,
+            subject_matter_id=body.subject_matter_id, school_year=body.school_year)
+    except classroom_service.NameTaken:
         await db.rollback()
         raise HTTPException(status_code=409, detail="כבר קיימת כיתה בשם זה")
+    await db.commit()
 
     # Reload with subject_matter
     result = await db.execute(
@@ -422,16 +415,7 @@ async def add_student_to_class(
     await get_owned_or_404(db, Class, class_id, uid)
     await get_owned_or_404(db, Student, body.student_id, uid)
 
-    existing = await db.scalar(
-        select(ClassMembership).where(
-            ClassMembership.class_id == class_id,
-            ClassMembership.student_id == body.student_id,
-        )
-    )
-    if existing:
-        return Response(status_code=204)  # idempotent no-op
-
-    db.add(ClassMembership(class_id=class_id, student_id=body.student_id))
+    await classroom_service.add_membership(db, class_id=class_id, student_id=body.student_id)
     await db.commit()
     return Response(status_code=204)
 
