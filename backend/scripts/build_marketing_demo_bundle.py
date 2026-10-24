@@ -225,6 +225,16 @@ def redacted_rubric_docx(cfg: dict) -> Tuple[bytes, bytes]:
         if hits != 1:
             raise BuildError(f"rubric: «{old}» found {hits} times, expected exactly once")
 
+    if cfg.get("remove_highlights"):
+        # The teacher's own highlighting (owner ruling 2026-10-24): every
+        # <w:highlight> run property, in every part Word renders. Table shading
+        # (<w:shd>) is layout, not highlighting, and stays.
+        for name in [n for n in parts if re.fullmatch(r"word/(document|header\d+|footer\d+)\.xml", n)]:
+            parts[name] = re.sub(r"<w:highlight\b[^>]*/>", "",
+                                 parts[name].decode("utf-8")).encode("utf-8")
+        if any(b"<w:highlight" in parts[n] for n in parts if n.startswith("word/") and n.endswith(".xml")):
+            raise BuildError("rubric: a highlight survived")
+
     if cfg.get("drop_comments"):
         doc = parts["word/document.xml"].decode("utf-8")
         doc = re.sub(r"<w:commentRange(?:Start|End)\b[^>]*/>", "", doc)

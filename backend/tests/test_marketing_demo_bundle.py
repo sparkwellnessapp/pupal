@@ -82,8 +82,8 @@ def test_the_transcription_is_the_gt_byte_for_byte(slug):
 
 
 def test_the_rubric_document_copy_is_redacted_as_ruled():
-    """Owner ruling 2026-10-23: logo gone, «ויויאנה» kept, «נעמה» blanked, no
-    comments. The shipped pages are images nobody can grep, so this pins the
+    """Owner rulings 2026-10-23/24: logo gone, «ויויאנה» kept, «נעמה» blanked, no
+    comments, no highlighting. The shipped pages are images nobody can grep, so this pins the
     redacted copy Word renders them from. No Word needed: it never renders."""
     import io
     import re
@@ -101,6 +101,8 @@ def test_the_rubric_document_copy_is_redacted_as_ruled():
         assert not rule.search(text), rule.pattern
     assert not [n for n in parts if re.fullmatch(r"word/(comments\w*|people)\.xml", n)]
     assert "commentReference" not in parts["word/document.xml"].decode("utf-8")
+    assert not [n for n in parts if n.startswith("word/") and n.endswith(".xml")
+                and b"<w:highlight" in parts[n]], "the teacher's highlighting survived"
 
     for rels in [n for n in parts if re.fullmatch(r"word/_rels/header\d+\.xml\.rels", n)]:
         for target in re.findall(r'Target="(media/[^"]+)"', parts[rels].decode("utf-8")):
