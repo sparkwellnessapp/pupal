@@ -190,6 +190,23 @@ export const deviceKey = (token: string) => `vivi.capture.${token}`
 
 const B = (batchId: string) => `/api/v0/batches/${batchId}`
 
+/** The batch page RENDERS these (§3.5a: a display surface degrades, never
+ *  takes the page down with it). A body that is not the shape the panel reads
+ *  is refused HERE, loudly, so the caller keeps what it had instead of
+ *  rendering half an object — one `{}` used to crash the whole batch page. */
+function asLink(x: unknown): CaptureLink {
+  const l = x as Partial<CaptureLink> | null
+  if (!l || typeof l.url !== 'string' || typeof l.state !== 'string') {
+    throw new CaptureApiError(0, 'bad_response', '')
+  }
+  return l as CaptureLink
+}
+function asPanel(x: unknown): CaptureSubmissionsResponse {
+  const p = x as Partial<CaptureSubmissionsResponse> | null
+  if (!p || !Array.isArray(p.rows) || !p.counter) throw new CaptureApiError(0, 'bad_response', '')
+  return p as CaptureSubmissionsResponse
+}
+
 /** Her session's Bearer, with the refusal's machine `code` kept (apiFetch
  *  keeps only the Hebrew line, and these callers branch on the code). */
 const authed = <T>(path: string, init: RequestInit = { method: 'GET' }) =>
@@ -200,34 +217,34 @@ const authed = <T>(path: string, init: RequestInit = { method: 'GET' }) =>
  *  would offer a create form the server then refuses. */
 export async function getCaptureLink(batchId: string): Promise<CaptureLink | null> {
   try {
-    return await authed<CaptureLink>(`${B(batchId)}/capture-link`)
+    return asLink(await authed<CaptureLink>(`${B(batchId)}/capture-link`))
   } catch (err) {
     if (err instanceof CaptureApiError && err.status === 404) return null
     throw err
   }
 }
 
-export const createCaptureLink = (batchId: string, body:
+export const createCaptureLink = async (batchId: string, body:
   { exam_date: string; class_id?: string | null; new_class_name?: string | null }) =>
-  apiFetch<CaptureLink>(`${B(batchId)}/capture-link`, jsonInit('POST', body))
-export const closeCaptureLink = (batchId: string) =>
-  apiFetch<CaptureLink>(`${B(batchId)}/capture-link/close`, { method: 'POST' })
-export const reopenCaptureLink = (batchId: string) =>
-  apiFetch<CaptureLink>(`${B(batchId)}/capture-link/reopen`, { method: 'POST' })
-export const rotateCaptureLink = (batchId: string) =>
-  apiFetch<CaptureLink>(`${B(batchId)}/capture-link/rotate-token`, { method: 'POST' })
+  asLink(await apiFetch<CaptureLink>(`${B(batchId)}/capture-link`, jsonInit('POST', body)))
+export const closeCaptureLink = async (batchId: string) =>
+  asLink(await apiFetch<CaptureLink>(`${B(batchId)}/capture-link/close`, { method: 'POST' }))
+export const reopenCaptureLink = async (batchId: string) =>
+  asLink(await apiFetch<CaptureLink>(`${B(batchId)}/capture-link/reopen`, { method: 'POST' }))
+export const rotateCaptureLink = async (batchId: string) =>
+  asLink(await apiFetch<CaptureLink>(`${B(batchId)}/capture-link/rotate-token`, { method: 'POST' }))
 export const createCaptureHandoff = (batchId: string) =>
   apiFetch<CaptureHandoff>(`${B(batchId)}/capture-handoff`, { method: 'POST' })
-export const listCaptureSubmissions = (batchId: string) =>
-  apiFetch<CaptureSubmissionsResponse>(`${B(batchId)}/capture-submissions`)
-export const resolvePending = (batchId: string, submissionId: string,
+export const listCaptureSubmissions = async (batchId: string) =>
+  asPanel(await apiFetch<CaptureSubmissionsResponse>(`${B(batchId)}/capture-submissions`))
+export const resolvePending = async (batchId: string, submissionId: string,
   body: { student_id: string } | { approve_new: true }) =>
-  authed<CaptureSubmissionsResponse>(
-    `${B(batchId)}/capture-submissions/${submissionId}/resolve-pending`, jsonBody('POST', body))
-export const resolveConflict = (batchId: string, submissionId: string,
+  asPanel(await authed<CaptureSubmissionsResponse>(
+    `${B(batchId)}/capture-submissions/${submissionId}/resolve-pending`, jsonBody('POST', body)))
+export const resolveConflict = async (batchId: string, submissionId: string,
   body: { action: 'keep_this' | 'discard_this'; student_id?: string }) =>
-  apiFetch<CaptureSubmissionsResponse>(
-    `${B(batchId)}/capture-submissions/${submissionId}/resolve-conflict`, jsonInit('POST', body))
+  asPanel(await apiFetch<CaptureSubmissionsResponse>(
+    `${B(batchId)}/capture-submissions/${submissionId}/resolve-conflict`, jsonInit('POST', body)))
 
 // ---------------------------------------------------------------------------
 // the photo itself — straight to GCS on the signed URL (OD-S10)

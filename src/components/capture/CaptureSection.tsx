@@ -14,7 +14,7 @@
  *    and conflict resolutions, retry on a failed one; polled every 10 s while
  *    the link is open or anything is processing, else every 60 s (R7).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Camera, Copy, Link2, MessageCircle, QrCode as QrIcon, RotateCcw, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -36,10 +36,12 @@ function todayIsrael(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(new Date())
 }
 
-export function CaptureSection({ batchId, hasClass, onChanged }: {
+export function CaptureSection({ batchId, hasClass, onChanged, focusLink = false }: {
   batchId: string
   hasClass: boolean
   onChanged: () => void
+  /** Arrived to create the student link (the home page's card): open on its form. */
+  focusLink?: boolean
 }) {
   const [link, setLink] = useState<CaptureLink | null | undefined>(undefined)
   const [panel, setPanel] = useState<CaptureSubmissionsResponse | null>(null)
@@ -65,7 +67,7 @@ export function CaptureSection({ batchId, hasClass, onChanged }: {
     <section className="space-y-4" data-testid="capture-section" dir="rtl">
       <CaptureEntry batchId={batchId} />
       {link !== undefined && (
-        <LinkPanel batchId={batchId} link={link} hasClass={hasClass}
+        <LinkPanel batchId={batchId} link={link} hasClass={hasClass} focus={focusLink}
                    onLink={(l) => { setLink(l); onChanged() }} />
       )}
       {panel && (panel.rows.length > 0 || link) && (
@@ -139,9 +141,23 @@ function CaptureEntry({ batchId }: { batchId: string }) {
 // the link panel (§8.4)
 // ---------------------------------------------------------------------------
 
-function LinkPanel({ batchId, link, hasClass, onLink }: {
+function LinkPanel({ batchId, link, hasClass, onLink, focus = false }: {
   batchId: string; link: CaptureLink | null; hasClass: boolean; onLink: (l: CaptureLink) => void
+  focus?: boolean
 }) {
+  const formRef = useRef<HTMLDivElement>(null)
+  const createRef = useRef<HTMLButtonElement>(null)
+  const classRef = useRef<HTMLSelectElement>(null)
+  // Once, when the form first appears: bring it into view and put her on its
+  // FIRST step — the class when the batch has none (the create button is
+  // disabled until one is chosen), else the create button.
+  const focused = useRef(false)
+  useEffect(() => {
+    if (!focus || link || focused.current || !formRef.current) return
+    focused.current = true
+    formRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    ;(hasClass ? createRef.current : classRef.current)?.focus({ preventScroll: true })
+  }, [focus, link, hasClass])
   const [examDate, setExamDate] = useState(todayIsrael())
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([])
   const [classId, setClassId] = useState<string>('')
@@ -169,7 +185,9 @@ function LinkPanel({ batchId, link, hasClass, onLink }: {
 
   if (!link) {
     return (
-      <div className="space-y-3 rounded-zone border border-batch-line bg-white p-4" data-testid="capture-link-form">
+      <div ref={formRef}
+           className={`space-y-3 rounded-zone border bg-white p-4 ${focus ? 'border-primary-500 ring-2 ring-primary-200' : 'border-batch-line'}`}
+           data-testid="capture-link-form">
         <h3 className="flex items-center gap-2 font-semibold text-batch-ink"><Link2 size={16} />{P.linkTitle}</h3>
         <p className="text-sm text-batch-muted">{P.linkExplain}</p>
         <label className="block text-sm text-batch-ink">
@@ -185,7 +203,7 @@ function LinkPanel({ batchId, link, hasClass, onLink }: {
               <label><input type="radio" checked={mode === 'new'} onChange={() => setMode('new')} /> {P.newClass}</label>
             </div>
             {mode === 'pick' ? (
-              <select value={classId} onChange={(e) => setClassId(e.target.value)}
+              <select ref={classRef} value={classId} onChange={(e) => setClassId(e.target.value)}
                       className="block w-full rounded-lg border border-batch-line px-3 py-2">
                 <option value="">—</option>
                 {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -197,7 +215,7 @@ function LinkPanel({ batchId, link, hasClass, onLink }: {
           </fieldset>
         )}
         {error && <p className="text-sm text-batch-red-ink" role="alert">{error}</p>}
-        <button type="button" disabled={busy || (!hasClass && (mode === 'pick' ? !classId : !newClass.trim()))}
+        <button type="button" ref={createRef} disabled={busy || (!hasClass && (mode === 'pick' ? !classId : !newClass.trim()))}
                 onClick={() => void act(() => createCaptureLink(batchId, {
                   exam_date: examDate,
                   ...(hasClass ? {} : mode === 'pick' ? { class_id: classId } : { new_class_name: newClass.trim() }),
