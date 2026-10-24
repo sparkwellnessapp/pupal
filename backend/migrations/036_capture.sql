@@ -175,11 +175,14 @@ CREATE TABLE IF NOT EXISTS public.capture_pages (
         CHECK (auto_corners_source IS NULL OR auto_corners_source IN
                ('auto_model', 'auto_contour', 'full_frame')),
     CONSTRAINT capture_pages_rotation_check CHECK (rotation IN (0, 90, 180, 270)),
-    -- An uploaded page has geometry: analysis either succeeded or fell back to
-    -- the full frame (D9). An awaiting page has none yet.
+    -- An uploaded page has corners: analysis either succeeded (and then it
+    -- also knows the oriented pixel size) or fell back to the full frame (D9 —
+    -- scan-service never decoded it, so the size is honestly unknown). An
+    -- awaiting page has neither yet.
     CONSTRAINT capture_pages_status_consistency CHECK (
         (status = 'awaiting_upload') OR
-        (corners IS NOT NULL AND corners_source IS NOT NULL
+        (status = 'analyze_failed' AND corners IS NOT NULL AND corners_source IS NOT NULL) OR
+        (status = 'analyzed' AND corners IS NOT NULL AND corners_source IS NOT NULL
          AND image_w IS NOT NULL AND image_h IS NOT NULL))
 );
 -- Positions are unique among LIVE pages only; reorder is two-phase in one
