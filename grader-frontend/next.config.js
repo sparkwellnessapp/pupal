@@ -32,6 +32,20 @@ const nextConfig = {
       },
     ],
   },
+  // [036] In-house scanning. The student link's URL IS its credential (the
+  // token), and the teacher page's handoff URL carries a one-time token: neither
+  // may leave as a Referer, and the student link is never indexed (§9.6).
+  async headers() {
+    return [
+      { source: '/s/:path*', headers: [
+        { key: 'Referrer-Policy', value: 'no-referrer' },
+        { key: 'X-Robots-Tag', value: 'noindex' },
+      ] },
+      { source: '/capture/:path*', headers: [
+        { key: 'Referrer-Policy', value: 'no-referrer' },
+      ] },
+    ]
+  },
   // The marketing site (Vercel project vivi-site-il) lives at /site-il.
   async rewrites() {
     return [

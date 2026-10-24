@@ -58,6 +58,9 @@ export const CL_PURGE_CLOSE = 'סגירה'
 export const CL_PURGE_BLOCKED = (name: string) => `ויוי עדיין בודקת מבחן של ${name}. נסי שוב בעוד רגע.`
 /** 409 purge_refused — the plan could not promise a correct purge; nothing was touched. */
 export const CL_PURGE_REFUSED = (name: string) => `אי אפשר למחוק את ${name} כרגע. פני אלינו ונבדוק.`
+/** 409 capture_conflict — two photographed exams claim her; she decides first. */
+export const CL_PURGE_CAPTURE_CONFLICT = (name: string) =>
+  `יש מבחן מצולם של ${name} שממתין להחלטה שלך בלוח המקבץ. הכריעי בו, ואז אפשר יהיה למחוק.`
 export const CL_PURGE_LOAD_FAILED = 'לא הצלחנו לבדוק מה יימחק — נסי שוב'
 export const CL_PURGE_DONE = 'המחיקה הושלמה'
 
