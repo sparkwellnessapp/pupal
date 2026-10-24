@@ -287,6 +287,19 @@ export default function BatchDetailPage() {
     const params = useParams();
     const router = useRouter();
     const batchId = params?.id as string;
+    // [036] `?link=new` — arrived from the home page's «יצירת לינק לתלמידים»:
+    // open on the student-link form. Read once on mount (window.location, not
+    // useSearchParams, which would force a Suspense boundary), then dropped
+    // from the URL so a reload does not repeat it.
+    const [focusLink, setFocusLink] = useState(false);
+    useEffect(() => {
+        const query = new URLSearchParams(window.location.search);
+        if (query.get('link') !== 'new') return;
+        setFocusLink(true);
+        query.delete('link');
+        const rest = query.toString();
+        window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''));
+    }, []);
 
     const [batch, setBatch] = useState<BatchDetailResponse | null>(null);
     const [loading, setLoading] = useState(true);
@@ -774,6 +787,7 @@ export default function BatchDetailPage() {
                     in the triage below (OD-S9). */}
                 {CAPTURE_ENABLED && (
                     <CaptureSection batchId={batchId} hasClass={!!batch.class_id}
+                                    focusLink={focusLink}
                                     onChanged={() => void refresh()} />
                 )}
 

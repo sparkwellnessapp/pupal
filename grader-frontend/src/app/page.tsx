@@ -70,6 +70,7 @@ import {
 import { playCompletionChime, flipTabTitleToReady, restoreTabTitle } from '@/utils/completion-signal';
 import { pushSnapshot, popSnapshot, type RubricSnapshot } from '@/utils/rubric-history';
 import { CAPTURE_ENABLED, USE_DOCUMENT_MIRROR } from '@/lib/flags';
+import { P as CAPTURE_P } from '@/copy/capture';
 import { demoLog } from '@/lib/demo';
 import {
   Upload,
@@ -87,6 +88,7 @@ import {
   Home as HomeIcon,
   X,
   Camera,
+  Link2,
 } from 'lucide-react';
 import {
   UPLOAD_CLASS_HINT,
@@ -144,6 +146,9 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 export default function Home() {
   const [mainMode, setMainMode] = useState<MainMode>('select');
+  // [036] Entered from the home page's «יצירת לינק לתלמידים» card: choosing a
+  // rubric creates the batch at once and lands on its student-link form.
+  const [linkIntent, setLinkIntent] = useState(false);
 
   // Rubric Flow State
   const [rubricStep, setRubricStep] = useState<RubricStep>('upload');
@@ -1052,14 +1057,21 @@ export default function Home() {
    * count (nothing will arrive by upload, so there is nothing to declare), then
    * she lands on the batch, where the capture section takes over.
    */
-  const handleCaptureBatch = async () => {
-    if (!selectedRubric || batchUploading) return;
+  const handleCaptureBatch = async (rubric: RubricListItem | null = selectedRubric,
+                                    opts: { toLink?: boolean } = {}) => {
+    if (!rubric || batchUploading) return;
     setBatchUploading(true);
     setError(null);
     try {
-      const created = await createBatchMetadata(
-        selectedRubric.id, batchClassId || undefined, batchName.trim() || undefined);
-      router.push(`/batches/${created.batch_id}`);
+      // The direct path (the home card) never visits the upload step, where the
+      // name is composed: compose it here the same way (B5), so the batch
+      // reads «{rubric} · {date}» on every list instead of «מבחן {id}».
+      const name = opts.toLink
+        ? composeBatchName(rubric.name || 'מחוון ללא שם', null, new Date())
+        : batchName.trim() || undefined;
+      const created = await createBatchMetadata(rubric.id, batchClassId || undefined, name);
+      // `?link=new`: the batch page opens on its student-link form.
+      router.push(`/batches/${created.batch_id}${opts.toLink ? '?link=new' : ''}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : UPLOAD_CREATE_ERROR);
       setBatchUploading(false);
@@ -1107,6 +1119,10 @@ export default function Home() {
   // Grading Handlers
   const handleRubricSelect = (rubric: RubricListItem) => {
     setSelectedRubric(rubric);
+    if (linkIntent) {
+      void handleCaptureBatch(rubric, { toLink: true });
+      return;
+    }
     setGradingStep('upload_batch');
   };
 
@@ -1141,6 +1157,7 @@ export default function Home() {
     if (!confirmDiscardIfDirty()) return;
     dirtyRef.current = false;
     setMainMode('select');
+    setLinkIntent(false);
     setRubricStep('upload');
     setGradingStep('select_rubric');
     setRubricFile(null);
@@ -1171,7 +1188,7 @@ export default function Home() {
               <h2 className="text-3xl font-bold text-gray-800 mb-2">במה אני יכולה לעזור?</h2>
               <p className="text-gray-500"> בחרי את הפעולה הרצויה</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={`grid grid-cols-1 gap-6 ${CAPTURE_ENABLED ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
               <button
                 onClick={() => setMainMode('rubric')}
                 className="bg-white rounded-xl shadow-lg p-8 text-center hover:shadow-xl hover:scale-[1.02] transition-all group"
@@ -1183,7 +1200,7 @@ export default function Home() {
                 <p className="text-gray-500 text-sm">העלי קובץ DOCX של המחוון</p>
               </button>
               <button
-                onClick={() => setMainMode('grading')}
+                onClick={() => { setLinkIntent(false); setMainMode('grading') }}
                 className="bg-white rounded-xl shadow-lg p-8 text-center hover:shadow-xl hover:scale-[1.02] transition-all group"
               >
                 <div className="bg-[#aa77f7]/20 text-[#aa77f7] p-4 rounded-full w-fit mx-auto mb-4 group-hover:bg-[#aa77f7]/30 transition-colors">
@@ -1192,6 +1209,19 @@ export default function Home() {
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">בדיקת מבחנים</h3>
                 <p className="text-gray-500 text-sm">בדקי מבחני תלמידים עם מחוון קיים</p>
               </button>
+              {CAPTURE_ENABLED && (
+                <button
+                  onClick={() => { setLinkIntent(true); setGradingStep('select_rubric'); setMainMode('grading') }}
+                  data-testid="home-student-link"
+                  className="bg-white rounded-xl shadow-lg p-8 text-center hover:shadow-xl hover:scale-[1.02] transition-all group"
+                >
+                  <div className="bg-primary-100 text-primary-600 p-4 rounded-full w-fit mx-auto mb-4 group-hover:bg-primary-200 transition-colors">
+                    <Link2 size={32} />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">{CAPTURE_P.homeLinkTitle}</h3>
+                  <p className="text-gray-500 text-sm">{CAPTURE_P.homeLinkSubtitle}</p>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -1675,9 +1705,16 @@ export default function Home() {
                   <div className="text-center mb-6">
                     <BookOpen className="mx-auto text-primary-500 mb-3" size={48} />
                     <h2 className="text-xl font-semibold">בחירת מחוון</h2>
-                    <p className="text-gray-500 mt-1">בחרי מחוון קיים לבדיקת מבחנים</p>
+                    <p className="text-gray-500 mt-1">
+                      {linkIntent ? CAPTURE_P.homeLinkPickRubric : 'בחרי מחוון קיים לבדיקת מבחנים'}
+                    </p>
                   </div>
                   <RubricSelector onSelect={handleRubricSelect} />
+                  {linkIntent && batchUploading && (
+                    <p className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600" role="status">
+                      <Loader2 size={16} className="animate-spin" />{CAPTURE_P.homeLinkCreating}
+                    </p>
+                  )}
                   {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center gap-2"><AlertCircle size={18} />{error}</div>}
                 </div>
               </div>

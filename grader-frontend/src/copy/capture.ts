@@ -152,6 +152,11 @@ export const T = {
 // ---------------------------------------------------------------------------
 
 export const P = {
+  // The home page's third card: straight to a rubric, then to the link form.
+  homeLinkTitle: 'יצירת לינק לתלמידים',
+  homeLinkSubtitle: 'כאן תלמידים יוכלו לצלם את התשובות שלהם ולעלות לVivi בעת הגשת המבחן',
+  homeLinkPickRubric: 'בחרי את המחוון של המבחן שהתלמידים יצלמו',
+  homeLinkCreating: 'יוצרת את הקבוצה…',
   captureButton: 'צילום מבחנים',
   handoffTitle: 'צילום מבחנים',
   handoffScan: 'סרקי עם הטלפון כדי לצלם',
