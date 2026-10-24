@@ -140,6 +140,7 @@ async def _drop(batch_id: uuid.UUID) -> None:
             " (SELECT id FROM capture_submissions WHERE batch_id = :b) RETURNING 1) "
             "DELETE FROM capture_submissions WHERE batch_id = :b"), b)
         await db.execute(text("DELETE FROM capture_links WHERE batch_id = :b"), b)
+        await db.execute(text("DELETE FROM capture_handoffs WHERE batch_id = :b"), b)
         await db.execute(text("DELETE FROM grading_batches WHERE id = :b"), b)
         await db.commit()
 

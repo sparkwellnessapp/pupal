@@ -22,6 +22,9 @@ from .api.v0 import classroom as classroom_v0
 from .api.v0 import transcription as transcription_v0
 from .api.v0 import batch_grading as batch_grading_v0
 from .api.v0 import plan_jobs as plan_jobs_v0
+from .api.v0 import capture_teacher as capture_teacher_v0
+from .api.v0 import capture_student as capture_student_v0
+from .services.capture.actors import CaptureError
 from .services.temp_storage_service import start_cleanup_worker
 
 # Configure logging
@@ -187,6 +190,25 @@ app.add_middleware(
 # so there is no chunked-stream interaction to worry about.
 app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 
+
+@app.exception_handler(CaptureError)
+async def _capture_error(_request, exc: CaptureError):
+    """[036] The capture service's one refusal type: a status and a machine
+    code (+ `message_he`) in the same `detail` shape HTTPException uses."""
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=exc.status, content={"detail": exc.detail()})
+
+
+@app.middleware("http")
+async def _capture_link_headers(request, call_next):
+    """[036] §6.3: every student-link response — errors included — is
+    never cached and never leaks its URL (the token) as a Referer."""
+    response = await call_next(request)
+    if request.url.path.startswith("/api/v0/capture/"):
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
 # Register API routers
 app.include_router(grading_v0.router)
 app.include_router(users_v0.router)
@@ -202,6 +224,13 @@ app.include_router(rubric_management_v0.router)
 app.include_router(rubric_generator_v0.router)
 app.include_router(classroom_v0.router)
 app.include_router(transcription_v0.router)
+# [036] In-house scanning. Registered BEFORE batch_grading: every capture path
+# under /api/v0/batches/{batch_id}/ is DEEPER than batch_grading's
+# /{batch_id} routes, so neither can shadow the other today — the order makes
+# that true by construction for a future catch-all too (first match wins).
+app.include_router(capture_teacher_v0.router)
+app.include_router(capture_teacher_v0.capture_page_router)
+app.include_router(capture_student_v0.router)
 app.include_router(batch_grading_v0.router)
 # Cloud Tasks targets (auth: OIDC/shared-secret inside the endpoint, NOT
 # get_current_user): batch transcription jobs + grading runs.
