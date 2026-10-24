@@ -22,15 +22,32 @@ from .selection_expectation import expected_empty_keys
 # Student name normalization
 # ---------------------------------------------------------------------------
 
-def _normalize_name(name: str) -> str:
+# [036, OD-6 / D16] Apostrophe-like and quote-like marks are UNIFIED, not
+# deleted: a phone keyboard types `'` where a teacher's keyboard types `׳`
+# (geresh), and «ג'ורג'» must still differ from «גורג».
+_GERESH_LIKE = dict.fromkeys(map(ord, "׳’‘`´"), "'")
+_GERSHAYIM_LIKE = dict.fromkeys(map(ord, "״“”"), '"')
+
+
+def normalize_name(name: str) -> str:
     """
-    Casefold + strip leading/trailing whitespace + strip Hebrew niqqud
-    (cantillation marks U+0591–U+05C7 in Unicode block Hebrew).
-    Normalizes to NFC first to handle pre-composed vs. combining forms.
+    THE name normalizer — the roster auto-match, the capture link's identify
+    and the client's identity-pill dedupe all judge names by this (its TS
+    twin is frontend/src/utils/batch-partition.ts::normalizeName; the vector
+    tables are cross-pinned). Still EXACT matching, never fuzzy:
+
+      NFC → casefold → strip Hebrew niqqud/cantillation (U+0591–U+05C7)
+      → unify geresh/gershayim look-alikes → collapse whitespace
+      → token order independence: «כהן דני» == «דני כהן» (D16 — Israeli
+        students commonly write the surname first).
     """
-    name = unicodedata.normalize("NFC", name).casefold().strip()
-    # Strip any character in the Hebrew cantillation/vowel range
-    return "".join(c for c in name if not ("֑" <= c <= "ׇ"))
+    name = unicodedata.normalize("NFC", name).casefold()
+    name = "".join(c for c in name if not ("֑" <= c <= "ׇ"))
+    name = name.translate(_GERESH_LIKE).translate(_GERSHAYIM_LIKE)
+    return " ".join(sorted(name.split()))
+
+
+_normalize_name = normalize_name   # the historical private name (tests import it)
 
 
 # ---------------------------------------------------------------------------
@@ -61,15 +78,17 @@ def match_student(
     if not suggestion or not suggestion.strip():
         return StudentMatchResult(student_id=None, student_name=None, match_confidence="none")
 
-    norm_suggestion = _normalize_name(suggestion)
-    for student in roster:
-        if _normalize_name(str(student.full_name)) == norm_suggestion:
-            return StudentMatchResult(
-                student_id=str(student.id),
-                student_name=student.full_name,
-                match_confidence="exact",
-            )
-
+    norm_suggestion = normalize_name(suggestion)
+    matches = [s for s in roster if normalize_name(str(s.full_name)) == norm_suggestion]
+    # [036] EXACTLY one. Token-order independence (D16) makes two roster names
+    # collide more often («דני כהן» / «כהן דני» are now one key), and a
+    # collision is doubt — choosing the first would be a guess.
+    if len(matches) == 1:
+        return StudentMatchResult(
+            student_id=str(matches[0].id),
+            student_name=matches[0].full_name,
+            match_confidence="exact",
+        )
     return StudentMatchResult(student_id=None, student_name=None, match_confidence="none")
 
 

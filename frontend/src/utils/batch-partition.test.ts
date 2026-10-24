@@ -24,6 +24,13 @@ const VECTORS: Array<[string, string]> = [
   ['Dana Levi', 'dana levi'],           // casefold
   ['נועהְ שריד', 'נועה שריד'],     // combining sheva stripped
   ['אִיתַי כֹּהֵן', 'איתי כהן'],
+  // [036, OD-6 / D16] — the twin of the Python table, row for row
+  ['כהן דני', 'דני כהן'],                // token order: surname-first is the same name
+  ['דני   כהן', 'דני כהן'],              // internal whitespace collapsed
+  ['ג׳ורג׳ חביב', "ג'ורג' חביב"],          // geresh U+05F3 → apostrophe
+  ['ג’ורג’ חביב', "ג'ורג' חביב"],          // typographic apostrophe → apostrophe
+  ['שלום בן״ק', 'בן"ק שלום'],            // gershayim → quote (and token order)
+  ['Dana LEVI', 'dana levi'],
 ]
 
 describe('normalizeName (server-mirrored)', () => {
