@@ -58,11 +58,17 @@ export interface StudentPickerProps {
     detectingLabel?: string;
     /** [036] Open the list on mount (the teacher capture page). */
     autoOpen?: boolean;
+    /**
+     * Students never offered (e.g. already members of the class being
+     * filled). They stay in the loaded roster — only the suggestions hide them.
+     */
+    excludeIds?: readonly string[];
 }
 
 export function StudentPicker({
     value, onChange, placeholder = 'חפש תלמיד...', disabled, suggestedName,
     source = CLASSROOM_SOURCE, suggestedMatch, suggestedMatchLabel, detecting, detectingLabel, autoOpen,
+    excludeIds,
 }: StudentPickerProps) {
     const [students, setStudents] = useState<StudentResponse[]>([]);
     const [loadingList, setLoadingList] = useState(true);
@@ -117,7 +123,8 @@ export function StudentPicker({
     // The ONE name normalization (niqqud, geresh, case, token order) — the
     // same rule the server's auto-match uses.
     const filtered = students.filter(s => nameMatchesQuery(s.full_name, query)
-        && s.id !== suggestedMatch?.id);
+        && s.id !== suggestedMatch?.id
+        && !excludeIds?.includes(s.id));
 
     const handleSelect = (student: StudentResponse) => {
         onChange(student.id);
@@ -233,7 +240,9 @@ export function StudentPicker({
                             )}
                             {filtered.length === 0 && !showCreateInput && !suggestedMatch && (
                                 <p className="px-4 py-3 text-sm text-gray-400 text-right">
-                                    {query ? 'לא נמצאו תלמידים תואמים' : 'אין תלמידים עדיין'}
+                                    {query
+                                        ? 'לא נמצאו תלמידים תואמים'
+                                        : students.length > 0 ? 'כל התלמידים כבר נוספו' : 'אין תלמידים עדיין'}
                                 </p>
                             )}
 
