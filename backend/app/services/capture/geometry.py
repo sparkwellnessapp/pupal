@@ -42,11 +42,13 @@ def validate_corners(corners) -> list[list[float]]:
         raise InvalidCorners("corners must be four [x, y] pairs")
     if any(not (0.0 <= c <= 1.0) for p in pts for c in p):
         raise InvalidCorners("corners must lie inside the image")
-    # Convex and simple (in the given order): every turn the same strict sign.
-    # A self-intersecting "bow tie" alternates sign, a concave quad flips one.
+    # Convex, simple AND clockwise on screen (y grows down), i.e. really in the
+    # order TL, TR, BR, BL: every turn strictly positive. A "bow tie" alternates
+    # sign, a concave quad flips one, and an all-negative quad is the page
+    # MIRRORED — scan-service would flatten it back to front. (The editor
+    # cannot make one: moving one handle never changes the opposite turn.)
     turns = [_cross(pts[i], pts[(i + 1) % 4], pts[(i + 2) % 4]) for i in range(4)]
-    if any(abs(t) < 1e-9 for t in turns) or not (all(t > 0 for t in turns)
-                                                or all(t < 0 for t in turns)):
+    if not all(t > 1e-9 for t in turns):
         raise InvalidCorners("corners must form a convex, non-crossing shape")
     if area(pts) < MIN_AREA_FRACTION:
         raise InvalidCorners("the page is too small")

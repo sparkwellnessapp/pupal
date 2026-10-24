@@ -4,30 +4,35 @@ The page and save endpoints, defined ONCE and mounted on both capture routers
 (her session or a batch-scoped capture session) or the student's (link token
 + device secret, link OPEN). The service enforces scope with that actor, so
 the same function serves both modes and neither can reach the other's rows.
+
+Each router also hands in its own submission VIEW: the student's is narrower
+(no student state — she is never told her submission is a conflict, D1).
 """
 from __future__ import annotations
 
-from typing import Callable
+from typing import Awaitable, Callable, Type
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...database import get_db
 from ...schemas.capture import (
     PageCreateRequest, PageCreateResponse, PageOrderRequest, PagePatchRequest, PageView,
-    ResetCornersRequest, SaveResponse, SubmissionView,
+    ResetCornersRequest, SaveResponse,
 )
 from ...services.batch_ingest import enqueue_transcription_or_mark_failed
 from ...services.capture import submissions as svc
 
 
-def add_page_routes(router: APIRouter, actor_dep: Callable) -> None:
+def add_page_routes(router: APIRouter, actor_dep: Callable, *, view_model: Type[BaseModel],
+                    view: Callable[..., Awaitable[BaseModel]]) -> None:
 
-    @router.get("/submissions/{submission_id}", response_model=SubmissionView)
+    @router.get("/submissions/{submission_id}", response_model=view_model)
     async def get_submission(submission_id: UUID, actor=Depends(actor_dep),
                              db: AsyncSession = Depends(get_db)):
-        return await svc.submission_view(db, await svc.load_submission(db, actor, submission_id))
+        return await view(db, await svc.load_submission(db, actor, submission_id))
 
     @router.post("/submissions/{submission_id}/pages", response_model=PageCreateResponse,
                  status_code=201)
@@ -84,6 +89,7 @@ def add_page_routes(router: APIRouter, actor_dep: Callable) -> None:
         await db.commit()
         await db.close()                    # pooler discipline before the enqueue
         await enqueue_transcription_or_mark_failed(saved.job_id)
-        return SaveResponse(version_no=saved.version.version_no,
+        return SaveResponse(submission_id=saved.submission_id,
+                            version_no=saved.version.version_no,
                             saved_at=saved.version.created_at.isoformat(),
                             page_count=saved.page_count)

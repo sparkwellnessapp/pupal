@@ -18,8 +18,10 @@ eval-calibrated pipeline version.
 """
 from __future__ import annotations
 
+import contextlib
 import io
 import math
+import threading
 from dataclasses import dataclass, field
 from typing import Optional, Sequence
 
@@ -47,6 +49,25 @@ PREVIEW_QUALITY = 80
 COMPILE_LONG_SIDE = 2339            # A4 long side at 200 DPI
 COMPILE_DPI = 200
 COMPILE_QUALITY = 85
+# The decode is BOUNDED (measured 2026-10-24): a 48 MP photo decoded at full
+# size peaked ~830 MB, and four at once (concurrency 4) do not fit in 2 GiB.
+# Nothing downstream needs more than 1.5x the compiled page (2339 px), so the
+# working image is capped at A4-at-300-DPI; a JPEG is DCT-scaled at decode
+# (`draft`, the cheap path — 48 MP peaks ~120 MB), anything else is resized.
+MAX_DECODE_LONG_SIDE = 3508
+# Formats with no decode-time scaling decode at full size first: a cap above
+# any phone's HEIC (48 MP) and well below Samsung's 200 MP JPEG mode, which the
+# JPEG draft path handles at a quarter of its size.
+MAX_FULL_DECODE_PIXELS = 64_000_000
+# A detected quad whose four corners all sit within this fraction of the
+# frame's border traced the photo's edge, not a page (busy backgrounds).
+BORDER_HUG_FRACTION = 0.01
+# A full-size decode above this holds the process-wide gate below: measured,
+# a 24 MP PNG peaks ~320 MB and a 48 MP HEIC ~2x that, so four at once on a
+# 2 GiB instance (concurrency 4) would not fit. One at a time does, beside
+# three drafted JPEGs (~160 MB each). Ordering only — never the bytes.
+LARGE_FULL_DECODE_PIXELS = 16_000_000
+_LARGE_DECODE_GATE = threading.BoundedSemaphore(1)
 
 FULL_FRAME = ((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0))
 
@@ -55,11 +76,68 @@ FULL_FRAME = ((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0))
 # decode / encode
 # ---------------------------------------------------------------------------
 
-def decode(raw: bytes) -> np.ndarray:
-    """Bytes (JPEG / PNG / HEIC / HEIF) → RGB uint8, EXIF orientation applied."""
+class ImageTooLarge(ValueError):
+    """More pixels than this service will decode at full size (no draft path)."""
+
+
+@dataclass(frozen=True)
+class Decoded:
+    rgb: np.ndarray                     # the working image, long side <= MAX_DECODE_LONG_SIDE
+    orig_w: int                         # the photo's own size, EXIF-oriented
+    orig_h: int
+
+    @property
+    def scale(self) -> float:
+        """Working pixels per original pixel (<= 1)."""
+        return self.rgb.shape[1] / self.orig_w
+
+
+def decode_bounded(raw: bytes) -> Decoded:
+    """Bytes (JPEG / PNG / HEIC / HEIF) → RGB uint8, EXIF orientation applied,
+    long side at most MAX_DECODE_LONG_SIDE. Deterministic: the draft scale and
+    the resize are functions of the input size alone."""
     with Image.open(io.BytesIO(raw)) as im:
-        im = ImageOps.exif_transpose(im)
-        return np.asarray(im.convert("RGB"), dtype=np.uint8).copy()
+        w0, h0 = im.size
+        if im.format == "JPEG":
+            # The largest DCT scale (1, 1/2, 1/4, 1/8) still >= the cap.
+            ratio = MAX_DECODE_LONG_SIDE / max(w0, h0)
+            if ratio < 1.0:
+                im.draft("RGB", (math.ceil(w0 * ratio), math.ceil(h0 * ratio)))
+        elif w0 * h0 > MAX_FULL_DECODE_PIXELS:
+            raise ImageTooLarge(f"{w0}x{h0}")
+        large = im.format != "JPEG" and w0 * h0 > LARGE_FULL_DECODE_PIXELS
+        with (_LARGE_DECODE_GATE if large else contextlib.nullcontext()):
+            orientation = im.getexif().get(0x0112, 1)
+            im = im.convert("RGB")
+            rgb = resize_long_side(np.asarray(im), MAX_DECODE_LONG_SIDE)
+            del im
+    # EXIF orientation by exact array ops (no interpolation, no PIL copies).
+    rgb = _orient(rgb, orientation)
+    swapped = orientation in (5, 6, 7, 8)
+    return Decoded(np.ascontiguousarray(rgb), h0 if swapped else w0, w0 if swapped else h0)
+
+
+def _orient(rgb: np.ndarray, orientation: int) -> np.ndarray:
+    """EXIF orientation 1..8 → upright, as PIL's exif_transpose does."""
+    if orientation == 2:
+        return rgb[:, ::-1]
+    if orientation == 3:
+        return rgb[::-1, ::-1]
+    if orientation == 4:
+        return rgb[::-1]
+    if orientation == 5:
+        return np.transpose(rgb, (1, 0, 2))
+    if orientation == 6:
+        return np.rot90(rgb, k=-1)
+    if orientation == 7:
+        return np.transpose(rgb, (1, 0, 2))[::-1, ::-1]      # TRANSVERSE
+    if orientation == 8:
+        return np.rot90(rgb, k=1)
+    return rgb
+
+
+def decode(raw: bytes) -> np.ndarray:
+    return decode_bounded(raw).rgb
 
 
 def encode_jpeg(rgb: np.ndarray, quality: int) -> bytes:
@@ -175,9 +253,16 @@ def detect_contour(rgb: np.ndarray) -> Optional[np.ndarray]:
         if len(approx) != 4:
             continue
         quad = order_corners(approx.reshape(4, 2))
+        if _hugs_border(quad, small.shape[1], small.shape[0]):
+            continue                                # the photo's edge, not a page
         if is_convex(quad) and polygon_area(quad) >= MIN_QUAD_AREA_FRACTION * frame_area:
             return quad / scale
     return None
+
+
+def _hugs_border(quad: np.ndarray, w: int, h: int) -> bool:
+    mx, my = BORDER_HUG_FRACTION * w, BORDER_HUG_FRACTION * h
+    return all(min(x, w - 1 - x) <= mx and min(y, h - 1 - y) <= my for x, y in quad)
 
 
 def detect(rgb: np.ndarray) -> Detection:
@@ -193,27 +278,54 @@ def detect(rgb: np.ndarray) -> Detection:
 # flatten / rotate / illumination (§7.4)
 # ---------------------------------------------------------------------------
 
-def output_size(quad: np.ndarray, long_side: int) -> tuple[int, int]:
-    """(width, height) of the flattened page. D11: within 12% of A4's aspect
-    (either orientation) → exactly A4; otherwise the MEASURED aspect is kept,
-    so a half sheet is never stretched into a whole one."""
+class InvalidParams(ValueError):
+    """The caller's corners or rotation cannot describe a page — the photo is
+    fine; the request is not."""
+
+
+def _is_full_frame(corners) -> bool:
+    return np.allclose(np.asarray(corners, dtype=np.float64).reshape(4, 2),
+                       np.asarray(FULL_FRAME), atol=1e-6)
+
+
+def output_size(quad: np.ndarray, long_side: int, *, snap_a4: bool = True) -> tuple[int, int]:
+    """(width, height) of the flattened page. D11: a detected or placed page
+    within 12% of A4's aspect (either orientation) → exactly A4; otherwise the
+    MEASURED aspect is kept, so a half sheet is never stretched into a whole
+    one. The FULL FRAME is not a page (`snap_a4=False`): a 4:3 photo with no
+    page found keeps the photo's own shape rather than being stretched 6%."""
     width, height = quad_size(quad)
-    if width <= 0 or height <= 0:
-        raise ValueError("degenerate quad")
+    if not (width > 0 and height > 0):
+        raise InvalidParams("degenerate quad")
     portrait = height >= width
     aspect = (height / width) if portrait else (width / height)
-    if abs(aspect / A4_ASPECT - 1.0) <= A4_TOLERANCE:
+    if snap_a4 and abs(aspect / A4_ASPECT - 1.0) <= A4_TOLERANCE:
         aspect = A4_ASPECT
     short = max(1, round(long_side / aspect))
     return (short, long_side) if portrait else (long_side, short)
 
 
 def flatten(rgb: np.ndarray, corners: Sequence[Sequence[float]], long_side: int) -> np.ndarray:
+    pts = np.asarray(corners, dtype=np.float64)
+    if pts.shape != (4, 2) or not np.all(np.isfinite(pts)):
+        raise InvalidParams("corners must be four finite points")
     h, w = rgb.shape[:2]
-    quad = denormalize(corners, w, h).astype(np.float32)
-    out_w, out_h = output_size(quad.astype(np.float64), long_side)
-    target = np.array([[0, 0], [out_w - 1, 0], [out_w - 1, out_h - 1], [0, out_h - 1]],
-                      dtype=np.float32)
+    out_w, out_h = output_size(denormalize(corners, w, h), long_side,
+                               snap_a4=not _is_full_frame(corners))
+    # Area-average FIRST when the page is much larger than its output: a cubic
+    # warp alone shrinking 3-7x aliases (jagged thin strokes) and makes the
+    # blur score depend on the photo's resolution, not on its sharpness.
+    qw, qh = quad_size(denormalize(corners, w, h))
+    pre = min(1.0, 1.5 * max(out_w, out_h) / max(qw, qh))
+    if pre < 1.0:
+        rgb = cv2.resize(rgb, (max(1, round(w * pre)), max(1, round(h * pre))),
+                         interpolation=cv2.INTER_AREA)
+        h, w = rgb.shape[:2]
+    # Corners are pixel EDGES (1.0 is the far edge); OpenCV addresses pixel
+    # CENTRES — shift both sides by half a pixel so edge maps to edge.
+    quad = (denormalize(corners, w, h) - 0.5).astype(np.float32)
+    target = np.array([[0, 0], [out_w, 0], [out_w, out_h], [0, out_h]],
+                      dtype=np.float32) - 0.5
     matrix = cv2.getPerspectiveTransform(quad, target)
     return cv2.warpPerspective(rgb, matrix, (out_w, out_h), flags=cv2.INTER_CUBIC,
                                borderMode=cv2.BORDER_REPLICATE)
@@ -223,7 +335,7 @@ def rotate(rgb: np.ndarray, rotation: int) -> np.ndarray:
     """Exact quarter turns CLOCKWISE (np.rot90 turns counter-clockwise, hence
     the negative k) — no interpolation."""
     if rotation not in (0, 90, 180, 270):
-        raise ValueError(f"rotation must be a quarter turn, got {rotation}")
+        raise InvalidParams(f"rotation must be a quarter turn, got {rotation}")
     return np.ascontiguousarray(np.rot90(rgb, k=-(rotation // 90)))
 
 
@@ -290,12 +402,14 @@ def glare_ratio(rgb: np.ndarray) -> float:
     return big / page
 
 
-def assess(rgb: np.ndarray, detection: Detection) -> Quality:
+def assess(rgb: np.ndarray, detection: Detection, *, scale: float = 1.0) -> Quality:
+    """`scale` = working pixels per ORIGINAL pixel (Decoded.scale): the
+    too-far threshold is about the photo she took, not the bounded decode."""
     h, w = rgb.shape[:2]
     quad = denormalize(detection.corners, w, h)
     flat = flatten(rgb, detection.corners, QUALITY_LONG_SIDE)
     blur = laplacian_variance(cv2.cvtColor(flat, cv2.COLOR_RGB2GRAY))
-    short_side = int(round(min(quad_size(quad))))
+    short_side = int(round(min(quad_size(quad)) / scale))
     glare = glare_ratio(flat)
     reasons = []
     if blur < T_BLUR:

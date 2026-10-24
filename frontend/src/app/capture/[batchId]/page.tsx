@@ -37,6 +37,10 @@ function readSession(batchId: string): string | null {
   try { return sessionStorage.getItem(sessionKey(batchId)) } catch { return null }
 }
 
+function dropSession(batchId: string): void {
+  try { sessionStorage.removeItem(sessionKey(batchId)) } catch { /* nothing kept */ }
+}
+
 type Duplicate = { studentId: string; name: string; pages: number; savedAt: string | null }
 
 export default function TeacherCapturePageRoute() {
@@ -52,11 +56,18 @@ function TeacherCapturePage() {
 
   const [auth, setAuth] = useState<TeacherCaptureAuth | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
+  // The handoff token is SINGLE-USE: this effect re-runs when the auth
+  // provider settles, and a second exchange would answer 410 over a first
+  // one that succeeded.
+  const exchanged = useRef(false)
 
   // ── resolve WHO is capturing (once) ─────────────────────────────────────
   useEffect(() => {
+    if (auth) return
     const handoff = search.get('handoff')
     if (handoff) {
+      if (exchanged.current) return
+      exchanged.current = true
       exchangeHandoff(handoff)
         .then((r) => {
           try { sessionStorage.setItem(sessionKey(batchId), r.capture_session) } catch { /* in memory only */ }
@@ -70,19 +81,22 @@ function TeacherCapturePage() {
     if (stored) { setAuth({ kind: 'capture', token: stored }); return }
     if (!authLoading) {
       if (isAuthenticated) setAuth({ kind: 'session' })
-      else setAuthError(T.sessionExpired)
+      // A desktop with no session and no handoff: she simply is not logged in.
+      else router.replace('/login')
     }
-  }, [batchId, search, router, isAuthenticated, authLoading])
+  }, [auth, batchId, search, router, isAuthenticated, authLoading])
 
   const api = useMemo(() => (auth ? teacherCaptureApi(batchId, auth) : null), [batchId, auth])
 
   if (authError) return <Shell><p className="py-10 text-center text-gray-700">{authError}</p></Shell>
   if (!api) return <Shell><Loading /></Shell>
-  return <CaptureSession api={api} batchId={batchId} desktopBack={auth?.kind === 'session'} />
+  return <CaptureSession api={api} batchId={batchId} desktopBack={auth?.kind === 'session'}
+                         onSessionLost={() => { if (auth?.kind === 'capture') dropSession(batchId) }} />
 }
 
-function CaptureSession({ api, batchId, desktopBack }: {
+function CaptureSession({ api, batchId, desktopBack, onSessionLost }: {
   api: ReturnType<typeof teacherCaptureApi>; batchId: string; desktopBack: boolean
+  onSessionLost: () => void
 }) {
   const [batchName, setBatchName] = useState<string | null>(null)
   const [savedCount, setSavedCount] = useState(0)
@@ -96,10 +110,11 @@ function CaptureSession({ api, batchId, desktopBack }: {
   const [fatal, setFatal] = useState<string | null>(null)
   const asked = useRef(new Set<string>())
 
+  const lost = useCallback(() => { onSessionLost(); setFatal(T.sessionExpired) }, [onSessionLost])
   const fail = useCallback((e: unknown) => {
-    if (e instanceof CaptureApiError && e.status === 401) setFatal(T.sessionExpired)
+    if (e instanceof CaptureApiError && e.status === 401) lost()
     else toast.error(e instanceof CaptureApiError && e.messageHe ? e.messageHe : 'משהו השתבש — נסי שוב')
-  }, [])
+  }, [lost])
 
   const newGroup = useCallback(async () => {
     const sub = await api.createSubmission()
@@ -115,12 +130,19 @@ function CaptureSession({ api, batchId, desktopBack }: {
       if (s.drafts.length > 0) {
         setGroups(s.drafts)
         setCurrent(s.drafts[s.drafts.length - 1].submission_id)
-        if (s.drafts.length > 1) toast(T.unsavedResume(s.drafts.length))
+        // Only groups with something in them are "unsaved work" (the server
+        // also returns the newest EMPTY group, to be reused).
+        const unsaved = s.drafts.filter((d) => d.pages.length > 0 || d.student).length
+        if (unsaved > 0) toast(T.unsavedResume(unsaved))
       } else {
         await newGroup()
       }
-    }).catch(fail)
-  }, [api, newGroup, fail])
+    }).catch((e) => {
+      // Without its state the page has nothing to show: say so, never spin.
+      if (e instanceof CaptureApiError && e.status === 401) lost()
+      else setFatal(T.loadFailed)
+    })
+  }, [api, newGroup, lost])
 
   const group = groups.find((g) => g.submission_id === current) ?? null
   const state = current ? flow[current] : undefined
@@ -173,12 +195,20 @@ function CaptureSession({ api, batchId, desktopBack }: {
     },
   }), [api, current])
 
-  const missing = (g: SubmissionView | null, s: CaptureFlowState | undefined): string[] => {
+  const missing = (g: SubmissionView | null, live: CaptureFlowState | undefined): string[] => {
     const out: string[] = []
     if (!g) return out
-    if (!s || s.pageCount === 0) out.push(T.missingPages)
+    // A group she has not opened this visit has no flow state: judge it by the
+    // server's own view of it (resumed groups must not be silently skipped).
+    const s: CaptureFlowState = live ?? {
+      pageCount: g.pages.length, pending: 0, failed: 0,
+      awaiting: g.pages.filter((p) => p.status === 'awaiting_upload').length,
+      firstPage: g.pages[0] ?? null,
+    }
+    if (s.pageCount === 0) out.push(T.missingPages)
     if (g.student_state !== 'confirmed') out.push(T.missingStudent)
-    if (s && (s.pending > 0 || s.awaiting > 0)) out.push(T.waitingUploads)
+    if (s.pending > 0 || s.awaiting > 0) out.push(T.waitingUploads)
+    if (s.failed > 0) out.push(TEACHER_FLOW.failedUploads(s.failed))
     return out
   }
   const blocked = missing(group, state)
@@ -189,11 +219,19 @@ function CaptureSession({ api, batchId, desktopBack }: {
     await newGroup().catch(fail)
   }
 
+  // Switching away while this group's photos are still landing would leave
+  // them unaccounted for on screen: finish (or remove) them first.
+  const select = (id: string) => {
+    if ((state?.pending ?? 0) > 0) { setBlockers([T.waitingUploads]); return }
+    setCurrent(id); setBlockers([])
+  }
+
   const saveAll = async () => {
     if (blocked.length && (state?.pageCount ?? 0) > 0) { setBlockers(blocked); return }
+    const complete = groups.filter((g) => missing(g, flow[g.submission_id]).length === 0)
+    if (complete.length === 0) { setBlockers([T.nothingToSave]); return }
     setBlockers([])
     setSaving(true)
-    const complete = groups.filter((g) => missing(g, flow[g.submission_id]).length === 0)
     const failed: string[] = []
     const savedIds = new Set<string>()
     for (const g of complete) {
@@ -202,7 +240,7 @@ function CaptureSession({ api, batchId, desktopBack }: {
         savedIds.add(g.submission_id)
       } catch (e) {
         failed.push(g.student?.display_name ?? T.student(groups.indexOf(g) + 1))
-        if (e instanceof CaptureApiError && e.status === 401) { setFatal(T.sessionExpired); break }
+        if (e instanceof CaptureApiError && e.status === 401) { lost(); break }
       }
     }
     const sent = savedIds.size
@@ -239,8 +277,8 @@ function CaptureSession({ api, batchId, desktopBack }: {
       {groups.length > 1 && (
         <nav className="mb-3 flex flex-wrap gap-2" aria-label="תלמידים שלא נשמרו">
           {groups.map((g, i) => (
-            <button key={g.submission_id} type="button" onClick={() => { setCurrent(g.submission_id); setBlockers([]) }}
-                    className={`rounded-full border px-3 py-1 text-sm ${g.submission_id === current
+            <button key={g.submission_id} type="button" onClick={() => select(g.submission_id)}
+                    className={`min-h-[44px] rounded-full border px-4 py-2 text-sm ${g.submission_id === current
                       ? 'border-primary-600 bg-primary-50 text-primary-800' : 'border-surface-300 text-gray-700'}`}>
               {g.student?.display_name ?? T.student(i + 1)}
             </button>
@@ -277,6 +315,9 @@ function CaptureSession({ api, batchId, desktopBack }: {
         />
       </section>
 
+      {(state?.pending ?? 0) > 0 && (
+        <p className="mt-2 text-center text-sm text-gray-600">{TEACHER_FLOW.uploading(state!.pending)}</p>
+      )}
       {blockers.length > 0 && (
         <ul id="capture-blockers" className="mt-3 space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
           {blockers.map((b) => <li key={b}>{b}</li>)}

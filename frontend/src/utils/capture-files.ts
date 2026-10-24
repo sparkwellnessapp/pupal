@@ -12,6 +12,9 @@
 import type { CaptureContentType } from '@/types/capture'
 
 export const ACCEPT_ATTR = 'image/jpeg,image/png,image/heic,image/heif'
+/** The server's silent cap (R2, `capture_max_file_bytes`): checked here first,
+ *  so an oversized photo is named at once instead of failing at the PUT. */
+export const MAX_FILE_BYTES = 52_428_800
 
 const BY_EXTENSION: Record<string, CaptureContentType> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', heic: 'image/heic', heif: 'image/heif',

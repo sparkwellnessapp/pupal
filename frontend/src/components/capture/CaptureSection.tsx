@@ -24,8 +24,8 @@ import { StudentPicker } from '@/components/StudentPicker'
 import { P, hhmm } from '@/copy/capture'
 import { listClasses, retryBatchJob } from '@/lib/api'
 import {
-  closeCaptureLink, createCaptureHandoff, createCaptureLink, getCaptureLink, listCaptureSubmissions,
-  reopenCaptureLink, resolveConflict, resolvePending,
+  CaptureApiError, closeCaptureLink, createCaptureHandoff, createCaptureLink, getCaptureLink,
+  listCaptureSubmissions, reopenCaptureLink, resolveConflict, resolvePending,
 } from '@/lib/capture-api'
 import type { CaptureLink, CaptureSubmissionRow, CaptureSubmissionsResponse } from '@/types/capture'
 import { normalizeName } from '@/utils/batch-partition'
@@ -44,7 +44,9 @@ export function CaptureSection({ batchId, hasClass, onChanged }: {
   const [link, setLink] = useState<CaptureLink | null | undefined>(undefined)
   const [panel, setPanel] = useState<CaptureSubmissionsResponse | null>(null)
 
-  const loadLink = useCallback(() => getCaptureLink(batchId).then(setLink).catch(() => setLink(null)), [batchId])
+  // A failed read keeps what is on screen: reading a dropped poll as «no link»
+  // would swap her live link for the create form (the next poll retries).
+  const loadLink = useCallback(() => getCaptureLink(batchId).then(setLink).catch(() => undefined), [batchId])
   const loadPanel = useCallback(() => listCaptureSubmissions(batchId).then(setPanel).catch(() => undefined), [batchId])
 
   useEffect(() => { void loadLink(); void loadPanel() }, [loadLink, loadPanel])
@@ -52,9 +54,10 @@ export function CaptureSection({ batchId, hasClass, onChanged }: {
   const busy = panel?.rows.some((r) => r.version_status === 'queued' || r.version_status === 'running') ?? false
   useEffect(() => {
     const every = link?.state === 'open' || busy ? 10_000 : 60_000
-    const t = setInterval(() => { void loadPanel() }, every)
+    // The link's state is polled too: it closes at midnight and after a close.
+    const t = setInterval(() => { void loadPanel(); void loadLink() }, every)
     return () => clearInterval(t)
-  }, [link?.state, busy, loadPanel])
+  }, [link?.state, busy, loadPanel, loadLink])
 
   const refreshAll = () => { void loadPanel(); onChanged() }
 
@@ -77,16 +80,33 @@ export function CaptureSection({ batchId, hasClass, onChanged }: {
 // «צילום מבחנים» — the handoff (D2)
 // ---------------------------------------------------------------------------
 
+// The handoff token lives 10 minutes (D2): an open dialog renews it before then.
+const HANDOFF_RENEW_MS = 9 * 60_000
+
 function CaptureEntry({ batchId }: { batchId: string }) {
   const [open, setOpen] = useState(false)
   const [handoff, setHandoff] = useState<string | null>(null)
+  const [handoffFailed, setHandoffFailed] = useState(false)
   const phone = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+
+  const issue = useCallback(async () => {
+    setHandoffFailed(false)
+    try { setHandoff((await createCaptureHandoff(batchId)).handoff_url) } catch {
+      setHandoff(null); setHandoffFailed(true)
+    }
+  }, [batchId])
+
+  useEffect(() => {
+    if (!open) return
+    const t = setInterval(() => { void issue() }, HANDOFF_RENEW_MS)
+    return () => clearInterval(t)
+  }, [open, issue])
 
   const start = async () => {
     if (phone) { window.location.href = `/capture/${batchId}`; return }
     setOpen(true)
     setHandoff(null)
-    try { setHandoff((await createCaptureHandoff(batchId)).handoff_url) } catch { setHandoff('') }
+    await issue()
   }
 
   return (
@@ -99,7 +119,14 @@ function CaptureEntry({ batchId }: { batchId: string }) {
         <div className="space-y-4 p-6 text-center" dir="rtl">
           <h2 id="handoff-title" className="text-lg font-semibold text-gray-900">{P.handoffTitle}</h2>
           <p className="text-sm text-gray-700">{P.handoffScan}</p>
-          {handoff ? <QrCode value={handoff} label={P.handoffScan} /> : <div className="mx-auto h-60 w-60 animate-pulse rounded bg-surface-100" />}
+          {handoff ? <QrCode value={handoff} label={P.handoffScan} />
+            : handoffFailed ? (
+              <div className="mx-auto flex h-60 w-60 flex-col items-center justify-center gap-3 rounded bg-surface-50 p-4">
+                <p className="text-sm text-batch-red-ink" role="alert">{P.handoffFailed}</p>
+                <button type="button" onClick={() => void issue()}
+                        className="min-h-[44px] rounded-lg border border-batch-line px-4 text-sm text-batch-ink">{P.retry}</button>
+              </div>
+            ) : <div className="mx-auto h-60 w-60 animate-pulse rounded bg-surface-100" />}
           <p className="text-xs text-gray-500">{P.handoffExpires}</p>
           <Link href={`/capture/${batchId}`} className="block text-sm text-primary-700 underline">{P.handoffDesktop}</Link>
         </div>
@@ -123,6 +150,13 @@ function LinkPanel({ batchId, link, hasClass, onLink }: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [qr, setQr] = useState(false)
+
+  useEffect(() => {
+    if (!qr) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setQr(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [qr])
 
   useEffect(() => {
     if (!hasClass && !link) listClasses().then((r) => setClasses(r.classes.map((c) => ({ id: c.id, name: c.name })))).catch(() => undefined)
@@ -193,7 +227,7 @@ function LinkPanel({ batchId, link, hasClass, onLink }: {
         <Tool onClick={() => setQr(true)} icon={<QrIcon size={14} />}>{P.showQr}</Tool>
         <Tool onClick={() => void copy()} icon={<Copy size={14} />}>{P.copyLink}</Tool>
         <a href={`https://wa.me/?text=${encodeURIComponent(link.url)}`} target="_blank" rel="noreferrer"
-           className="flex items-center gap-1.5 rounded-lg border border-batch-line px-3 py-1.5 text-batch-ink hover:bg-surface-50">
+           className="flex min-h-[44px] items-center gap-1.5 rounded-lg border border-batch-line px-3 py-1.5 text-batch-ink hover:bg-surface-50">
           <MessageCircle size={14} />{P.shareWhatsapp}
         </a>
         {link.state === 'closed'
@@ -222,7 +256,7 @@ function Tool({ children, onClick, icon, disabled }: {
 }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled}
-            className="flex items-center gap-1.5 rounded-lg border border-batch-line px-3 py-1.5 text-batch-ink hover:bg-surface-50 disabled:opacity-50">
+            className="flex min-h-[44px] items-center gap-1.5 rounded-lg border border-batch-line px-3 py-1.5 text-batch-ink hover:bg-surface-50 disabled:opacity-50">
       {icon}{children}
     </button>
   )
@@ -291,7 +325,8 @@ function SubmissionsPanel({ batchId, panel, onPanel, onRefresh }: {
                 <span className={`rounded-full px-2.5 py-0.5 text-xs ${badge.tone}`}>{badge.label}</span>
                 {r.version_status === 'failed' && r.job_id && (
                   <button type="button" className="text-primary-700 underline"
-                          onClick={() => void retryBatchJob(batchId, r.job_id!).then(onRefresh)}>{P.retry}</button>
+                          onClick={() => { setNotice(null); void retryBatchJob(batchId, r.job_id!).then(onRefresh)
+                            .catch((e) => setNotice((e as Error).message || P.retryFailed)) }}>{P.retry}</button>
                 )}
                 {r.student_state === 'pending' && (
                   <>
@@ -299,8 +334,9 @@ function SubmissionsPanel({ batchId, panel, onPanel, onRefresh }: {
                       setNotice(null)
                       resolvePending(batchId, r.submission_id, { approve_new: true }).then(onPanel).catch((e) => {
                         // The name already exists: offer linking, not an error (ruling).
-                        if ((e as { status?: number }).status === 409) { setNotice(P.studentExists); setLinking(r.submission_id) }
-                        else setNotice((e as Error).message)
+                        if (e instanceof CaptureApiError && e.code === 'student_exists') {
+                          setNotice(P.studentExists); setLinking(r.submission_id)
+                        } else setNotice(e instanceof CaptureApiError && e.messageHe ? e.messageHe : (e as Error).message)
                       })
                     }}>{P.approveNew}</button>
                     <button type="button" className="text-primary-700 underline"

@@ -47,6 +47,8 @@ from ...services.transcription_adapter import build_transcription_draft
 from ...services.cloud_tasks_service import enqueue_grading_task_or_log
 from ...services.transcribe_one import transcribe_one
 from ...services.grading_inputs import transcription_contract_version
+from ...services.batch_ingest import WithdrawnTranscription, lock_for_approval
+from ...services.capture.overlay import sync_on_approval
 
 logger = logging.getLogger(__name__)
 
@@ -176,6 +178,14 @@ async def grade(
     transcription = await get_owned_or_404(
         db, Transcription, body.transcription_id, current_user.id
     )
+    # [036] Every approval path, this one included: a batch scan addressed
+    # here is refused when withdrawn (OD-2), under the job-row lock — and the
+    # status is read AFTER the lock, refreshed, so a racing approval is seen.
+    try:
+        transcription = await lock_for_approval(db, transcription.id)
+    except WithdrawnTranscription:
+        raise HTTPException(status_code=409,
+                            detail="נשלחה גרסה חדשה של המבחן הזה — הגרסה הקודמת כבר לא חלק מהקבוצה") from None
     if transcription.status != "transcribed":
         raise HTTPException(status_code=409, detail="התמלול כבר אושר")
 
@@ -209,6 +219,9 @@ async def grade(
     # 'transcribed'→'approved' TRANSITION write, not a mutation of an approved
     # row — LCY-1 untouched. After this commit the PATCH /review path 409s.
     transcription.review_json = None
+    # [036, OD-3] the approved student becomes the capture submission's (no-op
+    # for a scan that did not come from a capture).
+    await sync_on_approval(db, transcription.id, student.id)
 
     graded_test = GradedTest(
         user_id=current_user.id,

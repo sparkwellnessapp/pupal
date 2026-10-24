@@ -32,6 +32,9 @@ export interface FlowCopy {
   badgeWarning: string
   noPagesYet: string
   unsupportedFile: string
+  tooLarge: string
+  actionFailed: string
+  failedUploads: (n: number) => string
 }
 
 export const STUDENT_FLOW: FlowCopy = {
@@ -62,6 +65,9 @@ export const STUDENT_FLOW: FlowCopy = {
   badgeWarning: 'כדאי לבדוק',
   noPagesYet: 'עוד לא צילמתם עמודים',
   unsupportedFile: 'אפשר להעלות רק תמונות (JPG, PNG, HEIC)',
+  tooLarge: 'התמונה גדולה מדי (עד 50MB). צלמו שוב.',
+  actionFailed: 'השינוי לא נשמר. נסו שוב.',
+  failedUploads: (n) => (n === 1 ? 'עמוד אחד לא עלה — נסו שוב או מחקו אותו' : `${n} עמודים לא עלו — נסו שוב או מחקו אותם`),
 }
 
 export const TEACHER_FLOW: FlowCopy = {
@@ -70,6 +76,9 @@ export const TEACHER_FLOW: FlowCopy = {
   uploadIncomplete: 'העלאה לא הושלמה — צלמי שוב',
   noPagesYet: 'עוד לא צילמת עמודים של התלמיד הזה',
   gallery: 'העלאת תמונות',
+  tooLarge: 'התמונה גדולה מדי (עד 50MB). צלמי שוב.',
+  actionFailed: 'השינוי לא נשמר. נסי שוב.',
+  failedUploads: (n) => (n === 1 ? 'עמוד אחד לא עלה — נסי שוב או מחקי אותו' : `${n} עמודים לא עלו — נסי שוב או מחקי אותם`),
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +114,7 @@ export const S = {
     `נשלח. ${n === 1 ? 'עמוד אחד הגיע' : `${n} עמודים הגיעו`} למורה. אפשר לחזור לקישור הזה היום כדי להוסיף או להחליף עמודים.`,
   backToEdit: 'הוספה או החלפה של עמודים',
   genericError: 'משהו השתבש. נסו שוב בעוד רגע.',
+  tryAgain: 'ניסיון נוסף',
   loading: 'טוען…',
 }
 
@@ -124,6 +134,8 @@ export const T = {
   missingPages: 'צלמי לפחות עמוד אחד',
   missingStudent: 'בחרי את התלמיד',
   waitingUploads: 'מחכים שהעמודים יסיימו לעלות',
+  nothingToSave: 'אין עדיין מבחן מוכן לשמירה — צלמי עמודים ובחרי תלמיד',
+  loadFailed: 'לא הצלחנו לטעון את הצילום. רענני את הדף ונסי שוב.',
   savedToast: (k: number) => (k === 1 ? 'מבחן אחד נשלח לעיבוד.' : `${k} מבחנים נשלחו לעיבוד.`),
   notSaved: 'לא נשמרו:',
   duplicateTitle: (name: string, n: number, time: string | null) =>
@@ -145,6 +157,8 @@ export const P = {
   handoffScan: 'סרקי עם הטלפון כדי לצלם',
   handoffDesktop: 'או העלי תמונות מהמחשב',
   handoffExpires: 'הקוד תקף ל-10 דקות',
+  handoffFailed: 'לא הצלחנו ליצור קוד לטלפון.',
+  retryFailed: 'הניסיון הנוסף לא יצא לדרך — נסי שוב בעוד רגע',
   linkTitle: 'קישור לצילום על ידי התלמידים',
   linkExplain: 'קישור אחד לכל כיתה. לכיתה נוספת, פתחי קבוצת בדיקה נפרדת עם קישור משלה.',
   examDate: 'תאריך המבחן',

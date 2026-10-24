@@ -19,7 +19,7 @@ import { Loader2 } from 'lucide-react'
 import { CaptureFlow, type CaptureFlowState } from '@/components/capture/CaptureFlow'
 import { S, STUDENT_FLOW, hhmm, longDate } from '@/copy/capture'
 import { CaptureApiError, deviceKey, studentCaptureApi } from '@/lib/capture-api'
-import type { StudentLinkInfo, SubmissionView } from '@/types/capture'
+import type { StudentLinkInfo, SubmissionPages } from '@/types/capture'
 
 type Step = 'loading' | 'state' | 'name' | 'confirm' | 'new' | 'instructions' | 'capture' | 'review' | 'done'
 
@@ -43,7 +43,10 @@ export default function StudentCapturePage() {
   const [invalid, setInvalid] = useState(false)
   const [name, setName] = useState('')
   const [match, setMatch] = useState<string | null>(null)
-  const [sub, setSub] = useState<SubmissionView | null>(null)
+  const [sub, setSub] = useState<SubmissionPages | null>(null)
+  // A load that failed for any reason but «no such link» is retried, never
+  // reported as an invalid link (a dropped connection is not a bad QR).
+  const [loadFailed, setLoadFailed] = useState(false)
   const [flow, setFlow] = useState<CaptureFlowState | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,8 +63,8 @@ export default function StudentCapturePage() {
     setError(e instanceof CaptureApiError && e.messageHe ? e.messageHe : S.genericError)
   }, [info])
 
-  useEffect(() => {
-    setDevice(readLocal(deviceKey(token)))
+  const load = useCallback(() => {
+    setStep('loading'); setLoadFailed(false)
     api.info().then((i) => {
       setInfo(i)
       if (i.state !== 'open') { setStep('state'); return }
@@ -72,8 +75,14 @@ export default function StudentCapturePage() {
       } else setStep('name')
     }).catch((e) => {
       if (e instanceof CaptureApiError && e.status === 404) setInvalid(true)
+      else setLoadFailed(true)
       setStep('state')
     })
+  }, [api])
+
+  useEffect(() => {
+    setDevice(readLocal(deviceKey(token)))
+    load()
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const identify = async () => {
@@ -92,18 +101,24 @@ export default function StudentCapturePage() {
       const r = await api.createSubmission(name.trim(), confirmMatch)
       writeLocal(deviceKey(token), r.device_secret)              // D1: this device, this link
       setDevice(r.device_secret)
-      const view = await studentCaptureApi(token, () => r.device_secret).getSubmission(r.submission_id)
-      setSub(view)
+      // A new submission is empty by definition — no second round trip that
+      // could fail AFTER the device secret was already kept.
+      setSub({ submission_id: r.submission_id, status: 'draft', pages: [], version_no: null,
+               saved_at: null, updated_at: new Date().toISOString() })
       setStep(readLocal(SEEN_INSTRUCTIONS) ? 'capture' : 'instructions')
     } catch (e) { onError(e) } finally { setBusy(false) }
   }
 
   const save = async () => {
-    if (!sub || !flow || flow.pageCount === 0 || flow.pending > 0 || flow.awaiting > 0) return
+    if (!sub || !canSave) return
     setBusy(true); setError(null)
     try {
       const r = await api.save(sub.submission_id)
       setSentPages(r.page_count)
+      // After an approval the server saved onto a NEW submission (D6): every
+      // later edit continues there. The flow remounts on the id.
+      setSub({ ...sub, submission_id: r.submission_id, status: 'saved', saved_at: r.saved_at,
+               version_no: r.version_no })
       setStep('done')
     } catch (e) { onError(e) } finally { setBusy(false) }
   }
@@ -111,7 +126,8 @@ export default function StudentCapturePage() {
   const label = info?.exam_label
   const header = label ? [label.batch_name, label.class_name].filter(Boolean).join(' · ') : ''
   const pendingCount = (flow?.pending ?? 0) + (flow?.awaiting ?? 0)
-  const canSave = !!flow && flow.pageCount > 0 && pendingCount === 0
+  const failedCount = flow?.failed ?? 0
+  const canSave = !!flow && flow.pageCount > 0 && pendingCount === 0 && failedCount === 0
 
   return (
     <main className="mx-auto min-h-screen max-w-xl px-4 py-6" dir="rtl">
@@ -124,10 +140,14 @@ export default function StudentCapturePage() {
 
       {step === 'state' && (
         <p className="py-10 text-center text-lg text-gray-800">
-          {invalid || !info ? S.invalid
+          {loadFailed ? S.genericError
+            : invalid || !info ? S.invalid
             : info.state === 'not_yet_open' ? S.notYetOpen(longDate(info.exam_label.exam_date))
             : S.closed}
         </p>
+      )}
+      {step === 'state' && loadFailed && (
+        <Secondary onClick={load}>{S.tryAgain}</Secondary>
       )}
 
       {step === 'name' && (
@@ -172,9 +192,10 @@ export default function StudentCapturePage() {
             </p>
           )}
           {step === 'review' && <h1 className="text-xl font-semibold text-gray-900">{S.reviewTitle}</h1>}
-          <CaptureFlow api={api} submissionId={sub.submission_id} initialPages={sub.pages}
-                       copy={STUDENT_FLOW} onState={setFlow} primaryCamera />
+          <CaptureFlow key={sub.submission_id} api={api} submissionId={sub.submission_id}
+                       initialPages={sub.pages} copy={STUDENT_FLOW} onState={setFlow} primaryCamera />
           {pendingCount > 0 && <p className="text-center text-sm text-gray-600">{STUDENT_FLOW.uploading(pendingCount)}</p>}
+          {failedCount > 0 && <p className="text-center text-sm text-red-700">{STUDENT_FLOW.failedUploads(failedCount)}</p>}
           {step === 'capture' ? (
             <Primary onClick={() => setStep('review')} disabled={!flow || flow.pageCount === 0}>{S.done}</Primary>
           ) : (

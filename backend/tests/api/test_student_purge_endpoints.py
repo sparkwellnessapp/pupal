@@ -168,3 +168,26 @@ def test_a_student_with_nothing_attributable_is_deleted(client, headers_a, world
     resp = client.delete(STUDENT.format(id=bare), headers=headers_a)
     assert resp.status_code == 200, resp.text
     assert client.get(PREVIEW.format(id=bare), headers=headers_a).status_code == 404
+
+
+def test_an_unresolved_capture_conflict_is_hers_to_clear_with_its_own_code(client, headers_a, world):
+    """[036] Not the operator's «purge_refused»: the dialog tells her to decide
+    the conflict first. Nothing is touched."""
+    from sqlalchemy import text
+    from tests.services.erasure.seed import add_capture, session
+
+    g, _store = world
+
+    async def conflict():
+        await add_capture(g, "capc", pending_name=g.student_name)
+        async with session() as db:
+            await db.execute(text("UPDATE capture_submissions SET student_id = :st, "
+                                  "pending_student_name = NULL, student_state = 'conflict' "
+                                  "WHERE id = :s"), {"st": g.student_id, "s": g.captures["capc"]["sub"]})
+            await db.commit()
+    asyncio.run(conflict())
+    before = asyncio.run(row_counts(g))
+    for method, url in (("get", PREVIEW), ("delete", STUDENT)):
+        resp = getattr(client, method)(url.format(id=g.student_id), headers=headers_a)
+        assert (resp.status_code, resp.json()) == (409, {"detail": "capture_conflict"})
+    assert asyncio.run(row_counts(g)) == before

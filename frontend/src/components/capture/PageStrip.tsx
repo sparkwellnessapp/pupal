@@ -23,14 +23,16 @@ export interface StripPage {
   state: 'uploading' | 'ready' | 'warning' | 'failed' | 'incomplete'
 }
 
-export function PageStrip({ pages, selectedKey, copy, onSelect, onMove }: {
+export function PageStrip({ pages, selectedKey, copy, canMove = true, onSelect, onMove }: {
   pages: StripPage[]
   selectedKey: string | null
   copy: FlowCopy
+  /** false while a photo is still landing or an edit is in flight */
+  canMove?: boolean
   onSelect: (key: string) => void
   onMove: (key: string, delta: -1 | 1) => void
 }) {
-  const movable = pages.filter((p) => p.page && p.state !== 'uploading')
+  const movable = canMove ? pages.filter((p) => p.page && p.state !== 'uploading') : []
   return (
     <ol className="flex flex-col gap-2" dir="rtl" aria-label="עמודים">
       {pages.map((p, i) => {
@@ -47,16 +49,17 @@ export function PageStrip({ pages, selectedKey, copy, onSelect, onMove }: {
               </span>
             </button>
             {idx >= 0 && (
-              <span className="flex flex-col">
+              <span className="flex">
+                {/* 44 px each (a finger, not a cursor). */}
                 <button type="button" aria-label={copy.moveUp} disabled={idx === 0}
                         onClick={() => onMove(p.key, -1)}
-                        className="flex h-[22px] w-11 items-center justify-center rounded text-gray-500 hover:bg-surface-100 disabled:opacity-30">
-                  <ChevronUp size={16} />
+                        className="flex h-11 w-11 items-center justify-center rounded text-gray-500 hover:bg-surface-100 disabled:opacity-30">
+                  <ChevronUp size={18} />
                 </button>
                 <button type="button" aria-label={copy.moveDown} disabled={idx === movable.length - 1}
                         onClick={() => onMove(p.key, 1)}
-                        className="flex h-[22px] w-11 items-center justify-center rounded text-gray-500 hover:bg-surface-100 disabled:opacity-30">
-                  <ChevronDown size={16} />
+                        className="flex h-11 w-11 items-center justify-center rounded text-gray-500 hover:bg-surface-100 disabled:opacity-30">
+                  <ChevronDown size={18} />
                 </button>
               </span>
             )}

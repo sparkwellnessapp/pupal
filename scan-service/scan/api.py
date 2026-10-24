@@ -14,28 +14,31 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Annotated, List
+from typing import Annotated, List, Literal
 
 import cv2
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from PIL import Image, UnidentifiedImageError
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field
 
 from . import SCAN_PIPELINE_VERSION
 from .assemble import assemble_pdf
 from .pipeline import (
-    COMPILE_LONG_SIDE, COMPILE_QUALITY, PREVIEW_LONG_SIDE, PREVIEW_QUALITY, assess, decode,
-    detect, encode_jpeg, render_page, resize_long_side,
+    COMPILE_LONG_SIDE, COMPILE_QUALITY, PREVIEW_LONG_SIDE, PREVIEW_QUALITY, ImageTooLarge,
+    InvalidParams, assess, decode_bounded, detect, encode_jpeg, render_page, resize_long_side,
 )
-from .storage import ObjectMissing, get_storage
+from .storage import ObjectMissing, StorageFailed, StorageForbidden, get_storage, split_gs_uri
 
 logger = logging.getLogger("scan")
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
                     level=logging.INFO)
 
-# A decompression bomb is refused, not decoded: 100 MP is ~2x a 48 MP phone.
-Image.MAX_IMAGE_PIXELS = 100_000_000
+# Pillow refuses above 2x this (its bomb check) and only WARNS between 1x and
+# 2x. The real memory bound is pipeline.decode_bounded (JPEG drafted, other
+# formats refused above 64 MP); this is the outer wall: 2 x 125 MP = 250 MP,
+# above Samsung's 200 MP JPEG mode, which decodes at a quarter size.
+Image.MAX_IMAGE_PIXELS = 125_000_000
 # One OpenCV thread per request: Cloud Run concurrency (4) already runs
 # requests in parallel, and 2 vCPU shared by 4 requests × N OpenCV threads is
 # contention, not speed.
@@ -45,11 +48,24 @@ app = FastAPI(title="scan-service", version=SCAN_PIPELINE_VERSION)
 
 Point = Annotated[List[float], Field(min_length=2, max_length=2)]
 Corners = Annotated[List[Point], Field(min_length=4, max_length=4)]
+Rotation = Literal[0, 90, 180, 270]
+
+
+def _gs(uri: str) -> str:
+    split_gs_uri(uri)                 # raises ValueError → a 422 at the door
+    return uri
+
+
+GsUri = Annotated[str, AfterValidator(_gs)]
+# The decode/render failures that are the PHOTO's (a corrupt or oversized
+# file) — distinct from the request's (InvalidParams) and storage's.
+_UNDECODABLE = (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError)
+# (ImageTooLarge is a ValueError; InvalidParams is too, and is caught FIRST.)
 
 
 class AnalyzeRequest(BaseModel):
-    raw_uri: str
-    preview_uri_out: str
+    raw_uri: GsUri
+    preview_uri_out: GsUri
 
 
 class QualityOut(BaseModel):
@@ -71,11 +87,11 @@ class AnalyzeResponse(BaseModel):
 
 
 class RenderRequest(BaseModel):
-    raw_uri: str
+    raw_uri: GsUri
     corners: Corners
-    rotation: int = Field(0)
+    rotation: Rotation = 0
     long_side: int = Field(1600, ge=200, le=4000)
-    out_uri: str
+    out_uri: GsUri
     enhance: bool = True
 
 
@@ -87,16 +103,16 @@ class RenderResponse(BaseModel):
 
 class SnapshotPage(BaseModel):
     page_id: str
-    raw_gcs_uri: str
+    raw_gcs_uri: GsUri
     content_type: str
     corners: Corners
-    rotation: int
+    rotation: Rotation
 
 
 class CompileRequest(BaseModel):
     pages_snapshot: List[SnapshotPage] = Field(min_length=1)
     scan_pipeline_version: str
-    out_uri: str
+    out_uri: GsUri
 
 
 class CompileResponse(BaseModel):
@@ -107,6 +123,19 @@ class CompileResponse(BaseModel):
 
 def _error(status: int, code: str, **extra) -> JSONResponse:
     return JSONResponse(status_code=status, content={"code": code, **extra})
+
+
+@app.exception_handler(StorageForbidden)
+def _forbidden(_request, exc: StorageForbidden):
+    # Permanent (IAM): a 4xx, so the backend never retries it as transient.
+    logger.error("storage_forbidden op=%s", exc.op)
+    return _error(403, "storage_forbidden")
+
+
+@app.exception_handler(StorageFailed)
+def _storage_failed(_request, exc: StorageFailed):
+    logger.warning("storage_error op=%s error=%s", exc.op, exc.kind)
+    return _error(502, "storage_error")
 
 
 @app.get("/healthz")
@@ -123,14 +152,15 @@ def analyze(body: AnalyzeRequest):
     except ObjectMissing:
         return _error(404, "raw_missing")
     try:
-        rgb = decode(raw)
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        decoded = decode_bounded(raw)
+    except _UNDECODABLE:
         return _error(422, "undecodable")
-    h, w = rgb.shape[:2]
+    del raw
+    rgb, w, h = decoded.rgb, decoded.orig_w, decoded.orig_h
     preview = encode_jpeg(resize_long_side(rgb, PREVIEW_LONG_SIDE), PREVIEW_QUALITY)
     storage.write(body.preview_uri_out, preview, "image/jpeg")
     detection = detect(rgb)
-    quality = assess(rgb, detection)
+    quality = assess(rgb, detection, scale=decoded.scale)
     logger.info("analyze w=%d h=%d corners_source=%s confidence=%.2f verdict=%s reasons=%s ms=%d",
                 w, h, detection.source, detection.confidence, quality.verdict,
                 ",".join(quality.reasons) or "-", int((time.monotonic() - started) * 1000))
@@ -148,7 +178,9 @@ def render(body: RenderRequest):
         return _error(404, "raw_missing")
     try:
         page = render_page(raw, body.corners, body.rotation, body.long_side, enhance=body.enhance)
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+    except InvalidParams:
+        return _error(422, "invalid_params")
+    except _UNDECODABLE:
         return _error(422, "undecodable")
     storage.write(body.out_uri, encode_jpeg(page, COMPILE_QUALITY), "image/jpeg")
     return RenderResponse(out_uri=body.out_uri, width=page.shape[1], height=page.shape[0])
@@ -172,7 +204,9 @@ def compile_version(body: CompileRequest):
             return _error(422, "raw_missing", page_id=page.page_id)
         try:
             rendered = render_page(raw, page.corners, page.rotation, COMPILE_LONG_SIDE, enhance=True)
-        except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        except InvalidParams:
+            return _error(422, "invalid_params", page_id=page.page_id)
+        except _UNDECODABLE:
             return _error(422, "undecodable", page_id=page.page_id)
         jpegs.append(encode_jpeg(rendered, COMPILE_QUALITY))
     pdf = assemble_pdf(jpegs)

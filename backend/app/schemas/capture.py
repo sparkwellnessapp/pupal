@@ -11,15 +11,18 @@ and only the single exact match of the name the student typed.
 from __future__ import annotations
 
 from datetime import date
-from typing import Dict, List, Literal, Optional
+from typing import Annotated, Dict, List, Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 LinkState = Literal["not_yet_open", "open", "closed"]
 ContentType = Literal["image/jpeg", "image/png", "image/heic", "image/heif"]
 Rotation = Literal[0, 90, 180, 270]
 Point = List[float]
+# A person's or a class's name, as typed: STRIPPED before it is validated, so
+# "   " is refused at the door instead of becoming a student called nothing.
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
 
 
 # ---------------------------------------------------------------------------
@@ -30,7 +33,7 @@ class CaptureLinkCreateRequest(BaseModel):
     exam_date: date
     # Only when the batch has no class yet (R6) — then exactly one is required.
     class_id: Optional[UUID] = None
-    new_class_name: Optional[str] = Field(None, max_length=255)
+    new_class_name: Optional[Name] = None
 
 
 class CaptureLinkPatchRequest(BaseModel):
@@ -40,7 +43,8 @@ class CaptureLinkPatchRequest(BaseModel):
 class CaptureLinkResponse(BaseModel):
     link_id: UUID
     batch_id: UUID
-    class_id: UUID
+    # Set when the link is created (R6); None only if the class was deleted since.
+    class_id: Optional[UUID] = None
     class_name: Optional[str] = None
     exam_date: date
     state: LinkState
@@ -144,14 +148,31 @@ class SubmissionView(BaseModel):
     updated_at: str
 
 
+class StudentSubmissionView(BaseModel):
+    """What the STUDENT sees of her own submission. Deliberately narrower
+    than SubmissionView: no student state, no student id — whether her
+    submission became a conflict or awaits the teacher's confirmation is the
+    teacher's business, and she is never told (D1, SCN-9)."""
+    submission_id: UUID
+    status: Literal["draft", "saved", "discarded"]
+    display_name: Optional[str] = None
+    pages: List[PageView]
+    version_no: Optional[int] = None
+    saved_at: Optional[str] = None
+    updated_at: str
+
+
 class SaveResponse(BaseModel):
+    # The submission the version was saved ON — after an approval that is a
+    # NEW (late) submission (D6), and the client continues on it.
+    submission_id: UUID
     version_no: int
     saved_at: str
     page_count: int
 
 
 class StudentCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
+    name: Name
 
 
 class StudentAssignRequest(BaseModel):
@@ -198,11 +219,11 @@ class ExamLabel(BaseModel):
 class StudentLinkInfo(BaseModel):
     state: LinkState
     exam_label: ExamLabel
-    own_submission: Optional[SubmissionView] = None
+    own_submission: Optional[StudentSubmissionView] = None
 
 
 class IdentifyRequest(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
+    name: Name
 
 
 class IdentifyMatch(BaseModel):
@@ -214,7 +235,7 @@ class IdentifyResponse(BaseModel):
 
 
 class StudentSubmissionCreateRequest(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
+    name: Name
     confirm_match: bool = False
 
 

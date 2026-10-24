@@ -314,7 +314,9 @@ class Settings(BaseSettings):
     capture_session_ttl_hours: int = 12           # D2: the phone's batch-scoped session
     # Per-photo analysis is synchronous: past this the page falls back to the
     # full frame and the user can still adjust and save (D9).
-    scan_analyze_timeout_s: float = 10.0
+    # A 24 MP HEIC decodes in ~5 s, a 48 MP one in ~11 s (measured
+    # 2026-10-24); past this the page is the full frame (D9), never an error.
+    scan_analyze_timeout_s: float = 25.0
     # Step 0 of a capture job (compile the PDF) — clamped to the document's
     # remaining wall budget (transcription_task_budget_s) at call time.
     scan_compile_timeout_s: float = 300.0

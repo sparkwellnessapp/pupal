@@ -58,3 +58,12 @@ describe('capture files — D15', () => {
     expect(contentTypeOf({ name: 'scan.pdf', type: 'application/pdf' })).toBeNull()
   })
 })
+
+describe('isValidQuad — the server twin refuses a MIRRORED quad', () => {
+  it('accepts TL, TR, BR, BL clockwise on screen and refuses it reversed', () => {
+    const page: QuadPts = [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]
+    expect(isValidQuad(page)).toBe(true)
+    const mirrored: QuadPts = [[0.9, 0.1], [0.1, 0.1], [0.1, 0.9], [0.9, 0.9]]
+    expect(isValidQuad(mirrored)).toBe(false)
+  })
+})

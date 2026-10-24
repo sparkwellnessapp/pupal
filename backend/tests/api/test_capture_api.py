@@ -46,6 +46,10 @@ class FakeGcs:
     def object_size(self, path):
         return self.objects.get(path)
 
+    def copy_object(self, source, dest):
+        self.objects[dest] = self.objects.get(source, 0)
+        return dest
+
 
 class FakeScan:
     def __init__(self):
@@ -246,14 +250,22 @@ def test_the_same_name_from_a_second_device_is_a_conflict_and_never_touches_the_
     token = _link(client, headers_a, env)
     name = _uniq("אורי")
     _students(env, name)
+    base = f"{S}/{token}"
     sub_a, dev_a = _create(client, token, name)
-    _page(client, f"{S}/{token}", sub_a, dev_a, env)
+    _page(client, base, sub_a, dev_a, env)
+    assert client.post(f"{base}/submissions/{sub_a}/save", headers=dev_a).status_code == 200
     raw = client.post(f"{S}/{token}/submissions", json={"name": name, "confirm_match": True})
     assert raw.status_code == 201 and set(raw.json()) == {"submission_id", "device_secret"}  # same shape
     sub_b, dev_b = raw.json()["submission_id"], {"X-Capture-Device": raw.json()["device_secret"]}
+    _page(client, base, sub_b, dev_b, env)
+    assert client.post(f"{base}/submissions/{sub_b}/save", headers=dev_b).status_code == 200
     states = dict(_sql("SELECT id::text, student_state FROM capture_submissions WHERE id IN (:a, :b)",
                        a=uuid.UUID(sub_a), b=uuid.UUID(sub_b)))
-    assert states == {sub_a: "confirmed", sub_b: "conflict"}
+    assert states == {sub_a: "confirmed", sub_b: "conflict"}   # judged at B's save (D1/D5)
+    # D1: the student is never told — her own view carries no state at all
+    own = client.get(f"{base}/submissions/{sub_b}", headers=dev_b).json()
+    assert "student_state" not in own and "student" not in own and own["display_name"] == name
+    assert "student_state" not in client.get(f"{base}", headers=dev_b).json()["own_submission"]
     # SCN-7: neither device can read or edit the other's submission
     assert client.get(f"{S}/{token}/submissions/{sub_a}", headers=dev_b).status_code == 404
     assert client.post(f"{S}/{token}/submissions/{sub_a}/pages", headers=dev_b,
@@ -348,6 +360,11 @@ def test_each_save_freezes_a_version_and_withdraws_the_last(client, headers_a, e
     assert [s[1][0]["rotation"] for s in snapshots] == [0, 90]  # SCN-2: v1 frozen as it was
     detail = client.get(f"/api/v0/batches/{env['batch']}", headers=headers_a).json()
     assert detail["rollup"]["total"] == 1
+    # Arrival order over every job (v2 never shares the withdrawn v1's slot),
+    # and the human-facing count is the LIVE one.
+    assert [r[0] for r in _sql("SELECT doc_priority FROM transcription_jobs WHERE batch_id = :b "
+                               "ORDER BY created_at", b=env["batch"])] == [0, 1]
+    assert _sql("SELECT test_count FROM grading_batches WHERE id = :b", b=env["batch"])[0][0] == 1
 
 
 def test_a_resubmission_after_approval_becomes_a_new_conflict_never_a_replacement(
@@ -374,9 +391,25 @@ def test_a_resubmission_after_approval_becomes_a_new_conflict_never_a_replacemen
                 "WHERE batch_id = :b ORDER BY created_at", b=env["batch"])
     assert rows[0] == (sub, "confirmed", None)                 # the approved one, untouched
     assert rows[1][1:] == ("conflict", "late_resubmission")
+    late = rows[1][0]
+    assert r.json()["submission_id"] == late                   # the client continues there
     assert _jobs(env)[0][3] is None                            # its job was NOT withdrawn
+    # its photos are its OWN objects (a purge of one never deletes the other's)
+    late_raws = [r[0] for r in _sql("SELECT raw_gcs_uri FROM capture_pages WHERE submission_id = :s",
+                                    s=uuid.UUID(late))]
+    assert late_raws and all(f"captures/{late}/" in u for u in late_raws)
+    assert all(u.split("/", 3)[3] in env["gcs"].objects for u in late_raws)
+    # saving again from the same device re-versions THAT late copy — no third submission
+    assert client.post(f"{base}/submissions/{sub}/save", headers=dev).json()["submission_id"] == late
+    assert len(_sql("SELECT 1 FROM capture_submissions WHERE batch_id = :b", b=env["batch"])) == 2
     panel = client.get(f"/api/v0/batches/{env['batch']}/capture-submissions", headers=headers_a).json()
     assert {r["conflict_note"] for r in panel["rows"]} == {None, "late_resubmission"}
+    # and the approved scan is never re-attributed to someone else
+    other = _students(env, _uniq("אחר"))[0]
+    teacher = f"/api/v0/capture/teacher/{env['batch']}"
+    moved = client.put(f"{teacher}/submissions/{sub}/student", headers=headers_a,
+                       json={"student_id": str(other)})
+    assert (moved.status_code, moved.json()["detail"]["code"]) == (409, "already_approved")
 
 
 def test_two_exams_under_one_name_get_distinct_filenames(client, headers_a, env):
@@ -464,6 +497,58 @@ def test_approving_a_name_that_already_exists_offers_linking(client, headers_a, 
     assert (r.status_code, r.json()["detail"]["code"]) == (409, "student_exists")
 
 
+def test_an_abandoned_draft_never_makes_a_real_submission_a_conflict(client, headers_a, env):
+    token = _link(client, headers_a, env)
+    name = _uniq("נועה")
+    _students(env, name)
+    base = f"{S}/{token}"
+    _create(client, token, name)                               # opened, then abandoned
+    b, dev_b = _create(client, token, name)
+    _page(client, base, b, dev_b, env)
+    assert client.post(f"{base}/submissions/{b}/save", headers=dev_b).status_code == 200
+    assert _sql("SELECT student_state FROM capture_submissions WHERE id = :s",
+                s=uuid.UUID(b))[0][0] == "confirmed"
+
+
+def test_a_discarded_submission_cannot_be_resolved(client, headers_a, env):
+    token = _link(client, headers_a, env)
+    sub, dev = _create(client, token, _uniq("גיל"), confirm=False)
+    _page(client, f"{S}/{token}", sub, dev, env)
+    client.post(f"{S}/{token}/submissions/{sub}/save", headers=dev)
+    _sql("UPDATE capture_submissions SET status = 'discarded' WHERE id = :s", s=uuid.UUID(sub))
+    r = client.post(f"/api/v0/batches/{env['batch']}/capture-submissions/{sub}/resolve-pending",
+                    headers=headers_a, json={"approve_new": True})
+    assert (r.status_code, r.json()["detail"]["code"]) == (409, "submission_discarded")
+
+
+def test_a_blank_name_is_refused_at_the_door(client, headers_a, env):
+    token = _link(client, headers_a, env)
+    for path in ("identify", "submissions"):
+        assert client.post(f"{S}/{token}/{path}", json={"name": "   "}).status_code == 422
+    sub = _teacher_sub(client, headers_a, env)
+    r = client.put(f"/api/v0/capture/teacher/{env['batch']}/submissions/{sub}/student",
+                   headers=headers_a, json={"create": {"name": "  "}})
+    assert r.status_code == 422
+
+
+def test_a_mirrored_quad_is_refused(client, headers_a, env):
+    token = _link(client, headers_a, env)
+    sub, dev = _create(client, token, _uniq("דן"), confirm=False)
+    page = _page(client, f"{S}/{token}", sub, dev, env)
+    mirrored = [[0.9, 0.1], [0.1, 0.1], [0.1, 0.9], [0.9, 0.9]]   # TL<->TR swapped: counter-clockwise
+    r = client.patch(f"{S}/{token}/submissions/{sub}/pages/{page}", headers=dev,
+                     json={"corners": mirrored})
+    assert (r.status_code, r.json()["detail"]["code"]) == (422, "invalid_corners")
+
+
+def test_the_signed_put_is_write_once(client, headers_a, env):
+    token = _link(client, headers_a, env)
+    sub, dev = _create(client, token, _uniq("רז"), confirm=False)
+    r = client.post(f"{S}/{token}/submissions/{sub}/pages", json={"content_type": "image/jpeg"},
+                    headers=dev)
+    assert r.json()["required_headers"]["x-goog-if-generation-match"] == "0"
+
+
 def test_keep_this_resolves_a_conflict_by_discarding_the_competitor(client, headers_a, env):
     token = _link(client, headers_a, env)
     name = _uniq("אביב")
@@ -514,3 +599,43 @@ def test_the_batch_payloads_carry_the_capture_link_state(client, headers_a, env)
     (row,) = [b for b in client.get("/api/v0/batches", headers=headers_a).json()
               if b["id"] == str(env["batch"])]
     assert row["capture_link_state"] == "open"
+
+
+# ---------------------------------------------------------------------------
+# review fixes
+# ---------------------------------------------------------------------------
+
+def test_the_rate_limit_key_is_the_address_cloud_run_appended():
+    """The LAST X-Forwarded-For hop is the one Google's front end saw; the first
+    is whatever the client sent, and keying on it minted a fresh bucket per
+    request."""
+    from types import SimpleNamespace
+
+    from app.api.v0.capture_student import _client_ip
+
+    req = lambda xff: SimpleNamespace(headers={"x-forwarded-for": xff},  # noqa: E731
+                                      client=SimpleNamespace(host="10.0.0.1"))
+    assert _client_ip(req("1.2.3.4, 203.0.113.7")) == "203.0.113.7"
+    assert _client_ip(req("203.0.113.7")) == "203.0.113.7"
+    assert _client_ip(req("")) == "10.0.0.1"
+
+
+def test_a_class_on_one_school_address_is_never_rate_limited(client, headers_a, env):
+    """30 students identify from ONE public IP within a minute (typos included)."""
+    token = _link(client, headers_a, env)
+    codes = {client.post(f"{S}/{token}/identify", json={"name": f"תלמיד {i}"},
+                         headers={"X-Forwarded-For": "198.51.100.9"}).status_code
+             for i in range(45)}
+    assert codes == {200}
+
+
+def test_resume_shows_content_and_at_most_one_empty_group(client, headers_a, env):
+    _link(client, headers_a, env)
+    base = f"/api/v0/capture/teacher/{env['batch']}"
+    with_page = client.post(f"{base}/submissions", headers=headers_a).json()["submission_id"]
+    _page(client, base, with_page, headers_a, env)
+    for _ in range(3):                                         # three abandoned empty groups
+        client.post(f"{base}/submissions", headers=headers_a)
+    drafts = client.get(base, headers=headers_a).json()["drafts"]
+    assert len(drafts) == 2 and drafts[0]["submission_id"] == with_page
+    assert drafts[1]["pages"] == []

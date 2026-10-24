@@ -21,4 +21,5 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/srv
 
 EXPOSE 8080
-CMD ["uvicorn", "scan.api:app", "--host", "0.0.0.0", "--port", "8080"]
+# Cloud Run injects $PORT (8080 by default today; never assumed).
+CMD exec uvicorn scan.api:app --host 0.0.0.0 --port ${PORT:-8080}

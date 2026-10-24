@@ -19,7 +19,7 @@ import { getAuthHeaders } from './auth'
 import type {
   CaptureContentType, CaptureHandoff, CaptureLink, CaptureSubmissionsResponse,
   IdentifyResponse, NameSuggestResponse, PageCreateResponse, PageView, Quad, RosterStudent,
-  Rotation, SaveResponse, StudentLinkInfo, SubmissionView, TeacherCaptureState,
+  Rotation, SaveResponse, StudentLinkInfo, SubmissionPages, SubmissionView, TeacherCaptureState,
 } from '@/types/capture'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
@@ -41,14 +41,32 @@ export class CaptureApiError extends Error {
   }
 }
 
+/** Every capture call is BOUNDED: a fetch that stalls (a phone backgrounded
+ *  mid-request, a dead school WiFi) must reject, or the item it belongs to
+ *  sits «בהעלאה» forever and blocks the save. 45 s covers the server's own
+ *  10 s analysis bound with room; an abort is a NETWORK failure (retryable). */
+const CALL_TIMEOUT_MS = 45_000
+/** A photo PUT: up to 50 MB on a slow uplink. */
+const PUT_TIMEOUT_MS = 300_000
+
+async function timedFetch(url: string, init: RequestInit, ms: number): Promise<Response> {
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), ms)
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal })
+  } finally {
+    clearTimeout(t)
+  }
+}
+
 async function captureFetch<T>(path: string, init: RequestInit, headers: Record<string, string>): Promise<T> {
   let res: Response
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    res = await timedFetch(`${API_BASE}${path}`, {
       ...init,
       headers: { ...headers, ...((init.headers as Record<string, string>) || {}) },
       referrerPolicy: 'no-referrer',
-    })
+    }, CALL_TIMEOUT_MS)
   } catch {
     throw new CaptureApiError(0, 'network', 'אין חיבור לרשת — נסו שוב')
   }
@@ -77,7 +95,7 @@ function jsonBody(method: string, body?: unknown): RequestInit {
 // ---------------------------------------------------------------------------
 
 export interface CapturePagesApi {
-  getSubmission(submissionId: string): Promise<SubmissionView>
+  getSubmission(submissionId: string): Promise<SubmissionPages>
   createPage(submissionId: string, contentType: CaptureContentType): Promise<PageCreateResponse>
   confirmUpload(submissionId: string, pageId: string): Promise<PageView>
   patchPage(submissionId: string, pageId: string, body: { corners?: Quad; rotation?: Rotation }): Promise<PageView>
@@ -172,12 +190,19 @@ export const deviceKey = (token: string) => `vivi.capture.${token}`
 
 const B = (batchId: string) => `/api/v0/batches/${batchId}`
 
-/** null when the batch has no link (404 is an answer here, not an error). */
+/** Her session's Bearer, with the refusal's machine `code` kept (apiFetch
+ *  keeps only the Hebrew line, and these callers branch on the code). */
+const authed = <T>(path: string, init: RequestInit = { method: 'GET' }) =>
+  captureFetch<T>(path, init, getAuthHeaders() as Record<string, string>)
+
+/** null when the batch has no link — a 404 is an ANSWER here. Any other
+ *  failure throws: reading a 500 or a dropped connection as "no link yet"
+ *  would offer a create form the server then refuses. */
 export async function getCaptureLink(batchId: string): Promise<CaptureLink | null> {
   try {
-    return await apiFetch<CaptureLink>(`${B(batchId)}/capture-link`)
+    return await authed<CaptureLink>(`${B(batchId)}/capture-link`)
   } catch (err) {
-    if ((err as { status?: number })?.status === 404) return null
+    if (err instanceof CaptureApiError && err.status === 404) return null
     throw err
   }
 }
@@ -197,8 +222,8 @@ export const listCaptureSubmissions = (batchId: string) =>
   apiFetch<CaptureSubmissionsResponse>(`${B(batchId)}/capture-submissions`)
 export const resolvePending = (batchId: string, submissionId: string,
   body: { student_id: string } | { approve_new: true }) =>
-  apiFetch<CaptureSubmissionsResponse>(
-    `${B(batchId)}/capture-submissions/${submissionId}/resolve-pending`, jsonInit('POST', body))
+  authed<CaptureSubmissionsResponse>(
+    `${B(batchId)}/capture-submissions/${submissionId}/resolve-pending`, jsonBody('POST', body))
 export const resolveConflict = (batchId: string, submissionId: string,
   body: { action: 'keep_this' | 'discard_this'; student_id?: string }) =>
   apiFetch<CaptureSubmissionsResponse>(
@@ -209,19 +234,23 @@ export const resolveConflict = (batchId: string, submissionId: string,
 // ---------------------------------------------------------------------------
 
 /** PUT the photo to its signed URL. Network failures retry ×3 with backoff;
- *  an HTTP refusal (expired URL, a file over the silent cap) does not. */
+ *  an HTTP refusal (expired URL, a file over the silent cap) does not. The URL
+ *  is WRITE-ONCE (x-goog-if-generation-match: 0) and belongs to ONE queued
+ *  file (one page id), so a 412 means an earlier attempt of THIS file landed
+ *  and only its answer was lost — success, whether it is this call's retry or
+ *  the item's own retry after a failure. */
 export async function putPhoto(url: string, headers: Record<string, string>, file: Blob): Promise<void> {
   let lastError: unknown = null
   for (let attempt = 0; attempt < 4; attempt++) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)))
     let res: Response
     try {
-      res = await fetch(url, { method: 'PUT', headers, body: file })
+      res = await timedFetch(url, { method: 'PUT', headers, body: file }, PUT_TIMEOUT_MS)
     } catch (err) {
       lastError = err
       continue
     }
-    if (res.ok) return
+    if (res.ok || res.status === 412) return
     throw new CaptureApiError(res.status, 'upload_refused', 'ההעלאה נדחתה — צלמו שוב')
   }
   throw new CaptureApiError(0, 'network', 'אין חיבור לרשת — נסו שוב', { cause: String(lastError) })

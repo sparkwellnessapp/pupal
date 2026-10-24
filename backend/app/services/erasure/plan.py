@@ -33,6 +33,11 @@ it cannot promise a correct purge:
                       approved student back onto the submission (OD-3), so a
                       disagreement is news, and deleting the photos under it
                       would delete someone else's exam
+  capture_conflict    a capture submission naming her is an UNRESOLVED
+                      conflict (two exams claim her, or a late resubmission):
+                      one of the two may well be another student's, and only
+                      the teacher can say which — she decides first. The one
+                      refusal that is hers to clear, not an operator's.
 
 Blockers (a grade `pending`/`grading`, a job `queued`/`running`) do not refuse
 the PLAN — the preview shows them — they refuse the purge (PRV-5).
@@ -143,8 +148,14 @@ async def plan_purge(db: AsyncSession, *, user_id: UUID, student_id: UUID,
         raise StudentNotFound(str(student_id))
 
     # --- her capture subtrees (036) -----------------------------------------
-    submissions = [r[0] for r in await _ids(
-        db, "SELECT id FROM capture_submissions WHERE student_id = :s", s=student_id)]
+    sub_rows = await _ids(
+        db, "SELECT id, student_state, status FROM capture_submissions WHERE student_id = :s",
+        s=student_id)
+    # Discarded ones included: a discarded submission's photos are still hers.
+    submissions = [r[0] for r in sub_rows]
+    conflicts = sorted(str(r[0]) for r in sub_rows if r[1] == "conflict" and r[2] != "discarded")
+    if conflicts:
+        raise PurgeRefused("capture_conflict", f"unresolved capture submissions {conflicts}")
     version_rows = await _ids(
         db, "SELECT id, submission_id FROM capture_versions WHERE submission_id = ANY(:subs)",
         subs=submissions)
@@ -184,7 +195,8 @@ async def plan_purge(db: AsyncSession, *, user_id: UUID, student_id: UUID,
     # A capture job is hers through its VERSION — including one still queued,
     # failed, or withdrawn with no transcription at all.
     jobs = await _ids(db, "SELECT id, status, batch_id, source_gcs_object_path, source_filename, "
-                          "transcription_id, capture_version_id FROM transcription_jobs "
+                          "transcription_id, capture_version_id, withdrawn_at IS NOT NULL "
+                          "FROM transcription_jobs "
                           "WHERE transcription_id = ANY(:t) OR capture_version_id = ANY(:v)",
                       t=t_ids, v=versions)
     j_ids = [r[0] for r in jobs]
@@ -196,8 +208,12 @@ async def plan_purge(db: AsyncSession, *, user_id: UUID, student_id: UUID,
     classes = {r[0] for r in await _ids(
         db, "SELECT class_id FROM class_memberships WHERE student_id = :s", s=student_id)}
 
+    # A WITHDRAWN job still queued is not in flight: the runner retires it
+    # unrun (and finds no row at all once it is purged). A withdrawn job
+    # already RUNNING still blocks — it is writing.
     blockers = tuple(sorted([r[0] for r in by_scan if r[1] in BLOCKING_GRADE]
-                            + [r[0] for r in jobs if r[1] in BLOCKING_JOB], key=str))
+                            + [r[0] for r in jobs if r[1] in BLOCKING_JOB
+                               and not (r[1] == "queued" and r[7])], key=str))
 
     # --- storage targets: every check BEFORE any storage call ---------------
     # A refusal names the ROW, never the path: a path that failed the
@@ -207,7 +223,7 @@ async def plan_purge(db: AsyncSession, *, user_id: UUID, student_id: UUID,
     rows_of: dict[tuple[str, str], list[str]] = {}
     for tid, _, bucket, path, _ in scans:
         rows_of.setdefault((bucket, path), []).append(f"transcription {tid}")
-    for jid, _, _, path, _, tid, cv in jobs:
+    for jid, _, _, path, _, tid, cv, _ in jobs:
         # a job's scan lives in its scan's bucket; a capture job with no scan
         # yet, beside its submission's photos
         bucket = bucket_of[tid] if tid is not None else bucket_of_version.get(cv)
@@ -251,9 +267,11 @@ async def plan_purge(db: AsyncSession, *, user_id: UUID, student_id: UUID,
             scrubs[bid] = n
     # Her unapproved CAPTURE scans are NULL-student too, and they are in the
     # plan — they are hers, not unassigned.
+    # A WITHDRAWN scan is not part of its batch (OD-2): not counted either.
     unassigned_t = [r[0] for r in await _ids(
-        db, "SELECT id FROM transcriptions WHERE batch_id = ANY(:b) AND student_id IS NULL "
-            "AND NOT (id = ANY(:t))",
+        db, "SELECT id FROM transcriptions t WHERE batch_id = ANY(:b) AND student_id IS NULL "
+            "AND NOT (id = ANY(:t)) AND NOT EXISTS (SELECT 1 FROM transcription_jobs j "
+            "  WHERE j.transcription_id = t.id AND j.withdrawn_at IS NOT NULL)",
         b=list(batches), t=t_ids)]
     unassigned_jobs = {r[0] for r in await _ids(
         db, "SELECT id FROM transcription_jobs WHERE transcription_id = ANY(:t)", t=unassigned_t)}

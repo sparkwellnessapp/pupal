@@ -30,6 +30,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db_context
+from ..models.capture import CaptureSubmission, CaptureVersion
 from ..models.grading import GradingBatch
 from ..models.transcription import Transcription
 from ..models.transcription_job import TranscriptionJob
@@ -62,13 +63,57 @@ def live_transcriptions(batch_id: UUID):
     )
 
 
-async def is_withdrawn_transcription(db: AsyncSession, transcription_id: UUID) -> bool:
+class WithdrawnTranscription(Exception):
+    """The scan's job was withdrawn (OD-2): it is no longer part of its batch."""
+
+
+async def lock_for_approval(db: AsyncSession, transcription_id: UUID) -> Transcription:
+    """Every APPROVAL path calls this first, inside its transaction, and reads
+    the transcription's status only AFTER it. It locks, FOR UPDATE and read
+    fresh, in the one order every capture path uses (submission → job, see
+    capture/submissions._lock_batch): the scan's capture submission (when it
+    came from a capture), its job, then the transcription itself — and refuses
+    a withdrawn job.
+
+    The job lock is the point. A capture save supersedes a version by locking
+    that SAME job row before it decides whether the version was approved
+    (capture/submissions.save), so the two serialize on one row: an approval
+    that commits first is SEEN by the save (→ D6, never superseded), and a
+    withdrawal that commits first is SEEN here (→ 409). Without it, an accept
+    and a resubmission landing together left a transcription approved AND
+    withdrawn — graded, but hidden from its batch. The submission is locked
+    FIRST because the approval then writes it (overlay.sync_on_approval):
+    taking it after the job would invert save's order and deadlock the two.
+    The transcription is locked last, and returned refreshed, so two approvals
+    of one scan serialize and the second sees the first's status. A scan with
+    no job (the single-test flow) has no job to lock and nothing to refuse."""
+    submission_id = (await db.execute(
+        select(CaptureVersion.submission_id)
+        .join(TranscriptionJob, TranscriptionJob.capture_version_id == CaptureVersion.id)
+        .where(TranscriptionJob.transcription_id == transcription_id)
+    )).scalars().first()
+    if submission_id is not None:
+        await db.execute(select(CaptureSubmission.id)
+                         .where(CaptureSubmission.id == submission_id).with_for_update())
+    job = (await db.execute(
+        select(TranscriptionJob)
+        .where(TranscriptionJob.transcription_id == transcription_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )).scalars().first()
+    if job is not None and job.withdrawn_at is not None:
+        raise WithdrawnTranscription(str(transcription_id))
     return (await db.execute(
-        select(TranscriptionJob.id).where(
-            TranscriptionJob.transcription_id == transcription_id,
-            TranscriptionJob.withdrawn_at.is_not(None),
-        ).limit(1)
-    )).scalar_one_or_none() is not None
+        select(Transcription).where(Transcription.id == transcription_id)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one()
+
+
+async def refresh_test_count(db: AsyncSession, batch_id: UUID) -> None:
+    """`test_count` = the live job count. Called after a withdrawal, under the
+    batch lock, so the column humans read never counts a superseded version."""
+    await db.execute(update(GradingBatch).where(GradingBatch.id == batch_id)
+                     .values(test_count=await count_live_jobs(db, batch_id)))
 
 
 async def count_live_jobs(db: AsyncSession, batch_id: UUID) -> int:
@@ -98,6 +143,12 @@ async def ingest_batch_pdf(
         select(GradingBatch).where(GradingBatch.id == batch_id).with_for_update()
     )).scalar_one()
     count = await count_live_jobs(db, batch_id)
+    # Arrival order over EVERY job ever landed, withdrawn included: a live
+    # count would hand a new arrival the priority of a job that is still in
+    # the queue whenever a version had been withdrawn before it.
+    priority = int(await db.scalar(
+        select(func.coalesce(func.max(TranscriptionJob.doc_priority) + 1, 0))
+        .where(TranscriptionJob.batch_id == batch_id)) or 0)
     job = TranscriptionJob(
         user_id=user_id,
         batch_id=batch_id,
@@ -105,7 +156,7 @@ async def ingest_batch_pdf(
         status="queued",
         source_gcs_object_path=object_path,
         source_filename=filename,
-        doc_priority=count,              # arrival order — within-doc depth-first
+        doc_priority=priority,           # arrival order — within-doc depth-first
         client_file_id=client_file_id,
         capture_version_id=capture_version_id,
     )

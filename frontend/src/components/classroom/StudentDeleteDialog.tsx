@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import {
     CL_PURGE_BLOCKED,
     CL_PURGE_CANCEL,
+    CL_PURGE_CAPTURE_CONFLICT,
     CL_PURGE_CLOSE,
     CL_PURGE_CONFIRM,
     CL_PURGE_CONFIRM_PLAIN,
@@ -34,6 +35,7 @@ import {
     CL_PURGE_TYPE_NAME,
 } from '@/copy/classroom';
 import {
+    CAPTURE_CONFLICT,
     ClassroomConflictError,
     GRADING_IN_PROGRESS,
     PURGE_REFUSED,
@@ -50,6 +52,7 @@ function conflictMessage(err: unknown, name: string): string | null {
     if (!(err instanceof ClassroomConflictError)) return null;
     if (err.detail === GRADING_IN_PROGRESS) return CL_PURGE_BLOCKED(name);
     if (err.detail === PURGE_REFUSED) return CL_PURGE_REFUSED(name);
+    if (err.detail === CAPTURE_CONFLICT) return CL_PURGE_CAPTURE_CONFLICT(name);
     return err.detail;
 }
 

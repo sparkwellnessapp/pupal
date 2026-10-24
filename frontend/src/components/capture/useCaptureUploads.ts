@@ -13,8 +13,13 @@
  * truth after a reload.
  *
  * Backgrounding a phone kills fetches; on `visibilitychange` → visible every
- * network-failed item is resumed from the step that failed. A refusal (the
- * page cap, a refused PUT) is terminal for that item and never auto-retried.
+ * network-failed item is resumed from the step that failed. A PUT refused
+ * because its signed URL EXPIRED (the phone slept past 15 minutes) is not a
+ * verdict on the photo: the stale page is dropped and the item starts over
+ * with a fresh one. Any other refusal (the page cap, a server 4xx) is
+ * terminal for that item and never auto-retried. `pending` counts what is
+ * still on its way; `failed` what needs her (retry or remove) — both block a
+ * save, and they are reported apart so the screen says which.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -35,6 +40,8 @@ export interface LocalUpload {
   error?: string
   /** where to resume after a network failure */
   resumeAt?: 'create' | 'put' | 'confirm'
+  /** the caller's own label, handed back with the ready page (a retake's target) */
+  tag?: string
 }
 
 const CONCURRENCY = 3
@@ -42,7 +49,7 @@ const CONCURRENCY = 3
 export function useCaptureUploads({ api, submissionId, onPageReady }: {
   api: CapturePagesApi
   submissionId: string | null
-  onPageReady: (page: PageView, objectUrl: string) => void
+  onPageReady: (page: PageView, objectUrl: string, tag?: string) => void
 }) {
   const [items, setItems] = useState<LocalUpload[]>([])
   const itemsRef = useRef<LocalUpload[]>([])
@@ -81,15 +88,24 @@ export function useCaptureUploads({ api, submissionId, onPageReady }: {
       }
       update(key, { step: 'confirming', error: undefined })
       const page = await api.confirmUpload(submissionId, it.pageId!)
-      readyRef.current(page, it.objectUrl)
+      readyRef.current(page, it.objectUrl, it.tag)
       remove(key)
     } catch (err) {
       const e = err instanceof CaptureApiError ? err : null
+      const cur = get()
+      if (e?.code === 'upload_refused' && [400, 401, 403].includes(e.status) && cur?.pageId) {
+        // The signed URL expired (or its signature no longer holds): drop the
+        // stale page and start over with a fresh one — retryable, not refused.
+        void api.deletePage(submissionId, cur.pageId).catch(() => undefined)
+        update(key, { step: 'failed', error: undefined, pageId: undefined, uploadUrl: undefined,
+                      headers: undefined, resumeAt: 'create' })
+        return
+      }
       const network = !e || e.code === 'network'
       update(key, {
         step: network ? 'failed' : 'refused',
         error: e?.messageHe || undefined,
-        resumeAt: get()?.resumeAt ?? 'create',
+        resumeAt: cur?.resumeAt ?? 'create',
       })
     }
   }, [api, submissionId, update, remove])
@@ -107,11 +123,11 @@ export function useCaptureUploads({ api, submissionId, onPageReady }: {
     }
   }, [runOne, update])
 
-  const enqueue = useCallback((files: { file: File; contentType: CaptureContentType }[]) => {
-    const fresh = files.map(({ file, contentType }) => ({
+  const enqueue = useCallback((files: { file: File; contentType: CaptureContentType; tag?: string }[]) => {
+    const fresh = files.map(({ file, contentType, tag }) => ({
       key: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       file, contentType, objectUrl: URL.createObjectURL(file), step: 'queued' as const,
-      resumeAt: 'create' as const,
+      resumeAt: 'create' as const, tag,
     }))
     itemsRef.current = [...itemsRef.current, ...fresh]
     setItems(itemsRef.current)
@@ -142,5 +158,12 @@ export function useCaptureUploads({ api, submissionId, onPageReady }: {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [pump, update])
 
-  return { items, enqueue, retry, discard, pending: items.length }
+  // Photos still in the queue when the flow goes away: their previews are
+  // released (a ready page's URL belongs to the flow, which releases it).
+  useEffect(() => () => {
+    for (const it of itemsRef.current) URL.revokeObjectURL(it.objectUrl)
+  }, [])
+
+  const failed = items.filter((it) => it.step === 'failed' || it.step === 'refused').length
+  return { items, enqueue, retry, discard, pending: items.length - failed, failed }
 }

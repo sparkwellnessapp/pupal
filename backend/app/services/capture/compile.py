@@ -40,8 +40,18 @@ async def ensure_capture_pdf(*, job_id: UUID, capture_version_id: UUID, object_p
                              deadline_s: Optional[float]) -> None:
     from ..gcs_service import get_gcs_service
 
-    gcs = get_gcs_service()
-    if (await asyncio.to_thread(gcs.object_size, object_path)) is not None:
+    # The deadline is ABSOLUTE from here: the existence check and the version
+    # read below come out of the same budget the compile gets.
+    entered = time.monotonic()
+    try:
+        exists = (await asyncio.to_thread(get_gcs_service().object_size, object_path)) is not None
+    except Exception as exc:
+        # Any storage fault is THIS step's failure — typed, so the runner lands
+        # it as a failed, retryable compile and never as an untyped crash.
+        logger.warning("capture_compile_failed job_id=%s version_id=%s code=gcs:%s",
+                       job_id, capture_version_id, type(exc).__name__)
+        raise CaptureCompileFailed(f"gcs: {type(exc).__name__}") from None
+    if exists:
         return                                    # compiled already (SCN-4)
 
     async with get_db_context() as db:
@@ -55,7 +65,8 @@ async def ensure_capture_pdf(*, job_id: UUID, capture_version_id: UUID, object_p
     try:
         result = await compile_with_retry(
             get_scan_client(), snapshot, pipeline_version,
-            gs_uri(settings.gcs_bucket_name, object_path), deadline_s=deadline_s)
+            gs_uri(settings.gcs_bucket_name, object_path),
+            deadline_s=None if deadline_s is None else deadline_s - (started - entered))
     except ScanServiceError as exc:
         logger.warning("capture_compile_failed job_id=%s version_id=%s code=%s ms=%d",
                        job_id, capture_version_id, exc.code,

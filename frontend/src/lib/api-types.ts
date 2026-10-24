@@ -3134,11 +3134,8 @@ export interface components {
              * Format: uuid
              */
             batch_id: string;
-            /**
-             * Class Id
-             * Format: uuid
-             */
-            class_id: string;
+            /** Class Id */
+            class_id?: string | null;
             /** Class Name */
             class_name?: string | null;
             /** Closed At */
@@ -5824,6 +5821,11 @@ export interface components {
             page_count: number;
             /** Saved At */
             saved_at: string;
+            /**
+             * Submission Id
+             * Format: uuid
+             */
+            submission_id: string;
             /** Version No */
             version_no: number;
         };
@@ -6325,7 +6327,7 @@ export interface components {
         /** StudentLinkInfo */
         StudentLinkInfo: {
             exam_label: components["schemas"]["ExamLabel"];
-            own_submission?: components["schemas"]["SubmissionView"] | null;
+            own_submission?: components["schemas"]["StudentSubmissionView"] | null;
             /**
              * State
              * @enum {string}
@@ -6396,6 +6398,35 @@ export interface components {
              * Format: uuid
              */
             submission_id: string;
+        };
+        /**
+         * StudentSubmissionView
+         * @description What the STUDENT sees of her own submission. Deliberately narrower
+         *     than SubmissionView: no student state, no student id — whether her
+         *     submission became a conflict or awaits the teacher's confirmation is the
+         *     teacher's business, and she is never told (D1, SCN-9).
+         */
+        StudentSubmissionView: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Pages */
+            pages: components["schemas"]["PageView"][];
+            /** Saved At */
+            saved_at?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "saved" | "discarded";
+            /**
+             * Submission Id
+             * Format: uuid
+             */
+            submission_id: string;
+            /** Updated At */
+            updated_at: string;
+            /** Version No */
+            version_no?: number | null;
         };
         /**
          * SubCriterion
@@ -8309,7 +8340,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SubmissionView"];
+                    "application/json": components["schemas"]["StudentSubmissionView"];
                 };
             };
             /** @description Validation Error */

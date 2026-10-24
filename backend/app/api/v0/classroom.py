@@ -174,6 +174,19 @@ async def update_student(
         student, signed_tests=await signed_tests_count(db, current_user.id, student.id))
 
 
+def _refused(student_id: UUID, exc: PurgeRefused) -> JSONResponse:
+    if exc.reason == "capture_conflict":
+        # Hers to clear (a capture conflict awaits her decision), not an
+        # operator's: its own code, so the dialog can say what to do.
+        logger.info("purge_refused student_id=%s reason=capture_conflict", student_id)
+        return JSONResponse(status_code=409, content={"detail": "capture_conflict"})
+    # An operator's problem, not hers: ids only in the log (OD-B4), the
+    # reason code on the wire.
+    logger.error("purge_refused student_id=%s reason=%s detail=%s",
+                 student_id, exc.reason, exc.detail)
+    return JSONResponse(status_code=409, content={"detail": "purge_refused", "reason": exc.reason})
+
+
 @router.delete("/students/{student_id}")
 async def delete_student(
     student_id: UUID,
@@ -194,9 +207,7 @@ async def delete_student(
     except PurgeBlocked as exc:
         return JSONResponse(status_code=409, content={"detail": "grading_in_progress", "count": exc.count})
     except PurgeRefused as exc:
-        logger.error("purge_refused student_id=%s reason=%s detail=%s",
-                     student_id, exc.reason, exc.detail)
-        return JSONResponse(status_code=409, content={"detail": "purge_refused", "reason": exc.reason})
+        return _refused(student_id, exc)
     return result.payload()
 
 
@@ -216,12 +227,7 @@ async def get_student_purge_preview(
     except StudentNotFound:
         raise HTTPException(status_code=404, detail="Student not found")
     except PurgeRefused as exc:
-        # An operator's problem, not hers: ids only in the log (OD-B4), the
-        # reason code on the wire.
-        logger.error("purge_refused student_id=%s reason=%s detail=%s",
-                     student_id, exc.reason, exc.detail)
-        return JSONResponse(status_code=409,
-                            content={"detail": "purge_refused", "reason": exc.reason})
+        return _refused(student_id, exc)
     return plan.summary()
 
 

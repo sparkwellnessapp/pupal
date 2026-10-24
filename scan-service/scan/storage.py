@@ -12,6 +12,22 @@ class ObjectMissing(LookupError):
     PDF presented as complete would be a silent repair."""
 
 
+class StorageForbidden(PermissionError):
+    """The service account may not touch the object — IAM, permanent."""
+
+    def __init__(self, op: str) -> None:
+        super().__init__(op)
+        self.op = op
+
+
+class StorageFailed(RuntimeError):
+    """Any other storage API failure — answered as a 502 (transient)."""
+
+    def __init__(self, op: str, kind: str) -> None:
+        super().__init__(f"{op}: {kind}")
+        self.op, self.kind = op, kind
+
+
 class Storage(Protocol):
     def read(self, uri: str) -> bytes: ...
     def write(self, uri: str, data: bytes, content_type: str) -> None: ...
@@ -38,17 +54,29 @@ class GcsStorage:
         return self._client
 
     def read(self, uri: str) -> bytes:
-        from google.api_core.exceptions import NotFound
+        from google.api_core.exceptions import Forbidden, GoogleAPIError, NotFound
 
         bucket, path = split_gs_uri(uri)
         try:
             return self.client.bucket(bucket).blob(path).download_as_bytes()
         except NotFound:
             raise ObjectMissing(path) from None
+        except Forbidden:
+            raise StorageForbidden("read") from None
+        except GoogleAPIError as exc:
+            raise StorageFailed("read", type(exc).__name__) from None
 
     def write(self, uri: str, data: bytes, content_type: str) -> None:
+        from google.api_core.exceptions import Forbidden, GoogleAPIError
+
         bucket, path = split_gs_uri(uri)
-        self.client.bucket(bucket).blob(path).upload_from_string(data, content_type=content_type)
+        try:
+            self.client.bucket(bucket).blob(path).upload_from_string(
+                data, content_type=content_type)
+        except Forbidden:
+            raise StorageForbidden("write") from None
+        except GoogleAPIError as exc:
+            raise StorageFailed("write", type(exc).__name__) from None
 
 
 _storage: Optional[Storage] = None

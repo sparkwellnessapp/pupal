@@ -77,23 +77,34 @@ class PageDetection:
     reasons: list
 
 
+ARMS = ("raw", "ours", "external")
+
+
+def _page_order(path: Path) -> tuple:
+    """page_2 before page_10: the number in the name, not its spelling."""
+    digits = "".join(ch for ch in path.stem if ch.isdigit())
+    return (int(digits) if digits else 0, path.name)
+
+
 def build_arms(doc_dir: Path, arms: list[str]) -> tuple[dict[str, bytes], list[PageDetection]]:
     version, P, assemble_pdf = _import_scan()
-    photos = sorted(p for p in doc_dir.iterdir()
-                    if p.is_file() and p.name.lower().startswith("page_")
-                    and p.suffix.lower() in (".jpg", ".jpeg", ".png", ".heic", ".heif"))
+    photos = sorted((p for p in doc_dir.iterdir()
+                     if p.is_file() and p.name.lower().startswith("page_")
+                     and p.suffix.lower() in (".jpg", ".jpeg", ".png", ".heic", ".heif")),
+                    key=_page_order)
     pdfs: dict[str, bytes] = {}
     detections: list[PageDetection] = []
     raw_pages, ours_pages = [], []
     for photo in photos:
         data = photo.read_bytes()
-        rgb = P.decode(data)                                     # EXIF orientation applied
+        decoded = P.decode_bounded(data)                         # what production analyzes
+        rgb = decoded.rgb
         if "raw" in arms:
             # Unprocessed: no flatten, no cleanup; sized like the arm's other pages.
             raw_pages.append(P.encode_jpeg(P.resize_long_side(rgb, P.COMPILE_LONG_SIDE),
                                            P.COMPILE_QUALITY))
         det = P.detect(rgb)
-        q = P.assess(rgb, det)
+        q = P.assess(rgb, det, scale=decoded.scale)
         detections.append(PageDetection(photo.name, det.source, det.confidence, q.verdict,
                                         list(q.reasons)))
         if "ours" in arms:
@@ -133,8 +144,11 @@ def _critical_recalls(p1: dict) -> dict:
     return {k: v for k, v in c.items() if "recall" in k}
 
 
-def _worst(rows: list[dict], arm: str) -> dict | None:
-    scored = [r for r in rows if r["arms"].get(arm)]
+def _worst(rows: list[dict], arm: str, arms: list[str]) -> dict | None:
+    # Over the docs EVERY requested arm scored: `external` exists only where an
+    # external.pdf does, and a worst-doc taken over different sets would let
+    # the decision rule compare one arm's hardest doc with another's easier set.
+    scored = [r for r in rows if all(r["arms"].get(a) for a in arms)]
     if not scored:
         return None
     w = min(scored, key=lambda r: r["arms"][arm]["doc_ratio_strict"])
@@ -144,15 +158,17 @@ def _worst(rows: list[dict], arm: str) -> dict | None:
 
 def write_report(out: Path, rows: list[dict], arms: list[str], meta: dict) -> None:
     out.mkdir(parents=True, exist_ok=True)
-    worst = {arm: _worst(rows, arm) for arm in arms}
+    worst = {arm: _worst(rows, arm, arms) for arm in arms}
+    common = sum(1 for r in rows if all(r["arms"].get(a) for a in arms))
     (out / "results.json").write_text(json.dumps({"meta": meta, "rows": rows, "worst": worst},
                                                  ensure_ascii=False, indent=1), encoding="utf-8")
     lines = [f"# Scan eval — {meta['scan_pipeline_version']}", "",
              f"**Decision rule:** {DECISION_RULE}", "",
              f"config `{meta['config']}` · arms {', '.join(arms)} · {meta['when']}", ""]
     if not meta["dry_run"]:
-        lines += ["## Worst doc per arm", "", "| arm | doc | strict | coverage | critical recalls |",
-                  "|---|---|---|---|---|"]
+        lines += ["## Worst doc per arm", "",
+                  f"over the {common} doc(s) every arm scored ({len(rows)} in the run)", "",
+                  "| arm | doc | strict | coverage | critical recalls |", "|---|---|---|---|---|"]
         for arm, w in worst.items():
             if w:
                 lines.append(f"| {arm} | {w['doc_id']} | {w['doc_ratio_strict']:.4f} | "
@@ -173,15 +189,27 @@ def write_report(out: Path, rows: list[dict], arms: list[str], meta: dict) -> No
 
 async def run(args) -> Path:
     arms = [a.strip() for a in args.arms.split(",") if a.strip()]
+    unknown = sorted(set(arms) - set(ARMS))
+    if unknown:
+        raise SystemExit(f"unknown arm(s) {unknown}; known: {', '.join(ARMS)}")
     version, _P, _a = _import_scan()
     photos = Path(args.photos)
     gt_dir = Path(args.gt)
+    out = Path(args.out)
+    docs = sorted(p for p in photos.iterdir() if p.is_dir())
     pipeline = None
     if not args.dry_run:
+        # Every ground truth BEFORE the first paid call: a missing one found
+        # half-way used to abort the run and lose what was already paid for.
+        missing = [d.name for d in docs if not (gt_dir / f"{d.name}.md").exists()]
+        if missing:
+            raise SystemExit(f"no ground truth for {missing} in {gt_dir}")
         from tests.transcription_eval_suit.runner import _load_config, make_default_pipeline
         pipeline = make_default_pipeline(_load_config(args.config))
+    meta = {"scan_pipeline_version": version, "config": args.config,
+            "dry_run": args.dry_run, "when": time.strftime("%Y-%m-%d %H:%M")}
     rows = []
-    for doc_dir in sorted(p for p in photos.iterdir() if p.is_dir()):
+    for doc_dir in docs:
         pdfs, detections = build_arms(doc_dir, arms)
         row = {"doc_id": doc_dir.name, "arms": {}, "detections": [dataclasses.asdict(d) for d in detections],
                "pdf_bytes": {a: len(b) for a, b in pdfs.items()}}
@@ -194,11 +222,11 @@ async def run(args) -> Path:
         rows.append(row)
         if args.keep_pdfs:
             for arm, pdf in pdfs.items():
-                (Path(args.out) / "pdfs").mkdir(parents=True, exist_ok=True)
-                (Path(args.out) / "pdfs" / f"{doc_dir.name}.{arm}.pdf").write_bytes(pdf)
-    out = Path(args.out)
-    write_report(out, rows, arms, {"scan_pipeline_version": version, "config": args.config,
-                                   "dry_run": args.dry_run, "when": time.strftime("%Y-%m-%d %H:%M")})
+                (out / "pdfs").mkdir(parents=True, exist_ok=True)
+                (out / "pdfs" / f"{doc_dir.name}.{arm}.pdf").write_bytes(pdf)
+        # After EVERY doc: a provider failure on doc N keeps docs 1..N-1.
+        write_report(out, rows, arms, meta)
+    write_report(out, rows, arms, meta)
     return out
 
 

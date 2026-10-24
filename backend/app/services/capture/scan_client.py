@@ -26,6 +26,10 @@ from ...config import settings
 logger = logging.getLogger(__name__)
 
 _RETRY_BACKOFF_S = 5.0
+# A second compile attempt is worth starting only with room for a REAL compile
+# (20 pages rendered at full resolution): less than this, and the retry merely
+# moves the failure later and eats the pipeline's runway.
+_MIN_RETRY_BUDGET_S = 60.0
 
 
 class ScanServiceError(Exception):
@@ -78,7 +82,13 @@ class HttpScanClient:
         self.base_url = base_url.rstrip("/")
 
     async def _post(self, path: str, body: dict, timeout_s: float) -> dict[str, Any]:
-        token = await asyncio.to_thread(_id_token, self.base_url)
+        try:
+            token = await asyncio.to_thread(_id_token, self.base_url)
+        except Exception as exc:
+            # A metadata-server hiccup or missing credentials: typed, so step 0
+            # lands it as CaptureCompileFailed (not an untyped crash), and
+            # transient, so the one owned retry gets its chance.
+            raise ScanServiceError(f"id_token:{type(exc).__name__}", transient=True) from None
         try:
             async with httpx.AsyncClient(timeout=timeout_s) as http:
                 r = await http.post(f"{self.base_url}{path}", json=body,
@@ -92,18 +102,29 @@ class HttpScanClient:
         if r.status_code >= 400:
             code = "refused"
             try:
-                code = r.json().get("code") or code
+                body = r.json()
+                if isinstance(body, dict) and isinstance(body.get("code"), str):
+                    code = body["code"]
             except ValueError:
                 pass
             raise ScanServiceError(code, status=r.status_code)
-        return r.json()
+        try:
+            body = r.json()
+        except ValueError:
+            raise ScanServiceError("bad_response", status=r.status_code) from None
+        if not isinstance(body, dict):
+            raise ScanServiceError("bad_response", status=r.status_code)
+        return body
 
     async def analyze(self, raw_uri, preview_uri_out, *, timeout_s):
         d = await self._post("/analyze", {"raw_uri": raw_uri, "preview_uri_out": preview_uri_out},
                              timeout_s)
-        return AnalyzeResult(image_w=d["image_w"], image_h=d["image_h"], corners=d["corners"],
-                             corners_source=d["corners_source"], confidence=d["confidence"],
-                             quality=d["quality"], preview_uri=d["preview_uri"])
+        try:
+            return AnalyzeResult(image_w=d["image_w"], image_h=d["image_h"], corners=d["corners"],
+                                 corners_source=d["corners_source"], confidence=d["confidence"],
+                                 quality=d["quality"], preview_uri=d["preview_uri"])
+        except KeyError:
+            raise ScanServiceError("bad_response") from None
 
     async def render(self, raw_uri, corners, rotation, long_side, out_uri, *, enhance, timeout_s):
         await self._post("/render", {"raw_uri": raw_uri, "corners": corners, "rotation": rotation,
@@ -114,7 +135,11 @@ class HttpScanClient:
         d = await self._post("/compile", {"pages_snapshot": pages_snapshot,
                                           "scan_pipeline_version": scan_pipeline_version,
                                           "out_uri": out_uri}, timeout_s)
-        return CompileResult(pdf_uri=d["pdf_uri"], page_count=d["page_count"], bytes=d["bytes"])
+        try:
+            return CompileResult(pdf_uri=d["pdf_uri"], page_count=d["page_count"],
+                                 bytes=d["bytes"])
+        except KeyError:
+            raise ScanServiceError("bad_response") from None
 
 
 _client: Optional[ScanClient] = None
@@ -158,7 +183,8 @@ async def compile_with_retry(client: ScanClient, pages_snapshot: list[dict],
             return await client.compile(pages_snapshot, scan_pipeline_version, out_uri,
                                         timeout_s=budget)
         except ScanServiceError as exc:
-            if not exc.transient or attempt == 2 or remaining() <= _RETRY_BACKOFF_S + 10.0:
+            if (not exc.transient or attempt == 2
+                    or remaining() < _RETRY_BACKOFF_S + _MIN_RETRY_BUDGET_S):
                 raise
             logger.warning("scan_compile transient failure (%s) — retrying once", exc.code)
             await asyncio.sleep(_RETRY_BACKOFF_S)

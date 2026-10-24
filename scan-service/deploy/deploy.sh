@@ -15,8 +15,9 @@
 #   3. the backend's service account may INVOKE it (roles/run.invoker)
 #   4. the backend's service account may sign URLs as itself (already granted
 #      on 2026-10-24 — verified, re-applied idempotently)
-#   5. bucket CORS: MERGED with the existing entry, adding the production
-#      origins and the signed-PUT header (the existing entry is kept intact)
+#   5. bucket CORS: MERGED — the signed-PUT headers are added to every
+#      existing entry that allows PUT (so whichever entry GCS matches first
+#      admits them), plus an entry for the production origins if none has them
 #   6. prints the backend + Vercel env to set — it does NOT set them: turning
 #      the feature on is a separate, deliberate flip (CAPTURE_ENABLED).
 #
@@ -36,13 +37,21 @@ BACKEND_SA="${BACKEND_SA:-588558139818-compute@developer.gserviceaccount.com}"
 ORIGINS="${ORIGINS:-https://vivi-assistant.com,https://www.vivi-assistant.com}"
 
 say() { printf '\n== %s\n' "$*"; }
+# Git Bash on Windows ships `python`, Linux/macOS `python3`.
+PY="$(for c in python3 python; do "$c" -c "import sys" >/dev/null 2>&1 && { echo "$c"; break; }; done)"
+[[ -n "$PY" ]] || { echo "no working python on PATH" >&2; exit 1; }
 
 say "1. service account ${SCAN_SA}"
 gcloud iam service-accounts describe "$SCAN_SA" --project "$PROJECT" >/dev/null 2>&1 \
   || gcloud iam service-accounts create "$SCAN_SA_NAME" --project "$PROJECT" \
        --display-name "scan-service (in-house scanning)"
-gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
-  --member "serviceAccount:${SCAN_SA}" --role roles/storage.objectAdmin >/dev/null
+# A brand-new service account takes up to ~60 s to become bindable.
+for attempt in 1 2 3 4 5 6; do
+  gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
+    --member "serviceAccount:${SCAN_SA}" --role roles/storage.objectAdmin >/dev/null && break
+  [[ $attempt -eq 6 ]] && { echo "bucket binding failed" >&2; exit 1; }
+  echo "  (service account not visible yet — retrying in 15 s)"; sleep 15
+done
 
 if [[ -z "${SKIP_DEPLOY:-}" ]]; then
   say "2. deploy ${SERVICE}"
@@ -61,20 +70,28 @@ gcloud iam service-accounts add-iam-policy-binding "$BACKEND_SA" --project "$PRO
 
 say "5. bucket CORS (merged)"
 CORS_FILE="$(mktemp)"
-gcloud storage buckets describe "gs://${BUCKET}" --format=json \
-  | python3 - "$ORIGINS" > "$CORS_FILE" <<'PY'
+MERGE_PY="$(mktemp)"
+# The merge script is a FILE: piping the bucket JSON into `python -` while a
+# heredoc also feeds stdin hands Python the script as its input and the JSON
+# never arrives (JSONDecodeError on every run).
+cat > "$MERGE_PY" <<'PY'
 import json, sys
 current = json.load(sys.stdin).get("cors_config") or []
-wanted = {
-    "origin": sys.argv[1].split(","),
-    "method": ["PUT", "GET"],
-    # The signed PUT carries both; the preflight must allow them.
-    "responseHeader": ["Content-Type", "x-goog-content-length-range"],
-    "maxAgeSeconds": 3600,
-}
-merged = [c for c in current if sorted(c.get("origin", [])) != sorted(wanted["origin"])] + [wanted]
-json.dump(merged, sys.stdout, indent=1)
+origins = sys.argv[1].split(",")
+# The signed PUT carries these; the preflight must allow them.
+needed = ["Content-Type", "x-goog-content-length-range", "x-goog-if-generation-match"]
+for entry in current:
+    if "PUT" in entry.get("method", []):
+        have = entry.setdefault("responseHeader", [])
+        have += [h for h in needed if h not in have]
+covered = {o for e in current if "PUT" in e.get("method", []) for o in e.get("origin", [])}
+missing = [o for o in origins if o not in covered]
+if missing:
+    current.append({"origin": missing, "method": ["PUT", "GET"],
+                    "responseHeader": needed, "maxAgeSeconds": 3600})
+json.dump(current, sys.stdout, indent=1)
 PY
+gcloud storage buckets describe "gs://${BUCKET}" --format=json | "$PY" "$MERGE_PY" "$ORIGINS" > "$CORS_FILE"
 cat "$CORS_FILE"
 gcloud storage buckets update "gs://${BUCKET}" --cors-file "$CORS_FILE"
 

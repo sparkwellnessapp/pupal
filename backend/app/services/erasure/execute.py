@@ -28,7 +28,7 @@ from typing import Mapping, Optional
 from uuid import UUID
 
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal
@@ -144,6 +144,14 @@ async def _commit_rows(db: AsyncSession, plan: PurgePlan) -> dict[str, int]:
     except IntegrityError as exc:
         await db.rollback()
         raise PurgeRefused("plan_stale", type(exc.orig).__name__ if exc.orig else "IntegrityError") from None
+    except DBAPIError as exc:
+        # A deadlock with a concurrent capture decision (it locks batch ->
+        # submission; this, student -> batch): Postgres aborted US, nothing was
+        # deleted, and the plan is what changed under it — stale, retryable.
+        await db.rollback()
+        if "deadlock" in str(exc.orig or exc).lower():
+            raise PurgeRefused("plan_stale", "deadlock") from None
+        raise
     except BaseException:
         await db.rollback()
         raise

@@ -103,6 +103,12 @@ class GCSService:
         blob = self.bucket.get_blob(object_path)
         return None if blob is None else int(blob.size or 0)
 
+    def copy_object(self, source_path: str, dest_path: str) -> str:
+        """Server-side copy within the bucket (no bytes through this process)
+        — a capture late copy gets its own objects under its own prefix."""
+        self.bucket.copy_blob(self.bucket.blob(source_path), self.bucket, dest_path)
+        return dest_path
+
     def generate_signed_url(
         self, 
         object_path: str, 

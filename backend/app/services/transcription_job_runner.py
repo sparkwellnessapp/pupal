@@ -56,6 +56,26 @@ _DOC_RERUN_BACKOFF_S = 10.0
 _DOC_RERUN_MIN_BUDGET_S = 120.0
 
 
+async def _retire_if_withdrawn(job_id: UUID) -> bool:
+    """[036, OD-2] A capture job WITHDRAWN before it ever started (its version
+    was superseded or its submission discarded while it waited in the queue)
+    is not run at all: compiling and transcribing a version nobody will see
+    costs a scan, a VLM pass and a slot in the queue. ONE atomic UPDATE, so it
+    cannot race the claim below; a job already RUNNING is left to finish (D7)."""
+    now = datetime.now(timezone.utc)
+    async with get_db_context() as db:
+        result = await db.execute(
+            update(TranscriptionJob)
+            .where(TranscriptionJob.id == job_id,
+                   TranscriptionJob.status == "queued",
+                   TranscriptionJob.withdrawn_at.is_not(None))
+            .values(status="failed", error_message="withdrawn before it started",
+                    finished_at=now, updated_at=now)
+        )
+        await db.commit()
+        return result.rowcount == 1
+
+
 async def _claim_job(job_id: UUID) -> bool:
     """CAS queued→running. False = duplicate delivery / already-terminal row."""
     now = datetime.now(timezone.utc)
@@ -118,6 +138,9 @@ async def run_transcription_job(job_id: UUID) -> bool:
     # are INSIDE the budget rather than assumed away (PR-2: pre-work is
     # MEASURED, never assumed).
     t0 = time.monotonic()
+    if await _retire_if_withdrawn(job_id):
+        logger.info("run_transcription_withdrawn job_id=%s", job_id)
+        return False
     if not await _claim_job(job_id):
         logger.info("run_transcription_skipped job_id=%s", job_id)
         return False

@@ -28,7 +28,7 @@ from ...models.classroom import Class
 from ...models.grading import GradingBatch
 from ...schemas.capture import (
     ExamLabel, IdentifyMatch, IdentifyRequest, IdentifyResponse, StudentLinkInfo,
-    StudentSubmissionCreateRequest, StudentSubmissionCreateResponse,
+    StudentSubmissionCreateRequest, StudentSubmissionCreateResponse, StudentSubmissionView,
 )
 from ...services.capture import links as links_svc
 from ...services.capture import submissions as svc
@@ -44,14 +44,24 @@ STUDENT_PREFIX = "/api/v0/capture/s/"
 router = APIRouter(prefix="/api/v0/capture/s/{token}", tags=["capture-student"],
                    dependencies=[Depends(require_capture_enabled)])
 
-# Best-effort, per instance (D12): the DB caps are the real guarantee.
-_identify_limiter = InMemoryRateLimiter(max_requests=10, window_seconds=60)
-_create_limiter = InMemoryRateLimiter(max_requests=10, window_seconds=60)
+# Best-effort, per instance (D12): the DB caps (150 submissions per link, 20
+# pages per submission) are the real guarantee. These are an ANTI-FLOOD
+# ceiling, not a per-person limit, and the number is set for the actual room:
+# a class of 30–40 students submits from ONE school WiFi address in the same
+# few minutes, typos and «לא, זה לא אני» included. The spec's 10/min per
+# token+IP would lock most of the class out of identify; 120/min stops a
+# script and never a class.
+_identify_limiter = InMemoryRateLimiter(max_requests=120, window_seconds=60)
+_create_limiter = InMemoryRateLimiter(max_requests=120, window_seconds=60)
 
 
 def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "")
-    return forwarded.split(",")[0].strip() or (request.client.host if request.client else "?")
+    """The address Google's front end saw. Cloud Run APPENDS it to
+    X-Forwarded-For, so the LAST hop is the real one — the first is whatever
+    the client chose to send, and keying on it let anyone mint a fresh
+    rate-limit bucket per request."""
+    hops = [h.strip() for h in request.headers.get("x-forwarded-for", "").split(",") if h.strip()]
+    return hops[-1] if hops else (request.client.host if request.client else "?")
 
 
 def _limit(limiter: InMemoryRateLimiter, token: str, request: Request) -> None:
@@ -87,7 +97,7 @@ async def link_info(token: str, db: AsyncSession = Depends(get_db),
     own = None
     if state == "open" and x_capture_device:
         sub = await svc.own_submission(db, link, tokens.sha256(x_capture_device))
-        own = await svc.submission_view(db, sub) if sub else None
+        own = await svc.student_submission_view(db, sub) if sub else None
     return StudentLinkInfo(state=state, own_submission=own, exam_label=ExamLabel(
         batch_name=batch.name, class_name=class_name, exam_date=link.exam_date))
 
@@ -116,4 +126,5 @@ async def create_submission(token: str, body: StudentSubmissionCreateRequest, re
     return StudentSubmissionCreateResponse(submission_id=sub.id, device_secret=secret)
 
 
-add_page_routes(router, student_actor)
+add_page_routes(router, student_actor, view_model=StudentSubmissionView,
+                view=svc.student_submission_view)

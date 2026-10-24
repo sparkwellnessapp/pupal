@@ -69,7 +69,8 @@ from ...services.batch_ingest import (
     count_live_jobs,
     enqueue_transcription_or_mark_failed,
     ingest_batch_pdf,
-    is_withdrawn_transcription,
+    WithdrawnTranscription,
+    lock_for_approval,
     live_jobs,
     live_transcriptions,
 )
@@ -550,10 +551,7 @@ async def _existing_append(
     )).scalar_one_or_none()
     if existing is None:
         return None
-    count = (await db.execute(
-        select(func.count()).select_from(TranscriptionJob)
-        .where(TranscriptionJob.batch_id == batch_id)
-    )).scalar_one()
+    count = await count_live_jobs(db, batch_id)        # [OD-2] live jobs, like the append's
     return BatchFileAppendResponse(
         job_id=str(existing.id),
         filename=existing.source_filename,
@@ -1509,9 +1507,12 @@ async def accept_clean(
             if transcription.batch_id != batch_id:
                 raise HTTPException(400, f"Transcription {item.transcription_id} does not belong to batch {batch_id}")
             # [OD-2] A withdrawn scan is not part of the batch: refused like
-            # any item that does not belong (named, nothing accepted).
-            if await is_withdrawn_transcription(db, transcription.id):
-                raise HTTPException(409, WITHDRAWN_DETAIL)
+            # any item that does not belong (named, nothing accepted). LOCKS
+            # the scan's job row — see batch_ingest.lock_for_approval.
+            try:
+                transcription = await lock_for_approval(db, transcription.id)
+            except WithdrawnTranscription:
+                raise HTTPException(409, WITHDRAWN_DETAIL) from None
             if transcription.status != "transcribed":
                 # Idempotent repost / approved via another path — reported, not
                 # silently dropped (B1: the dashboard surfaces every skip).
@@ -1678,8 +1679,10 @@ async def accept_one(
 
     if transcription.batch_id != batch_id:
         raise HTTPException(400, f"Transcription {transcription_id} does not belong to batch {batch_id}")
-    if await is_withdrawn_transcription(db, transcription.id):
-        raise HTTPException(409, WITHDRAWN_DETAIL)              # [OD-2]
+    try:
+        transcription = await lock_for_approval(db, transcription.id)   # [OD-2] locks, refreshes
+    except WithdrawnTranscription:
+        raise HTTPException(409, WITHDRAWN_DETAIL) from None
     if transcription.status != "transcribed":
         return {"accepted": 0, "message": "already accepted"}
 

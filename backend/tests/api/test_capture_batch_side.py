@@ -371,3 +371,100 @@ def test_step0_refusal_fails_the_job_retryably_and_never_transcribes(ids):
     assert row["status"] == "failed" and "raw_missing" in row["error"]
     assert row["net_verdict"] is None                        # not a network fact
     assert pipeline.await_count == 0
+
+
+# ---------------------------------------------------------------------------
+# review fixes — the single-test approval path, and the runner's withdrawn skip
+# ---------------------------------------------------------------------------
+
+_ANSWERS = [{"question_number": 1, "sub_question_id": None, "answer_text": "x = 1"}]
+
+
+def test_the_single_test_grade_path_refuses_a_withdrawn_scan(client, headers_a, ids):
+    """EVERY approval path (OD-2): /grade too, not only the two batch accepts."""
+    sid, _ = asyncio.run(_student(ids[0]))
+    gone = _seed(ids, state="confirmed", student_id=sid, withdrawn=True)
+    with patch("app.api.v0.transcription.enqueue_grading_task_or_log", new=AsyncMock()):
+        r = client.post("/api/v0/transcriptions/grade", headers=headers_a, json={
+            "transcription_id": str(gone["t"]), "student_id": str(sid), "answers": _ANSWERS})
+    assert r.status_code == 409, r.text
+
+
+def test_the_single_test_grade_path_writes_the_student_back(client, headers_a, ids):
+    """EVERY approval path (OD-3): the approved student becomes the submission's."""
+    other, _ = asyncio.run(_student(ids[0]))
+    cap = _seed(ids, state="pending", pending_name="שם שהוקלד")
+    with patch("app.api.v0.transcription.enqueue_grading_task_or_log", new=AsyncMock()):
+        r = client.post("/api/v0/transcriptions/grade", headers=headers_a, json={
+            "transcription_id": str(cap["t"]), "student_id": str(other), "answers": _ANSWERS})
+    assert r.status_code == 200, r.text
+
+    async def submission():
+        async with _fresh_loop_session() as db:
+            return (await db.execute(text(
+                "SELECT student_id, student_state FROM capture_submissions WHERE id = :s"),
+                {"s": cap["sub"]})).one()
+    assert tuple(asyncio.run(submission())) == (other, "confirmed")
+
+
+def test_a_job_withdrawn_before_it_started_is_retired_never_run(ids):
+    """A superseded version's queued job costs no compile and no VLM pass."""
+    cap = _seed(ids, state="pending", pending_name="ש", job_status="queued", withdrawn=True)
+    scan = _FakeScan()
+    _gcs, pipeline = _run_job(cap["job"], scan=scan, object_size=None)
+    assert scan.calls == [] and pipeline.await_count == 0
+    row = asyncio.run(_load_job_row(str(cap["job"])))
+    assert row["status"] == "failed" and row["error"] == "withdrawn before it started"
+
+
+def test_an_approval_racing_a_save_is_never_both_approved_and_withdrawn(ids):
+    """The race the job-row lock closes: an approval holds the lock and has
+    approved but not committed; a save of the same submission starts. The
+    save must WAIT, then see the approval (D6 — a teacher capture refuses),
+    and must not withdraw an approved scan."""
+    from app.database import AsyncSessionLocal, engine
+    from app.services.batch_ingest import lock_for_approval
+    from app.services.capture import submissions as svc
+    from app.services.capture.actors import CaptureError, TeacherActor
+
+    sid, _ = asyncio.run(_student(ids[0]))
+    cap = _seed(ids, state="confirmed", student_id=sid)
+    actor = TeacherActor(user_id=uuid.UUID(ids[0]), batch_id=ids[2])
+
+    async def scenario():
+        await engine.dispose(close=False)
+        approver = AsyncSessionLocal()
+        try:
+            await lock_for_approval(approver, cap["t"])
+            await approver.execute(text(
+                "UPDATE transcriptions SET status='approved', student_id=:s, contract_json='{}'::jsonb, "
+                "approved_at=now() WHERE id=:t"), {"s": sid, "t": cap["t"]})
+
+            async def save():
+                async with AsyncSessionLocal() as db:
+                    try:
+                        await svc.save(db, actor, cap["sub"])
+                        await db.commit()
+                        return "saved"
+                    except CaptureError as exc:
+                        await db.rollback()
+                        return exc.code
+
+            saving = asyncio.create_task(save())
+            await asyncio.sleep(1.0)
+            assert not saving.done(), "the save must wait on the job-row lock"
+            await approver.commit()
+            return await asyncio.wait_for(saving, 30)
+        finally:
+            await approver.close()
+            await engine.dispose(close=False)
+
+    assert asyncio.run(scenario()) == "already_approved"
+    row = asyncio.run(_load_job_row(str(cap["job"])))
+
+    async def withdrawn():
+        async with _fresh_loop_session() as db:
+            return (await db.execute(text("SELECT withdrawn_at FROM transcription_jobs WHERE id=:j"),
+                                     {"j": cap["job"]})).scalar()
+    assert row["status"] == "completed" and asyncio.run(withdrawn()) is None
+

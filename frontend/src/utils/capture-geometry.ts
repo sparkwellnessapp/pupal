@@ -38,8 +38,8 @@ export function quadArea(q: QuadPts): number {
 export function isValidQuad(q: QuadPts): boolean {
   if (q.some(([x, y]) => !(x >= 0 && x <= 1 && y >= 0 && y <= 1))) return false
   const turns = [0, 1, 2, 3].map((i) => cross(q[i], q[(i + 1) % 4], q[(i + 2) % 4]))
-  if (turns.some((t) => Math.abs(t) < 1e-9)) return false
-  if (!(turns.every((t) => t > 0) || turns.every((t) => t < 0))) return false
+  // Clockwise on screen (TL, TR, BR, BL) — the server's rule; a mirrored quad is refused.
+  if (!turns.every((t) => t > 1e-9)) return false
   return quadArea(q) >= MIN_AREA_FRACTION
 }
 

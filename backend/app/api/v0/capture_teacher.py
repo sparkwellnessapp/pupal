@@ -112,9 +112,10 @@ async def create_capture_link(batch_id: UUID, body: CaptureLinkCreateRequest,
     if existing is not None:
         raise CaptureError(409, "link_exists", "כבר קיים קישור לקבוצה הזאת",
                            {"link": (await _link_response(db, batch, existing)).model_dump(mode="json")})
-    link = await links_svc.create_link(db, batch=batch, exam_date=body.exam_date,
-                                       class_id=body.class_id, new_class_name=body.new_class_name)
     try:
+        link = await links_svc.create_link(db, batch=batch, exam_date=body.exam_date,
+                                           class_id=body.class_id,
+                                           new_class_name=body.new_class_name)
         await db.commit()
     except IntegrityError:                     # a concurrent create for the same batch
         await db.rollback()
@@ -228,7 +229,12 @@ async def capture_state(actor: TeacherActor = Depends(teacher_actor),
     batch = await db.get(GradingBatch, actor.batch_id)
     class_name = await db.scalar(select(Class.name).where(Class.id == batch.class_id)) \
         if batch.class_id else None
-    drafts = [await svc.submission_view(db, s) for s in await svc.teacher_drafts(db, actor)]
+    views = [await svc.submission_view(db, s) for s in await svc.teacher_drafts(db, actor)]
+    # Resume what has CONTENT (pages or a student) and at most the newest
+    # empty group — reused rather than piling up a chip per abandoned visit.
+    filled = [v for v in views if v.pages or v.student is not None]
+    empty = [v for v in views if not (v.pages or v.student is not None)]
+    drafts = filled + empty[-1:]
     return TeacherCaptureState(batch_id=batch.id, batch_name=batch.name, class_name=class_name,
                                saved_count=await svc.saved_count(db, batch.id), drafts=drafts)
 
@@ -271,4 +277,5 @@ async def name_suggest(submission_id: UUID, actor: TeacherActor = Depends(teache
     return await name_suggest_svc.suggest(db, actor, submission_id)
 
 
-add_page_routes(capture_page_router, teacher_actor)
+add_page_routes(capture_page_router, teacher_actor, view_model=SubmissionView,
+                view=svc.submission_view)

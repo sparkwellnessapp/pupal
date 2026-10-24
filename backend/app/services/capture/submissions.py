@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from typing import Optional, Sequence
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...config import settings
@@ -38,10 +38,10 @@ from ...models.transcription import Transcription
 from ...models.transcription_job import TranscriptionJob
 from ...schemas.capture import (
     CaptureCounter, CaptureSubmissionRow, CaptureSubmissionsResponse, PageView, QualityView,
-    StudentRef, SubmissionView,
+    StudentRef, StudentSubmissionView, SubmissionView,
 )
 from .. import classroom as classroom_service
-from ..batch_ingest import ingest_batch_pdf
+from ..batch_ingest import ingest_batch_pdf, refresh_test_count
 from . import paths, tokens
 from .actors import NOT_FOUND, CaptureActor, CaptureError, StudentActor, TeacherActor
 from .geometry import FULL_FRAME, InvalidCorners, validate_corners
@@ -124,7 +124,22 @@ async def submission_view(db: AsyncSession, sub: CaptureSubmission) -> Submissio
         submission_id=sub.id, source=sub.source, status=sub.status,
         student_state=sub.student_state, student=await _student_ref(db, sub.student_id),
         pending_student_name=sub.pending_student_name,
-        pages=[await page_view(p) for p in await live_pages(db, sub.id)],
+        # Signed concurrently: each signature is an IAM call, and a 20-page
+        # submission signed one by one was seconds of a student's wait.
+        pages=list(await asyncio.gather(*(page_view(p) for p in await live_pages(db, sub.id)))),
+        version_no=version.version_no if version else None,
+        saved_at=version.created_at.isoformat() if version else None,
+        updated_at=sub.updated_at.isoformat())
+
+
+async def student_submission_view(db: AsyncSession, sub: CaptureSubmission) -> StudentSubmissionView:
+    """The student's own view (D1): her pages and her name, never her state."""
+    version = await _current_version(db, sub)
+    ref = await _student_ref(db, sub.student_id)
+    return StudentSubmissionView(
+        submission_id=sub.id, status=sub.status,
+        display_name=ref.display_name if ref else sub.pending_student_name,
+        pages=list(await asyncio.gather(*(page_view(p) for p in await live_pages(db, sub.id)))),
         version_no=version.version_no if version else None,
         saved_at=version.created_at.isoformat() if version else None,
         updated_at=sub.updated_at.isoformat())
@@ -197,13 +212,18 @@ async def own_submission(db: AsyncSession, link: CaptureLink,
 
 async def _competitors(db: AsyncSession, batch_id: UUID, *, exclude: Optional[UUID],
                        student_id: Optional[UUID] = None,
-                       pending_name: Optional[str] = None) -> list[CaptureSubmission]:
+                       pending_name: Optional[str] = None,
+                       saved_only: bool = False) -> list[CaptureSubmission]:
     """Other ACTIVE submissions in the batch claiming the same student — by
-    id, or (for an unresolved typed name) by the normalized name."""
-    rows = (await db.execute(
-        select(CaptureSubmission).where(CaptureSubmission.batch_id == batch_id,
-                                        CaptureSubmission.status != "discarded")
-    )).scalars().all()
+    id, or (for an unresolved typed name) by the normalized name. In id order,
+    so a caller that locks them locks in ONE order (no deadlock between two
+    resolutions). `saved_only`: a never-saved draft (an abandoned browser, a
+    lost device secret) is not a claim and must not make a real one a
+    conflict the teacher cannot even see."""
+    q = select(CaptureSubmission).where(CaptureSubmission.batch_id == batch_id)
+    q = q.where(CaptureSubmission.status == "saved") if saved_only \
+        else q.where(CaptureSubmission.status != "discarded")
+    rows = (await db.execute(q.order_by(CaptureSubmission.id))).scalars().all()
     out = []
     for s in rows:
         if exclude is not None and s.id == exclude:
@@ -216,11 +236,33 @@ async def _competitors(db: AsyncSession, batch_id: UUID, *, exclude: Optional[UU
     return out
 
 
+async def _lock_batch(db: AsyncSession, batch_id: UUID) -> None:
+    """LOCK ORDER: batch → submission(s) by id → job. Every path that decides
+    between submissions (save's duplicate check, the teacher's resolutions)
+    takes the batch first, so those decisions serialize per batch and no two
+    of them can lock the same submissions in opposite orders."""
+    await db.execute(select(GradingBatch.id).where(GradingBatch.id == batch_id)
+                     .with_for_update())
+
+
+async def _lock_submissions(db: AsyncSession, ids) -> dict[UUID, CaptureSubmission]:
+    """FOR UPDATE, in ID order, refreshed (populate_existing): every path that
+    touches more than one submission locks this way, so two of them can never
+    lock the same pair in opposite orders."""
+    rows = (await db.execute(
+        select(CaptureSubmission).where(CaptureSubmission.id.in_(sorted(set(ids))))
+        .order_by(CaptureSubmission.id).with_for_update()
+        .execution_options(populate_existing=True)
+    )).scalars().all()
+    return {r.id: r for r in rows}
+
+
 async def create_student_submission(db: AsyncSession, *, link: CaptureLink, name: str,
                                     confirm_match: bool) -> tuple[CaptureSubmission, str]:
     """§6.3 POST /submissions. The match is RECOMPUTED here; a client never
-    names a student id. The response is the same whatever the outcome — the
-    student is never told her submission is a conflict (D1)."""
+    names a student id. Duplicates (D1/D5) are judged at SAVE, against saved
+    submissions only — so an abandoned draft never makes a real submission a
+    conflict, and the student is never told either way."""
     locked = (await db.execute(
         select(CaptureLink).where(CaptureLink.id == link.id).with_for_update())).scalar_one()
     count = await db.scalar(select(func.count()).select_from(CaptureSubmission).where(
@@ -232,18 +274,13 @@ async def create_student_submission(db: AsyncSession, *, link: CaptureLink, name
     match = await identify(db, class_id=batch.class_id, user_id=locked.user_id, name=typed)
     if confirm_match and match is not None:
         state, student_id, pending = "confirmed", match.id, None
-        competitors = await _competitors(db, batch.id, exclude=None, student_id=match.id)
-        note = "duplicate_student"
     else:
         state, student_id, pending = "pending", None, typed
-        competitors = await _competitors(db, batch.id, exclude=None, pending_name=typed)
-        note = "duplicate_pending_name"
     secret = tokens.random_token()
     sub = CaptureSubmission(
         batch_id=batch.id, user_id=locked.user_id, source="student_link", link_id=locked.id,
         device_secret_hash=tokens.sha256(secret), student_id=student_id,
-        student_state="conflict" if competitors else state, pending_student_name=pending,
-        conflict_note=note if competitors else None, status="draft")
+        student_state=state, pending_student_name=pending, status="draft")
     db.add(sub)
     await db.flush()
     logger.info("capture_submission_created submission=%s link=%s state=%s",
@@ -277,13 +314,17 @@ async def create_page(db: AsyncSession, actor: CaptureActor, submission_id: UUID
     db.add(page)
     sub.updated_at = _now()
     await db.flush()
-    length_range = f"1,{settings.capture_max_file_bytes}"                    # R2: silent cap
+    # Both headers are inside the signature: R2's silent size cap, and
+    # WRITE-ONCE (generation 0 = only if no object exists yet) — the URL can
+    # land the photo, never replace it after it was analyzed. A retried PUT
+    # whose first attempt did land is answered 412; the client reads that as
+    # success (the bytes are the same file).
+    signed = {"x-goog-content-length-range": f"1,{settings.capture_max_file_bytes}",
+              "x-goog-if-generation-match": "0"}
     url = await asyncio.to_thread(
         _gcs().generate_signed_url, raw, settings.capture_upload_url_minutes,
-        method="PUT", content_type=content_type,
-        headers={"x-goog-content-length-range": length_range})
-    return NewPage(page, url, {"Content-Type": content_type,
-                               "x-goog-content-length-range": length_range})
+        method="PUT", content_type=content_type, headers=signed)
+    return NewPage(page, url, {"Content-Type": content_type, **signed})
 
 
 async def confirm_upload(db: AsyncSession, actor: CaptureActor, submission_id: UUID,
@@ -297,6 +338,8 @@ async def confirm_upload(db: AsyncSession, actor: CaptureActor, submission_id: U
     page = await _load_page(db, sub, page_id)
     if page.status == "analyzed":
         return page
+    if page.status == "analyze_failed" and page.corners_source == "manual":
+        return page              # a repeat call must not replace corners she placed by hand
     raw = paths.split_gs_uri(page.raw_gcs_uri)[1]
     size = await asyncio.to_thread(_gcs().object_size, raw)
     if not size:
@@ -320,7 +363,8 @@ async def confirm_upload(db: AsyncSession, actor: CaptureActor, submission_id: U
     await db.execute(
         update(CapturePage)
         .where(CapturePage.id == page_id,
-               CapturePage.status.in_(("awaiting_upload", "analyze_failed")))
+               CapturePage.status.in_(("awaiting_upload", "analyze_failed")),
+               or_(CapturePage.corners_source.is_(None), CapturePage.corners_source != "manual"))
         .values(**values, updated_at=_now()))
     await db.flush()
     page = await db.get(CapturePage, page_id, populate_existing=True)
@@ -407,16 +451,25 @@ async def reorder(db: AsyncSession, actor: CaptureActor, submission_id: UUID,
 # the transcription gate, seen from a submission
 # ---------------------------------------------------------------------------
 
-async def _version_job(db: AsyncSession, version_id: Optional[UUID]) -> Optional[TranscriptionJob]:
+async def _version_job(db: AsyncSession, version_id: Optional[UUID], *,
+                       lock: bool = False) -> Optional[TranscriptionJob]:
     if version_id is None:
         return None
-    return (await db.execute(select(TranscriptionJob).where(
-        TranscriptionJob.capture_version_id == version_id))).scalar_one_or_none()
+    q = select(TranscriptionJob).where(TranscriptionJob.capture_version_id == version_id)
+    if lock:
+        q = q.with_for_update().execution_options(populate_existing=True)
+    return (await db.execute(q)).scalar_one_or_none()
 
 
 async def _is_approved(db: AsyncSession, sub: CaptureSubmission) -> bool:
-    """Has the CURRENT version passed the transcription gate (D6)?"""
-    job = await _version_job(db, sub.current_version_id)
+    """Has the CURRENT version passed the transcription gate (D6)?
+
+    LOCKS the version's job row first — the row every approval path locks
+    (batch_ingest.lock_for_approval) — so an approval racing this decision
+    either committed before it (and is seen: the transcription status is read
+    by a fresh statement after the lock) or waits until the withdrawal commits
+    (and is refused). Never both approved and withdrawn."""
+    job = await _version_job(db, sub.current_version_id, lock=True)
     if job is None or job.transcription_id is None:
         return False
     return (await db.scalar(select(Transcription.status).where(
@@ -428,13 +481,20 @@ async def _withdraw(db: AsyncSession, version_id: Optional[UUID]) -> None:
     batch because every batch read filters withdrawn jobs (OD-2)."""
     if version_id is None:
         return
-    await db.execute(update(TranscriptionJob)
-                     .where(TranscriptionJob.capture_version_id == version_id,
-                            TranscriptionJob.withdrawn_at.is_(None))
-                     .values(withdrawn_at=_now(), updated_at=_now()))
+    batch_id = (await db.execute(
+        update(TranscriptionJob)
+        .where(TranscriptionJob.capture_version_id == version_id,
+               TranscriptionJob.withdrawn_at.is_(None))
+        .values(withdrawn_at=_now(), updated_at=_now())
+        .returning(TranscriptionJob.batch_id))).scalar_one_or_none()
+    if batch_id is not None:
+        await refresh_test_count(db, batch_id)        # callers hold the batch lock
 
 
 async def _discard(db: AsyncSession, sub: CaptureSubmission) -> None:
+    """The caller holds `sub`'s row lock (and read it fresh)."""
+    if sub.status == "discarded":
+        return
     if await _is_approved(db, sub):
         raise CaptureError(409, "already_approved",
                            "התמלול של המבחן הזה כבר אושר — הוא לא יימחק")
@@ -477,20 +537,56 @@ async def _unique_filename(db: AsyncSession, batch_id: UUID, name: str) -> str:
     return candidate
 
 
-async def _copy_for_late_resubmission(db: AsyncSession, sub: CaptureSubmission,
-                                      pages: Sequence[CapturePage]) -> CaptureSubmission:
+def _copy_object(uri: Optional[str], new_path: str) -> Optional[str]:
+    """Server-side GCS copy (no download): a late copy's photos live under ITS
+    OWN prefix (capture/paths.py), so purging one submission never deletes the
+    other's evidence."""
+    if not uri:
+        return None
+    bucket, path = paths.split_gs_uri(uri)
+    _gcs().copy_object(path, new_path)
+    return paths.gs_uri(bucket, new_path)
+
+
+async def _late_copy_for(db: AsyncSession, sub: CaptureSubmission,
+                         pages: Sequence[CapturePage]) -> CaptureSubmission:
     """D6: the approved version stays exactly as it is; what she sent now goes
-    on a NEW submission flagged for the teacher, carrying her pages."""
-    late = CaptureSubmission(
-        batch_id=sub.batch_id, user_id=sub.user_id, source=sub.source, link_id=sub.link_id,
-        device_secret_hash=sub.device_secret_hash, student_id=sub.student_id,
-        student_state="conflict", pending_student_name=sub.pending_student_name,
-        conflict_note="late_resubmission", status="draft")
-    db.add(late)
-    await db.flush()
+    on a late submission flagged for the teacher, carrying copies of her pages.
+
+    ONE live late copy per device: a second save after approval REPLACES the
+    copy's pages and versions it again, instead of breeding another conflict
+    submission each time she taps «שמירה»."""
+    late = (await db.execute(
+        select(CaptureSubmission).where(
+            CaptureSubmission.link_id == sub.link_id,
+            CaptureSubmission.device_secret_hash == sub.device_secret_hash,
+            CaptureSubmission.conflict_note == "late_resubmission",
+            CaptureSubmission.status != "discarded",
+            CaptureSubmission.id != sub.id)
+        .order_by(CaptureSubmission.created_at.desc()).limit(1)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one_or_none()
+    if late is not None and await _is_approved(db, late):
+        late = None              # its version passed the gate: it is never withdrawn (D6)
+    if late is None:
+        late = CaptureSubmission(
+            batch_id=sub.batch_id, user_id=sub.user_id, source=sub.source, link_id=sub.link_id,
+            device_secret_hash=sub.device_secret_hash, student_id=sub.student_id,
+            student_state="conflict", pending_student_name=sub.pending_student_name,
+            conflict_note="late_resubmission", status="draft")
+        db.add(late)
+        await db.flush()
+    else:
+        for old in await live_pages(db, late.id):
+            old.deleted_at = _now()
+        await db.flush()
     for p in pages:
+        new_id = uuid4()
+        raw = await asyncio.to_thread(_copy_object, p.raw_gcs_uri, paths.raw_path(late.id, new_id))
+        preview = await asyncio.to_thread(_copy_object, p.preview_gcs_uri,
+                                          paths.preview_path(late.id, new_id))
         db.add(CapturePage(
-            submission_id=late.id, raw_gcs_uri=p.raw_gcs_uri, preview_gcs_uri=p.preview_gcs_uri,
+            id=new_id, submission_id=late.id, raw_gcs_uri=raw, preview_gcs_uri=preview,
             content_type=p.content_type, status=p.status, image_w=p.image_w, image_h=p.image_h,
             corners=p.corners, corners_source=p.corners_source, auto_corners=p.auto_corners,
             auto_corners_source=p.auto_corners_source, detect_confidence=p.detect_confidence,
@@ -501,8 +597,7 @@ async def _copy_for_late_resubmission(db: AsyncSession, sub: CaptureSubmission,
 
 async def save(db: AsyncSession, actor: CaptureActor, submission_id: UUID) -> Saved:
     probe = await load_submission(db, actor, submission_id)
-    await db.execute(select(GradingBatch.id).where(GradingBatch.id == probe.batch_id)
-                     .with_for_update())                                  # LOCK ORDER: batch…
+    await _lock_batch(db, probe.batch_id)                                 # LOCK ORDER: batch…
     sub = await load_submission(db, actor, submission_id, lock=True)      # …then submission
     _editable(sub)
     pages = await live_pages(db, sub.id)
@@ -522,8 +617,22 @@ async def save(db: AsyncSession, actor: CaptureActor, submission_id: UUID) -> Sa
             # and she is the one who approved it. Refuse, plainly.
             raise CaptureError(409, "already_approved",
                                "התמלול של המבחן הזה כבר אושר — שינויים לא יישלחו")
-        target = await _copy_for_late_resubmission(db, sub, pages)
+        target = await _late_copy_for(db, sub, pages)
         pages = await live_pages(db, target.id)
+    elif (sub.source == "student_link" and sub.current_version_id is None
+          and sub.student_state in ("confirmed", "pending")):
+        # D1/D5 at the FIRST save: another SAVED submission claiming the same
+        # student (or the same typed name) makes this one a conflict for the
+        # teacher. Judged against saved submissions only, so a draft that was
+        # opened and abandoned never turns a real one into a conflict.
+        others = await _competitors(
+            db, sub.batch_id, exclude=sub.id, saved_only=True,
+            student_id=sub.student_id if sub.student_state == "confirmed" else None,
+            pending_name=sub.pending_student_name if sub.student_state == "pending" else None)
+        if others:
+            sub.conflict_note = ("duplicate_student" if sub.student_state == "confirmed"
+                                 else "duplicate_pending_name")
+            sub.student_state = "conflict"
 
     previous = target.current_version_id
     version_no = (await db.scalar(select(func.max(CaptureVersion.version_no)).where(
@@ -592,17 +701,33 @@ async def _already_submitted(db: AsyncSession, other: CaptureSubmission) -> Capt
 async def assign_student(db: AsyncSession, actor: TeacherActor, submission_id: UUID, *,
                          student_id: Optional[UUID], create_name: Optional[str],
                          replace_existing: bool) -> CaptureSubmission:
-    sub = await load_submission(db, actor, submission_id, lock=True)
+    sub = await load_submission(db, actor, submission_id)
     _editable(sub)
+    await _lock_batch(db, sub.batch_id)
     if create_name is not None:                                  # immediate (R1, teacher side)
         student = await _create_student(db, sub.batch_id, actor.user_id, create_name)
     else:
         student = await _owned_student(db, actor.user_id, student_id)
     others = await _competitors(db, sub.batch_id, exclude=sub.id, student_id=student.id)
+    locked = await _lock_submissions(db, [sub.id, *(o.id for o in others)])
+    if sub.id not in locked:                      # gone since it was read (a purge)
+        raise NOT_FOUND()
+    sub = locked[sub.id]
+    _editable(sub)
+    if sub.student_id != student.id and await _is_approved(db, sub):
+        # Its scan already passed the transcription gate FOR the student named
+        # on it: re-attributing the submission now would make the two disagree
+        # (OD-3) — and the purge of either student would then be wrong.
+        raise CaptureError(409, "already_approved",
+                           "התמלול של המבחן הזה כבר אושר — לא ניתן לשנות את התלמיד")
+    others = [locked[o.id] for o in others if o.id in locked
+              and locked[o.id].status != "discarded" and locked[o.id].student_id == student.id]
     if others and not replace_existing:
         raise await _already_submitted(db, others[0])           # the D5 dialog
     for other in others:
-        await _discard(db, other)                               # refuses an approved one
+        # D6: an approved exam is never discarded — replacing keeps it beside this one.
+        if not await _is_approved(db, other):
+            await _discard(db, other)
     sub.student_id, sub.student_state, sub.conflict_note = student.id, "confirmed", None
     sub.updated_at = _now()
     await db.flush()
@@ -611,14 +736,18 @@ async def assign_student(db: AsyncSession, actor: TeacherActor, submission_id: U
 
 async def resolve_pending(db: AsyncSession, actor: TeacherActor, submission_id: UUID, *,
                           student_id: Optional[UUID], approve_new: bool) -> CaptureSubmission:
+    probe = await load_submission(db, actor, submission_id)
+    await _lock_batch(db, probe.batch_id)
     sub = await load_submission(db, actor, submission_id, lock=True)
+    _editable(sub)
     if sub.student_state != "pending":
         raise CaptureError(409, "not_pending", "ההגשה הזאת כבר לא ממתינה לאישור")
     if approve_new:
         student = await _create_student(db, sub.batch_id, actor.user_id, sub.pending_student_name)
     else:
         student = await _owned_student(db, actor.user_id, student_id)
-    others = await _competitors(db, sub.batch_id, exclude=sub.id, student_id=student.id)
+    others = await _competitors(db, sub.batch_id, exclude=sub.id, student_id=student.id,
+                                saved_only=True)
     sub.student_id = student.id
     # Never a silent double assignment (D5): if that student already has an
     # exam here, this one becomes a CONFLICT she resolves with one decision.
@@ -631,18 +760,29 @@ async def resolve_pending(db: AsyncSession, actor: TeacherActor, submission_id: 
 
 async def resolve_conflict(db: AsyncSession, actor: TeacherActor, submission_id: UUID, *,
                            action: str, student_id: Optional[UUID]) -> CaptureSubmission:
-    sub = await load_submission(db, actor, submission_id, lock=True)
+    sub = await load_submission(db, actor, submission_id)
+    await _lock_batch(db, sub.batch_id)
+    sid = student_id or sub.student_id
+    others = []
+    if action == "keep_this" and sid is not None:
+        others = await _competitors(db, sub.batch_id, exclude=sub.id, student_id=sid,
+                                    pending_name=sub.pending_student_name)
+    # Every row this decision touches, locked in ONE order and read fresh: a
+    # stale panel (a second tab, the 10 s poll) re-checks against the truth.
+    locked = await _lock_submissions(db, [sub.id, *(o.id for o in others)])
+    if sub.id not in locked:                      # gone since it was read (a purge)
+        raise NOT_FOUND()
+    sub = locked[sub.id]
+    _editable(sub)
     if sub.student_state != "conflict":
         raise CaptureError(409, "not_conflict", "אין כאן התנגשות לפתור")
     if action == "discard_this":
         await _discard(db, sub)
         return sub
-    sid = student_id or sub.student_id
     if sid is None:
         raise CaptureError(422, "student_required", "יש לבחור תלמיד")
     student = await _owned_student(db, actor.user_id, sid)
-    others = await _competitors(db, sub.batch_id, exclude=sub.id, student_id=student.id,
-                                pending_name=sub.pending_student_name)
+    others = [locked[o.id] for o in others if o.id in locked and locked[o.id].status != "discarded"]
     for other in others:
         # D6: work she already approved is never discarded — it stays, and
         # this one is kept beside it.

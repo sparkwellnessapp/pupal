@@ -158,7 +158,23 @@ REFUSALS = [
     # submission; a disagreement means her photos are someone else's exam.
     ("a scan from her capture submission approved for another student (036)",
      lambda g: _capture_approved_for_other(g), "capture_mismatch"),
+    # [036] an unresolved conflict naming her: one of the two exams may be
+    # someone else's — the teacher decides first.
+    ("an unresolved capture conflict naming her (036)",
+     lambda g: _capture_in_conflict(g), "capture_conflict"),
 ]
+
+
+async def _capture_in_conflict(g):
+    # A student-link capture (a saved TEACHER capture is always confirmed —
+    # the CHECK says so): the device confirmed her name, and so did another.
+    await add_capture(g, "capc", pending_name=g.student_name)
+    async with session() as db:
+        await db.execute(text("UPDATE capture_submissions SET student_id = :st, "
+                              "pending_student_name = NULL, student_state = 'conflict', "
+                              "conflict_note = 'duplicate_student' WHERE id = :s"),
+                         {"st": g.student_id, "s": g.captures["capc"]["sub"]})
+        await db.commit()
 
 
 async def _capture_approved_for_other(g):
@@ -457,6 +473,26 @@ async def test_the_purge_deletes_her_capture_subtree_and_verifies_clean(graph, s
     for key in ("capo", "capp"):
         other = str(graph.captures[key]["sub"])
         assert any(n.startswith(f"captures/{other}/") for (_, n) in store.live)
+
+
+async def _set_v1(graph, key, status):
+    async with session() as db:
+        await db.execute(text("UPDATE transcription_jobs SET status = :st, finished_at = NULL, "
+                              "error_message = NULL WHERE id = :j"),
+                         {"st": status, "j": graph.j[f"{key}_v1"]})
+        await db.commit()
+
+
+async def test_a_withdrawn_job_still_queued_is_not_in_flight(graph, store):
+    """The runner retires a withdrawn queued job unrun (and finds no row once
+    it is purged), so it never blocks her purge. A withdrawn job already
+    RUNNING still does — it is writing."""
+    await add_capture(graph, "capq", student_id=graph.student_id)
+    store.live |= graph.objects
+    await _set_v1(graph, "capq", "queued")
+    assert (await _plan(graph, store)).blockers == ()
+    await _set_v1(graph, "capq", "running")
+    assert (await _plan(graph, store)).blockers == (graph.j["capq_v1"],)
 
 
 async def test_an_approved_capture_scan_of_hers_is_purged_like_any_scan(graph, store):

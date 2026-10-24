@@ -14,6 +14,11 @@ export type CaptureHandoff = S['CaptureHandoffResponse']
 export type PageView = S['PageView']
 export type PageCreateResponse = S['PageCreateResponse']
 export type SubmissionView = S['SubmissionView']
+/** The student's own view: no student state, ever (D1). */
+export type StudentSubmissionView = S['StudentSubmissionView']
+/** What both views share — all CaptureFlow reads. */
+export type SubmissionPages = Pick<SubmissionView,
+  'submission_id' | 'status' | 'pages' | 'version_no' | 'saved_at' | 'updated_at'>
 export type SaveResponse = S['SaveResponse']
 export type TeacherCaptureState = S['TeacherCaptureState']
 export type RosterStudent = S['RosterStudent']
