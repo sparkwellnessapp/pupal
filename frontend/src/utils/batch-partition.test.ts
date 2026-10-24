@@ -142,3 +142,16 @@ describe('partitionItems (D4/D5/D6 partitions)', () => {
     expect(p.approved).toEqual([])
   })
 })
+
+// [036] The picker's search runs on the SAME tokens as the match.
+import { nameMatchesQuery } from './batch-partition'
+
+describe('nameMatchesQuery — the picker search', () => {
+  it('finds a name by any of its tokens, in any order, under one normalization', () => {
+    expect(nameMatchesQuery('דני כהן', 'כהן ד')).toBe(true)
+    expect(nameMatchesQuery('דָּנִי כֹּהֵן', 'דני')).toBe(true)
+    expect(nameMatchesQuery("ג'ורג' חביב", 'ג׳ורג׳')).toBe(true)
+    expect(nameMatchesQuery('דני כהן', 'לוי')).toBe(false)
+    expect(nameMatchesQuery('דני כהן', '')).toBe(true)
+  })
+})

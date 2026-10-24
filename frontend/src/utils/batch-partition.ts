@@ -62,7 +62,9 @@ export const IDENTITY_REASONS = new Set(['student_unassigned', 'student_unmatche
 const GERESH_LIKE = new Set(['׳', '’', '‘', '`', '´'])
 const GERSHAYIM_LIKE = new Set(['״', '“', '”'])
 
-export function normalizeName(name: string): string {
+/** The normalized tokens of a name, in their written order — the ONE
+ *  per-character rule; `normalizeName` sorts them, `nameMatchesQuery` searches. */
+export function nameTokens(name: string): string[] {
   const nfc = name.normalize('NFC').toLowerCase()
   let out = ''
   for (const ch of nfc) {
@@ -70,7 +72,18 @@ export function normalizeName(name: string): string {
     if (cp >= 0x0591 && cp <= 0x05c7) continue
     out += GERESH_LIKE.has(ch) ? "'" : GERSHAYIM_LIKE.has(ch) ? '"' : ch
   }
-  return out.split(/\s+/).filter(Boolean).sort().join(' ')
+  return out.split(/\s+/).filter(Boolean)
+}
+
+export function normalizeName(name: string): string {
+  return nameTokens(name).sort().join(' ')
+}
+
+/** The picker's search: every typed token appears in the name, in any order,
+ *  under the same normalization — «כהן ד» finds «דני כהן». */
+export function nameMatchesQuery(name: string, query: string): boolean {
+  const hay = nameTokens(name).join(' ')
+  return nameTokens(query).every((t) => hay.includes(t))
 }
 
 export function partitionItems(items: PartitionItem[]): Partition {

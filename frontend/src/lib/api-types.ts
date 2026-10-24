@@ -347,6 +347,144 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/batches/{batch_id}/capture-handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Capture Handoff */
+        post: operations["create_capture_handoff_api_v0_batches__batch_id__capture_handoff_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/capture-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Capture Link */
+        get: operations["get_capture_link_api_v0_batches__batch_id__capture_link_get"];
+        put?: never;
+        /** Create Capture Link */
+        post: operations["create_capture_link_api_v0_batches__batch_id__capture_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Capture Link */
+        patch: operations["patch_capture_link_api_v0_batches__batch_id__capture_link_patch"];
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/capture-link/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close Capture Link */
+        post: operations["close_capture_link_api_v0_batches__batch_id__capture_link_close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/capture-link/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reopen Capture Link */
+        post: operations["reopen_capture_link_api_v0_batches__batch_id__capture_link_reopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/capture-link/rotate-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate Capture Link */
+        post: operations["rotate_capture_link_api_v0_batches__batch_id__capture_link_rotate_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/capture-submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Capture Submissions */
+        get: operations["list_capture_submissions_api_v0_batches__batch_id__capture_submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/capture-submissions/{submission_id}/resolve-conflict": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Conflict */
+        post: operations["resolve_conflict_api_v0_batches__batch_id__capture_submissions__submission_id__resolve_conflict_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/batches/{batch_id}/capture-submissions/{submission_id}/resolve-pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Pending */
+        post: operations["resolve_pending_api_v0_batches__batch_id__capture_submissions__submission_id__resolve_pending_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v0/batches/{batch_id}/files": {
         parameters: {
             query?: never;
@@ -435,6 +573,421 @@ export interface paths {
          */
         get: operations["returned_exams_manifest_api_v0_batches__batch_id__returned_exams_manifest_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/handoff/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Exchange Capture Handoff
+         * @description Public — the one-time token IS the credential (single use, 10 minutes).
+         */
+        post: operations["exchange_capture_handoff_api_v0_capture_handoff_exchange_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/s/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Link Info */
+        get: operations["link_info_api_v0_capture_s__token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/s/{token}/identify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Identify Name
+         * @description SCN-9: the single exact match's display name, or null. Never an id,
+         *     never another name, never a count.
+         */
+        post: operations["identify_name_api_v0_capture_s__token__identify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/s/{token}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Submission */
+        post: operations["create_submission_api_v0_capture_s__token__submissions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/s/{token}/submissions/{submission_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Submission */
+        get: operations["get_submission_api_v0_capture_s__token__submissions__submission_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/s/{token}/submissions/{submission_id}/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reorder */
+        put: operations["reorder_api_v0_capture_s__token__submissions__submission_id__order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/s/{token}/submissions/{submission_id}/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Page */
+        post: operations["create_page_api_v0_capture_s__token__submissions__submission_id__pages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/s/{token}/submissions/{submission_id}/pages/{page_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Page */
+        delete: operations["delete_page_api_v0_capture_s__token__submissions__submission_id__pages__page_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Page */
+        patch: operations["patch_page_api_v0_capture_s__token__submissions__submission_id__pages__page_id__patch"];
+        trace?: never;
+    };
+    "/api/v0/capture/s/{token}/submissions/{submission_id}/pages/{page_id}/reset-corners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset Corners */
+        post: operations["reset_corners_api_v0_capture_s__token__submissions__submission_id__pages__page_id__reset_corners_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/s/{token}/submissions/{submission_id}/pages/{page_id}/uploaded": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Page Uploaded */
+        post: operations["page_uploaded_api_v0_capture_s__token__submissions__submission_id__pages__page_id__uploaded_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/s/{token}/submissions/{submission_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save
+         * @description SCN-6: once this answers 200 every later failure is recoverable by
+         *     a retry, without the student — the version and its job are durable.
+         */
+        post: operations["save_api_v0_capture_s__token__submissions__submission_id__save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Capture State */
+        get: operations["capture_state_api_v0_capture_teacher__batch_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}/students": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Capture Roster
+         * @description The picker's list under a capture session (which cannot call the
+         *     classroom API): ALL her students, as the class-less batch roster is.
+         */
+        get: operations["capture_roster_api_v0_capture_teacher__batch_id__students_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Teacher Submission */
+        post: operations["create_teacher_submission_api_v0_capture_teacher__batch_id__submissions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}/submissions/{submission_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Submission */
+        get: operations["get_submission_api_v0_capture_teacher__batch_id__submissions__submission_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}/submissions/{submission_id}/name-suggest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Name Suggest
+         * @description §6.9 — a pre-fill for her picker, never an assignment (SCN-10/12).
+         */
+        post: operations["name_suggest_api_v0_capture_teacher__batch_id__submissions__submission_id__name_suggest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}/submissions/{submission_id}/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reorder */
+        put: operations["reorder_api_v0_capture_teacher__batch_id__submissions__submission_id__order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}/submissions/{submission_id}/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Page */
+        post: operations["create_page_api_v0_capture_teacher__batch_id__submissions__submission_id__pages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}/submissions/{submission_id}/pages/{page_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Page */
+        delete: operations["delete_page_api_v0_capture_teacher__batch_id__submissions__submission_id__pages__page_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Page */
+        patch: operations["patch_page_api_v0_capture_teacher__batch_id__submissions__submission_id__pages__page_id__patch"];
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}/submissions/{submission_id}/pages/{page_id}/reset-corners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset Corners */
+        post: operations["reset_corners_api_v0_capture_teacher__batch_id__submissions__submission_id__pages__page_id__reset_corners_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}/submissions/{submission_id}/pages/{page_id}/uploaded": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Page Uploaded */
+        post: operations["page_uploaded_api_v0_capture_teacher__batch_id__submissions__submission_id__pages__page_id__uploaded_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}/submissions/{submission_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save
+         * @description SCN-6: once this answers 200 every later failure is recoverable by
+         *     a retry, without the student — the version and its job are durable.
+         */
+        post: operations["save_api_v0_capture_teacher__batch_id__submissions__submission_id__save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}/submissions/{submission_id}/student": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Assign Student */
+        put: operations["assign_student_api_v0_capture_teacher__batch_id__submissions__submission_id__student_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2147,6 +2700,8 @@ export interface components {
              * @enum {string}
              */
             audit_status: "disabled" | "pending" | "running" | "done" | "failed";
+            /** Capture Link State */
+            capture_link_state?: ("not_yet_open" | "open" | "closed") | null;
             /** Class Id */
             class_id?: string | null;
             /** Class Name */
@@ -2284,6 +2839,8 @@ export interface components {
         };
         /** BatchListItem */
         BatchListItem: {
+            /** Capture Link State */
+            capture_link_state?: ("not_yet_open" | "open" | "closed") | null;
             /** Class Id */
             class_id?: string | null;
             /** Class Name */
@@ -2535,6 +3092,121 @@ export interface components {
              * @description Compiled rubric to grade against
              */
             rubric_id: string;
+        };
+        /** CaptureCounter */
+        CaptureCounter: {
+            /** Roster Size */
+            roster_size?: number | null;
+            /** Submitted Students */
+            submitted_students: number;
+        };
+        /** CaptureHandoffResponse */
+        CaptureHandoffResponse: {
+            /** Expires At */
+            expires_at: string;
+            /** Handoff Url */
+            handoff_url: string;
+        };
+        /** CaptureLinkCreateRequest */
+        CaptureLinkCreateRequest: {
+            /** Class Id */
+            class_id?: string | null;
+            /**
+             * Exam Date
+             * Format: date
+             */
+            exam_date: string;
+            /** New Class Name */
+            new_class_name?: string | null;
+        };
+        /** CaptureLinkPatchRequest */
+        CaptureLinkPatchRequest: {
+            /**
+             * Exam Date
+             * Format: date
+             */
+            exam_date: string;
+        };
+        /** CaptureLinkResponse */
+        CaptureLinkResponse: {
+            /**
+             * Batch Id
+             * Format: uuid
+             */
+            batch_id: string;
+            /**
+             * Class Id
+             * Format: uuid
+             */
+            class_id: string;
+            /** Class Name */
+            class_name?: string | null;
+            /** Closed At */
+            closed_at?: string | null;
+            /**
+             * Exam Date
+             * Format: date
+             */
+            exam_date: string;
+            /**
+             * Link Id
+             * Format: uuid
+             */
+            link_id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "not_yet_open" | "open" | "closed";
+            /** Url */
+            url: string;
+        };
+        /** CaptureSubmissionRow */
+        CaptureSubmissionRow: {
+            /** Conflict Note */
+            conflict_note?: ("duplicate_student" | "duplicate_pending_name" | "late_resubmission") | null;
+            /** Error Code */
+            error_code?: ("compile_failed" | "transcription_failed") | null;
+            /** Job Id */
+            job_id?: string | null;
+            /** Page1 Preview Url */
+            page1_preview_url?: string | null;
+            /** Page Count */
+            page_count: number;
+            /** Pending Student Name */
+            pending_student_name?: string | null;
+            /** Saved At */
+            saved_at?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "student_link" | "teacher";
+            student?: components["schemas"]["StudentRef"] | null;
+            /**
+             * Student State
+             * @enum {string}
+             */
+            student_state: "unassigned" | "confirmed" | "pending" | "conflict";
+            /**
+             * Submission Id
+             * Format: uuid
+             */
+            submission_id: string;
+            /** Transcription Id */
+            transcription_id?: string | null;
+            /** Transcription Status */
+            transcription_status?: ("transcribed" | "approved") | null;
+            /** Version No */
+            version_no?: number | null;
+            /** Version Status */
+            version_status?: ("queued" | "running" | "completed" | "failed") | null;
+        };
+        /** CaptureSubmissionsResponse */
+        CaptureSubmissionsResponse: {
+            counter: components["schemas"]["CaptureCounter"];
+            /** Rows */
+            rows: components["schemas"]["CaptureSubmissionRow"][];
         };
         /**
          * Check
@@ -3276,6 +3948,18 @@ export interface components {
              */
             status_code: number;
         };
+        /** ExamLabel */
+        ExamLabel: {
+            /** Batch Name */
+            batch_name?: string | null;
+            /** Class Name */
+            class_name?: string | null;
+            /**
+             * Exam Date
+             * Format: date
+             */
+            exam_date: string;
+        };
         /**
          * ExplanationV6
          * @description The reasoning line for one CREDIT terminal (§7.5).
@@ -3879,6 +4563,37 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HandoffExchangeRequest */
+        HandoffExchangeRequest: {
+            /** Handoff Token */
+            handoff_token: string;
+        };
+        /** HandoffExchangeResponse */
+        HandoffExchangeResponse: {
+            /**
+             * Batch Id
+             * Format: uuid
+             */
+            batch_id: string;
+            /** Capture Session */
+            capture_session: string;
+            /** Expires At */
+            expires_at: string;
+        };
+        /** IdentifyMatch */
+        IdentifyMatch: {
+            /** Display Name */
+            display_name: string;
+        };
+        /** IdentifyRequest */
+        IdentifyRequest: {
+            /** Name */
+            name: string;
+        };
+        /** IdentifyResponse */
+        IdentifyResponse: {
+            match?: components["schemas"]["IdentifyMatch"] | null;
+        };
         /** JobProvenance */
         JobProvenance: {
             /** Duration Ms */
@@ -3980,6 +4695,18 @@ export interface components {
         MessageResponse: {
             /** Message */
             message: string;
+        };
+        /** NameSuggestResponse */
+        NameSuggestResponse: {
+            /**
+             * Confidence
+             * @default low
+             * @enum {string}
+             */
+            confidence: "high" | "low";
+            match?: components["schemas"]["StudentRef"] | null;
+            /** Read Name */
+            read_name?: string | null;
         };
         /**
          * NumericPolicy
@@ -4101,6 +4828,42 @@ export interface components {
             /** Pack Version */
             pack_version: string;
         };
+        /** PageCreateRequest */
+        PageCreateRequest: {
+            /**
+             * Content Type
+             * @enum {string}
+             */
+            content_type: "image/jpeg" | "image/png" | "image/heic" | "image/heif";
+        };
+        /** PageCreateResponse */
+        PageCreateResponse: {
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /** Position */
+            position: number;
+            /** Required Headers */
+            required_headers: {
+                [key: string]: string;
+            };
+            /** Upload Url */
+            upload_url: string;
+        };
+        /** PageOrderRequest */
+        PageOrderRequest: {
+            /** Page Ids */
+            page_ids: string[];
+        };
+        /** PagePatchRequest */
+        PagePatchRequest: {
+            /** Corners */
+            corners?: number[][] | null;
+            /** Rotation */
+            rotation?: (0 | 90 | 180 | 270) | null;
+        };
         /**
          * PagePreview
          * @description Preview of a single PDF page.
@@ -4136,6 +4899,43 @@ export interface components {
              * @description Original page width in pixels
              */
             width: number;
+        };
+        /** PageView */
+        PageView: {
+            /**
+             * Content Type
+             * @enum {string}
+             */
+            content_type: "image/jpeg" | "image/png" | "image/heic" | "image/heif";
+            /** Corners */
+            corners?: number[][] | null;
+            /** Corners Source */
+            corners_source?: ("auto_model" | "auto_contour" | "full_frame" | "manual") | null;
+            /** Image H */
+            image_h?: number | null;
+            /** Image W */
+            image_w?: number | null;
+            /**
+             * Page Id
+             * Format: uuid
+             */
+            page_id: string;
+            /** Position */
+            position: number;
+            /** Preview Url */
+            preview_url?: string | null;
+            quality?: components["schemas"]["QualityView"] | null;
+            /**
+             * Rotation
+             * @default 0
+             * @enum {integer}
+             */
+            rotation: 0 | 90 | 180 | 270;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "awaiting_upload" | "analyzed" | "analyze_failed";
         };
         /**
          * PatchJobMetadataRequest
@@ -4426,6 +5226,22 @@ export interface components {
              */
             student_id: string;
         };
+        /** QualityView */
+        QualityView: {
+            /** Blur */
+            blur: number;
+            /** Glare Ratio */
+            glare_ratio: number;
+            /** Reasons */
+            reasons: ("blurry" | "too_far" | "glare" | "edges_not_found")[];
+            /** Short Side Px */
+            short_side_px: number;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "ok" | "warn";
+        };
         /**
          * Question
          * @description A question containing criteria for grading.
@@ -4551,6 +5367,34 @@ export interface components {
              */
             email: string;
         };
+        /** ResetCornersRequest */
+        ResetCornersRequest: {
+            /**
+             * To
+             * @enum {string}
+             */
+            to: "auto" | "full_frame";
+        };
+        /** ResolveConflictRequest */
+        ResolveConflictRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "keep_this" | "discard_this";
+            /** Student Id */
+            student_id?: string | null;
+        };
+        /** ResolvePendingRequest */
+        ResolvePendingRequest: {
+            /**
+             * Approve New
+             * @default false
+             */
+            approve_new: boolean;
+            /** Student Id */
+            student_id?: string | null;
+        };
         /** ResolvedCheck */
         ResolvedCheck: {
             /** Check Id */
@@ -4627,6 +5471,21 @@ export interface components {
             graded_test_id: string;
             /** Status */
             status: string;
+        };
+        /** RosterResponse */
+        RosterResponse: {
+            /** Students */
+            students: components["schemas"]["RosterStudent"][];
+        };
+        /** RosterStudent */
+        RosterStudent: {
+            /** Display Name */
+            display_name: string;
+            /**
+             * Student Id
+             * Format: uuid
+             */
+            student_id: string;
         };
         /**
          * RubricDetailResponse
@@ -4958,6 +5817,15 @@ export interface components {
              */
             rubric_id: string;
             stats: components["schemas"]["RubricStatsSchema"];
+        };
+        /** SaveResponse */
+        SaveResponse: {
+            /** Page Count */
+            page_count: number;
+            /** Saved At */
+            saved_at: string;
+            /** Version No */
+            version_no: number;
         };
         /**
          * SaveRubricWarningsResponse
@@ -5413,6 +6281,25 @@ export interface components {
             /** Status */
             status: string;
         };
+        /**
+         * StudentAssignRequest
+         * @description Exactly one of `student_id` / `create` (§6.10).
+         */
+        StudentAssignRequest: {
+            create?: components["schemas"]["StudentCreate"] | null;
+            /**
+             * Replace Existing
+             * @default false
+             */
+            replace_existing: boolean;
+            /** Student Id */
+            student_id?: string | null;
+        };
+        /** StudentCreate */
+        StudentCreate: {
+            /** Name */
+            name: string;
+        };
         /** StudentDetailResponse */
         StudentDetailResponse: {
             /** Classes */
@@ -5435,6 +6322,16 @@ export interface components {
              */
             signed_tests_count: number;
         };
+        /** StudentLinkInfo */
+        StudentLinkInfo: {
+            exam_label: components["schemas"]["ExamLabel"];
+            own_submission?: components["schemas"]["SubmissionView"] | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "not_yet_open" | "open" | "closed";
+        };
         /** StudentMini */
         StudentMini: {
             /** Full Name */
@@ -5444,6 +6341,16 @@ export interface components {
              * Format: uuid
              */
             id: string;
+        };
+        /** StudentRef */
+        StudentRef: {
+            /** Display Name */
+            display_name: string;
+            /**
+             * Student Id
+             * Format: uuid
+             */
+            student_id: string;
         };
         /**
          * StudentResponse
@@ -5469,6 +6376,26 @@ export interface components {
              * @default 0
              */
             signed_tests_count: number;
+        };
+        /** StudentSubmissionCreateRequest */
+        StudentSubmissionCreateRequest: {
+            /**
+             * Confirm Match
+             * @default false
+             */
+            confirm_match: boolean;
+            /** Name */
+            name: string;
+        };
+        /** StudentSubmissionCreateResponse */
+        StudentSubmissionCreateResponse: {
+            /** Device Secret */
+            device_secret: string;
+            /**
+             * Submission Id
+             * Format: uuid
+             */
+            submission_id: string;
         };
         /**
          * SubCriterion
@@ -5586,6 +6513,40 @@ export interface components {
             /** Name He */
             name_he: string;
         };
+        /** SubmissionView */
+        SubmissionView: {
+            /** Pages */
+            pages: components["schemas"]["PageView"][];
+            /** Pending Student Name */
+            pending_student_name?: string | null;
+            /** Saved At */
+            saved_at?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "student_link" | "teacher";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "saved" | "discarded";
+            student?: components["schemas"]["StudentRef"] | null;
+            /**
+             * Student State
+             * @enum {string}
+             */
+            student_state: "unassigned" | "confirmed" | "pending" | "conflict";
+            /**
+             * Submission Id
+             * Format: uuid
+             */
+            submission_id: string;
+            /** Updated At */
+            updated_at: string;
+            /** Version No */
+            version_no?: number | null;
+        };
         /** SubmitJobResponse */
         SubmitJobResponse: {
             /**
@@ -5631,6 +6592,22 @@ export interface components {
              * @description The ordered primitive edits this fix performs (pipeline ≥ 3.6.0).
              */
             steps?: components["schemas"]["EditStep"][];
+        };
+        /** TeacherCaptureState */
+        TeacherCaptureState: {
+            /**
+             * Batch Id
+             * Format: uuid
+             */
+            batch_id: string;
+            /** Batch Name */
+            batch_name?: string | null;
+            /** Class Name */
+            class_name?: string | null;
+            /** Drafts */
+            drafts: components["schemas"]["SubmissionView"][];
+            /** Saved Count */
+            saved_count: number;
         };
         /**
          * TeacherOverride
@@ -6715,6 +7692,334 @@ export interface operations {
             };
         };
     };
+    create_capture_handoff_api_v0_batches__batch_id__capture_handoff_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureHandoffResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_capture_link_api_v0_batches__batch_id__capture_link_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureLinkResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_capture_link_api_v0_batches__batch_id__capture_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureLinkCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureLinkResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_capture_link_api_v0_batches__batch_id__capture_link_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureLinkPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureLinkResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_capture_link_api_v0_batches__batch_id__capture_link_close_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureLinkResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reopen_capture_link_api_v0_batches__batch_id__capture_link_reopen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureLinkResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_capture_link_api_v0_batches__batch_id__capture_link_rotate_token_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureLinkResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_capture_submissions_api_v0_batches__batch_id__capture_submissions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureSubmissionsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_conflict_api_v0_batches__batch_id__capture_submissions__submission_id__resolve_conflict_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveConflictRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureSubmissionsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_pending_api_v0_batches__batch_id__capture_submissions__submission_id__resolve_pending_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolvePendingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureSubmissionsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     append_batch_file_api_v0_batches__batch_id__files_post: {
         parameters: {
             query?: never;
@@ -6831,6 +8136,867 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReturnedExamManifest"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    exchange_capture_handoff_api_v0_capture_handoff_exchange_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoffExchangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffExchangeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    link_info_api_v0_capture_s__token__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-capture-device"?: string | null;
+            };
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentLinkInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    identify_name_api_v0_capture_s__token__identify_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-capture-device"?: string | null;
+            };
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentifyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_submission_api_v0_capture_s__token__submissions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-capture-device"?: string | null;
+            };
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentSubmissionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentSubmissionCreateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_submission_api_v0_capture_s__token__submissions__submission_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-capture-device"?: string | null;
+            };
+            path: {
+                submission_id: string;
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_api_v0_capture_s__token__submissions__submission_id__order_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-capture-device"?: string | null;
+            };
+            path: {
+                submission_id: string;
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_page_api_v0_capture_s__token__submissions__submission_id__pages_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-capture-device"?: string | null;
+            };
+            path: {
+                submission_id: string;
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageCreateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_page_api_v0_capture_s__token__submissions__submission_id__pages__page_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-capture-device"?: string | null;
+            };
+            path: {
+                submission_id: string;
+                page_id: string;
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_page_api_v0_capture_s__token__submissions__submission_id__pages__page_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-capture-device"?: string | null;
+            };
+            path: {
+                submission_id: string;
+                page_id: string;
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PagePatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_corners_api_v0_capture_s__token__submissions__submission_id__pages__page_id__reset_corners_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-capture-device"?: string | null;
+            };
+            path: {
+                submission_id: string;
+                page_id: string;
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetCornersRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    page_uploaded_api_v0_capture_s__token__submissions__submission_id__pages__page_id__uploaded_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-capture-device"?: string | null;
+            };
+            path: {
+                submission_id: string;
+                page_id: string;
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_api_v0_capture_s__token__submissions__submission_id__save_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-capture-device"?: string | null;
+            };
+            path: {
+                submission_id: string;
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaveResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    capture_state_api_v0_capture_teacher__batch_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeacherCaptureState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    capture_roster_api_v0_capture_teacher__batch_id__students_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_teacher_submission_api_v0_capture_teacher__batch_id__submissions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_submission_api_v0_capture_teacher__batch_id__submissions__submission_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    name_suggest_api_v0_capture_teacher__batch_id__submissions__submission_id__name_suggest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NameSuggestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_api_v0_capture_teacher__batch_id__submissions__submission_id__order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_page_api_v0_capture_teacher__batch_id__submissions__submission_id__pages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageCreateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_page_api_v0_capture_teacher__batch_id__submissions__submission_id__pages__page_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                page_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_page_api_v0_capture_teacher__batch_id__submissions__submission_id__pages__page_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                page_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PagePatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_corners_api_v0_capture_teacher__batch_id__submissions__submission_id__pages__page_id__reset_corners_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                page_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetCornersRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    page_uploaded_api_v0_capture_teacher__batch_id__submissions__submission_id__pages__page_id__uploaded_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                page_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_api_v0_capture_teacher__batch_id__submissions__submission_id__save_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaveResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_student_api_v0_capture_teacher__batch_id__submissions__submission_id__student_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentAssignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionView"];
                 };
             };
             /** @description Validation Error */
