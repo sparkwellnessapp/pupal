@@ -28,6 +28,8 @@ import { FLAG_REASON_LABELS as FLAG_REASON_LABELS_MAP } from '@/types/batch'
  */
 
 export const CHIP_UPLOADING = 'בהעלאה'
+/** [036] An empty batch: the exams have not arrived yet (photos or uploads). */
+export const CHIP_AWAITING_EXAMS = 'ממתין למבחנים'
 export const CHIP_TRANSCRIBING = 'ויוי קוראת את כתב היד'
 export const CHIP_WAITING_APPROVAL = 'ממתין לאישור שלך'
 export const CHIP_GRADING = 'ויוי בודקת'
@@ -56,6 +58,7 @@ export const TURN_UPLOADING = 'עכשיו: המבחנים בהעלאה'
 /** [036] A capture-first batch before its first photographed exam arrives. */
 export const TURN_CAPTURE_OPEN = 'עכשיו: מחכים לצילומי המבחנים'
 export const TURN_CAPTURE_NOT_YET = 'הקישור לצילום ייפתח ביום המבחן'
+export const TURN_AWAITING_EXAMS = 'עכשיו: מחכים למבחנים — אפשר לצלם אותם או ליצור קישור לתלמידים'
 /** No transcription ETA exists on the wire (only a GRADING one), so the
  *  «תורך בעוד כ-N דקות» clause the spec allows is OMITTED rather than filled
  *  from the wrong stage's estimate. See batch-stage.ts. */
