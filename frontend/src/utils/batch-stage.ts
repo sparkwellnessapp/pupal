@@ -36,6 +36,7 @@
 
 import {
     CHIP_DONE, CHIP_FAILED, CHIP_GRADING, CHIP_TRANSCRIBING, CHIP_UPLOADING,
+    TURN_CAPTURE_NOT_YET, TURN_CAPTURE_OPEN,
     CHIP_PARTIAL, CHIP_WAITING_APPROVAL, CHIP_WAITING_SIGNATURE,
     TURN_ALL_FAILED, TURN_PARTIAL,
     TURN_ALL_SIGNED, TURN_GRADED_UNSIGNED, TURN_GRADING_NONE_READY,
@@ -111,6 +112,8 @@ export interface StageBatch {
     rollup: StageRollup
     active_jobs?: readonly { state?: string }[] | null
     eta?: BatchEta | null
+    /** [036, OD-10] The batch's capture link state, when it has one. */
+    capture_link_state?: 'not_yet_open' | 'open' | 'closed' | null
 }
 
 const CHIPS: Record<ChipKey, StageChip> = {
@@ -280,6 +283,21 @@ export function deriveBatchStage(batch: StageBatch): BatchStage {
             step: STEP_OF.grading,
             chip: CHIPS.grading,
             turnLine: TURN_GRADING_NONE_READY(etaMinutes(batch.eta ?? null)),
+        }
+    }
+
+    // ── [036, OD-10] a capture-first batch, before anything arrived ──
+    //
+    // Empty, and a capture link exists: the exams are coming from photos, so
+    // the honest stage is the arrival one, not «הושלם». Without a link an empty
+    // batch still announces nothing (the capture section beside the stepper
+    // says what to do), which is the pre-036 behaviour, unchanged.
+    if (r.total === 0 && (batch.capture_link_state === 'open'
+                          || batch.capture_link_state === 'not_yet_open')) {
+        return {
+            step: STEP_OF.uploading,
+            chip: CHIPS.uploading,
+            turnLine: batch.capture_link_state === 'open' ? TURN_CAPTURE_OPEN : TURN_CAPTURE_NOT_YET,
         }
     }
 

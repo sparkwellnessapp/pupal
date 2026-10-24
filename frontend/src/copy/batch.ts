@@ -53,6 +53,9 @@ export const STEP_LABELS: Record<string, { label: string; owner: string }> = {
 /** ── §5.1B · the turn line, one row per line of the spec's table ──────── */
 
 export const TURN_UPLOADING = 'עכשיו: המבחנים בהעלאה'
+/** [036] A capture-first batch before its first photographed exam arrives. */
+export const TURN_CAPTURE_OPEN = 'עכשיו: מחכים לצילומי המבחנים'
+export const TURN_CAPTURE_NOT_YET = 'הקישור לצילום ייפתח ביום המבחן'
 /** No transcription ETA exists on the wire (only a GRADING one), so the
  *  «תורך בעוד כ-N דקות» clause the spec allows is OMITTED rather than filled
  *  from the wrong stage's estimate. See batch-stage.ts. */

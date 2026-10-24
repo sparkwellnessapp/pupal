@@ -119,6 +119,8 @@ export interface TranscriptionFailureItem {
 
 export interface BatchDetailResponse {
   id: string
+  /** [036, OD-10] The batch's capture link state, when it has one. */
+  capture_link_state?: 'not_yet_open' | 'open' | 'closed' | null
   name: string | null
   rubric_id: string
   class_id: string | null
@@ -162,6 +164,8 @@ export interface BatchDetailResponse {
 
 export interface BatchListItem {
   id: string
+  /** [036, OD-10] The batch's capture link state, when it has one. */
+  capture_link_state?: 'not_yet_open' | 'open' | 'closed' | null
   name: string | null
   rubric_id: string
   class_id: string | null

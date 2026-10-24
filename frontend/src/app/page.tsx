@@ -69,7 +69,7 @@ import {
 } from '@/utils/session-spine';
 import { playCompletionChime, flipTabTitleToReady, restoreTabTitle } from '@/utils/completion-signal';
 import { pushSnapshot, popSnapshot, type RubricSnapshot } from '@/utils/rubric-history';
-import { USE_DOCUMENT_MIRROR } from '@/lib/flags';
+import { CAPTURE_ENABLED, USE_DOCUMENT_MIRROR } from '@/lib/flags';
 import { demoLog } from '@/lib/demo';
 import {
   Upload,
@@ -86,6 +86,7 @@ import {
   ClipboardCheck,
   Home as HomeIcon,
   X,
+  Camera,
 } from 'lucide-react';
 import {
   UPLOAD_CLASS_HINT,
@@ -1046,6 +1047,25 @@ export default function Home() {
    * `begin()` returning false is R10: a queue is already live, so she goes to
    * THAT batch rather than starting a second one behind it.
    */
+  /**
+   * [036, OD-10] The capture-first batch: created with NO files and NO declared
+   * count (nothing will arrive by upload, so there is nothing to declare), then
+   * she lands on the batch, where the capture section takes over.
+   */
+  const handleCaptureBatch = async () => {
+    if (!selectedRubric || batchUploading) return;
+    setBatchUploading(true);
+    setError(null);
+    try {
+      const created = await createBatchMetadata(
+        selectedRubric.id, batchClassId || undefined, batchName.trim() || undefined);
+      router.push(`/batches/${created.batch_id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : UPLOAD_CREATE_ERROR);
+      setBatchUploading(false);
+    }
+  };
+
   const handleGradeAsBatch = async () => {
     if (!selectedRubric || testFiles.length === 0 || batchUploading) return;
     if (uploads.isActive && uploads.batchId) {
@@ -1793,6 +1813,17 @@ export default function Home() {
                       >
                         {UPLOAD_CTA_HELPER}
                       </p>
+                      {CAPTURE_ENABLED && (
+                        <button
+                          onClick={() => void handleCaptureBatch()}
+                          disabled={batchUploading || testFiles.length > 0}
+                          data-testid="capture-cta"
+                          className="mt-3 flex items-center gap-2 rounded-lg border border-primary-500 px-6 py-2 text-primary-700 hover:bg-primary-50 disabled:opacity-50 transition-colors"
+                        >
+                          <Camera size={18} />
+                          צילום מבחנים
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

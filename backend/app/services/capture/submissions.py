@@ -45,6 +45,7 @@ from ..batch_ingest import ingest_batch_pdf
 from . import paths, tokens
 from .actors import NOT_FOUND, CaptureActor, CaptureError, StudentActor, TeacherActor
 from .geometry import FULL_FRAME, InvalidCorners, validate_corners
+from ..batch_triage import normalize_name
 from .naming import identify, same_name
 from .scan_client import get_scan_client
 
@@ -700,6 +701,13 @@ async def batch_rows(db: AsyncSession, batch: GradingBatch) -> CaptureSubmission
         .where(CapturePage.submission_id.in_(sub_ids), CapturePage.deleted_at.is_(None))
         .group_by(CapturePage.submission_id))).all()) if sub_ids else {}
 
+    # The resolve dialog shows a conflict BESIDE what it conflicts with, so every
+    # row sharing a claim (a student id, or a typed name) with a conflict row
+    # gets a preview — and only those.
+    def claim(sub):
+        return ("id", sub.student_id) if sub.student_id is not None             else ("name", normalize_name(sub.pending_student_name or ""))
+    contested = {claim(r[0]) for r in rows_q if r[0].student_state == "conflict"}
+
     rows: list[CaptureSubmissionRow] = []
     confirmed: set[UUID] = set()
     others = 0
@@ -709,7 +717,7 @@ async def batch_rows(db: AsyncSession, batch: GradingBatch) -> CaptureSubmission
         else:
             others += 1
         preview = None
-        if sub.student_state == "conflict":
+        if claim(sub) in contested:
             first = next(iter(await live_pages(db, sub.id)), None)
             preview = (await page_view(first)).preview_url if first else None
         rows.append(CaptureSubmissionRow(
