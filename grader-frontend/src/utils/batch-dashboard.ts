@@ -105,7 +105,15 @@ export function unaccountedCount(rollup: RollupLike): number {
 interface BatchLike {
   rollup: RollupLike
   active_jobs?: Array<{ state?: string }> | null
+  /** [036] the student link's state, when the batch has one */
+  capture_link_state?: 'not_yet_open' | 'open' | 'closed' | null
 }
+
+/** [036] While the student link can still bring exams in, the batch is never
+ *  "nothing to wait for": a photo saved on a phone lands as a job the
+ *  dashboard must show without a reload. Slower than the active cadence —
+ *  arrivals are minutes apart, not seconds. */
+const CAPTURE_ARRIVAL_POLL_MS = 10_000
 
 interface DraftLike {
   answers: Array<{
@@ -301,10 +309,15 @@ export function pollCadenceMs(batch: BatchLike): number | null {
     const nothingInFlight = batch.rollup.total === 0
       && uploadingCount(batch.rollup) === 0
       && (batch.active_jobs ?? []).length === 0
-    return nothingInFlight ? null : 3000
+    if (!nothingInFlight) return 3000
+    return linkCanBringExams(batch) ? CAPTURE_ARRIVAL_POLL_MS : null
   }
   if (batch.rollup.grading > 0) return 5000
-  return null
+  return linkCanBringExams(batch) ? CAPTURE_ARRIVAL_POLL_MS : null
+}
+
+function linkCanBringExams(batch: BatchLike): boolean {
+  return batch.capture_link_state === 'open' || batch.capture_link_state === 'not_yet_open'
 }
 
 

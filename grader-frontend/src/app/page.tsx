@@ -1188,7 +1188,7 @@ export default function Home() {
               <h2 className="text-3xl font-bold text-gray-800 mb-2">במה אני יכולה לעזור?</h2>
               <p className="text-gray-500"> בחרי את הפעולה הרצויה</p>
             </div>
-            <div className={`grid grid-cols-1 gap-6 ${CAPTURE_ENABLED ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <button
                 onClick={() => setMainMode('rubric')}
                 className="bg-white rounded-xl shadow-lg p-8 text-center hover:shadow-xl hover:scale-[1.02] transition-all group"
@@ -1209,20 +1209,24 @@ export default function Home() {
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">בדיקת מבחנים</h3>
                 <p className="text-gray-500 text-sm">בדקי מבחני תלמידים עם מחוון קיים</p>
               </button>
-              {CAPTURE_ENABLED && (
-                <button
-                  onClick={() => { setLinkIntent(true); setGradingStep('select_rubric'); setMainMode('grading') }}
-                  data-testid="home-student-link"
-                  className="bg-white rounded-xl shadow-lg p-8 text-center hover:shadow-xl hover:scale-[1.02] transition-all group"
-                >
-                  <div className="bg-primary-100 text-primary-600 p-4 rounded-full w-fit mx-auto mb-4 group-hover:bg-primary-200 transition-colors">
-                    <Link2 size={32} />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-800 mb-2">{CAPTURE_P.homeLinkTitle}</h3>
-                  <p className="text-gray-500 text-sm">{CAPTURE_P.homeLinkSubtitle}</p>
-                </button>
-              )}
             </div>
+            {/* [036] A SECONDARY action, and it must read as one: below the
+                two main cards, a full-width strip — lighter, smaller, no lift. */}
+            {CAPTURE_ENABLED && (
+              <button
+                onClick={() => { setLinkIntent(true); setGradingStep('select_rubric'); setMainMode('grading') }}
+                data-testid="home-student-link"
+                className="mt-6 flex w-full items-center gap-4 rounded-xl border border-surface-200 bg-white/80 px-5 py-4 text-right shadow-sm transition-colors hover:border-primary-300 hover:bg-white group"
+              >
+                <span className="shrink-0 rounded-full bg-primary-50 p-2.5 text-primary-600 transition-colors group-hover:bg-primary-100">
+                  <Link2 size={20} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold text-gray-800">{CAPTURE_P.homeLinkTitle}</span>
+                  <span className="block text-sm text-gray-500">{CAPTURE_P.homeLinkSubtitle}</span>
+                </span>
+              </button>
+            )}
           </div>
         )}
 

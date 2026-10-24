@@ -197,6 +197,21 @@ describe('pollCadenceMs (D12)', () => {
       rollup: rollup({ total: 1 }), active_jobs: [],
     })).toBe(3000)
   })
+
+  it('[036] keeps listening while the student link can still bring exams in', () => {
+    // A capture batch starts EMPTY, and a finished one can still receive a
+    // late photo: with a live link neither stops the poll (or the exams a
+    // student saves never appear without a reload). A closed link, or none,
+    // keeps the old rule.
+    const empty = { rollup: rollup({}), active_jobs: [] }
+    expect(pollCadenceMs({ ...empty, capture_link_state: 'open' })).toBe(10_000)
+    expect(pollCadenceMs({ ...empty, capture_link_state: 'not_yet_open' })).toBe(10_000)
+    expect(pollCadenceMs({ ...empty, capture_link_state: 'closed' })).toBeNull()
+    expect(pollCadenceMs(empty)).toBeNull()
+    const signed = { rollup: rollup({ approved_transcription: 2, approved: 2, total: 2 }), active_jobs: [] }
+    expect(pollCadenceMs({ ...signed, capture_link_state: 'open' })).toBe(10_000)
+    expect(pollCadenceMs(signed)).toBeNull()
+  })
 })
 
 describe('completionReached (D10)', () => {

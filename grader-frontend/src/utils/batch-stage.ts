@@ -36,7 +36,7 @@
 
 import {
     CHIP_DONE, CHIP_FAILED, CHIP_GRADING, CHIP_TRANSCRIBING, CHIP_UPLOADING,
-    TURN_CAPTURE_NOT_YET, TURN_CAPTURE_OPEN,
+    CHIP_AWAITING_EXAMS, TURN_AWAITING_EXAMS, TURN_CAPTURE_NOT_YET, TURN_CAPTURE_OPEN,
     CHIP_PARTIAL, CHIP_WAITING_APPROVAL, CHIP_WAITING_SIGNATURE,
     TURN_ALL_FAILED, TURN_PARTIAL,
     TURN_ALL_SIGNED, TURN_GRADED_UNSIGNED, TURN_GRADING_NONE_READY,
@@ -69,6 +69,8 @@ export type ChipKey =
      */
     | 'partial'
     | 'failed'
+    /** [036] nothing has arrived yet — the arrival stage, never «הושלם» */
+    | 'awaiting_exams'
 
 export type ChipTone = 'blue' | 'amber' | 'green' | 'red'
 
@@ -129,6 +131,7 @@ const CHIPS: Record<ChipKey, StageChip> = {
     done: { key: 'done', label: CHIP_DONE, tone: 'green' },
     partial: { key: 'partial', label: CHIP_PARTIAL, tone: 'amber' },
     failed: { key: 'failed', label: CHIP_FAILED, tone: 'red' },
+    awaiting_exams: { key: 'awaiting_exams', label: CHIP_AWAITING_EXAMS, tone: 'blue' },
 }
 
 const STEP_OF: Record<ChipKey, BatchStep> = {
@@ -143,6 +146,7 @@ const STEP_OF: Record<ChipKey, BatchStep> = {
     // shows the stage the work died in, which is transcription in every case
     // `_derive_batch_status` can reach 'failed' from.
     failed: 'transcribe',
+    awaiting_exams: 'upload',
 }
 
 /**
@@ -286,18 +290,23 @@ export function deriveBatchStage(batch: StageBatch): BatchStage {
         }
     }
 
-    // ── [036, OD-10] a capture-first batch, before anything arrived ──
+    // ── [036, OD-10] an EMPTY batch: its exams have not arrived yet ──
     //
-    // Empty, and a capture link exists: the exams are coming from photos, so
-    // the honest stage is the arrival one, not «הושלם». Without a link an empty
-    // batch still announces nothing (the capture section beside the stepper
-    // says what to do), which is the pre-036 behaviour, unchanged.
-    if (r.total === 0 && (batch.capture_link_state === 'open'
-                          || batch.capture_link_state === 'not_yet_open')) {
+    // Before capture an empty batch barely existed (every batch was created
+    // with its files), and the rule here was "announce nothing" — which fell
+    // through to the terminal branch and drew «הושלם» over every step ticked.
+    // A capture batch STARTS empty (the home card, «צילום מבחנים»), so that
+    // was the first thing a teacher saw on it (2026-10-24, owner screenshot).
+    // Empty and nothing lost is the ARRIVAL stage, link or no link; the turn
+    // line says what is coming, or what she can do to make it come.
+    const lost = r.transcription_failed + r.failed + (r.not_received ?? 0)
+    if (r.total === 0 && lost === 0) {
         return {
-            step: STEP_OF.uploading,
-            chip: CHIPS.uploading,
-            turnLine: batch.capture_link_state === 'open' ? TURN_CAPTURE_OPEN : TURN_CAPTURE_NOT_YET,
+            step: STEP_OF.awaiting_exams,
+            chip: CHIPS.awaiting_exams,
+            turnLine: batch.capture_link_state === 'open' ? TURN_CAPTURE_OPEN
+                : batch.capture_link_state === 'not_yet_open' ? TURN_CAPTURE_NOT_YET
+                : TURN_AWAITING_EXAMS,
         }
     }
 

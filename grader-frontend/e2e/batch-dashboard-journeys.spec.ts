@@ -232,7 +232,9 @@ test('polling stops when every state is terminal', async ({ page }) => {
     await page.route('**/api/v0/**', async (route) => {
         const url = route.request().url();
         if (url.includes('/api/v0/auth/me')) return fulfillJson(route, AUTH_ME);
-        if (url.includes(`/api/v0/batches/${SEED_BATCH_ID}`)) {
+        // The batch endpoint ITSELF: the capture section's sub-resources share
+        // its prefix and are not the poll this test is about.
+        if (url.split('?')[0].endsWith(`/api/v0/batches/${SEED_BATCH_ID}`)) {
             batchCalls += 1;
             return fulfillJson(route, terminal);
         }

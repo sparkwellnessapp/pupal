@@ -16,13 +16,14 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Camera, Copy, Link2, MessageCircle, QrCode as QrIcon, RotateCcw, X } from 'lucide-react'
+import { Camera, Copy, Link2, Loader2, MessageCircle, QrCode as QrIcon, RotateCcw, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Modal } from '@/components/batch/Modal'
 import { StudentPicker } from '@/components/StudentPicker'
 import { P, hhmm } from '@/copy/capture'
-import { listClasses, retryBatchJob } from '@/lib/api'
+import { listClasses, listStudents, retryBatchJob } from '@/lib/api'
+import { addStudentsToClass } from '@/lib/class-membership'
 import {
   CaptureApiError, closeCaptureLink, createCaptureHandoff, createCaptureLink, getCaptureLink,
   listCaptureSubmissions, reopenCaptureLink, resolveConflict, resolvePending,
@@ -30,7 +31,11 @@ import {
 import type { CaptureLink, CaptureSubmissionRow, CaptureSubmissionsResponse } from '@/types/capture'
 import { normalizeName } from '@/utils/batch-partition'
 
+import { NewClassStudents, type RosterOption } from './NewClassStudents'
 import { QrCode } from './QrCode'
+
+/** The class dropdown's «create one here» entry. */
+const NEW_CLASS = '__new__'
 
 function todayIsrael(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(new Date())
@@ -148,22 +153,29 @@ function LinkPanel({ batchId, link, hasClass, onLink, focus = false }: {
   const formRef = useRef<HTMLDivElement>(null)
   const createRef = useRef<HTMLButtonElement>(null)
   const classRef = useRef<HTMLSelectElement>(null)
-  // Once, when the form first appears: bring it into view and put her on its
-  // FIRST step — the class when the batch has none (the create button is
-  // disabled until one is chosen), else the create button.
+  const newNameRef = useRef<HTMLInputElement>(null)
+  const [examDate, setExamDate] = useState(todayIsrael())
+  // null until loaded. A teacher with no class yet starts on «כיתה חדשה».
+  const [classes, setClasses] = useState<{ id: string; name: string }[] | null>(null)
+  const [choice, setChoice] = useState<string>('')
+  const [newClass, setNewClass] = useState('')
+  const [roster, setRoster] = useState<RosterOption[]>([])
+  const [assigned, setAssigned] = useState<Set<string>>(new Set())
+  const [busy, setBusy] = useState(false)
+  const creatingClass = choice === NEW_CLASS
+  // Once, when the form is ready: bring it into view and put her on its FIRST
+  // step — the class when the batch has none (the create button is disabled
+  // until one is chosen; the new-class name when she has no class at all),
+  // else the create button.
   const focused = useRef(false)
+  const ready = hasClass || classes !== null
   useEffect(() => {
-    if (!focus || link || focused.current || !formRef.current) return
+    if (!focus || link || !ready || focused.current || !formRef.current) return
     focused.current = true
     formRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    ;(hasClass ? createRef.current : classRef.current)?.focus({ preventScroll: true })
-  }, [focus, link, hasClass])
-  const [examDate, setExamDate] = useState(todayIsrael())
-  const [classes, setClasses] = useState<{ id: string; name: string }[]>([])
-  const [classId, setClassId] = useState<string>('')
-  const [newClass, setNewClass] = useState('')
-  const [mode, setMode] = useState<'pick' | 'new'>('pick')
-  const [busy, setBusy] = useState(false)
+    const target = hasClass ? createRef.current : creatingClass ? newNameRef.current : classRef.current
+    target?.focus({ preventScroll: true })
+  }, [focus, link, ready, hasClass, creatingClass])
   const [error, setError] = useState<string | null>(null)
   const [qr, setQr] = useState(false)
 
@@ -175,8 +187,43 @@ function LinkPanel({ batchId, link, hasClass, onLink, focus = false }: {
   }, [qr])
 
   useEffect(() => {
-    if (!hasClass && !link) listClasses().then((r) => setClasses(r.classes.map((c) => ({ id: c.id, name: c.name })))).catch(() => undefined)
+    if (hasClass || link) return
+    listClasses().then((r) => {
+      const list = r.classes.map((c) => ({ id: c.id, name: c.name }))
+      setClasses(list)
+      if (list.length === 0) setChoice(NEW_CLASS)
+    }).catch(() => setClasses([]))
   }, [hasClass, link])
+
+  // Her students, for the new class's «which of them» step — loaded once she
+  // chooses to create one.
+  useEffect(() => {
+    if (!creatingClass || roster.length > 0) return
+    listStudents().then((r) => setRoster(r.students.map((s) => ({ id: s.id, full_name: s.full_name }))))
+      .catch(() => undefined)
+  }, [creatingClass, roster.length])
+
+  const create = async () => {
+    setBusy(true); setError(null)
+    try {
+      const made = await createCaptureLink(batchId, {
+        exam_date: examDate,
+        ...(hasClass ? {} : creatingClass ? { new_class_name: newClass.trim() } : { class_id: choice }),
+      })
+      // The class exists now (created with the link, in one transaction):
+      // put her chosen students in it. A partial failure is said, never
+      // hidden — and the link is created either way.
+      if (creatingClass && assigned.size > 0 && made.class_id) {
+        const { failed } = await addStudentsToClass(made.class_id, [...assigned])
+        if (failed > 0) toast.error(P.assignFailed(failed))
+      }
+      onLink(made)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const act = async (fn: () => Promise<CaptureLink>) => {
     setBusy(true); setError(null)
@@ -196,32 +243,37 @@ function LinkPanel({ batchId, link, hasClass, onLink, focus = false }: {
                  className="mt-1 block rounded-lg border border-batch-line px-3 py-2" />
         </label>
         {!hasClass && (
-          <fieldset className="space-y-2 text-sm">
-            <legend className="text-batch-ink">{P.className}</legend>
-            <div className="flex gap-3">
-              <label><input type="radio" checked={mode === 'pick'} onChange={() => setMode('pick')} /> {P.pickClass}</label>
-              <label><input type="radio" checked={mode === 'new'} onChange={() => setMode('new')} /> {P.newClass}</label>
-            </div>
-            {mode === 'pick' ? (
-              <select ref={classRef} value={classId} onChange={(e) => setClassId(e.target.value)}
-                      className="block w-full rounded-lg border border-batch-line px-3 py-2">
-                <option value="">—</option>
-                {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          <div className="space-y-2 text-sm">
+            <label className="block text-batch-ink">
+              {P.className}
+              <select ref={classRef} value={choice} disabled={classes === null || busy}
+                      onChange={(e) => setChoice(e.target.value)}
+                      data-testid="capture-class-select"
+                      className="mt-1 block w-full rounded-lg border border-batch-line px-3 py-2">
+                <option value="" disabled>{P.pickClass}</option>
+                {(classes ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <option value={NEW_CLASS}>{P.newClassOption}</option>
               </select>
-            ) : (
-              <input value={newClass} onChange={(e) => setNewClass(e.target.value)} placeholder={P.newClassName}
-                     className="block w-full rounded-lg border border-batch-line px-3 py-2" />
+            </label>
+            {creatingClass && (
+              <>
+                <input ref={newNameRef} value={newClass} onChange={(e) => setNewClass(e.target.value)}
+                       placeholder={P.newClassName} aria-label={P.newClassName} disabled={busy}
+                       data-testid="capture-new-class-name"
+                       className="block w-full rounded-lg border border-batch-line px-3 py-2" />
+                {roster.length > 0
+                  ? <NewClassStudents roster={roster} selected={assigned} onChange={setAssigned} disabled={busy} />
+                  : <p className="text-xs text-batch-muted">{P.newClassNoStudents}</p>}
+              </>
             )}
-          </fieldset>
+          </div>
         )}
         {error && <p className="text-sm text-batch-red-ink" role="alert">{error}</p>}
-        <button type="button" ref={createRef} disabled={busy || (!hasClass && (mode === 'pick' ? !classId : !newClass.trim()))}
-                onClick={() => void act(() => createCaptureLink(batchId, {
-                  exam_date: examDate,
-                  ...(hasClass ? {} : mode === 'pick' ? { class_id: classId } : { new_class_name: newClass.trim() }),
-                }))}
-                className="rounded-lg bg-primary-600 px-4 py-2 text-sm text-white disabled:opacity-50">
-          {P.createLink}
+        <button type="button" ref={createRef}
+                disabled={busy || (!hasClass && (creatingClass ? !newClass.trim() : !choice))}
+                onClick={() => void create()}
+                className="flex min-h-[44px] items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm text-white disabled:opacity-50">
+          {busy && <Loader2 size={14} className="animate-spin" />}{P.createLink}
         </button>
       </div>
     )
