@@ -82,7 +82,8 @@ class FlagVerdict:
     review_needed: bool
     # Subset of: "unparseable", "grounding_retry", "low_confidence",
     #            "low_logprob_span", "missing_answers",
-    #            "segmentation_mismatch", "student_unassigned", "student_unmatched"
+    #            "segmentation_mismatch", "student_unassigned", "student_unmatched",
+    #            "capture_student_pending", "capture_conflict"  (036)
     # Deduplicated and ordered for stable display.
     reasons: list[str] = field(default_factory=list)
 
@@ -97,6 +98,7 @@ def compute_flag_verdict(
     student_match: StudentMatchResult,
     confidence_threshold: float = _DEFAULT_CONFIDENCE_THRESHOLD,
     selection_groups: Iterable[AnswerSpaceSelectionGroup] = (),
+    capture_state: str | None = None,
 ) -> FlagVerdict:
     """
     Aggregate all transcription-quality signals into a single review-needed verdict.
@@ -173,8 +175,16 @@ def compute_flag_verdict(
         elif ans.confidence < confidence_threshold:
             reasons.append("low_confidence")
 
-    # Student match signal (see docstring: captured-but-unassigned vs no-name)
-    if student_match.match_confidence != "exact":
+    # Student match signal (see docstring: captured-but-unassigned vs no-name).
+    # [036, OD-3] A capture-sourced transcription's student is the capture
+    # submission's (services/capture/overlay.py): a PENDING typed name or a
+    # CONFLICT is never clean — each needs her one decision, individually —
+    # and a CONFIRMED student arrives here as an exact `student_match`.
+    if capture_state == "pending":
+        reasons.append("capture_student_pending")
+    elif capture_state == "conflict":
+        reasons.append("capture_conflict")
+    elif student_match.match_confidence != "exact":
         if (draft.student_name_suggestion or "").strip():
             reasons.append("student_unassigned")
         else:

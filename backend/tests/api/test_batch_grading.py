@@ -998,8 +998,10 @@ class TestRollupAccountingAndReadOrder:
         from app.api.v0 import batch_grading
         for endpoint in (batch_grading.get_batch, batch_grading.list_batches):
             src = inspect.getsource(endpoint)
-            jobs_at = src.index("select(TranscriptionJob)")
-            rows_at = src.index("select(Transcription)")
+            # [036, OD-2] both reads go through the live-row predicates in
+            # services/batch_ingest (withdrawn jobs filtered) — same order rule.
+            jobs_at = src.index("live_jobs(")
+            rows_at = src.index("live_transcriptions(")
             assert jobs_at < rows_at, (
                 f"{endpoint.__name__}: `transcriptions` is read before `jobs`; "
                 "a document landing between the two reads as a completed job "

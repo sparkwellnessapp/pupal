@@ -292,6 +292,37 @@ class Settings(BaseSettings):
     # staying far under Cloud Run's 32MB request ceiling).
     batch_max_upload_file_mb: int = 20
 
+    # ── In-house scanning (PR_in_house_scanning.md §6.12, migration 036) ──
+    # The feature flag: off ⇒ every capture route answers 404 and nothing else
+    # in the batch flow changes.
+    capture_enabled: bool = False
+    # The private scan-service (Cloud Run, IAM-invoked; the audience of the ID
+    # token the backend mints for it). Unset ⇒ analysis degrades to the full
+    # frame (D9) and a capture job's step 0 fails the job, retryably.
+    scan_service_url: Optional[str] = None
+    # Every capture link's token is HMAC(this, link id, generation) (OD-4).
+    # Rotating THIS invalidates every link at once — the emergency lever.
+    capture_token_secret: Optional[SecretStr] = None
+    # The pipeline version the backend pins on every frozen capture version;
+    # scan-service refuses any other at /compile (409 — deploy skew is loud).
+    scan_pipeline_version: str = "scan-v1.0"
+    capture_max_pages: int = 20                   # SCN-1
+    capture_max_submissions_per_link: int = 150   # D12
+    capture_max_file_bytes: int = 52_428_800      # R2: the silent 50 MB cap
+    capture_upload_url_minutes: int = 15          # signed PUT / GET lifetime
+    capture_handoff_ttl_minutes: int = 10         # D2: the one-time QR token
+    capture_session_ttl_hours: int = 12           # D2: the phone's batch-scoped session
+    # Per-photo analysis is synchronous: past this the page falls back to the
+    # full frame and the user can still adjust and save (D9).
+    scan_analyze_timeout_s: float = 10.0
+    # Step 0 of a capture job (compile the PDF) — clamped to the document's
+    # remaining wall budget (transcription_task_budget_s) at call time.
+    scan_compile_timeout_s: float = 300.0
+    # The teacher-page name suggestion (§6.9, SCN-10/12): a fast vision model
+    # behind the identity pass's own provider set; 8 s and it never blocks.
+    scan_name_model: str = "gemini-3.5-flash"
+    scan_name_timeout_s: float = 8.0
+
     # Cloud Tasks migration — batch transcription + grading job kinds.
     # Execution mode for the NEW kinds; None ⇒ falls back to
     # extraction_execution_mode, so existing dev (.env inline) and prod

@@ -122,7 +122,9 @@ async def _delete_rows(db: AsyncSession, plan: PurgePlan) -> dict[str, int]:
     if plan.batch_recounts:
         await db.execute(text(
             "UPDATE grading_batches b SET test_count ="
-            " (SELECT COUNT(*) FROM transcription_jobs j WHERE j.batch_id = b.id)"
+            # LIVE jobs — the same count ingest_batch_pdf keeps (OD-2).
+            " (SELECT COUNT(*) FROM transcription_jobs j WHERE j.batch_id = b.id"
+            "    AND j.withdrawn_at IS NULL)"
             " WHERE b.id = ANY(:b)"), {"b": list(plan.batch_recounts)})
 
     # LAST — and by then nothing may still reference her, or this raises.

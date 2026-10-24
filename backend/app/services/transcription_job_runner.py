@@ -41,6 +41,7 @@ from ..models.grading import Rubric
 from ..models.transcription import Transcription
 from ..models.transcription_job import TranscriptionJob
 from .transcribe_one import run_pipeline_and_build_draft
+from .capture.compile import CaptureCompileFailed
 from .transcription.budget import BudgetExceeded
 from .transcription.vlm_provider import VLMCallError
 
@@ -140,12 +141,26 @@ async def run_transcription_job(job_id: UUID) -> bool:
             object_path = job.source_gcs_object_path
             filename = job.source_filename
             doc_priority = job.doc_priority
+            capture_version_id = job.capture_version_id
 
             rubric: Optional[Rubric] = await db.get(Rubric, rubric_id)
             if rubric is None:
                 raise ValueError(f"Rubric {rubric_id} not found")
             spec_source = rubric.draft_json or rubric.contract_json
             subject = rubric.subject  # the durable key (migration 027); selects the P1 profile
+
+        # [036, OD-1] STEP 0 — a capture-sourced job was born at save, before
+        # its PDF existed: compile it now (idempotent — skipped when the object
+        # is there). INSIDE the document's wall budget, and leaving the
+        # pipeline the runway a full run needs, so a slow compile fails at this
+        # boundary instead of starving P1.
+        if capture_version_id is not None:
+            from .capture.compile import ensure_capture_pdf
+            await ensure_capture_pdf(
+                job_id=job_id, capture_version_id=capture_version_id,
+                object_path=object_path,
+                deadline_s=(settings.transcription_task_budget_s
+                            - (time.monotonic() - t0) - _DOC_RERUN_MIN_BUDGET_S))
 
         # Source bytes were persisted at intake — download, don't re-upload.
         from .gcs_service import get_gcs_service
@@ -232,6 +247,17 @@ async def run_transcription_job(job_id: UUID) -> bool:
                 transcription.id, job_id, batch_id,
                 draft.transcription_duration_ms, time.monotonic() - t0,
             )
+        return True
+
+    except CaptureCompileFailed as exc:
+        # Like the budget below: terminal, retryable, and NOT a network verdict
+        # — a missing photo or a version skew is a fact about the scan, and
+        # sending her to check her WiFi over it would be a lie.
+        logger.warning("transcription_job_capture_compile_failed job_id=%s: %s", job_id, exc)
+        try:
+            await _fail_job(job_id, exc, None)
+        except Exception:
+            logger.exception("transcription_failure_write_failed job_id=%s", job_id)
         return True
 
     except BudgetExceeded as exc:

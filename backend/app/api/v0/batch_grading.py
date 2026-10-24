@@ -65,7 +65,16 @@ from ...schemas.transcription import (
     TranscriptionDraft,
     TranscriptionReview,
 )
+from ...services.batch_ingest import (
+    count_live_jobs,
+    enqueue_transcription_or_mark_failed,
+    ingest_batch_pdf,
+    is_withdrawn_transcription,
+    live_jobs,
+    live_transcriptions,
+)
 from ...services.batch_triage import FlagVerdict, compute_flag_verdict, match_student
+from ...services.capture.overlay import capture_students, overlay_for, sync_on_approval
 from ...services.selection_expectation import answer_space_groups
 from ...services.thumbnail import page_image_path
 from ...services.returned_exam_store import (
@@ -102,28 +111,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v0/batches", tags=["batches"])
 internal_router = APIRouter(prefix="/internal/transcription-jobs", tags=["internal"])
 
+#: [036, OD-2] Accept / retry of a WITHDRAWN item — a newer version of the
+#: same capture submission replaced it, or the submission was discarded.
+WITHDRAWN_DETAIL = "נשלחה גרסה חדשה של המבחן הזה — הגרסה הקודמת כבר לא חלק מהקבוצה"
+
 async def _enqueue_transcription_or_mark_failed(job_id: UUID) -> None:
-    """Hand a committed job to the substrate (Cloud Tasks migration). If the
-    enqueue itself fails, the row must not rot as unreachable-'queued' — mark
-    it failed so the teacher sees a durable, retryable state (the retry
-    endpoint re-enqueues from GCS). Own short session: the request session is
-    closed by the time this runs."""
-    try:
-        await enqueue_transcription_task(job_id)
-    except Exception as e:
-        logger.exception("transcription_enqueue_failed",
-                         extra={"job_id": str(job_id)})
-        now = datetime.now(timezone.utc)
-        async with get_db_context() as db:
-            await db.execute(
-                update(TranscriptionJob)
-                .where(TranscriptionJob.id == job_id,
-                       TranscriptionJob.status == "queued")
-                .values(status="failed",
-                        error_message=f"enqueue failed: {type(e).__name__}: {str(e)[:300]}",
-                        finished_at=now, updated_at=now)
-            )
-            await db.commit()
+    """`services/batch_ingest.enqueue_transcription_or_mark_failed`, handed
+    THIS module's `enqueue_transcription_task` — looked up at call time, so a
+    test patching the router's name still patches the one implementation."""
+    await enqueue_transcription_or_mark_failed(job_id, enqueue=enqueue_transcription_task)
 
 
 # ---------------------------------------------------------------------------
@@ -704,30 +700,14 @@ async def append_batch_file(
     # ── Append serialization (B9.4): FOR UPDATE on the batch row makes
     # doc_priority = current job count race-free under the client's parallel
     # uploads. The lock is held for the count+insert+commit only — never
-    # across the GCS round-trip above. ──
-    locked_batch = (await db.execute(
-        select(GradingBatch).where(GradingBatch.id == batch_id).with_for_update()
-    )).scalar_one()
-    count = int((await db.execute(
-        select(func.count()).select_from(TranscriptionJob)
-        .where(TranscriptionJob.batch_id == batch_id)
-    )).scalar_one())
-    job = TranscriptionJob(
-        user_id=current_user.id,
-        batch_id=batch_id,
-        rubric_id=locked_batch.rubric_id,
-        status="queued",
-        source_gcs_object_path=object_path,
-        source_filename=file.filename,
-        doc_priority=count,              # upload order — within-doc depth-first
-        client_file_id=client_file_id,
-    )
-    db.add(job)
-    # test_count maintained under the same lock — the column stays honest for
-    # humans reading the table, but the rollup's truth for jobs-batches is
-    # COUNT(jobs) (B9.5).
-    locked_batch.test_count = count + 1
+    # across the GCS round-trip above. ONE ingestion path (§6.7): capture save
+    # inserts its job through the same function. ──
     try:
+        job = await ingest_batch_pdf(
+            db, batch_id=batch_id, user_id=current_user.id, object_path=object_path,
+            filename=file.filename, client_file_id=client_file_id,
+        )
+        count = job.doc_priority
         await db.commit()
     except IntegrityError:
         # Concurrent duplicate of the same client_file_id: the partial unique
@@ -829,12 +809,12 @@ async def list_batches(
         # transcription visible to the later read, so this list can never show
         # a batch as further along than it is. (The list's chip is derived by
         # the same client function as the dashboard's.)
-        jobs = (await db.execute(
-            select(TranscriptionJob).where(TranscriptionJob.batch_id == batch.id)
-        )).scalars().all()
-        transcriptions = (await db.execute(
-            select(Transcription).where(Transcription.batch_id == batch.id)
-        )).scalars().all()
+        # [OD-2] a withdrawn job (superseded / discarded capture) and its scan
+        # are not part of the batch — filtered by the ONE predicate pair.
+        jobs = (await db.execute(live_jobs(batch.id))).scalars().all()
+        transcriptions = (await db.execute(live_transcriptions(batch.id))).scalars().all()
+        overlays = await capture_students(
+            db, [t.id for t in transcriptions if t.status == "transcribed"])
         graded_tests = (await db.execute(
             select(GradedTest).where(
                 GradedTest.batch_id == batch.id,
@@ -867,9 +847,11 @@ async def list_batches(
                                extra={"transcription_id": str(t.id)})
                 needs_eyes_count += 1
                 continue
+            ov = overlay_for(t, overlays)
             v = compute_flag_verdict(
-                d, match_student(d.student_name_suggestion, roster),
+                d, ov.match() if ov else match_student(d.student_name_suggestion, roster),
                 selection_groups=selection_groups,
+                capture_state=ov.verdict_state if ov else None,
             )
             if _needs_eyes(t, v):
                 needs_eyes_count += 1
@@ -926,10 +908,7 @@ async def rename_batch(
     # session — so validating after the rename would push a half-applied PATCH
     # to the database on its way to raising 422.
     if body.expected_test_count is not None:
-        landed = int((await db.execute(
-            select(func.count()).select_from(TranscriptionJob)
-            .where(TranscriptionJob.batch_id == batch_id)
-        )).scalar_one())
+        landed = await count_live_jobs(db, batch_id)
         if body.expected_test_count < landed:
             raise HTTPException(
                 status_code=422,
@@ -1174,20 +1153,21 @@ async def get_batch(
     # transcribed" — the honest «ויוי מתמללת» — and corrects itself on the next
     # poll. This relies on the runner's single-transaction invariant, which its
     # own docstring and tests already make load-bearing.
+    # [OD-2] live jobs only — a withdrawn job is not part of the batch.
     jobs = list((await db.execute(
-        select(TranscriptionJob)
-        .where(TranscriptionJob.batch_id == batch_id)
-        .order_by(TranscriptionJob.doc_priority)
+        live_jobs(batch_id).order_by(TranscriptionJob.doc_priority)
     )).scalars().all())
 
     # Deterministic order (Δ10): without ORDER BY, Postgres row order is
     # unspecified and can change between polls — the review route's prev/next
     # cursor depends on this being stable. (created_at, id) = upload order.
     transcriptions = (await db.execute(
-        select(Transcription)
-        .where(Transcription.batch_id == batch_id)
+        live_transcriptions(batch_id)
         .order_by(Transcription.created_at, Transcription.id)
     )).scalars().all()
+    # [OD-3] capture-sourced scans take their student from the submission.
+    overlays = await capture_students(
+        db, [t.id for t in transcriptions if t.status == "transcribed"])
 
     graded_tests = (await db.execute(
         select(GradedTest).where(
@@ -1226,9 +1206,12 @@ async def get_batch(
     needs_eyes_count = 0
     for t in transcriptions:
         draft = TranscriptionDraft.model_validate(t.draft_json)
-        student_match = match_student(draft.student_name_suggestion, roster)
+        ov = overlay_for(t, overlays)
+        student_match = (ov.match() if ov
+                         else match_student(draft.student_name_suggestion, roster))
         verdict: FlagVerdict = compute_flag_verdict(
-            draft, student_match, selection_groups=selection_groups
+            draft, student_match, selection_groups=selection_groups,
+            capture_state=ov.verdict_state if ov else None,
         )
         # Ruling 1: counted from the SAME verdict this endpoint already
         # computed for the item — the detail page and the list page can never
@@ -1246,7 +1229,8 @@ async def get_batch(
                 TranscriptionReview.model_validate(t.review_json)
                 if t.review_json is not None else None
             ),
-            student_name_suggestion=draft.student_name_suggestion,
+            student_name_suggestion=(ov.suggestion() if ov
+                                     else draft.student_name_suggestion),
             matched_student_id=student_match.student_id,
             matched_student_name=student_match.student_name,
             flag_verdict=FlagVerdictResponse(
@@ -1510,6 +1494,10 @@ async def accept_clean(
             current_filename = transcription.filename
             if transcription.batch_id != batch_id:
                 raise HTTPException(400, f"Transcription {item.transcription_id} does not belong to batch {batch_id}")
+            # [OD-2] A withdrawn scan is not part of the batch: refused like
+            # any item that does not belong (named, nothing accepted).
+            if await is_withdrawn_transcription(db, transcription.id):
+                raise HTTPException(409, WITHDRAWN_DETAIL)
             if transcription.status != "transcribed":
                 # Idempotent repost / approved via another path — reported, not
                 # silently dropped (B1: the dashboard surfaces every skip).
@@ -1533,10 +1521,12 @@ async def accept_clean(
             # B1/OD1 — server-side clean enforcement: recompute the verdict with
             # the live roster + selection groups. A flagged item never freezes a
             # machine-text contract, no matter what the client selected.
+            ov = (await capture_students(db, [transcription.id])).get(transcription.id)
             verdict = compute_flag_verdict(
                 draft,
-                match_student(draft.student_name_suggestion, roster),
+                ov.match() if ov else match_student(draft.student_name_suggestion, roster),
                 selection_groups=selection_groups,
+                capture_state=ov.verdict_state if ov else None,
             )
             if verdict.review_needed:
                 skipped.append(AcceptCleanSkippedItem(
@@ -1571,6 +1561,8 @@ async def accept_clean(
             # null-out is uniform across all three approval paths: part of the
             # transition write, not a mutation of an approved row (LCY-1).
             transcription.review_json = None
+            # [OD-3] the approved student becomes the capture submission's.
+            await sync_on_approval(db, transcription.id, student.id)
 
             # Insert pending graded_test with batch_id
             graded_test = GradedTest(
@@ -1672,6 +1664,8 @@ async def accept_one(
 
     if transcription.batch_id != batch_id:
         raise HTTPException(400, f"Transcription {transcription_id} does not belong to batch {batch_id}")
+    if await is_withdrawn_transcription(db, transcription.id):
+        raise HTTPException(409, WITHDRAWN_DETAIL)              # [OD-2]
     if transcription.status != "transcribed":
         return {"accepted": 0, "message": "already accepted"}
 
@@ -1705,6 +1699,8 @@ async def accept_one(
     # Part of the 'transcribed'→'approved' transition write, not a mutation of
     # an approved row (LCY-1): the overlay's job ends at approval.
     transcription.review_json = None
+    # [OD-3] the approved student becomes the capture submission's.
+    await sync_on_approval(db, transcription.id, student.id)
 
     graded_test = GradedTest(
         user_id=current_user.id,
@@ -1758,12 +1754,22 @@ async def retry_transcription_job(
     claims, and increments again at the next claim)."""
     await get_owned_or_404(db, GradingBatch, batch_id, current_user.id)
 
+    # [OD-2] a withdrawn job is not part of the batch — a newer version of the
+    # same submission replaced it, and retrying it would resurrect the old one.
+    withdrawn = (await db.execute(
+        select(TranscriptionJob.withdrawn_at).where(
+            TranscriptionJob.id == job_id, TranscriptionJob.batch_id == batch_id)
+    )).scalar_one_or_none()
+    if withdrawn is not None:
+        raise HTTPException(status_code=409, detail=WITHDRAWN_DETAIL)
+
     now = datetime.now(timezone.utc)
     result = await db.execute(
         update(TranscriptionJob)
         .where(
             TranscriptionJob.id == job_id,
             TranscriptionJob.batch_id == batch_id,
+            TranscriptionJob.withdrawn_at.is_(None),
             ((TranscriptionJob.status == "failed") | job_expired_condition(now)),
         )
         .values(status="queued", error_message=None, net_verdict=None,

@@ -97,13 +97,26 @@ class GCSService:
         """Download object content from GCS."""
         return self.bucket.blob(object_path).download_as_bytes()
 
+    def object_size(self, object_path: str) -> Optional[int]:
+        """The object's size in bytes from its metadata, or None when it does
+        not exist — the capture upload confirmation reads this (SCN-6)."""
+        blob = self.bucket.get_blob(object_path)
+        return None if blob is None else int(blob.size or 0)
+
     def generate_signed_url(
         self, 
         object_path: str, 
-        expiration_minutes: int = 60
+        expiration_minutes: int = 60,
+        *,
+        method: str = "GET",
+        content_type: Optional[str] = None,
+        headers: Optional[dict] = None,
     ) -> str:
         """
-        Generate a signed URL for temporary read access.
+        Generate a V4 signed URL — a GET for temporary read access, or (036,
+        in-house scanning) a PUT the phone uploads a photo straight to, with
+        the Content-Type and `headers` (x-goog-content-length-range) baked into
+        the signature so the client cannot send anything else.
         
         Args:
             object_path: Path to the object in GCS
@@ -138,7 +151,9 @@ class GCSService:
             url = blob.generate_signed_url(
                 version="v4",
                 expiration=timedelta(minutes=expiration_minutes),
-                method="GET",
+                method=method,
+                content_type=content_type,
+                headers=headers,
                 service_account_email=self.service_account_email,
                 credentials=signing_credentials
             )

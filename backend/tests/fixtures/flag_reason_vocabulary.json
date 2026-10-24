@@ -9,6 +9,8 @@
     { "reason": "segmentation_mismatch", "kind": "content" },
     { "reason": "missing_answers", "kind": "content" },
     { "reason": "student_unassigned", "kind": "identity" },
-    { "reason": "student_unmatched", "kind": "identity" }
+    { "reason": "student_unmatched", "kind": "identity" },
+    { "reason": "capture_student_pending", "kind": "content" },
+    { "reason": "capture_conflict", "kind": "content" }
   ]
 }

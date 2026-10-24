@@ -258,6 +258,9 @@ export const REASON_LOW_CONFIDENCE = 'חלק מהעמודים לא נקראו ב
 export const REASON_LOW_LOGPROB = 'ויוי לא בטוחה בקריאה של חלק מהמילים'
 export const REASON_STUDENT_UNIDENTIFIED = 'התלמיד לא זוהה'
 export const REASON_STUDENT_UNMATCHED = 'השם לא נמצא ברשימת הכיתה'
+// [036] capture-link identity facts — her decision, one item at a time.
+export const REASON_CAPTURE_PENDING = 'השם שנכתב בקישור לא נמצא ברשימה — אשרי תלמיד חדש או שייכי לתלמיד קיים'
+export const REASON_CAPTURE_CONFLICT = 'יש מבחן נוסף לאותו תלמיד בקבוצה — בחרי איזה לשמור'
 export const REASON_EDITED = 'ערכת את התמלול — אישור פרטני'
 /** The catch-all for `grounding_retry` and `segmentation_mismatch`: both mean
  *  «Vivi is unsure about part of the transcription» and neither has a sentence
