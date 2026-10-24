@@ -10,5 +10,13 @@
   "yonatan_basiuk": {
     "1": [[0.0, 0.0, 0.135, 0.125], [0.115, 0.0, 1.0, 0.085]],
     "3": [[0.0, 0.0, 0.135, 0.115], [0.115, 0.0, 1.0, 0.088]]
+  },
+  "rubric_docx": {
+    "_why": "The rubric DOCX the demo previews (owner ruling 2026-10-23): blank every header image (the school logo: name, town, registration number), keep the teacher «ויויאנה» and blank «נעמה», drop all comments (they name both authors and «מגלית»). Applied to a temp copy; only page images ship.",
+    "replace_text": {
+      "ויויאנה / נעמה": "ויויאנה"
+    },
+    "blank_header_images": true,
+    "drop_comments": true
   }
 }

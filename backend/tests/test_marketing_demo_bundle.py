@@ -79,3 +79,30 @@ def test_the_transcription_is_the_gt_byte_for_byte(slug):
     gt = bundle.load(bundle.TRANSCRIPTIONS / f"{slug}.contract.json")["answers"]
     assert [a["answer_text"] for a in draft["answers"]] == [a["answer_text"] for a in gt]
     assert all(a["page_numbers"] for a in draft["answers"])
+
+
+def test_the_rubric_document_copy_is_redacted_as_ruled():
+    """Owner ruling 2026-10-23: logo gone, «ויויאנה» kept, «נעמה» blanked, no
+    comments. The shipped pages are images nobody can grep, so this pins the
+    redacted copy Word renders them from. No Word needed: it never renders."""
+    import io
+    import re
+    import zipfile
+    from PIL import Image
+
+    cfg = bundle.load(bundle.CONFIG / "redactions.json")["rubric_docx"]
+    _, redacted = bundle.redacted_rubric_docx(cfg)
+    zf = zipfile.ZipFile(io.BytesIO(redacted))
+    parts = {n: zf.read(n) for n in zf.namelist()}
+
+    text = " ".join(bundle._visible_docx_text(parts))
+    assert "ויויאנה" in text
+    for rule in bundle.FORBIDDEN:
+        assert not rule.search(text), rule.pattern
+    assert not [n for n in parts if re.fullmatch(r"word/(comments\w*|people)\.xml", n)]
+    assert "commentReference" not in parts["word/document.xml"].decode("utf-8")
+
+    for rels in [n for n in parts if re.fullmatch(r"word/_rels/header\d+\.xml\.rels", n)]:
+        for target in re.findall(r'Target="(media/[^"]+)"', parts[rels].decode("utf-8")):
+            with Image.open(io.BytesIO(parts[f"word/{target}"])) as im:
+                assert all(lo == hi == 255 for lo, hi in im.convert("RGB").getextrema()), target

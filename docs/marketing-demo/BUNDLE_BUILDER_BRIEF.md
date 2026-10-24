@@ -112,6 +112,8 @@ python scripts/build_marketing_demo_bundle.py --out "C:/Users/ariel/Desktop/Vivi
 public/demo/v1/
   manifest.json                bundle.schema.json
   rubric.contract.json         # GradingRubricContract (extractQuestions + the rubric peek)
+  rubric/page-<n>.webp         # the teacher's rubric DOCX, redacted, rendered by Word (owner ruling
+                               # 2026-10-23); listed in manifest.rubric_document.pages[{path,width,height}]
   signed-exams.zip             # both signed exams, as proposed
   signed-exams.variant-q1a.zip # Itai with the scripted change + Yoav
   students/student-a|student-b/
@@ -126,13 +128,19 @@ public/demo/v1/
 
 The signed PDF has no per-criterion breakdown (`appendix_include_criteria: false`, the product default).
 
+The rubric pages come from `tests/rubric_eval_suite/fixtures/hobby_tvshow.docx` via a temp copy: header images
+blanked (the school logo), «ויויאנה / נעמה» → «ויויאנה», all comments and their parts dropped, author metadata
+blanked. Only page images ship. Rendering needs Microsoft Word on Windows (two exports rasterize pixel-identically,
+so `--check` holds). Images cannot be grepped, so the privacy rules run on the redacted copy's text before rendering,
+and `contact_sheet_rubric.png` goes to the owner's eye.
+
 ## 5. Verifications (all run on every build; any failure exits non-zero)
 
 1. Every GT terminal: `points_awarded == awarded` (Decimal). Scope sums priced, not summed by hand. Totals: Dan **84**, Yonatan **92.5**, variant **84.5**, all `/100`.
 2. Every quote on a credited check: `quote_match_status(quote, student_answer) == exact`.
 3. `compile_graded_test` succeeds for all three, with no unresolved `error` annotation.
 4. No plan code (regex in 3c) in any string of any JSON output.
-5. **Privacy grep:** none of `basiuk`, `בסיוק`, `דן`, `יונתן`, `מוסינזון`, `Mosinzon`, `CamScanner` appears in any output file. This covers JSON, PDF text (`page.get_text()`), PDF metadata and ZIP entry names. Restrict the `דן` / `יונתן` checks to whole words.
+5. **Privacy grep:** none of `basiuk`, `בסיוק`, `דן`, `יונתן`, `מוסינזון`, `Mosinzon`, `Mosenson` (the logo's own spelling), `הוד השרון`, `580024966`, `CamScanner`, `Tapicer`, `טפיסר`, `נעמה`, `ארבל`, `נוימן`, `מגלית` appears in any output file. This covers JSON, PDF text (`page.get_text()`), PDF metadata and ZIP entry names, and the redacted rubric copy's text before it is rendered. Hebrew names match as whole words. «ויויאנה» is allowed (owner ruling 2026-10-23).
 6. Every file is under budget: scan webp ≤ 350 KB, thumb ≤ 40 KB, signed-page webp ≤ 400 KB, whole bundle ≤ 14 MB. The whole-bundle figure was 8 MB until the first build measured 12.7 MB; most of that is downloads (two ZIPs at 2.4 MB, three PDFs at 1.1–1.3 MB, with scans embedded at 1,800 px) that load only when the visitor clicks download. The page itself loads page images one at a time, so the page-weight bars belong to the website (Lighthouse), not to this total.
 7. Deterministic: two consecutive builds are byte-identical (`--check`).
 

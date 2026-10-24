@@ -66,6 +66,7 @@ TRANSCRIPTIONS = TESTS / "grading_eval_suite/benchmarks/transcriptions"
 PAGE_GT = TESTS / "transcription_eval_suit/raw_benchmarks"
 SCANS = TESTS / "transcription_eval_suit/pdfs"
 DRAFTS = TESTS / "fixtures/grade_review"
+RUBRIC_DOCX = TESTS / "rubric_eval_suite/fixtures/hobby_tvshow.docx"
 
 STUDENTS = ("dan_basiuk", "yonatan_basiuk")
 BUNDLE_VERSION = "v1"
@@ -74,15 +75,19 @@ INCLUDE_CRITERIA = False
 
 SCAN_LONG_EDGE, THUMB_LONG_EDGE, SIGNED_LONG_EDGE, PDF_LONG_EDGE = 1600, 320, 1600, 1800
 WEBP_QUALITY = 80
-BUDGET = {"scan": 350_000, "thumb": 40_000, "signed": 400_000, "bundle": 14_000_000}
+BUDGET = {"scan": 350_000, "thumb": 40_000, "signed": 400_000, "rubric": 350_000,
+          "bundle": 14_000_000}
 
 # A teacher never sees a plan (W-3): no rule code, no English verdict name.
 PLAN_CODE = re.compile(r"\[(PL|A|R|AUDIT)-[^\]]*\]|R-α|R-β|\bPL-\d|AUDIT-\d"
                        r"|\bpartially_met\b|\bnot_met\b|\bmet\b|\btariff\b")
 HEB = "֐-׿"
 FORBIDDEN = [re.compile(p, re.IGNORECASE) for p in (
-    r"basiuk", "בסיוק", "מוסינזון", r"mosinzon", r"camscanner", r"intsig",
-    rf"(?<![{HEB}])דן(?![{HEB}])", rf"(?<![{HEB}])יונתן(?![{HEB}])")]
+    r"basiuk", "בסיוק", "מוסינזון", r"mosinzon", r"mosenson", r"camscanner", r"intsig",
+    "הוד השרון", "580024966", r"tapicer", "טפיסר",
+    rf"(?<![{HEB}])דן(?![{HEB}])", rf"(?<![{HEB}])יונתן(?![{HEB}])",
+    rf"(?<![{HEB}])נעמה(?![{HEB}])", rf"(?<![{HEB}])ארבל(?![{HEB}])",
+    rf"(?<![{HEB}])נוימן(?![{HEB}])", rf"(?<![{HEB}])מגלית(?![{HEB}])")]
 
 _MARK = {"met": "✓", "partially_met": "◐", "not_met": "✗"}
 
@@ -170,6 +175,124 @@ def _webp(im: Image.Image, long_edge: int) -> bytes:
     buf = io.BytesIO()
     im.save(buf, "WEBP", quality=WEBP_QUALITY, method=6)
     return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# 1b. the rubric document: a redacted copy, rendered by Word, shipped as images
+# ---------------------------------------------------------------------------
+# The demo's first screen previews the teacher's rubric (owner ruling
+# 2026-10-23). Only PAGE IMAGES ship — never the DOCX or a PDF of it. Images
+# cannot be text-searched, so the guard runs on the redacted copy's TEXT before
+# it is rendered, and the pages go to the owner's eye on a contact sheet.
+
+_COMMENT_PARTS = ("comments", "commentsIds", "commentsExtended", "commentsExtensible", "people")
+
+
+def _visible_docx_text(parts: Dict[str, bytes]) -> List[str]:
+    """Every <w:t> run of every WordprocessingML part Word can render."""
+    out = []
+    for name, data in parts.items():
+        if re.fullmatch(r"word/[A-Za-z0-9]+\.xml", name):
+            out += re.findall(r"<w:t(?:\s[^>]*)?>([^<]*)</w:t>", data.decode("utf-8"))
+    return out
+
+
+def redacted_rubric_docx(cfg: dict) -> Tuple[bytes, bytes]:
+    """(original DOCX bytes, redacted DOCX bytes). Refuses on any surviving identifier."""
+    original = RUBRIC_DOCX.read_bytes()
+    src = zipfile.ZipFile(io.BytesIO(original))
+    order = src.namelist()
+    parts = {n: src.read(n) for n in order}
+
+    if cfg.get("blank_header_images"):
+        # Every image a HEADER embeds, swapped for a blank one of the same size
+        # and format: the logo goes and nothing on the page moves.
+        for rels in [n for n in parts if re.fullmatch(r"word/_rels/header\d+\.xml\.rels", n)]:
+            for target in re.findall(r'Target="(media/[^"]+)"', parts[rels].decode("utf-8")):
+                path = f"word/{target}"
+                with Image.open(io.BytesIO(parts[path])) as im:
+                    size, fmt = im.size, im.format or "PNG"
+                buf = io.BytesIO()
+                Image.new("RGB", size, "white").save(buf, fmt)
+                parts[path] = buf.getvalue()
+
+    for old, new in cfg.get("replace_text", {}).items():
+        hits = 0
+        for name in [n for n in parts if re.fullmatch(r"word/(document|header\d+|footer\d+)\.xml", n)]:
+            xml = parts[name].decode("utf-8")
+            hits += xml.count(old)
+            parts[name] = xml.replace(old, new).encode("utf-8")
+        if hits != 1:
+            raise BuildError(f"rubric: «{old}» found {hits} times, expected exactly once")
+
+    if cfg.get("drop_comments"):
+        doc = parts["word/document.xml"].decode("utf-8")
+        doc = re.sub(r"<w:commentRange(?:Start|End)\b[^>]*/>", "", doc)
+        doc = re.sub(r"<w:r\b[^>]*>(?:(?!</w:r>).)*?<w:commentReference\b[^>]*/>"
+                     r"(?:(?!</w:r>).)*?</w:r>", "", doc, flags=re.S)
+        parts["word/document.xml"] = doc.encode("utf-8")
+        names = "|".join(_COMMENT_PARTS)
+        for part in _COMMENT_PARTS:
+            parts.pop(f"word/{part}.xml", None)
+        rels = parts["word/_rels/document.xml.rels"].decode("utf-8")
+        parts["word/_rels/document.xml.rels"] = re.sub(
+            rf'<Relationship\b[^>]*Target="(?:{names})\.xml"[^>]*/>', "", rels).encode("utf-8")
+        types = parts["[Content_Types].xml"].decode("utf-8")
+        parts["[Content_Types].xml"] = re.sub(
+            rf'<Override\b[^>]*PartName="/word/(?:{names})\.xml"[^>]*/>', "", types).encode("utf-8")
+        if "commentReference" in parts["word/document.xml"].decode("utf-8"):
+            raise BuildError("rubric: a comment reference survived")
+
+    # Who wrote it is not on the page, but it would be in any file someone saved.
+    core = parts["docProps/core.xml"].decode("utf-8")
+    core = re.sub(r"(<dc:creator>)[^<]*(</dc:creator>)", r"\1\2", core)
+    core = re.sub(r"(<cp:lastModifiedBy>)[^<]*(</cp:lastModifiedBy>)", r"\1\2", core)
+    parts["docProps/core.xml"] = core.encode("utf-8")
+
+    for text in _visible_docx_text(parts):
+        for rule in FORBIDDEN:
+            if rule.search(text):
+                raise BuildError(f"rubric: forbidden identifier /{rule.pattern}/ in «{text[:60]}»")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name in order:
+            if name in parts:
+                zf.writestr(name, parts[name])
+    return original, buf.getvalue()
+
+
+def word_to_pdf(docx: bytes) -> bytes:
+    """Render with Microsoft Word, with no markup (wdExportDocumentContent).
+
+    Word, not LibreOffice: the document is set in David and its layout is
+    Word's. MEASURED 2026-10-24: two exports rasterize pixel-identically, which
+    is what keeps `--check` meaningful. The PDF itself never ships.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        src, dst = Path(tmp) / "rubric.docx", Path(tmp) / "rubric.pdf"
+        src.write_bytes(docx)
+        ps = ("$ErrorActionPreference='Stop'; $w=New-Object -ComObject Word.Application; "
+              "$w.Visible=$false; $w.DisplayAlerts=0; "
+              f"try {{ $d=$w.Documents.Open('{src}', $false, $true); "
+              f"$d.ExportAsFixedFormat('{dst}', 17, $false, 0, 0, 1, 1, 0, $false); "
+              "$d.Close(0) } finally { $w.Quit() }")
+        try:
+            subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps],
+                           check=True, capture_output=True, timeout=300)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise BuildError(f"rubric: rendering needs Microsoft Word on Windows ({exc})")
+        return dst.read_bytes()
+
+
+def rubric_pages(pdf: bytes) -> List[Image.Image]:
+    doc = fitz.open(stream=pdf, filetype="pdf")
+    out = []
+    for page in doc:
+        zoom = SCAN_LONG_EDGE / max(page.rect.width, page.rect.height)
+        pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
+        out.append(Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGB"))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -437,6 +560,20 @@ def build(out: Path, review_dir: Path) -> None:
     review_dir.mkdir(parents=True, exist_ok=True)
     dump(out / "rubric.contract.json", rubric_raw)
 
+    # 1b. the rubric document's pages
+    original_docx, redacted_docx = redacted_rubric_docx(redactions["rubric_docx"])
+    rubric_document = []
+    (out / "rubric").mkdir()
+    after = rubric_pages(word_to_pdf(redacted_docx))
+    for n, im in enumerate(after, start=1):
+        data = _webp(im, SCAN_LONG_EDGE)
+        (out / "rubric" / f"page-{n}.webp").write_bytes(data)
+        with Image.open(io.BytesIO(data)) as shipped:
+            rubric_document.append({"path": f"rubric/page-{n}.webp",
+                                    "width": shipped.width, "height": shipped.height})
+    _contact_sheet(review_dir / "contact_sheet_rubric.png",
+                   rubric_pages(word_to_pdf(original_docx)), after)
+
     students_manifest = []
     zip_proposed, zip_variant = [], []
     for slug in STUDENTS:
@@ -532,7 +669,7 @@ def build(out: Path, review_dir: Path) -> None:
 
     write_zip(out / "signed-exams.zip", zip_proposed)
     write_zip(out / "signed-exams.variant-q1a.zip", zip_variant)
-    _write_manifest(out, students_manifest, batch_name)
+    _write_manifest(out, students_manifest, batch_name, rubric_document)
     _write_review(review_dir / "review.md", review,
                   {slug: pseudo["students"][slug]["display_name"] for slug in STUDENTS})
     verify(out)
@@ -576,7 +713,7 @@ def _git_commit() -> str:
         return "unknown"
 
 
-def _write_manifest(out: Path, students: list, batch_name: str) -> None:
+def _write_manifest(out: Path, students: list, batch_name: str, rubric_document: list) -> None:
     files = {}
     for p in sorted(out.rglob("*")):
         if p.is_file() and p.name not in ("manifest.json",):
@@ -589,6 +726,7 @@ def _write_manifest(out: Path, students: list, batch_name: str) -> None:
         "batch_name": batch_name,
         "appendix_include_criteria": INCLUDE_CRITERIA,
         "rubric": "rubric.contract.json",
+        "rubric_document": {"pages": rubric_document},
         "zips": {"proposed": "signed-exams.zip", "variant_q1a": "signed-exams.variant-q1a.zip"},
         "students": students,
         "files": files,
@@ -601,12 +739,17 @@ MANIFEST_SCHEMA = {
     "title": "Vivi marketing-demo bundle manifest",
     "type": "object",
     "required": ["bundle_version", "source", "batch_name", "appendix_include_criteria",
-                 "rubric", "zips", "students", "files"],
+                 "rubric", "rubric_document", "zips", "students", "files"],
     "properties": {
         "bundle_version": {"const": BUNDLE_VERSION},
         "batch_name": {"type": "string"},
         "appendix_include_criteria": {"type": "boolean"},
         "rubric": {"type": "string"},
+        "rubric_document": {"type": "object", "required": ["pages"], "properties": {
+            "pages": {"type": "array", "minItems": 1, "items": {
+                "type": "object", "required": ["path", "width", "height"],
+                "properties": {"path": {"type": "string"}, "width": {"type": "integer"},
+                               "height": {"type": "integer"}}}}}},
         "zips": {"type": "object", "required": ["proposed", "variant_q1a"]},
         "students": {"type": "array", "items": {
             "type": "object",
@@ -672,7 +815,8 @@ def verify(out: Path) -> None:
                     problems.append(f"{rel}: forbidden identifier /{rule.pattern}/ in «{t[:80]}»")
         size = p.stat().st_size
         if p.suffix == ".webp":
-            kind = "thumb" if ".thumb." in p.name else ("signed" if "signed" in rel else "scan")
+            kind = ("thumb" if ".thumb." in p.name else "signed" if "signed" in rel
+                    else "rubric" if rel.startswith("rubric/") else "scan")
             if size > BUDGET[kind]:
                 problems.append(f"{rel}: {size} bytes > {kind} budget {BUDGET[kind]}")
     if total > BUDGET["bundle"]:
