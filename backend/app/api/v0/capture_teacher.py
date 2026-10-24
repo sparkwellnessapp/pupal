@@ -35,11 +35,12 @@ from ...models.user import User
 from ...schemas.capture import (
     CaptureHandoffResponse, CaptureLinkCreateRequest, CaptureLinkPatchRequest,
     CaptureLinkResponse, CaptureSubmissionsResponse, HandoffExchangeRequest,
-    HandoffExchangeResponse, ResolveConflictRequest, ResolvePendingRequest, RosterResponse,
+    HandoffExchangeResponse, NameSuggestResponse, ResolveConflictRequest, ResolvePendingRequest, RosterResponse,
     RosterStudent, StudentAssignRequest, SubmissionView, TeacherCaptureState,
 )
 from ...services.capture import handoff as handoff_svc
 from ...services.capture import links as links_svc
+from ...services.capture import name_suggest as name_suggest_svc
 from ...services.capture import submissions as svc
 from ...services.capture.actors import CaptureError, TeacherActor
 from .auth import get_current_user, get_current_user_optional
@@ -260,6 +261,14 @@ async def assign_student(submission_id: UUID, body: StudentAssignRequest,
                                    replace_existing=body.replace_existing)
     await db.commit()
     return await svc.submission_view(db, sub)
+
+
+@capture_page_router.post("/submissions/{submission_id}/name-suggest",
+                          response_model=NameSuggestResponse)
+async def name_suggest(submission_id: UUID, actor: TeacherActor = Depends(teacher_actor),
+                       db: AsyncSession = Depends(get_db)):
+    """§6.9 — a pre-fill for her picker, never an assignment (SCN-10/12)."""
+    return await name_suggest_svc.suggest(db, actor, submission_id)
 
 
 add_page_routes(capture_page_router, teacher_actor)

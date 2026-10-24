@@ -25,7 +25,9 @@ from __future__ import annotations
 import asyncio
 import base64
 import io
+import json
 import logging
+from dataclasses import dataclass
 
 from PIL import Image
 from starlette.concurrency import run_in_threadpool
@@ -99,15 +101,24 @@ def plausible_name_from_filename(filename: str | None) -> str | None:
     return stem
 
 
-IDENTITY_SYSTEM = """\
+# The name-field rules, ONE text shared by both readers of page 1: the identity
+# pass below (transcription) and the capture teacher page's roster-aware
+# suggestion (`suggest_from_roster`, OD-7). IDENTITY_SYSTEM's bytes are pinned
+# by a test — building it from these parts changes nothing it sends.
+_NAME_TASK = """\
 You extract ONE thing from the top of a handwritten exam page: the STUDENT'S \
 OWN handwritten name.
 Rules:
+"""
+_NAME_FIELD_RULES = """\
 - The name is usually written beside a printed label such as "שם התלמיד". \
 Return the student's name only — NEVER the teacher's name (מורה), the class \
 (כיתה), the school, a date, or a page number.
 - Return the name exactly as written (Hebrew stays Hebrew). Do not invent, \
 complete, or transliterate.
+"""
+
+IDENTITY_SYSTEM = _NAME_TASK + _NAME_FIELD_RULES + """\
 - If no legible handwritten student name is visible: consider the PDF \
 filename given by the user. Return it (without extension/underscores) ONLY \
 if it plausibly is a person's name — not scanner junk, dates, or generic \
@@ -233,3 +244,106 @@ async def _extract(
     logger.info("identity pass: name found (source=%s) for %s",
                 data.get("source"), doc_id)
     return name.strip()
+
+
+# ---------------------------------------------------------------------------
+# [036, OD-7] The roster-aware suggestion — the capture teacher page only
+# ---------------------------------------------------------------------------
+#
+# SCN-10: it reads page 1 of a TEACHER-source capture and nothing else, and
+# its output is never written into a transcription — it pre-fills her picker,
+# and her click is the assignment. SCN-12: the model may only return an id
+# that was in the list it was sent. The ids it sees are CALL-SCOPED ALIASES
+# (s1…sN), never the students' UUIDs (the AM-G17 precedent: a model cannot
+# mis-copy an id it was never shown), and an alias outside the list is a
+# no-match. Never raises, never blocks: 8 s and any failure is "no
+# suggestion".
+
+NAME_PROMPT_VERSION = "name-suggest-v1"
+
+ROSTER_SYSTEM = _NAME_TASK + _NAME_FIELD_RULES + """\
+- You are also given the class roster: a list of {"id", "name"}. Set \
+roster_match_id to an entry's id ONLY if the handwritten name is clearly the \
+same person — the same name, possibly with the surname first. If you are not \
+sure, or several entries could fit, set it to null. Never choose by guess.
+- confidence is "high" only when the handwriting is clearly legible AND the \
+match (or the absence of one) is unambiguous; otherwise "low".
+- If no legible handwritten student name is visible, read_name is null.
+Output JSON only: {"read_name": string|null, "roster_match_id": string|null, \
+"confidence": "high"|"low"}
+"""
+
+ROSTER_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "read_name": {"type": ["string", "null"]},
+        "roster_match_id": {"type": ["string", "null"]},
+        "confidence": {"type": "string", "enum": ["high", "low"]},
+    },
+    "required": ["read_name", "roster_match_id", "confidence"],
+    "additionalProperties": False,
+}
+
+
+@dataclass(frozen=True)
+class RosterSuggestion:
+    read_name: str | None
+    student_id: str | None          # a REAL id from the roster sent, or None (SCN-12)
+    confidence: str                 # "high" | "low"
+
+
+NO_SUGGESTION = RosterSuggestion(None, None, "low")
+
+
+def _header_jpeg_b64(image: Image.Image) -> str:
+    buf = io.BytesIO()
+    crop_top(image).convert("RGB").save(buf, format="JPEG", quality=90)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def closed_world(data: dict, aliases: dict[str, str]) -> RosterSuggestion:
+    """SCN-12, pure: an alias the model invented is a no-match."""
+    read = data.get("read_name")
+    read = read.strip() if isinstance(read, str) and read.strip() else None
+    alias = data.get("roster_match_id")
+    sid = aliases.get(alias) if isinstance(alias, str) else None
+    conf = data.get("confidence") if data.get("confidence") in ("high", "low") else "low"
+    return RosterSuggestion(read, sid, conf if sid is not None or read is not None else "low")
+
+
+async def suggest_from_roster(
+    page_image: Image.Image,
+    roster: list[tuple[str, str]],          # (student_id, full_name)
+    provider: VLMProvider,
+    *,
+    doc_id: str,
+    timeout_s: float,
+    scheduler=None,
+    provider_key: str = "",
+) -> RosterSuggestion:
+    aliases = {f"s{i}": sid for i, (sid, _) in enumerate(roster, 1)}
+    listing = [{"id": f"s{i}", "name": name} for i, (_, name) in enumerate(roster, 1)]
+
+    async def run() -> RosterSuggestion:
+        image_b64 = await run_in_threadpool(_header_jpeg_b64, page_image)
+
+        def make_call():
+            return provider.complete(
+                system=ROSTER_SYSTEM,
+                user=("Class roster (JSON): " + json.dumps(listing, ensure_ascii=False)
+                      + "\nRead the student name per the rules."),
+                images_b64=[image_b64], max_tokens=600, json_schema=ROSTER_SCHEMA,
+                timeout_s=timeout_s)
+
+        if scheduler is not None:
+            res = (await scheduler.submit(provider_key, 0, make_call, doc_id=doc_id)).response
+        else:
+            res = await make_call()
+        ok, data = parse_model_json(res.text, required_keys=("read_name",))
+        return closed_world(data, aliases) if ok else NO_SUGGESTION
+
+    try:
+        return await asyncio.wait_for(run(), timeout=timeout_s)
+    except Exception:
+        logger.warning("name suggestion failed for %s — no suggestion", doc_id)
+        return NO_SUGGESTION
