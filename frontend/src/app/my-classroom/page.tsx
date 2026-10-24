@@ -11,6 +11,7 @@ import {
     X,
     GraduationCap,
     UserPlus,
+    ChevronDown,
 } from 'lucide-react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { StudentPicker } from '@/components/StudentPicker';
@@ -18,7 +19,18 @@ import { ConfirmDialog, InlineError } from '@/components/classroom/ConfirmDialog
 import { StudentAvatar } from '@/components/classroom/StudentAvatar';
 import { StudentDeleteDialog } from '@/components/classroom/StudentDeleteDialog';
 import { StudentNameDialog } from '@/components/classroom/StudentNameDialog';
-import { CL_DELETE_STUDENT, CL_EDIT_NAME, CL_SIGNED_COUNT } from '@/copy/classroom';
+import {
+    CL_ADD_ALL,
+    CL_ADD_ALL_FAILED,
+    CL_CLASS_EMPTY,
+    CL_CLASS_LOAD_FAILED,
+    CL_CLASS_SHOW_STUDENTS,
+    CL_DELETE_STUDENT,
+    CL_EDIT_NAME,
+    CL_SIGNED_COUNT,
+} from '@/copy/classroom';
+import { useAuth } from '@/lib/auth';
+import { classSubjectOptions } from '@/utils/class-subject-options';
 import {
     listStudents,
     listClasses,
@@ -248,17 +260,21 @@ function ManageStudentsModal({
     onClose: () => void;
 }) {
     const [classDetail, setClassDetail] = useState<ClassDetailResponse | null>(null);
+    const [roster, setRoster] = useState<StudentResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [addingId, setAddingId] = useState<string | null>(null);
+    const [addingAll, setAddingAll] = useState(false);
     const [removingId, setRemovingId] = useState<string | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
 
+    // The roster rides along so «add all» knows who is not in the class yet;
+    // re-read on every load so a student created inline in the picker counts.
     const load = useCallback(async () => {
-        setLoading(true);
         try {
-            const d = await getClassDetail(classItem.id);
+            const [d, r] = await Promise.all([getClassDetail(classItem.id), listStudents()]);
             setClassDetail(d);
+            setRoster(r.students);
         } catch {
             setError('שגיאה בטעינת פרטי הכיתה');
         } finally {
@@ -279,6 +295,32 @@ function ManageStudentsModal({
         } finally {
             setAddingId(null);
         }
+    };
+
+    const memberIds = classDetail?.students.map(s => s.id) ?? [];
+    const addable = roster.filter(s => !memberIds.includes(s.id));
+
+    // The add endpoint is idempotent per student, so a few in flight at once
+    // is safe; bounded so a large roster is not 40 simultaneous requests.
+    const handleAddAll = async () => {
+        if (addable.length === 0) return;
+        setAddingAll(true);
+        setActionError(null);
+        const queue = addable.map(s => s.id);
+        let failed = 0;
+        const worker = async () => {
+            for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+                try {
+                    await addStudentToClass(classItem.id, id);
+                } catch {
+                    failed += 1;
+                }
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+        await load();
+        if (failed > 0) setActionError(CL_ADD_ALL_FAILED(failed));
+        setAddingAll(false);
     };
 
     const handleRemove = async (studentId: string) => {
@@ -310,11 +352,25 @@ function ManageStudentsModal({
                     <div className="flex-1 overflow-y-auto space-y-4">
                         {/* Add student */}
                         <div>
-                            <p className="text-sm font-medium text-gray-700 mb-2 text-right">הוסף תלמיד לכיתה</p>
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                                <p className="text-sm font-medium text-gray-700 text-right">הוסף תלמיד לכיתה</p>
+                                <button
+                                    onClick={() => void handleAddAll()}
+                                    disabled={addingAll || addingId !== null || addable.length === 0}
+                                    data-add-all-students
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-700 border border-primary-200 rounded-lg hover:bg-primary-50 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
+                                >
+                                    {addingAll ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />}
+                                    {CL_ADD_ALL(addable.length)}
+                                </button>
+                            </div>
+                            {/* Members are not suggested again. */}
                             <StudentPicker
                                 value={null}
                                 onChange={handleAdd}
                                 placeholder="חפש או צור תלמיד..."
+                                excludeIds={memberIds}
+                                disabled={addingAll}
                             />
                             {addingId && (
                                 <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
@@ -369,10 +425,138 @@ function ManageStudentsModal({
 }
 
 // ---------------------------------------------------------------------------
+// Class card — click to see who is in it
+// ---------------------------------------------------------------------------
+
+/**
+ * One class. The NAME is a disclosure button whose ::after stretches over the
+ * header row (the roster card's UI-5 pattern, with a button instead of a
+ * link), so a click anywhere on the row opens the class's student list; the
+ * action buttons sit above that layer. The list loads on first open and again
+ * whenever `refreshKey` moves (membership edited in the manage modal). Every
+ * name links to the student's profile.
+ */
+function ClassCard({
+    classItem: c,
+    refreshKey,
+    onManage,
+    onEdit,
+    onDelete,
+}: {
+    classItem: ClassResponse;
+    refreshKey: number;
+    onManage: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [students, setStudents] = useState<ClassDetailResponse['students'] | null>(null);
+    const [loadError, setLoadError] = useState(false);
+
+    useEffect(() => {
+        if (!open) return;
+        let cancelled = false;
+        setLoadError(false);
+        getClassDetail(c.id)
+            .then(d => { if (!cancelled) setStudents(d.students); })
+            .catch(() => { if (!cancelled) setLoadError(true); });
+        return () => { cancelled = true; };
+    }, [open, c.id, refreshKey]);
+
+    const panelId = `class-students-${c.id}`;
+
+    return (
+        <div data-class-card={c.id} className="bg-white rounded-xl border border-surface-200 transition-colors hover:border-primary-300 focus-within:border-primary-300">
+            <div className="relative px-5 py-4 flex items-center gap-4">
+                <div className="w-9 h-9 rounded-lg bg-primary-100 flex items-center justify-center shrink-0">
+                    <GraduationCap size={16} className="text-primary-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <button
+                        type="button"
+                        onClick={() => setOpen(o => !o)}
+                        aria-expanded={open}
+                        aria-controls={panelId}
+                        title={CL_CLASS_SHOW_STUDENTS}
+                        data-class-toggle
+                        className="flex items-center gap-1.5 max-w-full font-medium text-gray-900 text-right
+                            after:absolute after:inset-0 after:rounded-xl after:content-['']
+                            focus-visible:outline-none"
+                    >
+                        <span className="truncate">{c.name}</span>
+                        <ChevronDown size={16} className={`shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+                    </button>
+                    <div className="flex items-center gap-3 mt-0.5">
+                        {c.subject_matter_name && (
+                            <span className="text-xs text-gray-500">{c.subject_matter_name}</span>
+                        )}
+                        {c.school_year && (
+                            <span className="text-xs text-gray-500">{c.school_year}</span>
+                        )}
+                        <span className="text-xs text-gray-500">{c.student_count} תלמידים</span>
+                    </div>
+                </div>
+                <div className="relative z-10 flex items-center gap-2">
+                    <button
+                        onClick={onManage}
+                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title="ניהול תלמידים"
+                    >
+                        <UserPlus size={16} />
+                    </button>
+                    <button
+                        onClick={onEdit}
+                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title="עריכה"
+                    >
+                        <Pencil size={16} />
+                    </button>
+                    <button
+                        onClick={onDelete}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="מחיקה"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                </div>
+            </div>
+
+            {open && (
+                <div id={panelId} data-class-students className="border-t border-surface-100 px-5 py-3">
+                    {loadError ? (
+                        <p className="text-sm text-red-600 text-right">{CL_CLASS_LOAD_FAILED}</p>
+                    ) : students === null ? (
+                        <div className="flex justify-center py-2"><Loader2 className="animate-spin text-primary-500" size={20} /></div>
+                    ) : students.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-right">{CL_CLASS_EMPTY}</p>
+                    ) : (
+                        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                            {students.map(s => (
+                                <li key={s.id}>
+                                    <Link
+                                        href={studentHref(s.id)}
+                                        data-class-member-link
+                                        className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-800 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                                    >
+                                        <StudentAvatar />
+                                        <span className="truncate">{s.full_name}</span>
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Classes tab
 // ---------------------------------------------------------------------------
 
 function ClassesTab() {
+    const { user } = useAuth();
     const [classes, setClasses] = useState<ClassResponse[]>([]);
     const [subjectMatters, setSubjectMatters] = useState<SubjectMatterOption[]>([]);
     const [loading, setLoading] = useState(true);
@@ -397,6 +581,8 @@ function ClassesTab() {
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const [manageClass, setManageClass] = useState<ClassResponse | null>(null);
+    // Bumped when the manage modal closes, so an open class re-reads its list.
+    const [membersVersion, setMembersVersion] = useState(0);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -476,7 +662,14 @@ function ClassesTab() {
 
     if (error) return <InlineError message={error} />;
 
-    const SubjectSelect = ({ value, onChange }: { value: number | ''; onChange: (v: number | '') => void }) => (
+    // Her profile's subjects (or the launch set when she has none), plus the
+    // class's stored subject on edit so Save never silently clears it.
+    const mySubjects = user?.subject_matters ?? [];
+    const SubjectSelect = ({ value, onChange, currentId = null }: {
+        value: number | '';
+        onChange: (v: number | '') => void;
+        currentId?: number | null;
+    }) => (
         <select
             value={value}
             onChange={e => onChange(e.target.value === '' ? '' : parseInt(e.target.value))}
@@ -484,7 +677,7 @@ function ClassesTab() {
             dir="rtl"
         >
             <option value="">ללא מקצוע</option>
-            {subjectMatters.map(sm => (
+            {classSubjectOptions(subjectMatters, mySubjects, currentId).map(sm => (
                 <option key={sm.id} value={sm.id}>{sm.name_he}</option>
             ))}
         </select>
@@ -512,46 +705,14 @@ function ClassesTab() {
             ) : (
                 <div className="space-y-2">
                     {classes.map(c => (
-                        <div key={c.id} className="bg-white rounded-xl border border-surface-200 px-5 py-4 flex items-center gap-4">
-                            <div className="w-9 h-9 rounded-lg bg-primary-100 flex items-center justify-center shrink-0">
-                                <GraduationCap size={16} className="text-primary-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 truncate">{c.name}</p>
-                                <div className="flex items-center gap-3 mt-0.5">
-                                    {c.subject_matter_name && (
-                                        <span className="text-xs text-gray-500">{c.subject_matter_name}</span>
-                                    )}
-                                    {c.school_year && (
-                                        <span className="text-xs text-gray-500">{c.school_year}</span>
-                                    )}
-                                    <span className="text-xs text-gray-500">{c.student_count} תלמידים</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => setManageClass(c)}
-                                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                                    title="ניהול תלמידים"
-                                >
-                                    <UserPlus size={16} />
-                                </button>
-                                <button
-                                    onClick={() => { setEditClass(c); setEditName(c.name); setEditSubject(c.subject_matter_id ?? ''); setEditYear(c.school_year ?? ''); setEditError(null); }}
-                                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                                    title="עריכה"
-                                >
-                                    <Pencil size={16} />
-                                </button>
-                                <button
-                                    onClick={() => { setDeleteTarget(c); setDeleteError(null); }}
-                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="מחיקה"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        </div>
+                        <ClassCard
+                            key={c.id}
+                            classItem={c}
+                            refreshKey={membersVersion}
+                            onManage={() => setManageClass(c)}
+                            onEdit={() => { setEditClass(c); setEditName(c.name); setEditSubject(c.subject_matter_id ?? ''); setEditYear(c.school_year ?? ''); setEditError(null); }}
+                            onDelete={() => { setDeleteTarget(c); setDeleteError(null); }}
+                        />
                     ))}
                 </div>
             )}
@@ -632,7 +793,7 @@ function ClassesTab() {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1 text-right">מקצוע</label>
-                                <SubjectSelect value={editSubject} onChange={setEditSubject} />
+                                <SubjectSelect value={editSubject} onChange={setEditSubject} currentId={editClass.subject_matter_id} />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1 text-right">שנת לימודים</label>
@@ -678,7 +839,7 @@ function ClassesTab() {
             {manageClass && (
                 <ManageStudentsModal
                     classItem={manageClass}
-                    onClose={() => { setManageClass(null); load(); }}
+                    onClose={() => { setManageClass(null); setMembersVersion(v => v + 1); load(); }}
                 />
             )}
         </div>

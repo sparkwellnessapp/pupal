@@ -67,3 +67,13 @@ export const CL_PURGE_DONE = 'המחיקה הושלמה'
 // ── the returned page's way back (§6.5, OD-9) ──────────────────────────────
 export const CL_BACK_TO_STUDENT = (name: string) => `חזרה אל ${name}`
 export const CL_BACK_TO_BATCH = 'חזרה ללוח המקבץ'
+
+// ── the classes tab (classes-tab PR) ───────────────────────────────────────
+/** The «add every student» affordance in the manage-students modal; N is how
+ *  many roster students are not yet in the class. */
+export const CL_ADD_ALL = (n: number) => `הוספת כל התלמידים (${n})`
+export const CL_ADD_ALL_FAILED = (n: number) =>
+    hebrewCount(n, { zero: '', one: 'תלמיד/ה אחד/ת לא נוסף/ה — נסי שוב', many: (x) => `${x} תלמידים לא נוספו — נסי שוב` })
+export const CL_CLASS_SHOW_STUDENTS = 'הצגת התלמידים בכיתה'
+export const CL_CLASS_EMPTY = 'אין תלמידים בכיתה עדיין'
+export const CL_CLASS_LOAD_FAILED = 'שגיאה בטעינת התלמידים בכיתה'
