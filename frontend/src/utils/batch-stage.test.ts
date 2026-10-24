@@ -262,17 +262,17 @@ describe('§5.1B — the turn line, one row at a time', () => {
             .toBe('סיימת · מבחן אחד חתום')
     })
 
-    it('an empty batch announces no turn at all', () => {
-        expect(deriveBatchStage(batch({})).turnLine).toBeNull()
-    })
-
-    it('[036] an empty capture batch with an open link is ARRIVING, never הושלם', () => {
-        const s = deriveBatchStage(batch({}, { capture_link_state: 'open' }))
-        expect([s.step, s.chip.key, s.turnLine]).toEqual(['upload', 'uploading', 'עכשיו: מחכים לצילומי המבחנים'])
+    it('[036] an EMPTY batch is waiting for its exams — never הושלם, link or no link', () => {
+        // The owner's screenshot, 2026-10-24: a fresh capture batch (no link
+        // yet) read «הושלם» with every step ticked.
+        const s = deriveBatchStage(batch({}))
+        expect([s.step, s.chip.key, s.chip.label]).toEqual(['upload', 'awaiting_exams', 'ממתין למבחנים'])
+        expect(s.turnLine).toBe('עכשיו: מחכים למבחנים — אפשר לצלם אותם או ליצור קישור לתלמידים')
+        expect(deriveBatchStage(batch({}, { capture_link_state: 'open' })).turnLine)
+            .toBe('עכשיו: מחכים לצילומי המבחנים')
         expect(deriveBatchStage(batch({}, { capture_link_state: 'not_yet_open' })).turnLine)
             .toBe('הקישור לצילום ייפתח ביום המבחן')
-        // closed with nothing in it: nothing is coming — the pre-036 empty line
-        expect(deriveBatchStage(batch({}, { capture_link_state: 'closed' })).turnLine).toBeNull()
+        expect(deriveBatchStage(batch({}, { capture_link_state: 'closed' })).chip.key).toBe('awaiting_exams')
     })
 
     it('THE TORN SNAPSHOT: a document the rollup cannot place is MOVING, never הושלם', () => {
@@ -295,8 +295,8 @@ describe('§5.1B — the turn line, one row at a time', () => {
         expect(s.chip.label).toBe(CHIP_TRANSCRIBING)
         expect(s.turnLine).toBe('עכשיו: ויוי קוראת את כתב היד')
         // …and the honest case that LOOKS identical is still told apart by
-        // its total: nothing declared, nothing owed, nothing moving.
-        expect(deriveBatchStage(batch({})).step).toBe('download')
+        // its total: nothing has arrived, so it is waiting for its exams.
+        expect(deriveBatchStage(batch({})).chip.key).toBe('awaiting_exams')
     })
 })
 

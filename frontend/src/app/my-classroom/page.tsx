@@ -31,6 +31,7 @@ import {
 } from '@/copy/classroom';
 import { useAuth } from '@/lib/auth';
 import { classSubjectOptions } from '@/utils/class-subject-options';
+import { addStudentsToClass } from '@/lib/class-membership';
 import {
     listStudents,
     listClasses,
@@ -300,24 +301,13 @@ function ManageStudentsModal({
     const memberIds = classDetail?.students.map(s => s.id) ?? [];
     const addable = roster.filter(s => !memberIds.includes(s.id));
 
-    // The add endpoint is idempotent per student, so a few in flight at once
-    // is safe; bounded so a large roster is not 40 simultaneous requests.
+    // The one bounded add-all (lib/class-membership), shared with the capture
+    // link's new-class step.
     const handleAddAll = async () => {
         if (addable.length === 0) return;
         setAddingAll(true);
         setActionError(null);
-        const queue = addable.map(s => s.id);
-        let failed = 0;
-        const worker = async () => {
-            for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
-                try {
-                    await addStudentToClass(classItem.id, id);
-                } catch {
-                    failed += 1;
-                }
-            }
-        };
-        await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+        const { failed } = await addStudentsToClass(classItem.id, addable.map(s => s.id));
         await load();
         if (failed > 0) setActionError(CL_ADD_ALL_FAILED(failed));
         setAddingAll(false);
