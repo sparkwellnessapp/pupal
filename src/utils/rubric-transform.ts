@@ -378,6 +378,10 @@ function cascadeSubQuestion(sq: RubricSubQuestion): RubricSubQuestion {
             points: children.reduce((sum, c) => sum + c.points, 0),
         };
     }
+    // A leaf with NO criteria is graded as one unit at its declared points — there is
+    // nothing to derive them from, and summing an empty list would zero them on every
+    // criterion edit anywhere in the rubric (2026-10-25).
+    if (sq.criteria.length === 0) return sq;
     return { ...sq, points: sq.criteria.reduce((sum, c) => sum + c.points, 0) };
 }
 
@@ -390,6 +394,8 @@ export function recalculateParentsFromCriteria(
             return { ...q, sub_questions: q.sub_questions.map(cascadeSubQuestion) };
         }
         // Direct-criteria question: cascade straight into q.total_points.
+        // No criteria ⇒ the question is one unit; its declared total stands.
+        if (q.criteria.length === 0) return q;
         const directSum = q.criteria.reduce((sum, c) => sum + c.points, 0);
         return { ...q, total_points: directSum };
     });
