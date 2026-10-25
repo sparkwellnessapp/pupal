@@ -13,6 +13,7 @@ Architecture:
 Invariants Validated:
 - INV-1 QuestionPointSum: Σ direct_criteria.points + Σ sq.points ≈ q.total_points
 - INV-2 CriteriaPointSum: Σ sq.criteria.points ≈ sq.points (per sub-question)
+  (INV-1/INV-2 are VACUOUS at a leaf with NO criteria — see WHOLE-SCOPE below)
 - INV-3 SubCriteriaPointsSum: Σ sc.points ≈ criterion.points (vacuous if empty)
 - INV-4 RubricPointsSum: Σ q.total_points ≈ contract.total_points
 - INV-6 CriterionAlignment: Every criterion links to skill/requirement (WARNING)
@@ -20,6 +21,13 @@ Invariants Validated:
 Compilation Blocking:
 - ERROR-severity annotations → CompilationError
 - Unacknowledged WARNING annotations → WarningsRequireAcknowledgment
+
+WHOLE-SCOPE (owner-ruled 2026-10-25): a scored leaf with NO criteria is graded as
+ONE unit at its declared points. "No criteria" never means "the criteria sum to 0".
+The Draft stays faithful (empty `criteria`); the CONTRACT carries one whole-scope
+criterion worth the leaf's points (`_materialize_whole_scope_criteria`), because
+every downstream stage — plan compiler, grader, pricer, approval gate — grades and
+overrides TERMINALS, and a scope with none would be unearnable and unoverridable.
 
 Design Principle:
 - Compiler DOES NOT mutate its input
@@ -34,6 +42,7 @@ from ..schemas.ontology_types import (
     Annotation,
     AnnotationSeverity,
     CompilationError,
+    Criterion,
     ExtractRubricResponse,
     GradingRubricContract,
     NumericPolicy,
@@ -188,6 +197,7 @@ class ContractCompiler:
         # not be blocked by a label. CS drafts carry coding_task/short_answer,
         # both in the CS set, so every CS contract is byte-identical.
         clean_questions = _coerce_question_types(response.subject, clean_questions)
+        clean_questions = _materialize_whole_scope_criteria(response.rubric_id, clean_questions)
         # PR-3: selection_groups are PROPAGATED (the field existed with a docstring
         # apologising for its own non-population), and total_points is the ACHIEVABLE
         # total, not the offered sum (R4). This is the single source of the grading
@@ -256,8 +266,10 @@ class ContractCompiler:
             sub_q_sum = sum(sq.points for sq in question.sub_questions)
             criteria_sum = direct_sum + sub_q_sum
             diff = abs(declared_total - criteria_sum)
+            # WHOLE-SCOPE: a question with neither criteria nor sub-questions is one unit.
+            whole_scope = not question.criteria and not question.sub_questions
 
-            if diff > policy.sum_tolerance:
+            if diff > policy.sum_tolerance and not whole_scope:
                 errors.append(_invariant_error(
                     invariant="INV-1",
                     target_id=question.question_id,
@@ -327,10 +339,11 @@ class ContractCompiler:
                 errors.extend(self._walk_sub_question(
                     isq, f"{path}.{isq.sub_question_id}", policy))
         else:
-            # Leaf: declared points must equal the sum of its criteria.
+            # Leaf: declared points must equal the sum of its criteria. A leaf with
+            # NO criteria is vacuous (WHOLE-SCOPE) — graded as one unit at sq.points.
             crit_sum = sum(c.points for c in sq.criteria)
             diff = abs(sq.points - crit_sum)
-            if diff > policy.sum_tolerance:
+            if sq.criteria and diff > policy.sum_tolerance:
                 errors.append(_invariant_error(
                     invariant="INV-2",
                     target_id=path,
@@ -529,3 +542,56 @@ def compile_rubric(
     Equivalent to ContractCompiler().compile(response, policy).
     """
     return ContractCompiler().compile(response, policy, acknowledged_warnings)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WHOLE-SCOPE (owner-ruled 2026-10-25)
+# ─────────────────────────────────────────────────────────────────────────────
+
+WHOLE_SCOPE_DESCRIPTION_SQ = "תשובה מלאה ונכונה לסעיף כולו"
+WHOLE_SCOPE_DESCRIPTION_Q = "תשובה מלאה ונכונה לשאלה כולה"
+
+
+def _whole_scope_criterion(rubric_id, path: str, points: Decimal, description: str) -> Criterion:
+    # The uid is DETERMINISTIC (uuid5 over rubric + path): a random one would change the
+    # contract's content hash on every re-save and force a needless plan rebuild.
+    from uuid import NAMESPACE_URL, uuid5
+    return Criterion(
+        criterion_id=f"{path}.c0",
+        uid=str(uuid5(NAMESPACE_URL, f"vivi:whole-scope:{rubric_id}:{path}")),
+        index=0,
+        description=description,
+        points=points,
+    )
+
+
+def _materialize_sq(rubric_id, sq: SubQuestion, path: str) -> SubQuestion:
+    if sq.sub_questions:
+        return sq.model_copy(update={"sub_questions": [
+            _materialize_sq(rubric_id, c, f"{path}.{c.sub_question_id}") for c in sq.sub_questions
+        ]})
+    if not sq.criteria and sq.points > 0:
+        return sq.model_copy(update={"criteria": [
+            _whole_scope_criterion(rubric_id, path, sq.points, WHOLE_SCOPE_DESCRIPTION_SQ)]})
+    return sq
+
+
+def _materialize_whole_scope_criteria(rubric_id, questions: list) -> list:
+    """Give every SCORED leaf with no criteria one whole-scope criterion worth its
+    declared points — on the CONTRACT copy only, never the Draft (pure; rebuilds
+    via model_copy, so nested nodes shared with the input are never mutated). A leaf
+    worth 0 with no criteria (the unscored-part convention) is left as it is."""
+    out = []
+    for q in questions:
+        if q.sub_questions:
+            out.append(q.model_copy(update={"sub_questions": [
+                _materialize_sq(rubric_id, sq, f"{q.question_id}.{sq.sub_question_id}")
+                for sq in q.sub_questions
+            ]}))
+        elif not q.criteria and q.total_points > 0:
+            out.append(q.model_copy(update={"criteria": [
+                _whole_scope_criterion(rubric_id, q.question_id, q.total_points,
+                                       WHOLE_SCOPE_DESCRIPTION_Q)]}))
+        else:
+            out.append(q)
+    return out

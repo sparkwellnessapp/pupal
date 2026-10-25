@@ -72,6 +72,12 @@ class TierAResult:
     triggers: List[MislabelTrigger] = field(default_factory=list)
 
 
+def _is_whole_scope(node) -> bool:
+    """A leaf with NO criteria is graded as one unit at its declared points
+    (owner-ruled 2026-10-25) — its empty criteria list is not a sum of 0."""
+    return not getattr(node, "sub_questions", None) and not node.criteria
+
+
 def _node_children_sum(node) -> Decimal:
     if getattr(node, "sub_questions", None):
         return sum((sq.points for sq in node.sub_questions), Decimal("0"))
@@ -129,7 +135,7 @@ def _check_point_sums(draft: ExtractRubricResponse) -> List[PedagogicalMistake]:
     out: List[PedagogicalMistake] = []
     for q in draft.questions:
         s = _node_children_sum(q)
-        if abs(s - q.total_points) > _EPS:
+        if not _is_whole_scope(q) and abs(s - q.total_points) > _EPS:
             out.append(PedagogicalMistake(
                 mistake_id=f"pts:{q.question_id}",
                 kind=PedagogicalMistakeKind.POINT_SUM_MISMATCH,
@@ -141,7 +147,7 @@ def _check_point_sums(draft: ExtractRubricResponse) -> List[PedagogicalMistake]:
                 requires_teacher_input=True, confidence=1.0))
         for path, sq in _walk_sub_questions(q):
             ss = _node_children_sum(sq)
-            if abs(ss - sq.points) > _EPS:
+            if not _is_whole_scope(sq) and abs(ss - sq.points) > _EPS:
                 out.append(PedagogicalMistake(
                     mistake_id=f"pts:{path}",
                     kind=PedagogicalMistakeKind.POINT_SUM_MISMATCH,

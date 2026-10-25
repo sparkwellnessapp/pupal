@@ -1488,7 +1488,10 @@ def _validate_extraction(extraction: RubricExtraction) -> List[ValidationIssue]:
         direct_sum = sum(c.points for c in q.criteria)
         sq_sum = sum(sq.points for sq in q.sub_questions)
         computed = direct_sum + sq_sum
-        if abs(computed - q.total_points) > _SUM_TOLERANCE:
+        # WHOLE-SCOPE (owner-ruled 2026-10-25): no criteria and no parts = one unit at
+        # its declared points, never "sums to 0" (a missed table is SQ_ZERO_CRITERIA's job).
+        whole_scope_q = not q.criteria and not q.sub_questions
+        if not whole_scope_q and abs(computed - q.total_points) > _SUM_TOLERANCE:
             issues.append(PointMismatchIssue(
                 code="POINT_MISMATCH_Q",
                 message=(
@@ -1523,7 +1526,8 @@ def _validate_extraction(extraction: RubricExtraction) -> List[ValidationIssue]:
                 continue
             child_sum = (sum(isq.points for isq in sq.sub_questions)
                          if sq.sub_questions else sum(c.points for c in sq.criteria))
-            if abs(child_sum - sq.points) > _SUM_TOLERANCE:
+            whole_scope_sq = not sq.sub_questions and not sq.criteria   # WHOLE-SCOPE
+            if not whole_scope_sq and abs(child_sum - sq.points) > _SUM_TOLERANCE:
                 issues.append(PointMismatchIssue(
                     code="POINT_MISMATCH_SQ",
                     message=(
@@ -1989,7 +1993,7 @@ def _compilation_preflight(response: ExtractRubricResponse) -> List[str]:
         sq_sum = sum(sq.points for sq in q.sub_questions)
         declared = q.total_points
         diff = abs(declared - (direct_sum + sq_sum))
-        if diff > Decimal(str(_COMPILE_TOLERANCE)):
+        if (q.criteria or q.sub_questions) and diff > Decimal(str(_COMPILE_TOLERANCE)):
             warnings.append(
                 f"[PREFLIGHT_INV1] {q.question_id}: criteria+SQ sum "
                 f"({direct_sum + sq_sum}) differs from total ({declared}) by {diff}"
@@ -2012,7 +2016,7 @@ def _compilation_preflight(response: ExtractRubricResponse) -> List[str]:
             else:
                 sq_crit_sum = sum(c.points for c in sq.criteria)
                 sq_diff = abs(sq.points - sq_crit_sum)
-                if sq_diff > Decimal(str(_COMPILE_TOLERANCE)):
+                if sq.criteria and sq_diff > Decimal(str(_COMPILE_TOLERANCE)):
                     warnings.append(
                         f"[PREFLIGHT_INV1] {path}: criteria sum "
                         f"({sq_crit_sum}) differs from SQ points ({sq.points}) by {sq_diff}"

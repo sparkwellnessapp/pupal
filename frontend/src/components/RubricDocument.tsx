@@ -9,6 +9,7 @@ import type { Annotation, SelectionGroup } from '@/lib/api';
 import { recalculateParentsFromCriteria } from '@/utils/rubric-transform';
 import {
     updateCriterionAtPath, addCriterionAtPath, removeCriterionAtPath,
+    addSubCriterionAtPath, removeSubCriterionAtPath,
     changeQuestionPoints as changeQuestionPointsOp,
     changeSubQuestionPointsAtPath, setSubQuestionTextAtPath,
     setQuestionText as setQuestionTextOp,
@@ -63,6 +64,8 @@ interface DocOps {
     addCriterion(qIndex: number, sqPath: number[]): void;
     removeCriterion(qIndex: number, sqPath: number[], cIndex: number, label: string): void;
     setSubCriteria(qIndex: number, sqPath: number[], cIndex: number, subs: RubricSubCriterion[] | null): void;
+    addSubCriterion(qIndex: number, sqPath: number[], cIndex: number): void;
+    removeSubCriterion(qIndex: number, sqPath: number[], cIndex: number, scIndex: number): void;
     changeQuestionPoints(qIndex: number, n: number): void;
     /** D5 — a sub-question's DECLARED points, at any depth. No redistribution. */
     changeSubQuestionPoints(qIndex: number, sqPath: number[], n: number): void;
@@ -197,7 +200,7 @@ const LANE = 'border-r border-stone-200 bg-stone-50/70';
 function SubCriteriaRows({
     qIndex, sqPath, cIndex, criterion,
 }: { qIndex: number; sqPath: number[]; cIndex: number; criterion: RubricCriterion }) {
-    const { setSubCriteria, changedIds } = useDoc();
+    const { setSubCriteria, addSubCriterion, removeSubCriterion, changedIds } = useDoc();
     const subs = criterion.sub_criteria ?? [];
 
     const editSub = (scIndex: number, updates: Partial<RubricSubCriterion>) => {
@@ -208,7 +211,7 @@ function SubCriteriaRows({
     return (
         <>
             {subs.map((sc, scIndex) => (
-                <tr key={sc.sub_criterion_id} data-scope-id={sc.sub_criterion_id} className="scroll-mt-20 align-top">
+                <tr key={sc.sub_criterion_id} data-scope-id={sc.sub_criterion_id} className="scroll-mt-20 align-top group/sub">
                     <td className="py-1.5 pr-9 pl-3 bg-stone-50/40 text-stone-600 text-doc-meta">
                         <span className="text-stone-300 ml-1">↳</span>
                         <EditableText
@@ -216,6 +219,7 @@ function SubCriteriaRows({
                             onCommit={(description) => editSub(scIndex, { description })}
                             ariaLabel={`תיאור תת-קריטריון ${scIndex + 1} — לחצי לעריכה`}
                             dir="rtl"
+                            placeholder="תיאור תת-הקריטריון"
                         />
                     </td>
                     <td className={`py-1.5 px-2 text-center text-doc-meta ${LANE}`}>
@@ -226,9 +230,25 @@ function SubCriteriaRows({
                             changed={changedIds.has(sc.sub_criterion_id)}
                         />
                     </td>
-                    <td className="bg-stone-50/40" aria-hidden />
+                    <td className="py-1.5 w-9 text-center bg-stone-50/40">
+                        <button
+                            type="button"
+                            onClick={() => removeSubCriterion(qIndex, sqPath, cIndex, scIndex)}
+                            aria-label={`מחקי תת-קריטריון ${scIndex + 1}`}
+                            className="opacity-0 group-hover/sub:opacity-100 focus:opacity-100 text-stone-300 hover:text-red-500 transition-opacity leading-none"
+                        >×</button>
+                    </td>
                 </tr>
             ))}
+            <tr>
+                <td colSpan={3} className="py-1.5 pr-9 pl-3 bg-stone-50/40">
+                    <button
+                        type="button"
+                        onClick={() => addSubCriterion(qIndex, sqPath, cIndex)}
+                        className="text-doc-meta text-stone-400 hover:text-primary-600 transition-colors"
+                    >+ הוסיפי תת-קריטריון</button>
+                </td>
+            </tr>
         </>
     );
 }
@@ -244,7 +264,7 @@ function CriteriaTable({
     /** The owning node's OWN points — q.total_points, or sq.points for a leaf. */
     scopePoints: number;
 }) {
-    const { updateCriterion, addCriterion, removeCriterion, annotations, changedIds } = useDoc();
+    const { updateCriterion, addCriterion, removeCriterion, addSubCriterion, annotations, changedIds } = useDoc();
     const tableRef = useRef<HTMLTableElement>(null);
     const muteView = mutedPrefixRenderer(scopeHeading); // D-4
 
@@ -268,7 +288,22 @@ function CriteriaTable({
         (next?.querySelector('button, input') as HTMLElement | undefined)?.focus();
     }, []);
 
-    if (criteria.length === 0) return null;
+    // A scope with NO criteria is graded as one unit at its own points (2026-10-25):
+    // nothing here sums to 0. She can still build a table for it from scratch.
+    if (criteria.length === 0) {
+        return (
+            <div className="my-4 flex flex-wrap items-center justify-between gap-2 rounded-zone-sm ring-1 ring-stone-200 bg-stone-50/70 px-3.5 py-2.5">
+                <span className="text-doc-meta text-stone-600">
+                    ללא טבלת קריטריונים — הסעיף ייבדק כיחידה אחת ({formatPoints(scopePoints)} נק&apos;)
+                </span>
+                <button
+                    type="button"
+                    onClick={() => addCriterion(qIndex, sqPath)}
+                    className="text-sm text-stone-500 hover:text-primary-600 transition-colors"
+                >+ הוסיפי טבלת קריטריונים</button>
+            </div>
+        );
+    }
 
     const criteriaSum = criteria.reduce((sum, c) => sum + c.points, 0);
     const balanced = isClose(criteriaSum, scopePoints);
@@ -308,8 +343,18 @@ function CriteriaTable({
                                                     {open ? <ChevronDown size={14} /> : <ChevronLeft size={14} />}
                                                 </button>
                                             )}
-                                            <EditableText value={c.description} onCommit={(description) => updateCriterion(qIndex, sqPath, cIndex, { description })} ariaLabel={`תיאור קריטריון ${cIndex + 1} — לחצי לעריכה`} dir="rtl" renderDisplay={muteView} />
+                                            <EditableText value={c.description} onCommit={(description) => updateCriterion(qIndex, sqPath, cIndex, { description })} ariaLabel={`תיאור קריטריון ${cIndex + 1} — לחצי לעריכה`} dir="rtl" renderDisplay={muteView} placeholder="תיאור הקריטריון" />
                                         </div>
+                                        {!hasSubs && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    addSubCriterion(qIndex, sqPath, cIndex);
+                                                    setOpenBreakdowns((prev) => new Set(prev).add(c.criterion_id));
+                                                }}
+                                                className="mt-1 text-doc-meta text-stone-400 hover:text-primary-600 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                                            >+ פרקי לתתי-קריטריונים</button>
+                                        )}
                                     </td>
                                     <td className={`py-2.5 px-2 text-center transition-colors group-hover:bg-primary-50/60 ${LANE}`} data-points-cell>
                                         <EditablePoints
@@ -795,6 +840,12 @@ export function RubricDocument({
         },
         setSubCriteria: (qIndex, sqPath, cIndex, subs) =>
             onQuestionsChange(updateCriterionAtPath(questions, qIndex, sqPath, cIndex, { sub_criteria: subs })),
+        // Structural, like add/removeCriterion: no cascade, no redistribution —
+        // INV-R2 surfaces any gap until she fills the points in.
+        addSubCriterion: (qIndex, sqPath, cIndex) =>
+            onQuestionsChange(addSubCriterionAtPath(questions, qIndex, sqPath, cIndex)),
+        removeSubCriterion: (qIndex, sqPath, cIndex, scIndex) =>
+            onQuestionsChange(removeSubCriterionAtPath(questions, qIndex, sqPath, cIndex, scIndex)),
         changeQuestionPoints: (qIndex, n) => onQuestionsChange(changeQuestionPointsOp(questions, qIndex, n)),
         // D5: a parent edit sets that node's DECLARED value and NOTHING else — no
         // downward redistribution, no rescaling of children. If it opens a sum gap,

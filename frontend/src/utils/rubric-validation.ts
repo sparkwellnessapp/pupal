@@ -194,8 +194,9 @@ export function validateQuestion(
         });
     } else {
         // ── INV-R1 (direct-criteria shape): Σ q.criteria.points vs q.total_points ─
+        // No criteria ⇒ graded as one unit at its declared total: vacuous, like INV-R2.
         const criteriaSum = sumDirectCriteriaPoints(question);
-        if (!isClose(criteriaSum, question.total_points)) {
+        if (question.criteria.length > 0 && !isClose(criteriaSum, question.total_points)) {
             const qLabel = getDisplayLabel({ kind: 'question', qIndex }, questions);
             const total = formatPoints(question.total_points);
             const actual = formatPoints(criteriaSum);
@@ -232,8 +233,9 @@ export function validateQuestion(
  *
  * Unlike the depth-1 predecessor, a parent is NOT treated as a vacuously-satisfied
  * empty-criteria leaf — that blindness is precisely what hid the bagrut error at
- * q1.א.2. A leaf whose criteria sum ≠ its points fires even when criteria is empty,
- * matching the backend (a leaf with points but no criteria is malformed).
+ * q1.א.2. A leaf with NO criteria is vacuous (2026-10-25, owner-ruled): it is
+ * graded as one unit at its declared points, so "no criteria" never means "sums to
+ * 0". Mirrors the backend's INV-2 leaf arm.
  */
 function walkSubQuestion(
     sq: RubricSubQuestion,
@@ -280,7 +282,7 @@ function walkSubQuestion(
     } else {
         // Leaf: Σ criteria.points == sq.points.
         const critSum = sq.criteria.reduce((sum, c) => sum + c.points, 0);
-        if (!isClose(critSum, sq.points)) {
+        if (sq.criteria.length > 0 && !isClose(critSum, sq.points)) {
             const declared = formatPoints(sq.points);
             const actual = formatPoints(critSum);
             issues.push({
