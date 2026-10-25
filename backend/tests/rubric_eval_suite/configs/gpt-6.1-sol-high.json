@@ -1,0 +1,7 @@
+{
+  "model_key": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "max_output_tokens": 32000,
+  "cost_ceiling": 1.0,
+  "notes": "**THIS IS THE PRODUCTION PIN as of 2026-10-25** (owner-ordered): openai/gpt-6.1-sol/high/32000. ONE variable vs the previous pin gpt-5.6-terra-high.json (model_key only). Verdict RUNLOG P-RX4: k=3 all-6 @ prompt 3.11.0-breakdown = 15/18, the identical pass set to terra on the same tree (RUN 20261025-205453 vs 20261025-205919), hobby's complete Tier-B fix 3/3, $/doc -16.5% ($0.0627 vs $0.0751), latency slightly slower (headline 126.4s vs 120.2s). Identity/prices registry-owned (verified 2026-10-25: $2/$0.10/$10)."
+}

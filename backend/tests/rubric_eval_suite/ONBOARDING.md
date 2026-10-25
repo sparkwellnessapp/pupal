@@ -123,7 +123,7 @@ PYTHONPATH=. python -m tests.rubric_eval_suite.runner --config gpt-5.5 --repeats
 
 ---
 
-## 4. The five fixtures (each covers a distinct failure mode)
+## 4. The six fixtures (each covers a distinct failure mode)
 
 The set is deliberately spanning; **missing a mode makes that part of the gate
 vacuous.** Do not delete or "clean up" a fixture without understanding what mode it
@@ -136,6 +136,7 @@ guards.
 | **foundations_cs** | **Inline/prose criteria** (no rubric table) | 3 Q | clean (0/0); most text spans are open items (null) |
 | **hobby_tvshow** | **Nested tables + Tier-B judgment** | 2 Q | 1 pedagogical `structural_mislabel` (LLM adjudication, the non-deterministic surface) |
 | **csharp_plane_combine** | **Clean-table control** (regression guard) + 7 verbatim code solutions | 2 Q | clean (0/0); strike-resolution 6→8, 18→20, 4→0-drop |
+| **recursion_rubric** | **Inline breakdowns** — prose scoring lines INDENTED under a scoring line (sub-criteria with no table) + whole-scope parts from an auto-numbered points list; added 2026-10-25 from a live failure (job daa36e9d) | 1 Q, 3 sub-q (ג → 3 parts) | 1 `rubric_mismatch` + 1 `point_sum_mismatch` @ q1.א (teacher's 25 under 30) |
 
 The **bagrut faithful-error** case is the heart of the product: the extractor
 *passes* by **reproducing** the teacher's arithmetic error and **flagging** it

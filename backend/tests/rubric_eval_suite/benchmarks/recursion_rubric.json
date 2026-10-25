@@ -1,0 +1,301 @@
+{
+  "schema_version": "2.0",
+  "rubric_id": "recursion_rubric",
+  "rubric_name": "recursion_rubric",
+  "subject": "computer_science",
+  "programming_language": "csharp",
+  "total_points": "100",
+  "questions": [
+    {
+      "question_id": "q1",
+      "question_type": "short_answer",
+      "question_text": null,
+      "total_points": "100",
+      "allow_multiple_valid_forms": false,
+      "skill_targets": [],
+      "requirements": [],
+      "criteria": [],
+      "sub_questions": [
+        {
+          "sub_question_id": "א",
+          "index": 0,
+          "title": null,
+          "text": "א. כתבו פעולה רקורסיבית IsFound המקבלת מספר שלם חיובי num וספרה dig (בין 0-9), ומחזירה true אם הספרה  dig  נמצאת במספר num, אחרת מחזירה false.\nלדוגמה:\nעבור המספר 82 וספרה 2 הפעולה תחזיר true.\nעבור המספר 349 וספרה 2 הפעולה תחזיר false.",
+          "points": "30",
+          "example_solution": "public static bool IsFound(int num, int digit)\n{\n    if (num == 0)\n        return false;\n    if ( num%10==digit)\n        return true;\n    return IsFound(num / 10, digit);\n}",
+          "criteria": [
+            {
+              "criterion_id": "q1.א.c0",
+              "uid": null,
+              "index": 0,
+              "description": "חתימה - 2 נק",
+              "points": "2",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q1.א.c1",
+              "uid": null,
+              "index": 1,
+              "description": "תנאי עצירה 5 נק",
+              "points": "5",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q1.א.c2",
+              "uid": null,
+              "index": 2,
+              "description": "return- 3 נק",
+              "points": "3",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q1.א.c3",
+              "uid": null,
+              "index": 3,
+              "description": "זימון רקורסיבי 15 נק' (זימון על n/10- 5, הכפלה ב-10 – 5 והוספת ספרת האחדות- 5)",
+              "points": "15",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": null,
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ב",
+          "index": 1,
+          "title": null,
+          "text": "ב. מספר \"מיוחד\" הוא מספר שלם חיובי באורךlength  אשר כל הספרות מ-0  עדlength-1   נמצאות בו. כתבו פעולה רקורסיבית IsSpecial המקבלת מספר שלם חיובי  num, ומחזירה true אם המספר מיוחד, אחרת מחזירה false.\nלדוגמה:\n120 הוא מספר מיוחד (אורכו 3  והספרות 0,1,2 נמצאות בו)\n34012 גם מיוחד (אורכו 5  והספרות 0,1,2,3,4  נמצאות בו)\n123 אינו מיוחד\nחובה להשתמש בפעולה IsFound שכתבתם בסעיף א'.\nללא הוספת פרמטרים.",
+          "points": "35",
+          "example_solution": "public static int Length(int num)\n{\n    if (num < 10)\n        return 1;\n    return 1 + Length(num / 10);\n}\npublic static bool IsSpecial(int num)\n{\n    return IsSpecialHelper(num, Length(num) - 1);\n}\npublic static bool IsSpecialHelper(int num, int digit)\n{\n    if (digit < 0)\n        return true;\n    if (!IsFound(num, digit))\n        return false;\n    return IsSpecialHelper(num, digit - 1);\n}",
+          "criteria": [
+            {
+              "criterion_id": "q1.ב.c0",
+              "uid": null,
+              "index": 0,
+              "description": "יצירת Length 10 נק",
+              "points": "10",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": [
+                {
+                  "sub_criterion_id": "q1.ב.c0.s0",
+                  "uid": null,
+                  "index": 0,
+                  "description": "חתימה: 2 נק",
+                  "points": "2"
+                },
+                {
+                  "sub_criterion_id": "q1.ב.c0.s1",
+                  "uid": null,
+                  "index": 1,
+                  "description": "תנאי עצירה: 2 נק'",
+                  "points": "2"
+                },
+                {
+                  "sub_criterion_id": "q1.ב.c0.s2",
+                  "uid": null,
+                  "index": 2,
+                  "description": "קריאה רקורסיבית: 6 נק'",
+                  "points": "6"
+                }
+              ],
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q1.ב.c1",
+              "uid": null,
+              "index": 1,
+              "description": "יצירת פעולת מעטפת IsSpecialHelper 20נק'",
+              "points": "20",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": [
+                {
+                  "sub_criterion_id": "q1.ב.c1.s0",
+                  "uid": null,
+                  "index": 0,
+                  "description": "חתימה -  5 נק'",
+                  "points": "5"
+                },
+                {
+                  "sub_criterion_id": "q1.ב.c1.s1",
+                  "uid": null,
+                  "index": 1,
+                  "description": "תנאי עצירה – 7 נק'",
+                  "points": "7"
+                },
+                {
+                  "sub_criterion_id": "q1.ב.c1.s2",
+                  "uid": null,
+                  "index": 2,
+                  "description": "קריאה רקורסיבית -8 נק'",
+                  "points": "8"
+                }
+              ],
+              "extraction_confidence": null,
+              "notes": null
+            },
+            {
+              "criterion_id": "q1.ב.c2",
+              "uid": null,
+              "index": 2,
+              "description": "קריאה לפעולת מעטפת: 5 נק'",
+              "points": "5",
+              "evaluation_guidance": null,
+              "skill_targets": [],
+              "requirements": [],
+              "sub_criteria": [
+                {
+                  "sub_criterion_id": "q1.ב.c2.s0",
+                  "uid": null,
+                  "index": 0,
+                  "description": "חתימה: 2 נק'",
+                  "points": "2"
+                },
+                {
+                  "sub_criterion_id": "q1.ב.c2.s1",
+                  "uid": null,
+                  "index": 1,
+                  "description": "קריאה נכונה לפעולת המעטפת 3 נק'",
+                  "points": "3"
+                }
+              ],
+              "extraction_confidence": null,
+              "notes": null
+            }
+          ],
+          "sub_questions": [],
+          "proposals": null
+        },
+        {
+          "sub_question_id": "ג",
+          "index": 2,
+          "title": null,
+          "text": "ג. לפניכם שתי פעולות בשם What, בהן נעשה שימוש בפעולה IsSpecial שכתבתם בסעיף ב':\npublic static int What(int [ ] a)\n{\nreturn What(a, a.Length - 1);\n}\npublic static int What(int [ ] a, int i)\n{\nif (i < 0)\nreturn 0;\nif (IsSpecial(a[i]))\nreturn What(a, i - 1) + 1;\nreturn What(a, i - 1);\n}",
+          "points": "35",
+          "example_solution": null,
+          "criteria": [],
+          "sub_questions": [
+            {
+              "sub_question_id": "1",
+              "index": 0,
+              "title": null,
+              "text": "1) ערכו מעקב אחר הזימון What(a) , ורשמו את הערך המוחזר עבור המערך  a  שלפניכם:\n[TABLE 1: 2x4 rtl]\n| 3 | 2 | 1 | 0 |\n|---|---|---|---|\n| 213 | 3102 | 4230 | 102 |\nהראו את המעקב אחר שתי הפעולות What.\nאין צורך להראות מעקב אחרי הפעולה IsSpecial.",
+              "points": "25",
+              "example_solution": null,
+              "criteria": [],
+              "sub_questions": [],
+              "proposals": null
+            },
+            {
+              "sub_question_id": "2",
+              "index": 1,
+              "title": null,
+              "text": "2) תנו דוגמה למערך מספרים שלמים חיוביים  a בגודל 4, עבורו הזימון What(a) יחזיר 4.",
+              "points": "5",
+              "example_solution": null,
+              "criteria": [],
+              "sub_questions": [],
+              "proposals": null
+            },
+            {
+              "sub_question_id": "3",
+              "index": 2,
+              "title": null,
+              "text": "3) מהי מטרת שתי הפעולות What ?\nבהצלחה!",
+              "points": "5",
+              "example_solution": null,
+              "criteria": [],
+              "sub_questions": [],
+              "proposals": null
+            }
+          ],
+          "proposals": null
+        }
+      ],
+      "example_solution": null,
+      "trace_tables": null,
+      "context_tables": null,
+      "proposals": null
+    }
+  ],
+  "selection_groups": [],
+  "pedagogical_mistakes": [
+    {
+      "mistake_id": "pts:q1.א",
+      "kind": "point_sum_mismatch",
+      "severity": "warning",
+      "target_id": "q1.א",
+      "explanation": "רכיבי סעיף א מסתכמים ל-25.0 אך נקודות הסעיף הן 30.0.",
+      "evidence": {
+        "children_sum": "25.0",
+        "declared": "30.0"
+      },
+      "suggested_fix": {
+        "operation": "adjust_points",
+        "description": "עדכני את הניקוד המוצהר ל-25",
+        "params": {},
+        "steps": [
+          {
+            "op": "set_points",
+            "scope": "q1.א",
+            "criterion_index": null,
+            "to_scope": null,
+            "text": null,
+            "value": "25.0",
+            "current_value": "30.0"
+          }
+        ]
+      },
+      "requires_teacher_input": true,
+      "confidence": 1.0,
+      "explained_by": null,
+      "dismissed": null,
+      "dismissed_at": null,
+      "fix_applied": null,
+      "fix_applied_at": null
+    }
+  ],
+  "approach_classes": [],
+  "annotations": [
+    {
+      "annotation_type": "rubric_mismatch",
+      "severity": "warning",
+      "message": "סכום רכיבי הניקוד בסעיף א הוא 25 נק' אך הוצהר 30",
+      "target_id": "q1.א",
+      "id": "gt-q1-a-sum",
+      "invariant": null,
+      "expected": null,
+      "actual": null,
+      "message_he": null
+    }
+  ],
+  "extraction_metadata": {},
+  "name": "recursion_rubric",
+  "description": null,
+  "document_context": null,
+  "metadata": {}
+}

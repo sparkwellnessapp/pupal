@@ -188,7 +188,7 @@ async def run_extraction_job(job_id: UUID) -> bool:
                     warnings=list(result.warnings),
                     errors=list(result.errors),
                     requires_review=result.requires_review,
-                    # D-16: `3.10.0-fixsource` for CS; `…+<subject>` otherwise (the pipeline stamps it).
+                    # D-16: `EXTRACTION_PROMPT_VERSION` for CS; `…+<subject>` otherwise (the pipeline stamps it).
                     prompt_version=result.metadata.get("prompt_version") or EXTRACTION_PROMPT_VERSION,
                     pipeline_version=result.metadata.get("pipeline_version"),
                     llm_model=m.llm_model,

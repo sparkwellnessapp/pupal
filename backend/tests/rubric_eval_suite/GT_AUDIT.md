@@ -128,3 +128,29 @@ Authoring rules:
   which runs the real Tier A on every fixture's faithful draft and asserts
   pedagogical_match. A new fixture whose GT violates the invariant fails the
   battery before it can burn a live run.
+
+---
+
+## Addendum — recursion_rubric (2026-10-25)
+
+Source: a teacher's live upload (extraction job `daa36e9d`; the fixture is that job's source file — sha
+`ab868b06…` as uploaded, `d0c98cd3…` as committed: docProps creator/lastModifiedBy BLANKED for
+the public repo, render byte-identical). Built by `build_benchmarks.build_recursion_rubric` — criteria, sub-criteria and
+example solutions are SLICED from the render, never typed; texts by
+`tools/populate_texts.py --only recursion_rubric`; Tier-A pedagogical TRANSCRIBED from a probe of
+the faithful draft (the R2 invariant; `test_fp123` enforces it).
+
+- **Render dependency.** The GT is authored against the render that emits Word's auto-numbered
+  labels and the teacher's indentation (parser_render, same date). Under the older render the
+  sub-question markers do not exist at all, so §2's slicer would leave every text null.
+- **ב's structure is the teacher's indentation**: a scoring line flush left opens a criterion;
+  the lines indented under it are its sub-criteria (3 criteria, 3 + 3 + 2 parts, Σ 35).
+- **א's teacher error is kept**: components 2 + 5 + 3 + 15 = 25 under a declared 30 ⇒
+  `rubric_mismatch@q1.א` + Tier-A `point_sum_mismatch@q1.א`. The «15 נק' (זימון על n/10- 5, …)»
+  in-line breakdown stays inside that criterion's description (SECTION 7: an in-line
+  parenthetical is internal guidance, not separate lines) — no sub-criteria there.
+- **ג has no criteria anywhere**: «פתרון ג: 35» then an auto-numbered «1. 25 / 2. 5 / 3. 5» ⇒
+  three WHOLE-SCOPE parts (25 / 5 / 5, criteria `[]`), no example solutions.
+- **Known ungated low-tail node:** ג.3's span runs to end of document and so includes the closing
+  «בהצלחה!», which the prompt correctly drops as furniture. Not hand-edited (text hand-editing is
+  banned); expect its `subquestion_text_fidelity` below 1.0.

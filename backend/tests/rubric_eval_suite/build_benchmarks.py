@@ -93,13 +93,15 @@ def validate(r: ExtractRubricResponse, name: str):
         if getattr(node, "sub_questions", None):
             return sum((sq.points for sq in node.sub_questions), Decimal("0"))
         return sum((c.points for c in node.criteria), Decimal("0"))
+    def whole_scope(node):  # WHOLE-SCOPE (2026-10-25): no criteria = one unit, not 0
+        return not node.criteria and not node.sub_questions
     for q in r.questions:
         s = node_sum(q)
-        if abs(s - q.total_points) > Decimal("0.001"):
+        if not whole_scope(q) and abs(s - q.total_points) > Decimal("0.001"):
             issues.append(f"{q.question_id}: children {s} != total {q.total_points}")
         for sq in q.all_sub_questions:
             ss = node_sum(sq)
-            if abs(ss - sq.points) > Decimal("0.001"):
+            if not whole_scope(sq) and abs(ss - sq.points) > Decimal("0.001"):
                 issues.append(f"{q.question_id}.{sq.sub_question_id}: children {ss} != {sq.points}")
     ach = r.achievable_points
     if abs(ach - r.total_points) > Decimal("0.001"):
@@ -415,9 +417,103 @@ def build_bagrut_899371():
     return r, name
 
 
+# =============================================================================
+# FILE 6 — recursion_rubric (owner report 2026-10-25, a teacher's live upload)
+# =============================================================================
+# One question, three sub-questions, NO rubric table: every criterion is an inline
+# scoring line under a "פתרון X" solution block (SECTION 7). The archetype it
+# guards is the INLINE BREAKDOWN — a criterion line whose components sit INDENTED
+# beneath it ("יצירת Length 10 נק" over 2 + 2 + 6). Read flat, ב's eleven lines
+# sum to 70 under a declared 35; read as the teacher indented them, ב is three
+# criteria with sub-criteria and adds up. ג has NO criteria at all: its points
+# list ("1. 25 / 2. 5 / 3. 5", auto-numbered) gives three WHOLE-SCOPE leaves.
+# The teacher's own error is kept: א's components sum to 25 under a declared 30.
+# Criteria, sub-criteria and solutions are SLICED from the render (never typed);
+# question/sub-question text comes from tools/populate_texts.py --only.
+def build_recursion_rubric():
+    import logging
+    from app.services.docx_v3.parser_render import render_docx_to_markdown
+    name = "recursion_rubric"
+    logging.disable(logging.CRITICAL)
+    lines = [l.rstrip() for l in render_docx_to_markdown((FIX / f"{name}.docx").read_bytes())
+             .splitlines() if l.strip()]
+    logging.disable(logging.NOTSET)
+
+    def at(prefix: str, start: int = 0) -> int:
+        return next(i for i in range(start, len(lines)) if lines[i].strip().startswith(prefix))
+
+    def scoring(i: int) -> Tuple[str, Decimal]:
+        desc = lines[i].strip()
+        return desc, parse_points(desc)
+
+    sol_a, sol_b, sol_c = at("פתרון א"), at("פתרון ב"), at("פתרון ג")
+    a_first, b_first = at("חתימה - 2", sol_a), at("יצירת Length", sol_b)
+    sol_a_text = "\n".join(lines[sol_a + 1:a_first])
+    sol_b_text = "\n".join(lines[sol_b + 1:b_first])
+
+    a_crit = [crit(*scoring(i), k, "q1", "א", k) for k, i in enumerate(range(a_first, sol_b))]
+
+    # ב: an unindented line opens a criterion; the indented lines under it are its parts.
+    b_crit: List[Criterion] = []
+    for i in range(b_first, sol_c):
+        desc, pts = scoring(i)
+        if lines[i].startswith(" "):
+            parent = b_crit[-1]
+            k = len(parent.sub_criteria)
+            parent.sub_criteria.append(SubCriterion(
+                sub_criterion_id=f"{parent.criterion_id}.s{k}", index=k,
+                description=desc, points=pts))
+        else:
+            k = len(b_crit)
+            c = crit(desc, pts, k, "q1", "ב", k)
+            c.sub_criteria = []
+            b_crit.append(c)
+
+    c_parts = [parse_points(lines[i].split(".", 1)[1]) for i in range(sol_c + 1, sol_c + 4)]
+    q1 = Question(question_id="q1", total_points=D(100), sub_questions=[
+        SubQuestion(sub_question_id="א", index=0, points=D(30), criteria=a_crit,
+                    example_solution=sol_a_text),
+        SubQuestion(sub_question_id="ב", index=1, points=D(35), criteria=b_crit,
+                    example_solution=sol_b_text),
+        SubQuestion(sub_question_id="ג", index=2, points=parse_points(lines[sol_c]),
+                    criteria=[], example_solution=None, sub_questions=[
+            SubQuestion(sub_question_id=str(n + 1), index=n, points=p, criteria=[],
+                        example_solution=None)
+            for n, p in enumerate(c_parts)]),
+    ])
+    r = ExtractRubricResponse(
+        rubric_id=name, rubric_name=name, subject="computer_science",
+        programming_language="csharp", total_points=D(100), questions=[q1],
+        selection_groups=[],
+        annotations=[Annotation(
+            annotation_type="rubric_mismatch", severity=AnnotationSeverity.WARNING,
+            message="סכום רכיבי הניקוד בסעיף א הוא 25 נק' אך הוצהר 30",
+            target_id="q1.א", id="gt-q1-a-sum")],
+    )
+    validate(r, name)
+    print(f"    א {len(a_crit)} crit; ב {len(b_crit)} crit / "
+          f"{[len(c.sub_criteria) for c in b_crit]} sub; ג parts {c_parts}")
+    return r, name
+
+
+BUILDERS = {
+    "hobby_tvshow": build_hobby_tvshow,
+    "employee_course_select1": build_employee_course_select1,
+    "foundations_cs": build_foundations_cs,
+    "csharp_plane_combine": build_csharp_plane_combine,
+    "bagrut_899371": build_bagrut_899371,
+    "recursion_rubric": build_recursion_rubric,
+}
+
+
 if __name__ == "__main__":
-    for builder in (build_hobby_tvshow, build_employee_course_select1, build_foundations_cs,
-                    build_csharp_plane_combine, build_bagrut_899371):
-        r, name = builder()
+    import sys
+    # Naming fixtures builds ONLY those. With no argument this rebuilds the original
+    # five from their builders, which OVERWRITES every later GT edit (texts,
+    # pedagogical mistakes, annotations) — name the fixture you mean.
+    names = sys.argv[1:] or ["hobby_tvshow", "employee_course_select1", "foundations_cs",
+                             "csharp_plane_combine", "bagrut_899371"]
+    for n in names:
+        r, name = BUILDERS[n]()
         write(r, name)
-    print("\n[done] wrote 5 benchmarks")
+    print(f"\n[done] wrote {len(names)} benchmark(s)")

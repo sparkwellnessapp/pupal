@@ -96,6 +96,17 @@ MODELS: dict[str, ModelSpec] = {
                         cached_in_per_mtok=0.50),
         supports_logprobs=True, supports_json_schema=True, tier="frontier",
     ),
+    # gpt-6.1-sol (rubric-extraction pin candidate, owner-proposed 2026-10-25).
+    # VERIFIED 2026-10-25 at developers.openai.com/api/docs/models/gpt-6.1-sol:
+    # $2 in / $0.10 cached / $10 out per 1M — the standard rate, no promo caveat;
+    # effort low|medium(default)|high|xhigh|max (no none/minimal); 1.05M context,
+    # 128k max output. Cheaper than terra on output (10 vs 12) and cached input.
+    "gpt-6.1-sol": ModelSpec(
+        key="gpt-6.1-sol", provider="openai", model_id="gpt-6.1-sol",
+        price=PriceCard(in_per_mtok=2.00, out_per_mtok=10.00,
+                        cached_in_per_mtok=0.10),
+        supports_logprobs=True, supports_json_schema=True, tier="frontier",
+    ),
     "gpt-5.5": ModelSpec(
         key="gpt-5.5", provider="openai", model_id="gpt-5.5",
         price=PriceCard(in_per_mtok=5.00, out_per_mtok=30.00,

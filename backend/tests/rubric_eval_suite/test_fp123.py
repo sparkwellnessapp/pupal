@@ -119,6 +119,9 @@ def test_expressibility_round_trip_all_fixtures():
         "bagrut_899371": 1.0, "csharp_plane_combine": 1.0,
         "employee_course_select1": 1.0, "foundations_cs": 1.0,
         "hobby_tvshow": 1.0,
+        # One question with no shared prose: its question_text is genuinely null
+        # (GT convention 7), so that metric has no node to compare.
+        "recursion_rubric": {"question_text_fidelity_min": None},
     }
     from app.services.docx_v3.pedagogical_mistakes import (
         detect_pedagogical_mistakes, _ROOT_KINDS,
@@ -154,8 +157,9 @@ def test_expressibility_round_trip_all_fixtures():
         for m in ("question_text_fidelity_min", "subquestion_text_fidelity_min",
                   "text_line_recall_min"):
             got = getattr(rs, m)
-            assert got == exp, (
-                f"{j.stem}: round-trip {m}={got} (expected {exp}) — the "
+            exp_m = exp.get(m, 1.0) if isinstance(exp, dict) else exp
+            assert got == exp_m, (
+                f"{j.stem}: round-trip {m}={got} (expected {exp_m}) — the "
                 f"builder/normalizer mangles GT text (instrument bug)")
         print(f"  [ok] {j.stem}: round-trip passes the gate; text ceiling = {exp}")
 

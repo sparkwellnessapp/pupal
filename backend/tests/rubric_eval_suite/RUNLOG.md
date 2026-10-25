@@ -2385,3 +2385,120 @@ state: frontend 50 files / all green + `npx tsc --noEmit` clean; backend 56 pass
   app.main imports. suite_hash -> e3ed1086c4c3dff2.
 NOT DEPLOYED: this is frontend + eval-scorer only. The frontend deploys by the §12.5 mirror +
   subtree flow and is the owner's call; nothing here changes the backend image now serving.
+
+## CHANGE 2026-10-25 — FIXTURE ADDED: recursion_rubric (owner-ordered)
+what: fixtures/recursion_rubric.docx (the source of live job daa36e9d: sha ab868b06… as uploaded,
+  d0c98cd3… as committed — docProps creator/lastModifiedBy blanked for the public repo, render
+  byte-identical) + benchmarks/recursion_rubric.json, built by build_benchmarks.build_recursion_rubric (criteria,
+  sub-criteria, solutions SLICED from the render), texts by populate_texts --only (new flag), Tier-A
+  pedagogical TRANSCRIBED from a probe of the faithful draft (point_sum_mismatch@q1.א, 25≠30 — the
+  teacher's own error, kept), annotation rubric_mismatch@q1.א. No Tier-B expectation.
+archetype guarded: INLINE BREAKDOWN — prose scoring lines indented under a scoring line (ב: 3
+  criteria / 3+3+2 sub-criteria = 35); plus WHOLE-SCOPE parts (ג.1/2/3 = 25/5/5, no criteria).
+GT text is from the NEW render (it carries labels) — see the render CHANGE below. ג.3's span
+  mechanically includes the closing «בהצלחה!» (furniture the prompt drops): an expected low-tail
+  node on the UNGATED text metric, not a GT edit.
+also: build_benchmarks main takes fixture names (bare run still rebuilds the original five and
+  overwrites later GT edits — now said in the code); test_fp123 TEXT_CEILING takes per-metric
+  values (this fixture's q1 has no shared prose ⇒ question_text_fidelity_min None).
+affects: suite_hash; every future all-fixture run is 6 fixtures (max 15/18 — hobby's constant).
+
+## RUN 20261025-204226_gpt-5.6-terra-high — P-RX1 baseline (prod config, OLD render), recursion only
+ref: none (first run on the fixture)   variable: none   config: gpt-5.6-terra-high k=3
+prompt 3.10.0-fixsource   pipeline 3.6.2   worktree: pristine origin/main + fixture/GT only
+validity: 0/3 — EVERY draw INVALID: `ValidationError: Criterion.description string_too_short`.
+  Without the auto-numbered labels the model put ג's "25 / 5 / 5" on ג as three criteria with
+  description "" (the prompt and the CriterionExtraction field text both TOLD it to emit "" when no
+  text was found; Criterion requires ≥1 char) → _build_criterion raised → THE WHOLE JOB FAILS.
+  A second, independent production defect on the same rubric.
+predictions: P-RX1 CONFIRMED and worse — 0/3; ב flattened on 2/3 draws (11 sibling criteria, the
+  live signature), nested correctly on 1/3; all 3 crash regardless.
+cost: ~$0.15   corrections: none
+
+## CHANGE 2026-10-25 — RENDER: auto-numbered list labels + visual indentation (parser_render)
+what: `_ListNumbering` spells Word's auto-numbering from numbering.xml (decimal, hebrew1/2,
+  letters, roman; per-abstractNum counters, startOverride, level resets); anything it cannot
+  spell renders NO label (the old behaviour). Body paragraphs keep their visual indent: leading
+  tab/space runs, a positive firstLine, or a list item's level — 4 spaces per step. w:left/right
+  ignored (direction-dependent in RTL, hanging-indent furniture on lists).
+why: the DOCX encodes ב's breakdown as indentation and ג's points as a numbered list; `.strip()`
+  and the absent numPr handling dropped both, so no prompt could have read them. The teacher's
+  workaround (2nd upload, job 22f49d5d) typed «פירוק הקריטריון לגורמים:» and «סעיף 1 - 25 נק» —
+  i.e. she re-typed what the layout already said. Never-make-teachers-manage-AI.
+diff vs old render on the other five (whitespace-insensitive scorer ⇒ text-neutral; model-facing):
+  bagrut gains the «(1)/(2)» nested markers GT_AUDIT listed as missing; foundations gains its
+  א./ב./ג. task markers (its open items); employee's מחוון rows gain א.–ז. sub-question labels;
+  hobby's instruction list gains 1./2./3.; csharp + bagrut code keeps its indentation.
+affects: every fixture's model input ⇒ the all-6 k=3 regression run is mandatory before ship.
+
+## RUN 20261025-204235_gpt-5.6-terra-high — P-RX2 (render only), recursion only
+ref: 20261025-204226   variable: render (labels + indent)   config: terra-high k=3   prompt 3.10.0
+validity: 3/3   gate: 1/3
+deltas: the crash is GONE (labels make ג.1/2/3 visible ⇒ structure 1.0 on 3/3); ב still flattened on
+  2/3 (criterion_precision 0.389, subcriterion_recall 0.0, + the consequent annotation/pedagogical
+  mismatches); 1/3 perfect.
+predictions: P-RX2 FALSIFIED (≥2/3 predicted). Exactly the pre-registered reading: the indentation
+  now REACHES the model, but SECTION 7 never says what indented scoring lines mean ⇒ P-RX3 needed.
+cost: $0.14 ($0.046/doc)
+
+## CHANGE 2026-10-25 — PROMPT 3.10.0-fixsource → 3.11.0-breakdown + EMPTY_CRITERION_TEXT
+prompt: SECTION 0 «a criterion ALWAYS has text; a bare point value is a scope's points» + READING THE
+  RENDER (indent, list labels); CriterionExtraction.description field text no longer asks for "";
+  SECTION 2 lists 1)/(1); SECTION 7 INLINE BREAKDOWN → sub_criteria (indented scoring lines under a
+  scoring line are its parts, never siblings; same-indent lines are siblings whatever they sum to;
+  an in-line parenthetical breakdown stays in the description). The example is NOT the fixture's.
+pipeline (inert unless the model emits ""): retryable EMPTY_CRITERION_TEXT at any depth; a survivor
+  is dropped at the build with a [CRITERION_WITHOUT_TEXT] WARNING string (never an annotation —
+  annotations are GT-compared), the scope keeping its declared points. The job can no longer fail
+  on a text-less criterion. Pinned by test_retry_policy (+2).
+also (render, inert on this fixture): a list item's ilvl renders as indentation.
+next: P-RX3 — kill criterion: < 3/3 on recursion, or any new failure class in the all-6 run.
+
+## RUN 20261025-205158_gpt-5.6-terra-high — P-RX3 (render + prompt 3.11.0-breakdown), recursion only
+ref: 20261025-204235   variable: prompt 3.10.0 → 3.11.0-breakdown (+ the inert-here EMPTY_CRITERION_TEXT
+  net)   config: terra-high k=3   suite_hash 4d55ed3b91b638d2
+validity: 3/3   gate: **3/3 PASS**, retries 0 on every draw, $0.0476/doc
+deltas: ב nested on 3/3 (was 1/3); every gated metric 1.0; the teacher's own א error reproduced and
+  flagged (rubric_mismatch + point_sum_mismatch @q1.א) on 3/3.
+predictions: P-RX3 first half CONFIRMED (3/3). Second half (no regression on the other five) is the
+  next run.
+next: terra-high k=3 ALL-6 (regression) ∥ gpt-6.1-sol-high k=3 recursion (P-RX4 step 1).
+  kill: any new failure class on the five; < 3/3 for sol on recursion.
+
+## RUN 20261025-205453_gpt-5.6-terra-high — P-RX3 regression: terra-high k=3 ALL-6 @ 3.11.0-breakdown + new render
+ref: 20260824-161209 (terra-high k=3 all-5 @ 3.10.0, old render) = 12/15
+variable vs ref: render (labels + indent) + prompt 3.11.0 (the shipped pair) + the 6th fixture
+validity: 18/18   gate: **15/18** = the reference pass set + recursion 3/3
+  bagrut 3/3 · csharp 3/3 · employee 3/3 · foundations 3/3 · recursion 3/3 · hobby 0/3 on EXACTLY its
+  three constant metrics (point_exactness 0.979, annotation_mismatch, pedagogical_mismatch — owner
+  ruling 2026-08-24). NO new failure class; retries 0 on all 18 draws.
+  headline t_doc 120.2s (bagrut; ref 156.9s), mean $0.0751/doc (ref $0.0805).
+predictions: P-RX3 CONFIRMED in full — the labels (bagrut's (1)/(2), foundations' א./ב./ג., employee's
+  row labels) and the indentation changed every fixture's input and broke none of them.
+
+## RUN 20261025-205456 + 20261025-205919 (gpt-6.1-sol-high) — P-RX4: the model switch
+ref: 20261025-205453 (terra-high, SAME tree, SAME prompt 3.11.0, run concurrently)
+variable: model_key gpt-5.6-terra → gpt-6.1-sol (effort high, 32000, ceiling held)
+recursion k=3 (205456): 3/3, $0.042/doc.   ALL-6 k=3 (205919): validity 18/18, **15/18** — the
+  identical pass set (hobby's three constants only); retries 0; hobby's Tier-B fix COMPLETE on 3/3
+  (move_criterion + set_points q2.ב=29 + move_text; fix_effect_consistent + plan_complete everywhere).
+  mean $/doc **$0.0627 vs $0.0751 (−16.5%)**; headline t_doc 126.4s vs 120.2s (+5%); Σ fixture
+  medians 379.9s vs 346.8s (+9.5%); recursion 71s vs 37s (Tier-B 21s vs 9s). Slower, not by much.
+predictions: P-RX4 CONFIRMED on the CS suite (same pass set, $/doc ≤ terra).
+BUT the suite is all-CS, so the non-CS smoke (snapshots/2026-09-09_multisubject-smoke/run_any.py,
+  the D-13 Math path) was run on sol before flipping — and it FOUND A REGRESSION:
+  · math4 PDF: sol 1/3 draws right — 2/3 put the per-question 100 scale on the QUESTION TOTALS
+    (5 × 100, rubric 300), so rescale_to_exam had no exam total to cut shares from. terra on the
+    same 3.11.0 tree: 2/2 right (33.5/33.25×4, choose 3 of 5) ⇒ attributable to the MODEL, not the
+    prompt change. (math3 docx: sol right. english_1: sol emits the booklet's own 10 numbered
+    questions instead of terra's 2 lumped parts, and compiles — better, not worse.)
+  · FIX (one variable, mathematics EXTRACTION_FRAGMENT only — CS bytes unchanged, pin test green):
+    "the per-question 100 scale is for CRITERIA ONLY; a question's total_points is its PRINTED
+    points; the rubric total is the exam's printed total". Shipped under the not-yet-released
+    3.11.0 stamp (+mathematics), recorded in the version history.
+  · after: sol math4 **4/4** right, math3 right.
+decision: FLIP the pin to gpt-6.1-sol (owner-proposed; CS parity + −16.5% $/doc; the one non-CS
+  regression found is fixed and re-measured). Rollback = EXTRACTION_LLM_MODEL=gpt-5.6-terra.
+gap stated plainly: non-CS evidence is smoke-level (n=4 math4, n=1 math3, n=1 english), not a gated
+  benchmark — the rubric suite has no Math/English GT. A Math fixture with GT would be worth more
+  than more repeats.

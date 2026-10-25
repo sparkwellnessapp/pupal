@@ -25,6 +25,7 @@ EXTRACTION_FRAGMENT = """\
 SUBJECT: MATHEMATICS
 ═══════════════════════════════════════════
 The handwritten solution pages are the marking scheme. A percentage or point weight written beside a step or sub-question is one criterion; record the number exactly as the teacher wrote it, on a per-question scale of 100, and keep her written weight (e.g. `10%`) in the criterion description. Do no arithmetic.
+That per-question 100 scale is for CRITERIA ONLY. A question's total_points is always its points as PRINTED on the exam paper (e.g. 33⅓ when five questions share 100 and three are answered) — never the 100 its criteria are written on — and the rubric total_points is the exam's printed total. The pipeline maps the criteria onto the printed points itself.
 'Answer k of n' → a selection group choosing k; 'answer any, total capped at 100' → a selection group choosing ⌊100 / question points⌋ of n.
 A question the solution pages do not score at all: keep the question's total as PRINTED on the exam paper, keep its printed parts, and give each part points 0 with no criteria — never invent a weight; the pipeline flags it for the teacher.
 """

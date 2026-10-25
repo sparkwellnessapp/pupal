@@ -8,6 +8,9 @@ Handles all DOCX structural complexities:
   - Inline images → [IMAGE] placeholders
   - Textboxes in drawing shapes → text extracted
   - Body elements in document order (paragraphs + tables interleaved)
+  - Auto-numbered list labels (א. / 1) / (2)) → emitted as text
+  - Visual indentation of body paragraphs (leading tabs/spaces, first-line
+    indent) → leading spaces
 
 Design: Nested tables are NOT crammed into parent cells (unreadable).
 Instead, they are rendered as indented sub-tables below the parent row:
@@ -241,11 +244,249 @@ class RenderStats:
 
 
 # =============================================================================
+# LIST NUMBERING (2026-10-25)
+# =============================================================================
+# Word's auto-numbered labels ("א.", "1)", "(2)") are NOT text: they live in
+# numbering.xml and the paragraph only points at them (<w:numPr>). The renderer
+# used to walk runs only, so every auto-numbered label vanished — a teacher's
+# "ג. ... 1) ... 2) ... 3)" reached the LLM as unlabeled prose, and her points
+# list "1. 25 / 2. 5 / 3. 5" as three bare numbers (recursion_rubric, owner
+# report 2026-10-25). The label is something she SEES, so it is rendered.
+#
+# Faithful-by-omission: only the formats below are computed, and anything the
+# counter cannot spell (an unknown numFmt, a Hebrew numeral past 999, a
+# style-inherited numPr) renders NO label — exactly the old behaviour — rather
+# than a guessed one. Bullets carry no ordinal and stay unrendered.
+#
+# Counters are keyed by abstractNum, the way Word continues a list across two
+# <w:num> instances that share one definition; a <w:startOverride> restarts it
+# when that instance first appears.
+
+_HEB_UNITS = ["", "א", "ב", "ג", "ד", "ה", "ו", "ז", "ח", "ט"]
+_HEB_TENS = ["", "י", "כ", "ל", "מ", "נ", "ס", "ע", "פ", "צ"]
+_HEB_HUNDREDS = ["", "ק", "ר", "ש", "ת", "תק", "תר", "תש", "תת", "תתק"]
+_HEB_ALEPHBET = "אבגדהוזחטיכלמנסעפצקרשת"
+
+
+def _hebrew_numeral(n: int) -> Optional[str]:
+    """Gematria (Word's `hebrew1`): 1→א, 10→י, 15→טו, 16→טז, 120→קכ."""
+    if not 1 <= n <= 999:
+        return None
+    tens_units = n % 100
+    if tens_units == 15:
+        tail = "טו"
+    elif tens_units == 16:
+        tail = "טז"
+    else:
+        tail = _HEB_TENS[tens_units // 10] + _HEB_UNITS[tens_units % 10]
+    return _HEB_HUNDREDS[n // 100] + tail
+
+
+def _roman(n: int) -> Optional[str]:
+    if not 1 <= n <= 3999:
+        return None
+    out = ""
+    for value, sym in ((1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"),
+                       (90, "XC"), (50, "L"), (40, "XL"), (10, "X"), (9, "IX"),
+                       (5, "V"), (4, "IV"), (1, "I")):
+        while n >= value:
+            out += sym
+            n -= value
+    return out
+
+
+def _format_ordinal(n: int, num_fmt: str) -> Optional[str]:
+    """One counter value in one numFmt; None when this renderer cannot spell it."""
+    if num_fmt == "decimal":
+        return str(n)
+    if num_fmt == "decimalZero":
+        return f"{n:02d}"
+    if num_fmt == "hebrew1":
+        return _hebrew_numeral(n)
+    if num_fmt == "hebrew2":
+        return _HEB_ALEPHBET[n - 1] if 1 <= n <= len(_HEB_ALEPHBET) else None
+    if num_fmt in ("lowerLetter", "upperLetter"):
+        if not 1 <= n <= 26:
+            return None
+        ch = chr(ord("a") + n - 1)
+        return ch if num_fmt == "lowerLetter" else ch.upper()
+    if num_fmt in ("lowerRoman", "upperRoman"):
+        r = _roman(n)
+        return None if r is None else (r.lower() if num_fmt == "lowerRoman" else r)
+    return None
+
+
+@dataclass
+class _LevelDef:
+    num_fmt: str
+    lvl_text: str
+    start: int
+
+
+class _ListNumbering:
+    """Stateful label source for ONE render: call `label()` on every paragraph in
+    document order (empty ones included — Word numbers them too)."""
+
+    def __init__(self, numbering_el) -> None:
+        w = _NS["w"]
+        self._levels: dict = {}        # abstractNumId -> {ilvl: _LevelDef}
+        self._num_abstract: dict = {}  # numId -> abstractNumId
+        self._overrides: dict = {}     # numId -> {ilvl: start}
+        self._counters: dict = {}      # abstractNumId -> {ilvl: current value}
+        self._seen_nums: set = set()
+        self._labels: dict = {}        # paragraph element -> its label
+        if numbering_el is None:
+            return
+        for absn in numbering_el.findall(f"{{{w}}}abstractNum"):
+            levels = {}
+            for lvl in absn.findall(f"{{{w}}}lvl"):
+                fmt_el = lvl.find(f"{{{w}}}numFmt")
+                text_el = lvl.find(f"{{{w}}}lvlText")
+                start_el = lvl.find(f"{{{w}}}start")
+                try:
+                    start = int(start_el.get(f"{{{w}}}val")) if start_el is not None else 1
+                except (TypeError, ValueError):
+                    start = 1
+                levels[int(lvl.get(f"{{{w}}}ilvl", "0"))] = _LevelDef(
+                    num_fmt=fmt_el.get(f"{{{w}}}val") if fmt_el is not None else "decimal",
+                    lvl_text=text_el.get(f"{{{w}}}val", "") if text_el is not None else "",
+                    start=start,
+                )
+            self._levels[absn.get(f"{{{w}}}abstractNumId")] = levels
+        for num in numbering_el.findall(f"{{{w}}}num"):
+            abs_el = num.find(f"{{{w}}}abstractNumId")
+            if abs_el is None:
+                continue
+            num_id = num.get(f"{{{w}}}numId")
+            self._num_abstract[num_id] = abs_el.get(f"{{{w}}}val")
+            for ov in num.findall(f"{{{w}}}lvlOverride"):
+                so = ov.find(f"{{{w}}}startOverride")
+                if so is not None:
+                    try:
+                        self._overrides.setdefault(num_id, {})[int(ov.get(f"{{{w}}}ilvl", "0"))] = int(so.get(f"{{{w}}}val"))
+                    except (TypeError, ValueError):
+                        pass
+
+    @classmethod
+    def from_document(cls, doc) -> "_ListNumbering":
+        try:
+            return cls(doc.part.numbering_part.element)
+        except (KeyError, NotImplementedError, AttributeError):
+            return cls(None)  # no numbering part: every label is None
+
+    def label(self, p_el) -> Optional[str]:
+        # Idempotent per paragraph: python-docx hands a vertically merged cell back
+        # once per row it spans, and a re-read must not advance the counter again.
+        if p_el not in self._labels:
+            self._labels[p_el] = self._next_label(p_el)
+        return self._labels[p_el]
+
+    def _next_label(self, p_el) -> Optional[str]:
+        w = _NS["w"]
+        pPr = p_el.find(f"{{{w}}}pPr")
+        num_pr = pPr.find(f"{{{w}}}numPr") if pPr is not None else None
+        if num_pr is None:
+            return None
+        id_el = num_pr.find(f"{{{w}}}numId")
+        num_id = id_el.get(f"{{{w}}}val") if id_el is not None else None
+        abs_id = self._num_abstract.get(num_id)
+        if num_id in (None, "0") or abs_id is None:
+            return None
+        lvl_el = num_pr.find(f"{{{w}}}ilvl")
+        try:
+            ilvl = int(lvl_el.get(f"{{{w}}}val")) if lvl_el is not None else 0
+        except (TypeError, ValueError):
+            return None
+        levels = self._levels.get(abs_id, {})
+        level = levels.get(ilvl)
+        if level is None:
+            return None
+
+        counters = self._counters.setdefault(abs_id, {})
+        if num_id not in self._seen_nums:
+            self._seen_nums.add(num_id)
+            for ov_lvl, start in self._overrides.get(num_id, {}).items():
+                counters[ov_lvl] = start - 1
+        counters[ilvl] = counters.get(ilvl, level.start - 1) + 1
+        for deeper in [k for k in counters if k > ilvl]:
+            del counters[deeper]  # a higher-level item restarts its sub-list
+
+        if level.num_fmt in ("bullet", "none") or not level.lvl_text:
+            return None
+        out = level.lvl_text
+        for k in range(ilvl + 1):  # "%1.%2" spells each referenced level in ITS own format
+            token = f"%{k + 1}"
+            if token not in out:
+                continue
+            ref = levels.get(k)
+            if ref is None:
+                return None
+            spelled = _format_ordinal(counters.get(k, ref.start), ref.num_fmt)
+            if spelled is None:
+                return None
+            out = out.replace(token, spelled)
+        return out.strip() or None
+
+
+# =============================================================================
+# VISUAL INDENT (2026-10-25)
+# =============================================================================
+# A teacher nests a criterion's breakdown under it by INDENTING the component
+# lines — a leading tab, or a first-line indent — not by writing "sub-criterion".
+# `_para_text` strips every paragraph, so that nesting never reached the LLM and
+# a breakdown read as sibling criteria (recursion_rubric q1.ב: 10 + 2 + 2 + 6 +
+# 20 + 5 + 7 + 8 + 5 + 2 + 3 = 70 under a declared 35). Only the two
+# direction-free signals are read: leading tab/space characters in the runs, and
+# a positive firstLine (measured from the line's START in both directions).
+# w:left / w:right are deliberately ignored — in an RTL paragraph their meaning
+# depends on the bidi setting, and list paragraphs carry them as hanging-indent
+# furniture. One tab stop (720 twips = 0.5") renders as four spaces.
+
+_INDENT_UNIT = "    "
+_TWIPS_PER_TAB = 720
+
+
+def _visual_indent(p_el) -> str:
+    """A positive first-line indent, or — for a list item — its nesting LEVEL (a
+    level-1 bullet under a level-0 one is the list form of the same subordination)."""
+    w = _NS["w"]
+    pPr = p_el.find(f"{{{w}}}pPr")
+    num_pr = pPr.find(f"{{{w}}}numPr") if pPr is not None else None
+    if num_pr is not None:
+        id_el, lvl_el = num_pr.find(f"{{{w}}}numId"), num_pr.find(f"{{{w}}}ilvl")
+        try:
+            if id_el is not None and id_el.get(f"{{{w}}}val") != "0" and lvl_el is not None:
+                return _INDENT_UNIT * max(0, int(lvl_el.get(f"{{{w}}}val")))
+        except (TypeError, ValueError):
+            return ""
+    ind = pPr.find(f"{{{w}}}ind") if pPr is not None else None
+    if ind is None:
+        return ""
+    try:
+        twips = int(ind.get(f"{{{w}}}firstLine") or 0)
+    except ValueError:
+        return ""
+    return _INDENT_UNIT * round(twips / _TWIPS_PER_TAB) if twips > 0 else ""
+
+
+# =============================================================================
 # PARAGRAPH HELPERS
 # =============================================================================
 
 def _para_text(p_el, baseline: Optional[str] = None,
                hl_baseline: Optional[str] = None) -> str:
+    return _para_text_raw(p_el, baseline, hl_baseline).strip()
+
+
+def _leading_whitespace(raw: str) -> str:
+    """The plain-text indent `_para_text` strips, tabs widened to the indent unit.
+    (A run carrying [[color]]/[[hl]] markup keeps its spaces inside the marker.)"""
+    lead = raw[: len(raw) - len(raw.lstrip())]
+    return lead.replace("\n", "").replace("\t", _INDENT_UNIT)
+
+
+def _para_text_raw(p_el, baseline: Optional[str] = None,
+                   hl_baseline: Optional[str] = None) -> str:
     """Extract text from a <w:p> element, preserving strikethrough as ~~text~~,
     contrast color as [[color:RRGGBB]]text[[/color]], and contrast highlight as
     [[hl:name]]text[[/hl]].
@@ -347,7 +588,7 @@ def _para_text(p_el, baseline: Optional[str] = None,
                 s = f"[[color:{contrast}]]{s}[[/color]]"
         parts.append(s)
 
-    return "".join(parts).strip()
+    return "".join(parts)
 
 
 def _omml_text(math_el) -> str:
@@ -402,9 +643,12 @@ def _para_textboxes(p_el) -> List[str]:
 
 
 def _render_para(p_el, stats: RenderStats, baseline: Optional[str] = None,
-                 hl_baseline: Optional[str] = None) -> List[str]:
-    """Render a paragraph to lines."""
+                 hl_baseline: Optional[str] = None,
+                 lists: Optional[_ListNumbering] = None) -> List[str]:
+    """Render a paragraph to lines. A body paragraph keeps its visual indent and
+    its auto-numbered label: `<indent><label> <text>`."""
     lines: List[str] = []
+    label = lists.label(p_el) if lists is not None else None
 
     for img in _para_images(p_el):
         stats.images_found += 1
@@ -418,10 +662,13 @@ def _render_para(p_el, stats: RenderStats, baseline: Optional[str] = None,
     stats.omml_seen += seen
     stats.omml_rendered += rendered_math
 
-    text = _para_text(p_el, baseline, hl_baseline)
+    raw = _para_text_raw(p_el, baseline, hl_baseline)
+    text = raw.strip()
     if text:
         stats.total_paragraphs += 1
-        lines.append(text)
+        if label:
+            text = f"{label} {text}"
+        lines.append(_visual_indent(p_el) + _leading_whitespace(raw) + text)
     elif not lines:
         stats.empty_skipped += 1
 
@@ -433,7 +680,8 @@ def _render_para(p_el, stats: RenderStats, baseline: Optional[str] = None,
 # =============================================================================
 
 def _analyze_cell(cell, baseline: Optional[str] = None,
-                  hl_baseline: Optional[str] = None) -> Tuple[str, List]:
+                  hl_baseline: Optional[str] = None,
+                  lists: Optional[_ListNumbering] = None) -> Tuple[str, List]:
     """Analyze a cell's content: separate text from nested tables.
 
     Returns:
@@ -447,9 +695,10 @@ def _analyze_cell(cell, baseline: Optional[str] = None,
     for child in cell._element:
         tag = _tag(child)
         if tag == "p":
+            label = lists.label(child) if lists is not None else None
             t = _para_text(child, baseline, hl_baseline)
             if t:
-                text_parts.append(t)
+                text_parts.append(f"{label} {t}" if label else t)
             # Also capture image placeholders from cell paragraphs
             for img in _para_images(child):
                 text_parts.append(f"[IMAGE: {img}]")
@@ -501,6 +750,7 @@ def _render_table(
     index: Optional[int],
     stats: RenderStats,
     indent: str = "",
+    lists: Optional[_ListNumbering] = None,
 ) -> List[str]:
     """Render a table to markdown lines. Nested tables become indented blocks.
     
@@ -530,13 +780,13 @@ def _render_table(
     # markdown table cell. table_index was already consumed by the caller, so downstream
     # table numbers are NOT renumbered — a 1x1 just leaves a gap.)
     if num_rows == 1 and num_cols == 1:
-        cell_text, cell_nested = _analyze_cell(rows[0].cells[0], table_baseline, table_hl_baseline)
+        cell_text, cell_nested = _analyze_cell(rows[0].cells[0], table_baseline, table_hl_baseline, lists)
         out: List[str] = []
         cell_text = " ".join(cell_text.split())  # collapse whitespace like a cell; keep real '|'
         if cell_text:
             out.append(f"{indent}{cell_text}")
         for nt_el in cell_nested:
-            out.extend(_render_nested_table_element(table, nt_el, stats, indent))
+            out.extend(_render_nested_table_element(table, nt_el, stats, indent, lists))
         return out
 
     lines: List[str] = []
@@ -549,7 +799,7 @@ def _render_table(
         lines.append(f"{indent}[NESTED TABLE: {num_rows}x{num_cols} {direction}]")
 
     # Process header row
-    header_cells, header_nested = _process_row(rows[0], stats, table_baseline, table_hl_baseline)
+    header_cells, header_nested = _process_row(rows[0], stats, table_baseline, table_hl_baseline, lists)
     # Trim trailing empty cells from merges
     while header_cells and header_cells[-1] == "":
         header_cells.pop()
@@ -561,12 +811,12 @@ def _render_table(
 
     # Render nested tables from header (rare but possible)
     for nt_el in header_nested:
-        lines.extend(_render_nested_table_element(table, nt_el, stats, indent))
+        lines.extend(_render_nested_table_element(table, nt_el, stats, indent, lists))
 
     # Data rows
     max_rows = min(num_rows, 60)
     for row in rows[1:max_rows]:
-        cells, row_nested = _process_row(row, stats, table_baseline, table_hl_baseline)
+        cells, row_nested = _process_row(row, stats, table_baseline, table_hl_baseline, lists)
         # Pad/trim to header width
         while len(cells) < len(header_cells):
             cells.append("")
@@ -576,7 +826,7 @@ def _render_table(
 
         # Render any nested tables found in this row's cells
         for nt_el in row_nested:
-            lines.extend(_render_nested_table_element(table, nt_el, stats, indent))
+            lines.extend(_render_nested_table_element(table, nt_el, stats, indent, lists))
 
     if num_rows > max_rows:
         lines.append(f"{indent}... ({num_rows - max_rows} more rows)")
@@ -585,7 +835,8 @@ def _render_table(
 
 
 def _process_row(row, stats: RenderStats, baseline: Optional[str] = None,
-                 hl_baseline: Optional[str] = None) -> Tuple[List[str], List]:
+                 hl_baseline: Optional[str] = None,
+                 lists: Optional[_ListNumbering] = None) -> Tuple[List[str], List]:
     """Process a table row: extract cell texts and collect nested table elements.
 
     Returns:
@@ -604,7 +855,7 @@ def _process_row(row, stats: RenderStats, baseline: Optional[str] = None,
             continue
         seen_ids.add(cell_id)
 
-        text, nested = _analyze_cell(cell, baseline, hl_baseline)
+        text, nested = _analyze_cell(cell, baseline, hl_baseline, lists)
         cell_texts.append(_clean(text))
         all_nested.extend(nested)
 
@@ -616,6 +867,7 @@ def _render_nested_table_element(
     tbl_element,
     stats: RenderStats,
     parent_indent: str,
+    lists: Optional[_ListNumbering] = None,
 ) -> List[str]:
     """Render a nested <w:tbl> element as an indented block."""
     stats.nested_tables += 1
@@ -641,7 +893,7 @@ def _render_nested_table_element(
         else:
             return [f"{child_indent}[NESTED TABLE: render failed]"]
 
-    return _render_table(nested_table, index=None, stats=stats, indent=child_indent)
+    return _render_table(nested_table, index=None, stats=stats, indent=child_indent, lists=lists)
 
 
 # =============================================================================
@@ -678,6 +930,7 @@ def render_docx_to_markdown_with_stats(file_bytes: bytes) -> "tuple[str, RenderS
     # Contrast baselines for body prose (computed once; tables use their own).
     body_baseline = _body_dominant(body)
     body_hl_baseline = _body_dominant_highlight(body)
+    lists = _ListNumbering.from_document(doc)
 
     output: List[str] = []
     table_index = 0
@@ -686,7 +939,7 @@ def render_docx_to_markdown_with_stats(file_bytes: bytes) -> "tuple[str, RenderS
         tag = _tag(child)
 
         if tag == "p":
-            for line in _render_para(child, stats, body_baseline, body_hl_baseline):
+            for line in _render_para(child, stats, body_baseline, body_hl_baseline, lists):
                 output.append(line)
                 output.append("")
 
@@ -694,7 +947,7 @@ def render_docx_to_markdown_with_stats(file_bytes: bytes) -> "tuple[str, RenderS
             table_index += 1
             tbl_obj = tables_by_el.get(child)
             if tbl_obj:
-                table_lines = _render_table(tbl_obj, table_index, stats)
+                table_lines = _render_table(tbl_obj, table_index, stats, lists=lists)
                 output.extend(table_lines)
                 output.append("")
 
@@ -702,7 +955,7 @@ def render_docx_to_markdown_with_stats(file_bytes: bytes) -> "tuple[str, RenderS
             # Structured document tags — extract inner paragraphs
             for inner in child.iter():
                 if _tag(inner) == "p":
-                    for line in _render_para(inner, stats, body_baseline, body_hl_baseline):
+                    for line in _render_para(inner, stats, body_baseline, body_hl_baseline, lists):
                         output.append(line)
                         output.append("")
 

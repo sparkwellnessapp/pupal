@@ -397,3 +397,36 @@ are present in the render AND sit on the same line as the step they annotate.
 to its share exactly; before it, the teacher's written percentages sum to **100 on every question**
 of both fixtures as she wrote them.
 **Falsifier: any question ≠ 100 after teacher review ⇒ the mathematics F-1 fragment.**
+
+# Addendum — recursion_rubric / inline breakdowns (registered 2026-10-25, BEFORE any run on the fixture)
+
+Origin: owner report 2026-10-25 — a teacher's live upload (job `daa36e9d`, terra-high, prompt
+`3.10.0-fixsource`) came back with ב's three criteria-with-breakdowns as ELEVEN flat criteria
+(Σ 70 under a declared 35). The teacher got a correct extraction only by re-uploading with
+«פירוק הקריטריון לגורמים:» typed above each breakdown and «סעיף 1 - 25 נק» spelled out (job
+`22f49d5d`, sha `8ed872f5…`). Desk finding: the DOCX carries the nesting as INDENTATION
+(leading tab / first-line indent) and the ג point list as AUTO-NUMBERING; `parser_render`
+dropped both (`.strip()` + no `numPr` handling), so the model saw neither. Fixture:
+`fixtures/recursion_rubric.docx` = the job's own source (sha `ab868b06…` as uploaded; author
+metadata blanked for the public repo, render byte-identical).
+Reference: RUN 20260824-161209 (terra-high @ 3.10.0, k=3 all-5) = 12/15, hobby the constant.
+One variable per run, in this order:
+
+**P-RX1 (baseline — the production configuration as deployed).** terra-high, prompt 3.10.0,
+OLD render, k=3, recursion only: **≥ 2/3 draws FAIL**, with the live signature — ב's breakdowns
+flattened (subcriterion_recall < 1 and spurious criteria on q1.ב).
+**Falsifier: 3/3 PASS ⇒ the live failure was a rare draw; every later attribution then needs k ≥ 5.**
+
+**P-RX2 (render only: list labels + visual indent).** Same config/prompt, NEW render, k=3,
+recursion only: **≥ 2/3 PASS** — the indentation alone tells the model which lines are parts.
+**Falsifier: ≤ 1/3 ⇒ the signal reaches the model but the prompt never says what it means
+(SECTION 7 has no breakdown rule) — P-RX3 becomes necessary, not optional.**
+
+**P-RX3 (prompt: SECTION 7 inline-breakdown rule, on top of the new render).** k=3, recursion:
+**3/3 PASS**. Then k=3 on the other five: the 2026-08-24 pass set reproduced — bagrut, csharp,
+employee, foundations 3/3 each; hobby fails ONLY its three constant metrics.
+**Falsifier: any new failure class on any of the five ⇒ the render or the rule over-nests; do not ship.**
+
+**P-RX4 (model: gpt-5.6-terra → gpt-6.1-sol, effort held at high).** k=3 recursion 3/3, then
+k=3 all-5 = the same pass set, with mean $/doc ≤ terra's on the same tree.
+**Falsifier: a lost fixture, or $/doc above terra ⇒ terra stays the pin (rollback is one env flip).**

@@ -18,7 +18,11 @@ import pytest
 
 PINS = {
     # constant                      version                 sha256 (pinned 2026-09-08)
-    "EXTRACTION_SYSTEM_PROMPT": ("3.10.0-fixsource", "8443840a3084931093f5bd44be76107415213aef766d3b4b05785799da116718"),
+    # RE-PINNED 2026-10-25 by an owner-ordered, MEASURED prompt change (not a refactor):
+    # 3.10.0-fixsource (8443840a…) -> 3.11.0-breakdown. The CS numbers that ride on these
+    # bytes were re-measured on them: k=3 all-6 = 15/18 on terra AND on gpt-6.1-sol
+    # (rubric_eval_suite RUNLOG, P-RX3 / P-RX4). A refactor must still never move this.
+    "EXTRACTION_SYSTEM_PROMPT": ("3.11.0-breakdown", "14d57f90abf52b216af697b7e0456551651c55d6a90e6881c9b08d4178de356f"),
     "P1_SYSTEM":                ("t1.4-tables",      "b9a25bc5574020d44eb87c229d4ba06e651811c233a8dfb8590961095b51fefa"),
     "p2_system_prompt":         ("t1.4-tables",      "4c02e38f086322855e996e45161d2a934b8d225774601148759f6c70d919a0c8"),
     "P2_SPAN_SYSTEM":           ("t1.4-tables",      "b6356fa83357132dd4c4c05c89fb8afb0ea7cd0ca0f0e54da2c58f922d2c2fff"),

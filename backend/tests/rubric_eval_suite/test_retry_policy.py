@@ -118,3 +118,45 @@ if __name__ == "__main__":
     test_other_retryable_still_retries()
     test_mixed_retries_once_and_mismatch_downgrades()
     print("ALL RETRY-POLICY SELF-TESTS PASSED")
+
+
+def _textless(part_points=(25, 5, 5), text_less=True) -> RubricExtraction:
+    """recursion_rubric's baseline shape: ג's bare "25 / 5 / 5" points list read as
+    three criteria with NO text (the shape that used to fail the whole job)."""
+    crits = [CriterionExtraction(description="" if text_less else f"part {i}", points=p)
+             for i, p in enumerate(part_points)]
+    return RubricExtraction(total_points=35, questions=[QuestionExtraction(
+        question_number=1, question_text="t", total_points=35,
+        sub_questions=[SubQuestionExtraction(
+            sub_question_id="ג", text="ג. task", points=35, criteria=crits)])])
+
+
+def test_a_textless_criterion_is_retried_once():
+    calls = []
+    healed = RubricExtraction(total_points=35, questions=[QuestionExtraction(   # the true shape:
+        question_number=1, question_text="t", total_points=35,                    # three scored parts
+        sub_questions=[SubQuestionExtraction(
+            sub_question_id="ג", text="ג. task", points=35, criteria=[],
+            sub_questions=[pl.InnerSubQuestionExtraction(sub_question_id=str(i + 1), text=f"{i + 1}) part",
+                                                 points=p, criteria=[])
+                           for i, p in enumerate((25, 5, 5))])])])
+
+    async def fake(rendered, feedback=None, **_):
+        calls.append(feedback)
+        return (_textless() if len(calls) == 1 else healed), dict(_META)
+
+    ext, issues, retry_count, _ = _run(fake)
+    assert retry_count == 1 and "has NO description" in calls[1]
+    assert not [i for i in issues if i.code == "EMPTY_CRITERION_TEXT"]
+
+
+def test_a_surviving_textless_criterion_never_fails_the_job():
+    async def fake(rendered, feedback=None, **_):
+        return _textless(), dict(_META)
+
+    ext, issues, retry_count, _ = _run(fake)
+    assert [i.code for i in issues].count("EMPTY_CRITERION_TEXT") == 3
+    resp, warnings = _build_response(ext, "t", issues)   # used to raise ValidationError
+    sq = resp.questions[0].sub_questions[0]
+    assert sq.criteria == [] and sq.points == 35          # the scope keeps its points
+    assert sum("[CRITERION_WITHOUT_TEXT] q1.ג" in w for w in warnings) == 3

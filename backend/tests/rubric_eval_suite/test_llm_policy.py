@@ -47,6 +47,10 @@ def test_param_policy_per_family():
     assert p == {"max_tokens": 32000, **BOUND}
     # family detection includes the cheap nano tier (also reasoning-family API)
     assert _is_openai_reasoning("gpt-5.4-nano-2026-03-17")
+    # ...and the gpt-6 family: a miss would send gpt-6.1-sol temperature=0 + a 12k budget
+    assert _is_openai_reasoning("gpt-6.1-sol")
+    assert _llm_params("openai", "gpt-6.1-sol", 32000, "high") == {
+        "max_tokens": 32000, "reasoning_effort": "high", **BOUND}
     # openai non-reasoning: original generation policy preserved, now bounded
     assert _llm_params("openai", "gpt-4o", None, None) == {
         "temperature": 0, "max_tokens": 12000, **BOUND}
@@ -164,12 +168,13 @@ def test_sweep_configs_resolve_through_registry():
                 "gpt-5.6-luna": ("openai", 0.20, 1.20, 1.00),
                 "gpt-5.6-terra": ("openai", 2.00, 12.00, 1.00),
                 "gpt-5.6-sol": ("openai", 5.00, 30.00, 1.00),
+                "gpt-6.1-sol-high": ("openai", 2.00, 10.00, 1.00),
                 "claude-sonnet-4-6": ("anthropic", 3.00, 15.00, 2.00),
                 "gemini-3.1-pro-preview": ("gemini", 2.00, 12.00, 2.00),
                 "grok-4.6": ("xai", 2.00, 6.00, 2.00)}
     for name, (prov, pin, pout, ceiling) in expected.items():
         cfg = json.loads((SUITE_DIR / "configs" / f"{name}.json").read_text(encoding="utf-8"))
-        assert cfg["model_key"] == name
+        assert cfg["model_key"] == name.removesuffix("-high")
         # the legacy split-brain keys must be gone AND stay gone (D6/D7)
         assert not ({"model", "provider", "price_per_1m_input", "price_per_1m_output",
                      "temperature", "pipeline_version"} & cfg.keys()), name

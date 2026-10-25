@@ -444,7 +444,7 @@ class SubCriterionExtraction(BaseModel):
 # ALPHA-GAP A-1 (D-3): the extractor emits no bands — F-1 tells it to flatten a ladder to the top
 # band with the ladder quoted in the description. Alpha gives this schema a real `levels` field.
 class CriterionExtraction(BaseModel):
-    description: str = Field(..., description="Criterion text exactly as the teacher wrote it. If no criterion text was found, this should be an empty string, not null.")
+    description: str = Field(..., description="Criterion text exactly as the teacher wrote it. Never empty: a point value with no scoring text is the scope's points, not a criterion.")
     points: float = Field(..., ge=0, description="Points allocated by the teacher. Use 0 for crossed-out criteria.")
     sub_criteria: List["SubCriterionExtraction"] = Field(
         default_factory=list,
@@ -621,7 +621,16 @@ class RubricExtraction(BaseModel):
 # --- listed in the table's LOGICAL order, so direction is what decides which end
 # --- is column 1; the UI used to GUESS it from cell content and mirrored 16 tables
 # --- across the fixtures in both directions. The token must be copied verbatim.
-EXTRACTION_PROMPT_VERSION = "3.10.0-fixsource"
+# --- 3.11.0-breakdown (2026-10-25, recursion_rubric / owner report): SECTION 0 gains
+# --- READING THE RENDER (the renderer now emits the teacher's indentation and Word's
+# --- auto-numbered labels) and "a criterion ALWAYS has text" (a bare point value is a
+# --- scope's points); the CriterionExtraction.description field text agrees (it used to
+# --- ask for "" — which Criterion rejects, failing the job); SECTION 2 lists 1)/(1);
+# --- SECTION 7 gains INLINE BREAKDOWN -> sub_criteria (indented scoring lines under a
+# --- scoring line are its parts, never siblings), with a non-fixture example.
+# --- The +mathematics assembly also changed under this stamp: its fragment now says the
+# --- per-question 100 scale is for CRITERIA only (question totals = the printed points).
+EXTRACTION_PROMPT_VERSION = "3.11.0-breakdown"
 
 EXTRACTION_SYSTEM_PROMPT = """You are an expert Israeli education rubric extractor. You read Hebrew exam rubric documents (מחוון) carefully and extract their structure into JSON.
 
@@ -642,8 +651,13 @@ Color (red [[color:...]]), position (before/after a marker), and shape (table vs
   • If NO rubric table serves a scope but the teacher wrote INLINE SCORING LINES (prose carrying נק' / נקודות / ניקוד, often in teacher-red) → those lines ARE the criteria (SECTION 7).
   • If neither a rubric table nor inline scoring lines exist for a scope → criteria = [] (empty list). NEVER invent criteria, descriptions, or point values.
   • NEVER reconcile numbers. If the teacher's own point values are inconsistent (components summing to less than a declared total), copy them EXACTLY as written — the pipeline flags the inconsistency for the teacher; silently "fixing" it erases a real teacher error.
-  • A field with no corresponding content in the document → null (never an empty string — except CriterionExtraction.description, which is "" when no criterion text was found).
+  • A field with no corresponding content in the document → null (never an empty string).
+  • A criterion ALWAYS has text. A point value with no scoring text beside it (e.g. a bare "25" under a solution label, or "2. 5" in a numbered points list) is a SCOPE's points, never a criterion — set that scope's `points` and leave its criteria empty (the scope is then graded as one unit).
   • Points not explicitly stated at a Question/Sub-Question level → do NOT guess or estimate.
+
+READING THE RENDER — two layout facts the teacher drew without words reach you as text:
+  • INDENTATION: leading spaces at the start of a line reproduce the teacher's own indent (a tab or an indent she set in Word). A line indented under another line is subordinate to it.
+  • LIST LABELS: labels Word numbers automatically (א., ב., 1), (2), 1.) appear at the start of their line exactly as she sees them. They are real markers — treat them like typed ones.
 
 ═══════════════════════════════════════════
 SECTION 1: TEXT FIELDS — question_text vs sub_question.text
@@ -713,7 +727,7 @@ SECTION 2: SUB-QUESTION DETECTION & STRUCTURE
 Sub-question markers (any of these):
 • Hebrew letter + period or parenthesis: א., ב., ג., א), ב)
 • "סעיף" prefix: "סעיף א", "סעיף ב'"
-• Numeric: 1., 2., 3.
+• Numeric: 1., 2., 3., 1), 2), (1), (2)
 
 A question with NO markers → zero sub_questions; all criteria direct.
 
@@ -843,6 +857,21 @@ Extraction rules:
   – ONLY if the block has NO such component lines anywhere → the "ניקוד: N נקודות" line IS the scope's single criterion: emit ONE criterion, description = that verbatim line, points=N.
 • INTERVENING LINES DO NOT BREAK THE ASSOCIATION. The component lines often do not sit directly under the label — an example-solution line (תשובה:/פתרון:/ערך מוחזר:, SECTION 7 above) or a deduction/penalty note ("אם כתבו הפוך... להוריד 0.5") frequently sits between them. Those lines are not criteria and are not separators: keep scanning past them to the end of the scope's scoring block before deciding which branch of the TOTAL-LABEL TEST applies.
 • WHY THIS MATTERS: emitting the total label as a criterion double-counts the scope's points (its components already carry them). The scope then sums to ~2x its declared value, and the pipeline raises a point-sum mismatch on a node the teacher wrote CORRECTLY — a false alarm the teacher has to chase. That is worse than a missing criterion, because it destroys trust in every real flag.
+• INLINE BREAKDOWN → sub_criteria. A scoring line can itself be broken into scored components written on the lines BELOW it — the prose twin of a rubric row with a [NESTED TABLE] (SECTION 3). The teacher marks them by INDENTING them under their parent line (READING THE RENDER); their points usually add up to the parent's. When scoring lines sit indented under a scoring line:
+  1. The parent line is ONE criterion — description verbatim, points = the parent's own value.
+  2. Each indented line under it is one SubCriterionExtraction in that criterion's sub_criteria, verbatim, in order. The breakdown ends at the next line back at the parent's indent.
+  3. NEVER also emit the indented lines as sibling criteria — that counts their points twice, the same false alarm as above.
+  Copy the parts EVEN IF they do not add up to the parent (never reconcile — the pipeline flags it). Lines at the SAME indent are siblings, whatever their numbers happen to sum to. A breakdown written INSIDE the parent's own line ("כתיבת לולאה 6 נק' (אתחול - 2, תנאי - 2, קידום - 2)") is not a separate line: it stays inside that one criterion's description.
+  EXAMPLE — rendered:
+      כתיבת הפעולה Sum 12 נק'
+          כותרת: 3 נק'
+          לולאה על המערך: 5 נק'
+          החזרת הסכום: 4 נק'
+      זימון הפעולה: 4 נק'
+          העברת פרמטרים: 2 נק'
+          שימוש בערך המוחזר: 2 נק'
+  CORRECT: TWO criteria — "כתיבת הפעולה Sum 12 נק'" (12, sub_criteria 3 / 5 / 4) and "זימון הפעולה: 4 נק'" (4, sub_criteria 2 / 2). The scope sums to 16.
+  WRONG: seven sibling criteria summing to 32.
 • Lines starting with תשובה: / פתרון: / ערך מוחזר: are EXAMPLE SOLUTIONS → example_solution field, never criteria.
 • Deduction/penalty guidance ("להוריד X נק' אם...", "אם לא השתמשו... להוריד 2") is NOT a criterion — do not emit it as one.
 • Question body text, task instructions, and data values are NEVER criteria, even when they contain numbers. Only lines whose purpose is scoring qualify.
@@ -867,9 +896,10 @@ A sub-question can itself split into separately-scored parts: e.g. sub-question 
 # =============================================================================
 
 def _is_openai_reasoning(model: str) -> bool:
-    """OpenAI reasoning family (gpt-5.x, o-series): rejects non-default temperature;
-    reasoning tokens bill against the completion budget."""
-    return model.startswith(("gpt-5", "o1", "o3", "o4"))
+    """OpenAI reasoning family (gpt-5.x, gpt-6.x, o-series): rejects non-default
+    temperature; reasoning tokens bill against the completion budget. A miss here is
+    loud-but-wrong: the model would be sent temperature=0 and a 12k budget."""
+    return model.startswith(("gpt-5", "gpt-6", "o1", "o3", "o4"))
 
 
 def _llm_params(
@@ -1393,6 +1423,17 @@ def _selection_satisfiability_issues(
     return out
 
 
+def _all_criteria(q) -> List[Tuple[str, Any]]:
+    """Every criterion of an extracted question at every depth, with its scope path."""
+    qid = f"Q{q.question_number}"
+    out = [(qid, c) for c in q.criteria]
+    for sq in q.sub_questions:
+        out += [(f"{qid}.{sq.sub_question_id}", c) for c in sq.criteria]
+        for isq in sq.sub_questions:
+            out += [(f"{qid}.{sq.sub_question_id}.{isq.sub_question_id}", c) for c in isq.criteria]
+    return out
+
+
 def _validate_extraction(extraction: RubricExtraction) -> List[ValidationIssue]:
     """Validate extraction for structural and point-sum issues.
 
@@ -1461,6 +1502,25 @@ def _validate_extraction(extraction: RubricExtraction) -> List[ValidationIssue]:
                     retryable=True,
                 ))
             seen.add(sid)
+
+        # A criterion with NO TEXT (2026-10-25). `Criterion.description` requires a
+        # character, so one reaching the build used to raise and FAIL THE WHOLE JOB
+        # (recursion_rubric, 3/3 baseline draws: ג's "25 / 5 / 5" point list, its
+        # labels invisible, came back as three text-less criteria). A bare point value
+        # is a scope's points, never a criterion — one retry to read it that way; a
+        # survivor is dropped at the build with a warning (_build_response).
+        for path, c in _all_criteria(q):
+            if not c.description.strip():
+                issues.append(ValidationIssue(
+                    code="EMPTY_CRITERION_TEXT",
+                    message=(
+                        f"{path}: a criterion worth {c.points} points has NO description. "
+                        f"A point value with no scoring text is that scope's POINTS, not a "
+                        f"criterion: put it in the scope's `points` and leave its criteria empty "
+                        f"(or, if the scope has scoring lines, copy the line's text verbatim)."
+                    ),
+                    retryable=True,
+                ))
 
         # --- SUB_CRITERIA SUM CHECKS (retryable) ---
         # Each criterion with a nested table must have sub_criteria that sum to criterion.points (when sub_criteria exist).
@@ -1688,7 +1748,7 @@ def _downgrade_persistent_mismatches(
 # =============================================================================
 
 def _extraction_prompt_version(profile=None) -> str:
-    """D-16 stamp: `3.10.0-fixsource` for CS (unchanged), `…+<subject>` otherwise."""
+    """D-16 stamp: `EXTRACTION_PROMPT_VERSION` for CS (unchanged), `…+<subject>` otherwise."""
     if profile is None:
         return EXTRACTION_PROMPT_VERSION
     from app.subjects import prompt_version
@@ -1883,18 +1943,31 @@ def _build_response(
     warnings: List[str] = []
     questions: List[Question] = []
 
+    def texted(scope: str, criteria: list) -> list:
+        # EMPTY_CRITERION_TEXT survived its retry. A criterion cannot exist without
+        # text, and failing the job over it hides the WHOLE rubric from her; so the
+        # text-less value is left out and SAID — the scope keeps its declared points.
+        kept = [c for c in criteria if c.description.strip()]
+        for c in criteria:
+            if not c.description.strip():
+                warnings.append(
+                    f"[CRITERION_WITHOUT_TEXT] {scope}: a scored value of {c.points} points "
+                    f"had no criterion text and was not added as a criterion.")
+        return kept
+
     for q in extraction.questions:
         qid = f"q{q.question_number}"
 
         sqs: List[SubQuestion] = []
         for si, sq in enumerate(q.sub_questions):
             sid = sq.sub_question_id
-            crits = [_build_criterion(f"{qid}.{sid}.c{i}", i, c) for i, c in enumerate(sq.criteria)]
+            crits = [_build_criterion(f"{qid}.{sid}.c{i}", i, c)
+                     for i, c in enumerate(texted(f"{qid}.{sid}", sq.criteria))]
             inner: List[SubQuestion] = []
             for ii, isq in enumerate(sq.sub_questions):
                 iid = isq.sub_question_id
                 icrits = [_build_criterion(f"{qid}.{sid}.{iid}.c{i}", i, c)
-                          for i, c in enumerate(isq.criteria)]
+                          for i, c in enumerate(texted(f"{qid}.{sid}.{iid}", isq.criteria))]
                 inner.append(SubQuestion(
                     sub_question_id=iid, index=ii, text=isq.text,
                     points=Decimal(str(isq.points)), example_solution=isq.example_solution,
@@ -1906,7 +1979,8 @@ def _build_response(
                 criteria=crits, sub_questions=inner,
             ))
 
-        direct = [_build_criterion(f"{qid}.c{i}", i, c) for i, c in enumerate(q.criteria)]
+        direct = [_build_criterion(f"{qid}.c{i}", i, c)
+                  for i, c in enumerate(texted(qid, q.criteria))]
 
         questions.append(Question(
             # Amendment 2 (ruled 2026-09-08): the extractor emits no type — the

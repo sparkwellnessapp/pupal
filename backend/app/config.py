@@ -413,8 +413,12 @@ class Settings(BaseSettings):
     # (12/15 on both), which is what makes the model half a safe one-line rollback.
     # ROLLBACK: set these three back to openai / gpt-5.5 / medium (and, in prod, the
     # Cloud Run env vars of the same name, which OVERRIDE these defaults).
+    # D-2 FLIPPED AGAIN 2026-10-25 (owner-ordered): gpt-5.6-terra -> gpt-6.1-sol, effort
+    # held at high. Prompt 3.11.0-breakdown, k=3 all-6: 15/18 = terra's exact pass set
+    # on the same tree, $/doc -16.5%, latency slightly slower (rubric_eval_suite RUNLOG
+    # P-RX4). ROLLBACK is one value: gpt-5.6-terra (same 15/18 on 3.11.0).
     extraction_llm_provider: str = "openai"
-    extraction_llm_model: str = "gpt-5.6-terra"
+    extraction_llm_model: str = "gpt-6.1-sol"
     extraction_llm_reasoning_effort: Optional[str] = "high"
     # 32000 aligns this default with BOTH the deployed Cloud Run value and the
     # eval config the pin was validated at (was 38000 — a latent 3-way drift that

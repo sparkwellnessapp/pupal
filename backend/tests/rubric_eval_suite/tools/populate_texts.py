@@ -378,7 +378,10 @@ def preview(name: str, results: List[NodeResult]) -> None:
 def main():
     ap = argparse.ArgumentParser(description="Populate GT question/sub-question texts from renders")
     ap.add_argument("--write", action="store_true", help="write benchmarks (after preview review)")
+    ap.add_argument("--only", default=None,
+                    help="comma-separated fixture names (default: every benchmark)")
     args = ap.parse_args()
+    only = set(args.only.split(",")) if args.only else None
 
     import logging
     logging.disable(logging.CRITICAL)
@@ -387,6 +390,8 @@ def main():
     total_open = 0
     for gt_path in sorted(BENCHMARKS.glob("*.json")):
         name = gt_path.stem
+        if only is not None and name not in only:
+            continue
         docx = FIXTURES / f"{name}.docx"
         if not docx.exists():
             print(f"[skip] {name}: no fixture DOCX")
