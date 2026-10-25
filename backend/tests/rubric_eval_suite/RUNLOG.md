@@ -2502,3 +2502,13 @@ decision: FLIP the pin to gpt-6.1-sol (owner-proposed; CS parity + −16.5% $/do
 gap stated plainly: non-CS evidence is smoke-level (n=4 math4, n=1 math3, n=1 english), not a gated
   benchmark — the rubric suite has no Math/English GT. A Math fixture with GT would be worth more
   than more repeats.
+
+## DEPLOY 2026-10-25 — prompt 3.11.0-breakdown + render labels/indent + pin gpt-6.1-sol LIVE
+commit 4c3a911 on main; `gcloud run deploy gradervision-backend --source backend
+  --update-env-vars EXTRACTION_LLM_MODEL=gpt-6.1-sol` from a clean worktree of that commit.
+result: **gradervision-backend-00064-j5t**, 100% traffic; /health 200; boot "SCHEMA OK: migration head
+  036"; zero errors on the revision; env pin openai / gpt-6.1-sol / high / 32000.
+rollback check (before deploy): terra on the shipped tree = 15/18 all-6 and math4 shares right ⇒
+  ROLLBACK = `--update-env-vars EXTRACTION_LLM_MODEL=gpt-5.6-terra` (no rebuild).
+NOT PROVEN IN PROD: no rubric has been extracted through the live service on this revision; the
+  natural confirmation is re-uploading the reported rubric through the app.
