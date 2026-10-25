@@ -31,7 +31,7 @@
  * @see rubric-validation.ts — live invariant checks
  */
 
-import type { RubricQuestion, RubricSubQuestion, RubricCriterion } from '@/types/rubric';
+import type { RubricQuestion, RubricSubQuestion, RubricCriterion, RubricSubCriterion } from '@/types/rubric';
 
 // =============================================================================
 // POINT MATH HELPERS
@@ -359,6 +359,40 @@ export function removeCriterionAtPath(
     // Q1-strict: no redistribution; reindex survivors so `.index` stays contiguous.
     return mapCriteriaAtPath(questions, qIndex, sqPath, crits =>
         crits.filter((_, ci) => ci !== cIndex).map((c, i) => ({ ...c, index: i })));
+}
+
+/**
+ * Append an empty sub-criterion (0 points — she assigns explicitly) to one criterion.
+ * The first one turns an atomic criterion into a breakdown; INV-R2 then surfaces any
+ * gap between Σ sub-criteria and the criterion's points until she fills them.
+ */
+export function addSubCriterionAtPath(
+    questions: RubricQuestion[], qIndex: number, sqPath: number[], cIndex: number,
+): RubricQuestion[] {
+    return mapCriteriaAtPath(questions, qIndex, sqPath, crits => crits.map((c, ci) => {
+        if (ci !== cIndex) return c;
+        const subs = c.sub_criteria ?? [];
+        const added: RubricSubCriterion = {
+            sub_criterion_id: `${c.criterion_id}.sc_${uid()}`,
+            index: subs.length,
+            description: '',
+            points: 0,
+        };
+        return { ...c, sub_criteria: [...subs, added] };
+    }));
+}
+
+/** Remove one sub-criterion; removing the last returns the criterion to atomic (null). */
+export function removeSubCriterionAtPath(
+    questions: RubricQuestion[], qIndex: number, sqPath: number[], cIndex: number, scIndex: number,
+): RubricQuestion[] {
+    return mapCriteriaAtPath(questions, qIndex, sqPath, crits => crits.map((c, ci) => {
+        if (ci !== cIndex) return c;
+        const rest = (c.sub_criteria ?? [])
+            .filter((_, si) => si !== scIndex)
+            .map((sc, si) => ({ ...sc, index: si }));
+        return { ...c, sub_criteria: rest.length > 0 ? rest : null };
+    }));
 }
 
 export function reorderCriteriaAtPath(

@@ -323,6 +323,22 @@ export function composeFindings(
     return out;
 }
 
+/** True when the full-path scope id names a leaf with NO criteria. */
+function isWholeScopeLeaf(questions: RubricQuestion[], scopeId: string): boolean {
+    const [qid, ...rest] = scopeId.split('.');
+    const q = questions.find((x) => x.question_id === qid);
+    if (!q) return false;
+    if (rest.length === 0) return q.sub_questions.length === 0 && q.criteria.length === 0;
+    let list = q.sub_questions;
+    let node: RubricQuestion['sub_questions'][number] | undefined;
+    for (const id of rest) {
+        node = list.find((sq) => sq.sub_question_id === id);
+        if (!node) return false;
+        list = node.sub_questions ?? [];
+    }
+    return !!node && list.length === 0 && node.criteria.length === 0;
+}
+
 function finish(
     key: string, b: Bucket,
     rootScopeById: Map<string, string | null>,
@@ -362,6 +378,12 @@ function finish(
     // Preflight: a plan that no longer applies to the CURRENT tree (she edited
     // structurally since extraction) is withdrawn, never mis-applied.
     if (fix && questions && !canApplySteps(questions, fix.steps)) fix = null;
+    // WHOLE-SCOPE (2026-10-25): a leaf with no criteria is one unit at its own
+    // points, so an extraction-time «set the declared points to 0» plan is wrong,
+    // never merely stale. The finding stays (it settles, and its annotation is
+    // still acknowledged at save) but offers nothing to apply or undo.
+    if (fix && b.kind === 'point_sum' && !hasLiveBlocker && b.scopeId && questions
+        && isWholeScopeLeaf(questions, b.scopeId)) fix = null;
 
     const variant: FindingVariant =
         status === 'open' && hasLiveBlocker && fix ? 'blocking_fix'
