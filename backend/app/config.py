@@ -159,6 +159,11 @@ class Settings(BaseSettings):
     # Unset/unknown ⇒ production (fail closed): every consumer of this value
     # grants something in development that must not be granted in production.
     app_env: str = "production"
+    # Signs every teacher session (HS256). REQUIRED outside development: the service
+    # refuses to start without it (auth_service._resolve_secret_key). Production reads
+    # it from Secret Manager `jwt-secret-key`. Until 2026-10-25 an unset value fell back
+    # to a string committed to a PUBLIC repo, so anyone could mint a session for any teacher.
+    jwt_secret_key: Optional[SecretStr] = None
     api_host: str = "0.0.0.0"
     api_port: int = 8080
     log_level: str = "INFO"

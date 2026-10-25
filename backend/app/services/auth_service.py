@@ -1,7 +1,6 @@
 """
 Authentication service with JWT token management.
 """
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
@@ -13,11 +12,37 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from ..models.user import User, SubscriptionStatus
-from ..config import settings
+from ..config import settings, is_dev_env
 
 
 # JWT Configuration
-SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "your-super-secret-key-change-in-production")
+#
+# The signing key has NO production fallback (2026-10-25). Production never set
+# JWT_SECRET_KEY, so every session was signed with a literal that sits in a PUBLIC
+# repo — anyone could mint a token for any teacher and read or change her students
+# and grades. A missing, short, or published key now stops the service at import
+# (the web app imports this module at boot); only a development env may fall back.
+_PUBLISHED_SECRETS = frozenset({"your-super-secret-key-change-in-production"})
+_DEV_ONLY_SECRET = "dev-only-insecure-jwt-secret-never-use-in-production"
+_MIN_SECRET_LEN = 32
+
+
+def _resolve_secret_key() -> str:
+    configured = settings.jwt_secret_key.get_secret_value() if settings.jwt_secret_key else ""
+    if is_dev_env():
+        return configured or _DEV_ONLY_SECRET
+    if not configured:
+        raise RuntimeError(
+            "JWT_SECRET_KEY is not set (APP_ENV=%s). Refusing to start: sessions would "
+            "be signed with a guessable key." % settings.app_env)
+    if configured in _PUBLISHED_SECRETS or len(configured) < _MIN_SECRET_LEN:
+        raise RuntimeError(
+            "JWT_SECRET_KEY is published or shorter than %d characters (APP_ENV=%s). "
+            "Refusing to start." % (_MIN_SECRET_LEN, settings.app_env))
+    return configured
+
+
+SECRET_KEY = _resolve_secret_key()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24 * 7  # 7 days
 
