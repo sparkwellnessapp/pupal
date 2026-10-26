@@ -26,7 +26,9 @@ import {
  * Closed, the row is the whole story at a glance: her criterion text VERBATIM,
  * the grade the one pricer gives it under her decisions, the chip, the line that
  * explains it, the words of the answer it was credited on — and, when she set
- * the grade herself, «הציון נקבע ידנית».
+ * the grade herself, «הציון נקבע ידנית». Her note on the criterion lives on
+ * the closed row too — it is written for the student and printed under the
+ * question's feedback on the signed exam.
  *
  * Opened, it shows the checks the grade is made of. Each credit and each
  * deduction is a short list of what the answer might show; Vivi's pick is
@@ -54,7 +56,8 @@ export interface CriterionRowV6Props {
     onClearPin?: () => void;
     onChoose?: (checkId: string, optionId: string) => void;
     onWithdraw?: (checkId: string) => void;
-    onComment?: (checkId: string, text: string | null) => void;
+    /** Her note on the criterion, for the student; null removes it. */
+    onNote?: (text: string | null) => void;
     /** This criterion's quotations are lit in the answer. */
     lit?: boolean;
     onToggleLit?: () => void;
@@ -115,7 +118,7 @@ function UndecidedRing({ label }: { label: string }) {
     );
 }
 
-function CommentField({
+function NoteField({
     comment, readOnly, onSave,
 }: {
     comment: string | null;
@@ -127,7 +130,7 @@ function CommentField({
 
     if (editing && !readOnly) {
         return (
-            <div className="mt-1 basis-full" data-comment-editor>
+            <div className="mt-1.5" data-comment-editor>
                 <textarea
                     value={draft}
                     rows={2}
@@ -170,7 +173,7 @@ function CommentField({
     }
     if (comment) {
         return (
-            <p data-her-comment className="basis-full text-gr-meta text-primary-700">
+            <p data-her-comment className="mt-1 whitespace-pre-line text-gr-meta text-primary-700">
                 <span className="font-medium">{V6_COMMENT_MINE}</span> {comment}
                 {!readOnly ? (
                     <>
@@ -192,8 +195,9 @@ function CommentField({
         <button
             type="button"
             data-comment-add
+            title={V6_COMMENT_PLACEHOLDER}
             onClick={() => { setDraft(''); setEditing(true); }}
-            className="text-gr-meta text-grade-pencil underline underline-offset-link
+            className="mt-1 block text-gr-meta text-grade-pencil underline underline-offset-link
                 hover:text-primary-700"
         >
             {V6_COMMENT_ADD}
@@ -202,14 +206,13 @@ function CommentField({
 }
 
 function CheckBlockV6({
-    check, readOnly, subject, onChoose, onWithdraw, onComment,
+    check, readOnly, subject, onChoose, onWithdraw,
 }: {
     check: V6Check;
     readOnly: boolean;
     subject?: string | null;
     onChoose?: (checkId: string, optionId: string) => void;
     onWithdraw?: (checkId: string) => void;
-    onComment?: (checkId: string, text: string | null) => void;
 }) {
     const viviPicked = check.options.some((o) => o.vivi);
     const charge = check.charge ? chargeText(check.charge) : null;
@@ -336,25 +339,16 @@ function CheckBlockV6({
                         </p>
                     ) : null}
 
-                    {/* Her two actions on a check share one wrapping row; an open
-                        editor or a written comment takes a line of its own. */}
-                    <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                        {check.herOptionId !== null && viviPicked && !readOnly ? (
-                            <button
-                                type="button"
-                                data-back-to-vivi
-                                onClick={() => onWithdraw?.(check.checkId)}
-                                className="text-gr-meta text-primary-700 underline underline-offset-link"
-                            >
-                                {V6_BACK_TO_VIVI}
-                            </button>
-                        ) : null}
-                        <CommentField
-                            comment={check.comment}
-                            readOnly={readOnly}
-                            onSave={(text) => onComment?.(check.checkId, text)}
-                        />
-                    </div>
+                    {check.herOptionId !== null && viviPicked && !readOnly ? (
+                        <button
+                            type="button"
+                            data-back-to-vivi
+                            onClick={() => onWithdraw?.(check.checkId)}
+                            className="mt-1.5 text-gr-meta text-primary-700 underline underline-offset-link"
+                        >
+                            {V6_BACK_TO_VIVI}
+                        </button>
+                    ) : null}
                 </div>
             </div>
         </div>
@@ -364,7 +358,7 @@ function CheckBlockV6({
 export function CriterionRowV6({
     criterion, policy, open, onToggle, readOnly = false, subject = null,
     editingPoints = false, onEditingPoints, onPin, onClearPin,
-    onChoose, onWithdraw, onComment, lit = false, onToggleLit,
+    onChoose, onWithdraw, onNote, lit = false, onToggleLit,
 }: CriterionRowV6Props) {
     const panelId = `v6-breakdown-${criterion.terminalId}`;
     // For a criterion she set by hand the server's composer writes exactly the
@@ -516,6 +510,13 @@ export function CriterionRowV6({
                             ? <Quote text={criterion.primaryQuote} subject={subject} /> : null}
                     </p>
                 ) : null}
+
+                <NoteField
+                    key={criterion.note ?? ''}
+                    comment={criterion.note}
+                    readOnly={readOnly || !onNote}
+                    onSave={(text) => onNote?.(text)}
+                />
             </div>
 
             {open ? (
@@ -528,7 +529,6 @@ export function CriterionRowV6({
                             subject={subject}
                             onChoose={onChoose}
                             onWithdraw={onWithdraw}
-                            onComment={onComment}
                         />
                     ))}
                 </div>

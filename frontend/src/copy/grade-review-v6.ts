@@ -59,14 +59,15 @@ export const V6_GATED =
 export const V6_FAULT_TAG = 'הורדה'
 export const V6_NOTE_PREFIX = 'הערה:'
 
-// her own comment on one check (never shown to the student)
-export const V6_COMMENT_ADD = 'הוספת הערה'
+// her note on a criterion — written FOR the student: it is printed under the
+// question's feedback on the signed exam, and the copy says so
+export const V6_COMMENT_ADD = 'הוספת הערה לתלמיד/ה'
 export const V6_COMMENT_EDIT = 'עריכה'
-export const V6_COMMENT_PLACEHOLDER = 'הערה קצרה — לא מוצגת לתלמיד/ה'
+export const V6_COMMENT_PLACEHOLDER = 'הערה לתלמיד/ה — תופיע במשוב על השאלה'
 export const V6_COMMENT_SAVE = 'שמירה'
 export const V6_COMMENT_CANCEL = 'ביטול'
 export const V6_COMMENT_REMOVE = 'מחיקה'
-export const V6_COMMENT_MINE = 'ההערה שלך:'
+export const V6_COMMENT_MINE = 'הערה לתלמיד/ה:'
 
 // ── how a deduction was charged (the pricer's charge statuses) ────────────
 export const V6_CHARGE_APPLIED = (amount: string) => `הורדה של ${amount}`

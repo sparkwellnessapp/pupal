@@ -105,6 +105,11 @@ class ContractTerminalOutcome(BaseModel):
     # Teacher decision
     was_overridden: bool                    # True iff teacher changed the points
     teacher_comment: Optional[str] = None
+    # Her note on this criterion FOR THE STUDENT — printed under the question's
+    # feedback on the signed exam. A separate field from `teacher_comment` on
+    # purpose: contracts frozen before notes reached the student carry comments
+    # written under «not shown to the student», and this field is absent there.
+    student_note: Optional[str] = None
     final_points_awarded: Decimal           # authoritative: override if present, else AI
     # [OD-R2, OD-5] The amount she typed on the criterion row itself, when she
     # did. When present it IS `final_points_awarded`; the checks beneath were

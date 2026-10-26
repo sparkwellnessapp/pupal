@@ -21,7 +21,7 @@ import io
 import json
 import logging
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -352,6 +352,10 @@ def render_appendix_pdf(student_name: str,
                      + '</p>')
         if scope.feedback:
             parts.append(f"<p>{_escape(scope.feedback, _SIZE['body'])}</p>")
+        if scope.notes:
+            parts.append('<p class="crit">' + _escape("הערות המורה:", _SIZE["crit"]) + '</p>')
+            for description, note in scope.notes:
+                parts.append(f"<p>{_escape(f'{description}: {note}', _SIZE['body'])}</p>")
         criteria = scope.criteria
         if include_criteria and criteria:
             for description, awarded, possible in criteria:
@@ -676,6 +680,9 @@ class AppendixScope:
     possible: str
     feedback: str
     criteria: Optional[List[tuple]] = None
+    # [(criterion description, her note)] — her notes for the student, always
+    # printed (they are not part of the optional breakdown).
+    notes: List[tuple] = field(default_factory=list)
 
 
 def scope_title_of(scope_id: str) -> str:
@@ -722,7 +729,9 @@ def scopes_for_render(contract, include_criteria: bool) -> List[AppendixScope]:
             awarded=format_points(scope.final_points_awarded),
             possible=format_points(scope.points_possible),
             feedback=texts.get(sid, ""),
-            criteria=criteria))
+            criteria=criteria,
+            notes=[(t.description, t.student_note) for t in scope.terminal_outcomes
+                   if t.student_note]))
     return out
 
 

@@ -164,3 +164,55 @@ def test_v6_feedback_reads_the_option_that_priced(graded):
     credit = next(c for c in content.checks if c.plan.priced_terminal_id in in_scope and c.plan.role == "credit")
     assert credit.plan.description_he in text and credit.plan.options[0].label_he in text
     assert "נקודות" not in text                                          # no points, anywhere
+
+
+# ── her note on a criterion, for the student ─────────────────────────────────
+
+def test_a_criterion_note_merges_trims_and_withdraws(graded):
+    draft, _b = graded
+    tid = v6_content(draft).terminals[0].terminal_id
+    o1 = merge_overlay(overlay_of(None), OverlayPatchV6(terminal_comments={tid: "  כל הכבוד  "}))
+    assert o1.terminal_comments == {tid: "כל הכבוד"}
+    assert merge_overlay(o1, OverlayPatchV6()).terminal_comments == {tid: "כל הכבוד"}
+    assert not merge_overlay(o1, OverlayPatchV6(terminal_comments={tid: "  "})).terminal_comments
+    assert not merge_overlay(o1, OverlayPatchV6(terminal_comments={tid: None})).terminal_comments
+
+
+def test_a_criterion_note_is_closed_world_and_bounded(graded):
+    from app.services.pricing_v6 import PricingOverlay
+    draft, _b = graded
+    content = v6_content(draft)
+    tid = content.terminals[0].terminal_id
+    kinds = [v.kind for v in overlay_violations(content, PricingOverlay(
+        terminal_comments={"q9.c0": "x", tid: "א" * 2001}))]
+    assert sorted(kinds) == ["closed_world", "too_long"]
+
+
+def test_approval_freezes_her_criterion_note_for_the_student(graded):
+    draft, bundle = graded
+    content = v6_content(draft)
+    plan = _a_ladder(content)
+    tid = plan.priced_terminal_id
+    noted, o = _with(draft, merge_overlay(overlay_of(None), OverlayPatchV6(
+        terminal_comments={tid: "הבנת את הרעיון"})))
+    contract = compile_graded_test(noted, o, bundle.rubric_contract)
+    terminals = {t.terminal_id: t for s in contract.scope_outcomes for t in s.terminal_outcomes}
+    assert terminals[tid].student_note == "הבנת את הרעיון"
+    assert terminals[tid].teacher_comment == "הבנת את הרעיון"
+    assert not terminals[tid].was_overridden, "a note alone moves no grade"
+    assert all(t.student_note is None for k, t in terminals.items() if k != tid)
+
+
+def test_a_check_comment_reaches_the_student_as_its_criterions_note(graded):
+    """Notes used to live on checks. A criterion with no note of its own reads
+    its checks' comments; one of its own wins."""
+    from app.services.v6_review import criterion_notes
+    draft, _b = graded
+    content = v6_content(draft)
+    plan = _a_ladder(content)
+    tid = plan.priced_terminal_id
+    legacy = merge_overlay(overlay_of(None), OverlayPatchV6(
+        checks={plan.check_id: CheckPatchV6(comment="ישן")}))
+    assert criterion_notes(content, legacy) == {tid: "ישן"}
+    own = merge_overlay(legacy, OverlayPatchV6(terminal_comments={tid: "חדש"}))
+    assert criterion_notes(content, own) == {tid: "חדש"}

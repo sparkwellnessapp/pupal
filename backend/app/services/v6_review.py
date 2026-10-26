@@ -60,6 +60,8 @@ class OverlayPatchV6(BaseModel):
     model_config = {"extra": "forbid"}
     checks: Dict[str, Optional[CheckPatchV6]] = Field(default_factory=dict)
     terminal_points: Dict[str, Optional[Decimal]] = Field(default_factory=dict)
+    # her note on a criterion; null or blank withdraws it
+    terminal_comments: Dict[str, Optional[str]] = Field(default_factory=dict)
 
 
 # ── persistence ───────────────────────────────────────────────────────────────
@@ -87,7 +89,13 @@ def merge_overlay(stored: PricingOverlay, patch: OverlayPatchV6) -> PricingOverl
             pins.pop(tid, None)
         else:
             pins[tid] = v
-    return PricingOverlay(checks=checks, terminal_points=pins)
+    notes = dict(stored.terminal_comments)
+    for tid, text in patch.terminal_comments.items():
+        if text is None or not text.strip():
+            notes.pop(tid, None)
+        else:
+            notes[tid] = text.strip()
+    return PricingOverlay(checks=checks, terminal_points=pins, terminal_comments=notes)
 
 
 # ── CW-3, extended to checks and options ──────────────────────────────────────
@@ -125,6 +133,37 @@ def overlay_violations(content: DraftV6Content, overlay: PricingOverlay) -> List
         elif (v / content.precision) % 1 != 0:
             out.append(OverlayViolation(tid, "off_grid",
                                         f"{v} is not on this rubric's grid of {content.precision}."))
+    for tid, text in overlay.terminal_comments.items():
+        if tid not in possible:
+            out.append(OverlayViolation(tid, "closed_world",
+                                        f"'{tid}' is not a criterion of this graded test."))
+        elif len(text) > _COMMENT_MAX:
+            out.append(OverlayViolation(tid, "too_long", f"a note is at most {_COMMENT_MAX} characters."))
+    return out
+
+
+def criterion_notes(content: DraftV6Content, overlay: PricingOverlay) -> Dict[str, str]:
+    """Her note per criterion — what the student reads under the question.
+
+    The criterion's own note when she wrote one. Before notes lived on the
+    criterion they lived on its checks, so a criterion with no note of its own
+    reads its checks' comments, in plan order, one per line. The review surface
+    folds them the same way (`grade-review-v6-model.ts::criterionNote`), so the
+    note she sees before approving is the note the student gets. Writing the
+    criterion's note clears those check comments, so the two never both apply.
+    """
+    legacy: Dict[str, List[str]] = {}
+    for c in content.checks:
+        d = overlay.checks.get(c.plan.check_id)
+        if d is not None and d.comment and d.comment.strip():
+            legacy.setdefault(c.plan.priced_terminal_id, []).append(d.comment.strip())
+    out: Dict[str, str] = {}
+    for t in content.terminals:
+        own = overlay.terminal_comments.get(t.terminal_id)
+        if own:
+            out[t.terminal_id] = own
+        elif t.terminal_id in legacy:
+            out[t.terminal_id] = "\n".join(legacy[t.terminal_id])
     return out
 
 

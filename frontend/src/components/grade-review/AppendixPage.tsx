@@ -2,7 +2,7 @@
 
 import {
     APPX_FOOTER, APPX_FOOTER_PAGE, APPX_META, APPX_POINTS, APPX_SUMMARY,
-    APPX_TEACHER, APPX_TITLE,
+    APPX_TEACHER, APPX_TEACHER_NOTES, APPX_TITLE,
 } from '@/copy/grade-review';
 import type { Appendix, AppendixPageContent } from '@/utils/returned-exam';
 
@@ -143,6 +143,17 @@ export function AppendixPage({
                         ) : null}
 
                         <p className="mt-px text-grade-ink-2">{scope.feedback}</p>
+
+                        {scope.notes.length ? (
+                            <div data-appendix-notes className="mt-1 text-grade-ink-2">
+                                <p className="text-gr-label">{APPX_TEACHER_NOTES}</p>
+                                {scope.notes.map((note, index) => (
+                                    <p key={`${scope.scopeId}:note:${index}`} className="whitespace-pre-line">
+                                        {note.criterion}: {note.text}
+                                    </p>
+                                ))}
+                            </div>
+                        ) : null}
                     </div>
                 ))}
 

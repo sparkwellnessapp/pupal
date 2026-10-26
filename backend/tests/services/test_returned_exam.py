@@ -847,3 +847,35 @@ def test_points_never_render_in_exponent_notation():
     # the reachable domain is unchanged — the mirror still holds there
     for raw in ("7.50", "4.00", "0.75", "0", "8"):
         assert format_points(Decimal(raw)) == format_points(raw), raw
+
+
+def test_appendix_prints_her_criterion_notes_under_the_question():
+    """Her note on a criterion is written FOR the student: it prints under the
+    question's feedback whether or not the breakdown is included."""
+    from app.services.returned_exam import AppendixScope, render_appendix_pdf
+
+    scope = AppendixScope("q1", "שאלה 1", "4", "5", "עבודה טובה", None,
+                          notes=[("סעיף 2", "הבנת את הרעיון")])
+    text = _appendix_text(render_appendix_pdf("דין", [scope], None, False,
+                                              total="4", possible="5"))
+    assert "הערות המורה" in text
+    assert "הבנת" in text and "הרעיון" in text
+
+
+def test_scopes_for_render_carries_only_the_frozen_student_notes():
+    """`student_note` is the only field that reaches the page: a contract frozen
+    before notes reached the student has `teacher_comment` and no note, and
+    that comment was written under «not shown to the student»."""
+    from decimal import Decimal as D
+    from types import SimpleNamespace as NS
+    from app.services.returned_exam import scopes_for_render
+
+    def term(desc, note=None, comment=None):
+        return NS(description=desc, student_note=note, teacher_comment=comment,
+                  final_points_awarded=D("1"), points_possible=D("1"))
+    contract = NS(feedback=None, scope_outcomes=[NS(
+        question_id="q1", sub_question_id=None, counted_in_total=True,
+        final_points_awarded=D("2"), points_possible=D("3"),
+        terminal_outcomes=[term("א", note="יפה"), term("ב", comment="פרטי"), term("ג")])])
+    [scope] = scopes_for_render(contract, include_criteria=False)
+    assert scope.notes == [("א", "יפה")]

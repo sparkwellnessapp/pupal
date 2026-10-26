@@ -621,8 +621,8 @@ def _compile_v6(draft, overrides, rubric_contract) -> GradedTestContract:
     Frozen beside the shared fields: the plan identity, the provider, every check's
     model and effective option, and the reasoning line she approved with its source."""
     from app.schemas.graded_test_contract import ContractCheckV6, ContractTerminalV6, ContractV6
-    from app.services.v6_review import (decided_check_ids, overlay_violations, review,
-                                        undecided_checks)
+    from app.services.v6_review import (criterion_notes, decided_check_ids,
+                                        overlay_violations, review, undecided_checks)
 
     r = review(draft, overrides)
     content, overlay = r.content, r.overlay
@@ -665,10 +665,7 @@ def _compile_v6(draft, overrides, rubric_contract) -> GradedTestContract:
     terminal_index, _branch = _build_terminal_index(draft)
     ai_award = {t.terminal_id: t.awarded for t in r.ai.terminals}
     final_t = {t.terminal_id: t for t in r.final.terminals}
-    comments: Dict[str, str] = {}
-    for cid, d in overlay.checks.items():
-        if d.comment and cid in terminal_of:
-            comments.setdefault(terminal_of[cid], d.comment)
+    notes = criterion_notes(content, overlay)
 
     scope_terminals: Dict[Tuple[str, Optional[str]], List[ContractTerminalOutcome]] = {
         (s.question_id, s.sub_question_id): [] for s in draft.scope_outcomes}
@@ -688,7 +685,8 @@ def _compile_v6(draft, overrides, rubric_contract) -> GradedTestContract:
             ai_points_awarded=ai, ai_reasoning=info.ai_reasoning,
             ai_evidence_quote=info.ai_evidence_quote,
             was_overridden=(info.terminal_id in touched or final != ai),
-            teacher_comment=comments.get(info.terminal_id),
+            teacher_comment=notes.get(info.terminal_id),
+            student_note=notes.get(info.terminal_id),
             final_points_awarded=final,
             typed_points=overlay.terminal_points.get(info.terminal_id),
             checks=None))

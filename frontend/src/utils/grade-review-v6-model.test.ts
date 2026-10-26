@@ -6,9 +6,9 @@ import path from 'node:path';
 import { priceV6 } from '@/lib/pricing-v6';
 import { loadV6Fixture } from '@/mocks/grade_review/v6Fixture';
 import {
-    blockersV6, buildV6ReviewModel, chooseOption, clearPin, criterionDescriptions,
+    blockersV6, buildV6ReviewModel, chooseOption, clearPin, criterionDescriptions, criterionNote,
     emptyOverlayV6, feedbackPatch, isV6Draft, overlayFromWire, overlayPatch,
-    pricingOverlayOf, setComment, setPin, touchedTerminals, undecidedChecks, viewOf,
+    pricingOverlayOf, setCriterionNote, setPin, touchedTerminals, undecidedChecks, viewOf,
     withdrawOption, type OverlayV6,
 } from './grade-review-v6-model';
 
@@ -83,18 +83,40 @@ describe('her edits produce the overlay the server stored, and only her keys tra
         expect(overlayPatch(mine, back)).toStrictEqual({ checks: { [fx.flip.checkId]: null } });
     });
 
-    it('a comment keeps her option, travels with it, and touches no line', () => {
+    it('a criterion note travels alone, is trimmed, and touches no line', () => {
+        const tid = terminalOf.get(fx.flip.checkId) as string;
         const mine = chooseOption(emptyOverlayV6(), fx.flip.checkId, fx.flip.optionId,
             aiResolved(fx.flip.checkId));
-        const noted = setComment(mine, fx.flip.checkId, 'חלקי בלבד');
+        const noted = setCriterionNote(mine, tid, '  הבנת את הרעיון ', terminalOf);
+        expect(noted.terminal_comments).toStrictEqual({ [tid]: 'הבנת את הרעיון' });
+        expect(noted.checks).toStrictEqual(mine.checks);
         expect(overlayPatch(mine, noted)).toStrictEqual({
-            checks: { [fx.flip.checkId]: { option_id: fx.flip.optionId, comment: 'חלקי בלבד' } },
+            terminal_comments: { [tid]: 'הבנת את הרעיון' },
         });
         expect(touchedTerminals(mine, noted, terminalOf).size).toBe(0);
-        // a comment alone (no option) is still a record — Vivi's pick stands beside it
-        const onlyNote = setComment(emptyOverlayV6(), fx.flip.checkId, 'הערה');
-        expect(onlyNote.checks[fx.flip.checkId]).toStrictEqual({ option_id: null, comment: 'הערה' });
-        expect(setComment(onlyNote, fx.flip.checkId, '   ')).toStrictEqual(emptyOverlayV6());
+        // removing it sends null; an untouched overlay sends nothing
+        expect(overlayPatch(noted, setCriterionNote(noted, tid, '  ', terminalOf)))
+            .toStrictEqual({ terminal_comments: { [tid]: null } });
+        expect(overlayPatch(noted, noted)).toBeNull();
+    });
+
+    it('a check comment reads as its criterion\'s note, and writing the note replaces it', () => {
+        const tid = terminalOf.get(fx.flip.checkId) as string;
+        const siblings = [...terminalOf].filter(([, t]) => t === tid).map(([c]) => c);
+        const legacy = overlayFromWire({
+            checks: { [fx.flip.checkId]: { option_id: fx.flip.optionId, comment: 'ישן' } },
+        });
+        expect(criterionNote(legacy, tid, siblings)).toBe('ישן');
+        const replaced = setCriterionNote(legacy, tid, 'חדש', terminalOf);
+        // her option survives; the old comment goes, so it cannot resurface
+        expect(replaced.checks[fx.flip.checkId])
+            .toStrictEqual({ option_id: fx.flip.optionId, comment: null });
+        expect(criterionNote(replaced, tid, siblings)).toBe('חדש');
+        const removed = setCriterionNote(legacy, tid, null, terminalOf);
+        expect(criterionNote(removed, tid, siblings)).toBeNull();
+        expect(overlayPatch(legacy, removed)).toStrictEqual({
+            checks: { [fx.flip.checkId]: { option_id: fx.flip.optionId, comment: null } },
+        });
     });
 
     it('a pin = the pin response; clearing it sends null; an equal re-type sends nothing', () => {

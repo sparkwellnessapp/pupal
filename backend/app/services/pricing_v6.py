@@ -127,6 +127,10 @@ class PricingOverlay(BaseModel):
     model_config = {"frozen": True}
     checks: Dict[str, CheckDecision] = Field(default_factory=dict)
     terminal_points: Dict[str, Decimal] = Field(default_factory=dict)
+    # Her note on a whole criterion, for the STUDENT: frozen at approval as
+    # `ContractTerminalOutcome.student_note` and printed under the question's
+    # feedback. The pricer never reads it.
+    terminal_comments: Dict[str, str] = Field(default_factory=dict)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
