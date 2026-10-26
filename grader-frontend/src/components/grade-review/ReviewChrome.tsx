@@ -351,8 +351,10 @@ export type SaveState = 'saved' | 'saving' | 'failed';
 
 export function ReviewBottomBar({
     saveState, approving, canApprove, onApprove, onShowKeys,
-    blocked = false, onBlocked, keyboardHints = true,
+    blocked = false, onBlocked, keyboardHints = true, notice = null,
 }: {
+    /** A fact worth knowing before signing that does NOT block it (v6: questions with no feedback). */
+    notice?: string | null;
     /**
      * The ↓↑ hint and «כל המקשים» describe the v5 checklist's keymap. A surface
      * that does not implement those keys (grader-v6) turns them off — a hint
@@ -395,6 +397,9 @@ export function ReviewBottomBar({
                             : saveState === 'saving' ? RV_SAVING
                                 : `${RV_SAVED} ✓`}
                     </span>
+                    {notice ? (
+                        <span data-review-notice className="text-grade-amber-ink">{notice}</span>
+                    ) : null}
                     {/* §5.5 — TWO hints by default. A row of six shortcuts is
                         how a first-timer learns to read none of them; the rest
                         fold under «כל המקשים». The approve hint names `Ctrl ↵`,

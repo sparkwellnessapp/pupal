@@ -62,7 +62,11 @@ export function isStale(
  * still valid and she must be able to review it). It renders as
  * «לא נכתב משוב» with a «כתיבה» action, never as an error page (R11).
  */
-export type FeedbackState = 'absent' | 'stale' | 'fresh';
+export type FeedbackState = 'absent' | 'stale' | 'fresh'
+    /** [v6] Vivi is rewriting it now. */
+    | 'updating'
+    /** [v6] she emptied it on purpose: no feedback goes to the student. */
+    | 'blank';
 
 export function feedbackState(
     text: FeedbackText | null | undefined,
