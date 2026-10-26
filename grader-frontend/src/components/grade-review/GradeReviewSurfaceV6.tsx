@@ -76,7 +76,7 @@ export interface GradeReviewSurfaceV6Props {
 
     onChoose: (checkId: string, optionId: string) => void;
     onWithdraw: (checkId: string) => void;
-    onComment: (checkId: string, text: string | null) => void;
+    onNote: (terminalId: string, text: string | null) => void;
     onPin: (terminalId: string, amount: string) => void;
     onClearPin: (terminalId: string) => void;
     onFeedbackChange: (target: string, text: string) => void;
@@ -141,7 +141,7 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
         readOnly = false, stampPressed = false, revision, thumbUrl = null, versionBanner = null,
         queue, eta, batchHref, canPrev, canNext, onPrev, onNext, onOpenPreview, onShowScan,
         saveState, approving = false, onApprove, onSaveNow, onNotice, modalOpen = false,
-        onChoose, onWithdraw, onComment, onPin, onClearPin, onFeedbackChange,
+        onChoose, onWithdraw, onNote, onPin, onClearPin, onFeedbackChange,
     } = props;
 
     /**
@@ -356,7 +356,7 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
                                                 onClearPin={() => onClearPin(criterion.terminalId)}
                                                 onChoose={onChoose}
                                                 onWithdraw={onWithdraw}
-                                                onComment={onComment}
+                                                onNote={(text) => onNote(criterion.terminalId, text)}
                                                 lit={lit === criterion.terminalId}
                                                 onToggleLit={() => setLit((current) =>
                                                     (current === criterion.terminalId ? null : criterion.terminalId))}

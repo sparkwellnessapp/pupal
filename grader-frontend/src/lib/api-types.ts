@@ -3683,6 +3683,8 @@ export interface components {
             final_points_awarded: string;
             /** Points Possible */
             points_possible: string;
+            /** Student Note */
+            student_note?: string | null;
             /** Teacher Comment */
             teacher_comment?: string | null;
             /** Terminal Id */
@@ -4813,6 +4815,10 @@ export interface components {
             checks?: {
                 [key: string]: components["schemas"]["CheckPatchV6"] | null;
             };
+            /** Terminal Comments */
+            terminal_comments?: {
+                [key: string]: string | null;
+            };
             /** Terminal Points */
             terminal_points?: {
                 [key: string]: number | string | null;
@@ -5183,6 +5189,10 @@ export interface components {
             /** Checks */
             checks?: {
                 [key: string]: components["schemas"]["CheckDecision"];
+            };
+            /** Terminal Comments */
+            terminal_comments?: {
+                [key: string]: string;
             };
             /** Terminal Points */
             terminal_points?: {

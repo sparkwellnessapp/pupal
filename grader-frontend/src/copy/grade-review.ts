@@ -581,6 +581,8 @@ export const APPX_META = (parts: (string | null | undefined)[]) =>
     parts.filter(Boolean).join(' · ')
 export const APPX_TEACHER = (name: string) => `המורה: ${name}`
 export const APPX_SUMMARY = 'סיכום'
+/** Her notes on the question's criteria (`ContractTerminalOutcome.student_note`). */
+export const APPX_TEACHER_NOTES = 'הערות המורה:'
 export const APPX_FOOTER = 'נבדק בעזרת ויוי · הציון והמשוב אושרו על ידי המורה'
 export const APPX_FOOTER_PAGE = (n: number, of: number) => `משוב ${n}/${of}`
 /** LTR-isolated at the call site; the slash reorders next to Hebrew. */
