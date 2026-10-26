@@ -190,3 +190,119 @@ test.describe('בדיקת ציונים v6 — «ציטוט מהתשובה» (own
         await expect(section.locator('[data-answer-pane] mark')).toHaveCount(0);
     });
 });
+
+test.describe('בדיקת ציונים v6 — the student\'s feedback follows her decisions', () => {
+    const SCOPE_OF = (tid: string): string => {
+        const t = BASE.content.view_terminals.find((x: { terminal_id: string }) => x.terminal_id === tid);
+        return t.sub_question_id ? `${t.question_id}.${t.sub_question_id}` : t.question_id;
+    };
+    const FLIP_SCOPE = SCOPE_OF(FLIP_TERMINAL);
+    const COUNTED: string[] = [...new Set<string>(BASE.content.view_terminals
+        .map((t: { terminal_id: string }) => SCOPE_OF(t.terminal_id)))];
+    const block = (text: (scope: string) => string) => ({
+        scopes: Object.fromEntries(COUNTED.map((s) => [s, { text: text(s), basis_hash: 'h' }])),
+        summary: { text: 'סיכום', basis_hash: '' }, model_version: 'm', prompt_version: 'p',
+    });
+    const ORIGINAL = block((s) => `משוב מקורי ${s}`);
+    const REWRITTEN = block((s) => (s === FLIP_SCOPE ? 'משוב חדש לפי ההחלטה שלך' : `משוב מקורי ${s}`));
+
+    async function installStale(page: Page) {
+        await installV6(page);
+        const state = { rewrites: 0, approves: 0, rewritten: false };
+        await page.route('**/api/v0/grading/graded_test/*/v6', (route) => route.fulfill(json({
+            ...BASE,
+            feedback: state.rewritten ? REWRITTEN : ORIGINAL,
+            stale_feedback_scope_ids: [],
+        })));
+        await page.route('**/api/v0/grading/graded_test/*/v6/draft', (route) => route.fulfill(json({
+            ...FLIP, feedback: ORIGINAL, stale_feedback_scope_ids: [FLIP_SCOPE],
+        })));
+        await page.route('**/api/v0/grading/graded_test/*/feedback/regenerate*', (route) => {
+            state.rewrites += 1;
+            state.rewritten = true;
+            return route.fulfill(json({
+                target: FLIP_SCOPE, text: 'משוב חדש לפי ההחלטה שלך', offered_only: false, stale: false,
+            }));
+        });
+        await page.route('**/api/v0/grading/graded_test/*/approve', (route) => {
+            state.approves += 1;
+            return route.fulfill(json({
+                id: TEST_A, status: 'approved', student_name: 'נועה לוי', transcription_id: 't-a',
+                draft: DRAFT, contract: {}, approved_at: '2026-10-17T18:00:00Z',
+            }));
+        });
+        return state;
+    }
+
+    async function flip(page: Page) {
+        const row = page.locator(`[data-v6-criterion="${FLIP_TERMINAL}"]`);
+        await row.locator(`[data-v6-toggle="${FLIP_TERMINAL}"]`).click();
+        await row.locator(`[data-v6-check="${FLIP_CHECK}"] [data-option="${FLIP_OPTION}"]`).click();
+    }
+
+    test('a decision makes its question\'s feedback stale, and Vivi rewrites it on her own', async ({ page }) => {
+        const state = await installStale(page);
+        await page.goto(REVIEW);
+        const card = page.locator(`[data-scope-id="${FLIP_SCOPE}"] [data-feedback-state]`);
+        await expect(card).toHaveAttribute('data-feedback-state', 'fresh');
+        await flip(page);
+        await expect(card).toHaveAttribute('data-feedback-state', 'stale');
+        await card.screenshot({ path: test.info().outputPath('feedback-stale.png') });
+        // after the quiet period, with nothing pressed
+        await expect(card.locator('textarea')).toHaveValue('משוב חדש לפי ההחלטה שלך', { timeout: 20_000 });
+        await expect(card).toHaveAttribute('data-feedback-state', 'fresh');
+        expect(state.rewrites).toBe(1);
+        // every other question kept the text she had read
+        const other = COUNTED.find((s) => s !== FLIP_SCOPE);
+        if (other) {
+            await expect(page.locator(`[data-scope-id="${other}"] [data-feedback-state] textarea`))
+                .toHaveValue(`משוב מקורי ${other}`);
+        }
+    });
+
+    test('pressing approve over stale feedback updates it for her to read — the next press signs', async ({ page }) => {
+        const state = await installStale(page);
+        await page.goto(REVIEW);
+        await flip(page);
+        await page.getByRole('button', { name: /אישור וחתימה/ }).click();   // inside the quiet period
+        await expect(page.getByText('ויוי עדכנה את המשוב לפי השינויים שלך — עברי עליו ואשרי שוב'))
+            .toBeVisible();
+        expect(state.rewrites).toBe(1);
+        expect(state.approves).toBe(0);
+        await expect(page.locator(`[data-scope-id="${FLIP_SCOPE}"] [data-feedback-state] textarea`))
+            .toHaveValue('משוב חדש לפי ההחלטה שלך');
+        await page.getByRole('button', { name: /אישור וחתימה/ }).click();
+        await expect.poll(() => state.approves, { timeout: 10_000 }).toBe(1);
+    });
+
+    test('with no feedback written, every question still has a box — write it, or ask again', async ({ page }) => {
+        await installV6(page);
+        const patches: { feedback?: Record<string, string> }[] = [];
+        await page.route('**/api/v0/grading/graded_test/*/v6/draft', async (route) => {
+            patches.push(route.request().postDataJSON());
+            await route.fulfill(json(BASE));
+        });
+        await page.goto(REVIEW);
+        const absent = page.locator('[data-feedback-state="absent"]');
+        // one per counted question, plus the summary
+        await expect(absent).toHaveCount(COUNTED.length + 1);
+        await expect(page.locator('[data-review-notice]')).toHaveText(`${COUNTED.length} שאלות בלי משוב`);
+
+        const card = page.locator(`[data-scope-id="${FLIP_SCOPE}"] [data-feedback-state]`);
+        await expect(card.locator('[data-feedback-retry]')).toBeVisible();
+        await card.screenshot({ path: test.info().outputPath('feedback-absent.png') });
+        await page.locator('[data-review-actionbar]').screenshot({ path: test.info().outputPath('feedback-bar.png') });
+        await card.locator('[data-feedback-write]').click();
+        await expect(card).toHaveAttribute('data-feedback-state', 'blank');
+        await expect(card.locator('textarea')).toBeFocused();
+        await page.keyboard.type('עבודה טובה');
+        await expect(card).toHaveAttribute('data-feedback-state', 'fresh');
+        await expect.poll(() => patches.at(-1)?.feedback?.[FLIP_SCOPE], { timeout: 10_000 })
+            .toBe('עבודה טובה');
+        // emptying it again keeps the box: «no feedback» is her choice, not a vanished card
+        await card.locator('textarea').fill('');
+        await expect(card).toHaveAttribute('data-feedback-state', 'blank');
+        await expect(card.locator('[data-feedback-ask]')).toBeVisible();
+        await card.screenshot({ path: test.info().outputPath('feedback-blank.png') });
+    });
+});

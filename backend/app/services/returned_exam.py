@@ -304,6 +304,46 @@ def _escape(text: str, size: float, base_dir: str = "R") -> str:
         for line in _wrap_logical(text, size))
 
 
+# The order of a scope's blocks on the student's page — points, then the message
+# (feedback, then her notes), then the itemised breakdown (owner-ruled 2026-10-26).
+# Pinned, with the preview's `APPENDIX_SCOPE_ORDER`, to
+# tests/fixtures/appendix_scope_order.json.
+APPENDIX_SCOPE_ORDER = ("points", "feedback", "notes", "breakdown")
+
+
+def _scope_block(scope: "AppendixScope", block: str, include_criteria: bool) -> List[str]:
+    if block == "points":
+        # The TITLE is prose — «שאלה 1, סעיף א» — so it takes an RTL base, unlike
+        # the raw scope id it replaced. An id is an identifier and had to read
+        # identically everywhere; a sentence must read as a sentence. The digit
+        # next to Hebrew is exactly the shape that exposed the half-bidi defect,
+        # so this is pinned by a per-character render assertion, not an eyeball.
+        return ['<h2>' + _escape(scope.title, _SIZE["h2"], base_dir="R") + '</h2>',
+                '<p class="pts">'
+                + _escape(format_points_pair(scope.awarded, scope.possible),
+                          _SIZE["pts"], base_dir="L")
+                + '</p>']
+    if block == "feedback":
+        return [f"<p>{_escape(scope.feedback, _SIZE['body'])}</p>"] if scope.feedback else []
+    if block == "notes":
+        if not scope.notes:
+            return []
+        return (['<p class="crit">' + _escape("הערות המורה:", _SIZE["crit"]) + '</p>']
+                + [f"<p>{_escape(f'{description}: {note}', _SIZE['body'])}</p>"
+                   for description, note in scope.notes])
+    if block == "breakdown":
+        if not (include_criteria and scope.criteria):
+            return []
+        # one _escape over the ASSEMBLED line: reordering the parts separately
+        # would place three correct fragments in the wrong order, which is the
+        # defect this function exists to prevent.
+        return ['<p class="crit">'
+                + _escape(f"{description} — {awarded}/{possible}", _SIZE["crit"])
+                + '</p>'
+                for description, awarded, possible in scope.criteria]
+    raise ValueError(f"unknown appendix block {block!r}")
+
+
 def render_appendix_pdf(student_name: str,
                         scopes: Sequence["AppendixScope"],
                         summary: Optional[str],
@@ -313,8 +353,11 @@ def render_appendix_pdf(student_name: str,
     """The feedback pages, paginated.
 
     CONTENT AND ORDER mirror `AppendixPage.tsx` — header, red total, then per
-    scope its Hebrew title, its points, the optional breakdown and the feedback,
-    then «סיכום» and the footer. Until 2026-09-04 this page carried NO total and
+    scope its blocks in `APPENDIX_SCOPE_ORDER` (title and points, feedback, her
+    notes, the optional breakdown), then «סיכום» and the footer. The order is
+    pinned on both sides to one fixture; until 2026-10-26 this docstring said
+    «breakdown, then feedback» while the code printed the reverse and the
+    preview followed the docstring. Until 2026-09-04 this page carried NO total and
     NO per-scope points and titled every question with the raw internal id
     («q1.א»): a student received a graded exam with no grade on it.
 
@@ -340,31 +383,8 @@ def render_appendix_pdf(student_name: str,
                  else format_points(total))
         parts.append('<p class="total">' + _escape(shown, _SIZE["total"], base_dir="L") + '</p>')
     for scope in scopes:
-        # The TITLE is prose — «שאלה 1, סעיף א» — so it takes an RTL base, unlike
-        # the raw scope id it replaced. An id is an identifier and had to read
-        # identically everywhere; a sentence must read as a sentence. The digit
-        # next to Hebrew is exactly the shape that exposed the half-bidi defect,
-        # so this is pinned by a per-character render assertion, not an eyeball.
-        parts.append('<h2>' + _escape(scope.title, _SIZE["h2"], base_dir="R") + '</h2>')
-        parts.append('<p class="pts">'
-                     + _escape(format_points_pair(scope.awarded, scope.possible),
-                               _SIZE["pts"], base_dir="L")
-                     + '</p>')
-        if scope.feedback:
-            parts.append(f"<p>{_escape(scope.feedback, _SIZE['body'])}</p>")
-        if scope.notes:
-            parts.append('<p class="crit">' + _escape("הערות המורה:", _SIZE["crit"]) + '</p>')
-            for description, note in scope.notes:
-                parts.append(f"<p>{_escape(f'{description}: {note}', _SIZE['body'])}</p>")
-        criteria = scope.criteria
-        if include_criteria and criteria:
-            for description, awarded, possible in criteria:
-                # one _escape over the ASSEMBLED line: reordering the parts
-                # separately would place three correct fragments in the wrong
-                # order, which is the defect this function exists to prevent.
-                parts.append('<p class="crit">'
-                             + _escape(f"{description} — {awarded}/{possible}", _SIZE["crit"])
-                             + '</p>')
+        for block in APPENDIX_SCOPE_ORDER:
+            parts.extend(_scope_block(scope, block, include_criteria))
     if summary:
         parts.append('<h2>' + _escape("סיכום", _SIZE["h2"]) + '</h2>')
         parts.append(f"<p>{_escape(summary, _SIZE['body'])}</p>")

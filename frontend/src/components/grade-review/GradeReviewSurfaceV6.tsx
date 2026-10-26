@@ -6,7 +6,13 @@ import type { NumericPolicy } from '@/lib/pricing';
 import { NO_HIGHLIGHT, type Highlight } from '@/utils/evidence-highlight';
 import { resolveKeyAction } from '@/utils/grade-review-keymap';
 import type { QueueState } from '@/utils/grade-review-cursor';
-import { criterionQuoteSpans, type V6ReviewModel, type V6Scope } from '@/utils/grade-review-v6-model';
+import {
+    criterionQuoteSpans, type V6Feedback, type V6ReviewModel, type V6Scope,
+} from '@/utils/grade-review-v6-model';
+import {
+    V6_FB_BLANK, V6_FB_FAILED, V6_FB_MISSING, V6_FB_NOT_WRITTEN, V6_FB_SUMMARY_BLANK,
+    V6_FB_SUMMARY_FAILED, V6_FB_SUMMARY_NOT_WRITTEN,
+} from '@/copy/grade-review-v6';
 import { revealScrollTop } from '@/utils/grade-review-highlight-machine';
 import { REVIEW_LAYOUT_STACKED } from '@/lib/flags';
 import { AnswerBlock } from './AnswerBlock';
@@ -80,6 +86,10 @@ export interface GradeReviewSurfaceV6Props {
     onPin: (terminalId: string, amount: string) => void;
     onClearPin: (terminalId: string) => void;
     onFeedbackChange: (target: string, text: string) => void;
+    /** Ask Vivi to (re)write one feedback target — a scope id or «summary». */
+    onRewriteFeedback: (target: string) => void;
+    onAcceptFeedbackOffer: (target: string) => void;
+    onDismissFeedbackOffer: (target: string) => void;
 }
 
 function AnswerPane({
@@ -142,7 +152,34 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
         queue, eta, batchHref, canPrev, canNext, onPrev, onNext, onOpenPreview, onShowScan,
         saveState, approving = false, onApprove, onSaveNow, onNotice, modalOpen = false,
         onChoose, onWithdraw, onNote, onPin, onClearPin, onFeedbackChange,
+        onRewriteFeedback, onAcceptFeedbackOffer, onDismissFeedbackOffer,
     } = props;
+
+    /** The box she just opened with «כתבי משוב» — it takes the caret, once. */
+    const [writing, setWriting] = useState<string | null>(null);
+    const feedbackCard = (target: string, title: string, fb: V6Feedback, summary = false) => (
+        <FeedbackCard
+            key={target}
+            title={title}
+            text={fb.text}
+            state={fb.state}
+            teacherEdited={fb.teacherEdited}
+            readOnly={readOnly}
+            busy={fb.state === 'updating'}
+            canAskVivi={fb.canWrite}
+            absentLabel={summary
+                ? (fb.absentReason === 'failed' ? V6_FB_SUMMARY_FAILED : V6_FB_SUMMARY_NOT_WRITTEN)
+                : (fb.absentReason === 'failed' ? V6_FB_FAILED : V6_FB_NOT_WRITTEN)}
+            blankLabel={summary ? V6_FB_SUMMARY_BLANK : V6_FB_BLANK}
+            focusOnMount={writing === target}
+            onWrite={() => { setWriting(target); onFeedbackChange(target, ''); }}
+            onChange={(text) => { if (!readOnly) onFeedbackChange(target, text); }}
+            onRegenerate={() => onRewriteFeedback(target)}
+            offered={fb.offered}
+            onAcceptOffer={() => onAcceptFeedbackOffer(target)}
+            onDismissOffer={() => onDismissFeedbackOffer(target)}
+        />
+    );
 
     /**
      * Which criteria are open: once per test, the ones that need her (a check
@@ -363,39 +400,21 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
                                             />
                                         ))}
 
-                                        {scope.feedback ? (
-                                            <FeedbackCard
-                                                title={RV_FB_TITLE(scope.title)}
-                                                text={scope.feedback.text}
-                                                // v6 feedback carries no verdict basis, so it is never
-                                                // "stale" here — and it is never rewritten from this
-                                                // screen (see GradeReviewV6): no regeneration offer.
-                                                state="fresh"
-                                                teacherEdited={scope.feedback.teacherEdited}
-                                                onChange={(text) => {
-                                                    if (!readOnly) onFeedbackChange(scope.scopeId, text);
-                                                }}
-                                                onRegenerate={() => undefined}
-                                            />
-                                        ) : null}
+                                        {/* Every question the student gets has a feedback box,
+                                            whatever its text — so a failed write still leaves
+                                            her somewhere to write. */}
+                                        {scope.feedback
+                                            ? feedbackCard(scope.scopeId, RV_FB_TITLE(scope.title), scope.feedback)
+                                            : null}
                                     </div>
                                 </div>
                             </section>
                         );
                     })}
 
-                    {model.summary ? (
-                        <div className="rounded-grade border border-grade-line bg-grade-card px-6 py-4">
-                            <FeedbackCard
-                                title={RV_FB_SUMMARY_TITLE}
-                                text={model.summary.text}
-                                state="fresh"
-                                teacherEdited={model.summary.teacherEdited}
-                                onChange={(text) => { if (!readOnly) onFeedbackChange('summary', text); }}
-                                onRegenerate={() => undefined}
-                            />
-                        </div>
-                    ) : null}
+                    <div className="rounded-grade border border-grade-line bg-grade-card px-6 py-4">
+                        {feedbackCard('summary', RV_FB_SUMMARY_TITLE, model.summary, true)}
+                    </div>
 
                     {queue.exhausted ? (
                         <div className="mt-4">
@@ -414,6 +433,8 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
                 onApprove={onApprove}
                 onShowKeys={() => undefined}
                 keyboardHints={false}
+                notice={!approved && !readOnly && model.feedbackMissing > 0
+                    ? V6_FB_MISSING(model.feedbackMissing) : null}
             />
         </div>
     );

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
-    approveGradeReview, getGradedTestV6, saveGradedTestV6Draft,
+    approveGradeReview, getGradedTestV6, regenerateFeedback, saveGradedTestV6Draft,
     type GradedTestV6Response,
 } from '@/lib/api';
 import { cmp, dec } from '@/lib/decimal';
@@ -23,6 +23,7 @@ import { formatPoints } from '@/utils/points-display';
 import { GradeReviewSurfaceV6 } from './GradeReviewSurfaceV6';
 import type { ReviewTopBar, SaveState } from './ReviewChrome';
 import { RV_LOAD_ERROR, RV_LOADING, RV_PRICING_MISMATCH } from '@/copy/grade-review';
+import { V6_FB_REWRITE_FAILED, V6_FB_UPDATED_BEFORE_SIGN } from '@/copy/grade-review-v6';
 
 /**
  * The grader-v6 review route body (owner rulings 2026-10-17 §7) — mounted by
@@ -49,9 +50,25 @@ import { RV_LOAD_ERROR, RV_LOADING, RV_PRICING_MISMATCH } from '@/copy/grade-rev
  * APPROVAL: flush, then POST /approve with the latest response's `overrides`
  * (her full working copy as the server holds it) and the live pricer's total for
  * that same overlay. A 422 surfaces its `message_he` the way v5's does.
+ *
+ * THE STUDENT'S FEEDBACK FOLLOWS HER DECISIONS. Vivi writes it at grade time from
+ * her own verdicts; once the teacher moves one, the server reports that question's
+ * text as stale (`stale_feedback_scope_ids`). Never make her manage the AI: a stale
+ * text Vivi wrote is rewritten here ON ITS OWN, once she has left that question
+ * alone for `FEEDBACK_QUIET_MS` and her decisions are saved (the rewrite describes
+ * what the SERVER holds). Her own words are never rewritten — a rewrite of them is
+ * only offered beside them. A rewrite that fails stays visible as stale, with its
+ * button, and is not retried behind her back.
+ *
+ * AT SIGNING, a text still out of date is rewritten FIRST and she is asked to read
+ * it — the feedback is part of what she signs, and she does not sign words she has
+ * not seen. If the rewrite fails she can sign on the next press: Vivi's failure
+ * never blocks the teacher.
  */
 
 const AUTOSAVE_MS = 1500;
+/** How long a question must sit untouched before its stale feedback is rewritten. */
+export const FEEDBACK_QUIET_MS = 6000;
 
 type RevisionProps = NonNullable<React.ComponentProps<typeof ReviewTopBar>['revision']>;
 
@@ -97,7 +114,10 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
     const [loadError, setLoadError] = useState<string | null>(null);
     const [overlay, setOverlay] = useState<OverlayV6>(emptyOverlayV6);
     const [feedback, setFeedback] = useState<Record<string, string>>({});
-    const [feedbackEdited, setFeedbackEdited] = useState<ReadonlySet<string>>(new Set());
+    /** Feedback targets Vivi is writing right now, and her rewrites offered beside HER text. */
+    const [rewriting, setRewriting] = useState<ReadonlySet<string>>(new Set());
+    const [offers, setOffers] = useState<Record<string, string>>({});
+    const [tick, setTick] = useState(0);
     const [saveState, setSaveState] = useState<SaveState>('saved');
     const [approving, setApproving] = useState(false);
     /** criterion → the edit generation that last touched it; cleared as saves land. */
@@ -115,6 +135,13 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
     const dirtyRef = useRef(false);
     const generationRef = useRef(0);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /** scope → when she last decided something in it (the quiet-period clock). */
+    const lastTouchRef = useRef<Map<string, number>>(new Map());
+    /** In-flight rewrites — a second ask for the same target joins the first. */
+    const inFlightRef = useRef<Map<string, Promise<boolean>>>(new Map());
+    /** Targets whose rewrite failed: never retried automatically again. */
+    const rewriteFailedRef = useRef<Set<string>>(new Set());
+    const retriedOnOpenRef = useRef(false);
 
     // ── load ──────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -129,9 +156,8 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
                 latestRef.current = { overlay: hers, feedback: words };
                 setResponse(data);
                 setOverlay(hers);
-                setFeedback(words);
                 // Hydrating her stored words is not dirt — they are simply hers.
-                setFeedbackEdited(new Set(Object.keys(words)));
+                setFeedback(words);
             })
             .catch(() => { if (alive) setLoadError(RV_LOAD_ERROR); });
         return () => { alive = false; };
@@ -139,6 +165,9 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
 
     const terminalOfCheck = useMemo(() => new Map((response?.content.checks ?? []).map(
         (c) => [c.plan.check_id, c.plan.priced_terminal_id])), [response?.content]);
+    const scopeOfTerminal = useMemo(() => new Map((response?.content.view_terminals ?? []).map(
+        (t) => [t.terminal_id, t.sub_question_id ? `${t.question_id}.${t.sub_question_id}` : t.question_id],
+    )), [response?.content]);
     /** How each check resolves on Vivi's record alone — what «back to Vivi» means. */
     const viviResolved = useMemo(() => new Map(response
         ? priceV6(viewOf(response.content)).checks.map((c) => [c.check_id, c] as const)
@@ -208,6 +237,10 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
         latestRef.current = { ...latestRef.current, overlay: next };
         setOverlay(next);
         const touched = touchedTerminals(previous, next, terminalOfCheck);
+        touched.forEach((tid) => {
+            const scope = scopeOfTerminal.get(tid);
+            if (scope) lastTouchRef.current.set(scope, Date.now());
+        });
         if (touched.size > 0) {
             setPending((prev) => {
                 const map = new Map(prev);
@@ -216,7 +249,7 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
             });
         }
         scheduleSave();
-    }, [approved, terminalOfCheck, scheduleSave]);
+    }, [approved, terminalOfCheck, scopeOfTerminal, scheduleSave]);
 
     const editFeedback = useCallback((target: string, text: string) => {
         if (approved) return;
@@ -225,9 +258,95 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
             ...latestRef.current, feedback: { ...latestRef.current.feedback, [target]: text },
         };
         setFeedback(latestRef.current.feedback);
-        setFeedbackEdited((s) => new Set(s).add(target));
         scheduleSave();
     }, [approved, scheduleSave]);
+
+    // ── the student's feedback, kept describing her decisions ─────────────
+    /**
+     * Ask Vivi to (re)write one target. Resolves true when Vivi wrote (or offered)
+     * a text. `auto` failures stay quiet — the card keeps its stale state and its
+     * button — and are not retried automatically again.
+     */
+    const rewrite = useCallback((target: string, auto: boolean): Promise<boolean> => {
+        const running = inFlightRef.current.get(target);
+        if (running) return running;
+        if (approved) return Promise.resolve(false);
+        const run = (async () => {
+            // The server describes what it HOLDS: her decisions must be saved first.
+            if (!(await flush())) return false;
+            try {
+                const out = await regenerateFeedback(gradedTestId, target);
+                if (out.offered_only) {
+                    setOffers((o) => ({ ...o, [target]: out.text }));
+                } else {
+                    // Only Vivi's text and its staleness are taken from the re-read:
+                    // her overlay here may already be newer than the server's.
+                    const fresh = await getGradedTestV6(gradedTestId);
+                    const merge = (r: GradedTestV6Response | null) => (r ? {
+                        ...r,
+                        feedback: fresh.feedback,
+                        stale_feedback_scope_ids: fresh.stale_feedback_scope_ids,
+                    } : r);
+                    responseRef.current = merge(responseRef.current);
+                    setResponse(merge);
+                }
+                rewriteFailedRef.current.delete(target);
+                return true;
+            } catch (err) {
+                rewriteFailedRef.current.add(target);
+                if (!auto) surfaceError(err);
+                return false;
+            }
+        })();
+        inFlightRef.current.set(target, run);
+        setRewriting(new Set(inFlightRef.current.keys()));
+        void run.finally(() => {
+            inFlightRef.current.delete(target);
+            setRewriting(new Set(inFlightRef.current.keys()));
+        });
+        return run;
+    }, [approved, flush, gradedTestId]);
+
+    /** Stale Vivi texts that may be rewritten now: not hers, not failed, not running. */
+    const rewritable = useCallback((ids: readonly string[]) => ids.filter((sid) =>
+        !Object.prototype.hasOwnProperty.call(latestRef.current.feedback, sid)
+        && !rewriteFailedRef.current.has(sid) && !inFlightRef.current.has(sid)), []);
+
+    useEffect(() => {
+        if (!response || approved) return undefined;
+        const stale = rewritable(response.stale_feedback_scope_ids ?? []);
+        if (stale.length === 0) return undefined;
+        const now = Date.now();
+        const dueAt = (sid: string) => (lastTouchRef.current.get(sid) ?? 0) + FEEDBACK_QUIET_MS;
+        const ready = dirtyRef.current ? [] : stale.filter((sid) => dueAt(sid) <= now);
+        ready.forEach((sid) => { void rewrite(sid, true); });
+        const later = stale.filter((sid) => !ready.includes(sid));
+        if (later.length === 0) return undefined;
+        const wait = Math.max(1000, Math.min(...later.map(dueAt)) - now);
+        const timer = setTimeout(() => setTick((t) => t + 1), wait);
+        return () => clearTimeout(timer);
+    }, [response, approved, rewriting, tick, rewrite, rewritable]);
+
+    // The grade-time write failed outright (no feedback at all): ask once on open.
+    useEffect(() => {
+        if (!response || approved || retriedOnOpenRef.current) return;
+        retriedOnOpenRef.current = true;
+        const failed = (draft.annotations ?? []).some(
+            (a) => a.annotation_type === 'feedback_unavailable');
+        if (failed && !response.feedback
+            && (draft.scope_outcomes ?? []).some((s) => s.graded_by === 'llm')) {
+            void rewrite('summary', true);
+        }
+    }, [response, approved, draft, rewrite]);
+
+    const acceptOffer = useCallback((target: string) => {
+        const text = offers[target];
+        if (text !== undefined) editFeedback(target, text);
+        setOffers(({ [target]: _taken, ...rest }) => rest);
+    }, [offers, editFeedback]);
+    const dismissOffer = useCallback((target: string) => {
+        setOffers(({ [target]: _kept, ...rest }) => rest);
+    }, []);
 
     // On unmount, FLUSH — fire-and-forget beats cancel-and-lose (the v5 rule).
     useEffect(() => () => {
@@ -278,8 +397,9 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
         pendingLines: new Set(pending.keys()),
         saving: saveState !== 'saved',
         feedbackOverrides: feedback,
-        feedbackEdited,
-    }) : null), [response, draft, overlay, questions, pending, saveState, feedback, feedbackEdited]);
+        rewriting,
+        offers,
+    }) : null), [response, draft, overlay, questions, pending, saveState, feedback, rewriting, offers]);
 
     useEffect(() => { demoObserveScores('v6', gradedTestId, model); }, [gradedTestId, model]);
 
@@ -293,6 +413,22 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
         }
         const latest = responseRef.current;
         if (!latest || dirtyRef.current) return;
+        // Feedback still describing a grade she changed is rewritten FIRST, and she
+        // reads it before signing. A failure there never blocks: the next press signs.
+        const stale = rewritable(latest.stale_feedback_scope_ids ?? []);
+        const running = [...inFlightRef.current.values()];
+        if (stale.length > 0 || running.length > 0) {
+            setApproving(true);
+            const done = await Promise.all([...running, ...stale.map((sid) => rewrite(sid, true))]);
+            setApproving(false);
+            toast(done.some(Boolean) ? V6_FB_UPDATED_BEFORE_SIGN : V6_FB_REWRITE_FAILED);
+            const first = stale[0];
+            if (first && typeof document !== 'undefined') {
+                document.getElementById(`scope-${first}`)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            return;
+        }
         setApproving(true);
         try {
             // The number she approves is the pricer's, over EXACTLY the overlay
@@ -307,7 +443,7 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
         } finally {
             setApproving(false);
         }
-    }, [model, approving, approved, flush, gradedTestId, onApproved]);
+    }, [model, approving, approved, flush, gradedTestId, onApproved, rewritable, rewrite]);
 
     if (loadError) return <p className="py-10 text-grade-red">{loadError}</p>;
     if (!model || !policy) return <p className="py-10 text-grade-pencil">{RV_LOADING}</p>;
@@ -350,6 +486,9 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
             onPin={(terminalId, amount) => editOverlay(setPin(latestRef.current.overlay, terminalId, amount))}
             onClearPin={(terminalId) => editOverlay(clearPin(latestRef.current.overlay, terminalId))}
             onFeedbackChange={editFeedback}
+            onRewriteFeedback={(target) => { void rewrite(target, false); }}
+            onAcceptFeedbackOffer={acceptOffer}
+            onDismissFeedbackOffer={dismissOffer}
         />
     );
 }

@@ -129,6 +129,17 @@ export interface AppendixCriterion {
     possible: string
 }
 
+/**
+ * The order of a scope's blocks on the student's page — points, then the
+ * message (feedback, then her notes), then the itemised breakdown (owner-ruled
+ * 2026-10-26). ONE spelling per language, pinned to the same fixture
+ * (`backend/tests/fixtures/appendix_scope_order.json`) as the PDF's
+ * `returned_exam.APPENDIX_SCOPE_ORDER`: the preview and the PDF once printed the
+ * breakdown on opposite sides of the feedback while each claimed to mirror the other.
+ */
+export const APPENDIX_SCOPE_ORDER = ['points', 'feedback', 'notes', 'breakdown'] as const
+export type AppendixScopeBlock = (typeof APPENDIX_SCOPE_ORDER)[number]
+
 export interface AppendixScope {
     scopeId: string
     /** `שאלה 1, סעיף א` — never the raw id. */
