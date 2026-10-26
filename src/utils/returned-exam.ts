@@ -138,6 +138,14 @@ export interface AppendixScope {
     feedback: string
     /** `null` when the batch's breakdown toggle is off. */
     criteria: AppendixCriterion[] | null
+    /** Her notes for the student, one per criterion — printed whatever the toggle. */
+    notes: AppendixNote[]
+}
+
+export interface AppendixNote {
+    /** The criterion it is about, in her words. */
+    criterion: string
+    text: string
 }
 
 export interface Appendix {
@@ -201,6 +209,11 @@ export function buildAppendix(
                     possible: formatPoints(String(t.points_possible)),
                 }))
                 : null,
+            // `student_note` only: a contract frozen before notes reached the
+            // student carries comments written under «not shown to the student».
+            notes: (scope.terminal_outcomes ?? [])
+                .filter((t) => t.student_note)
+                .map((t) => ({ criterion: t.description, text: t.student_note as string })),
         })
     }
 
@@ -267,7 +280,11 @@ function scopeCost(scope: AppendixScope): number {
         (sum, criterion) => sum + Math.max(
             1, Math.ceil(criterion.description.length / CRITERION_CHARS_PER_LINE)),
         0)
-    return 1 + wrappedLines(scope.feedback) + criteria + 1
+    const notes = scope.notes.length
+        ? 1 + scope.notes.reduce(
+            (sum, note) => sum + wrappedLines(`${note.criterion}: ${note.text}`), 0)
+        : 0
+    return 1 + wrappedLines(scope.feedback) + notes + criteria + 1
 }
 
 /** What `paginateAppendix` charged a page. Exported so a test can prove no

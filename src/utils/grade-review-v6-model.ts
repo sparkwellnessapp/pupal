@@ -76,9 +76,12 @@ export interface CheckChoice {
 export interface OverlayV6 {
     checks: Record<string, CheckChoice>;
     terminal_points: Record<string, string>;
+    /** Her note on a criterion, for the student (`PricingOverlay.terminal_comments`). */
+    terminal_comments: Record<string, string>;
 }
 
-export const emptyOverlayV6 = (): OverlayV6 => ({ checks: {}, terminal_points: {} });
+export const emptyOverlayV6 = (): OverlayV6 =>
+    ({ checks: {}, terminal_points: {}, terminal_comments: {} });
 
 // ── routing ────────────────────────────────────────────────────────────────
 
@@ -125,7 +128,9 @@ const blank = (s: string | null | undefined): boolean => !s || s.trim() === '';
  * are not carried; a stored record that has neither an option nor a comment
  * is no record at all (`merge_overlay`'s own rule).
  */
-export function overlayFromWire(wire: PricingOverlay | null | undefined): OverlayV6 {
+export function overlayFromWire(
+    wire: (PricingOverlay & { terminal_comments?: Record<string, string> }) | null | undefined,
+): OverlayV6 {
     const out = emptyOverlayV6();
     for (const [id, d] of Object.entries(wire?.checks ?? {})) {
         const option = d?.option_id ?? null;
@@ -134,6 +139,9 @@ export function overlayFromWire(wire: PricingOverlay | null | undefined): Overla
     }
     for (const [id, v] of Object.entries(wire?.terminal_points ?? {})) {
         if (v != null) out.terminal_points[id] = String(v);
+    }
+    for (const [id, text] of Object.entries(wire?.terminal_comments ?? {})) {
+        if (!blank(text)) out.terminal_comments[id] = text;
     }
     return out;
 }
@@ -180,9 +188,48 @@ export function withdrawOption(overlay: OverlayV6, checkId: string): OverlayV6 {
     return withChoice(overlay, checkId, { option_id: null, comment });
 }
 
-export function setComment(overlay: OverlayV6, checkId: string, text: string | null): OverlayV6 {
-    const option = overlay.checks[checkId]?.option_id ?? null;
-    return withChoice(overlay, checkId, { option_id: option, comment: text });
+/**
+ * Her note on a criterion — what the student reads under the question.
+ *
+ * Notes used to be written on a criterion's CHECKS; a criterion with no note of
+ * its own reads those, in plan order, one per line. Mirror of the server's
+ * `v6_review.criterion_notes`, so the note she approves is the note that freezes.
+ */
+export function criterionNote(
+    overlay: OverlayV6,
+    terminalId: string,
+    checkIds: readonly string[],
+): string | null {
+    const own = overlay.terminal_comments[terminalId];
+    if (!blank(own)) return own;
+    const legacy = checkIds
+        .map((id) => overlay.checks[id]?.comment)
+        .filter((c): c is string => !blank(c))
+        .map((c) => c.trim());
+    return legacy.length ? legacy.join('\n') : null;
+}
+
+/**
+ * She wrote (or, with null / blank, removed) her note on a criterion. Any note
+ * still sitting on its checks goes with it — the criterion's note REPLACES
+ * them, so a removed note never resurfaces from underneath.
+ */
+export function setCriterionNote(
+    overlay: OverlayV6,
+    terminalId: string,
+    text: string | null,
+    terminalOfCheck: ReadonlyMap<string, string>,
+): OverlayV6 {
+    let next: OverlayV6 = overlay;
+    for (const [id, choice] of Object.entries(overlay.checks)) {
+        if (terminalOfCheck.get(id) === terminalId && !blank(choice.comment)) {
+            next = withChoice(next, id, { option_id: choice.option_id, comment: null });
+        }
+    }
+    const terminal_comments = { ...next.terminal_comments };
+    if (blank(text)) delete terminal_comments[terminalId];
+    else terminal_comments[terminalId] = (text as string).trim();
+    return { ...next, terminal_comments };
 }
 
 /** She set the criterion's grade by hand. `amount` is already validated (PointsInput). */
@@ -234,12 +281,23 @@ export function overlayPatch(saved: OverlayV6, current: OverlayV6): OverlayPatch
         if (samePin(before, now)) continue;
         terminal_points[id] = now ?? null;
     }
+    const terminal_comments: NonNullable<OverlayPatchV6['terminal_comments']> = {};
+    for (const id of new Set([
+        ...Object.keys(saved.terminal_comments), ...Object.keys(current.terminal_comments),
+    ])) {
+        const before = (saved.terminal_comments[id] ?? '').trim();
+        const now = (current.terminal_comments[id] ?? '').trim();
+        if (before === now) continue;
+        terminal_comments[id] = now || null;
+    }
     const anyChecks = Object.keys(checks).length > 0;
     const anyPins = Object.keys(terminal_points).length > 0;
-    if (!anyChecks && !anyPins) return null;
+    const anyNotes = Object.keys(terminal_comments).length > 0;
+    if (!anyChecks && !anyPins && !anyNotes) return null;
     return {
         ...(anyChecks ? { checks } : {}),
         ...(anyPins ? { terminal_points } : {}),
+        ...(anyNotes ? { terminal_comments } : {}),
     };
 }
 
@@ -409,7 +467,6 @@ export interface V6Check {
     gated: boolean;
     /** [OD-4] no answer came back and she has not decided — the empty amber ring. */
     undecided: boolean;
-    comment: string | null;
     /** The words Vivi cited, when they ARE in the answer (exact / fuzzy). */
     quote: string | null;
     /** How `quote` was matched — what the answer pane paints it as. */
@@ -439,6 +496,8 @@ export interface V6Criterion {
     /** Her edit is saving; the server's new line has not arrived. */
     linePending: boolean;
     undecidedCount: number;
+    /** Her note on this criterion, for the student (`criterionNote`). */
+    note: string | null;
     checks: V6Check[];
 }
 
@@ -571,7 +630,6 @@ export function buildV6ReviewModel(options: BuildV6Options): V6ReviewModel {
             source: r.source,
             gated: r.source === 'gated',
             undecided: isUndecided,
-            comment: choice?.comment ?? null,
             quote,
             quoteKind: quote ? (record.quote_status === 'fuzzy' ? 'fuzzy' : 'exact') : null,
             noteObserved: observed,
@@ -613,6 +671,7 @@ export function buildV6ReviewModel(options: BuildV6Options): V6ReviewModel {
             linePending: pendingLines.has(tid) || (saving && serverAward.has(tid)
                 && cmp(dec(serverAward.get(tid) as string), dec(t.awarded)) !== 0),
             undecidedCount: checks.filter((c) => c.undecided).length,
+            note: criterionNote(overlay, tid, checks.map((c) => c.checkId)),
             checks,
         };
     };

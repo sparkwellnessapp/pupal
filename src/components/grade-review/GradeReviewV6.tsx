@@ -16,7 +16,7 @@ import type { QueueState } from '@/utils/grade-review-cursor';
 import type { QuestionText, WireDraft } from '@/utils/grade-review-model';
 import {
     buildV6ReviewModel, chooseOption, clearPin, emptyOverlayV6, feedbackPatch,
-    overlayFromWire, overlayPatch, pricingOverlayOf, setComment, setPin, touchedTerminals,
+    overlayFromWire, overlayPatch, pricingOverlayOf, setCriterionNote, setPin, touchedTerminals,
     viewOf, withdrawOption, type OverlayV6,
 } from '@/utils/grade-review-v6-model';
 import { formatPoints } from '@/utils/points-display';
@@ -345,7 +345,8 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
                 if (vivi) editOverlay(chooseOption(latestRef.current.overlay, checkId, optionId, vivi));
             }}
             onWithdraw={(checkId) => editOverlay(withdrawOption(latestRef.current.overlay, checkId))}
-            onComment={(checkId, text) => editOverlay(setComment(latestRef.current.overlay, checkId, text))}
+            onNote={(terminalId, text) => editOverlay(
+                setCriterionNote(latestRef.current.overlay, terminalId, text, terminalOfCheck))}
             onPin={(terminalId, amount) => editOverlay(setPin(latestRef.current.overlay, terminalId, amount))}
             onClearPin={(terminalId) => editOverlay(clearPin(latestRef.current.overlay, terminalId))}
             onFeedbackChange={editFeedback}

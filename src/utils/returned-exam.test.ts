@@ -195,6 +195,28 @@ describe('appendix-preview-matches-fixture', () => {
         expect(ids).not.toContain('q9')
     })
 
+    it('prints her criterion notes under the question — and only frozen student notes', () => {
+        const [q1, ...rest] = contract.scope_outcomes
+        const [a, b, ...others] = q1.terminal_outcomes
+        const noted = {
+            ...contract,
+            scope_outcomes: [{
+                ...q1,
+                terminal_outcomes: [
+                    { ...a, student_note: 'הבנת את הרעיון' },
+                    // written under «not shown to the student» — stays off the page
+                    { ...b, teacher_comment: 'פרטי', student_note: null },
+                    ...others,
+                ],
+            }, ...rest],
+        } as unknown as GradedTestContract
+        for (const includeCriteria of [false, true]) {
+            const [first, second] = buildAppendix(noted, includeCriteria).scopes
+            expect(first.notes).toEqual([{ criterion: a.description, text: 'הבנת את הרעיון' }])
+            expect(second.notes).toEqual([])
+        }
+    })
+
     it('still lists a scope that has no feedback, with its points', () => {
         const noFeedback = {
             ...contract,

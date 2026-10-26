@@ -117,6 +117,41 @@ test.describe('בדיקת ציונים — a grader-v6 grade', () => {
         await expect(page.getByText(/אושר ונחתם/).first()).toBeVisible();
     });
 
+    test('a note for the student is written on a CLOSED criterion and saved on it', async ({ page }) => {
+        await installV6(page);
+        const NOTE = 'הבנת את הרעיון, אבל אין מספר כזה 01';
+        const patches: unknown[] = [];
+        await page.route('**/api/v0/grading/graded_test/*/v6/draft', async (route) => {
+            patches.push(route.request().postDataJSON());
+            await route.fulfill(json({
+                ...BASE,
+                overlay: { ...BASE.overlay, terminal_comments: { [FLIP_TERMINAL]: NOTE } },
+            }));
+        });
+        await page.goto(REVIEW);
+        const row = page.locator(`[data-v6-criterion="${FLIP_TERMINAL}"]`);
+        await expect(row).toHaveAttribute('data-expanded', 'false');
+        // every closed criterion offers it — no need to open one first
+        await expect(page.locator('[data-comment-add]'))
+            .toHaveCount(await page.locator('[data-v6-criterion]').count());
+
+        await row.locator('[data-comment-add]').click();
+        await row.locator('[data-comment-editor] textarea').fill(NOTE);
+        await row.locator('[data-comment-save]').click();
+        await expect(row.locator('[data-her-comment]')).toContainText(NOTE);
+        await expect(row).toHaveAttribute('data-expanded', 'false');
+
+        await expect.poll(() => patches.length, { timeout: 10_000 }).toBe(1);
+        expect(patches[0]).toEqual({
+            v6: { terminal_comments: { [FLIP_TERMINAL]: NOTE } },
+            feedback: {},
+            client_total: BASE.priced.total_score,
+        });
+        // a note moves no grade and rewrites no line
+        await expect(page.locator('[data-total]')).toHaveAttribute('data-overridden', 'false');
+        await expect(row.locator('[data-reasoning-line]')).toHaveText(BASE_LINE);
+    });
+
     test('an approved v6 grade is read-only', async ({ page }) => {
         await installV6(page, { approved: true });
         let patched = false;

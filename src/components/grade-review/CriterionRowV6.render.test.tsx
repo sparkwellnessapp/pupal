@@ -9,7 +9,8 @@ import {
 } from '@/utils/grade-review-v6-model';
 import type { NumericPolicy } from '@/lib/pricing';
 import {
-    V6_CHARGE_CAPPED, V6_CHARGE_MOVED, V6_CHIP, V6_HER_TAG, V6_LINE_UPDATING,
+    V6_CHARGE_CAPPED, V6_CHARGE_MOVED, V6_CHIP, V6_COMMENT_ADD, V6_COMMENT_MINE, V6_HER_TAG,
+    V6_LINE_UPDATING,
     V6_MANUAL_GRADE, V6_QUOTE_BUTTON, V6_QUOTE_NONE, V6_QUOTE_TITLE, V6_UNDECIDED, V6_VIVI_TAG,
 } from '@/copy/grade-review-v6';
 
@@ -162,6 +163,21 @@ describe('CriterionRowV6 — opened: the choices, the charges, the notes', () =>
         expect(open).not.toContain('data-vivi="true"');
         // closed, the row says how many wait for her
         expect(render(crit, false)).toContain(`data-waiting="${crit.undecidedCount}"`);
+    });
+
+    it('her note for the student lives on the CLOSED row: add it, or read it', () => {
+        const crit = [...criteriaOf(fx.base).values()][0];
+        const closed = (c: V6Criterion, readOnly = false) => renderToStaticMarkup(
+            <CriterionRowV6 criterion={c} policy={POLICY} open={false}
+                onToggle={() => undefined} readOnly={readOnly} onNote={() => undefined} />);
+        expect(closed(crit)).toContain('data-comment-add');
+        expect(text(closed(crit))).toContain(V6_COMMENT_ADD);
+        const noted = { ...crit, note: 'הבנת את הרעיון' };
+        expect(text(closed(noted))).toContain(`${V6_COMMENT_MINE} הבנת את הרעיון`);
+        expect(closed(noted)).not.toContain('data-comment-add');
+        // signed: she reads it, she cannot change it
+        expect(closed(crit, true)).not.toContain('data-comment-add');
+        expect(text(closed(noted, true))).toContain('הבנת את הרעיון');
     });
 
     it('read-only: every choice is disabled and no comment can be added', () => {
