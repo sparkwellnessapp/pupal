@@ -21,6 +21,7 @@
 
 import type { TranscriptionReview, TranscriptionReviewSaveRequest } from '@/lib/api';
 import type { BatchTranscriptionItem } from '@/types/batch';
+import type { Figure } from '@/types/transcription';
 import { answerTargetId } from '@/utils/review-flags';
 
 export type SaveFn = (
@@ -32,6 +33,9 @@ export interface ReviewAnswerInput {
   question_number: number;
   sub_question_id: string | null;
   answer_text: string;
+  /** Her figure readings for this answer (MATH_RENDERING_PLAN §5). Sent only when the
+   *  answer has any — absent means the server keeps the draft's (`None` = untouched). */
+  figures?: Figure[];
 }
 
 export interface ReviewItemSnapshot {
@@ -42,6 +46,9 @@ export interface ReviewItemSnapshot {
    *  persisted (a save+refresh reverts chips to draft provenance; known
    *  minor limitation of the reassignment feature). */
   pageNumbers: Readonly<Record<string, number[]>>;
+  /** Figure readings per key (§5). Hydrated like the text (approved → overlay → draft) and
+   *  SWAPPED with it: a reading belongs to the content that names its drawing. */
+  figures: Readonly<Record<string, Figure[]>>;
   studentId: string | null;
   dirty: boolean;
   saving: boolean;
@@ -49,6 +56,29 @@ export interface ReviewItemSnapshot {
   /** True after at least one successful flush for the current item. */
   saved: boolean;
   accepted: boolean;
+}
+
+function hydrateFigures(item: BatchTranscriptionItem): Record<string, Figure[]> {
+  // The same precedence as the text, for the same reasons (R7, Δ11): what was frozen, else
+  // her saved working copy, else what Vivi read.
+  const layer = (answers: ReadonlyArray<{ question_number: number; sub_question_id?: string | null; figures?: Figure[] | null }> | null | undefined) => {
+    const m = new Map<string, Figure[]>();
+    for (const a of answers ?? []) {
+      if (a.figures != null) {
+        m.set(answerTargetId({ question_number: a.question_number, sub_question_id: a.sub_question_id ?? null }), a.figures);
+      }
+    }
+    return m;
+  };
+  const approved = item.transcription_status === 'approved'
+    ? layer(item.approved_answers as never) : new Map<string, Figure[]>();
+  const overlay = layer(item.review?.answers as never);
+  const out: Record<string, Figure[]> = {};
+  for (const a of item.draft.answers) {
+    const key = answerTargetId(a);
+    out[key] = approved.get(key) ?? overlay.get(key) ?? a.figures ?? [];
+  }
+  return out;
 }
 
 function hydrateAnswers(item: BatchTranscriptionItem): Record<string, string> {
@@ -115,6 +145,7 @@ export class ReviewItemController {
     return {
       editedAnswers: hydrateAnswers(item),
       pageNumbers,
+      figures: hydrateFigures(item),
       studentId: item.review?.student_id ?? item.matched_student_id ?? null,
       dirty: false,
       saving: false,
@@ -153,6 +184,15 @@ export class ReviewItemController {
     });
   };
 
+  /** An edit to a drawing's readings (§5) — her decision, so it is dirt. */
+  onFiguresChange = (key: string, figures: Figure[]): void => {
+    this.set({
+      figures: { ...this.snapshot.figures, [key]: figures },
+      dirty: true,
+      saved: false,
+    });
+  };
+
   onStudentPick = (id: string): void => {
     this.set({ studentId: id, dirty: true, saved: false });
   };
@@ -170,16 +210,26 @@ export class ReviewItemController {
     [ea[keyA], ea[keyB]] = [ea[keyB] ?? '', ea[keyA] ?? ''];
     const pn = { ...this.snapshot.pageNumbers };
     [pn[keyA], pn[keyB]] = [pn[keyB] ?? [], pn[keyA] ?? []];
-    this.set({ editedAnswers: ea, pageNumbers: pn, dirty: true, saved: false });
+    const fg = { ...this.snapshot.figures };
+    [fg[keyA], fg[keyB]] = [fg[keyB] ?? [], fg[keyA] ?? []];
+    this.set({ editedAnswers: ea, pageNumbers: pn, figures: fg, dirty: true, saved: false });
   };
 
   /** Full snapshot in draft key order — the flush body and the accept body. */
   buildAnswers = (): ReviewAnswerInput[] => {
-    return this.item.draft.answers.map((a) => ({
-      question_number: a.question_number,
-      sub_question_id: a.sub_question_id,
-      answer_text: this.snapshot.editedAnswers[answerTargetId(a)] ?? a.answer_text,
-    }));
+    return this.item.draft.answers.map((a) => {
+      const key = answerTargetId(a);
+      const figures = this.snapshot.figures[key] ?? [];
+      return {
+        question_number: a.question_number,
+        sub_question_id: a.sub_question_id,
+        answer_text: this.snapshot.editedAnswers[key] ?? a.answer_text,
+        // Sent when the answer has readings now OR had them in the draft (so deleting the
+        // last one is still her decision, not a silent revert to Vivi's). Every CS and
+        // English body stays byte-identical to what it was before figures existed.
+        ...((figures.length || a.figures?.length) ? { figures } : {}),
+      };
+    });
   };
 
   /** True = safe to navigate. False = save failed; navigation must block. */

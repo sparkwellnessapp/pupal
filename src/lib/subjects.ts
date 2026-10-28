@@ -23,3 +23,22 @@ export const SUBJECT_LABEL_HE: Record<SubjectKey, string> = {
 export function isSubjectKey(v: unknown): v is SubjectKey {
   return typeof v === 'string' && (SUBJECT_KEYS as readonly string[]).includes(v);
 }
+
+/**
+ * The CAPABILITY that changes how an answer is drawn (MATH_RENDERING_PLAN §4, OD-M1):
+ * the client mirror of the backend profile's `math_notation` modality. Surfaces ask THIS,
+ * never `subject === 'mathematics'` — a future subject with formulas (physics) turns it on
+ * here and every surface follows.
+ *
+ * It says "spans MAY be present", not "they are": a draft written under the linear
+ * fragment has no `\(` and renders exactly as prose did.
+ */
+const MATH_NOTATION: Readonly<Record<SubjectKey, boolean>> = {
+  computer_science: false,
+  english: false,
+  mathematics: true,
+};
+
+export function hasMathNotation(subject?: string | null): boolean {
+  return isSubjectKey(subject) && MATH_NOTATION[subject];
+}

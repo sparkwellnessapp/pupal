@@ -47,6 +47,9 @@ export interface LookCountLeaf {
     sub_criterion_id?: string;
     checks?: LookCountCheck[] | null;
     flags?: LookCountFlag[] | null;
+    /** Vivi's points (wire: decimal strings). Read only for the figure-deduction marker. */
+    points_awarded?: string | number | null;
+    points_possible?: string | number | null;
 }
 
 export interface LookCountCriterion extends LookCountLeaf {
@@ -59,6 +62,22 @@ export interface LookCountScope {
     sub_question_id?: string | null;
     graded_by: string;
     criterion_outcomes?: LookCountCriterion[] | null;
+    /** EVD-1: the answer this scope was graded against. */
+    student_answer?: { text?: string | null } | null;
+}
+
+const FIGURE_LINE = /\[איור\s*\d+\s*:/;
+
+/**
+ * MATH_RENDERING_PLAN §5 (OD-M5): a DEDUCTION in a scope whose graded answer names a
+ * drawing is a marker. A reader misses what is drawn while calling the figure complete
+ * (measured 10/10), so a point taken there must be checked against the ink. Mirrors
+ * backend `look_count._has_figure` + the `figure_deduction` rule exactly.
+ */
+export function isFigureDeduction(scope: LookCountScope, leaf: LookCountLeaf): boolean {
+    if (!FIGURE_LINE.test(scope.student_answer?.text ?? '')) return false;
+    if (leaf.points_awarded == null || leaf.points_possible == null) return false;
+    return Number(leaf.points_awarded) < Number(leaf.points_possible);
 }
 
 export interface LookCountDraft {
@@ -92,6 +111,7 @@ export function lookCount(draft: LookCountDraft): number {
             for (const leaf of leaves) {
                 const terminalId = leaf.sub_criterion_id || criterion.criterion_id;
                 const hasChecks = Boolean(leaf.checks && leaf.checks.length > 0);
+                if (isFigureDeduction(scope, leaf)) mark(terminalId, 'figure_deduction');
                 for (const flag of leaf.flags ?? []) {
                     if (LOOK_FLAGS.has(flag.reason)) {
                         mark(terminalId, flag.reason);

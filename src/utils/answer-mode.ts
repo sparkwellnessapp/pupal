@@ -19,13 +19,15 @@
  * believing a redesign of this (CLAUDE.md §10).
  */
 
+import { hasMathNotation } from '@/lib/subjects';
+
 /** Characters that mean "this line is program text, not prose". */
 const CODE_CHARS = /[A-Za-z0-9{}();=<>+\-*/[\]]/;
 const HEBREW = /[֐-׿]/;
 /** A leading line-comment marker, which never decides a line's language. */
 const LEADING_COMMENT = /^\s*(?:\/\/|#|--)\s*/;
 
-export type AnswerMode = 'prose' | 'code';
+export type AnswerMode = 'prose' | 'code' | 'math';
 
 /**
  * Prose only when EVERY line is free of program characters.
@@ -53,15 +55,16 @@ export interface AnswerRenderPlan {
  * How to render an answer, decided by the rubric's SUBJECT (execution plan
  * Phase 3a, 2026-09-08) — never by guessing from the text for a non-CS subject:
  *   english          → prose, LTR (an essay with a digit is still an essay)
- *   mathematics      → prose, RTL container; the browser's bidi algorithm
- *                      isolates the Latin/digit runs of the linear notation
+ *   math notation    → 'math', RTL container: prose lines with every `\( … \)`
+ *                      span typeset by <MathText> inside an LTR isolate
+ *                      (MATH_RENDERING_PLAN §4). A linear-notation draft has no
+ *                      spans and renders as RTL prose, exactly as before.
  *   computer_science → today's heuristic, byte-for-byte (prose RTL | code)
  *   unknown/absent   → the CS heuristic (pre-seam rows carry no subject)
  */
 export function answerRenderPlan(answer: string, subject?: string | null): AnswerRenderPlan {
     if (subject === 'english') return { mode: 'prose', dir: 'ltr' };
-    // ALPHA-GAP A-2 (D-1): mode 'prose' for mathematics; alpha adds a 'math' mode + <MathText> (KaTeX).
-    if (subject === 'mathematics') return { mode: 'prose', dir: 'rtl' };
+    if (hasMathNotation(subject)) return { mode: 'math', dir: 'rtl' };
     const mode = detectAnswerMode(answer);
     return { mode, dir: mode === 'prose' ? 'rtl' : 'ltr' };
 }

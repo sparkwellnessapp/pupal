@@ -1,16 +1,19 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 
+import { MathText } from '@/components/math/MathText';
 import { answerLines, answerRenderPlan } from '@/utils/answer-mode';
-import { markRangesForAll, segmentsForLine, type Highlight, type LineRange }
+import { markRangesForAll, segmentsForLine, type Highlight, type LineRange, type MarkKind }
     from '@/utils/evidence-highlight';
 
 /**
- * The student's answer, in one of two modes (R5) — a PURE render of
+ * The student's answer, in one of three modes (R5) — a PURE render of
  * `(answer, highlight)`.
  *
  * prose  every line Hebrew-only → RTL, the UI face, right-aligned
+ * math   a subject with math notation → RTL prose lines with each `\( … \)`
+ *        span typeset by <MathText> in an LTR isolate (MATH_RENDERING_PLAN §4)
  * code   anything else → a `dir="ltr"` island, Fira Code, numbered lines, and
  *        a Hebrew comment gets `dir="rtl"` on its text span ALONE, keeping the
  *        island's left alignment and its indentation (OD-F2, ruled left)
@@ -76,31 +79,54 @@ export function AnswerBlock({ answer, highlight, subject, scopeId }: AnswerBlock
     const mode = plan.mode;
     const lines = answerLines(answer, mode);
 
+    const renderMark = (children: ReactNode, kind: MarkKind, key: string | number) => (
+        <mark
+            key={key}
+            // The kind is recorded PER SEGMENT as data (a criterion's
+            // union can mix exact and fuzzy spans), but since the owner
+            // ruling of 2026-09-11 it is not PAINTED differently: one
+            // teal fill for every placed span. The dashed amber
+            // underline that used to mark a fuzzy span is gone.
+            data-highlight={kind}
+            data-pinned={highlight.pinned ? 'true' : 'false'}
+            className={[
+                'rounded-mark bg-primary-100 text-inherit',
+                'shadow-[0_0_0_2px_theme(colors.primary.100)]',
+                highlight.pinned
+                    ? 'shadow-[0_0_0_2px_theme(colors.primary.100),0_2px_0_0_theme(colors.primary.600)]'
+                    : '',
+            ].join(' ')}
+        >
+            {children}
+        </mark>
+    );
+
     const renderSegments = (text: string, lineIndex: number) =>
         segmentsForLine(text, rangesByLine.get(lineIndex) ?? []).map((segment, i) => {
             if (!segment.marked) return <span key={i}>{segment.text}</span>;
-            return (
-                <mark
-                    key={i}
-                    // The kind is recorded PER SEGMENT as data (a criterion's
-                    // union can mix exact and fuzzy spans), but since the owner
-                    // ruling of 2026-09-11 it is not PAINTED differently: one
-                    // teal fill for every placed span. The dashed amber
-                    // underline that used to mark a fuzzy span is gone.
-                    data-highlight={segment.kind}
-                    data-pinned={highlight.pinned ? 'true' : 'false'}
-                    className={[
-                        'rounded-mark bg-primary-100 text-inherit',
-                        'shadow-[0_0_0_2px_theme(colors.primary.100)]',
-                        highlight.pinned
-                            ? 'shadow-[0_0_0_2px_theme(colors.primary.100),0_2px_0_0_theme(colors.primary.600)]'
-                            : '',
-                    ].join(' ')}
-                >
-                    {segment.text}
-                </mark>
-            );
+            return renderMark(segment.text, segment.kind ?? 'exact', i);
         });
+
+    if (mode === 'math') {
+        // MATH_RENDERING_PLAN §4: prose lines, each `\( … \)` span typeset in an
+        // LTR isolate. A mark that touches part of a span lights the whole span.
+        return (
+            <div
+                dir={plan.dir}
+                data-answer-for={scopeId}
+                data-answer-mode="math"
+                data-answer-dir={plan.dir}
+                className="gr-card__pane-body scroll-mt-scope rounded-grade-ctl border
+                    border-grade-line-2 bg-grade-bar px-4 py-3 text-right text-gr-prose"
+            >
+                {lines.map((line, index) => (
+                    <div key={line.number} className="min-h-[1.5em] py-0.5">
+                        <MathText text={line.text} marks={rangesByLine.get(index) ?? []} renderMark={renderMark} />
+                    </div>
+                ))}
+            </div>
+        );
+    }
 
     if (mode === 'prose') {
         return (

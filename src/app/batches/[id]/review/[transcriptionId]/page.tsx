@@ -61,6 +61,7 @@ import {
     SOFT_REFETCH_NOTE,
 } from '@/copy/batch';
 import type { BatchDetailResponse, BatchTranscriptionItem } from '@/types/batch';
+import type { Figure } from '@/types/transcription';
 import {
     advanceTarget,
     counterInfo,
@@ -607,6 +608,8 @@ function ReviewItemView({ batchId, item, position, counters }: {
                         markDissolved={(key) => markDissolved(item.transcription_id, key)}
                         onSwapAnswers={state.swapAnswers}
                         pageNumbersByKey={state.pageNumbers as Record<string, number[]>}
+                        figuresByKey={state.figures as Record<string, Figure[]>}
+                        onFiguresChange={state.onFiguresChange}
                     />
                 </div>
 

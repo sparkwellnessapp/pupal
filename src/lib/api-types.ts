@@ -2426,7 +2426,7 @@ export interface components {
          */
         AcceptOneTranscriptionRequest: {
             /** Answers */
-            answers: components["schemas"]["GradeAnswerInputItem"][];
+            answers: components["schemas"]["GradeAnswerInputItem-Input"][];
             /**
              * Student Id
              * Format: uuid
@@ -2956,7 +2956,7 @@ export interface components {
          */
         BatchTranscriptionItem: {
             /** Approved Answers */
-            approved_answers?: components["schemas"]["GradeAnswerInputItem"][] | null;
+            approved_answers?: components["schemas"]["GradeAnswerInputItem-Output"][] | null;
             /** Created At */
             created_at: string;
             draft: components["schemas"]["TranscriptionDraft"];
@@ -4094,6 +4094,52 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** Figure */
+        Figure: {
+            /** Box 2D */
+            box_2d?: number[] | null;
+            /** Features */
+            features?: components["schemas"]["FigureFeature"][];
+            /** Figure No */
+            figure_no: number;
+            /**
+             * Kind
+             * @default other
+             * @enum {string}
+             */
+            kind: "function_sketch" | "geometry" | "other";
+            /** Page Number */
+            page_number: number;
+        };
+        /** FigureFeature */
+        FigureFeature: {
+            /** As Written */
+            as_written: string;
+            /**
+             * Ink
+             * @default primary
+             * @enum {string}
+             */
+            ink: "primary" | "other";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "vertical_asymptote" | "horizontal_asymptote" | "minimum" | "maximum" | "x_intercept" | "y_intercept" | "point" | "shaded_region" | "vertex" | "side_label" | "angle_label" | "segment_label" | "right_angle_mark" | "axis_label" | "other_label";
+            /** Point */
+            point?: number[] | null;
+            /**
+             * Source
+             * @default vivi
+             * @enum {string}
+             */
+            source: "vivi" | "teacher";
+            /**
+             * Uncertain
+             * @default false
+             */
+            uncertain: boolean;
+        };
         /**
          * FlagReason
          * @description Reasons for flagging an outcome for teacher review.
@@ -4155,6 +4201,8 @@ export interface components {
         GradeAnswerInput: {
             /** Answer Text */
             answer_text: string;
+            /** Figures */
+            figures?: components["schemas"]["Figure"][] | null;
             /** Question Number */
             question_number: number;
             /** Sub Question Id */
@@ -4164,9 +4212,25 @@ export interface components {
          * GradeAnswerInputItem
          * @description One reviewed answer in an individual-accept request.
          */
-        GradeAnswerInputItem: {
+        "GradeAnswerInputItem-Input": {
             /** Answer Text */
             answer_text: string;
+            /** Figures */
+            figures?: components["schemas"]["Figure"][] | null;
+            /** Question Number */
+            question_number: number;
+            /** Sub Question Id */
+            sub_question_id?: string | null;
+        };
+        /**
+         * GradeAnswerInputItem
+         * @description One reviewed answer in an individual-accept request.
+         */
+        "GradeAnswerInputItem-Output": {
+            /** Answer Text */
+            answer_text: string;
+            /** Figures */
+            figures?: components["schemas"]["Figure"][] | null;
             /** Question Number */
             question_number: number;
             /** Sub Question Id */
@@ -6816,7 +6880,7 @@ export interface components {
              * Annotation Type
              * @enum {string}
              */
-            annotation_type: "vlm_uncertainty" | "vlm_unparseable" | "student_name_missing" | "vlm_low_logprob" | "reader_disagreement" | "code_lint" | "segmentation_mismatch";
+            annotation_type: "vlm_uncertainty" | "vlm_unparseable" | "student_name_missing" | "vlm_low_logprob" | "reader_disagreement" | "code_lint" | "segmentation_mismatch" | "math_notation";
             /** Id */
             id?: string;
             /** Message */
@@ -6857,6 +6921,8 @@ export interface components {
             answer_text: string;
             /** Confidence */
             confidence: number;
+            /** Figures */
+            figures?: components["schemas"]["Figure"][];
             /** Page Numbers */
             page_numbers?: number[];
             /** Question Number */
@@ -6927,6 +6993,8 @@ export interface components {
         TranscriptionReviewAnswer: {
             /** Answer Text */
             answer_text: string;
+            /** Figures */
+            figures?: components["schemas"]["Figure"][] | null;
             /** Question Number */
             question_number: number;
             /** Sub Question Id */

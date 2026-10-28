@@ -266,3 +266,52 @@ describe('R7 — approved items hydrate from the FROZEN approved answers', () =>
     expect(ctrl.getSnapshot().editedAnswers).toEqual({ q1: 'draft one', 'q2.א': 'draft two' })
   })
 })
+
+describe('figure readings ride with the answer (MATH_RENDERING_PLAN §5)', () => {
+  const READ = {
+    figure_no: 1, page_number: 1, kind: 'function_sketch' as const, box_2d: [100, 100, 500, 900],
+    features: [{ kind: 'vertical_asymptote' as const, as_written: 'x=2', point: [300, 500],
+      ink: 'primary' as const, uncertain: false, source: 'vivi' as const }],
+  }
+  const withFigure = () => makeItem({
+    draft: {
+      ...makeItem().draft,
+      answers: [
+        { question_number: 1, sub_question_id: null, answer_text: '[איור 1: סקיצה]', confidence: 0.9, page_numbers: [1], figures: [READ] },
+        { question_number: 2, sub_question_id: 'א', answer_text: 'draft two', confidence: 0.8, page_numbers: [1] },
+      ],
+    },
+  })
+
+  it('hydrates from the draft; viewing is not dirt', () => {
+    const ctrl = new ReviewItemController(withFigure(), vi.fn() as unknown as SaveFn)
+    expect(ctrl.getSnapshot().figures.q1).toEqual([READ])
+    expect(ctrl.getSnapshot().dirty).toBe(false)
+  })
+
+  it('an edit is dirt and is sent; an answer with no readings sends none (CS bodies unchanged)', async () => {
+    const save = vi.fn(async () => okReview)
+    const ctrl = new ReviewItemController(withFigure(), save)
+    const mine = { ...READ, features: [{ ...READ.features[0], as_written: 'x=3', source: 'teacher' as const }] }
+    ctrl.onFiguresChange('q1', [mine])
+    expect(ctrl.getSnapshot().dirty).toBe(true)
+    await ctrl.flushIfDirty()
+    const body = (save.mock.calls[0] as unknown as [string, { answers: Array<Record<string, unknown>> }])[1]
+    expect(body.answers[0].figures).toEqual([mine])
+    expect('figures' in body.answers[1]).toBe(false)
+  })
+
+  it('deleting the last reading is still sent — never a silent revert to Vivi', () => {
+    const ctrl = new ReviewItemController(withFigure(), vi.fn() as unknown as SaveFn)
+    ctrl.onFiguresChange('q1', [])
+    expect(ctrl.buildAnswers()[0].figures).toEqual([])
+  })
+
+  it('a SWAP moves the readings with the content', () => {
+    const ctrl = new ReviewItemController(withFigure(), vi.fn() as unknown as SaveFn)
+    ctrl.swapAnswers('q1', 'q2.א')
+    expect(ctrl.getSnapshot().figures['q2.א']).toEqual([READ])
+    expect(ctrl.getSnapshot().figures.q1).toEqual([])
+    expect(ctrl.buildAnswers()[1].figures).toEqual([READ])
+  })
+})
