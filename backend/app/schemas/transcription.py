@@ -99,7 +99,7 @@ class TranscriptionDraftAnswer(BaseModel):
     #: Vivi's readings of the drawings this answer's `[איור N: …]` lines name (§5).
     #: Empty for every subject without the `figure` modality, and whenever the optional
     #: figure pass did not run or failed — the line then stands alone, as it always did.
-    figures: List[Figure] = Field(default_factory=list)
+    figures: List[Figure] = Field(default_factory=list, exclude_if=lambda v: not v)
 
 
 class TranscriptionDraft(BaseModel):
@@ -150,7 +150,7 @@ class TranscriptionReviewAnswer(BaseModel):
     answer_text: str
     #: Her reviewed figure readings for this answer (§5). None = she did not touch them —
     #: the draft's readings stand. A list (even empty) is her decision, all of it.
-    figures: Optional[List[Figure]] = None
+    figures: Optional[List[Figure]] = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class TranscriptionReview(BaseModel):
@@ -196,7 +196,7 @@ class TranscriptionContractAnswer(BaseModel):
     page_numbers: List[int] = Field(default_factory=list)
     #: The reviewed readings of this answer's drawings (§5), frozen with the text they
     #: belong to. Default [] — older contracts and every non-figure subject parse unchanged.
-    figures: List[Figure] = Field(default_factory=list)
+    figures: List[Figure] = Field(default_factory=list, exclude_if=lambda v: not v)
 
     @model_validator(mode="after")
     def _fig1_figure_line_integrity(self):

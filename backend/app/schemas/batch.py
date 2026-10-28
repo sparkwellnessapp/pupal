@@ -455,7 +455,7 @@ class GradeAnswerInputItem(BaseModel):
     answer_text: str
     # MATH_RENDERING_PLAN §5: her reviewed figure readings. None = untouched (the
     # draft's stand); a list, even empty, is her decision.
-    figures: Optional[List[Figure]] = None
+    figures: Optional[List[Figure]] = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class AcceptOneTranscriptionRequest(BaseModel):

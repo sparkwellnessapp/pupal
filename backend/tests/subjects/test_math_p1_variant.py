@@ -46,7 +46,7 @@ def test_the_latex_fragment_carries_every_written_convention():
     for rule in ("between \\( and \\)", "in the student's OWN form", "\\sqrt{e}", "\\frac{1}{e}",
                  "OUTSIDE the \\( \\) spans", "One written line is one transcribed line",
                  "\\begin{cases}", "Never use aligned", "is still wrapped in",
-                 "\\(\\begin{cases} ... \\end{cases}\\)", "each label verbatim", "\\boxed{...}", "\\cancel{...}",
+                 "\\(\\begin{cases} ... \\end{cases}\\)", "labels verbatim", "\\boxed{...}", "\\cancel{...}",
                  "\\nearrow", "\\searrow", "\\cup", "\\cap", "[איור N:", "Never solve, simplify, or correct"):
         assert rule in text, f"latex1 lost {rule!r}"
     # everything outside the ink rules survives, as for every non-CS fragment

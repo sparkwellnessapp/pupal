@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from google.api_core.exceptions import NotFound
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
@@ -81,7 +81,7 @@ class GradeAnswerInput(BaseModel):
     answer_text: str
     # MATH_RENDERING_PLAN §5: her reviewed figure readings. None = untouched (the
     # draft's stand); a list, even empty, is her decision.
-    figures: Optional[List[Figure]] = None
+    figures: Optional[List[Figure]] = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class GradeRequest(BaseModel):
