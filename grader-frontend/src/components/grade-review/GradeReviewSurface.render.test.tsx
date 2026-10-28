@@ -270,14 +270,25 @@ describe('GradeReviewSurface renders a real published draft', () => {
         expect(html_en).not.toContain('data-answer-mode="code"');
     });
 
-    it('renders a Mathematics answer as RTL prose', () => {
-        const html_math = render({
+    it('renders a Mathematics answer in math mode, RTL, with its spans isolated LTR', () => {
+        // A linear-notation draft (no spans) reads exactly as RTL prose did.
+        const linear = render({
             subject: 'mathematics',
             draft: withAnswer(readFixture('draft_dan_basiuk.json'), `f(x) = (ln x)^2 - ln x - 2
 מינימום (sqrt(e), -2.25)`),
         });
-        expect(html_math).toContain('data-answer-mode="prose"');
-        expect(html_math).toContain('data-answer-dir="rtl"');
+        expect(linear).toContain('data-answer-mode="math"');
+        expect(linear).toContain('data-answer-dir="rtl"');
+        expect(linear).toContain('מינימום (sqrt(e), -2.25)');
+        expect(linear).not.toContain('data-math-span');
+
+        // A LaTeX draft: every span sits in an LTR isolate (MATH_RENDERING_PLAN §4).
+        const latex = render({
+            subject: 'mathematics',
+            draft: withAnswer(readFixture('draft_dan_basiuk.json'),
+                'מינימום \\((\\sqrt{e}, -2.25)\\)'),
+        });
+        expect(latex).toMatch(/<bdi dir="ltr" data-math-span="0"/);
     });
 
     it('offers both quote buttons, and the scope nav', () => {

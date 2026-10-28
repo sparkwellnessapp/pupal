@@ -5,6 +5,7 @@
  *   evidence that did not validate (`not_found` / `fuzzy`)   — per CHECK
  *   bounds-clamped, closed-world                             — per TERMINAL flag
  *   `skipped_no_answer`, `failed`                            — per SCOPE
+ *   a deduction where the answer names a drawing (§5, OD-M5) — per TERMINAL
  *   audit-marked                                             — deferred (R-1)
  *
  * An earlier version walked only the evidence markers, so `F` silently skipped
@@ -20,7 +21,7 @@
  * dashboard card and the number of stops `F` makes cannot disagree.
  */
 
-import type { LookCountDraft, LookCountLeaf } from './look-count';
+import { isFigureDeduction, type LookCountDraft, type LookCountLeaf } from './look-count';
 
 export type MarkerReason =
     | 'not_found'
@@ -30,7 +31,9 @@ export type MarkerReason =
     | 'unverified_check'
     | 'evidence_unverified'
     | 'skipped_no_answer'
-    | 'failed';
+    | 'failed'
+    /** MATH_RENDERING_PLAN §5: points taken in a scope whose answer names a drawing. */
+    | 'figure_deduction';
 
 export interface ReviewMarker {
     /**
@@ -95,6 +98,9 @@ export function reviewMarkers(draft: LookCountDraft): ReviewMarker[] {
             for (const leaf of leaves) {
                 const terminalId = leaf.sub_criterion_id || criterion.criterion_id;
                 const hasChecks = Boolean(leaf.checks && leaf.checks.length > 0);
+                if (isFigureDeduction(scope, leaf)) {
+                    push({ kind: 'scope', id: terminalId, scopeId: sid, reason: 'figure_deduction' });
+                }
                 for (const flag of leaf.flags ?? []) {
                     if (LOOK_FLAGS.has(flag.reason)) {
                         push({

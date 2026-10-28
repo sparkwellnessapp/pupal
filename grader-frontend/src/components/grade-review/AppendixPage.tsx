@@ -1,5 +1,6 @@
 'use client';
 
+import { ProseMath } from '@/components/math/ProseMath';
 import {
     APPX_FOOTER, APPX_FOOTER_PAGE, APPX_META, APPX_POINTS, APPX_SUMMARY,
     APPX_TEACHER, APPX_TEACHER_NOTES, APPX_TITLE,
@@ -45,11 +46,18 @@ export interface AppendixPageProps {
     className?: string | null;
     signedDate?: string | null;
     teacherName?: string | null;
+    /**
+     * The rubric's subject. Under math notation a `\( … \)` span in feedback or a
+     * note is typeset here; the PDF prints the same marks linearised to Unicode
+     * (`returned_exam._escape` → `math_notation.linearize`, OD-M10) — one content,
+     * two typographies, the same form (`√e` is never `e^½` on either).
+     */
+    subject?: string | null;
 }
 
 export function AppendixPage({
     appendix, page, pageNumber, pageCount,
-    examName, studentName, className, signedDate, teacherName,
+    examName, studentName, className, signedDate, teacherName, subject,
 }: AppendixPageProps) {
     return (
         <div
@@ -142,14 +150,14 @@ export function AppendixPage({
                             </div>
                         ) : null}
 
-                        <p className="mt-px text-grade-ink-2">{scope.feedback}</p>
+                        <p className="mt-px text-grade-ink-2"><ProseMath text={scope.feedback} subject={subject} /></p>
 
                         {scope.notes.length ? (
                             <div data-appendix-notes className="mt-1 text-grade-ink-2">
                                 <p className="text-gr-label">{APPX_TEACHER_NOTES}</p>
                                 {scope.notes.map((note, index) => (
                                     <p key={`${scope.scopeId}:note:${index}`} className="whitespace-pre-line">
-                                        {note.criterion}: {note.text}
+                                        {note.criterion}: <ProseMath text={note.text} subject={subject} />
                                     </p>
                                 ))}
                             </div>
