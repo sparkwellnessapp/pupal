@@ -1,0 +1,16 @@
+{
+  "_doc": "Where the math is in an answer string. Read in place by backend tests/services/test_math_notation.py (app/services/math_notation/spans.py) AND frontend src/utils/math-spans.test.ts (src/utils/math-spans.ts). Offsets are UTF-16 code units == Python str indices for every case here (no astral characters). segments: [kind, start, end, body_start, body_end].",
+  "cases": [
+    {"name": "no math", "text": "תשובה בלי מתמטיקה", "segments": [["text", 0, 17, 0, 17]], "unclosed": [], "stray": []},
+    {"name": "one span", "text": "\\(x=2\\)", "segments": [["math", 0, 7, 2, 5]], "unclosed": [], "stray": []},
+    {"name": "hebrew around", "text": "נקודת מינימום \\((\\sqrt{e}, -2.25)\\) לכן", "segments": [["text", 0, 14, 0, 14], ["math", 14, 35, 16, 33], ["text", 35, 39, 35, 39]], "unclosed": [], "stray": []},
+    {"name": "two spans", "text": "\\(a\\) ו-\\(b\\)", "segments": [["math", 0, 5, 2, 3], ["text", 5, 8, 5, 8], ["math", 8, 13, 10, 11]], "unclosed": [], "stray": []},
+    {"name": "unclosed", "text": "ש \\(x+1", "segments": [["text", 0, 7, 0, 7]], "unclosed": [2], "stray": []},
+    {"name": "stray close", "text": "x\\) ו-\\(y\\)", "segments": [["text", 0, 6, 0, 6], ["math", 6, 11, 8, 9]], "unclosed": [], "stray": [1]},
+    {"name": "reopen before close", "text": "\\(a \\(b\\)", "segments": [["text", 0, 4, 0, 4], ["math", 4, 9, 6, 7]], "unclosed": [0], "stray": []},
+    {"name": "escaped backslash is not a delimiter", "text": "\\(a \\\\ b\\)", "segments": [["math", 0, 10, 2, 8]], "unclosed": [], "stray": []},
+    {"name": "line break outside", "text": "\\\\(x)", "segments": [["text", 0, 5, 0, 5]], "unclosed": [], "stray": []},
+    {"name": "multiline answer", "text": "א.\n\\(f'(x)=0\\)\n\\(x=e\\)", "segments": [["text", 0, 3, 0, 3], ["math", 3, 14, 5, 12], ["text", 14, 15, 14, 15], ["math", 15, 22, 17, 20]], "unclosed": [], "stray": []},
+    {"name": "empty span", "text": "\\(\\)", "segments": [["math", 0, 4, 2, 2]], "unclosed": [], "stray": []}
+  ]
+}

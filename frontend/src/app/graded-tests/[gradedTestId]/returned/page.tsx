@@ -41,7 +41,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
     fetchReturnedExamPdf, fetchTranscriptionPageObjectUrl, getApprovedGradedTest,
-    getBatch, manualEditGradedTest, saveStampPosition,
+    getBatch, getRubric, manualEditGradedTest, saveStampPosition,
     updateBatchReturnedExamSettings,
     type GradeReviewApprovedResponse, type StampPositionWire,
 } from '@/lib/api';
@@ -65,6 +65,7 @@ export default function ReturnedExamPage() {
 
     const [payload, setPayload] = useState<GradeReviewApprovedResponse | null>(null);
     const [batch, setBatch] = useState<BatchDetailResponse | null>(null);
+    const [subject, setSubject] = useState<string | null>(null);
     const [scanPages, setScanPages] = useState<(string | null)[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -87,6 +88,14 @@ export default function ReturnedExamPage() {
                     try {
                         const detail = await getBatch(batchId);
                         if (!cancelled) { setBatch(detail); observeBatch(detail); }
+                        // The subject rides the rubric row (migration 027). CONTEXT
+                        // for how feedback text is drawn (math spans typeset),
+                        // never a gate: a failure leaves it null and text stays text.
+                        getRubric(detail.rubric_id)
+                            .then((r) => {
+                                if (!cancelled) setSubject((r as { subject?: string | null }).subject ?? null);
+                            })
+                            .catch(() => { /* drawing context only */ });
                     } catch {
                         if (!cancelled) setBatch(null);
                     }
@@ -271,6 +280,7 @@ export default function ReturnedExamPage() {
             studentName={payload.student_name ?? ''}
             examName={batch?.rubric_name ?? batch?.name ?? ''}
             className={batch?.class_name ?? null}
+            subject={subject}
             signedAt={payload.approved_at ?? null}
             version={feedItem?.version ?? 1}
             contract={payload.contract as GradedTestContract}

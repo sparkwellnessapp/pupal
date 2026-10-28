@@ -216,7 +216,7 @@ async def run_pipeline_and_build_draft(
         page_count = len(trust_run.run.pages) or 1
         return build_draft_from_trust_run(
             trust_run, page_count=page_count, duration_ms=duration_ms,
-            student_name_suggestion=name_suggestion,
+            student_name_suggestion=name_suggestion, subject=subject,
         )
 
     provider = get_vlm_provider(

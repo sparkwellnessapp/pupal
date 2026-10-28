@@ -126,12 +126,15 @@ if _P1_CS_INK_RULES not in P1_SYSTEM:  # loud at import, never at the first non-
         "profile would silently receive the CS rules. Re-align _P1_CS_INK_RULES.")
 
 
-# ALPHA-GAP A-2 (D-1): the mathematics fragment prescribes linear notation only; alpha adds the LaTeX grammar.
-def p1_system(profile=None) -> str:
+# MATH_RENDERING_PLAN §4: a profile may define named VARIANTS of its fragment (the
+# mathematics `latex1` LaTeX grammar). `variant` selects one; a variant the profile does
+# not define is the default fragment, so CS stays `P1_SYSTEM` whatever is configured.
+def p1_system(profile=None, variant: str = "") -> str:
     """The P1 system prompt for a subject profile (None ⇒ the CS baseline)."""
-    if profile is None or profile.p1_fragment is None:
+    fragment = profile.p1_fragment_for(variant) if profile is not None else None
+    if fragment is None:
         return P1_SYSTEM
-    return P1_SYSTEM.replace(_P1_CS_INK_RULES, profile.p1_fragment, 1)
+    return P1_SYSTEM.replace(_P1_CS_INK_RULES, fragment, 1)
 
 
 P1_SCHEMA: dict = {

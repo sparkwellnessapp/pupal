@@ -10,6 +10,8 @@ import { criterionQuoteSpans, type V6ReviewModel, type V6Scope } from '@/utils/g
 import { revealScrollTop } from '@/utils/grade-review-highlight-machine';
 import { REVIEW_LAYOUT_STACKED } from '@/lib/flags';
 import { AnswerBlock } from './AnswerBlock';
+import { FIG_DEDUCTION_HINT } from '@/copy/math';
+import { FIGURE_LINE } from '@/utils/figure-lines';
 import { CriterionRowV6 } from './CriterionRowV6';
 import { FeedbackCard } from './FeedbackCard';
 import {
@@ -111,6 +113,16 @@ function AnswerPane({
                             {scope.answer.from
                                 ? RV_ANSWER_INHERITED(scope.answer.from)
                                 : RV_ANSWER_INHERITED_ANON}
+                        </p>
+                    ) : null}
+                    {/* §5 (OD-M5): a drawing's reading can miss what is drawn while calling
+                        itself complete, so a point taken here is checked against the ink. */}
+                    {FIGURE_LINE.test(scope.answer.text) && Number(scope.awarded) < Number(scope.possible) ? (
+                        <p data-figure-deduction className="mb-1.5 flex-none rounded-grade-ctl border
+                            border-grade-amber-200 bg-grade-amber-50 px-3 py-1.5 text-gr-meta text-grade-amber-ink">
+                            {FIG_DEDUCTION_HINT}{' '}
+                            <button type="button" onClick={() => onShowScan(scope.scopeId, scope.title)}
+                                className="underline underline-offset-link">{RV_SHOW_SCAN}</button>
                         </p>
                     ) : null}
                     <AnswerBlock

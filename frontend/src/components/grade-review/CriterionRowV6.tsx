@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 import type { NumericPolicy } from '@/lib/pricing';
+import { ProseMath } from '@/components/math/ProseMath';
 import { answerRenderPlan } from '@/utils/answer-mode';
 import { formatPoints } from '@/utils/points-display';
 import { criterionQuoteSpans, type V6Charge, type V6Check, type V6Criterion } from '@/utils/grade-review-v6-model';
@@ -80,7 +81,9 @@ function Quote({ text, subject }: { text: string; subject?: string | null }) {
                 plan.mode === 'code' ? 'font-mono text-gr-answer' : '',
             ].join(' ')}
         >
-            {text}
+            {/* A quotation from a math answer is typeset like the answer it came
+                from (MATH_RENDERING_PLAN §4); any other quotation is its string. */}
+            <ProseMath text={text} subject={subject} />
         </span>
     );
 }
@@ -480,7 +483,7 @@ export function CriterionRowV6({
                 ) : criterion.line && !lineRepeatsLabel ? (
                     <p data-reasoning-line data-line-state="ready" data-line-source={criterion.line.source}
                         className="leading-relaxed">
-                        {criterion.line.text}
+                        <ProseMath text={criterion.line.text} subject={subject} />
                     </p>
                 ) : null}
 

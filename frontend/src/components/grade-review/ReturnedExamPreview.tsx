@@ -56,6 +56,8 @@ export interface ReturnedExamPreviewProps {
      *  caught it, so the component owns the conversion and nobody can forget. */
     signedAt?: string | null;
     version?: number | null;
+    /** The rubric's subject — decides whether math spans in feedback are typeset. */
+    subject?: string | null;
     contract: GradedTestContract;
     /** Page images of the student's own scan, already resolved to blob URLs. */
     scanPages: (string | null)[];
@@ -352,6 +354,7 @@ export function ReturnedExamPreview(props: ReturnedExamPreviewProps) {
                             className={className}
                             signedDate={formatSignedDate(signedAt)}
                             teacherName={teacherName}
+                            subject={props.subject}
                         />
                     ) : null}
 

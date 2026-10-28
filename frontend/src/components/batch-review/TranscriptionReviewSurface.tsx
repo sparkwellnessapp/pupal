@@ -22,6 +22,7 @@ import {
 } from '@/copy/batch';
 import type {
     AnswerSpaceSelectionGroup,
+    Figure,
     TranscriptionAnnotation,
     TranscriptionDraft,
 } from '@/types/transcription';
@@ -31,7 +32,13 @@ import { orderAnswersPageFirst } from '@/utils/review-anchors';
 import { answerTargetId, deriveReviewFlags } from '@/utils/review-flags';
 import { expectedEmptyKeys } from '@/utils/selection-expectation';
 import { detectMismatch, keyLabel, type AnswerKey } from '@/utils/segmentation-check';
+import { hasMath } from '@/utils/math-spans';
+import { matchFigures } from '@/utils/figure-lines';
+import { FIG_UNREAD } from '@/copy/math';
+import { FigureCard } from '@/components/math/FigureCard';
+import { hasMathNotation } from '@/lib/subjects';
 
+import { MathAnswerEditor } from './MathAnswerEditor';
 import { TranscribedAnswerView } from './TranscribedAnswerView';
 import { TranscribedTextEditor } from './TranscribedTextEditor';
 
@@ -105,6 +112,13 @@ export interface TranscriptionReviewSurfaceProps {
      * Absent (single-test flow, pre-seam rows) ⇒ ltr.
      */
     subject?: string | null;
+    /**
+     * Figure readings per key (MATH_RENDERING_PLAN §5), from the item state — SWAPPED with
+     * the content like the page chips. Absent ⇒ the draft's own readings, read-only (the
+     * single-test flow).
+     */
+    figuresByKey?: Record<string, Figure[]>;
+    onFiguresChange?: (key: string, figures: Figure[]) => void;
 }
 
 export function TranscriptionReviewSurface({
@@ -122,6 +136,8 @@ export function TranscriptionReviewSurface({
     onSwapAnswers,
     pageNumbersByKey,
     selectionGroups,
+    figuresByKey,
+    onFiguresChange,
 }: TranscriptionReviewSurfaceProps) {
     const [pages, setPages] = useState<Record<number, string>>({});
     const pageRefs = useRef(new Map<number, HTMLDivElement>());
@@ -456,10 +472,20 @@ export function TranscriptionReviewSurface({
                                             ))}
                                         </div>
                                     )}
-                                    {showTable ? (
+                                    {hasMathNotation(subject) && hasMath(currentText) ? (
+                                        // MATH_RENDERING_PLAN §4: a math answer is typeset and
+                                        // edited where she points — a formula in MathLive, a
+                                        // line as text. Same one write path (commitAnswer).
+                                        <MathAnswerEditor
+                                            value={currentText}
+                                            onChange={commitAnswer}
+                                            readOnly={readOnly}
+                                            lineFlags={lineFlags}
+                                        />
+                                    ) : showTable ? (
                                         <TranscribedAnswerView
                                             text={currentText}
-                                            dir={subject === 'mathematics' ? 'rtl' : 'ltr'}
+                                            dir={hasMathNotation(subject) ? 'rtl' : 'ltr'}
                                             onChange={commitAnswer}
                                             readOnly={readOnly}
                                             onEditingChange={(on) => setEditingKey((prev) => (
@@ -468,7 +494,7 @@ export function TranscriptionReviewSurface({
                                         />
                                     ) : (
                                         <TranscribedTextEditor
-                                            dir={subject === 'mathematics' ? 'rtl' : 'ltr'}
+                                            dir={hasMathNotation(subject) ? 'rtl' : 'ltr'}
                                             value={currentText}
                                             onChange={commitAnswer}
                                             readOnly={readOnly}
@@ -476,6 +502,36 @@ export function TranscriptionReviewSurface({
                                             placeholder={emptyUnexplained ? EMPTY_ANSWER_PLACEHOLDER : undefined}
                                         />
                                     )}
+                                    {/* §5: each drawing the answer names, as her student's ink
+                                        with Vivi's reading pinned on it. A named drawing with no
+                                        reading says so — only when the figure pass ran at all. */}
+                                    {(() => {
+                                        const figures = figuresByKey?.[key] ?? answer.figures ?? [];
+                                        const anyRead = draft.answers.some((a) => (a.figures?.length ?? 0) > 0);
+                                        if (!anyRead && figures.length === 0) return null;
+                                        const match = matchFigures(currentText, figures);
+                                        return (
+                                            <>
+                                                {match.pairs.map(({ figure }, i) => (
+                                                    <FigureCard
+                                                        key={`${figure.page_number}:${figure.figure_no}:${i}`}
+                                                        figure={figure}
+                                                        pageImage={pages[figure.page_number]
+                                                            ? `data:image/png;base64,${pages[figure.page_number]}` : null}
+                                                        onChange={onFiguresChange && !readOnly
+                                                            ? (next) => onFiguresChange(key, figures.map((f) => (f === figure ? next : f)))
+                                                            : undefined}
+                                                    />
+                                                ))}
+                                                {anyRead && match.unread.map((line) => (
+                                                    <div key={`unread-${line}`} dir="rtl" data-testid="figure-unread"
+                                                        className="mt-2 rounded border border-dashed border-amber-300 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
+                                                        {FIG_UNREAD}
+                                                    </div>
+                                                ))}
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         );

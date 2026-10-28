@@ -7,7 +7,7 @@ POST /api/v0/transcriptions/grade       — approve + create pending graded_test
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
@@ -27,13 +27,13 @@ from ...models.transcription import Transcription
 from ...models.user import User
 from ...schemas.transcription import (
     AnswerSpaceSelectionGroup,
-    TranscriptionContract,
-    TranscriptionContractAnswer,
+    Figure,
     TranscriptionDraft,
     TranscriptionReview,
     TranscriptionReviewAnswer,
 )
 from ...services.selection_expectation import answer_space_groups
+from ...services.transcription_contract import build_transcription_contract
 from ...services.document_parser import image_to_base64
 from ...services.gcs_service import get_gcs_service
 from ...services.handwriting_transcription_service import (
@@ -79,6 +79,9 @@ class GradeAnswerInput(BaseModel):
     question_number: int
     sub_question_id: str | None = None
     answer_text: str
+    # MATH_RENDERING_PLAN §5: her reviewed figure readings. None = untouched (the
+    # draft's stand); a list, even empty, is her decision.
+    figures: Optional[List[Figure]] = None
 
 
 class GradeRequest(BaseModel):
@@ -195,16 +198,8 @@ async def grade(
     rubric = await get_owned_or_404(db, Rubric, transcription.rubric_id, current_user.id)
 
     # 3. Build frozen contract from teacher-submitted answers
-    contract = TranscriptionContract(
-        answers=[
-            TranscriptionContractAnswer(
-                question_number=a.question_number,
-                sub_question_id=a.sub_question_id,
-                answer_text=a.answer_text,
-            )
-            for a in body.answers
-        ]
-    )
+    contract = build_transcription_contract(
+        body.answers, TranscriptionDraft.model_validate(transcription.draft_json))
 
     now = datetime.now(timezone.utc)
 
@@ -310,6 +305,7 @@ async def save_review(
                 question_number=a.question_number,
                 sub_question_id=a.sub_question_id,
                 answer_text=a.answer_text,
+                figures=a.figures,          # §5: her reviewed readings, or None = untouched
             )
             for a in body.answers
         ],

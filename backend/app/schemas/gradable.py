@@ -179,7 +179,8 @@ class GradableTest(BaseModel):
     # every nested rubric, not a graceful degradation — its rate is the metric for when
     # the transcription depth-2 segmentation follow-up becomes urgent.
     parent_answer_fallback_scopes: List[str] = Field(default_factory=list)
-    # ALPHA-GAP A-4 (D-2): no page reference per scope; alpha adds `page_numbers` so a figure scope can carry its page.
+    # A-4 (MATH_RENDERING_PLAN §5): a scope carries TEXT only — figure readings arrive expanded
+    # into it by the compiler; page refs stay on the transcription contract. No grader reads an image.
 
     @field_serializer("total_points")
     def _sp(self, v: Decimal) -> str:

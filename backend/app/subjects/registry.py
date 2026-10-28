@@ -54,6 +54,22 @@ class SubjectProfile:
     explainer_fragment: str                        # the v6 explainer's subject register (§7.3)
     precedents: Tuple[Clause, ...]                 # constitution clauses, by reference; planner + explainer ONLY (AM-G5)
     rescale_to_exam: bool = False                  # D-13: the grid-snap post-pass runs on this subject's drafts
+    # MATH_RENDERING_PLAN §4: named whole replacements of `p1_fragment`, selected by
+    # `PipelineConfig.p1_variant`. A variant this profile does not define means the
+    # default fragment — so a global setting can never touch CS.
+    p1_variants: Tuple[Tuple[str, str], ...] = ()
+    # The P1 packing a variant was MEASURED at (pages per call). A variant is a package:
+    # its fragment is only trusted at the packing it was measured with.
+    p1_variant_pages_per_call: Tuple[Tuple[str, int], ...] = ()
+
+    def p1_pages_per_call_for(self, variant: str = "") -> Optional[int]:
+        return dict(self.p1_variant_pages_per_call).get(variant) if self.has_p1_variant(variant) else None
+
+    def p1_fragment_for(self, variant: str = "") -> Optional[str]:
+        return dict(self.p1_variants).get(variant, self.p1_fragment) if variant else self.p1_fragment
+
+    def has_p1_variant(self, variant: str) -> bool:
+        return bool(variant) and variant in dict(self.p1_variants)
 
     @property
     def valid_question_types(self) -> FrozenSet[QuestionType]:
@@ -85,6 +101,8 @@ def _build(module) -> SubjectProfile:
         explainer_fragment=module.EXPLAINER_FRAGMENT,
         precedents=tuple(module.PRECEDENTS),
         rescale_to_exam=bool(getattr(module, "RESCALE_TO_EXAM", False)),
+        p1_variants=tuple(sorted(getattr(module, "P1_VARIANTS", {}).items())),
+        p1_variant_pages_per_call=tuple(sorted(getattr(module, "P1_VARIANT_PAGES_PER_CALL", {}).items())),
     )
 
 
@@ -113,3 +131,11 @@ def get_profile(key: Optional[str]) -> SubjectProfile:
 def prompt_version(base: str, profile: SubjectProfile) -> str:
     """D-16 (ruled 2026-09-08): CS stamps are unchanged; others carry `+<key>`."""
     return base if profile.is_baseline else f"{base}+{profile.key}"
+
+
+def transcription_prompt_version(base: str, profile: SubjectProfile, p1_variant: str = "") -> str:
+    """The P1/P2 stamp: D-16, plus `.<variant>` when the profile's P1 ran a variant
+    (`t1.4-tables+mathematics.latex1`). A draft must say which notation it was
+    written in — the review surface and every measurement read it."""
+    stamp = prompt_version(base, profile)
+    return f"{stamp}.{p1_variant}" if profile.has_p1_variant(p1_variant) else stamp

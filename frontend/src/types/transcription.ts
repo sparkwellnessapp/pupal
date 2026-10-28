@@ -9,7 +9,8 @@ export type TranscriptionAnnotationType =
     | 'vlm_low_logprob'          // S11: logprob span-min below threshold
     | 'reader_disagreement'      // trust layer: independent readers read this span differently
     | 'code_lint'                // trust layer: deterministic code check (brace balance)
-    | 'segmentation_mismatch';   // student's leading marker contradicts the P2-assigned key
+    | 'segmentation_mismatch'    // student's leading marker contradicts the P2-assigned key
+    | 'math_notation';           // a LaTeX span that may not render (MATH_RENDERING_PLAN §4) — INFO
 
 // metadata payload of a reader_disagreement annotation (backend flagging.FlagSpan)
 export interface ReaderDisagreementMetadata {
@@ -32,12 +33,42 @@ export interface TranscriptionAnnotation {
     metadata: Record<string, unknown>;
 }
 
+/** Vivi's READING of a drawing (MATH_RENDERING_PLAN §5) — backend `Figure`. */
+export type FigureFeatureKind =
+    | 'vertical_asymptote' | 'horizontal_asymptote' | 'minimum' | 'maximum'
+    | 'x_intercept' | 'y_intercept' | 'point' | 'shaded_region'
+    | 'vertex' | 'side_label' | 'angle_label' | 'segment_label' | 'right_angle_mark'
+    | 'axis_label' | 'other_label';
+
+export interface FigureFeature {
+    kind: FigureFeatureKind;
+    /** LaTeX body, no delimiters — copied from the drawing. */
+    as_written: string;
+    /** [y, x] on the page's 0–1000 grid; null when she added it by hand. */
+    point: number[] | null;
+    ink: 'primary' | 'other';
+    uncertain: boolean;
+    source: 'vivi' | 'teacher';
+}
+
+export interface Figure {
+    /** N of its `[איור N: …]` line, numbered per page. */
+    figure_no: number;
+    page_number: number;
+    kind: 'function_sketch' | 'geometry' | 'other';
+    /** [ymin, xmin, ymax, xmax] on the page's 0–1000 grid. */
+    box_2d: number[] | null;
+    features: FigureFeature[];
+}
+
 export interface TranscriptionDraftAnswer {
     question_number: number;
     sub_question_id: string | null;
     answer_text: string;
     confidence: number;
     page_numbers: number[];
+    /** Absent on every draft written before figures existed. */
+    figures?: Figure[];
 }
 
 export interface TranscriptionDraft {
@@ -74,6 +105,8 @@ export interface GradeAnswerInput {
     question_number: number;
     sub_question_id: string | null;
     answer_text: string;
+    /** Her reviewed readings; omitted/null = the draft's stand. */
+    figures?: Figure[] | null;
 }
 
 export interface GradeQueuedResponse {

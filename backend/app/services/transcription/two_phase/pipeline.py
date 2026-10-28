@@ -54,7 +54,7 @@ from .prompts import (
     p2_user_prompt,
 )
 from app.subjects import get_profile as _get_subject_profile
-from app.subjects import prompt_version as _stamp_prompt_version
+from app.subjects import transcription_prompt_version as _stamp_prompt_version
 
 log = logging.getLogger("transcription.two_phase")
 
@@ -136,6 +136,13 @@ class PipelineConfig:
     # and the checker's cost is almost entirely image input tokens. Halving
     # the edge quarters those tokens.
     p1_strike_check_image_max_px: int = 0
+    # The FIGURE pass (figure_pass.py, MATH_RENDERING_PLAN §5); empty = disabled. One
+    # call per page whose P1 text names a drawing (`[איור N: …]`), reading each drawing's
+    # labelled features. OPTIONAL, under the same time policy as the strike check
+    # (optional_pass_timeout_s per call, optional_pass_budget_s for the whole pass): any
+    # failure leaves the caption line alone. Never edits text.
+    p1_figure_model_key: str = ""
+    p1_figure_max_tokens: int = 6000
     # Trust layer (cross-reader disagreement flags); empty = disabled
     reader_model_keys: tuple[str, ...] = ()
     reader_image_max_px: int = 2000       # readers may run cheaper/smaller images
@@ -189,6 +196,11 @@ class PipelineConfig:
     # (modality only — P1 stays spec-blind) and the D-16 prompt stamp. The default
     # is the baseline, so every existing config/fixture is byte-identical.
     subject_key: str = "computer_science"
+    # MATH_RENDERING_PLAN §4: a named variant of the profile's P1 fragment
+    # (`latex1` = mathematics in LaTeX spans). "" = the default fragment; a name the
+    # profile does not define is also the default, so CS is untouched by construction.
+    # Stamped into the prompt version (`+mathematics.latex1`).
+    p1_variant: str = ""
 
 
 @dataclass(frozen=True)
@@ -502,7 +514,7 @@ class Pipeline:
         # P1 per subject profile: CS is `P1_SYSTEM` byte-for-byte; a prose/math
         # profile swaps only the ink-rules block (prompts.p1_system). Spec-blind
         # either way — the profile carries modality, never rubric content.
-        p1_system_text = p1_system(_get_subject_profile(cfg.subject_key))
+        p1_system_text = p1_system(_get_subject_profile(cfg.subject_key), cfg.p1_variant)
 
         def make_call():
             # Clamped HERE, inside the closure, so the budget is read at
@@ -554,9 +566,16 @@ class Pipeline:
     ) -> dict[int, str]:
         """Chunk + dispatch pre-rendered page images through one P1 model."""
         page_numbers = list(range(1, len(images) + 1))
-        chunks = _chunk(page_numbers, max(1, self.cfg.p1_pages_per_call))
+        # A P1 VARIANT is a measured PACKAGE of fragment + packing (MATH_RENDERING_PLAN §4,
+        # probe v3): `latex1` at 3 pages per call misread the student's Hebrew on a dense
+        # page in 4/5 draws — and today's linear fragment at 3 misread the same word 5/5 —
+        # while 1 page per call read it right 15/15. The variant's packing therefore wins
+        # over the config's; a profile/variant that names none keeps `p1_pages_per_call`.
+        per_call = max(1, _get_subject_profile(self.cfg.subject_key)
+                       .p1_pages_per_call_for(self.cfg.p1_variant) or self.cfg.p1_pages_per_call)
+        chunks = _chunk(page_numbers, per_call)
         log.info("[%s] %s: dispatching %d chunk(s) (<=%d pages each) concurrently",
-                 doc_id, phase, len(chunks), max(1, self.cfg.p1_pages_per_call))
+                 doc_id, phase, len(chunks), per_call)
         results = await asyncio.gather(*[
             self._phase1_chunk(
                 nums, [images[n - 1] for n in nums], doc_priority, trace,
@@ -756,6 +775,78 @@ class Pipeline:
         out.update(dict(results))
         return out
 
+    async def read_figures(
+        self,
+        images: list[Image.Image],
+        pages: dict[int, str],
+        doc_id: str,
+        doc_priority: int,
+        trace: Trace,
+    ) -> dict[int, list]:
+        """The figure pass: page number → its `Figure` readings. {} when disabled, when no
+        page names a drawing, or on ANY failure — degradation by omission, never by guess
+        (CLAUDE.md §3.5a). Concurrent across pages; never touches `pages`."""
+        from app.services.figures import FIGURE_LINE
+        from .figure_pass import FIGURE_SCHEMA, FIGURE_SYSTEM, figure_user_prompt, parse_figures
+
+        cfg = self.cfg
+        key = cfg.p1_figure_model_key
+        if not key:
+            return {}
+        named = {n: [ln for ln in (pages.get(n) or "").split("\n") if FIGURE_LINE.search(ln)]
+                 for n in sorted(pages)}
+        named = {n: lines for n, lines in named.items() if lines}
+        if not named:
+            return {}
+        if not self._budget.can_start(cfg.optional_pass_budget_s):
+            log.warning("[%s] figure_pass skipped: %.0fs of the %.0fs document budget already "
+                        "spent — %d page(s) keep their caption lines alone", doc_id,
+                        self._budget.elapsed_s(), self._budget.total_s or 0.0, len(named))
+            return {}
+        ms = self._resolve(key)
+        provider = self._providers[ms.provider]
+        schema = FIGURE_SCHEMA if (cfg.use_json_schema and ms.supports_json_schema) else None
+        log.info("[%s] figure_pass: reading %d page(s) with %s", doc_id, len(named), ms.model_id)
+
+        async def one(n: int) -> tuple[int, list]:
+            try:
+                async with self._encode_lock:
+                    b64 = (await asyncio.get_running_loop().run_in_executor(
+                        _ENCODE_POOL, _encode_pages_sync, [images[n - 1]], cfg.image_max_px,
+                        cfg.image_format, cfg.image_jpeg_quality, False))[0]
+                wanted = {int(FIGURE_LINE.search(ln).group(1)) for ln in named[n]}
+
+                def make_call():
+                    return provider.complete(
+                        system=FIGURE_SYSTEM, user=figure_user_prompt(n, named[n]),
+                        images_b64=[b64], max_tokens=cfg.p1_figure_max_tokens,
+                        temperature=cfg.temperature, json_schema=schema,
+                        timeout_s=self._budget.clamp(cfg.optional_pass_timeout_s))
+
+                ok, data = await self._call_parsed(
+                    phase="figure_pass", model_key=key, doc_priority=doc_priority,
+                    trace=trace, required_keys=("figures",), make_call=make_call,
+                    label=f"figure_pass page={n}")
+                figures = parse_figures(data, n, wanted) if ok else []
+                log.info("[%s] figure_pass page %d: %d of %d named drawing(s) read",
+                         doc_id, n, len(figures), len(wanted))
+                return n, figures
+            except Exception:  # noqa: BLE001 — an optional pass must never sink the doc
+                log.warning("[%s] figure_pass page %d failed; caption lines stand alone",
+                            doc_id, n, exc_info=True)
+                return n, []
+
+        t_phase = time.monotonic()
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*(one(n) for n in named)),
+                timeout=self._budget.clamp(cfg.optional_pass_budget_s))
+        except asyncio.TimeoutError:
+            log.warning("[%s] figure_pass exceeded its %.0fs budget after %.0fs — no figures",
+                        doc_id, cfg.optional_pass_budget_s, time.monotonic() - t_phase)
+            return {}
+        return {n: figs for n, figs in results if figs}
+
     async def run_readers(
         self,
         images: list[Image.Image],
@@ -841,7 +932,8 @@ class Pipeline:
                 trace=trace, corrected_answers=corrected_answers,
                 corrections=tuple(corrections),
                 prompt_version=_stamp_prompt_version(
-                    TRANSCRIPTION_PROMPT_VERSION, _get_subject_profile(cfg.subject_key)),
+                    TRANSCRIPTION_PROMPT_VERSION, _get_subject_profile(cfg.subject_key),
+                    cfg.p1_variant),
             )
 
         # ALPHA-GAP A-8: P2 text is the CS base for every profile; alpha words segmentation per modality.
@@ -887,7 +979,8 @@ class Pipeline:
             spec_mismatches=tuple(mismatches), routing_notes=notes, trace=trace,
             corrected_answers=corrected_answers, corrections=tuple(corrections),
             prompt_version=_stamp_prompt_version(
-                TRANSCRIPTION_PROMPT_VERSION, _get_subject_profile(cfg.subject_key)),
+                TRANSCRIPTION_PROMPT_VERSION, _get_subject_profile(cfg.subject_key),
+                cfg.p1_variant),
         )
 
     async def _phase2_spans(

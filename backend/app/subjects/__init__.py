@@ -11,6 +11,10 @@ Layering (docs/MULTISUBJECT_PLAN.md C2, ruled 2026-09-08):
 No module here builds prompt text except by concatenating/substituting the fragments
 below; nothing here knows about a specific rubric or student.
 """
-from .registry import SubjectProfile, UnknownSubject, get_profile, prompt_version, subject_keys
+from .registry import (
+    SubjectProfile, UnknownSubject, get_profile, prompt_version, subject_keys,
+    transcription_prompt_version,
+)
 
-__all__ = ["SubjectProfile", "UnknownSubject", "get_profile", "prompt_version", "subject_keys"]
+__all__ = ["SubjectProfile", "UnknownSubject", "get_profile", "prompt_version", "subject_keys",
+           "transcription_prompt_version"]

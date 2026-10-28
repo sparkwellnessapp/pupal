@@ -61,10 +61,10 @@ from ...schemas.batch import (
 from ...schemas.transcription import (
     AnswerSpaceSelectionGroup,
     TranscriptionContract,
-    TranscriptionContractAnswer,
     TranscriptionDraft,
     TranscriptionReview,
 )
+from ...services.transcription_contract import build_transcription_contract
 from ...services.batch_ingest import (
     count_live_jobs,
     enqueue_transcription_or_mark_failed,
@@ -328,6 +328,7 @@ def _approved_answers(t: Transcription) -> list[GradeAnswerInputItem] | None:
             question_number=a.question_number,
             sub_question_id=a.sub_question_id,
             answer_text=a.answer_text,
+            figures=list(a.figures) or None,   # §5: what was frozen, so an approved item shows it
         )
         for a in contract.answers
     ]
@@ -1551,16 +1552,7 @@ async def accept_clean(
                 continue
 
             # Build contract from draft answers (clean accept = no edits)
-            contract = TranscriptionContract(
-                answers=[
-                    TranscriptionContractAnswer(
-                        question_number=a.question_number,
-                        sub_question_id=a.sub_question_id,
-                        answer_text=a.answer_text,
-                    )
-                    for a in draft.answers
-                ]
-            )
+            contract = build_transcription_contract(draft.answers, draft)
 
             student = await get_owned_or_404(db, Student, item.student_id, current_user.id)
             now = datetime.now(timezone.utc)
@@ -1693,16 +1685,7 @@ async def accept_one(
     draft = TranscriptionDraft.model_validate(transcription.draft_json)
     ensure_answer_keys_match_draft(draft, body.answers)
 
-    contract = TranscriptionContract(
-        answers=[
-            TranscriptionContractAnswer(
-                question_number=a.question_number,
-                sub_question_id=a.sub_question_id,
-                answer_text=a.answer_text,
-            )
-            for a in body.answers
-        ]
-    )
+    contract = build_transcription_contract(body.answers, draft)
 
     student = await get_owned_or_404(db, Student, body.student_id, current_user.id)
     now = datetime.now(timezone.utc)

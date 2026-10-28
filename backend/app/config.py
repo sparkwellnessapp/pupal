@@ -245,6 +245,16 @@ class Settings(BaseSettings):
     #                 production 2026-08-07 (see two_phase_engine docstring).
     #                 Requires GEMINI_API_KEY + OPENAI_API_KEY.
     transcription_engine: str = "legacy"
+    # MATH_RENDERING_PLAN §4/§7: the P1 fragment variant for subjects that define one.
+    # "" = every subject's default fragment (mathematics: linear notation). "latex1" =
+    # mathematics in LaTeX spans, rendered by KaTeX on the review surfaces. Flip it ONLY
+    # when the Phase 1 gate is green; CS defines no variant, so it is untouched either way.
+    transcription_p1_variant: str = ""
+    # MATH_RENDERING_PLAN §5: the model key of the optional FIGURE pass, for subjects with the
+    # `figure` modality ("" = off). It reads the drawings the `latex1` variant numbers
+    # (`[איור N: …]`), so it is meaningful only with that variant on. Measured: probe v2,
+    # gemini-3.1-pro-preview ~$0.009 per figure page.
+    transcription_figure_model_key: str = ""
 
     # S11 batch concurrency: since the Cloud Tasks migration the in-process
     # semaphore is GONE — batch-wide concurrency is governed by the queues'

@@ -174,7 +174,8 @@ class PlanVerifyGrader:
         """sc_n independent calls → median-consensus verdict per check.
         Returns (verdict per check_id, closed-world annotations, closed-world
         scope flags, tokens...)."""
-        # ALPHA-GAP A-4 (D-2): text-only message; alpha attaches the page image for a scope whose answer carries a figure line.
+        # Text-only by design (MATH_RENDERING_PLAN §5): a drawing reaches the grader as its reviewed
+        # readings, expanded into the answer text by gradable_compiler — never as an image.
         user_msg = build_verifier_message(scope, terminal_plans, self._profile)
         known_ids = {c.check_id for tp in terminal_plans for c in tp.checks}
 

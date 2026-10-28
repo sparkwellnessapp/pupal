@@ -27,6 +27,7 @@ from app.schemas.ontology_types import (
     QuoteValidationStatus,
 )
 from app.agents.grader.schemas import QuestionGradingResponse
+from app.services.math_notation import canonicalize as canonicalize_math
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -308,6 +309,12 @@ def quote_match_status(quote_text: str, student_answer: str) -> Optional[QuoteVa
     0.85 sliding-window bar as _validate_quote — one definition, two callers."""
     if not quote_text:
         return None
+    # Math spans are compared TYPOGRAPHICALLY (MATH_RENDERING_PLAN §4, OD-M3): a
+    # quote that writes dfrac where the answer has frac cites the same
+    # marks. Never mathematical equivalence. Identity on text with no `\(`, so
+    # every CS answer is untouched by construction.
+    quote_text = canonicalize_math(quote_text)
+    student_answer = canonicalize_math(student_answer or "")
     norm_quote = " ".join(quote_text.lower().split())
     norm_answer = " ".join((student_answer or "").lower().split())
     if norm_quote in norm_answer:

@@ -180,3 +180,23 @@ describe('markerCountByScope — the nav dot agrees with F', () => {
         }
     });
 });
+
+describe('figure_deduction (MATH_RENDERING_PLAN §5) — the same rule as backend look_count', () => {
+    const scope = (awarded: string, text: string) => ({
+        question_id: 'q4', sub_question_id: 'ב', graded_by: 'llm',
+        student_answer: { text },
+        criterion_outcomes: [{ criterion_id: 'q4.ב.c0', points_awarded: awarded, points_possible: '3', checks: [] }],
+    });
+
+    it('marks a deduction in a scope whose answer names a drawing, and counts it once', () => {
+        const draft = { scope_outcomes: [scope('2', '[איור 1: סקיצה של f]')] };
+        expect(reviewMarkers(draft).map((m) => [m.reason, m.id, m.scopeId]))
+            .toEqual([['figure_deduction', 'q4.ב.c0', 'q4.ב']]);
+        expect(lookCount(draft)).toBe(1);
+    });
+
+    it('full marks, or no drawing, is no marker', () => {
+        expect(lookCount({ scope_outcomes: [scope('3', '[איור 1: סקיצה]')] })).toBe(0);
+        expect(lookCount({ scope_outcomes: [scope('2', "f'(x)=0")] })).toBe(0);
+    });
+});

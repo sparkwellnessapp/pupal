@@ -31,8 +31,8 @@ A question the solution pages do not score at all: keep the question's total as 
 """
 
 # F-3 (P1 perception). Replaces the CS ink rules.
-# ALPHA-GAP A-2 (D-1): linear notation only (`^`, `(a)/(b)`, `sqrt`); alpha adds the LaTeX grammar + KaTeX.
-# ALPHA-GAP A-4 (D-2): a one-line `[איור: …]` description at a figure; alpha adds the page reference + crop.
+# The DEFAULT fragment: linear notation (`^`, `(a)/(b)`, `sqrt`). The LaTeX grammar is the
+# `latex1` variant below (A-2, MATH_RENDERING_PLAN §4), switched on by TRANSCRIPTION_P1_VARIANT.
 P1_FRAGMENT = """\
 - Transcribe EXACTLY what the student wrote. Preserve every student error: \
 wrong values, wrong signs, wrong steps.
@@ -43,6 +43,44 @@ Never solve, simplify, or correct.
 - At a drawing or graph, write one line `[איור: <what is drawn, labels verbatim>]` at its position.
 - Include the student's handwritten answer content and substantive margin notes or messages.
 """
+
+# P1 VARIANTS (MATH_RENDERING_PLAN §4, 2026-10-28). A variant is a whole replacement of
+# P1_FRAGMENT, selected by `PipelineConfig.p1_variant` (prod: TRANSCRIPTION_P1_VARIANT) and
+# stamped into the prompt version as `+mathematics.<name>`, so a draft always says which
+# notation it was written in. The DEFAULT stays the linear fragment above until the
+# Phase 1 gate (plan §7) passes on teacher-ratified ground truth; flipping is env-only.
+#
+# `latex1` is probe v2's LaTeX fragment (docs/math-rendering/probe-v2: production pro kept the
+# student's form 5/5 and wrote 588/588 spans KaTeX parses) plus the written conventions
+# (docs/math-rendering/TRANSCRIPTION_GT_CONVENTIONS_MATH.md): one line per written line,
+# `cases` only, `\boxed{}` for a framed answer, `\cancel{}` for a cancellation, sign-table
+# arrows, and a numbered figure line (FIG-1 maps figure lines to figures by that number).
+P1_FRAGMENT_LATEX = """\
+- Transcribe EXACTLY what the student wrote. Preserve every student error: \
+wrong values, wrong signs, wrong steps, wrong arithmetic. Never solve, simplify, or correct.
+- Crossed-out text is omitted entirely — no strikethrough, no marker of any kind. A slash \
+that CANCELS a term (the same term struck on both sides, a factor cancelled in a fraction) \
+is not crossed-out work: write the term as \\cancel{...}.
+- Write every piece of mathematics in LaTeX between \\( and \\), in the student's OWN form: \
+√e is \\sqrt{e}, e^½ is e^{1/2}, 1/e is \\frac{1}{e}, e^-1 is e^{-1}, 0.5 stays 0.5. Never \
+rewrite one form as another. A digit written over another is the final digit written.
+- Hebrew words and units stay OUTSIDE the \\( \\) spans; never put Hebrew inside a span.
+- One written line is one transcribed line. A line that is all mathematics is still \
+wrapped in \\( \\) — including a system with a brace, written \
+\\(\\begin{cases} ... \\end{cases}\\), and a line with \\cancel or \\boxed. Never use aligned, \
+align, gather, \\[ \\] or $.
+- A framed or circled final answer is \\boxed{...} inside its span.
+- In a sign or variation table drawn as a grid, write arrows as \\nearrow and \\searrow and \
+convex/concave marks as \\cup and \\cap, each in its own span inside its cell.
+- At a drawing, graph or sketch, write one line `[איור N: <what is drawn, labels verbatim>]` \
+at its position, numbering the drawings on each page 1, 2, … in reading order.
+- Include the student's handwritten answer content and substantive margin notes or messages.
+"""
+
+P1_VARIANTS = {"latex1": P1_FRAGMENT_LATEX}
+# Measured at ONE page per call (probe v3, docs/math-rendering/probe-v3): at production's 3,
+# both this fragment and the linear one misread the student's Hebrew on a dense page.
+P1_VARIANT_PAGES_PER_CALL = {"latex1": 1}
 
 # F-2 (verifier). Replaces rules 3-5 of grader-v5.3. Lines 3 and 5 are D-4 by instruction.
 # ALPHA-GAP A-9 (D-4b): deductions / follow-through by instruction only; alpha models them.

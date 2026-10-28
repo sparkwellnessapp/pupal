@@ -879,3 +879,31 @@ def test_scopes_for_render_carries_only_the_frozen_student_notes():
         terminal_outcomes=[term("א", note="יפה"), term("ב", comment="פרטי"), term("ג")])])
     [scope] = scopes_for_render(contract, include_criteria=False)
     assert scope.notes == [("א", "יפה")]
+
+
+# ---------------------------------------------------------------------------
+# mathematics in the student's PDF (MATH_RENDERING_PLAN §4, OD-M10)
+# ---------------------------------------------------------------------------
+
+MATH_CASES = [
+    # The render test's vector: unisolated in an RTL page, a point reverses.
+    ("coordinate pair", r"נקודת המינימום היא \((\sqrt{e}, -2.25)\) ולכן", "(√e, -2.25)"),
+    ("digits-only pair", r"הנקודה \((2, 3)\) על הגרף", "(2, 3)"),
+    ("fraction keeps its form", r"האסימפטוטה היא \(x = \frac{1}{e}\) כנדרש", "x = 1/e"),
+    ("power keeps its form", r"כתבת \(e^{1/2}\) במקום שורש", "e^(1/2)"),
+]
+
+
+@pytest.mark.parametrize("label,text,formula", MATH_CASES, ids=[c[0] for c in MATH_CASES])
+def test_math_in_feedback_is_linearised_and_reads_left_to_right(label, text, formula):
+    """No LaTeX source reaches the student, and the formula reads in its own
+    order inside the Hebrew sentence — measured from glyph positions."""
+    from app.services.returned_exam import render_appendix_pdf
+
+    pdf = render_appendix_pdf(student_name="דן", scopes=[_sc("q", text)],
+                              summary=None, include_criteria=False)
+    rendered = _visual_glyph_order(pdf).replace("\u00a0", " ")
+    assert "\\" not in rendered, f"{label}: LaTeX source leaked into the PDF: {rendered!r}"
+    assert formula in rendered, (
+        f"{label}: the formula does not read left to right\n"
+        f"  expected inside: {formula!r}\n  rendered: {rendered!r}")

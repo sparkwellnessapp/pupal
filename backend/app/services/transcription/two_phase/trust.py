@@ -44,6 +44,9 @@ class TrustRun:
     flags: tuple[FlagSpan, ...] = ()       # anchored where possible
     attributions: dict[str, PageAttribution] = field(default_factory=dict)
     lint: tuple[LintFinding, ...] = ()
+    # page number → the figure pass's readings of that page's drawings (§5); {} when the
+    # pass is off or failed. Attached to answers by the engine adapter, never to text.
+    figures: dict = field(default_factory=dict)
 
     @property
     def trace(self) -> Trace:
@@ -74,8 +77,12 @@ async def run_with_trust(
         images, doc_id, doc_priority=doc_priority, trace=trace)
     pages, (reader_pages, _) = await asyncio.gather(base_task, readers_task)
 
-    run = await pipeline.run_phase2(
-        pages, exam_spec, doc_id, doc_priority=doc_priority, trace=trace)
+    # The figure pass reads the SAME pages P2 segments, and neither needs the other, so they
+    # run side by side: the optional pass costs no wall time while P2 is the long pole.
+    run, figures = await asyncio.gather(
+        pipeline.run_phase2(pages, exam_spec, doc_id, doc_priority=doc_priority, trace=trace),
+        pipeline.read_figures(images, pages, doc_id, doc_priority, trace),
+    )
 
     answers_by_target = {
         answer_target(q, sub): text for (q, sub), text in run.answers.items()
@@ -95,4 +102,5 @@ async def run_with_trust(
         flags=tuple(flags),
         attributions=attributions,
         lint=tuple(brace_lint(answers_by_target)),
+        figures=figures,
     )

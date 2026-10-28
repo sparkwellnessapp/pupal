@@ -218,7 +218,10 @@ async def transcribe_two_phase(
     # the budget rather than assumed away (PR-2: pre-work is MEASURED).
     budget = Budget(deadline_seconds, started_at=budget_started_at)
     pipeline = _build_pipeline_multi(
-        _replace(PROD_CONFIG, subject_key=profile.key), budget)
+        _replace(PROD_CONFIG, subject_key=profile.key,
+                 p1_variant=settings.transcription_p1_variant,
+                 p1_figure_model_key=(_figure_model_key()
+                                      if "figure" in profile.modalities else "")), budget)
     # Identity rides the SAME shared provider + scheduler slot pool as P1
     # (same eyes — the proven Hebrew-handwriting reader; the crop makes its
     # cost negligible), at its document's priority: submitted before the P1
@@ -235,6 +238,20 @@ async def transcribe_two_phase(
         ),
     )
     return trust_run, suggestion
+
+
+def _figure_model_key() -> str:
+    """TRANSCRIPTION_FIGURE_MODEL_KEY, if it names a model this engine knows; "" otherwise.
+
+    An optional pass must never be able to sink a document: an unknown key would raise a
+    KeyError at the first document's shared-infra build. It is refused here, LOUDLY, and the
+    pass is simply off."""
+    key = settings.transcription_figure_model_key
+    if key and key not in _MODELS:
+        log.error("TRANSCRIPTION_FIGURE_MODEL_KEY=%r is not a known model key (%s); the figure "
+                  "pass is OFF", key, ", ".join(sorted(_MODELS)))
+        return ""
+    return key
 
 
 def _make_provider(m: _Model):
@@ -277,6 +294,7 @@ def _shared_infra() -> tuple[dict, dict, ProviderScheduler]:
     # every_prod_config_model_key.
     keys = {k for k in (PROD_CONFIG.p1_model_key, PROD_CONFIG.p2_model_key,
                         PROD_CONFIG.p1_strike_check_model_key,
+                        _figure_model_key(),
                         *PROD_CONFIG.reader_model_keys) if k}
     providers = {k: _make_provider(_MODELS[k]) for k in keys}
     aliased = {k: alias(_MODELS[k]) for k in keys}
@@ -305,12 +323,21 @@ def build_draft_from_trust_run(
     page_count: int,
     duration_ms: int,
     student_name_suggestion: str | None = None,
+    subject: str = "computer_science",
 ) -> TranscriptionDraft:
     """TrustRun -> TranscriptionDraft (the v2 adapter).
 
     Draft text is the BASELINE's verbatim output. The trust layer contributes
     ONLY page provenance, confidence, and annotations — flags are advisory and
-    never modify text (verbatim contract; teacher authority)."""
+    never modify text (verbatim contract; teacher authority).
+
+    `subject` decides which deterministic checks are about THIS answer's
+    language: `code_lint` (brace balance) only under the `code` modality — on a
+    math answer every fraction is written with braces, so it would fire on correct
+    LaTeX — and the math-notation check only under `math_notation`."""
+    from app.subjects import get_profile
+
+    modalities = get_profile(subject).modalities
     answers: list[TranscriptionDraftAnswer] = []
     annotations: list[TranscriptionAnnotation] = []
 
@@ -398,7 +425,52 @@ def build_draft_from_trust_run(
             },
         ))
 
-    for lf in tr.lint:
+    # MATH_RENDERING_PLAN §5: attach each figure reading to the answer that holds its
+    # caption line. P2 slices lines verbatim, so the exact `[איור N: …]` line P1 wrote on
+    # that page is in exactly one answer's text; page attribution breaks a tie. A reading
+    # whose line no answer holds is dropped and logged — never attached to a guess.
+    figures_by_page = getattr(tr, "figures", None) or {}
+    if figures_by_page and "figure" in modalities:
+        from app.services.figures import FIGURE_LINE
+        by_target = {answer_target(a.question_number, a.sub_question_id): a for a in answers}
+        for page_no, figs in sorted(figures_by_page.items()):
+            page_lines = (tr.run.pages.get(page_no) or "").split("\n")
+            for fig in figs:
+                caption = next((ln for ln in page_lines
+                                if (m := FIGURE_LINE.search(ln)) and int(m.group(1)) == fig.figure_no),
+                               None)
+                holders = [a for a in answers
+                           if caption is not None and caption in a.answer_text.split("\n")]
+                if len(holders) > 1:
+                    holders = [a for a in holders if page_no in a.page_numbers] or holders[:1]
+                if not holders:
+                    log.info("figure p%d#%d: no answer holds its caption line; reading dropped",
+                             page_no, fig.figure_no)
+                    continue
+                holder = by_target[answer_target(holders[0].question_number, holders[0].sub_question_id)]
+                holder.figures.append(fig)
+
+    # MATH_RENDERING_PLAN §4: the structural check on LaTeX spans. ONE INFO per
+    # answer, never a triage reason (its false-flag rate is unmeasured — the
+    # code_lint lesson), never a repair: the surface shows a span it cannot draw
+    # as raw text with a marker.
+    if "math_notation" in modalities:
+        from app.services.math_notation import check_math_answer
+        for a in answers:
+            issues = check_math_answer(a.answer_text)
+            if not issues:
+                continue
+            annotations.append(TranscriptionAnnotation(
+                severity=AnnotationSeverity.INFO,
+                target_id=answer_target(a.question_number, a.sub_question_id),
+                annotation_type="math_notation",
+                message=("ייתכן שחלק מהביטויים המתמטיים בתשובה זו לא יוצגו כראוי — "
+                         "מומלץ להשוות מול הסריקה."),
+                metadata={"issues": [{"code": i.code, "offset": i.offset, "detail": i.detail}
+                                     for i in issues]},
+            ))
+
+    for lf in (tr.lint if "code" in modalities else ()):
         annotations.append(TranscriptionAnnotation(
             severity=AnnotationSeverity.INFO,
             target_id=lf.answer_key,

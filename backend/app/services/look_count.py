@@ -7,7 +7,11 @@ reproducible from the draft alone and must never be a model's opinion about its
 own confidence.
 
 The markers (spec §1.5): evidence that did not validate (not_found / fuzzy),
-bounds-clamped, closed-world, a skipped scope, a failed scope. Audit marks are
+bounds-clamped, closed-world, a skipped scope, a failed scope — and (MATH_RENDERING_PLAN §5,
+OD-M5) a DEDUCTION in a scope whose answer contains a drawing: a reader can miss what is
+drawn while calling the figure complete (measured 10/10), so a point taken for something
+"missing" from a drawing is a point she must check against the ink. Until figure recall is
+proven on fixtures, every such deduction is a marker. It routes; it never blocks. Audit marks are
 NOT counted — the consistency audit is deferred (ruling R-1) and counting a
 surface that does not exist would inflate every card by nothing.
 
@@ -16,6 +20,7 @@ looks; the same problem seen twice earns one.
 """
 from __future__ import annotations
 
+import re
 from typing import Set, Tuple
 
 # flags that mean "a human should check this", as opposed to the informational
@@ -29,6 +34,13 @@ _LOOK_FLAGS = {
 # twice, once as a flag and once as the check's quote_status.
 _V3_QUOTE_FLAGS = {"quote_not_found", "fuzzy_match"}
 _UNVALIDATED = {"not_found", "fuzzy"}
+_FIGURE_LINE = re.compile(r"\[איור\s*\d+\s*:")
+
+
+def _has_figure(scope) -> bool:
+    """Does the answer this scope was graded against (EVD-1) name a drawing?"""
+    answer = getattr(scope, "student_answer", None)
+    return bool(answer is not None and _FIGURE_LINE.search(getattr(answer, "text", "") or ""))
 
 
 def look_count(draft) -> int:
@@ -48,11 +60,14 @@ def look_count(draft) -> int:
             seen.add((scope_id, scope.graded_by))
             continue
 
+        figure = _has_figure(scope)
         for criterion in scope.criterion_outcomes or []:
             for leaf in (criterion.sub_criterion_outcomes or [criterion]):
                 terminal_id = (getattr(leaf, "sub_criterion_id", None)
                                or criterion.criterion_id)
                 has_checks = bool(leaf.checks)
+                if figure and leaf.points_awarded < leaf.points_possible:
+                    seen.add((terminal_id, "figure_deduction"))
                 for flag in (leaf.flags or []):
                     reason = getattr(flag.reason, "value", flag.reason)
                     if reason in _LOOK_FLAGS:

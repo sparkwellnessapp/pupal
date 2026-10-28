@@ -31,6 +31,7 @@ from bidi.algorithm import get_display
 # Re-exported so the render path and the API layer name the overlay the same
 # way; DEFINED in the schema that declares the field (§0.4).
 from ..schemas.graded_test_draft import OVERLAY_KEY  # noqa: F401
+from .math_notation import linearize as linearize_math
 from .points_display import format_points, format_points_pair
 
 logger = logging.getLogger(__name__)
@@ -298,6 +299,10 @@ def _escape(text: str, size: float, base_dir: str = "R") -> str:
     algorithm sees the text the reader sees, and the entity is re-decoded by
     the HTML parser afterwards.
     """
+    # Mathematics first (OD-M10): PyMuPDF cannot run KaTeX, so a LaTeX span in
+    # feedback or a note is linearised to Unicode (`1/e`, `√e`, `x²`) and wrapped
+    # LTR so a coordinate pair cannot reverse. Identity on text with no span.
+    text = linearize_math(str(text or ""))
     return "<br/>".join(
         _bidi_for_pymupdf(line, base_dir).replace("&", "&amp;")
         .replace("<", "&lt;").replace(">", "&gt;")

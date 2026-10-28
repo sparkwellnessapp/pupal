@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Literal, Optional
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from .ontology_types import AnnotationSeverity
 
@@ -32,9 +32,58 @@ class TranscriptionAnnotation(BaseModel):
         "reader_disagreement",   # trust layer: independent readers read this span differently
         "code_lint",             # trust layer: deterministic code check (brace balance)
         "segmentation_mismatch",  # student's leading marker contradicts the P2-assigned key
+        "math_notation",         # a LaTeX span that may not render (MATH_RENDERING_PLAN §4) — INFO
     ]
     message: str  # Hebrew, user-facing
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Figures (MATH_RENDERING_PLAN §5) — Vivi's READING of a drawing, never a drawing
+# ---------------------------------------------------------------------------
+#
+# The student's ink is the identical graph (owner ruling OD-M2: "nothing he drew is lost or
+# changed"); these types hold what Vivi read FROM it, so the teacher can check each reading
+# against the mark it came from before anything is graded. The answer string stays the only
+# truth: it keeps the `[איור N: …]` line, and a Figure is attached to that line by
+# (page, N) — see services/figures.py and FIG-1 below.
+#
+# Flat on purpose: union types in structured output differ across providers (plan §5).
+
+FigureFeatureKind = Literal[
+    "vertical_asymptote", "horizontal_asymptote", "minimum", "maximum",
+    "x_intercept", "y_intercept", "point", "shaded_region",
+    "vertex", "side_label", "angle_label", "segment_label", "right_angle_mark",
+    "axis_label", "other_label",
+]
+
+
+class FigureFeature(BaseModel):
+    model_config = {"frozen": True}
+    kind: FigureFeatureKind
+    #: The label EXACTLY as written on or beside the drawing, as a LaTeX body (no `\( \)`).
+    #: Copied from the drawing, never from the computation beside it.
+    as_written: str
+    #: [y, x] on a 0–1000 grid of the whole page, at the mark it names. None when she added
+    #: a feature by hand and did not place it.
+    point: Optional[List[int]] = None
+    #: "other" = a different colour from the student's main pen. Shown, never dropped:
+    #: colour is not provenance (OD-M4).
+    ink: Literal["primary", "other"] = "primary"
+    uncertain: bool = False
+    #: Who wrote this reading: Vivi's figure pass, or the teacher at the transcription gate.
+    source: Literal["vivi", "teacher"] = "vivi"
+
+
+class Figure(BaseModel):
+    model_config = {"frozen": True}
+    #: N in the `[איור N: …]` line — numbered per page in reading order (convention 8).
+    figure_no: int
+    page_number: int
+    kind: Literal["function_sketch", "geometry", "other"] = "other"
+    #: [ymin, xmin, ymax, xmax] on the page's 0–1000 grid — where the crop is cut.
+    box_2d: Optional[List[int]] = None
+    features: List[FigureFeature] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +96,10 @@ class TranscriptionDraftAnswer(BaseModel):
     answer_text: str
     confidence: float
     page_numbers: List[int] = Field(default_factory=list)
+    #: Vivi's readings of the drawings this answer's `[איור N: …]` lines name (§5).
+    #: Empty for every subject without the `figure` modality, and whenever the optional
+    #: figure pass did not run or failed — the line then stands alone, as it always did.
+    figures: List[Figure] = Field(default_factory=list)
 
 
 class TranscriptionDraft(BaseModel):
@@ -95,6 +148,9 @@ class TranscriptionReviewAnswer(BaseModel):
     question_number: int
     sub_question_id: Optional[str] = None
     answer_text: str
+    #: Her reviewed figure readings for this answer (§5). None = she did not touch them —
+    #: the draft's readings stand. A list (even empty) is her decision, all of it.
+    figures: Optional[List[Figure]] = None
 
 
 class TranscriptionReview(BaseModel):
@@ -129,10 +185,36 @@ class TranscriptionReview(BaseModel):
 
 class TranscriptionContractAnswer(BaseModel):
     model_config = {"frozen": True}
-    # ALPHA-GAP A-4 (D-2): `page_numbers` is dropped from the contract; alpha carries it so a figure scope can reach its page.
     question_number: int
     sub_question_id: Optional[str] = None
     answer_text: str
+    # A-4 closed (MATH_RENDERING_PLAN §7 Phase 2): the pages this answer was read from, so
+    # a surface can show the ink behind it and a figure can reach its page. Written ONLY by
+    # `services/transcription_contract.build_transcription_contract`, from the draft's P1
+    # attribution matched by evidence. Default [] — every contract frozen before this field
+    # parses unchanged, and an empty list is a recorded absence, never a guess.
+    page_numbers: List[int] = Field(default_factory=list)
+    #: The reviewed readings of this answer's drawings (§5), frozen with the text they
+    #: belong to. Default [] — older contracts and every non-figure subject parse unchanged.
+    figures: List[Figure] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _fig1_figure_line_integrity(self):
+        """FIG-1: every figure is attached to exactly one `[איור N: …]` line of THIS text.
+
+        A frozen reading of a drawing whose line is gone would be graded against nothing
+        the teacher approved. `build_transcription_contract` keeps this true by
+        construction; this is the type refusing anything else (§0.5 — a firing guard means
+        the logic upstream is wrong)."""
+        if self.figures:
+            from app.services.figures import match_figures   # local: services import schemas
+            orphans = match_figures(self.answer_text, self.figures).orphans
+            if orphans:
+                raise ValueError(
+                    "FIG-1 FigureLineIntegrity: figure(s) "
+                    + ", ".join(f"p{f.page_number}#{f.figure_no}" for f in orphans)
+                    + " have no matching [איור N: …] line in the answer text")
+        return self
 
 
 class TranscriptionContract(BaseModel):

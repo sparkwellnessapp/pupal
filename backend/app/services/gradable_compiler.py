@@ -30,6 +30,7 @@ from ..schemas.gradable import (
 )
 from ..schemas.ontology_types import Criterion, GradingRubricContract, SubCriterion
 from ..schemas.transcription import TranscriptionContract
+from .figures import expand_figure_lines
 
 _Q_NUM_RE = re.compile(r"^q(\d+)$")
 
@@ -192,9 +193,14 @@ def compile(  # noqa: A001 — shadows built-in; intentional, matches ContractCo
     Never raises. Missing answers and orphan transcription answers surface as
     data fields on the returned GradableTest, not as exceptions.
     """
-    # Build (question_number, sub_question_id) → answer_text lookup in one pass
+    # Build (question_number, sub_question_id) → answer_text lookup in one pass.
+    # MATH_RENDERING_PLAN §5: a figure line is followed by one line per reviewed reading
+    # (`expand_figure_lines`) — the grader quotes those lines like any other text, the quote
+    # check finds them, and EVD-1 records this expanded text as what was graded. Identity for
+    # an answer with no figures, which is every answer of every non-figure subject.
     answer_index: Dict[Tuple[int, Optional[str]], str] = {
-        (a.question_number, a.sub_question_id): a.answer_text
+        (a.question_number, a.sub_question_id): expand_figure_lines(
+            a.answer_text, getattr(a, "figures", None) or ())
         for a in transcription_contract.answers
     }
 
@@ -300,7 +306,8 @@ def compile(  # noqa: A001 — shadows built-in; intentional, matches ContractCo
         rubric_contract_version=rubric_contract.contract_version,
         transcription_contract_version=transcription_contract.contract_version,
         subject=rubric_contract.subject,
-        # ALPHA-GAP A-4 (D-2): scopes carry text only; alpha threads the contract answer's page refs into each scope.
+        # Scopes carry TEXT (with figure readings expanded into it, §5). Page refs live on the
+        # transcription contract (A-4 closed); no grader reads an image (plan: no grader change).
         scopes=scopes,
         unmatched_transcription_answers=unmatched,
         # NOTE: this is the OFFERED sum of the sliced scopes and is NOT the grading

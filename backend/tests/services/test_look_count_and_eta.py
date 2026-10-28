@@ -176,3 +176,25 @@ def test_eta_scope_count_follows_the_leaf_rule_for_nested_rubrics():
 
     direct = {"questions": [{}, {}]}       # no sub-questions: each is its own scope
     assert _count_leaf_scopes(direct) == 2
+
+
+# ---------------------------------------------------------------------------
+# figure_deduction (MATH_RENDERING_PLAN §5, OD-M5)
+# ---------------------------------------------------------------------------
+
+def _figure_scope(awarded, text):
+    from app.schemas.graded_test_draft import ScopeAnswer
+    s = _scope(checks=[_check("k1")])
+    leaf = s.criterion_outcomes[0].model_copy(update={"points_awarded": Decimal(awarded)})
+    return s.model_copy(update={"criterion_outcomes": [leaf],
+                                "student_answer": ScopeAnswer(text=text, source="own")})
+
+
+def test_a_deduction_where_the_answer_names_a_drawing_is_a_look():
+    from app.services.look_count import look_count
+    """A reader can miss what is drawn while calling the figure complete (10/10 in probe
+    v2), so a point taken there must be checked against the ink."""
+    sketch = "[איור 1: סקיצה של f]"
+    assert look_count(_draft([_figure_scope("2", sketch)])) == 1
+    assert look_count(_draft([_figure_scope("3", sketch)])) == 0        # full marks: nothing to check
+    assert look_count(_draft([_figure_scope("2", "f'(x)=0")])) == 0     # no drawing named

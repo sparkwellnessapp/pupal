@@ -13,6 +13,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_serializer
 
 from .transcription import (
+    Figure,
     AnswerSpaceSelectionGroup,
     TranscriptionDraft,
     TranscriptionReview,
@@ -452,6 +453,9 @@ class GradeAnswerInputItem(BaseModel):
     question_number: int
     sub_question_id: Optional[str] = None
     answer_text: str
+    # MATH_RENDERING_PLAN §5: her reviewed figure readings. None = untouched (the
+    # draft's stand); a list, even empty, is her decision.
+    figures: Optional[List[Figure]] = None
 
 
 class AcceptOneTranscriptionRequest(BaseModel):
