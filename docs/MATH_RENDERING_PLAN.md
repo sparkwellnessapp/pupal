@@ -370,7 +370,7 @@ bijection would have made an optional pass block approval. An unread drawing is 
 |---|---|---|
 | OD-M13 | The strike check deleted two **unstruck** lines holding a student's error, 1 in 5 draws (probe v3 §7). It runs on CS too | Measure it on the seeded-error set before the math flip; if it repeats, require two agreeing votes for any deletion under the math profile |
 | OD-M14 | A framed answer that mixes Hebrew and math (`השטח גדל ב- 56.25%`): conventions 2 and 4 conflict | Frame the math only, Hebrew outside: `השטח גדל ב- \(\boxed{56.25\%}\)`, recording the frame on the math it encloses. A teacher should rule |
-| OD-M15 | Prompt iteration on dense pages redistributes failures (probe v3 §5) | Stop prompting; measure the shipped fragment against ratified ground truth. If the gate fails on Hebrew prose or drawing lines, that is a model decision for you, not another prompt |
+| OD-M15 | Prompt iteration on dense pages redistributes failures (probe v3 §5). The shipped wording keeps the student's Hebrew (p07 5/5) but writes caption labels as plain text, which an RTL line reverses («(e, 0/1)»); the reverted wording fixed captions and paraphrased the Hebrew 5/5 | Stop prompting; measure the shipped fragment against ratified ground truth. If the gate fails on Hebrew prose or drawing lines, that is a model decision for you, not another prompt |
 | OD-M16 | Production's 3-pages-per-call P1 misread the student's Hebrew on a dense math page 5/5 | Math runs 1 page per call inside `latex1`. Whether CS should be re-checked at 1 page per call is yours |
 
 **What the owner provides next:** the math teacher's ratification of the pre-filled ground

@@ -50,7 +50,11 @@ p07's Hebrew became «התשלום פוחת ב-10 ש"ח» in 5/5 draws. Reverted
 failure on a working page ends prompt iteration). With it reverted, math3 p07 omits its two
 drawing lines in 4/5 draws and one math3 p09 draw came out malformed (12 validator findings).
 Each wording fixes one page and breaks another; this is a model-level limit on dense pages, to
-be measured against ratified ground truth, not prompted around.
+be measured against ratified ground truth, not prompted around. The cost of the revert is
+visible on screen: with labels written as plain text inside the Hebrew caption, `(1/e, 0)`
+displays as «(e, 0/1)» (seen in the ground-truth packet) — the RTL reversal §1 measured for
+unisolated math, now on Vivi's own caption. The figure card shows those labels correctly
+(they come from the figure pass, as spans); the caption line itself does not.
 
 **6. A convention conflict, surfaced by the validator.** math3 p07 frames a phrase that mixes
 Hebrew and a number («השטח גדל ב- 56.25%»). Convention 4 (frame → `\boxed{}`) and convention 2
