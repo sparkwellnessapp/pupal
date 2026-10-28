@@ -16,7 +16,7 @@ import { AUTH_ME, fulfillJson, SEED_BATCH_ID, seedBatch, seedItem } from './seed
 
 const RUBRIC_ID = 'r0000000-0000-0000-0000-0000000000m1';
 
-async function install(page: Page, answer: string) {
+async function install(page: Page, answer: string, figures?: unknown[]) {
     const state = { patchBodies: [] as Array<Record<string, unknown>> };
     const base = seedBatch({
         items: [
@@ -27,6 +27,7 @@ async function install(page: Page, answer: string) {
                     answers: [{
                         question_number: 1, sub_question_id: null,
                         answer_text: answer, confidence: 0.95, page_numbers: [1],
+                        ...(figures ? { figures } : {}),
                     }],
                 },
             }),
@@ -127,4 +128,48 @@ test('math-span-edit-splices-one-span — a MathLive edit changes that span only
     expect(state.patchBodies).toHaveLength(1);
     expect((state.patchBodies[0].answers as Array<{ answer_text: string }>)[0].answer_text)
         .toBe(answer.replace('x=3', 'x=4'));
+});
+
+// ── Phase 3: a drawing is the student's ink with Vivi's reading pinned on it ──────────
+
+const SKETCH = "ב.\n\\(f'(x)=0\\)\n[איור 1: סקיצה של הפונקציה]";
+const READING = [{
+    figure_no: 1, page_number: 1, kind: 'function_sketch', box_2d: [100, 100, 900, 900],
+    features: [
+        { kind: 'vertical_asymptote', as_written: 'x=2', point: [500, 400], ink: 'primary', uncertain: false, source: 'vivi' },
+        { kind: 'minimum', as_written: '(\\sqrt{e}, -2.25)', point: [800, 600], ink: 'other', uncertain: true, source: 'vivi' },
+    ],
+}];
+
+test('math-figure-card — readings sit on the ink; viewing writes nothing; an edit is saved with the answer', async ({ page }) => {
+    await seedAuth(page);
+    const state = await install(page, SKETCH, READING);
+    await page.goto(`/batches/${SEED_BATCH_ID}/review/m1`);
+
+    const card = page.getByTestId('figure-card');
+    await expect(card).toBeVisible();
+    await expect(card.locator('[data-figure-chip]')).toHaveCount(2);
+    await expect(card.getByTestId('figure-features').locator('[data-figure-feature]')).toHaveCount(2);
+    await expect(card).toContainText('אסימפטוטה אנכית');
+    await expect(card).toContainText('לא ודאי');
+    await expect(card).toContainText('בצבע אחר');
+
+    // Hovering a row lights its chip — the reading and its mark are one thing.
+    await card.locator('[data-figure-feature="0"]').hover();
+    await expect(card.locator('[data-figure-chip="0"]')).toHaveClass(/h-5/);
+
+    // Δ14: looking is not an edit.
+    await expect(page.getByText('שינויים לא שמורים')).toHaveCount(0);
+    expect(state.patchBodies).toHaveLength(0);
+
+    // Deleting a misread is her decision, and it travels with the answer.
+    await card.locator('[data-figure-delete="1"]').click();
+    await expect(card.locator('[data-figure-feature]')).toHaveCount(1);
+    await expect(page.getByText('שינויים לא שמורים')).toBeVisible();
+    await page.getByRole('button', { name: 'שמירה' }).click();
+    await expect(page.getByText('נשמר')).toBeVisible();
+    expect(state.patchBodies).toHaveLength(1);
+    const saved = (state.patchBodies[0].answers as Array<{ answer_text: string; figures?: Array<{ features: unknown[] }> }>)[0];
+    expect(saved.answer_text).toBe(SKETCH);
+    expect(saved.figures?.[0].features).toHaveLength(1);
 });
