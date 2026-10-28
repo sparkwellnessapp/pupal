@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 19px; margin: 16px; width: 1100px; background: #fff; }
+  .line { margin: 10px 0; line-height: 2.1; }
+  h2 { font-size: 14px; color: #a00; font-family: monospace; direction: ltr; text-align: left; margin: 14px 0 4px; }
+  math-field { font-size: 20px; }
+  .ro { border: none; background: transparent; display: inline-block; }
+  .ed { border: 1px solid #999; border-radius: 4px; min-width: 260px; display: inline-block; }
+  pre { direction: ltr; text-align: left; background: #f4f4f4; padding: 8px; font-size: 13px; }
+</style>
+<script src="node_modules/mathlive/mathlive.min.js"></script>
+</head>
+<body>
+  <h2>1. read-only math-field, page dir=rtl, no isolation</h2>
+  <div class="line">לכן <math-field class="ro" read-only id="r1">x=e^{1/2}=\sqrt{e}</math-field> היא נקודת הקיצון</div>
+  <div class="line">חיתוך <math-field class="ro" read-only id="r2">\left(\frac{1}{e},0\right),\ (e^2,0)</math-field> עם ציר x</div>
+  <div class="line"><math-field class="ro" read-only id="r3">\begin{cases} a_{10}=a_1-90 \\ a_{10}=a_1+9d \end{cases}</math-field></div>
+
+  <h2>2. EDITABLE math-field (the span-level correction the review proposes)</h2>
+  <div class="line">שטח <math-field class="ed" id="e1">S=4.8\cdot 3.6=17.28</math-field> מ"ר</div>
+
+  <h2>3. edit round-trip: a teacher fixes one digit, the field returns LaTeX</h2>
+  <pre id="out">pending</pre>
+
+  <script>
+    window.addEventListener("load", async () => {
+      await customElements.whenDefined("math-field");
+      const e1 = document.getElementById("e1");
+      const before = e1.getValue("latex");
+      // simulate a teacher correcting 17.28 -> 17.29 (select-all + insert, as an edit would)
+      e1.setValue("S=4.8\\cdot 3.6=17.29");
+      const after = e1.getValue("latex");
+      const r2 = document.getElementById("r2").getValue("latex");
+      document.getElementById("out").textContent =
+        "defined: " + !!customElements.get("math-field") + "\n" +
+        "before : " + before + "\n" +
+        "after  : " + after + "\n" +
+        "r2 latex round-trip: " + r2 + "\n" +
+        "computed direction of r2 host: " + getComputedStyle(document.getElementById("r2")).direction;
+      window.__done = true;
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+=== math4: 5/5 draws ok
+--- math4_p07  spans/draw=[19, 19, 19, 19, 19]  issues={}  heb_in_span=0  cases=[1, 1, 1, 1, 1]  cancel=[4, 4, 4, 4, 4]  boxed=[0, 0, 0, 0, 0]  figs=[[], [], [], [], []]
+    stable text: 3/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+    after d=-10: התשלום פוחת ב- 10 ש"ח | התשלום פוחת ב-10 ש"ח | התשלום פוחת ב-10 ש"ח | התשלום פוחת ב- 10 ש"ח | התשלום פוחת ב- 10 ש"ח
+    faithful «התשלום החודשי»: 0/5
+--- math4_p08  spans/draw=[0, 0, 0, 0, 0]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[[], [], [], [], []]
+    stable text: 5/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+--- math4_p09  spans/draw=[35, 35, 35, 35, 35]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[[], [], [], [], []]
+    stable text: 5/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+    title: ['שאלה 3', 'שאלה 3', 'שאלה 3', 'שאלה 3', 'שאלה 3']
+    (p, P) counts: [(6, 0), (6, 0), (6, 0), (6, 0), (6, 0)]
+--- math4_p10  spans/draw=[14, 12, 13, 11, 13]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[['1', '2'], ['1', '2'], ['1', '2'], ['1', '2'], ['1', '2']]
+    stable text: 2/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+--- math4_p11  spans/draw=[44, 44, 44, 44, 44]  issues={}  heb_in_span=0  cases=[1, 1, 1, 1, 1]  cancel=[0, 0, 0, 0, 0]  boxed=[4, 4, 4, 4, 4]  figs=[['1'], ['1'], ['1'], ['1'], ['1']]
+    stable text: 5/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+    sqrt_e: [8, 8, 8, 8, 8]  [ink 8]
+    e_half: [1, 1, 1, 1, 1]  [ink 1]
+    one_over_e: [3, 3, 3, 3, 3]  [ink 3]
+    e_minus1: [1, 1, 1, 1, 1]  [ink 1]
+--- math4_p12  spans/draw=[15, 15, 15, 15, 15]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[['1'], ['1'], ['1'], ['1'], ['1']]
+    stable text: 5/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+=== math3: 5/5 draws ok
+--- math3_p07  spans/draw=[38, 39, 38, 39, 39]  issues={'hebrew_in_span': 5}  heb_in_span=5  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[1, 1, 1, 1, 1]  figs=[['1', '2'], ['1', '2'], ['1', '2'], ['1', '2'], ['1', '2']]
+    stable text: 1/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+--- math3_p08  spans/draw=[10, 10, 10, 10, 10]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[['1', '2'], ['1', '2'], ['1', '2'], ['1', '2'], ['1', '2']]
+    stable text: 2/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+--- math3_p09  spans/draw=[64, 64, 64, 64, 64]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[['1', '2', '3', '4', '5', '6'], ['1', '2', '3', '4', '5', '6'], ['1', '2', '3', '4', '5', '6'], ['1', '2', '3', '4', '5', '6'], ['1', '2', '3', '4', '5', '6']]
+    stable text: 4/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+--- math3_p10  spans/draw=[26, 26, 26, 26, 26]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[[], [], [], [], []]
+    stable text: 5/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+
+KaTeX 0.19.0: 1321/1321 spans parse
+
+spend: $0.575

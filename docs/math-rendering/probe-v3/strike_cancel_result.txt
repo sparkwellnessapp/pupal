@@ -1,0 +1,14 @@
+python strike_cancel.py out_it1_p07/raw.json <pages> 5 240     (2026-10-28)
+
+model=gemini-3.5-flash cancels in text=4
+draw 0: 22s ranges=[] removed=0 cancel_lines_removed=0
+draw 1: 10s ranges=[] removed=0 cancel_lines_removed=0
+draw 2: 10s ranges=[] removed=0 cancel_lines_removed=0
+draw 3: 37s ranges=[{'start_line': 19, 'end_line': 20}] removed=2 cancel_lines_removed=0
+     removed: \(S_n = \frac{a_1 \cdot q^n}{q - 1}\)
+     removed: \(3152.5 = \frac{a_1 \cdot 1.5^8}{1.5 - 1}\)
+draw 4: 26s ranges=[] removed=0 cancel_lines_removed=0
+
+Ink check (by eye, math4_p07.jpeg lower half): neither removed line is struck through. They are
+the student's wrong sum formula (numerator missing its −1) and its substitution; he corrects it
+on the next line without striking anything.

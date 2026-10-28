@@ -1,0 +1,15 @@
+=== math4: 5/5 draws ok
+--- math4_p10  spans/draw=[12, 12, 12, 12, 12]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[['1', '2'], ['1', '2'], ['1', '2'], ['1', '2'], ['1', '2']]
+    stable text: 5/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+--- math4_p11  spans/draw=[44, 44, 44, 44, 45]  issues={}  heb_in_span=0  cases=[1, 1, 1, 1, 1]  cancel=[0, 0, 0, 0, 0]  boxed=[4, 4, 4, 4, 4]  figs=[['1'], ['1'], ['1'], ['1'], ['1']]
+    stable text: 3/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+    sqrt_e: [8, 8, 8, 8, 8]  [ink 8]
+    e_half: [1, 1, 1, 1, 1]  [ink 1]
+    one_over_e: [3, 3, 3, 3, 3]  [ink 3]
+    e_minus1: [1, 1, 1, 1, 1]  [ink 1]
+--- math4_p12  spans/draw=[15, 15, 15, 15, 15]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[['1'], ['1'], ['1'], ['1'], ['1']]
+    stable text: 4/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+
+KaTeX 0.19.0: 356/356 spans parse
+
+spend: $0.149

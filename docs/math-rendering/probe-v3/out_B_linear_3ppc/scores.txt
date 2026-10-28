@@ -1,0 +1,25 @@
+=== math4: 5/5 draws ok
+--- math4_p07  spans/draw=[0, 0, 0, 0, 0]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[[], [], [], [], []]
+    stable text: 5/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+    after d=-10: ההפרש החודשי קטן ב-10 ש"ח | ההפרש החודשי קטן ב-10 ש"ח | ההפרש החודשי קטן ב-10 ש"ח | ההפרש החודשי קטן ב-10 ש"ח | ההפרש החודשי קטן ב-10 ש"ח
+    faithful «התשלום החודשי»: 0/5
+--- math4_p08  spans/draw=[0, 0, 0, 0, 0]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[[], [], [], [], []]
+    stable text: 5/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+--- math4_p09  spans/draw=[0, 0, 0, 0, 0]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[[], [], [], [], []]
+    stable text: 5/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+    title: ['שאלה 3 - גדילה ודעיכה', 'שאלה 3 - גדילה ודעיכה', 'שאלה 3 - גדילה ודעיכה', 'שאלה 3 - גדילה ודעיכה', 'שאלה 3 - גדילה ודעיכה']
+    (p, P) counts: [(6, 0), (6, 0), (6, 0), (6, 0), (6, 0)]
+--- math4_p10  spans/draw=[0, 0, 0, 0, 0]  issues={}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[[], [], [], [], []]
+    stable text: 2/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+--- math4_p11  spans/draw=[0, 0, 0, 0, 0]  issues={'command_outside_span': 9}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[[], [], [], [], []]
+    stable text: 1/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+    sqrt_e: [0, 0, 0, 0, 0]  [ink 8]
+    e_half: [0, 0, 0, 0, 0]  [ink 1]
+    one_over_e: [0, 0, 0, 0, 0]  [ink 3]
+    e_minus1: [0, 0, 0, 0, 0]  [ink 1]
+--- math4_p12  spans/draw=[0, 0, 0, 0, 0]  issues={'command_outside_span': 1}  heb_in_span=0  cases=[0, 0, 0, 0, 0]  cancel=[0, 0, 0, 0, 0]  boxed=[0, 0, 0, 0, 0]  figs=[[], [], [], [], []]
+    stable text: 2/5   strike-deleted lines/draw: [0, 0, 0, 0, 0]
+
+KaTeX 0.19.0: 0/0 spans parse
+
+spend: $0.191

@@ -1,0 +1,266 @@
+[
+ {
+  "ok": true,
+  "s": 21.6,
+  "data": {
+   "figures": [
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה של פונקציה עם אסימפטוטה אנכית ב-x=2 ונקודת מינימום ב-(3, e^4)",
+     "axes": {
+      "x_label": "x",
+      "y_label": "f(x)"
+     },
+     "curves": [
+      {
+       "label": "f(x)",
+       "vertical_asymptotes": [
+        "2"
+       ],
+       "horizontal_asymptotes": [],
+       "points": [
+        {
+         "x": "3",
+         "y": "e^4",
+         "role": "minimum",
+         "label": "(3, e^4)"
+        }
+       ],
+       "trend": [
+        {
+         "from_x": "2",
+         "to_x": "3",
+         "direction": "decreasing"
+        },
+        {
+         "from_x": "3",
+         "to_x": "",
+         "direction": "increasing"
+        },
+        {
+         "from_x": "",
+         "to_x": "2",
+         "direction": "decreasing"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה חלופית (שגויה) של הפונקציה עם נקודת מקסימום",
+     "axes": {
+      "x_label": "",
+      "y_label": ""
+     },
+     "curves": [
+      {
+       "label": "",
+       "vertical_asymptotes": [
+        "2"
+       ],
+       "horizontal_asymptotes": [],
+       "points": [
+        {
+         "x": "3",
+         "y": "-e^4",
+         "role": "maximum",
+         "label": "(3, -e^4)"
+        },
+        {
+         "x": "0",
+         "y": "-e/2",
+         "role": "y_intercept",
+         "label": "(0, -e/2)"
+        }
+       ],
+       "trend": [
+        {
+         "from_x": "",
+         "to_x": "2",
+         "direction": "increasing"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "ok": true,
+  "s": 9.4,
+  "data": {
+   "figures": [
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה של פונקציה עם אסימפטוטה אנכית ב-x=2 ונקודת מינימום ב-(3, e^4)",
+     "axes": {
+      "x_label": "x",
+      "y_label": "f(x)"
+     },
+     "curves": [
+      {
+       "label": "f(x)",
+       "vertical_asymptotes": [
+        "2"
+       ],
+       "horizontal_asymptotes": [],
+       "points": [
+        {
+         "x": "3",
+         "y": "e^4",
+         "role": "minimum",
+         "label": "(3, e^4)"
+        }
+       ],
+       "trend": [
+        {
+         "from_x": "2",
+         "to_x": "3",
+         "direction": "decreasing"
+        },
+        {
+         "from_x": "3",
+         "to_x": "",
+         "direction": "increasing"
+        },
+        {
+         "from_x": "",
+         "to_x": "2",
+         "direction": "decreasing"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה חלופית (שגויה) של הפונקציה עם נקודת מקסימום",
+     "axes": {
+      "x_label": "",
+      "y_label": ""
+     },
+     "curves": [
+      {
+       "label": "",
+       "vertical_asymptotes": [
+        "2"
+       ],
+       "horizontal_asymptotes": [],
+       "points": [
+        {
+         "x": "3",
+         "y": "-e^4",
+         "role": "maximum",
+         "label": "(3, -e^4)"
+        },
+        {
+         "x": "0",
+         "y": "-e/2",
+         "role": "y_intercept",
+         "label": "(0, -e/2)"
+        }
+       ],
+       "trend": [
+        {
+         "from_x": "",
+         "to_x": "2",
+         "direction": "increasing"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "ok": true,
+  "s": 9.8,
+  "data": {
+   "figures": [
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה של פונקציה עם אסימפטוטה אנכית ב-x=2 ונקודת מינימום ב-(3, e^4)",
+     "axes": {
+      "x_label": "x",
+      "y_label": "f(x)"
+     },
+     "curves": [
+      {
+       "label": "f(x)",
+       "vertical_asymptotes": [
+        "2"
+       ],
+       "horizontal_asymptotes": [],
+       "points": [
+        {
+         "x": "3",
+         "y": "e^4",
+         "role": "minimum",
+         "label": "(3, e^4)"
+        }
+       ],
+       "trend": [
+        {
+         "from_x": "2",
+         "to_x": "3",
+         "direction": "decreasing"
+        },
+        {
+         "from_x": "3",
+         "to_x": "",
+         "direction": "increasing"
+        },
+        {
+         "from_x": "",
+         "to_x": "2",
+         "direction": "decreasing"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה חלופית (שגויה) של הפונקציה עם נקודת מקסימום",
+     "axes": {
+      "x_label": "",
+      "y_label": ""
+     },
+     "curves": [
+      {
+       "label": "",
+       "vertical_asymptotes": [
+        "2"
+       ],
+       "horizontal_asymptotes": [],
+       "points": [
+        {
+         "x": "3",
+         "y": "-e^4",
+         "role": "maximum",
+         "label": "(3, -e^4)"
+        },
+        {
+         "x": "0",
+         "y": "-e/2",
+         "role": "y_intercept",
+         "label": "(0, -e/2)"
+        }
+       ],
+       "trend": [
+        {
+         "from_x": "",
+         "to_x": "2",
+         "direction": "increasing"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ }
+]

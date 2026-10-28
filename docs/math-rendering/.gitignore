@@ -1,0 +1,9 @@
+# STUDENT WORK STAYS OFF THE PUBLIC REMOTES (both `origin` and `vivi-origin` are public).
+# Scans, crops of scans, and raw transcriptions of a real student's pages live in
+# C:\Users\ariel\vivi-private\math-rendering\ (same relative paths). The scripts, scores and
+# write-ups here are enough to read every result; the raw files are needed only to re-score.
+raw.json
+*.jpg
+*.jpeg
+draft_key.json
+probe/math3_p07.jpeg.json

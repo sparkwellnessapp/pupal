@@ -1,0 +1,93 @@
+====================================================================================================
+E1  EQUATIONS — form counts per draw (ink truth in brackets).  drift = form changed
+====================================================================================================
+prod-linear  math4_p11  ok=5/5 sqrt_e=[8, 8, 8, 8, 8][8] e_half=[1, 1, 1, 1, 1][1] one_over_e=[3, 3, 3, 3, 3][3] e_minus1=[1, 1, 1, 1, 1][1]
+prod-linear  math4_p12  ok=5/5 sqrt_e=[7, 7, 8, 7, 7][4] e_half=[0, 0, 0, 0, 0][0]
+prod-linear  math4_p07  ok=5/5  cases=[1, 1, 1, 1, 1]
+prod-linear  math4_p09  ok=5/5  log_base=[1, 1, 1, 1, 1]
+prod-linear  math3_p08  ok=5/5  23.25=[1, 1, 1, 1, 1] 23.259=[1, 1, 1, 1, 1]
+
+prod-latex   math4_p11  ok=5/5 sqrt_e=[8, 8, 8, 8, 8][8] e_half=[1, 1, 1, 1, 1][1] one_over_e=[3, 3, 3, 3, 3][3] e_minus1=[1, 1, 1, 1, 1][1] | spans=208 heb_in_span=0 dollars=0 bracket_box=1
+prod-latex   math4_p12  ok=5/5 sqrt_e=[7, 7, 7, 7, 7][4] e_half=[0, 0, 0, 0, 0][0] | spans=75 heb_in_span=0 dollars=0 bracket_box=0
+prod-latex   math4_p07  ok=5/5  cases=[1, 1, 1, 1, 1] | spans=95 heb_in_span=0 dollars=0 bracket_box=0
+prod-latex   math4_p09  ok=5/5  log_base=[1, 1, 1, 1, 1] | spans=160 heb_in_span=0 dollars=0 bracket_box=0
+prod-latex   math3_p08  ok=5/5  23.25=[1, 1, 1, 1, 1] 23.259=[1, 1, 1, 1, 1] | spans=50 heb_in_span=0 dollars=0 bracket_box=0
+
+wip-linear   math4_p11  ok=5/5 sqrt_e=[8, 8, 8, 8, 8][8] e_half=[1, 1, 1, 1, 1][1] one_over_e=[3, 3, 3, 3, 3][3] e_minus1=[1, 1, 1, 1, 1][1]
+wip-linear   math4_p12  ok=5/5 sqrt_e=[8, 8, 8, 8, 8][4] e_half=[0, 0, 0, 0, 0][0]
+wip-linear   math4_p07  ok=3/5  cases=[1, 1, 1]
+wip-linear   math4_p09  ok=5/5  log_base=[1, 1, 1, 1, 1]
+wip-linear   math3_p08  ok=5/5  23.25=[1, 1, 1, 1, 1] 23.259=[1, 1, 1, 1, 1]
+
+wip-latex    math4_p11  ok=5/5 sqrt_e=[8, 8, 8, 7, 8][8] e_half=[1, 1, 1, 1, 1][1] one_over_e=[3, 3, 3, 2, 3][3] e_minus1=[1, 1, 1, 1, 1][1] | spans=137 heb_in_span=0 dollars=0 bracket_box=0
+wip-latex    math4_p12  ok=5/5 sqrt_e=[7, 8, 7, 7, 7][4] e_half=[0, 0, 0, 0, 0][0] | spans=61 heb_in_span=0 dollars=0 bracket_box=4
+wip-latex    math4_p07  ok=5/5  cases=[1, 1, 1, 1, 1] | spans=0 heb_in_span=0 dollars=0 bracket_box=0
+wip-latex    math4_p09  ok=5/5  log_base=[1, 1, 1, 1, 1] | spans=160 heb_in_span=0 dollars=0 bracket_box=0
+wip-latex    math3_p08  ok=5/5  23.25=[1, 1, 1, 1, 1] 23.259=[1, 1, 1, 1, 1] | spans=50 heb_in_span=0 dollars=0 bracket_box=0
+
+KaTeX parse: {'prod-latex': '0 fail / 588 spans', 'wip-latex': '0 fail / 408 spans'}
+
+====================================================================================================
+E2  FIGURES — per key feature: found-as-written / drifted-form / missing, over 5 draws
+====================================================================================================
+--- v1-flash math4_p11  ok=5/5
+     1/e                    found 5/5  drifted 0/5   <- trap: the page text also writes e^-1; the DRAWING says 1/e
+     e^2                    found 5/5  drifted 0/5
+     (√e,-2.25)             found 0/5  drifted 0/5   <- trap: the page text also writes e^(1/2); the DRAWING says √e
+
+--- v2-flash math4_p10  ok=5/5
+     x=2                    found 5/5  drifted 0/5
+     (3,e^4)                found 5/5  drifted 0/5
+     -e/2                   found 0/5  drifted 0/5
+     (0,13-e/2)             found 0/5  drifted 0/5
+     (3,-e^4+13)            found 5/5  drifted 0/5
+     vertical asymptote ink tags per draw: [['other'], ['other'], ['other'], ['other'], ['other']]
+     stability: 5/5 draws share the modal feature set
+--- v2-flash math4_p11  ok=5/5
+     1/e                    found 5/5  drifted 0/5   <- trap: the page text also writes e^-1; the DRAWING says 1/e
+     e^2                    found 5/5  drifted 0/5
+     (√e,-2.25)             found 5/5  drifted 0/5   <- trap: the page text also writes e^(1/2); the DRAWING says √e
+     stability: 5/5 draws share the modal feature set
+--- v2-flash math4_p12  ok=5/5
+     √e                     found 5/5  drifted 0/5
+     e^2                    found 5/5  drifted 0/5
+     √e..e^2                found 0/5  drifted 0/5
+     stability: 5/5 draws share the modal feature set
+--- v2-flash math3_p07  ok=5/5
+     a=3.6                  found 5/5  drifted 0/5   <- trap: the givens on the same page say a=4.8; the SKETCH says a=3.6
+     b=4.8                  found 5/5  drifted 0/5
+     c                      found 5/5  drifted 0/5
+     4.5                    found 5/5  drifted 0/5
+     6                      found 5/5  drifted 0/5
+     stability: 5/5 draws share the modal feature set
+--- v2-flash math3_p08  ok=5/5
+     A                      found 5/5  drifted 0/5
+     B                      found 5/5  drifted 0/5
+     C                      found 5/5  drifted 0/5
+     h                      found 5/5  drifted 0/5
+     20                     found 5/5  drifted 0/5
+     a=21                   found 5/5  drifted 0/5
+     10                     found 5/5  drifted 0/5
+     c                      found 5/5  drifted 0/5
+     stability: 3/5 draws share the modal feature set
+
+--- v2-pro math4_p10  ok=5/5
+     x=2                    found 5/5  drifted 0/5
+     (3,e^4)                found 5/5  drifted 0/5
+     -e/2                   found 0/5  drifted 0/5
+     (0,13-e/2)             found 0/5  drifted 0/5
+     (3,-e^4+13)            found 5/5  drifted 0/5
+     vertical asymptote ink tags per draw: [['other'], ['other'], ['other'], ['other'], ['other']]
+     stability: 5/5 draws share the modal feature set
+--- v2-pro math4_p11  ok=5/5
+     1/e                    found 5/5  drifted 0/5   <- trap: the page text also writes e^-1; the DRAWING says 1/e
+     e^2                    found 5/5  drifted 0/5
+     (√e,-2.25)             found 5/5  drifted 0/5   <- trap: the page text also writes e^(1/2); the DRAWING says √e
+     stability: 5/5 draws share the modal feature set
+--- v2-pro math4_p12  ok=5/5
+     √e                     found 5/5  drifted 0/5
+     e^2                    found 5/5  drifted 0/5
+     √e..e^2                found 0/5  drifted 0/5
+     stability: 5/5 draws share the modal feature set
+
+COST: {'E1-prod-linear': 0.2399, 'E1-wip-linear': 0.2658, 'E1-prod-latex': 0.2714, 'E2-v2-pro': 0.1294, 'E1-wip-latex': 0.3201, 'E2-v2-flash': 0.1903, 'E2-v1-flash': 0.0359, 'total': 1.4528}

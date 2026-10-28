@@ -1,0 +1,329 @@
+[
+ {
+  "ok": true,
+  "s": 8.6,
+  "data": {
+   "figures": [
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה של פונקציה f(x) עם נקודת מינימום וחיתוך עם ציר x",
+     "axes": {
+      "x_label": "x",
+      "y_label": "f(x)"
+     },
+     "curves": [
+      {
+       "label": "f(x)",
+       "vertical_asymptotes": [],
+       "horizontal_asymptotes": [],
+       "points": [
+        {
+         "x": "e^-1",
+         "y": "0",
+         "role": "x_intercept",
+         "label": "e^-1"
+        },
+        {
+         "x": "e^2",
+         "y": "0",
+         "role": "x_intercept",
+         "label": "e^2"
+        },
+        {
+         "x": "e^(1/2)",
+         "y": "-2.25",
+         "role": "minimum",
+         "label": "(e^(1/2), -2.25)"
+        }
+       ],
+       "trend": [
+        {
+         "from_x": "0",
+         "to_x": "e^(1/2)",
+         "direction": "decreasing"
+        },
+        {
+         "from_x": "e^(1/2)",
+         "to_x": "inf",
+         "direction": "increasing"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה של פונקציית הנגזרת f'(x)",
+     "axes": {
+      "x_label": "x",
+      "y_label": "y"
+     },
+     "curves": [
+      {
+       "label": "f'(x)",
+       "vertical_asymptotes": [],
+       "horizontal_asymptotes": [],
+       "points": [],
+       "trend": []
+      }
+     ]
+    },
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה של פונקציית הנגזרת f'(x) עם שטח מסומן בין e^(1/2) ל-e^2",
+     "axes": {
+      "x_label": "x",
+      "y_label": "y"
+     },
+     "curves": [
+      {
+       "label": "f'(x)",
+       "vertical_asymptotes": [],
+       "horizontal_asymptotes": [],
+       "points": [
+        {
+         "x": "e^(1/2)",
+         "y": "0",
+         "role": "x_intercept",
+         "label": "e^(1/2)"
+        },
+        {
+         "x": "e^2",
+         "y": "0",
+         "role": "marked",
+         "label": "e^2"
+        }
+       ],
+       "trend": []
+      }
+     ],
+     "shaded": [
+      {
+       "from_x": "e^(1/2)",
+       "to_x": "e^2",
+       "label": "S"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "ok": true,
+  "s": 8.4,
+  "data": {
+   "figures": [
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה של פונקציה f(x) עם נקודת מינימום וחיתוך עם ציר x",
+     "axes": {
+      "x_label": "x",
+      "y_label": "f(x)"
+     },
+     "curves": [
+      {
+       "label": "f(x)",
+       "vertical_asymptotes": [],
+       "horizontal_asymptotes": [],
+       "points": [
+        {
+         "x": "e^-1",
+         "y": "0",
+         "role": "x_intercept",
+         "label": "e^-1"
+        },
+        {
+         "x": "e^2",
+         "y": "0",
+         "role": "x_intercept",
+         "label": "e^2"
+        },
+        {
+         "x": "e^(1/2)",
+         "y": "-2.25",
+         "role": "minimum",
+         "label": "(e^(1/2), -2.25)"
+        }
+       ],
+       "trend": [
+        {
+         "from_x": "0",
+         "to_x": "e^(1/2)",
+         "direction": "decreasing"
+        },
+        {
+         "from_x": "e^(1/2)",
+         "to_x": "inf",
+         "direction": "increasing"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה של פונקציית הנגזרת f'(x)",
+     "axes": {
+      "x_label": "x",
+      "y_label": "y"
+     },
+     "curves": [
+      {
+       "label": "f'(x)",
+       "vertical_asymptotes": [],
+       "horizontal_asymptotes": [],
+       "points": [],
+       "trend": []
+      }
+     ]
+    },
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה של פונקציית הנגזרת f'(x) עם שטח מסומן בין e^(1/2) ל-e^2",
+     "axes": {
+      "x_label": "x",
+      "y_label": "y"
+     },
+     "curves": [
+      {
+       "label": "f'(x)",
+       "vertical_asymptotes": [],
+       "horizontal_asymptotes": [],
+       "points": [
+        {
+         "x": "e^(1/2)",
+         "y": "0",
+         "role": "x_intercept",
+         "label": "e^(1/2)"
+        },
+        {
+         "x": "e^2",
+         "y": "0",
+         "role": "marked",
+         "label": "e^2"
+        }
+       ],
+       "trend": []
+      }
+     ],
+     "shaded": [
+      {
+       "from_x": "e^(1/2)",
+       "to_x": "e^2",
+       "label": "S"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "ok": true,
+  "s": 9.2,
+  "data": {
+   "figures": [
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה של פונקציה f(x) עם נקודת מינימום וחיתוך עם ציר x",
+     "axes": {
+      "x_label": "x",
+      "y_label": "f(x)"
+     },
+     "curves": [
+      {
+       "label": "f(x)",
+       "vertical_asymptotes": [],
+       "horizontal_asymptotes": [],
+       "points": [
+        {
+         "x": "e^-1",
+         "y": "0",
+         "role": "x_intercept",
+         "label": "e^-1"
+        },
+        {
+         "x": "e^2",
+         "y": "0",
+         "role": "x_intercept",
+         "label": "e^2"
+        },
+        {
+         "x": "e^(1/2)",
+         "y": "-2.25",
+         "role": "minimum",
+         "label": "(e^(1/2), -2.25)"
+        }
+       ],
+       "trend": [
+        {
+         "from_x": "0",
+         "to_x": "e^(1/2)",
+         "direction": "decreasing"
+        },
+        {
+         "from_x": "e^(1/2)",
+         "to_x": "inf",
+         "direction": "increasing"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה של פונקציית הנגזרת f'(x)",
+     "axes": {
+      "x_label": "x",
+      "y_label": "y"
+     },
+     "curves": [
+      {
+       "label": "f'(x)",
+       "vertical_asymptotes": [],
+       "horizontal_asymptotes": [],
+       "points": [],
+       "trend": []
+      }
+     ]
+    },
+    {
+     "kind": "function_plot",
+     "caption_he": "סקיצה של פונקציית הנגזרת f'(x) עם שטח מסומן בין e^(1/2) ל-e^2",
+     "axes": {
+      "x_label": "x",
+      "y_label": "y"
+     },
+     "curves": [
+      {
+       "label": "f'(x)",
+       "vertical_asymptotes": [],
+       "horizontal_asymptotes": [],
+       "points": [
+        {
+         "x": "e^(1/2)",
+         "y": "0",
+         "role": "x_intercept",
+         "label": "e^(1/2)"
+        },
+        {
+         "x": "e^2",
+         "y": "0",
+         "role": "marked",
+         "label": "e^2"
+        }
+       ],
+       "trend": []
+      }
+     ],
+     "shaded": [
+      {
+       "from_x": "e^(1/2)",
+       "to_x": "e^2",
+       "label": "S"
+      }
+     ]
+    }
+   ]
+  }
+ }
+]
