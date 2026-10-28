@@ -360,6 +360,13 @@ than reading the ink fails, whatever the other rows say.
 | Figure card: the student's ink cropped, readings pinned, editable | `FigureCard` + controller plumbing | answers with figures |
 | Coordinate-order guard, Δ14 and splice pins | `e2e/math-review.spec.ts` | — |
 
+**Not built yet, on purpose or for lack of an input:** the `MATH_V1` scorer (waits on OD-M12);
+the seeded-error measurement (waits on the handwritten pages); lighting a figure's chip on the
+grade-review screen when a quote lands on one of its reading lines (the readings already reach
+the grader as text; the graded-test wire does not yet carry the figure geometry); typesetting
+inside the feedback EDITOR (feedback text renders typeset everywhere it is read, and in the PDF);
+Phases 4 and 5, which are conditional by design.
+
 **FIG-1 as built is one-directional**, a refinement of §5's wording: every frozen figure sits on
 exactly one figure line, but a line may have no figure. §5 makes the figure pass optional, and a
 bijection would have made an optional pass block approval. An unread drawing is shown as such.
