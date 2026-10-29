@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { seedAuth, installMocks, type MockOptions } from './fixtures';
+import { seedAuth, installMocks, loadGoldenRaw, type MockOptions } from './fixtures';
 
 /**
  * PR-4 Phase 6 / PR-5 S2 — the two journeys where "curl passed, browser died"
@@ -67,6 +67,11 @@ test.describe('rubric mirror — the render half (PR-5 S2)', () => {
         const save = page.getByRole('button', { name: 'שמור מחוון' });
         await expect(save).toHaveAttribute('aria-disabled', 'false');
 
+        // The golden carries one open advisory, so the first click asks ONCE, softly
+        // (PR-6 §6) — answering it is the save.
+        await save.click();
+        await expect(page.getByText(/המלצה אחת לא נסקרה/)).toBeVisible();
+
         // First save → mocked structured 400 (RubricSaveFlow): the named invariant chip
         // + a working jump whose label speaks the naming law, never the raw id.
         await save.click();
@@ -87,6 +92,39 @@ test.describe('rubric mirror — the render half (PR-5 S2)', () => {
         // say what it was. The carry-through claim is unchanged: THIS rubric.
         await expect(page.getByRole('heading',
             { name: 'המחוון: employee_course_select1' })).toBeVisible();
+    });
+
+    test('save sends the rubric she reviewed — not the page\'s first-render state (2026-10-29 incident)', async ({ page }) => {
+        // The save button's handler was a useCallback whose deps were only the gate
+        // flags (blockers, open advisories, prompt shown). On a result with NO findings
+        // none of them changes after the result lands, so the click ran the handler
+        // captured at FIRST RENDER: questions [], no job id, default subject, name
+        // «מחוון». Production compiled that into a 0-question rubric (3 teachers,
+        // Oct 25–29) and every exam transcribed against it failed. employee_course_select1
+        // has no client errors; with its findings stripped it is exactly that shape
+        // (one open advisory would flip `advisoryPromptShown` on the first click and
+        // hand the second click a fresh closure — which is how this hid).
+        const saveBodies: unknown[] = [];
+        await driveToReview(page, { fixture: 'employee_course_select1', saveBodies, noFindings: true });
+        const golden = JSON.parse(loadGoldenRaw('employee_course_select1'));
+
+        const save = page.getByRole('button', { name: 'שמור מחוון' });
+        await expect(save).toHaveAttribute('aria-disabled', 'false');
+        const saved = page.waitForRequest((r) => r.url().includes('/save_ontology_draft'));
+        await save.click();
+        await saved;
+
+        expect(saveBodies).toHaveLength(1);
+        const body = saveBodies[0] as {
+            name: string;
+            extraction_job_id: string | null;
+            draft: { questions: unknown[]; total_points: number };
+        };
+        expect(body.draft.questions.length).toBeGreaterThan(0);
+        expect(body.draft.questions).toHaveLength(golden.questions.length);
+        expect(body.extraction_job_id).toBe('job-e2e');
+        expect(Number(body.draft.total_points)).toBeGreaterThan(0);
+        await expect(page.getByText('מכאן ויוי בודקת לפיו')).toBeVisible({ timeout: 15_000 });
     });
 
     test('mirror is editable: a criterion points cell opens an input and commits (E-3 cascade)', async ({ page }) => {

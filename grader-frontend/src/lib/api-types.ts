@@ -2743,6 +2743,11 @@ export interface components {
             name?: string | null;
             rollup: components["schemas"]["BatchRollup"];
             /**
+             * Rubric Has Questions
+             * @default true
+             */
+            rubric_has_questions: boolean;
+            /**
              * Rubric Id
              * Format: uuid
              */
