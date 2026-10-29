@@ -239,6 +239,8 @@ The relationship: a flag event (closed-world, bounds-clamped, no-answer, quote-n
 
 Rendered by a single `<AnnotationBanner />`, severity-differentiated; `target_id`-anchored annotations render inline, `None` renders in a top-level summary.
 
+> **THE ACK GATE SKIPS A SETTLED POINT CLAIM (owner-ruled 2026-10-29).** Compile Step 5 demands an ack, by id, for every WARNING in the submitted draft — and a `rubric_mismatch` annotation is a FROZEN extraction-time claim («Σ q3 = 30, declared 40») that stays in `draft_json` for good (the faithful record, FC). Acking it unconditionally re-popped the warnings modal on every later edit of a rubric the teacher had already fixed (prod, 2026-10-29: «המחוונים שלי» saved with an empty ack set). Now `contract_compiler._is_settled_point_claim` drops it from the ack set when the current numbers falsify it: a NODE claim (question id / full sub-question path / criterion id) settles on the compiler's own INV-1/2/3 verdict, which has already passed by Step 5 — no second copy of the arithmetic; the RUBRIC-level claim (`target_id` None) compares Σ question totals against a PRIOR of 100 that INV-4 never sees, so it settles only when that sum is 100 on a selection-free rubric. **Still gated:** every other annotation type, and a claim about a node she has since deleted (nothing proves it false). **The annotation is never removed** — only its power to block. The client still derives acks from the findings on both save surfaces (`acknowledgedIdsFor`; `page.tsx` and `my-rubrics/page.tsx`), which remains how a DISMISSED advisory is acked. Pinned by `tests/services/test_settled_point_claims.py` and `e2e/my-rubrics-reopen-ack.spec.ts`.
+
 ---
 
 ## 7. The pipeline, end to end
@@ -722,6 +724,11 @@ is the workflow.
   `build-sha` meta tag on `https://www.vivi-assistant.com`; compare it with `origin/frontend-deployment` and
   `origin/main:grader-frontend`'s tree hash. Ship by mirroring `frontend/` → `grader-frontend/`, committing,
   and `git subtree push --prefix grader-frontend origin frontend-deployment`.
+  ⚠️ **Since 2026-10-29 that push is REJECTED as non-fast-forward — and still exits 0**: the deploy branch's
+  history is no longer `main`'s subtree split (its 59c5228 carried a commit `main` never had). Read the output.
+  The working substitute, never a force: confirm `origin/frontend-deployment^{tree}` equals `main`'s PREVIOUS
+  `grader-frontend` tree, then `C=$(git commit-tree HEAD:grader-frontend -p origin/frontend-deployment -m …)`
+  and `git push origin $C:refs/heads/frontend-deployment` (a fast-forward), and verify the live `build-sha`.
 - **Order when a PR carries a migration that removes something the old code reads** (031 dropped
   `students.notes`): backend first, verify healthy, THEN apply the migration. After it lands, rolling back to
   a revision older than the PR breaks that revision's reads — a rollback is no longer free.
