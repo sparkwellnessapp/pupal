@@ -38,7 +38,7 @@ import type { RubricQuestion } from '@/types/rubric';
 import { hydrateAnyQuestions, dehydrateQuestions } from '@/utils/rubric-transform';
 import { hasErrors, validateAllQuestions } from '@/utils/rubric-validation';
 import { safeParseFloat } from '@/utils/rubric-transform';
-import { composeFindings, advisoryScanStatus, type Finding } from '@/utils/findings';
+import { composeFindings, acknowledgedIdsFor, advisoryScanStatus, type Finding } from '@/utils/findings';
 import { applyEditSteps } from '@/utils/edit-steps';
 import {
   applyFindingFix, recordFixApplied, clearFixApplied, recordDismissed, clearDismissed,
@@ -210,6 +210,16 @@ export default function MyRubricsPage() {
         ),
         [reopenedAnnotations, reopenedMistakes, editedQuestions],
     );
+    /**
+     * The save-time acknowledgment, REBUILT from the findings — the same derivation
+     * the extraction flow uses (page.tsx). The draft re-sends its extraction
+     * annotations, and the compiler demands an ack for every WARNING among them; an
+     * ack is a call parameter, not stored state. Saving with none made the frozen
+     * extraction claim (e.g. «Σ q3 = 30, declared 40») pop the warnings modal on
+     * every edit, though she fixed it sessions ago and the live arithmetic — which
+     * is what marks its finding resolved — now balances.
+     */
+    const acknowledgedWarningIds = useMemo(() => acknowledgedIdsFor(reopenedFindings), [reopenedFindings]);
 
     /** A decision made on reopen writes straight back into the envelope that gets re-sent. */
     const patchMistakes = useCallback(
@@ -342,7 +352,7 @@ export default function MyRubricsPage() {
         }
     };
 
-    const handleSaveRubric = async (acknowledgedWarningIds: string[] = []) => {
+    const handleSaveRubric = async (confirmedWarningIds: string[] = []) => {
         if (!selectedRubric) return;
 
         // Block save if validation errors exist (INV-R1: point sums don't match)
@@ -392,7 +402,9 @@ export default function MyRubricsPage() {
                     num_sub_questions: numSubQuestions,
                     num_criteria: numCriteria,
                 },
-                acknowledged_warning_ids: acknowledgedWarningIds,
+                // UNION, as in page.tsx: what she just confirmed in the modal, plus
+                // every finding she has already resolved or dismissed.
+                acknowledged_warning_ids: Array.from(new Set([...acknowledgedWarningIds, ...confirmedWarningIds])),
             });
 
             // Check if response contains warnings that need acknowledgment

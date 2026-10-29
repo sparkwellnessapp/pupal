@@ -161,10 +161,17 @@ class ContractCompiler:
         # ack dance into a single compile call for a clean rubric.
         self._check_criterion_alignment(response)
 
-        # Step 5: Only genuine WARNING-severity annotations require acknowledgment.
+        # Step 5: Only genuine WARNING-severity annotations require acknowledgment —
+        # and a point-sum claim the arithmetic above has just FALSIFIED is not one.
+        settled = [a for a in response.annotations if _is_settled_point_claim(a, response)]
+        if settled:
+            logger.info(
+                f"point-sum warnings settled by the current arithmetic, no ack required: "
+                f"{[a.id for a in settled]}"
+            )
         all_warnings = [
             a for a in response.annotations
-            if a.severity == AnnotationSeverity.WARNING
+            if a.severity == AnnotationSeverity.WARNING and a not in settled
         ]
 
         unacknowledged = [w for w in all_warnings if w.id not in acknowledged_warnings]
@@ -558,6 +565,64 @@ def _coerce_question_types(subject: str, questions: list) -> list:
                     profile.default_question_type.value)
         out.append(q.model_copy(update={"question_type": profile.default_question_type}))
     return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SETTLED POINT CLAIMS (owner-ruled 2026-10-29)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _point_node_ids(questions: list) -> set:
+    """Every id a point-sum claim can anchor to: question ids, FULL sub-question
+    paths (`q1.א.2`, as INV-2 and the extraction name them) and criterion ids."""
+    ids: set = set()
+
+    def walk_sq(sq: SubQuestion, path: str) -> None:
+        ids.add(path)
+        for c in sq.criteria:
+            ids.add(c.criterion_id)
+        for isq in sq.sub_questions or []:
+            walk_sq(isq, f"{path}.{isq.sub_question_id}")
+
+    for q in questions:
+        ids.add(q.question_id)
+        for c in q.criteria:
+            ids.add(c.criterion_id)
+        for sq in q.sub_questions:
+            walk_sq(sq, f"{q.question_id}.{sq.sub_question_id}")
+    return ids
+
+
+def _is_settled_point_claim(annotation: Annotation, response: ExtractRubricResponse) -> bool:
+    """True when a `rubric_mismatch` WARNING is a claim the CURRENT numbers falsify.
+
+    The annotation is frozen at extraction time («Σ q3 = 30, declared 40») and stays
+    in the Draft for good — that is the faithful record (FC), and it is not touched
+    here. What changes is whether it still gates the save. Demanding an ack for a
+    claim that is no longer true re-popped the warnings modal on every later edit
+    of a rubric the teacher had already fixed (prod, 2026-10-29) — and a check she
+    can only click through trains the reflex INV-6's history warns about.
+
+    Called only AFTER INV-1/2/3 have passed, so for a NODE claim (question, full
+    sub-question path, criterion) the compiler's own invariants have just proven
+    its children sum to its points: balanced by construction, no second copy of
+    the arithmetic. The RUBRIC-level claim is different — it compares Σ question
+    totals against a prior of 100, not against any stored number (INV-4 never
+    sees it) — so it settles only when that sum is now 100 on a selection-free
+    rubric, which is the only shape the extractor emits it for.
+
+    Anything else is NOT settled and still needs her acknowledgment: another
+    annotation type, a node she has since deleted (nothing proves the claim
+    false), or a rubric-level total that is still not 100.
+    """
+    if annotation.annotation_type != "rubric_mismatch":
+        return False
+    if annotation.severity != AnnotationSeverity.WARNING:
+        return False
+    if annotation.target_id in (None, "rubric"):
+        if response.selection_groups:
+            return False
+        return sum((q.total_points for q in response.questions), Decimal("0")) == Decimal("100")
+    return annotation.target_id in _point_node_ids(response.questions)
 
 
 def compile_rubric(

@@ -40,6 +40,12 @@ interface EditableTextProps {
      * and all, because she is editing the source. Honesty beats magic.
      */
     block?: boolean;
+    /** Extra classes on the EDIT textarea only (e.g. a monospace face for code),
+     *  so they never leak into the rendered resting display. */
+    editClassName?: string;
+    /** Opens straight into the editor on mount — for an "add" affordance that has
+     *  already been clicked, so she does not have to click twice. */
+    autoEdit?: boolean;
 }
 
 export function EditableText({
@@ -52,8 +58,10 @@ export function EditableText({
     readOnly = false,
     renderDisplay,
     block = false,
+    editClassName = '',
+    autoEdit = false,
 }: EditableTextProps) {
-    const [editing, setEditing] = useState(false);
+    const [editing, setEditing] = useState(autoEdit && !readOnly);
     const [draft, setDraft] = useState(value);
     const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -101,7 +109,7 @@ export function EditableText({
                     if (e.key === 'Escape') { e.preventDefault(); cancel(); }
                     // Enter inserts a newline (prose is multi-line); blur commits.
                 }}
-                className={`w-full resize-none bg-white border border-primary-300 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-primary-200 ${className}`}
+                className={`w-full resize-none bg-white border border-primary-300 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-primary-200 ${className} ${editClassName}`}
                 rows={1}
             />
         );

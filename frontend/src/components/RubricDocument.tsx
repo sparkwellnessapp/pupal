@@ -13,7 +13,9 @@ import {
     changeQuestionPoints as changeQuestionPointsOp,
     changeSubQuestionPointsAtPath, setSubQuestionTextAtPath,
     setQuestionText as setQuestionTextOp,
+    setExampleSolution as setExampleSolutionOp, setSubQuestionExampleSolutionAtPath,
 } from '@/utils/rubric-editor-ops';
+import { looksLikeCode } from '@/utils/document-text';
 import { computeAchievablePoints } from '@/utils/rubric-achievable';
 import { scopeLabel, questionLabel, subQuestionLabel, humanizeScopeIds } from '@/utils/scope-label';
 import { splitRoutingPrefix } from '@/utils/routing-prefix';
@@ -53,9 +55,9 @@ import { countFindingsByClass, findingsSummaryLine, type Finding } from '@/utils
  * — criterion points/descriptions, sub-criteria — and watches parents cascade.
  * Sub-question points and direct-criteria question totals are READ-ONLY cascaded
  * sums. A parent question's declared total (with sub-questions) stays editable
- * (INV-R1 surfaces any mismatch). Question/sub-question PROSE and solutions are
- * read-only display this sprint (deferred, like D-2) — the Dream DoD is
- * criteria-points-centric.
+ * (INV-R1 surfaces any mismatch). Question/sub-question prose (D8) and example
+ * solutions are display-rich / edit-raw: she sees the rendered body and edits the
+ * stored source string verbatim.
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,6 +77,9 @@ interface DocOps {
     /** D8 — prose, edited RAW. */
     changeQuestionText(qIndex: number, text: string): void;
     changeSubQuestionText(qIndex: number, sqPath: number[], text: string): void;
+    /** The example solution, edited RAW; `null` removes it. */
+    changeQuestionSolution(qIndex: number, text: string | null): void;
+    changeSubQuestionSolution(qIndex: number, sqPath: number[], text: string | null): void;
 }
 
 interface DocContextValue extends DocOps {
@@ -421,18 +426,76 @@ function CriteriaTable({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SolutionBlock — read-only disclosure (D-2).
+// SolutionBlock — the answer key, behind its disclosure, DISPLAY-RICH / EDIT-RAW
+// (the D8 rule question prose already follows). At rest it is the rendered
+// SolutionBody; a click opens a textarea over the stored string, markers and all,
+// because she is editing the source the grader reads. Clearing it removes it.
+//
+// A scope with no solution shows an "add" line only on hover/focus of its own
+// section — absence at rest stays silent (§5), like «+ פרקי לתתי-קריטריונים».
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SolutionBlock({ solution }: { solution?: string | null }) {
-    if (!solution || !solution.trim()) return null;
+function SolutionBlock({ solution, scopeHeading, hoverGroup, onCommit }: {
+    solution?: string | null;
+    scopeHeading: string;
+    /** The section's named hover group. Static literals — Tailwind cannot see a computed class. */
+    hoverGroup: 'q' | 'sq';
+    onCommit: (text: string | null) => void;
+}) {
+    const [adding, setAdding] = useState(false);
+    // A solution she has just written opens expanded, so it does not vanish
+    // behind a closed disclosure the moment she clicks away.
+    const [justAdded, setJustAdded] = useState(false);
+    const commit = (text: string) => onCommit(text.trim() === '' ? null : text);
+
+    if (!solution || !solution.trim()) {
+        if (adding) {
+            return (
+                <div
+                    className="my-2"
+                    onBlur={() => setAdding(false)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setAdding(false); }}
+                >
+                    <EditableText
+                        value=""
+                        autoEdit
+                        onCommit={(text) => { if (text.trim()) setJustAdded(true); commit(text); }}
+                        ariaLabel={`פתרון לדוגמה — ${scopeHeading}`}
+                        dir="auto"
+                    />
+                </div>
+            );
+        }
+        const reveal = hoverGroup === 'q'
+            ? 'opacity-0 group-hover/q:opacity-100 focus:opacity-100'
+            : 'opacity-0 group-hover/sq:opacity-100 focus:opacity-100';
+        return (
+            <button
+                type="button"
+                onClick={() => setAdding(true)}
+                className={`my-2 block text-sm text-stone-400 hover:text-primary-600 transition-opacity ${reveal}`}
+            >+ הוסיפי פתרון לדוגמה — {scopeHeading}</button>
+        );
+    }
+
+    // Code is an LTR island with a monospace face while she edits it (the bidi
+    // standing rule); prose and tables edit RTL.
+    const isCode = looksLikeCode(solution);
     // ONE path for every answer key — SolutionBody owns the uniform grey surface
     // and routes tables / code / prose inside it. The old split (DocumentText for
     // table-bearing solutions, CodeBlock otherwise) is exactly why some solutions
     // had a grey box and some didn't.
     return (
-        <DisclosureRow label="פתרון לדוגמה" toggleLabel="פתרון לדוגמה" className="my-2">
-            <SolutionBody text={solution} />
+        <DisclosureRow label="פתרון לדוגמה" toggleLabel="פתרון לדוגמה" className="my-2" defaultOpen={justAdded}>
+            <EditableText
+                value={solution}
+                onCommit={commit}
+                ariaLabel={`פתרון לדוגמה — ${scopeHeading} — לחצי לעריכה`}
+                dir={isCode ? 'ltr' : 'rtl'}
+                block
+                editClassName={isCode ? 'font-mono text-sm' : ''}
+                renderDisplay={(v) => <SolutionBody text={v} />}
+            />
         </DisclosureRow>
     );
 }
@@ -459,13 +522,13 @@ function PointsChip({ value, ariaLabel, editable, onCommit, changed }: {
 function SubQuestionSection({
     qIndex, sq, sqPath, idPath, depth,
 }: { qIndex: number; sq: RubricSubQuestion; sqPath: number[]; idPath: string; depth: number }) {
-    const { annotations, changedIds, changeSubQuestionPoints, changeSubQuestionText } = useDoc();
+    const { annotations, changedIds, changeSubQuestionPoints, changeSubQuestionText, changeSubQuestionSolution } = useDoc();
     const heading = sq.title?.trim() || subQuestionLabel(sq, sqPath[sqPath.length - 1], depth);
     const hasChildren = (sq.sub_questions?.length ?? 0) > 0;
     const anns = annotationsFor(annotations, idPath, sq.sub_question_id);
 
     return (
-        <section data-scope-id={idPath} className="scroll-mt-20 mr-3 border-r border-surface-100 pr-3 mt-3">
+        <section data-scope-id={idPath} className="group/sq scroll-mt-20 mr-3 border-r border-surface-100 pr-3 mt-3">
             <div className="flex items-baseline justify-between gap-3">
                 <h4 className="text-doc-sq text-surface-800">{heading}</h4>
                 {/* D5: every point-bearing node is editable. This sets the DECLARED
@@ -503,7 +566,12 @@ function SubQuestionSection({
                 ))}</div>
                 : <CriteriaTable qIndex={qIndex} sqPath={sqPath} criteria={sq.criteria} scopeHeading={heading} scopePoints={sq.points} />}
 
-            <SolutionBlock solution={sq.example_solution} />
+            <SolutionBlock
+                solution={sq.example_solution}
+                scopeHeading={heading}
+                hoverGroup="sq"
+                onCommit={(text) => changeSubQuestionSolution(qIndex, sqPath, text)}
+            />
         </section>
     );
 }
@@ -515,7 +583,7 @@ function SubQuestionSection({
 function QuestionSection({
     q, qIndex, isSelectionMember,
 }: { q: RubricQuestion; qIndex: number; isSelectionMember: boolean }) {
-    const { annotations, changedIds, changeQuestionPoints, changeQuestionText } = useDoc();
+    const { annotations, changedIds, changeQuestionPoints, changeQuestionText, changeQuestionSolution } = useDoc();
     const heading = questionLabel(q, qIndex);
     const hasSubs = q.sub_questions.length > 0;
     const anns = annotationsFor(annotations, q.question_id);
@@ -523,7 +591,7 @@ function QuestionSection({
     return (
         <section
             data-scope-id={q.question_id}
-            className="scroll-mt-20 doc-enter-section"
+            className="group/q scroll-mt-20 doc-enter-section"
             style={{ animationDelay: `${Math.min(qIndex, 8) * 40}ms` }}
         >
             <div className="flex items-baseline justify-between gap-3 border-b border-surface-100 pb-2">
@@ -568,7 +636,12 @@ function QuestionSection({
                 ))
                 : <CriteriaTable qIndex={qIndex} sqPath={[]} criteria={q.criteria} scopeHeading={heading} scopePoints={q.total_points} />}
 
-            <SolutionBlock solution={q.example_solution} />
+            <SolutionBlock
+                solution={q.example_solution}
+                scopeHeading={heading}
+                hoverGroup="q"
+                onCommit={(text) => changeQuestionSolution(qIndex, text)}
+            />
         </section>
     );
 }
@@ -760,6 +833,11 @@ function OutlineRail({
 // RubricDocument — root
 // ─────────────────────────────────────────────────────────────────────────────
 
+function announceSolutionRemoved() {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('vivi:undo-toast', { detail: { message: 'הפתרון לדוגמה נמחק' } }));
+}
+
 interface RubricDocumentProps {
     questions: RubricQuestion[];
     onQuestionsChange: (questions: RubricQuestion[]) => void;
@@ -874,6 +952,15 @@ export function RubricDocument({
         changeQuestionText: (qIndex, text) => onQuestionsChange(setQuestionTextOp(questions, qIndex, text)),
         changeSubQuestionText: (qIndex, sqPath, text) =>
             onQuestionsChange(setSubQuestionTextAtPath(questions, qIndex, sqPath, text)),
+        // Content, not points: no cascade. A removal gets the D-3 undo toast.
+        changeQuestionSolution: (qIndex, text) => {
+            onQuestionsChange(setExampleSolutionOp(questions, qIndex, text));
+            if (text === null) announceSolutionRemoved();
+        },
+        changeSubQuestionSolution: (qIndex, sqPath, text) => {
+            onQuestionsChange(setSubQuestionExampleSolutionAtPath(questions, qIndex, sqPath, text));
+            if (text === null) announceSolutionRemoved();
+        },
     }), [questions, onQuestionsChange]);
 
     // ── D7: the ONE annotation transform, at the root, so every consumer (inline

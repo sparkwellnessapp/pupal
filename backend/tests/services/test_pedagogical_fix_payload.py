@@ -163,7 +163,18 @@ def _clean_draft() -> ExtractRubricResponse:
 
 
 def _warned_draft() -> ExtractRubricResponse:
-    """A clean-summing draft that still carries the extraction's WARNING annotation —
+    """A draft carrying a WARNING the arithmetic cannot settle (a review flag), so the
+    gate must still demand her acknowledgment once annotations round-trip."""
+    return _clean_draft().model_copy(update={"annotations": [Annotation(
+        annotation_type="review_flag",
+        severity=AnnotationSeverity.WARNING,
+        message="ויוי ממליצה לבדוק את ניסוח הקריטריון",
+        target_id="q1",
+    )]})
+
+
+def _resolved_mismatch_draft() -> ExtractRubricResponse:
+    """A clean-summing draft that still carries the extraction's point-sum WARNING —
     exactly the shape a resolved finding produces: her arithmetic is right NOW, and
     the static annotation about the original document is still attached."""
     return _clean_draft().model_copy(update={"annotations": [Annotation(
@@ -182,15 +193,21 @@ def test_wakeup_annotation_without_ack_is_REFUSED():
     try:
         ContractCompiler().compile(_warned_draft(), policy=NumericPolicy())
     except WarningsRequireAcknowledgment as e:
-        assert [w.id for w in e.warnings] == ["rubric_mismatch:q1"]
+        assert [w.id for w in e.warnings] == ["review_flag:q1"]
     else:
         raise AssertionError("the gate must refuse an unacknowledged warning annotation")
+
+
+def test_a_RESOLVED_point_sum_warning_needs_no_ack():
+    """Owner ruling 2026-10-29: a point-sum claim the current numbers falsify no
+    longer gates the save (the full matrix is tests/services/test_settled_point_claims.py)."""
+    ContractCompiler().compile(_resolved_mismatch_draft(), policy=NumericPolicy())   # must not raise
 
 
 def test_wakeup_annotation_WITH_ack_compiles_clean():
     contract = ContractCompiler().compile(
         _warned_draft(), policy=NumericPolicy(),
-        acknowledged_warnings=["rubric_mismatch:q1"],
+        acknowledged_warnings=["review_flag:q1"],
     )
     assert contract is not None
 
@@ -199,13 +216,15 @@ def test_the_ack_id_is_the_annotations_own_id_not_a_reconstruction():
     """The client reads ids off the annotation; it never rebuilds f'{type}:{target}'.
     A server-minted id must therefore round-trip unchanged through the gate."""
     draft = _clean_draft().model_copy(update={"annotations": [Annotation(
-        annotation_type="rubric_mismatch", severity=AnnotationSeverity.WARNING,
+        annotation_type="review_flag", severity=AnnotationSeverity.WARNING,
         message="m", target_id="q1", id="server-minted-uuid-1234",
     )]})
     try:
         ContractCompiler().compile(draft, policy=NumericPolicy())
     except WarningsRequireAcknowledgment as e:
         assert [w.id for w in e.warnings] == ["server-minted-uuid-1234"]
+    else:
+        raise AssertionError("the gate must fire, or this test proves nothing")
     ContractCompiler().compile(draft, policy=NumericPolicy(),
                                acknowledged_warnings=["server-minted-uuid-1234"])
 
