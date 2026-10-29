@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
 import { BATCH_STEPS, deriveBatchStage, stepStates, type StageBatch, type StageRollup } from './batch-stage'
 import {
     CHIP_DONE, CHIP_FAILED, CHIP_GRADING, CHIP_TRANSCRIBING, CHIP_UPLOADING,
-    CHIP_WAITING_APPROVAL, CHIP_WAITING_SIGNATURE,
+    CHIP_WAITING_APPROVAL, CHIP_WAITING_SIGNATURE, TURN_RUBRIC_EMPTY,
 } from '@/copy/batch'
 
 const EMPTY: StageRollup = {
@@ -136,6 +136,29 @@ describe('§5.1C — the chip is a pure function of server state', () => {
             batch({ transcription_failed: 3, total: 3 }, { status: 'failed' }))
         expect(s.chip.label).toBe(CHIP_FAILED)
         expect(s.turnLine).toBe('לא הצלחנו לקרוא את המבחנים — אפשר לנסות שוב')
+    })
+
+    it('a 0-question rubric names the RUBRIC, never «אפשר לנסות שוב» (2026-10-29)', () => {
+        // The incident's own payload: four documents failed in a second each
+        // against an empty rubric, and the header told her to try again.
+        const failed = deriveBatchStage(batch(
+            { transcription_failed: 4, total: 4 },
+            { status: 'failed', rubric_has_questions: false }))
+        expect(failed.chip.label).toBe(CHIP_FAILED)
+        expect(failed.turnLine).toBe(TURN_RUBRIC_EMPTY)
+        expect(failed.turnLine).not.toContain('לנסות שוב')
+
+        // Files still landing: the server says in_progress, but nothing can be
+        // read — the rubric outranks the «Vivi is reading» line.
+        const landing = deriveBatchStage(batch(
+            { transcribing: 2, transcription_failed: 1, uploading: 1, total: 4 },
+            { rubric_has_questions: false }))
+        expect(landing.turnLine).toBe(TURN_RUBRIC_EMPTY)
+
+        // Absent (an older backend) keeps today's behaviour.
+        const legacy = deriveBatchStage(batch(
+            { transcription_failed: 3, total: 3 }, { status: 'failed' }))
+        expect(legacy.turnLine).toBe('לא הצלחנו לקרוא את המבחנים — אפשר לנסות שוב')
     })
 
     it('PARTIALLY completed is neither הושלם nor שגיאה, and says both facts', () => {

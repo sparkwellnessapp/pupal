@@ -55,6 +55,13 @@ export interface MockOptions {
     save?: 'ok' | 'reject-then-ok';
     /** The full-path node id the mocked 400 anchors to (must exist in the fixture). */
     rejectLocation?: string;
+    /** Every save request body, parsed, in order — so a spec can assert WHAT was
+     *  saved, not merely that a save happened. */
+    saveBodies?: unknown[];
+    /** Serve the golden with NO findings (annotations + pedagogical_mistakes
+     *  emptied) — the shape of a clean extraction, where nothing on the review
+     *  screen changes between the result landing and the save click. */
+    noFindings?: boolean;
 }
 
 /** Route-mock the entire backend surface the rubric wizard touches. A single
@@ -112,9 +119,14 @@ export async function installMocks(page: Page, opts: MockOptions): Promise<void>
 
         // Fetch the completed job's ExtractRubricResponse (the golden).
         if (method === 'GET' && /\/extraction-jobs\/job-e2e\/result$/.test(url)) {
+            const result = JSON.parse(resultJson);
+            if (opts.noFindings) {
+                result.annotations = [];
+                result.pedagogical_mistakes = [];
+            }
             return route.fulfill(json({
                 job_id: 'job-e2e',
-                result: JSON.parse(resultJson),
+                result,
                 warnings: [],
                 errors: [],
                 requires_review: null,
@@ -125,6 +137,7 @@ export async function installMocks(page: Page, opts: MockOptions): Promise<void>
         // Save (compile) the reviewed draft.
         if (method === 'POST' && url.includes('/save_ontology_draft')) {
             savePosts += 1;
+            opts.saveBodies?.push(req.postDataJSON());
             if (opts.save === 'reject-then-ok' && savePosts === 1) {
                 return route.fulfill(json({
                     detail: {

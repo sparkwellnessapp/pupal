@@ -97,6 +97,16 @@ export const TURN_ALL_FAILED = (dead: number) =>
   dead === 1
     ? 'לא הצלחנו לקרוא את המבחן — אפשר לנסות שוב'
     : `לא הצלחנו לקרוא את המבחנים — אפשר לנסות שוב`
+/**
+ * The batch's rubric has NO questions (a 0-question rubric saved before INV-7).
+ * Nothing in this batch can ever be read, so this names the RUBRIC as the cause
+ * and the one thing that helps — never «אפשר לנסות שוב», which cannot succeed.
+ */
+export const TURN_RUBRIC_EMPTY =
+  'המחוון של המבחן הזה ריק — אין בו שאלות. יש להעלות את המחוון מחדש, לוודא שהשאלות מופיעות, ולפתוח מבחן חדש'
+/** The failed card's sentence under the same condition. */
+export const FAILED_GUIDE_RUBRIC_EMPTY =
+  'לא ניתן לקרוא את המבחן כי המחוון שנבחר ריק — אין בו שאלות. ניסיון חוזר לא יעזור; יש להעלות את המחוון מחדש.'
 export const TURN_ALL_SIGNED = (n: number) =>
   n === 1 ? 'סיימת · מבחן אחד חתום' : `סיימת · ${n} מבחנים חתומים`
 

@@ -8,13 +8,15 @@ import {
     FAILED_GUIDE_LEGACY,
     FAILED_GUIDE_NET,
     FAILED_GUIDE_RETRYABLE,
+    FAILED_GUIDE_RUBRIC_EMPTY,
     FAILED_RETRY,
     FAILED_TITLE,
     NO_FILENAME,
 } from '@/copy/batch';
 import type { TranscriptionFailureItem } from '@/types/batch';
 
-function guidance(f: TranscriptionFailureItem): string {
+function guidance(f: TranscriptionFailureItem, rubricEmpty: boolean): string {
+    if (rubricEmpty) return FAILED_GUIDE_RUBRIC_EMPTY;
     if (f.net_verdict === 'local-no-internet' || f.net_verdict === 'local-dns') {
         return FAILED_GUIDE_NET;
     }
@@ -25,10 +27,14 @@ export function FailedZone({
     failures,
     onRetry,
     retryBusy,
+    rubricEmpty = false,
 }: {
     failures: TranscriptionFailureItem[];
     onRetry: (jobId: string) => void;
     retryBusy: ReadonlySet<string>;
+    /** The batch's rubric has no questions: every card names the rubric and
+     *  none offers a retry, because a retry would fail identically. */
+    rubricEmpty?: boolean;
 }) {
     if (failures.length === 0) return null;
     return (
@@ -45,7 +51,7 @@ export function FailedZone({
                     }
                     sub={
                         <span className="text-batch-red-ink">
-                            {guidance(f)}
+                            {guidance(f, rubricEmpty)}
                             <span
                                 className="mt-1 block break-all font-mono text-xs opacity-75"
                                 dir="ltr"
@@ -56,7 +62,7 @@ export function FailedZone({
                         </span>
                     }
                     actions={
-                        f.job_id && (
+                        f.job_id && !rubricEmpty && (
                             <button
                                 onClick={() => onRetry(f.job_id as string)}
                                 disabled={retryBusy.has(f.job_id as string)}

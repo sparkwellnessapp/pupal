@@ -126,6 +126,10 @@ export interface BatchDetailResponse {
   class_id: string | null
   /** B4: display names, resolved server-side. */
   rubric_name?: string | null
+  /** false ⇒ the batch is pinned to a 0-question rubric (compiled before INV-7):
+   *  no document can ever be read, so the screen names the RUBRIC and offers no
+   *  retry. Absent (an older backend) reads as true. */
+  rubric_has_questions?: boolean
   class_name?: string | null
   status: string
   started_at: string | null
