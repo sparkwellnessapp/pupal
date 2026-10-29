@@ -67,8 +67,14 @@ class Rubric(Base):
         return self.contract_json is not None and not self.needs_recompilation
 
     @property
+    def has_questions(self) -> bool:
+        """The CONTRACT has something to grade. INV-7 refuses an empty compile from
+        2026-10-29 on; this catches the 0-question contracts compiled before it."""
+        return bool((self.contract_json or {}).get("questions"))
+
+    @property
     def can_grade(self) -> bool:
-        return self.is_compiled
+        return self.is_compiled and self.has_questions
 
     def __repr__(self):
         return f"<Rubric(id={self.id}, name={self.name}, compiled={self.is_compiled})>"

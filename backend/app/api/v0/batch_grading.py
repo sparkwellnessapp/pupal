@@ -27,7 +27,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from ...api.deps import get_owned_or_404
+from ...api.deps import EMPTY_RUBRIC_DETAIL_HE, get_owned_or_404, require_gradable_rubric
 from ...api.guards import ensure_answer_keys_match_draft
 from ...config import settings
 from ...database import get_db, get_db_context
@@ -503,8 +503,7 @@ async def create_batch(
     as long as the batch exists (no separate "start").
     """
     rubric = await get_owned_or_404(db, Rubric, body.rubric_id, current_user.id)
-    if not rubric.is_compiled:
-        raise HTTPException(400, "המחוון לא עבר קומפילציה")
+    require_gradable_rubric(rubric)
     if body.class_id is not None:
         await get_owned_or_404(db, Class, body.class_id, current_user.id)
 
@@ -653,7 +652,13 @@ async def append_batch_file(
     on any intake path — every rejection is a 422 with a §3.2 reason, every
     downstream failure lands as a durable, retryable failed job.
     """
-    await get_owned_or_404(db, GradingBatch, batch_id, current_user.id)
+    batch = await get_owned_or_404(db, GradingBatch, batch_id, current_user.id)
+    # A batch pinned to a 0-question rubric (compiled before INV-7) can never
+    # read an exam; refuse the file with that reason rather than store it and
+    # fail its job a second later.
+    rubric = await db.get(Rubric, batch.rubric_id)
+    if rubric is not None and not rubric.has_questions:
+        raise HTTPException(422, EMPTY_RUBRIC_DETAIL_HE)
 
     # ── B7: honest per-file validation, §3.2 reasons verbatim ──
     pdf_bytes = await file.read()
@@ -1352,6 +1357,7 @@ async def get_batch(
         rubric_id=batch.rubric_id,
         class_id=batch.class_id,
         rubric_name=rubric.name if rubric else None,
+        rubric_has_questions=rubric.has_questions if rubric else True,
         class_name=class_name,
         status=_derive_batch_status(rollup),
         started_at=batch.started_at.isoformat() if batch.started_at else None,
@@ -1752,7 +1758,12 @@ async def retry_transcription_job(
     reset satisfies the 'queued' arm of the status-consistency CHECK
     (error/verdict/timestamps cleared; attempt_count survives — it counts
     claims, and increments again at the next claim)."""
-    await get_owned_or_404(db, GradingBatch, batch_id, current_user.id)
+    batch = await get_owned_or_404(db, GradingBatch, batch_id, current_user.id)
+    # A retry against a 0-question rubric would fail identically — refuse it
+    # with the reason instead of queueing a document that cannot be read.
+    rubric = await db.get(Rubric, batch.rubric_id)
+    if rubric is not None and not rubric.has_questions:
+        raise HTTPException(status_code=422, detail=EMPTY_RUBRIC_DETAIL_HE)
 
     # [OD-2] a withdrawn job is not part of the batch — a newer version of the
     # same submission replaced it, and retrying it would resurrect the old one.

@@ -230,6 +230,11 @@ class BatchDetailResponse(BaseModel):
     # B4: display names, resolved server-side (user-scoped; None if the class
     # was deleted — the SET NULL FK makes that real).
     rubric_name: Optional[str] = None
+    #: False ⇒ the batch is pinned to a 0-question rubric (compiled before INV-7):
+    #: no document in it can ever be read, so the client must name the RUBRIC as
+    #: the cause and offer no retry. Defaults True — a payload from a backend that
+    #: predates the field keeps today's behaviour.
+    rubric_has_questions: bool = True
     class_name: Optional[str] = None
     status: str                     # derived from rollup, not stored
     started_at: Optional[str] = None

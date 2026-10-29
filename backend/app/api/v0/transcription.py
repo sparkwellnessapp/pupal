@@ -18,7 +18,7 @@ from starlette.concurrency import run_in_threadpool
 
 from ...database import get_db
 from .auth import get_current_user
-from ...api.deps import get_owned_or_404
+from ...api.deps import get_owned_or_404, require_gradable_rubric
 from ...api.guards import ensure_answer_keys_match_draft
 from ...config import settings
 from ...models.grading import GradedTest, Rubric
@@ -124,11 +124,7 @@ async def transcribe(
     """
     # Ownership + compiled check (in request context where Depends(get_db) lives)
     rubric = await get_owned_or_404(db, Rubric, rubric_id, current_user.id)
-    if not rubric.is_compiled:
-        raise HTTPException(
-            status_code=400,
-            detail="המחוון לא עבר קומפילציה — יש להשלים אותו לפני בדיקת מבחנים",
-        )
+    require_gradable_rubric(rubric)
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="File must be a PDF")
     pdf_bytes = await file.read()

@@ -17,6 +17,7 @@ Invariants Validated:
 - INV-3 SubCriteriaPointsSum: Σ sc.points ≈ criterion.points (vacuous if empty)
 - INV-4 RubricPointsSum: Σ q.total_points ≈ contract.total_points
 - INV-6 CriterionAlignment: Every criterion links to skill/requirement (WARNING)
+- INV-7 RubricNotEmpty: ≥1 question (a question's points are > 0 by type)
 
 Compilation Blocking:
 - ERROR-severity annotations → CompilationError
@@ -140,6 +141,7 @@ class ContractCompiler:
         
         # Step 2: Validate point-sum invariants (collect errors, don't mutate)
         validation_errors: List[Annotation] = []
+        validation_errors.extend(self._validate_not_empty(response))
         validation_errors.extend(self._validate_point_sum_question(response, policy))
         validation_errors.extend(self._validate_point_sum_criterion(response, policy))
         validation_errors.extend(self._validate_point_sum_rubric(response, policy))
@@ -400,6 +402,33 @@ class ContractCompiler:
                     ))
 
         return errors
+
+    def _validate_not_empty(self, response: ExtractRubricResponse) -> List[Annotation]:
+        """
+        INV-7: RubricNotEmpty — a contract must have something to grade.
+
+        Every point-sum invariant is VACUOUS on an empty rubric (0 questions, declared
+        0 ⇒ INV-4 reads 0 == 0), so before this an empty draft compiled into a
+        "valid" contract. That is exactly what production did 2026-10-25..29: a
+        frontend stale closure sent the page's first-render state, three teachers got
+        a 0-question rubric that looked saved, and every exam transcribed against it
+        failed. Compilation is a CONSUMING path (§3.5a) — it refuses.
+
+        One question is enough: `Question.total_points > 0` is type-enforced, so a
+        non-empty rubric always has a positive grading denominator.
+        """
+        if not response.questions:
+            return [Annotation(
+                annotation_type="invariant_violation",
+                severity=AnnotationSeverity.ERROR,
+                message="The rubric has no questions — there is nothing to grade against",
+                message_he="המחוון ריק — אין בו שאלות, ולכן אי אפשר לבדוק לפיו מבחנים",
+                target_id=None,
+                invariant="INV-7",
+                expected="≥1",
+                actual="0",
+            )]
+        return []
 
     def _validate_point_sum_rubric(
         self,

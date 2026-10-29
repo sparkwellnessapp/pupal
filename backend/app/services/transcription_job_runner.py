@@ -47,6 +47,11 @@ from .transcription.vlm_provider import VLMCallError
 
 logger = logging.getLogger(__name__)
 
+
+class RubricUnusable(Exception):
+    """The job's rubric cannot grade anything (no questions). Terminal and NOT
+    retryable — every attempt would fail the same way until she re-saves it."""
+
 HEARTBEAT_INTERVAL_S = 60.0
 _DOC_RERUN_BACKOFF_S = 10.0
 #: A second full pipeline is only worth STARTING if the budget can plausibly
@@ -169,6 +174,10 @@ async def run_transcription_job(job_id: UUID) -> bool:
             rubric: Optional[Rubric] = await db.get(Rubric, rubric_id)
             if rubric is None:
                 raise ValueError(f"Rubric {rubric_id} not found")
+            if not rubric.has_questions:
+                raise RubricUnusable(
+                    f"rubric {rubric_id} has no questions — nothing to read the "
+                    f"exam against (re-upload and re-save the rubric)")
             spec_source = rubric.draft_json or rubric.contract_json
             subject = rubric.subject  # the durable key (migration 027); selects the P1 profile
 
@@ -270,6 +279,18 @@ async def run_transcription_job(job_id: UUID) -> bool:
                 transcription.id, job_id, batch_id,
                 draft.transcription_duration_ms, time.monotonic() - t0,
             )
+        return True
+
+    except RubricUnusable as exc:
+        # NOT a network verdict and NOT worth a model call: the batch's rubric
+        # cannot grade anything (a 0-question contract compiled before INV-7).
+        # Before this check the job downloaded the PDF, failed inside the spec
+        # parser, and net_diag told her to look at her WiFi (2026-10-29).
+        logger.warning("transcription_job_rubric_unusable job_id=%s: %s", job_id, exc)
+        try:
+            await _fail_job(job_id, exc, None)
+        except Exception:
+            logger.exception("transcription_failure_write_failed job_id=%s", job_id)
         return True
 
     except CaptureCompileFailed as exc:

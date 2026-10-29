@@ -869,7 +869,17 @@ export default function Home() {
   const openAdvisoryCount = useMemo(() => countFindingsByClass(findings).advisories, [findings]);
   const [advisoryPromptShown, setAdvisoryPromptShown] = useState(false);
 
-  const attemptSaveRubric = useCallback(() => {
+  // A PLAIN function, re-created every render — deliberately NOT a useCallback.
+  // It was one, with deps [hasBlockingErrors, openAdvisoryCount, advisoryPromptShown]
+  // and the exhaustive-deps lint suppressed, so it held the handleSaveRubric of the
+  // last render where one of those three changed. On a clean extraction (no
+  // findings) none ever changes after the result lands: the click saved the
+  // FIRST-RENDER state — questions [], no job id, default subject, name «מחוון».
+  // Production compiled that into 0-question rubrics (3 teachers, 2026-10-25..29)
+  // and every exam transcribed against them failed. Any edit made after the last
+  // change of those three was silently dropped the same way. Its only consumer is
+  // a button's onClick; memoizing bought nothing. Pinned by e2e/rubric-review.spec.ts.
+  const attemptSaveRubric = () => {
     if (hasBlockingErrors) {
       errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -879,8 +889,7 @@ export default function Home() {
       return;
     }
     handleSaveRubric();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasBlockingErrors, openAdvisoryCount, advisoryPromptShown]);
+  };
 
   const handleSaveRubric = async () => {
     // S1-2.4: the name is ALWAYS resolvable (captured > inferred > filename), so

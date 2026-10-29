@@ -28,3 +28,24 @@ async def get_owned_or_404(
     if obj is None:
         raise HTTPException(status_code=404, detail=f"{model.__name__} not found")
     return obj
+
+
+EMPTY_RUBRIC_DETAIL_HE = (
+    "המחוון הזה ריק — אין בו שאלות, ולכן אי אפשר לבדוק לפיו מבחנים. "
+    "יש להעלות את המחוון מחדש ולוודא שהשאלות מופיעות לפני השמירה."
+)
+
+
+def require_gradable_rubric(rubric) -> None:
+    """Refuse to queue exams against a rubric that cannot grade them (§3.5a: a
+    consuming path refuses loudly). Before this, a 0-question rubric (compiled
+    before INV-7) was accepted here, every exam's transcription failed in ~1 s,
+    and the teacher was told the READING failed and to try again — which could
+    never succeed."""
+    if not rubric.is_compiled:
+        raise HTTPException(
+            status_code=400,
+            detail="המחוון לא עבר קומפילציה — יש להשלים אותו לפני בדיקת מבחנים",
+        )
+    if not rubric.has_questions:
+        raise HTTPException(status_code=422, detail=EMPTY_RUBRIC_DETAIL_HE)

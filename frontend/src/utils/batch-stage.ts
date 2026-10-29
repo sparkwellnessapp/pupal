@@ -38,7 +38,7 @@ import {
     CHIP_DONE, CHIP_FAILED, CHIP_GRADING, CHIP_TRANSCRIBING, CHIP_UPLOADING,
     CHIP_AWAITING_EXAMS, TURN_AWAITING_EXAMS, TURN_CAPTURE_NOT_YET, TURN_CAPTURE_OPEN,
     CHIP_PARTIAL, CHIP_WAITING_APPROVAL, CHIP_WAITING_SIGNATURE,
-    TURN_ALL_FAILED, TURN_PARTIAL,
+    TURN_ALL_FAILED, TURN_PARTIAL, TURN_RUBRIC_EMPTY,
     TURN_ALL_SIGNED, TURN_GRADED_UNSIGNED, TURN_GRADING_NONE_READY,
     TURN_GRADING_SOME_READY, TURN_TRANSCRIBED_ALL, TURN_TRANSCRIBED_NEEDS_LOOK,
     TURN_TRANSCRIBING_MIXED, TURN_TRANSCRIBING_ONLY, TURN_UPLOADING,
@@ -116,6 +116,9 @@ export interface StageBatch {
     eta?: BatchEta | null
     /** [036, OD-10] The batch's capture link state, when it has one. */
     capture_link_state?: 'not_yet_open' | 'open' | 'closed' | null
+    /** `false` ⇒ the batch's rubric has no questions (saved before INV-7).
+     *  Absent reads as true — an older payload keeps today's behaviour. */
+    rubric_has_questions?: boolean
 }
 
 const CHIPS: Record<ChipKey, StageChip> = {
@@ -178,6 +181,15 @@ export function deriveBatchStage(batch: StageBatch): BatchStage {
     const r = batch.rollup
     const uploading = r.uploading ?? 0
     const moving = movingOf(batch)
+
+    // A rubric with no questions can read nothing, so it outranks every other
+    // row: while files are still arriving the server says `in_progress`, yet each
+    // one fails a second after it lands. Naming the rubric is the only sentence
+    // that tells her what to do; «אפשר לנסות שוב» would send her into a retry
+    // that cannot succeed (2026-10-29).
+    if (batch.rubric_has_questions === false) {
+        return { step: STEP_OF.failed, chip: CHIPS.failed, turnLine: TURN_RUBRIC_EMPTY }
+    }
 
     // A whole-batch failure is the server's word, not ours to re-litigate.
     // Per-item failures are shown on the item and never reach the chip (§5.1C).

@@ -221,7 +221,12 @@ def spec_from_rubric_draft_data(data: dict, *, name: str,
     ValueError (loudly, with what it saw) rather than guessing.
     """
     qs = data.get("questions") if isinstance(data, dict) else None
-    if not isinstance(qs, list) or not qs:
+    if isinstance(qs, list) and not qs:
+        # Say WHICH failure this is. The old single message listed 'questions'
+        # among the keys it claimed were missing it (2026-10-29: an EMPTY list
+        # from a 0-question rubric), which sent the reader looking for a shape bug.
+        raise ValueError(f"{name}: the rubric's 'questions' list is EMPTY — nothing to segment against.")
+    if not isinstance(qs, list):
         raise ValueError(
             f"{name}: expected a top-level 'questions' list in the rubric "
             f"draft_json; found keys {sorted(data) if isinstance(data, dict) else type(data)}."

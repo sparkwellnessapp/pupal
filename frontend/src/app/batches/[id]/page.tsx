@@ -862,7 +862,7 @@ export default function BatchDetailPage() {
                     </>
                 )}
 
-                <FailedZone failures={batch.transcription_failures ?? []} onRetry={retryJob} retryBusy={retryBusy} />
+                <FailedZone failures={batch.transcription_failures ?? []} onRetry={retryJob} retryBusy={retryBusy} rubricEmpty={batch.rubric_has_questions === false} />
 
                 <div ref={gradesRef}>
                     <GradeReviewSection
