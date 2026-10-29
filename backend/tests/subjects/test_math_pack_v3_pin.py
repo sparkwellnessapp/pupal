@@ -1,5 +1,9 @@
 """[owner rulings 2026-10-18 16:15 §3] the Math pack ships with the EXACT bytes that were evaluated.
 
+v4 (2026-10-29, owner-approved direct-API eval, RUNLOG): verifier only — held-out K1 0, 70/72
+(v3 re-run 69/72); smoke 54/57 (v3 53/57), the one K1 the §2a phantom. Planner unchanged (v3).
+The shipped bytes differ from the evaluated run by ONE line join (whitespace, the 12-line guard).
+
 Pack v3 passed the §6b smoke (after the §2a phantom exclusion and the §2b re-assembly) and the
 sealed held-out set (70/72, K1 0) — plans `d2d838a9` / `a79166be`, RUNLOG 2026-10-18. A change to
 either fragment is a NEW pack: bump `PACK_VERSION` (which moves every Math plan's config hash),
@@ -12,9 +16,9 @@ import hashlib
 from app.subjects.profiles.mathematics import PACK_VERSION, PLANNER_FRAGMENT, VERIFIER_FRAGMENT
 
 EVALUATED = {
-    "pack_version": "v3",
+    "pack_version": "v4",
     "planner_fragment_sha256": "5bf1367e35d661c07009b6333faef11514c09492531ced027770dea36e75287c",
-    "verifier_fragment_sha256": "fa064a2a33d2d397189e6b09daf5919a1f9e83f713e3a8c774e5f3a6a93271be",
+    "verifier_fragment_sha256": "7ab44c8f68fbffc2535a23ebb41023e99c5990604a0c21410827df4483117f1d",
 }
 
 

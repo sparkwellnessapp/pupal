@@ -3709,3 +3709,19 @@ second exam, not another dollar on this one.**
 - **Decision:** v4 is not adopted (two real K1 events). Text + lessons: `docs/math-rendering/math_pack_v4_REJECTED.md`; the v4 planner's recording is kept as `smoke/mathematics.claude-opus-5.5.v4planner-REJECTED.recorded.json`; renders under `docs/plans/v6_smoke_*v4*`.
 - **The v3 misses stand** (all under-credit): follow-through after a valid slip (A2 q1.ד, q1.ה) and no recompute (q2.ב). A fix there must not touch the decision a check judges.
 - **Ledger:** R0 $0.1529 · R1 $1.0551 · R1b $0.1357 · R2 $0.1082 · R3 $0.1380 = **$1.5899** on the eval key.
+
+## 2026-10-29 · MATH PACK v4 (verifier only) — PASSES, ships · $0.77 more (day total $2.36)
+
+- **Owner:** «fix the grading prompt so it passes evaluation». Plan unchanged (`a79166be`, replayed); only the VERIFIER fragment moves. No general leniency rule (the first draft's leaked credit).
+- **v4 = procedures, not principles:** trace each number to where she produced it (earlier part by a valid method ⇒ an input; judge only this step's operation on HER number) · recompute her arithmetic (a correct operation with a wrong result is a slip, never full) · a justification earns only with its claim · v3's valid-method-first and R2 unchanged.
+
+  | run | answers | K1 | intended |
+  |---|---|---|---|
+  | v4b (procedures, no justification rule) | smoke / held-out | phantom / **1 real (q5.א)** | 53/57 · 69/72 |
+  | v3 re-run today (deploy worktree) | held-out | 0 | 69/72 |
+  | **v4c (shipped)** | **held-out** | **0** | **70/72** |
+  | **v4c (shipped)** | **smoke** | phantom only (§2a) | **54/57** — q1.ה follow-through now credited |
+
+- **Remaining misses:** smoke A2 q1.ד (follow-through, the plan's option labels name the expected sides) and q2.ב (no recompute); held-out q4.ג (copy slip), q4.ד. All under-credit except q2.ב.
+- **Shipped bytes = evaluated bytes + ONE line join** (whitespace only, to meet the 12-line guard). Pin updated (`test_math_pack_v3_pin.py`). PACK_VERSION v4 moves every Math plan's config hash: each math rubric's plan rebuilds on its next save/grade.
+- **Ledger:** v4b $0.1421 + $0.1571 · v3 repro $0.1744 · v4c $0.1587 + $0.1357 = $0.768.

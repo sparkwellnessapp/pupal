@@ -14,7 +14,7 @@ KEY = "mathematics"
 
 # The v6 pack identity (config_hash input, §3.5). Bump PACK_VERSION with ANY change to the pack files.
 PACK_ID = KEY
-PACK_VERSION = "v3"   # v2 (Oct 18, Item A); v3 (Oct 18 15:40/15:55): R2 follow-through + a part judged on its own work
+PACK_VERSION = "v4"   # v2 (Oct 18, Item A); v3 (Oct 18): R2; v4 (2026-10-29): the verifier traces each number to where she produced it, then recomputes (planner unchanged = v3)
 
 MODALITIES = ("math_notation", "prose", "figure")
 
