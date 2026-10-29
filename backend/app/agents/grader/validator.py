@@ -27,7 +27,7 @@ from app.schemas.ontology_types import (
     QuoteValidationStatus,
 )
 from app.agents.grader.schemas import QuestionGradingResponse
-from app.services.math_notation import canonicalize as canonicalize_math
+from app.services.math_notation.quote_match import match_form
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -302,21 +302,26 @@ def _best_substring_ratio(quote: str, text: str) -> float:
     return _coverage_score(quote, text)
 
 
-def quote_match_status(quote_text: str, student_answer: str) -> Optional[QuoteValidationStatus]:
+def quote_match_status(quote_text: str, student_answer: str, *,
+                       math_notation: bool = False) -> Optional[QuoteValidationStatus]:
     """Pure per-SPAN quote check — the primitive shared by the v3 terminal-level
     validation below and the grader-v5 per-check span validation. Returns None
     for an empty quote (no claim to validate). Same normalization and the same
-    0.85 sliding-window bar as _validate_quote — one definition, two callers."""
+    0.85 sliding-window bar as _validate_quote — one definition, two callers.
+
+    `math_notation` — the subject has the math_notation modality: both sides are
+    compared in the QM-1 match form (`math_notation.quote_match`), typographically
+    and never by mathematical equivalence, so a fragment of a formula quoted
+    without its `\\( \\)` finds the student's marks. False ⇒ byte-for-byte the
+    plain rule, so a CS answer is untouched by construction."""
     if not quote_text:
         return None
-    # Math spans are compared TYPOGRAPHICALLY (MATH_RENDERING_PLAN §4, OD-M3): a
-    # quote that writes dfrac where the answer has frac cites the same
-    # marks. Never mathematical equivalence. Identity on text with no `\(`, so
-    # every CS answer is untouched by construction.
-    quote_text = canonicalize_math(quote_text)
-    student_answer = canonicalize_math(student_answer or "")
-    norm_quote = " ".join(quote_text.lower().split())
-    norm_answer = " ".join((student_answer or "").lower().split())
+    if math_notation:
+        norm_quote = match_form(quote_text)
+        norm_answer = match_form(student_answer or "")
+    else:
+        norm_quote = " ".join(quote_text.lower().split())
+        norm_answer = " ".join((student_answer or "").lower().split())
     if norm_quote in norm_answer:
         return QuoteValidationStatus.EXACT
     ratio = _best_substring_ratio(norm_quote, norm_answer)

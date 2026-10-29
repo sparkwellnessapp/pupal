@@ -2177,7 +2177,8 @@ async def extract_rubric_from_docx(
             from .image_render import render_source
             rendered, render_report = await render_source(
                 file_bytes, source_filename,
-                deadline_s=(deadline.remaining() if deadline.bounded else None))
+                deadline_s=(deadline.remaining() if deadline.bounded else None),
+                subject=config.subject)
             metrics.render_time_seconds = time.time() - t0
             metrics.rendered_chars = len(rendered)
             _rsp.set(chars=len(rendered), stage=render_report.stage).blob("rendered_markdown", rendered)
@@ -2207,6 +2208,13 @@ async def extract_rubric_from_docx(
         await _emit("build")
         rubric_name = name or test_topic or ""
         response, warnings = _build_response(extraction, rubric_name, issues, profile=profile)
+        if render_report.ole_equations:
+            # FC: an equation the renderer cannot read is never a silent gap — she is told
+            # how many, so she checks those criteria and solutions against her document.
+            warnings.append(
+                f"במחוון יש {render_report.ole_equations} משוואות שנכתבו בעורך משוואות ישן "
+                "(MathType / Equation 3), וויוי לא יכולה לקרוא אותן. כדאי לבדוק מול המסמך "
+                "את הקריטריונים ואת הפתרונות שבהם הן מופיעות.")
         if profile.rescale_to_exam:
             # D-13 (Phase 2b): the teacher's per-question-100 weights → the exam's
             # real total on the 0.25 grid. Deterministic code, never the model.

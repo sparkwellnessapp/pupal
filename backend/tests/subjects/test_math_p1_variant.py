@@ -154,7 +154,7 @@ def test_a_typographic_variant_of_the_answer_is_an_exact_quote(quote, answer):
     from app.agents.grader.validator import quote_match_status
     from app.schemas.ontology_types import QuoteValidationStatus
 
-    assert quote_match_status(quote, answer) == QuoteValidationStatus.EXACT
+    assert quote_match_status(quote, answer, math_notation=True) == QuoteValidationStatus.EXACT
 
 
 def test_a_different_form_is_not_the_same_quote():
@@ -162,7 +162,8 @@ def test_a_different_form_is_not_the_same_quote():
     from app.agents.grader.validator import quote_match_status
     from app.schemas.ontology_types import QuoteValidationStatus
 
-    assert quote_match_status(r"\(e^{-1}\)", r"\(\frac{1}{e}\)") != QuoteValidationStatus.EXACT
+    assert quote_match_status(r"\(e^{-1}\)", r"\(\frac{1}{e}\)",
+                              math_notation=True) != QuoteValidationStatus.EXACT
 
 
 def test_cs_quotes_are_untouched():

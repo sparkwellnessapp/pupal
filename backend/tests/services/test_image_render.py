@@ -63,7 +63,7 @@ def test_pages_as_images_docx_triggers_the_reader():
     data = _need(MATH4)
     seen = {}
 
-    async def fake_read(images, *, deadline_s=None, report=None, max_parallel=4):
+    async def fake_read(images, *, deadline_s=None, report=None, max_parallel=4, **_kw):
         seen["n"] = len(images)
         report.stage = "image_read"
         report.pages_read = len(images)
@@ -82,7 +82,7 @@ def test_pdf_always_goes_through_the_reader():
     data = _need(MATH4_PDF)
     seen = {}
 
-    async def fake_read(images, *, deadline_s=None, report=None, max_parallel=4):
+    async def fake_read(images, *, deadline_s=None, report=None, max_parallel=4, **_kw):
         seen["n"] = len(images)
         report.stage = "image_read"
         return "=== PAGE 1 ===\nשאלה 1\n", report

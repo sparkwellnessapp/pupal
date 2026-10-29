@@ -124,6 +124,8 @@ class OptionsVerifyGrader:
         self._precision = Decimal(str(contract.numeric_policy.precision))
         self._model_version = model_version
         self._profile = profile
+        # QM-1: a math subject's quotes are matched in the math match form
+        self._math_notation = "math_notation" in profile.modalities
         self._sc_n = sc_n
         self._explain = explain
         self._explainer_prompt_version = explainer_prompt_version
@@ -286,7 +288,8 @@ class OptionsVerifyGrader:
                     continue
                 status = None
                 if v.option_id != check.default_option.option_id:   # §6.3: every non-default option
-                    st = quote_match_status(v.evidence_quote, answer)
+                    st = quote_match_status(v.evidence_quote, answer,
+                                            math_notation=self._math_notation)
                     status = st.value if st is not None else "not_found"
                 records.append(CheckRecordV6(
                     plan=check, plan_index=order[check.check_id], model_option_id=v.option_id,

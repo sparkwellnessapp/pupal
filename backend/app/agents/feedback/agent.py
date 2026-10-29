@@ -23,9 +23,9 @@ from typing import List, Optional, Sequence, Tuple
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agents.feedback.prompt import (
-    FEEDBACK_PROMPT_VERSION,
-    FEEDBACK_SYSTEM_PROMPT,
     build_feedback_message,
+    feedback_prompt_version,
+    feedback_system_prompt,
 )
 from app.agents.feedback.schemas import FeedbackResponse
 from app.schemas.graded_test_draft import (
@@ -34,6 +34,7 @@ from app.schemas.graded_test_draft import (
     GradingAnnotation,
 )
 from app.schemas.ontology_types import AnnotationSeverity
+from app.services.math_notation.written import normalize_written_math
 from app.services.provider_billing import log_billing_exhausted
 
 logger = logging.getLogger(__name__)
@@ -43,8 +44,11 @@ class FeedbackAgent:
     """generate(scopes) -> (FeedbackBlock | None, [GradingAnnotation])."""
 
     def __init__(self, llm, model_version: str, *,
-                 graded_test_id: Optional[object] = None) -> None:
+                 graded_test_id: Optional[object] = None,
+                 math_notation: bool = False) -> None:
         self._model_version = model_version
+        # a math subject's feedback is asked for `\( … \)` spans and normalised to them
+        self._math = math_notation
         # [A-8] carried only so an «out of credits» failure can name its row.
         self._graded_test_id = graded_test_id
         # A raw runner (the test fake) is used as-is; a real chat model gets the
@@ -62,7 +66,7 @@ class FeedbackAgent:
         """`scopes` is [(scope_id, rendered_priced_view)] in document order."""
         try:
             parsed = await self._runner.ainvoke([
-                SystemMessage(content=FEEDBACK_SYSTEM_PROMPT),
+                SystemMessage(content=feedback_system_prompt(self._math)),
                 HumanMessage(content=build_feedback_message(scopes)),
             ])
         except Exception as exc:                       # noqa: BLE001 — see docstring
@@ -99,11 +103,12 @@ class FeedbackAgent:
                                "output_tokens": usage.get("output_tokens", 0)}
             parsed = parsed["parsed"]
 
-        by_scope = {s.scope_id: s.text for s in (parsed.scopes or [])}
+        tidy = normalize_written_math if self._math else (lambda t: t)
+        by_scope = {s.scope_id: tidy(s.text) for s in (parsed.scopes or [])}
         return FeedbackBlock(
             scopes={sid: FeedbackText(text=by_scope.get(sid, ""))
                     for sid, _ in scopes if by_scope.get(sid)},
-            summary=FeedbackText(text=parsed.summary or ""),
+            summary=FeedbackText(text=tidy(parsed.summary or "")),
             model_version=self._model_version,
-            prompt_version=FEEDBACK_PROMPT_VERSION,
+            prompt_version=feedback_prompt_version(self._math),
         ), []

@@ -22,7 +22,7 @@ from __future__ import annotations
 from typing import List, Tuple
 
 from .spans import map_math_bodies
-from .tokens import Token, tokenize, untokenize
+from .tokens import PToken, tokenize_at, untokenize_at
 
 _SPACING_CS = frozenset({"\\,", "\\;", "\\:", "\\!", "\\ ", "\\>"})
 _DROP_CW = frozenset({
@@ -45,14 +45,24 @@ _ARITY = {"\\frac": 2, "\\binom": 2, "\\sqrt": 1, "\\overline": 1, "\\underline"
           "\\vec": 1, "\\hat": 1, "\\bar": 1, "\\cancel": 1, "\\boxed": 1, "\\overrightarrow": 1}
 
 
-def _group_end(toks: List[Token], i: int) -> Tuple[int, bool]:
-    """(index just past the brace group opening at `toks[i] == ("ch","{")`, closed?)."""
+def _is(tok: PToken, kind: str, val: str) -> bool:
+    return tok[0] == kind and tok[1] == val
+
+
+def _made(kind: str, val: str, like: PToken) -> PToken:
+    """A token canonicalisation PRODUCED (a synonym, a brace it added), sited where the
+    token it stands for was read — so a mark on it lands on the student's own marks."""
+    return (kind, val, like[2], like[3])
+
+
+def _group_end(toks: List[PToken], i: int) -> Tuple[int, bool]:
+    """(index just past the brace group opening at `toks[i]` = `{`, closed?)."""
     depth = 0
     j = i
     while j < len(toks):
-        if toks[j] == ("ch", "{"):
+        if _is(toks[j], "ch", "{"):
             depth += 1
-        elif toks[j] == ("ch", "}"):
+        elif _is(toks[j], "ch", "}"):
             depth -= 1
             if depth == 0:
                 return j + 1, True
@@ -60,12 +70,13 @@ def _group_end(toks: List[Token], i: int) -> Tuple[int, bool]:
     return len(toks), False              # unbalanced: take the rest, never invent a brace
 
 
-def _canon(toks: List[Token]) -> List[Token]:
-    out: List[Token] = []
+def _canon(toks: List[PToken]) -> List[PToken]:
+    out: List[PToken] = []
     i = 0
     while i < len(toks):
-        kind, val = toks[i]
-        if kind == "cw" and val in _TEXT_CMDS and i + 1 < len(toks) and toks[i + 1] == ("ch", "{"):
+        tok = toks[i]
+        kind, val = tok[0], tok[1]
+        if kind == "cw" and val in _TEXT_CMDS and i + 1 < len(toks) and _is(toks[i + 1], "ch", "{"):
             end, _ = _group_end(toks, i + 1)
             out.extend(toks[i:end])      # text is verbatim, its spaces included
             i = end
@@ -78,62 +89,69 @@ def _canon(toks: List[Token]) -> List[Token]:
             continue
         if kind == "cw" and val in _DROP_CW:
             i += 1
-            if val in _SIZERS_WITH_INVISIBLE_DOT and i < len(toks) and toks[i] == ("ch", "."):
+            if val in _SIZERS_WITH_INVISIBLE_DOT and i < len(toks) and _is(toks[i], "ch", "."):
                 i += 1                   # `\left.` is an invisible delimiter
             continue
         if kind == "cw":
             val = _SYNONYMS.get(val, val)
             kind = "ch" if len(val) == 1 else ("cs" if len(val) == 2 and not val[1].isalpha() else "cw")
+            tok = _made(kind, val, tok)
         if kind == "ch" and val in ("^", "_"):
-            out.append((kind, val))
+            out.append(tok)
             i = _canon_arg(toks, i + 1, out)
             continue
         if kind == "cw" and val in _ARITY:
-            out.append((kind, val))
+            out.append(tok)
             i += 1
             if val == "\\sqrt":
                 i = _skip_ws(toks, i)
-                if i < len(toks) and toks[i] == ("ch", "["):   # optional index, verbatim
+                if i < len(toks) and _is(toks[i], "ch", "["):   # optional index, verbatim
                     j = i
-                    while j < len(toks) and toks[j] != ("ch", "]"):
+                    while j < len(toks) and not _is(toks[j], "ch", "]"):
                         j += 1
                     out.extend(_canon(toks[i:j + 1]))
                     i = j + 1
             for _ in range(_ARITY[val]):
                 i = _canon_arg(toks, i, out)
             continue
-        out.append((kind, val))
+        out.append(tok)
         i += 1
     return out
 
 
-def _skip_ws(toks: List[Token], i: int) -> int:
+def _skip_ws(toks: List[PToken], i: int) -> int:
     while i < len(toks) and toks[i][0] == "ch" and toks[i][1].isspace():
         i += 1
     return i
 
 
-def _canon_arg(toks: List[Token], i: int, out: List[Token]) -> int:
+def _canon_arg(toks: List[PToken], i: int, out: List[PToken]) -> int:
     """Emit one argument as a brace group, whatever form it came in."""
     i = _skip_ws(toks, i)
     if i >= len(toks):
         return i
-    if toks[i] == ("ch", "{"):
+    if _is(toks[i], "ch", "{"):
         end, closed = _group_end(toks, i)
-        out.append(("ch", "{"))
+        out.append(toks[i])
         out.extend(_canon(toks[i + 1:end - 1] if closed else toks[i + 1:end]))
         if closed:                       # an unclosed group stays unclosed
-            out.append(("ch", "}"))
+            out.append(toks[end - 1])
         return end
     # a single token argument: one character or one command
-    out.append(("ch", "{"))
+    out.append(_made("ch", "{", toks[i]))
     out.extend(_canon([toks[i]]))
-    out.append(("ch", "}"))
+    out.append(_made("ch", "}", toks[i]))
     return i + 1
 
 
+def canon_tokens(toks: List[PToken]) -> List[PToken]:
+    """The canonical token stream, offsets kept. `quote_match` reads it; nothing else
+    re-implements these rules."""
+    return _canon(toks)
+
+
 def canonical_math_body(body: str) -> str:
-    return untokenize(_canon(tokenize(body)))
+    return untokenize_at(_canon(tokenize_at(body)))[0]
 
 
 def canonicalize(text: str) -> str:

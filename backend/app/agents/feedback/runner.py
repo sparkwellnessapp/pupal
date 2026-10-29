@@ -29,8 +29,22 @@ def build_feedback_model():
     return build_chat_model(settings.feedback_model_provider, settings.feedback_model_key, **knobs)
 
 
-async def attach_feedback(draft, *, graded_test_id=None, usage: Optional[dict] = None):
+def subject_has_math_notation(subject: Optional[str]) -> bool:
+    """The subject's capability, from the registry — never a string compare (§3.3).
+    An unknown or absent subject is the default profile's answer."""
+    from app.subjects import UnknownSubject, get_profile
+    try:
+        return "math_notation" in get_profile(subject or "computer_science").modalities
+    except UnknownSubject:
+        return False
+
+
+async def attach_feedback(draft, *, graded_test_id=None, usage: Optional[dict] = None,
+                          subject: Optional[str] = None):
     """draft -> draft (with `feedback`, or unchanged). Never raises.
+
+    `subject` — the rubric's subject; a math-notation subject's feedback is written in
+    `\\( … \\)` spans (`FeedbackAgent(math_notation=…)`).
 
     `graded_test_id` only names the row in an A-8 billing alert. `usage`, when given,
     receives the call's model and tokens — [D-7] a v6 grade counts them in its cost."""
@@ -54,7 +68,8 @@ async def attach_feedback(draft, *, graded_test_id=None, usage: Optional[dict] =
         return draft
 
     agent = FeedbackAgent(llm, model_version=settings.feedback_model_key,
-                          graded_test_id=graded_test_id)
+                          graded_test_id=graded_test_id,
+                          math_notation=subject_has_math_notation(subject))
     block, annotations = await agent.generate([(i.scope_id, i.rendered) for i in inputs])
     if usage is not None:
         usage.update(model=settings.feedback_model_key, **dict(agent.last_usage))

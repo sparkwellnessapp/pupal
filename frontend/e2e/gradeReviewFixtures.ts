@@ -137,7 +137,7 @@ function withGradedAnswers(
     };
 }
 
-const RUBRIC = {
+export const RUBRIC = {
     id: '22222222-2222-4222-8222-222222222222',
     name: 'מתכונת 1 — שאלון 899371',
     contract_json: {

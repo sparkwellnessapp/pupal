@@ -1399,11 +1399,15 @@ async def regenerate_feedback(
         raise HTTPException(status_code=404,
                             detail=f"Unknown feedback target '{target}'.")
     asked = inputs if target == "summary" else [by_scope[target]]
+    from ...agents.feedback.runner import subject_has_math_notation
+    rubric_subject = (await db.execute(
+        select(Rubric.subject).where(Rubric.id == row.rubric_id))).scalar_one_or_none()
     await db.close()
 
     agent = FeedbackAgent(build_feedback_model(),
                           model_version=settings.feedback_model_key,
-                          graded_test_id=graded_test_id)  # [A-8] names the row
+                          graded_test_id=graded_test_id,   # [A-8] names the row
+                          math_notation=subject_has_math_notation(rubric_subject))
     # [OD-B2] the feedback prompt carries the student's graded answers.
     from ...tracing import student_data_run
     with student_data_run(graded_test_id=graded_test_id, transcription_id=transcription_id):

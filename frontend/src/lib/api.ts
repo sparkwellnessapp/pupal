@@ -317,6 +317,8 @@ export interface RubricListItem {
   needs_recompilation?: boolean;
   total_points?: number;
   total_questions?: number;
+  /** The durable subject key (migration 027) — decides how the rubric's text is drawn. */
+  subject?: string | null;
 }
 
 /** Full rubric detail — returned by getRubric(). Extends RubricListItem with draft/contract JSON. */

@@ -1,0 +1,208 @@
+{
+  "_about": "grader-v6 Math/English KNOWN-ANSWER smoke (owner rulings Oct 6 §3 item 7c; Oct 6 evening §7.5). No real student answers exist for either rubric, so each has three TYPED answers, injected as approved transcription contracts (P1 out of scope): fully correct · deliberately partial · blank or wrong. The intended class of every criterion is written here and in PREDICTIONS.md BEFORE any run. Nothing here derives from a grading run. [LaTeX copy, 2026-10-29: the same answers in the notation production transcribes in (tools/latexify_answers.py); intended classes unchanged.]",
+  "subjects": {
+    "mathematics": {
+      "contract": "../../rubric_eval_suite/snapshots/2026-09-09_multisubject-smoke/math3_docx/contract.json",
+      "fixture_note": "math3 (3-unit, choose 4 of 5): every graded leaf carries the teacher's own solution, so 'fully correct' is defined. math4 has parts with no content at all (q2 has no marking scheme; q4.ו and q5.ד are bare labels), where no answer can be known to be full.",
+      "answers": {
+        "A1_full": {
+          "1": {
+            "א": "\\(S = 4.8 \\cdot 3.6 = 17.28\\) מ\"ר",
+            "ב": "לפי משפט פיתגורס: \\(4.8^{2} + 3.6^{2} = c^{2}\\)\n\\(23.04 + 12.96 = 36 = c^{2}\\)\n\\(c = 6\\)\nאורך האלכסון הוא \\(6\\) מטרים.",
+            "ג": "\\(25\\%\\) מ-\\(3.6\\): \\(3.6 \\cdot 25/100 = 0.9\\), ולכן הצלע הקצרה: \\(3.6 + 0.9 = 4.5\\) מ'.\n\\(25\\%\\) מ-\\(4.8\\): \\(4.8 \\cdot 25/100 = 1.2\\), ולכן הצלע הארוכה: \\(4.8 + 1.2 = 6\\) מ'.\nאורך הצלע הקצרה \\(4.5\\) מ', אורך הצלע הארוכה \\(6\\) מ'.",
+            "ד": "\\(S = 4.5 \\cdot 6 = 27\\) מ\"ר",
+            "ה": "\\(27 / 17.28 \\cdot 100 = 156.25\\%\\)\n\\(156.25 - 100 = 56.25\\)\nהשטח גדל ב-\\(56.25\\%\\)."
+          },
+          "2": {
+            "א": "\\(h = 20 + 1 = 21\\) ס\"מ",
+            "ב": "מחלקים את המשולש לשני משולשים ישרי זווית בעזרת הגובה. במשולש \\(ADC\\) הניצב האחד הוא חצי מהבסיס, \\(10\\), והשני הוא הגובה, \\(21\\).\n\\(21^{2} + 10^{2} = c^{2}\\)\n\\(441 + 100 = 541\\)\n\\(c = \\sqrt{541} \\approx 23.26\\)\nאורך השוק \\(23.26\\) ס\"מ.",
+            "ג": "\\(P = 23.26 + 23.26 + 20 = 66.52\\) ס\"מ",
+            "ד": "\\(S = (20 \\cdot 21) / 2 = 210\\) סמ\"ר"
+          },
+          "4": {
+            "א": "לפי אפשרות ב': \\(90 \\cdot 12 = 1080\\) ש\"ח",
+            "ב": "אפשרות א': \\(y = 1620 + 30x\\)",
+            "ג": "אפשרות ב': \\(y = 90x\\)",
+            "ד": "\\(90x = 1620 + 30x\\)\n\\(60x = 1620\\)\n\\(x = 27\\)\nהמחיר שווה בשתי האפשרויות כאשר לוקחים \\(27\\) שיעורים."
+          },
+          "5": {
+            "א": "גרף \\(I\\) מתאר את הצעה א', כי הוא לא מתחיל בראשית הצירים אלא ב-\\(1000\\) ש\"ח (התשלום הקבוע), והשיפוע שלו קטן יותר (\\(20\\) ש\"ח למשתתף לעומת \\(30\\)).",
+            "ב": "הצעה א': \\(y = 1000 + 20 \\cdot 150 = 4000\\) ש\"ח\nהצעה ב': \\(y = 30 \\cdot 150 = 4500\\) ש\"ח\nעדיף לבחור בהצעה א', כי עבור \\(150\\) משתתפים היא זולה יותר.",
+            "ג": "\\(1000 + 20x = 4000\\)\n\\(20x = 3000\\)\n\\(x = 150\\)\nבאירוע השתתפו \\(150\\) משתתפים.",
+            "ד": "\\(1000 + 20x = 30x\\)\n\\(1000 = 10x\\)\n\\(x = 100\\)\nבכל אחד מהקיבוצים השתתפו \\(100\\) משתתפים."
+          }
+        },
+        "A2_partial": {
+          "1": {
+            "א": "\\(S = 4.8 \\cdot 3.6 = 17.28\\) מ\"ר",
+            "ב": "האלכסון הוא \\(4.8 + 3.6 = 8.4\\) מ'",
+            "ג": "\\(25\\%\\) מ-\\(3.6\\) זה \\(0.8\\), ולכן הצלע הקצרה: \\(3.6 + 0.8 = 4.4\\) מ'.\n\\(25\\%\\) מ-\\(4.8\\): \\(4.8 \\cdot 25/100 = 1.2\\), ולכן הצלע הארוכה: \\(4.8 + 1.2 = 6\\) מ'.",
+            "ד": "\\(S = 4.4 \\cdot 6 = 26.4\\) מ\"ר",
+            "ה": "\\(26.4 / 17.28 \\cdot 100 = 152.78\\%\\)\n\\(152.78 - 100 = 52.78\\)\nהשטח גדל ב-\\(52.78\\%\\)."
+          },
+          "2": {
+            "א": "\\(h = 20 + 1 = 21\\) ס\"מ",
+            "ב": "מחלקים את המשולש לשני משולשים ישרי זווית. במשולש \\(ADC\\): \\(21^{2} + 10^{2} = c^{2}\\)\n\\(441 + 100 = 541\\)\n\\(c = 23.6\\) ס\"מ",
+            "ג": "",
+            "ד": "\\(S = (20 \\cdot 21) / 2 = 210\\) סמ\"ר"
+          },
+          "4": {
+            "א": "\\(90 \\cdot 12 = 1080\\) ש\"ח",
+            "ב": "\\(y = 1620 + 30x\\)",
+            "ג": "\\(y = 90 + x\\)",
+            "ד": "\\(90x = 1620 + 30x\\)\n\\(60x = 1620\\)\n\\(x = 28\\)"
+          },
+          "5": {
+            "א": "",
+            "ב": "הצעה א': \\(1000 + 20 \\cdot 150 = 4000\\) ש\"ח",
+            "ג": "\\(1000 + 20x = 4000\\)\n\\(20x = 3000\\)\n\\(x = 150\\)",
+            "ד": "\\(30x = 1000\\)\n\\(x = 33\\)"
+          }
+        },
+        "A3_wrong": {
+          "1": {
+            "א": "\\(S = 4.8 + 3.6 = 8.4\\) מ\"ר",
+            "ב": "האלכסון: \\(4.8 \\cdot 3.6 = 17.28\\) מ'",
+            "ג": "כל צלע גדלה ב-\\(25\\) מטר: \\(3.6 + 25 = 28.6\\) מ', \\(4.8 + 25 = 29.8\\) מ'",
+            "ד": "\\(S = 28.6 + 29.8 = 58.4\\) מ\"ר",
+            "ה": "השטח גדל ב-\\(25\\%\\)."
+          },
+          "2": {
+            "א": "\\(h = 20 - 1 = 19\\) ס\"מ",
+            "ב": "השוק: \\(20 + 19 = 39\\) ס\"מ",
+            "ג": "\\(P = 20 \\cdot 19 = 380\\) ס\"מ",
+            "ד": "\\(S = 20 \\cdot 19 = 380\\) סמ\"ר"
+          },
+          "4": {
+            "א": "\\(12 + 90 = 102\\) ש\"ח",
+            "ב": "\\(y = 30 + 1620\\)",
+            "ג": "\\(y = 90\\)",
+            "ד": "\\(x = 1620 / 90 = 18\\)"
+          },
+          "5": {
+            "א": "גרף \\(II\\) מתאר את הצעה א', כי הוא גבוה יותר.",
+            "ב": "הצעה ב' עדיפה, כי \\(30\\) קטן מ-\\(1000\\).",
+            "ג": "\\(x = 4000 / 20 = 200\\)",
+            "ד": "\\(x = 1000 / 30 \\approx 33\\)"
+          }
+        }
+      },
+      "intended": {
+        "A1_full": {
+          "q1.א.c0": "full",
+          "q1.ב.c0": "full",
+          "q1.ג.c0": "full",
+          "q1.ג.c1": "full",
+          "q1.ג.c2": "full",
+          "q1.ד.c0": "full",
+          "q1.ה.c0": "full",
+          "q2.א.c0": "full",
+          "q2.ב.c0": "full",
+          "q2.ג.c0": "full",
+          "q2.ד.c0": "full",
+          "q4.א.c0": "full",
+          "q4.ב.c0": "full",
+          "q4.ג.c0": "full",
+          "q4.ד.c0": "full",
+          "q5.א.c0": "full",
+          "q5.ב.c0": "full",
+          "q5.ג.c0": "full",
+          "q5.ד.c0": "full"
+        },
+        "A2_partial": {
+          "q1.א.c0": "full",
+          "q1.ב.c0": "zero",
+          "q1.ג.c0": "partial",
+          "q1.ג.c1": "full",
+          "q1.ג.c2": "full",
+          "q1.ד.c0": "full",
+          "q1.ה.c0": "full",
+          "q2.א.c0": "full",
+          "q2.ב.c0": "partial",
+          "q2.ג.c0": "zero",
+          "q2.ד.c0": "full",
+          "q4.א.c0": "full",
+          "q4.ב.c0": "full",
+          "q4.ג.c0": "zero",
+          "q4.ד.c0": "partial",
+          "q5.א.c0": "zero",
+          "q5.ב.c0": "partial",
+          "q5.ג.c0": "full",
+          "q5.ד.c0": "zero"
+        },
+        "A3_wrong": {
+          "q1.א.c0": "zero",
+          "q1.ב.c0": "zero",
+          "q1.ג.c0": "zero",
+          "q1.ג.c1": "zero",
+          "q1.ג.c2": "zero",
+          "q1.ד.c0": "zero",
+          "q1.ה.c0": "zero",
+          "q2.א.c0": "zero",
+          "q2.ב.c0": "zero",
+          "q2.ג.c0": "zero",
+          "q2.ד.c0": "zero",
+          "q4.א.c0": "zero",
+          "q4.ב.c0": "zero",
+          "q4.ג.c0": "zero",
+          "q4.ד.c0": "zero",
+          "q5.א.c0": "zero",
+          "q5.ב.c0": "zero",
+          "q5.ג.c0": "zero",
+          "q5.ד.c0": "zero"
+        }
+      },
+      "follow_through": "A2 q1.ג slips 25% of 3.6 to 0.8 (side 4.4); q1.ד (4.4 · 6 = 26.4) and q1.ה (52.78%) carry that value correctly and are intended FULL."
+    },
+    "english": {
+      "contract": "../../rubric_eval_suite/snapshots/2026-09-09_multisubject-ministry-fg/contract.json",
+      "question_text_from": "../../rubric_eval_suite/snapshots/2026-09-09_multisubject-smoke/english_1/draft.json#questions[1]",
+      "fixture_note": "The Ministry F/G writing rubric is the rubric of exam 016584's writing task; its contract's question text is only «WRITING». The smoke gives it that exam's own task (english_1 q2, verbatim) — the A-9 second-file merge, done by hand for this run only. No wording is invented.",
+      "answers": {
+        "A1_full": {
+          "1": {
+            "": "Would I go on a last-chance tour? Although seeing a glacier before it disappears sounds exciting, I would not join such a tour.\n\nFirst of all, tourists who fly to distant places to watch nature vanish are actually speeding up its destruction. Every long flight releases tons of carbon dioxide, which warms the planet and melts the very ice the visitors came to admire. Moreover, crowds of tourists damage fragile areas by leaving rubbish behind and wearing away the paths.\n\nInstead, I would rather learn about endangered places through documentaries and support the organizations that protect them. If more people made this choice, these wonders might survive for future generations.\n\nIn conclusion, a last-chance tour may be unforgettable, but it is not worth the price our planet pays."
+          }
+        },
+        "A2_partial": {
+          "1": {
+            "": "I think I want to go on a last chance tour. Because I like to see glaciers and mountains. It is very beautiful and I never see it before. My friend go to Iceland last year and he say it was very nice, the ice is big and blue and he take many pictures. Last summer me and my family was in Eilat and we swim in the sea, it was very hot. I think it is good to see the nature before it is gone. But maybe the planes is bad for the enviroment. In the end I want to go becuase it is a last chance."
+          }
+        },
+        "A3_blank": {
+          "1": {
+            "": ""
+          }
+        }
+      },
+      "intended": {
+        "A1_full": {
+          "q1.c0": "full",
+          "q1.c1": "full",
+          "q1.c2": "full",
+          "q1.c3": "full"
+        },
+        "A2_partial": {
+          "q1.c0": "partial",
+          "q1.c1": "partial",
+          "q1.c2": "partial",
+          "q1.c3": "partial"
+        },
+        "A3_blank": {
+          "q1.c0": "zero",
+          "q1.c1": "zero",
+          "q1.c2": "zero",
+          "q1.c3": "zero"
+        }
+      },
+      "middle_level": "A2 is written to a middle level (PARTIALLY or MINIMALLY CORRECT bands — both are the 'partial' class): on topic but thin with a digression, basic vocabulary, basic tenses with frequent errors and no advanced structures, spelling slips and run-ons."
+    }
+  },
+  "pass": {
+    "k1_class_events": "0 — no criterion intended zero (blank or wrong work) may receive any credit",
+    "full_answer": "the A1 answer at full on every criterion",
+    "intended_class_share": ">= 0.90 of criteria in their intended class (full / partial / zero), per subject",
+    "validator": "no unrepaired validator error; every fallback reported",
+    "english_levels": "every English criterion is a compiled `levels` check whose options are the C8-lite bands"
+  }
+}

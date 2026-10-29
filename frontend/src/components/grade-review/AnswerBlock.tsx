@@ -60,10 +60,15 @@ export function AnswerBlock({ answer, highlight, subject, scopeId }: AnswerBlock
     // might pick, and two different span lists that serialise to one key would
     // silently skip a repaint. `JSON.stringify` is injective on this shape.
     const spanKey = JSON.stringify(highlight.spans);
+    const plan = answerRenderPlan(answer, subject);
+    const mode = plan.mode;
+    // QM-1: a math answer's quotes were certified in the math match form, so they are
+    // PLACED in it too — a formula fragment then lights its own formula, not a neighbour.
+    const math = mode === 'math';
     const ranges = useMemo(
-        () => markRangesForAll(answer, highlight.spans),
+        () => markRangesForAll(answer, highlight.spans, { math }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [answer, spanKey],
+        [answer, spanKey, math],
     );
     const rangesByLine = useMemo(() => {
         const out = new Map<number, LineRange[]>();
@@ -75,8 +80,6 @@ export function AnswerBlock({ answer, highlight, subject, scopeId }: AnswerBlock
         return out;
     }, [ranges]);
 
-    const plan = answerRenderPlan(answer, subject);
-    const mode = plan.mode;
     const lines = answerLines(answer, mode);
 
     const renderMark = (children: ReactNode, kind: MarkKind, key: string | number) => (

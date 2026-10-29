@@ -45,6 +45,31 @@ FEEDBACK_SYSTEM_PROMPT = """\
 """
 
 
+# [math, 2026-10-29] A subject with the `math_notation` modality gets ONE more block. The
+# answers and quotes the model reads carry the student's mathematics as `\( … \)` LaTeX;
+# what it writes back is typeset on the review surface and linearised in the student's PDF,
+# and only `\( … \)` is a span there (`$…$` printed raw). The block asks for that notation and
+# for the student's OWN form — the feedback must quote her `\frac{1}{e}`, not restate it as
+# `e^{-1}`. CS and English keep FEEDBACK_SYSTEM_PROMPT byte for byte.
+FEEDBACK_MATH_BLOCK = r"""
+<math>
+כל ביטוי מתמטי נכתב בתוך \( ... \) בלבד, בדיוק בצורה שבה הוא מופיע בתשובה או בציטוט
+(למשל \(\frac{1}{e}\) — לא 1/e ולא \(e^{-1}\) כשהתלמיד/ה כתב/ה \(\frac{1}{e}\)).
+לעולם לא $...$, לא \[...\], ולא פקודה כמו \frac מחוץ ל-\( \). מילים בעברית תמיד מחוץ ל-\( \).
+מצביע הוא כיוון ("כדאי לבדוק את סימן הנגזרת"), לא החישוב הנכון ולא התוצאה הנכונה.
+</math>
+"""
+FEEDBACK_MATH_SUFFIX = "+math1"
+
+
+def feedback_system_prompt(math_notation: bool = False) -> str:
+    return FEEDBACK_SYSTEM_PROMPT + FEEDBACK_MATH_BLOCK if math_notation else FEEDBACK_SYSTEM_PROMPT
+
+
+def feedback_prompt_version(math_notation: bool = False) -> str:
+    return FEEDBACK_PROMPT_VERSION + (FEEDBACK_MATH_SUFFIX if math_notation else "")
+
+
 def build_feedback_message(scopes) -> str:
     """One message per TEST: every scope's priced verdicts, in document order.
 

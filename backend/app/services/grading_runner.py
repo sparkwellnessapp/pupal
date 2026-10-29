@@ -305,7 +305,8 @@ async def _do_grade(db, graded_test_id: UUID) -> None:
         with student_data_run(graded_test_id=graded_test.id,
                               transcription_id=graded_test.transcription_id):
             draft = await attach_feedback(draft, graded_test_id=graded_test.id,
-                                          usage=feedback_usage)
+                                          usage=feedback_usage,
+                                          subject=rubric_contract.subject)
 
         if scoring.excluded:
             draft = draft.model_copy(update={

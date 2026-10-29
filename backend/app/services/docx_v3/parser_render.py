@@ -32,6 +32,8 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 from docx import Document
+
+from .omml_latex import omml_to_latex
 from docx.table import Table as DocxTableObj
 
 logger = logging.getLogger(__name__)
@@ -44,7 +46,34 @@ _NS = {
     "wps": "http://schemas.microsoft.com/office/word/2010/wordprocessingShape",
     "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006",
     "m": "http://schemas.openxmlformats.org/officeDocument/2006/math",   # OMML (Word equations)
+    "o": "urn:schemas-microsoft-com:office:office",                     # VML OLE (MathType)
 }
+
+# Inline wrappers whose runs are the paragraph's own text: a tracked insertion, a smart
+# tag, a content control, custom XML. The walker used to visit only direct `w:r` children,
+# so the text inside them was DROPPED — an inserted correction, an equation inside it.
+_INLINE_WRAPPERS = frozenset({"ins", "smartTag", "customXml", "sdt", "sdtContent", "fldSimple",
+                              "moveTo"})
+
+
+def _inline_children(p_el):
+    """A paragraph's inline children in document order, wrappers opened."""
+    for child in p_el:
+        tag = _tag(child)
+        if tag in _INLINE_WRAPPERS:
+            yield from _inline_children(child)
+        elif tag != "sdtPr":
+            yield child
+
+
+def _ole_equation_count(el) -> int:
+    """OLE equation objects under `el` (MathType `Equation.DSMT*`, Equation Editor
+    `Equation.3`). They hold the formula in a binary the renderer cannot read."""
+    n = 0
+    for ole in el.iter(f"{{{_NS['o']}}}OLEObject"):
+        if (ole.get("ProgID") or "").startswith("Equation"):
+            n += 1
+    return n
 
 
 def _tag(el) -> str:
@@ -227,6 +256,9 @@ class RenderStats:
     # this counter exists to make visible.
     omml_seen: int = 0
     omml_rendered: int = 0
+    # OLE equation objects (MathType / Equation Editor 3): unreadable; each is a marker in
+    # the text and the pipeline tells the teacher (never a silent gap).
+    ole_equations: int = 0
 
     def log(self) -> None:
         logger.info(
@@ -509,7 +541,7 @@ def _para_text_raw(p_el, baseline: Optional[str] = None,
     # becomes ONE span ([[color:EE0000]]…[[/color]]) instead of one per character.
     segments: List[Tuple[bool, Optional[str], Optional[str], str]] = []
 
-    for child in p_el:
+    for child in _inline_children(p_el):
         tag = _tag(child)
 
         if tag == "r":
@@ -530,8 +562,22 @@ def _para_text_raw(p_el, baseline: Optional[str] = None,
                     run_text_parts.append("\t")
                 elif el_tag == "br":
                     run_text_parts.append("\n")
+                elif el_tag == "object" and _ole_equation_count(el):
+                    # an equation-editor object: say where it was, never drop it
+                    run_text_parts.append(" [IMAGE: equation] ")
 
             run_text = "".join(run_text_parts)
+            # Superscript / subscript runs: `x` + raised `2` is x², not "x2" (the linear
+            # grammar rr1.0 reads with — `^`, `_`). Footnote marks carry no text.
+            align = None
+            if rPr is not None:
+                va = rPr.find(f"{{{ns_w}}}vertAlign")
+                if va is not None:
+                    align = va.get(f"{{{ns_w}}}val")
+            if run_text.strip() and align in ("superscript", "subscript"):
+                mark = "^" if align == "superscript" else "_"
+                body = run_text.strip()
+                run_text = f"{mark}{body}" if len(body) == 1 else f"{mark}({body})"
             if run_text:
                 color = _norm_color(_run_color(child))
                 contrast = color if (color is not None and color != base
@@ -558,8 +604,9 @@ def _para_text_raw(p_el, baseline: Optional[str] = None,
             # `m:r`/`m:t`. Minimal rule (execution plan Phase 2c): emit the
             # concatenated `m:t` text IN PLACE, never drop. This is a lossy
             # linearization (a fraction reads as its numerator then denominator).
-            # ALPHA-GAP A-2 (D-1): raw `m:t` text in place; alpha walks the OMML tree into the LaTeX grammar.
-            mtext = _omml_text(child)
+            # ALPHA-GAP A-2 — CLOSED 2026-10-29: the tree is walked into `\( … \)` LaTeX spans,
+            # the notation the student side uses (`omml_latex.py`).
+            mtext = omml_to_latex(child)
             if mtext:
                 segments.append((False, None, None, mtext))
 
@@ -591,14 +638,6 @@ def _para_text_raw(p_el, baseline: Optional[str] = None,
     return "".join(parts)
 
 
-def _omml_text(math_el) -> str:
-    """Concatenate every `m:t` under an OMML node, in document order, with single
-    spaces between runs. Pure; no structure is interpreted (see ALPHA-GAP A-2)."""
-    ns_m = _NS["m"]
-    parts = [t.text for t in math_el.iter(f"{{{ns_m}}}t") if t.text]
-    return " ".join(p.strip() for p in parts if p.strip())
-
-
 def _count_omml(p_el) -> "tuple[int, int]":
     """(omml_seen, omml_rendered) for a paragraph: equations present vs equations
     that carry any `m:t` text. Nested `m:oMath` inside `m:oMathPara` counts once."""
@@ -606,7 +645,7 @@ def _count_omml(p_el) -> "tuple[int, int]":
     seen = rendered = 0
     for m in p_el.iter(f"{{{ns_m}}}oMath"):
         seen += 1
-        if _omml_text(m):
+        if omml_to_latex(m):
             rendered += 1
     return seen, rendered
 
@@ -961,6 +1000,7 @@ def render_docx_to_markdown_with_stats(file_bytes: bytes) -> "tuple[str, RenderS
 
     result = "\n".join(output)
     stats.rendered_chars = len(result)
+    stats.ole_equations = _ole_equation_count(body)
     # Span counts from the result itself (the strikethrough_runs counter predates the
     # run-merging and was never incremented; counting emitted spans is the honest metric).
     stats.strikethrough_runs = result.count("~~") // 2

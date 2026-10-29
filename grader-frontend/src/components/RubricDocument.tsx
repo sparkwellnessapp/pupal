@@ -25,6 +25,8 @@ import { formatPoints } from '@/utils/rubric-display';
 import { isClose } from '@/utils/rubric-validation';
 import { ChevronDown, ChevronLeft } from 'lucide-react';
 import { AnnotationBanner } from '@/components/AnnotationBanner';
+import { MathInline, MathNotationContext } from '@/components/math/MathNotationContext';
+import { hasMathNotation } from '@/lib/subjects';
 import { EditableText } from '@/components/document/EditableText';
 import { EditablePoints } from '@/components/document/EditablePoints';
 import { DisclosureRow } from '@/components/document/DisclosureRow';
@@ -118,7 +120,9 @@ function annotationsFor(annotations: Annotation[], ...ids: (string | undefined)[
 function mutedPrefixRenderer(headingLabel: string) {
     return (value: string) => {
         const { prefix, rest } = splitRoutingPrefix(value, headingLabel);
-        return prefix ? <><span className="text-surface-400">{prefix}</span>{rest}</> : value;
+        return prefix
+            ? <><span className="text-surface-400">{prefix}</span><MathInline text={rest} /></>
+            : <MathInline text={value} />;
     };
 }
 
@@ -219,6 +223,7 @@ function SubCriteriaRows({
                             onCommit={(description) => editSub(scIndex, { description })}
                             ariaLabel={`תיאור תת-קריטריון ${scIndex + 1} — לחצי לעריכה`}
                             dir="rtl"
+                            renderDisplay={(v) => <MathInline text={v} />}
                             placeholder="תיאור תת-הקריטריון"
                         />
                     </td>
@@ -777,6 +782,12 @@ interface RubricDocumentProps {
     findingActions?: FindingActions;
     /** §7 — whether the advisory scan completed; drives the honesty notice. */
     advisoryScan?: 'complete' | 'partial' | 'unknown';
+    /**
+     * The rubric's subject. Under math notation every `\( … \)` span in the document —
+     * a Word equation the renderer turned into LaTeX (`omml_latex.py`), a criterion, a
+     * solution — is typeset; editing still shows the source. Absent ⇒ text stays text.
+     */
+    subject?: string | null;
 }
 
 export function RubricDocument({
@@ -795,6 +806,7 @@ export function RubricDocument({
     findings = [],
     findingActions = NO_FINDING_ACTIONS,
     advisoryScan = 'unknown',
+    subject = null,
 }: RubricDocumentProps) {
     // E-3: which point chips just moved (glow). Diff against the previous questions.
     const prevRef = useRef<RubricQuestion[]>(questions);
@@ -989,6 +1001,7 @@ export function RubricDocument({
     }, [onUndo]);
 
     return (
+        <MathNotationContext.Provider value={hasMathNotation(subject)}>
         <DocContext.Provider value={ctx}>
             {/* §1a: rail is a SIBLING of the content column, OUTSIDE the white card.
                 In-flow spacer reserves its gutter; the rail is position:fixed over it
@@ -1071,5 +1084,6 @@ export function RubricDocument({
                 </div>
             </div>
         </DocContext.Provider>
+        </MathNotationContext.Provider>
     );
 }

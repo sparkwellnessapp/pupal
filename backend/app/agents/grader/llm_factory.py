@@ -132,7 +132,7 @@ _THINKING_LEVELS = ("minimal", "low", "medium", "high")
 # by default and reject `thinking: {"type": "disabled"}`, so the thinking mode
 # and the effort are REQUIRED arguments: set explicitly on every call, never
 # inherited from an API default that was recalibrated between models.
-NATIVE_SCHEMA_MODELS = ("claude-sonnet-5-5",)
+NATIVE_SCHEMA_MODELS = ("claude-sonnet-5-5", "claude-opus-5-5")   # opus 5.5: the planner already runs it native-schema (2026-10-29: verifier pin, owner)
 THINKING_MODES = ("adaptive", "between_tools")      # between_tools ≡ no thinking without tools
 _CLAUDE_5 = ("claude-sonnet-5", "claude-opus-5", "claude-haiku-5", "claude-fable")
 
