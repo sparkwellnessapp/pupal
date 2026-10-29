@@ -3,7 +3,9 @@
 import { useState } from 'react';
 
 import type { NumericPolicy } from '@/lib/pricing';
+import { MathInline } from '@/components/math/MathNotationContext';
 import { ProseMath } from '@/components/math/ProseMath';
+import { hasMathNotation } from '@/lib/subjects';
 import { answerRenderPlan } from '@/utils/answer-mode';
 import { formatPoints } from '@/utils/points-display';
 import { criterionQuoteSpans, type V6Charge, type V6Check, type V6Criterion } from '@/utils/grade-review-v6-model';
@@ -70,8 +72,20 @@ export function signedPoints(value: string): string {
     return value.trim().startsWith('-') && text !== '0' ? `−${text}` : text;
 }
 
+/**
+ * A quote the verifier took from INSIDE a formula carries no delimiters (`f'(x)=4x`,
+ * `\frac{1}{e}` — the shortest span of the answer, which QM-1 certifies). In a math answer
+ * it is drawn as the formula it is part of; with any Hebrew in it, it stays text.
+ */
+const BARE_LATEX = /\\[A-Za-z]+|[\^_]|[=<>]/;
+export function asDisplayedQuote(text: string, subject?: string | null): string {
+    if (!hasMathNotation(subject) || text.includes('\\(') || /[֐-׿]/.test(text)) return text;
+    return BARE_LATEX.test(text) ? `\\(${text}\\)` : text;
+}
+
 /** A quotation from the student's answer, laid out the way the answer itself is. */
-function Quote({ text, subject }: { text: string; subject?: string | null }) {
+function Quote({ text: raw, subject }: { text: string; subject?: string | null }) {
+    const text = asDisplayedQuote(raw, subject);
     const plan = answerRenderPlan(text, subject);
     return (
         <span
@@ -177,7 +191,7 @@ function NoteField({
     if (comment) {
         return (
             <p data-her-comment className="mt-1 whitespace-pre-line text-gr-meta text-primary-700">
-                <span className="font-medium">{V6_COMMENT_MINE}</span> {comment}
+                <span className="font-medium">{V6_COMMENT_MINE}</span> <MathInline text={comment} />
                 {!readOnly ? (
                     <>
                         {' · '}
@@ -240,7 +254,7 @@ function CheckBlockV6({
                         {check.role === 'note' ? (
                             <span className="me-1 font-medium text-grade-ink-2">{V6_NOTE_PREFIX}</span>
                         ) : null}
-                        {check.description}
+                        <MathInline text={check.description} />
                     </p>
 
                     {check.undecided ? (
@@ -250,7 +264,7 @@ function CheckBlockV6({
                     {check.role === 'note' ? (
                         check.noteObserved && check.noteLabel ? (
                             <p data-note-observed className="mt-1 text-gr-meta text-grade-ink-2">
-                                {check.noteLabel}
+                                <MathInline text={check.noteLabel} />
                             </p>
                         ) : null
                     ) : (
@@ -297,7 +311,7 @@ function CheckBlockV6({
                                             ].join(' ')} />
                                         ) : null}
                                     </span>
-                                    <span className="min-w-0 flex-1">{o.label}</span>
+                                    <span className="min-w-0 flex-1"><MathInline text={o.label} /></span>
                                     {o.vivi ? (
                                         <span data-vivi-tag className="whitespace-nowrap text-gr-sm text-grade-pencil">
                                             {V6_VIVI_TAG}
@@ -338,7 +352,7 @@ function CheckBlockV6({
                     {check.charge?.movedFrom ? (
                         <p data-charge-moved={check.charge.movedFrom.terminalId}
                             className="mt-1 text-gr-meta text-primary-700">
-                            {V6_CHARGE_MOVED(check.charge.movedFrom.description)}
+                            <MathInline text={V6_CHARGE_MOVED(check.charge.movedFrom.description)} />
                         </p>
                     ) : null}
 
@@ -405,7 +419,7 @@ export function CriterionRowV6({
                         ▸
                     </span>
                     {/* Her words, as she wrote them — never paraphrased. */}
-                    <span className="min-w-0" data-criterion-text>{criterion.description}</span>
+                    <span className="min-w-0" data-criterion-text><MathInline text={criterion.description} /></span>
                 </button>
 
                 {!open && criterion.undecidedCount > 0 ? (

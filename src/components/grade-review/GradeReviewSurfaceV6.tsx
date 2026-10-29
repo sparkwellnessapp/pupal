@@ -15,6 +15,8 @@ import {
 } from '@/copy/grade-review-v6';
 import { revealScrollTop } from '@/utils/grade-review-highlight-machine';
 import { REVIEW_LAYOUT_STACKED } from '@/lib/flags';
+import { hasMathNotation } from '@/lib/subjects';
+import { MathInline, MathNotationContext } from '@/components/math/MathNotationContext';
 import { AnswerBlock } from './AnswerBlock';
 import { FIG_DEDUCTION_HINT } from '@/copy/math';
 import { FIGURE_LINE } from '@/utils/figure-lines';
@@ -292,6 +294,9 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
         canNext, canPrev, onNext, onPrev, modalOpen]);
 
     return (
+        // Every rubric text on this surface (criteria, checks, options, the question) is drawn
+        // through MathInline, which typesets `\( … \)` spans under a math subject only.
+        <MathNotationContext.Provider value={hasMathNotation(subject)}>
         <div
             className="gr-review pb-24"
             data-review-surface="v6"
@@ -384,7 +389,7 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
                                                 </summary>
                                                 <p className="mt-1.5 rounded-grade-sm bg-grade-bar px-3 py-2.5
                                                     leading-relaxed">
-                                                    {scope.questionText}
+                                                    <MathInline text={scope.questionText} />
                                                 </p>
                                             </details>
                                         ) : null}
@@ -449,5 +454,6 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
                     ? V6_FB_MISSING(model.feedbackMissing) : null}
             />
         </div>
+        </MathNotationContext.Provider>
     );
 }

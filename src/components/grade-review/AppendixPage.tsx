@@ -104,7 +104,7 @@ function ScopeBlock({ scope, block, subject }: {
                             key={`${scope.scopeId}:${index}`}
                             className="flex justify-between gap-2.5"
                         >
-                            <span>{criterion.description}</span>
+                            <span><ProseMath text={criterion.description} subject={subject} /></span>
                             {/* nowrap: a tariff broken across two
                                 lines reads as two numbers, and this
                                 column is the one thing on the page a
@@ -190,7 +190,7 @@ export function AppendixPage({
                     <div data-appendix-summary
                         className="mt-4 border-t border-dashed border-grade-line pt-2.5">
                         <div className="text-gr-appx-q">{APPX_SUMMARY}</div>
-                        <p className="mt-px text-grade-ink-2">{appendix.summary}</p>
+                        <p className="mt-px text-grade-ink-2"><ProseMath text={appendix.summary} subject={subject} /></p>
                     </div>
                 ) : null}
             </div>

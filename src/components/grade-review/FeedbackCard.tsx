@@ -3,6 +3,8 @@
 import { useEffect, useRef } from 'react';
 
 import type { FeedbackState } from '@/utils/feedback-staleness';
+import { MathLines, useMathNotation } from '@/components/math/MathNotationContext';
+import { hasMath } from '@/utils/math-spans';
 import {
     RV_FB_ABSENT,
     RV_FB_EDITED,
@@ -88,6 +90,7 @@ export function FeedbackCard({
     onWrite, canAskVivi = true, absentLabel, blankLabel, readOnly = false, focusOnMount = false,
 }: FeedbackCardProps) {
     const areaRef = useRef<HTMLTextAreaElement | null>(null);
+    const math = useMathNotation();
 
     // Auto-height: the box shows the whole paragraph rather than making her
     // scroll a four-line window to read what her student will read.
@@ -206,6 +209,20 @@ export function FeedbackCard({
                 />
             )}
 
+            {/* Under a math subject the textarea holds the SOURCE of each formula; the
+                student receives it typeset (and linearised in the PDF). This preview is
+                what she will read, so the teacher never has to read LaTeX to approve it. */}
+            {math && state !== 'absent' && hasMath(text) ? (
+                <p
+                    data-feedback-preview
+                    dir="rtl"
+                    className="border-t border-dashed border-grade-line-2 px-3.5 py-2.5
+                        text-gr-prose text-grade-ink-2"
+                >
+                    <MathLines text={text} />
+                </p>
+            ) : null}
+
             {offered ? (
                 <div
                     data-feedback-offer
@@ -216,7 +233,7 @@ export function FeedbackCard({
                         {RV_FB_OFFERED_TITLE}
                     </p>
                     <p className="mt-1.5 whitespace-pre-wrap text-gr-prose text-grade-ink">
-                        {offered}
+                        <MathLines text={offered} />
                     </p>
                     <div className="mt-2.5 flex flex-wrap gap-2.5">
                         <button

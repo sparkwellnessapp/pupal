@@ -38,6 +38,8 @@
 
 import type { QuoteStatus } from '@/lib/pricing';
 
+import { matchFormAt } from './math-match';
+
 /**
  * A row that can light the answer: one check's span, or a whole criterion's
  * union.
@@ -242,6 +244,9 @@ export interface LineRange {
 
 interface Normalized {
     norm: string;
+    /** `ends[i]` = the EXCLUSIVE original end of what produced `norm[i]` (`map[i] + 1`
+     *  for the plain rule; a whole token's end under QM-1's math form). */
+    ends: number[];
     /** `map[i]` = index in the ORIGINAL text of the character `norm[i]`. */
     map: number[];
 }
@@ -277,7 +282,23 @@ function normalizeWithMap(text: string): Normalized {
             map.push(i);
         }
     }
-    return { norm: norm.join(''), map };
+    return { norm: norm.join(''), map, ends: map.map((i) => i + 1) };
+}
+
+/**
+ * Options for locating quotes. `math` — the rubric's subject has math notation: quote and
+ * answer are both matched in QM-1's math form (`math-match.ts`), the rule the server
+ * certified them by (`validator.quote_match_status(math_notation=True)`). Off ⇒ the plain
+ * rule, byte for byte.
+ */
+export interface LocateOptions {
+    math?: boolean;
+}
+
+function normalizeFor(text: string, math: boolean): Normalized {
+    if (!math) return normalizeWithMap(text);
+    const { form, starts, ends } = matchFormAt(text);
+    return { norm: form, map: starts, ends };
 }
 
 /** Dice coefficient over character bigrams. */
@@ -378,25 +399,26 @@ function bestFuzzyWindow(normQuote: string, normAnswer: string): [number, number
  */
 interface PreparedAnswer {
     norm: Normalized;
+    math: boolean;
     /** Absolute offset of each line's first character; the last entry is the
      *  total length, so `[starts[i], starts[i+1] - 1)` is line i's text. */
     lineStarts: number[];
 }
 
-function prepareAnswer(answer: string): PreparedAnswer {
+function prepareAnswer(answer: string, math = false): PreparedAnswer {
     const lineStarts = [0];
     for (let i = 0; i < answer.length; i += 1) {
         if (answer[i] === '\n') lineStarts.push(i + 1);
     }
     lineStarts.push(answer.length + 1);
-    return { norm: normalizeWithMap(answer), lineStarts };
+    return { norm: normalizeFor(answer, math), math, lineStarts };
 }
 
 function locateQuote(
     answer: PreparedAnswer, quote: string, kind: MarkKind,
 ): LineRange[] {
     const a = answer.norm;
-    const q = normalizeWithMap(quote);
+    const q = normalizeFor(quote, answer.math);
     if (!q.norm || !a.norm) return [];
 
     let from = a.norm.indexOf(q.norm);
@@ -419,7 +441,7 @@ function locateQuote(
     // Back to ORIGINAL offsets. `to` is INCLUSIVE in normalised space, so the
     // exclusive original end is one past the character it names.
     const startOriginal = a.map[from];
-    const endOriginal = a.map[to] + 1;
+    const endOriginal = a.ends[to];
 
     const ranges: LineRange[] = [];
     const { lineStarts } = answer;
@@ -448,9 +470,10 @@ function locateQuote(
  */
 export function markRangesFor(
     answer: string, quote: string | null, kind: MarkKind = 'exact',
+    options: LocateOptions = {},
 ): LineRange[] {
     if (!quote || !answer) return [];
-    return locateQuote(prepareAnswer(answer), quote, kind);
+    return locateQuote(prepareAnswer(answer, options.math ?? false), quote, kind);
 }
 
 /**
@@ -474,11 +497,11 @@ export function markRangesFor(
  * count is not the check count, deliberately.
  */
 export function markRangesForAll(
-    answer: string, spans: readonly HighlightSpan[],
+    answer: string, spans: readonly HighlightSpan[], options: LocateOptions = {},
 ): LineRange[] {
     if (!answer || spans.length === 0) return [];
 
-    const prepared = prepareAnswer(answer);
+    const prepared = prepareAnswer(answer, options.math ?? false);
     const located = spans.flatMap((span) =>
         span.quote ? locateQuote(prepared, span.quote, span.kind) : []);
     if (located.length === 0) return [];

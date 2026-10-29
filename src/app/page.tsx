@@ -1580,6 +1580,7 @@ export default function Home() {
                       findings={findings}
                       findingActions={findingActions}
                       advisoryScan={advisoryScan}
+                      subject={rubricSubject}
                     />
                     {error && (
                       <div className="flex gap-8 justify-center mt-4" dir="rtl">

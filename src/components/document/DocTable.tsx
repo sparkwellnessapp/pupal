@@ -15,9 +15,16 @@ import { inferGridDir, type NestedTableBlock } from '@/utils/markdown-parser';
  */
 
 // ── bidi-isolated inline text: wrap Latin/code runs so RTL can't reorder them ──
+import { useMathNotation } from '@/components/math/MathNotationContext';
+import { MathText } from '@/components/math/MathText';
 import { bidiRuns } from '@/utils/document-text';
+import { hasMath } from '@/utils/math-spans';
 
 export function BidiText({ text }: { text: string }) {
+    // Under a math-notation surface a line with `\( … \)` spans is typeset by MathText,
+    // which isolates each formula itself; outside one, nothing changes.
+    const math = useMathNotation();
+    if (math && hasMath(text)) return <MathText text={text} />;
     return (
         <>
             {bidiRuns(text).map((run, i) =>

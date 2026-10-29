@@ -567,6 +567,7 @@ export default function MyRubricsPage() {
                                 findings={reopenedFindings}
                                 findingActions={reopenedFindingActions}
                                 advisoryScan={reopenedAdvisoryScan}
+                                subject={selectedRubric?.subject ?? null}
                             />
                         ) : (
                             <RubricEditor
