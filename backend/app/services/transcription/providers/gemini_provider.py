@@ -137,6 +137,11 @@ class GeminiProvider:
             for b64 in (images_b64 or [])
         ]
         parts.append(genai_types.Part.from_text(text=user))
+        # A per-call reasoning_effort is this vendor's thinking_level (the
+        # pipeline's one depth knob, translated per adapter). Absent, the
+        # constructor's level stands — the historical behaviour, unchanged.
+        level = (genai_types.ThinkingLevel(reasoning_effort.upper())
+                 if reasoning_effort else self._thinking_level)
 
         config = genai_types.GenerateContentConfig(
             system_instruction=system,
@@ -145,8 +150,8 @@ class GeminiProvider:
             http_options=self._http_options(timeout_s),
             **(
                 {"thinking_config": genai_types.ThinkingConfig(
-                    thinking_level=self._thinking_level)}
-                if self._thinking_level is not None
+                    thinking_level=level)}
+                if level is not None
                 else {}
             ),
             **(
@@ -170,6 +175,16 @@ class GeminiProvider:
 
         um = resp.usage_metadata
         cached = getattr(um, "cached_content_token_count", None) if um else None
+        # THINKING TOKENS BILL AS OUTPUT (Gemini pricing: "output price including
+        # thinking tokens"), and `candidates_token_count` EXCLUDES them. Until
+        # 2026-09-27 this adapter recorded candidates alone, so every Gemini
+        # cost figure in the transcription suite under-reported by the whole
+        # thinking spend — on gemini-3.1-pro, the P1 incumbent, at every
+        # thinking_level. The grader's Gemini path already counted
+        # candidates+thoughts; this is the same rule, in the one place the
+        # transcription ledger reads it.
+        thoughts = (getattr(um, "thoughts_token_count", None) or 0) if um else 0
+        candidates = (um.candidates_token_count or 0) if um else 0
         finish = None
         if resp.candidates:
             fr = resp.candidates[0].finish_reason
@@ -179,8 +194,9 @@ class GeminiProvider:
             text=resp.text or "",
             usage=Usage(
                 input_tokens=(um.prompt_token_count or 0) if um else 0,
-                output_tokens=(um.candidates_token_count or 0) if um else 0,
+                output_tokens=candidates + thoughts,
                 cached_input_tokens=cached,
+                reasoning_tokens=thoughts,
             ),
             total_ms=total_ms,
             model_id=self.model,

@@ -18,7 +18,7 @@ public class School Hobbies
 {
     public bool PopulateHobbies()
     {
-        int count=0; // סופר כמה [?] בתוך מקומות של [?]
+        int count=0; // סופר כמה פעמים עדכן משתנה (אם לא עדכן נחזיר fake)
         for(int i=0; i<hobbies.Length; i++)
         {
             if(hobbies[i] != null)

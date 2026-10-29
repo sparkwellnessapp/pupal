@@ -329,3 +329,14 @@ class _EmptySpec:
 
 
 _EMPTY_SPEC = _EmptySpec()
+
+
+def test_the_strike_check_belt_fits_two_attempts_and_the_widest_slow_retry_wait():
+    """2026-09-30: the strike check has its own deadline + belt. The belt must hold
+    TWO full attempts plus the scheduler's widest transient/timeout wait, or the
+    single retry the scheduler grants a slow failure can never complete."""
+    from app.services.transcription.scheduler import ProviderLimit
+    from app.services.transcription.two_phase_engine import PROD_CONFIG as C
+    timeout = C.p1_strike_check_timeout_s or C.optional_pass_timeout_s
+    belt = C.p1_strike_check_budget_s or C.optional_pass_budget_s
+    assert belt >= 2 * timeout + ProviderLimit().slow_retry_wait_s[1]

@@ -61,6 +61,10 @@ class SubjectProfile:
     # The P1 packing a variant was MEASURED at (pages per call). A variant is a package:
     # its fragment is only trusted at the packing it was measured with.
     p1_variant_pages_per_call: Tuple[Tuple[str, int], ...] = ()
+    # [2026-10-29, owner] P1 settings a subject keeps whatever the production pin says
+    # (`PipelineConfig` field → value). Mathematics stays on gemini-3.1-pro with the
+    # pre-mission prompt rules (OD-M8) while CS and English move to the accuracy pin.
+    p1_config_overrides: Tuple[Tuple[str, object], ...] = ()
 
     def p1_pages_per_call_for(self, variant: str = "") -> Optional[int]:
         return dict(self.p1_variant_pages_per_call).get(variant) if self.has_p1_variant(variant) else None
@@ -103,6 +107,7 @@ def _build(module) -> SubjectProfile:
         rescale_to_exam=bool(getattr(module, "RESCALE_TO_EXAM", False)),
         p1_variants=tuple(sorted(getattr(module, "P1_VARIANTS", {}).items())),
         p1_variant_pages_per_call=tuple(sorted(getattr(module, "P1_VARIANT_PAGES_PER_CALL", {}).items())),
+        p1_config_overrides=tuple(sorted(getattr(module, "P1_CONFIG_OVERRIDES", {}).items())),
     )
 
 

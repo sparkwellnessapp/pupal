@@ -110,7 +110,28 @@ _MODELS: dict[str, _Model] = {
 # state: run_readers short-circuits, compute_flags emits nothing, lint +
 # provenance still run.
 PROD_CONFIG = PipelineConfig(
-    p1_model_key="gemini-3.1-pro-preview",
+    # --- P1 PIN (owner, 2026-09-30): `rec2` of MISSION_transcription_accuracy ---
+    # Evidence: tests/transcription_eval_suit/RUNLOG.md (2026-09-27 .. 09-30).
+    # gemini-3.5-flash @ `minimal` beat gemini-3.1-pro on the worst document for P1
+    # ratio and Hebrew prose at ~1/3 lower P1 cost (Bet 1); `low` behaved the same
+    # (the model chose not to think — R3b). REVERT = the previous four lines:
+    #   p1_model_key="gemini-3.1-pro-preview", no p1_reasoning_effort,
+    #   p1_table_rows / p1_join_split_table_rows / p1_instructions False.
+    # ⚠ P1 and the strike check now share ONE model, ONE Vertex shared-pool
+    # (Standard PayGo) exposure and ONE per-model scheduler cap (RUNLOG 2026-09-28).
+    p1_model_key="gemini-3.5-flash",
+    p1_reasoning_effort="minimal",
+    # Bet 2 prompt variant (a row is one line; ticks ✓ / crosses x) + the owner-
+    # adopted deterministic row re-join (format only, never ink): cells 0.69→0.97.
+    p1_table_rows=True,
+    p1_join_split_table_rows=True,
+    # Bet 3 (r1): P1 reports "move this text" marks; relocation.py applies them
+    # between P1 and P2. 0 false relocations over 33 document-runs; OD-A2 silent
+    # (one operational log line per document, nothing on the draft).
+    p1_instructions=True,
+    # Boxed / circled final answers → `[74]` (owner, 2026-09-30/10-03): the wording
+    # changed NO digit across all 10 exams (prompts.P1_BOXED_VALUES_RULE).
+    p1_boxed_values=True,
     p1_pages_per_call=3,
     p1_image_packing="multi_image",
     dpi=200,
@@ -135,6 +156,14 @@ PROD_CONFIG = PipelineConfig(
     # REVERT = set this key to "" (one line); everything else stays.
     p1_strike_check_model_key="gemini-3.5-flash",
     p1_strike_check_max_tokens=4000,
+    # R2 (2026-09-28): `minimal` halves the strike check's cost ($0.038→$0.018/doc,
+    # 0 thinking tokens) with P1 equal-or-better on 8/10 docs, both struck-ink docs.
+    p1_strike_check_reasoning_effort="minimal",
+    # Owner-approved 2026-09-30: its own 60 s deadline (was the shared 40 s) and
+    # a 130 s belt that fits two attempts + the scheduler's widest slow-retry
+    # wait. Successful production checks: p50 4.3 s, max 35 s (7 days, 09-30).
+    p1_strike_check_timeout_s=60.0,
+    p1_strike_check_budget_s=130.0,
     # Discard ranges shorter than 2 lines: the observed false-positive class is
     # a KEPT line containing an inline scribbled-out word (flash-lite deleted
     # `return true;` on moran p2 that way), while the real leak class is a
@@ -153,6 +182,10 @@ PROD_CONFIG = PipelineConfig(
     # target enum; the harness slices text verbatim + validates the partition.
     # Revert path: "text" (the legacy generative contract).
     p2_output_contract="spans",
+    # Code-symbol mission (2026-09-30): the student's marker breaks a TRUE tie only
+    # (content stays the authority). Replay on fixed P1 text: P2 splitting misses
+    # 31 → 18, no document worse (prompts.P2_MARKER_TIEBREAK).
+    p2_marker_tiebreak=True,
     temperature=0.0,
     use_json_schema=True,
     # 240s, DELIBERATELY above the eval suite's 120s (reverted 2026-08-12
@@ -168,7 +201,7 @@ PROD_CONFIG = PipelineConfig(
     timeout_s=240.0,
 )
 
-TWO_PHASE_ENGINE_VERSION = "two_phase/v4_p2-spans"
+TWO_PHASE_ENGINE_VERSION = "two_phase/v6_boxed-p2tie"   # v5_p1-flash35 → +boxed answers, +P2 tie-break, sturdier calls (2026-10-03)
 
 
 async def transcribe_two_phase(
@@ -221,7 +254,8 @@ async def transcribe_two_phase(
         _replace(PROD_CONFIG, subject_key=profile.key,
                  p1_variant=settings.transcription_p1_variant,
                  p1_figure_model_key=(_figure_model_key()
-                                      if "figure" in profile.modalities else "")), budget)
+                                      if "figure" in profile.modalities else ""),
+                 **dict(profile.p1_config_overrides)), budget)
     # Identity rides the SAME shared provider + scheduler slot pool as P1
     # (same eyes — the proven Hebrew-handwriting reader; the crop makes its
     # cost negligible), at its document's priority: submitted before the P1
@@ -238,6 +272,14 @@ async def transcribe_two_phase(
         ),
     )
     return trust_run, suggestion
+
+
+def _subject_p1_model_keys() -> tuple:
+    """Every subject's own P1 model (`P1_CONFIG_OVERRIDES`), so the shared provider set
+    can serve it — mathematics stays on gemini-3.1-pro while the pin moves (OD-M8)."""
+    from app.subjects import get_profile, subject_keys
+    return tuple(dict(get_profile(k).p1_config_overrides).get("p1_model_key", "")
+                 for k in subject_keys())
 
 
 def _figure_model_key() -> str:
@@ -295,7 +337,15 @@ def _shared_infra() -> tuple[dict, dict, ProviderScheduler]:
     keys = {k for k in (PROD_CONFIG.p1_model_key, PROD_CONFIG.p2_model_key,
                         PROD_CONFIG.p1_strike_check_model_key,
                         _figure_model_key(),
-                        *PROD_CONFIG.reader_model_keys) if k}
+                        *PROD_CONFIG.reader_model_keys,
+                        # every optional pass's model (empty = off, filtered): a
+                        # missing key is a KeyError the pass's fail-safe would
+                        # swallow — the pass silently never runs (2026-09-28)
+                        PROD_CONFIG.p1_focus_localizer_model_key,
+                        PROD_CONFIG.p1_focus_reader_model_key,
+                        PROD_CONFIG.p1_table_reread_model_key,
+                        # every subject's own P1 model (mathematics stays on pro, OD-M8)
+                        *_subject_p1_model_keys()) if k}
     providers = {k: _make_provider(_MODELS[k]) for k in keys}
     aliased = {k: alias(_MODELS[k]) for k in keys}
     scheduler = ProviderScheduler({

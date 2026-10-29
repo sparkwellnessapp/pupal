@@ -31,7 +31,7 @@ from dataclasses import dataclass
 
 from app.services.transcription.two_phase.instrument import PriceCard
 
-AS_OF = "2026-08-15"
+AS_OF = "2026-09-27"
 
 
 @dataclass(frozen=True)
@@ -113,6 +113,28 @@ MODELS: dict[str, ModelSpec] = {
                         cached_in_per_mtok=0.50),
         supports_logprobs=True, supports_json_schema=True, tier="frontier",
     ),
+    # --- gpt-6 family (MISSION_transcription_accuracy Bet-1, 2026-09-27) ---
+    # Ids from the OpenAI models endpoint; prices VERIFIED from
+    # developers.openai.com/api/docs/pricing (standard tier, short-context
+    # column — a page render is far below the long-context threshold).
+    "gpt-6-sol": ModelSpec(
+        key="gpt-6-sol", provider="openai", model_id="gpt-6-sol",
+        price=PriceCard(in_per_mtok=2.00, out_per_mtok=10.00,
+                        cached_in_per_mtok=0.20),
+        supports_logprobs=True, supports_json_schema=True, tier="frontier",
+    ),
+    "gpt-6-luna": ModelSpec(
+        key="gpt-6-luna", provider="openai", model_id="gpt-6-luna",
+        price=PriceCard(in_per_mtok=0.10, out_per_mtok=0.50,
+                        cached_in_per_mtok=0.01),
+        supports_logprobs=True, supports_json_schema=True, tier="cheap",
+    ),
+    "gpt-6-astra": ModelSpec(
+        key="gpt-6-astra", provider="openai", model_id="gpt-6-astra",
+        price=PriceCard(in_per_mtok=10.00, out_per_mtok=50.00,
+                        cached_in_per_mtok=1.00),
+        supports_logprobs=True, supports_json_schema=True, tier="frontier",
+    ),
     # --- Anthropic ---
     "claude-haiku-4.5": ModelSpec(
         key="claude-haiku-4.5", provider="anthropic", model_id="claude-haiku-4-5",
@@ -146,6 +168,16 @@ MODELS: dict[str, ModelSpec] = {
     "claude-sonnet-5.5": ModelSpec(
         key="claude-sonnet-5.5", provider="anthropic", model_id="claude-sonnet-5-5",
         price=PriceCard(in_per_mtok=2.00, out_per_mtok=10.00,
+                        cached_in_per_mtok=0.20),
+        supports_logprobs=False, supports_json_schema=True, tier="frontier",
+    ),
+    # MISSION_transcription_accuracy Bet-1 (2026-09-27). $4 in / $20 out / $0.20
+    # cache reads (Anthropic model table). Thinking cannot be disabled and effort
+    # defaults to MEDIUM; sampling params and forced tool_choice 400 — the
+    # transcription adapter routes it through output_config (anthropic_provider).
+    "claude-opus-5-5": ModelSpec(
+        key="claude-opus-5-5", provider="anthropic", model_id="claude-opus-5-5",
+        price=PriceCard(in_per_mtok=4.00, out_per_mtok=20.00,
                         cached_in_per_mtok=0.20),
         supports_logprobs=False, supports_json_schema=True, tier="frontier",
     ),
@@ -189,7 +221,10 @@ MODELS: dict[str, ModelSpec] = {
     "gemini-3.5-flash-lite": ModelSpec(
         key="gemini-3.5-flash-lite", provider="gemini",
         model_id="gemini-3.5-flash-lite",
-        price=PriceCard(in_per_mtok=0.30, out_per_mtok=3.30,
+        # CORRECTED 2026-09-27 from ai.google.dev/gemini-api/docs/pricing (USD):
+        # $0.30 in / $2.50 out / $0.03 cached. The 3.30 above was an ILS->USD
+        # conversion of a localized page, 32% high on output.
+        price=PriceCard(in_per_mtok=0.30, out_per_mtok=2.50,
                         cached_in_per_mtok=0.03),
         supports_logprobs=False, supports_json_schema=True, tier="cheap",
     ),
@@ -202,9 +237,27 @@ MODELS: dict[str, ModelSpec] = {
     "gemini-3.5-flash": ModelSpec(
         key="gemini-3.5-flash", provider="gemini",
         model_id="gemini-3.5-flash",
-        price=PriceCard(in_per_mtok=1.98, out_per_mtok=11.88,
+        # CORRECTED 2026-09-27 from ai.google.dev/gemini-api/docs/pricing (USD):
+        # $1.50 in / $9.00 out / $0.15 cached. The 1.98/11.88 above came from an
+        # ILS page at 3.03 ILS/USD and overstated every cost figure by ~32% —
+        # including production's STRIKE CHECK, which runs on this model.
+        price=PriceCard(in_per_mtok=1.50, out_per_mtok=9.00,
                         cached_in_per_mtok=0.15),
         supports_logprobs=False, supports_json_schema=True, tier="frontier",
+    ),
+    # MISSION_transcription_accuracy Bet-1 roster (2026-09-27). Ids resolved from
+    # the providers' own model lists (Vertex models.list); prices from
+    # ai.google.dev/gemini-api/docs/pricing.
+    # ⚠ PROMOTIONAL: 3.8 Flash is $0.75 in / $3.75 out / $0.075 cached "through
+    # December 31, 2026", then $1.50 / $7.50 / $0.15 "starting January 1, 2027".
+    # Costed at the LIST rate, by the same rule as gpt-5.6-sol below: an adoption
+    # decision outlives the promo, and the cost gate must hold at the price we
+    # will actually be billed. Every promo-rate figure is reported beside it.
+    "gemini-3.8-flash": ModelSpec(
+        key="gemini-3.8-flash", provider="gemini", model_id="gemini-3.8-flash",
+        price=PriceCard(in_per_mtok=1.50, out_per_mtok=7.50,
+                        cached_in_per_mtok=0.15),
+        supports_logprobs=False, supports_json_schema=True, tier="cheap",
     ),
     # RE-VERIFIED 2026-08-28 for the grading roster (owner Google reversal):
     # $2 in / $12 out confirmed (short-context tier; grading renders never

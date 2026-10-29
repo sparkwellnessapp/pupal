@@ -60,10 +60,10 @@ public void printAverages()
             totaldurationNS = totaldulutionNS + this.Hobbies[i].getdurationInminutes();
         }
 
-        double AvgS = totaldurations / counterS;
-        double AvgNS = totaldurationNS / counterNS;
+        double AvgS = totaldurations / counterS;   // מציאת ממוצעים:
+        double AvgNS = totaldurationNS / counterNS;   // int * double = double
 
-        cw("the sportiv Avg is: " + AvgS);
+        cw("the sportiv Avg is: " + AvgS);   // הדפסת ממוצעים:
         cw("the non spotiv Avg is: " + AvgNS);
     }
 }

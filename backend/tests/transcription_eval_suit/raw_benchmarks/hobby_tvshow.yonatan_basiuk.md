@@ -5,7 +5,7 @@ public class Hobby
     private bool isSportive;
     private int durationInMinutes;
 
-    public Hobby(string hobbyName, bool isSportive, int minutes)
+    public Hobby(string hobbyName, bool isSportive, int minutes) // פעולה בונה
     {
         this.hobbyName = hobbyName;
         this.isSportive = isSportive;
@@ -19,7 +19,7 @@ public class schoolHobbies
     {
         string num = ""; bool isSportive = true; int duration = 0;
 
-        if (this.countHobbies == this.hobbies.Length)
+        || (answer=="n") || (answer=='N') if (this.countHobbies == this.hobbies.Length)
             return false; // בדיקה אם מלא
 
         Console.Write("Do you want to create another hobby?");

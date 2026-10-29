@@ -79,6 +79,19 @@ at its position, numbering the drawings on each page 1, 2, … in reading order.
 - Include the student's handwritten answer content and substantive margin notes or messages.
 """
 
+# [owner 2026-10-29] Mathematics keeps the P1 its LaTeX work was MEASURED on (probe v3,
+# OD-M8): gemini-3.1-pro with none of the accuracy mission's prompt rules — its `[74]`
+# boxed-number rule would fight `\boxed{}`, and its table-row rule was measured on CS
+# trace tables only. The mission's pin (gemini-3.5-flash) serves CS and English.
+P1_CONFIG_OVERRIDES = {
+    "p1_model_key": "gemini-3.1-pro-preview",
+    "p1_reasoning_effort": "",
+    "p1_table_rows": False,
+    "p1_join_split_table_rows": False,
+    "p1_instructions": False,
+    "p1_boxed_values": False,
+}
+
 P1_VARIANTS = {"latex1": P1_FRAGMENT_LATEX}
 # Measured at ONE page per call (probe v3, docs/math-rendering/probe-v3): at production's 3,
 # both this fragment and the linear one misread the student's Hebrew on a dense page.

@@ -72,3 +72,26 @@ def test_p1_keeps_section_markers():
 def test_p1_no_longer_includes_all_ink_verbatim():
     """The old over-inclusive line (which drove name transcription) is gone."""
     assert "Include ALL handwritten ink" not in P1_SYSTEM
+
+
+def test_bet2_table_rows_variant_is_opt_in_and_lands_inside_the_table_rule():
+    """MISSION Bet 2: behind a flag, because P1_SYSTEM is sha-pinned."""
+    from app.services.transcription.two_phase.prompts import p1_system
+    assert p1_system() == P1_SYSTEM
+    v = p1_system(table_rows=True)
+    assert "never break a line inside a row" in v and "check mark as `✓`" in v
+    assert v.index("wrong column.") < v.index("A row is ONE line") < v.index("pipes must never touch")
+
+
+def test_boxed_values_variant_is_opt_in_and_demands_certainty():
+    """GT §5.2a rule 5, behind a flag (P1_SYSTEM is sha-pinned). The pinned wording
+    (RUNLOG 2026-10-03) brackets only a number she is CERTAIN was framed as the final
+    answer, and says outright that reading is unchanged — the clause that stopped the
+    rule from changing other digits."""
+    from app.services.transcription.two_phase.prompts import p1_system
+    assert p1_system(boxed_values=False) == P1_SYSTEM
+    v = p1_system(boxed_values=True)
+    assert "`[74]`" in v and "CERTAIN" in v and "never changes HOW you read" in v
+    assert v.index("Use `[?]`") < v.index("FINAL-ANSWER BOX") < v.index("Preserve line breaks")
+    both = p1_system(table_rows=True, boxed_values=True)
+    assert "FINAL-ANSWER BOX" in both and "never break a line inside a row" in both

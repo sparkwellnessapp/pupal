@@ -19,6 +19,18 @@ import anthropic
 from ..vlm_provider import ErrorKind, Usage, VLMCallError, VLMResponse, image_mime_for
 
 
+#: Model-id prefixes of the CURRENT Claude family: no sampling parameters, no
+#: forced tool choice (Opus 5.5), structured output via `output_config.format`,
+#: depth via `output_config.effort`. Their output_tokens INCLUDE thinking tokens
+#: (billed as output), so the cost ledger needs no correction here.
+_CURRENT_FAMILY_PREFIXES = ("claude-opus-5", "claude-sonnet-5", "claude-fable",
+                            "claude-mythos", "claude-opus-4-7", "claude-opus-4-8")
+
+
+def _current_family(model: str) -> bool:
+    return model.startswith(_CURRENT_FAMILY_PREFIXES)
+
+
 class AnthropicProvider:
     name = "anthropic"
 
@@ -67,13 +79,33 @@ class AnthropicProvider:
         blocks.append({"type": "text", "text": user})
 
         kwargs: dict = {}
-        if json_schema is not None:
-            kwargs["tools"] = [{
-                "name": "emit",
-                "description": "Emit the structured result.",
-                "input_schema": json_schema,
-            }]
-            kwargs["tool_choice"] = {"type": "tool", "name": "emit"}
+        if _current_family(self.model):
+            # The current Claude family (Opus 5.x, Sonnet 5, Fable, Opus 4.7/4.8)
+            # 400s on ANY sampling parameter, and Opus 5.5 also 400s on a forced
+            # `tool_choice` — so the historical shape (temperature + forced
+            # `emit` tool) cannot reach them at all. Structured output rides
+            # `output_config.format`, which guarantees the first text block is
+            # schema-valid JSON; depth is `output_config.effort` (Opus 5.5
+            # defaults to `medium`, so an eval that omits it is not testing
+            # "the default of the family" — it is testing medium).
+            output_config: dict = {}
+            if json_schema is not None:
+                output_config["format"] = {"type": "json_schema", "schema": json_schema}
+            if reasoning_effort:
+                output_config["effort"] = reasoning_effort
+            if output_config:
+                kwargs["output_config"] = output_config
+        else:
+            # Older models (haiku-4.5, sonnet-4.6 — the retired trust readers):
+            # the proven shape, byte-identical.
+            kwargs["temperature"] = temperature
+            if json_schema is not None:
+                kwargs["tools"] = [{
+                    "name": "emit",
+                    "description": "Emit the structured result.",
+                    "input_schema": json_schema,
+                }]
+                kwargs["tool_choice"] = {"type": "tool", "name": "emit"}
 
         t0 = time.monotonic()
         try:
@@ -82,7 +114,6 @@ class AnthropicProvider:
                 system=system,
                 messages=[{"role": "user", "content": blocks}],
                 max_tokens=max_tokens,
-                temperature=temperature,
                 timeout=timeout_s,
                 **kwargs,
             )

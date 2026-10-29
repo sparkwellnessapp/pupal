@@ -107,8 +107,17 @@ def test_page_parser_requires_delimiters():
 ALL_FIXTURES = [
     # doc_id = "<exam_id>.<student>" — the corpus spans several exams, so a bare
     # student name no longer identifies a fixture (2026-08-29).
+    #
+    # Hobby / TvShow — 2 questions, sub-questions א/ב/ג, every question answered.
     "hobby_tvshow.moran_aharon", "hobby_tvshow.dan_basiuk", "hobby_tvshow.din_ezra",
     "hobby_tvshow.omer_gelber", "hobby_tvshow.yonatan_basiuk",
+    # Bagrut 899371 (2026-09-27) — 11 answer keys and a SELECTION group ("answer 4
+    # of 6"), so each of these carries three-or-four EMPTY answer bodies by design:
+    # the questions the student did not choose. That is the D3 Option A ruling, and
+    # it is what makes an invented answer for an unchosen question score 0.0 instead
+    # of hiding in extra_keys. Q1 is the corpus's first TRACE-TABLE question.
+    "bagrut_899371.dan_basiuk", "bagrut_899371.itay_katav", "bagrut_899371.itay_kraft",
+    "bagrut_899371.noam_breinshtein", "bagrut_899371.roni_ben_ezra",
 ]
 
 

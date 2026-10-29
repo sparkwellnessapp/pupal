@@ -53,9 +53,14 @@ SUITE_DIR = Path(__file__).parent
 RAW_DIR = SUITE_DIR / "raw_benchmarks"
 DRAFT_DIR = SUITE_DIR / "draft_benchmarks"
 
-# Lines the draft format excludes by design: "שאלה 1", "א.", "שאלה 2 ג".
-# Dropping them from the raw side is what makes the subset relation meaningful.
-_HEADER_RE = re.compile(r"^\s*(שאלה\s*\d+\s*[א-ת]?\.?|[א-ת]\.)\s*$")
+# Lines the draft format excludes by design: "שאלה 1", "א.", "שאלה 2 ג", and
+# (2026-09-27, the bagrut GT fix) the continuation header "שאלה 6 המשך 2", a
+# part number alone on its line ("(1)", "2)"), and a navigation note that opens
+# with «המשך» ("המשך צד שני", "המשך עמוד קודם") — §4.3's markers and standalone
+# margin notes. Dropping them from the RAW side can never hide a draft defect:
+# if the draft kept such a line, it surfaces as ADDED.
+_HEADER_RE = re.compile(
+    r"^\s*(שאלה\s*\d+\s*[א-ת]?\.?(\s+המשך(\s+\d+)?)?|[א-ת]\.|\(?\d{1,2}\)|המשך(\s.*)?)\s*$")
 
 # Report a divergence only if it survives normalization AND is long enough to be
 # a real token rather than a spacing artifact the normalizer already folded.
@@ -71,12 +76,25 @@ _MIN_RUN = 2
 _MAX_INTERIOR_FRACTION = 0.30
 
 
+# A part number written at the START of a prose line or the END of a code line
+# (`(2) לבדוק …`, `printStatistics (int[] arr)   (1)`): raw keeps it where the
+# student wrote it, the draft drops it (§3.3 / §4.3). Raw side only, as above.
+_PART_EDGE_RE = re.compile(r"^(\s*)\(?\d{1,2}\)\s+(?=\S)|\s{2,}\(?\d{1,2}\)\s*$")
+
+
 def _raw_ink(doc_id: str) -> str:
-    """All raw ink for a doc, minus page delimiters and student section headers."""
-    pages = load_page_ground_truth(RAW_DIR / f"{doc_id}.md").pages
+    """All raw ink for a doc, minus page delimiters and student section headers —
+    with the owner's arrow cases (insertion_cases.json) APPLIED. Raw is physical
+    placement and draft intended placement (OD-A1), so the two only describe the
+    same text once the gold relocation has run; comparing them unrelocated reports
+    every moved block as a DROPPED + ADDED pair."""
+    from .diagnostics import gold_relocation
+    raw = load_page_ground_truth(RAW_DIR / f"{doc_id}.md").as_dict()
+    moved, _ = gold_relocation(doc_id, raw)
     kept = [
-        "\n".join(l for l in p.text.splitlines() if not _HEADER_RE.match(l))
-        for p in pages
+        "\n".join(_PART_EDGE_RE.sub(r"\1", l) for l in moved[n].splitlines()
+                  if not _HEADER_RE.match(l))
+        for n in sorted(moved)
     ]
     return normalize("\n".join(kept), strip_illegible=False)
 

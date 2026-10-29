@@ -71,6 +71,8 @@ Crossed-out text is omitted entirely. Do not add text that is not on the page.
 Start the output with `=== PAGE {n} ===` on its own line, then the page text as PLAIN TEXT — no markdown, no JSON.
 """.lstrip("\n")
 
+RUBRIC_READ_MODEL_KEY = "gemini-3.1-pro-preview"
+
 IMAGE_STAGE_TEXT_CHARS = 200      # trigger: rendered text shorter than this AND ≥ 1 image
 PDF_RASTER_DPI = 150
 MAX_PARALLEL_PAGES = 4
@@ -206,7 +208,9 @@ async def read_pages(
     user_prompt = _embedded_user_prompt if embedded else _page_user_prompt
 
     providers, aliased, scheduler = _shared_infra()
-    key = PROD_CONFIG.p1_model_key
+    # The rubric reader is pinned BY NAME: it was measured on gemini-3.1-pro (rr1.0 and the
+    # math reader alike), and must not move when the student-transcription pin does.
+    key = RUBRIC_READ_MODEL_KEY
     provider = providers[key]
     ms = aliased[key]
     rep.model_id = ms.model_id

@@ -47,6 +47,12 @@ class Trace:
     doc_id: str
     spans: list[Span] = field(default_factory=list)
     calls: list[CallRecord] = field(default_factory=list)
+    # Focus pass (focus.py): one dict per reader verdict — page, line id, before,
+    # after, accepted, reason. Eval-only reading; never reaches a draft.
+    focus: list[dict] = field(default_factory=list)
+    # P2's claimed-line map ((page, line) -> target label), eval-only: lets a
+    # deterministic post-rule be scored with/without on the SAME P2 output.
+    p2_owned: dict = field(default_factory=dict)
 
     def total_cost_usd(self) -> float:
         return sum(c.cost_usd for c in self.calls)

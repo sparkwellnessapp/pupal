@@ -48,10 +48,16 @@ class VLMCallError(Exception):
 
 @dataclass(frozen=True)
 class Usage:
-    """Provider-reported token usage. The cost primitive."""
+    """Provider-reported token usage. The cost primitive.
+
+    `output_tokens` is what the provider BILLS as output, and that includes any
+    hidden thinking/reasoning tokens (every vendor bills them at the output
+    rate). `reasoning_tokens` is the reporting breakdown of that subset — never
+    added on top of `output_tokens`, which already contains it."""
     input_tokens: int
     output_tokens: int
     cached_input_tokens: int | None = None  # None when the API doesn't break it out
+    reasoning_tokens: int | None = None     # subset of output_tokens; None = not broken out
 
 
 @dataclass(frozen=True)

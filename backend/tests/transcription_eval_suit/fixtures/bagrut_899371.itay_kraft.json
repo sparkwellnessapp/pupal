@@ -1,0 +1,16 @@
+{
+ "exam_spec": "exams/bagrut_899371.json",
+ "provenance": {
+  "exam": "בגרות במדעי המחשב 899371 — ענו על 4 מתוך 6 שאלות",
+  "student": "itay_kraft",
+  "rubric_source": "tests/rubric_eval_suite/benchmarks/bagrut_899371.json (human-ratified rubric GT; 11 answer keys, selection_groups choose 4 of 6)",
+  "answered_questions": [
+   2,
+   3,
+   4,
+   6
+  ],
+  "raw_pages": 8,
+  "note": "authored 2026-09; second exam in the corpus. Selection exam: the questions this student did not choose are blank by design, not missing."
+ }
+}
