@@ -5,7 +5,10 @@ import {
     APPX_FOOTER, APPX_FOOTER_PAGE, APPX_META, APPX_POINTS, APPX_SUMMARY,
     APPX_TEACHER, APPX_TEACHER_NOTES, APPX_TITLE,
 } from '@/copy/grade-review';
-import type { Appendix, AppendixPageContent } from '@/utils/returned-exam';
+import {
+    APPENDIX_SCOPE_ORDER, type Appendix, type AppendixPageContent, type AppendixScope,
+    type AppendixScopeBlock,
+} from '@/utils/returned-exam';
 
 /**
  * P4 — one page of the feedback appendix, as the student will receive it.
@@ -53,6 +56,73 @@ export interface AppendixPageProps {
      * two typographies, the same form (`√e` is never `e^½` on either).
      */
     subject?: string | null;
+}
+
+/** One block of a scope, in `APPENDIX_SCOPE_ORDER` — the order the PDF prints too. */
+function ScopeBlock({ scope, block, subject }: {
+    scope: AppendixScope; block: AppendixScopeBlock; subject?: string | null;
+}) {
+    switch (block) {
+        case 'points':
+            return (
+                <div data-appendix-points className="flex justify-between text-gr-appx-q">
+                    <span>{scope.title}</span>
+                    <span
+                        dir="ltr"
+                        className="flex-none whitespace-nowrap text-gr-appx-q font-medium
+                            text-grade-ink-2"
+                        style={{ unicodeBidi: 'isolate' }}
+                    >
+                        {APPX_POINTS(scope.awarded, scope.possible)}
+                    </span>
+                </div>
+            );
+        case 'feedback':
+            return scope.feedback
+                ? <p data-appendix-feedback className="mt-px text-grade-ink-2"><ProseMath text={scope.feedback} subject={subject} /></p>
+                : null;
+        case 'notes':
+            return scope.notes.length ? (
+                <div data-appendix-notes className="mt-1 text-grade-ink-2">
+                    <p className="text-gr-label">{APPX_TEACHER_NOTES}</p>
+                    {scope.notes.map((note, index) => (
+                        <p key={`${scope.scopeId}:note:${index}`} className="whitespace-pre-line">
+                            {note.criterion}: <ProseMath text={note.text} subject={subject} />
+                        </p>
+                    ))}
+                </div>
+            ) : null;
+        case 'breakdown':
+            return scope.criteria ? (
+                <div
+                    data-appendix-breakdown
+                    className="my-1.5 border-s-2 border-grade-line ps-2.5
+                        text-gr-label text-grade-ink-2"
+                >
+                    {scope.criteria.map((criterion, index) => (
+                        <div
+                            key={`${scope.scopeId}:${index}`}
+                            className="flex justify-between gap-2.5"
+                        >
+                            <span>{criterion.description}</span>
+                            {/* nowrap: a tariff broken across two
+                                lines reads as two numbers, and this
+                                column is the one thing on the page a
+                                student checks digit by digit. */}
+                            <span
+                                dir="ltr"
+                                className="flex-none whitespace-nowrap font-mono text-gr-chip"
+                                style={{ unicodeBidi: 'isolate' }}
+                            >
+                                {APPX_POINTS(criterion.awarded, criterion.possible)}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            ) : null;
+        default:
+            return null;
+    }
 }
 
 export function AppendixPage({
@@ -110,58 +180,9 @@ export function AppendixPage({
 
                 {page.scopes.map((scope) => (
                     <div key={scope.scopeId} data-appendix-scope={scope.scopeId} className="mb-3">
-                        <div className="flex justify-between text-gr-appx-q">
-                            <span>{scope.title}</span>
-                            <span
-                                dir="ltr"
-                                className="flex-none whitespace-nowrap text-gr-appx-q font-medium
-                                    text-grade-ink-2"
-                                style={{ unicodeBidi: 'isolate' }}
-                            >
-                                {APPX_POINTS(scope.awarded, scope.possible)}
-                            </span>
-                        </div>
-
-                        {scope.criteria ? (
-                            <div
-                                data-appendix-breakdown
-                                className="my-1.5 border-s-2 border-grade-line ps-2.5
-                                    text-gr-label text-grade-ink-2"
-                            >
-                                {scope.criteria.map((criterion, index) => (
-                                    <div
-                                        key={`${scope.scopeId}:${index}`}
-                                        className="flex justify-between gap-2.5"
-                                    >
-                                        <span>{criterion.description}</span>
-                                        {/* nowrap: a tariff broken across two
-                                            lines reads as two numbers, and this
-                                            column is the one thing on the page a
-                                            student checks digit by digit. */}
-                                        <span
-                                            dir="ltr"
-                                            className="flex-none whitespace-nowrap font-mono text-gr-chip"
-                                            style={{ unicodeBidi: 'isolate' }}
-                                        >
-                                            {APPX_POINTS(criterion.awarded, criterion.possible)}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : null}
-
-                        <p className="mt-px text-grade-ink-2"><ProseMath text={scope.feedback} subject={subject} /></p>
-
-                        {scope.notes.length ? (
-                            <div data-appendix-notes className="mt-1 text-grade-ink-2">
-                                <p className="text-gr-label">{APPX_TEACHER_NOTES}</p>
-                                {scope.notes.map((note, index) => (
-                                    <p key={`${scope.scopeId}:note:${index}`} className="whitespace-pre-line">
-                                        {note.criterion}: <ProseMath text={note.text} subject={subject} />
-                                    </p>
-                                ))}
-                            </div>
-                        ) : null}
+                        {APPENDIX_SCOPE_ORDER.map((block) => (
+                            <ScopeBlock key={block} scope={scope} block={block} subject={subject} />
+                        ))}
                     </div>
                 ))}
 
