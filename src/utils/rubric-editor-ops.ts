@@ -340,6 +340,13 @@ export function setSubQuestionTitleAtPath(
     return updateSubQuestionAtPath(questions, qIndex, sqPath, sq => ({ ...sq, title }));
 }
 
+/** Set (or clear, with `null`) a sub-question's example_solution, at any depth. */
+export function setSubQuestionExampleSolutionAtPath(
+    questions: RubricQuestion[], qIndex: number, sqPath: number[], text: string | null,
+): RubricQuestion[] {
+    return updateSubQuestionAtPath(questions, qIndex, sqPath, sq => ({ ...sq, example_solution: text }));
+}
+
 export function updateCriterionAtPath(
     questions: RubricQuestion[], qIndex: number, sqPath: number[], cIndex: number, updates: Partial<RubricCriterion>,
 ): RubricQuestion[] {

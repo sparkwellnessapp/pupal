@@ -52,8 +52,10 @@ describe.each(FIXTURES)('RubricDocument SSR — %s', (name) => {
     });
 
     it('renders a solution disclosure IFF a solution exists', () => {
+        // The disclosure's toggle — not the bare phrase, which the hover-revealed
+        // «+ הוסיפי פתרון לדוגמה» line on solution-less scopes also carries.
         const html = render(qs);
-        expect(html.includes('פתרון לדוגמה')).toBe(hasAnySolution(qs));
+        expect(html.includes('aria-label="פתרון לדוגמה"')).toBe(hasAnySolution(qs));
     });
 
     it('does not mutate the questions prop on render (displays, never fixes state)', () => {
@@ -281,5 +283,34 @@ describe('PR-6 — findings render in the mirror', () => {
         expect(render(questions, { advisoryScan: 'complete' })).not.toContain('לא הושלמו');
         // unknown (a pre-3.5.0 draft) makes NO claim either way
         expect(render(questions, { advisoryScan: 'unknown' })).not.toContain('לא הושלמו');
+    });
+});
+
+describe('RubricDocument SSR — example solutions are editable', () => {
+    const leaf = (id: string, example_solution: string | null): RubricSubQuestion => ({
+        sub_question_id: id, index: 0, text: 'נוסח', points: 5,
+        criteria: [{ criterion_id: `${id}.c1`, index: 0, description: 'קריטריון', points: 5, sub_criteria: null }],
+        example_solution,
+    });
+    const questions: RubricQuestion[] = [{
+        question_id: 'q1', question_text: 'שאלה', total_points: 10, criteria: [],
+        sub_questions: [leaf('א', 'int x = 1;\nreturn x;'), leaf('ב', null)],
+        allow_multiple_valid_forms: false, example_solution: null,
+    }];
+
+    it('a scope WITH a solution renders the disclosure; one WITHOUT renders the add line', () => {
+        const html = render(questions);
+        expect(html).toContain('aria-label="פתרון לדוגמה"');
+        expect(html).toContain('+ הוסיפי פתרון לדוגמה — ');
+    });
+
+    it('the add line is silent at rest (hover/focus reveal, §5)', () => {
+        const html = render(questions);
+        expect(html).toMatch(/class="[^"]*opacity-0 group-hover\/sq:opacity-100[^"]*"[^>]*>\+ הוסיפי פתרון לדוגמה/);
+        expect(html).toMatch(/class="[^"]*opacity-0 group-hover\/q:opacity-100[^"]*"[^>]*>\+ הוסיפי פתרון לדוגמה/);
+    });
+
+    it('still no edit boxes at rest', () => {
+        expect(render(questions)).not.toContain('<textarea');
     });
 });
