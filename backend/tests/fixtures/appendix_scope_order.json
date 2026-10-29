@@ -1,0 +1,4 @@
+{
+  "_note": "The order of a scope's blocks on the student's feedback page (owner-ruled 2026-10-26). Read by BOTH renderers' tests: returned_exam.APPENDIX_SCOPE_ORDER (PDF) and returned-exam.ts APPENDIX_SCOPE_ORDER (preview).",
+  "order": ["points", "feedback", "notes", "breakdown"]
+}

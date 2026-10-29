@@ -16,10 +16,10 @@ from decimal import Decimal
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, Field, field_serializer
 
 from app.schemas.graded_test_contract import GradedTestContract
-from app.schemas.graded_test_draft import GradedTestDraft, GradedTestOverrides
+from app.schemas.graded_test_draft import FeedbackBlock, GradedTestDraft, GradedTestOverrides
 # [OD-F8] Used in the annotations below. `from __future__ import annotations`
 # makes those lazy strings, so a missing import here does NOT fail at import
 # time — `python -c "import app.main"` stays green while
@@ -162,6 +162,10 @@ class GradedTestV6Response(BaseModel):
     ai_total_score: Decimal
     lines: List[V6ReasoningLine]
     undecided_check_ids: List[str]
+    # Vivi's feedback as it stands (rewrites included), and the scopes whose text
+    # her decisions have since made out of date (`feedback.inputs.stale_feedback_scopes`).
+    feedback: Optional[FeedbackBlock] = None
+    stale_feedback_scope_ids: List[str] = Field(default_factory=list)
 
     @field_serializer("ai_total_score")
     def _sd(self, v: Decimal) -> str:

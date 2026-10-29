@@ -7,7 +7,9 @@ grader: one call that both picks a verdict and argues for it would let the
 prose anchor the verdict.
 """
 
-FEEDBACK_PROMPT_VERSION = "feedback-v1"
+# v1.1: a scope's input may carry her criterion notes, with the rule that the prose
+# neither repeats nor contradicts them (`inputs._notes_block`). System prompt unchanged.
+FEEDBACK_PROMPT_VERSION = "feedback-v1.1"
 
 FEEDBACK_SYSTEM_PROMPT = """\
 את/ה כותב/ת משוב קצר לתלמיד/ה על מבחן שכבר נבדק. הציון כבר נקבע — תפקידך רק

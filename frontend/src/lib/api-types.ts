@@ -1315,11 +1315,19 @@ export interface paths {
         put?: never;
         /**
          * Regenerate Feedback
-         * @description Regenerate the feedback for ONE target.
+         * @description Regenerate the feedback for ONE target, described under HER current decisions.
          *
          *     OD-G4.2 — her words are never overwritten. If she has already edited this
          *     target, the fresh text is returned for the UI to offer and the draft is left
          *     exactly as it was; the decision to take it is hers, not the endpoint's.
+         *
+         *     A scope target asks the model for that scope alone (one short call — the
+         *     surface rewrites a stale scope on its own, so this runs often). «summary»
+         *     asks for the whole test, and also fills any scope that has no text yet.
+         *
+         *     The model call holds NO connection (§7 sessions rule), and the write re-reads
+         *     the row under a lock: her saves land while the model writes, and writing back
+         *     the draft read before the call would erase them.
          */
         post: operations["regenerate_feedback_api_v0_grading_graded_test__graded_test_id__feedback_regenerate_post"];
         delete?: never;
@@ -4587,6 +4595,7 @@ export interface components {
             /** Ai Total Score */
             ai_total_score: string;
             content: components["schemas"]["DraftV6Content"];
+            feedback?: components["schemas"]["FeedbackBlock"] | null;
             /**
              * Id
              * Format: uuid
@@ -4597,6 +4606,8 @@ export interface components {
             overlay: components["schemas"]["PricingOverlay"];
             overrides: components["schemas"]["GradedTestOverrides-Output"];
             priced: components["schemas"]["PricedTest"];
+            /** Stale Feedback Scope Ids */
+            stale_feedback_scope_ids?: string[];
             /** Status */
             status: string;
             /** Undecided Check Ids */
@@ -5406,6 +5417,11 @@ export interface components {
         RegenerateFeedbackResponse: {
             /** Offered Only */
             offered_only: boolean;
+            /**
+             * Stale
+             * @default false
+             */
+            stale: boolean;
             /** Target */
             target: string;
             /** Text */

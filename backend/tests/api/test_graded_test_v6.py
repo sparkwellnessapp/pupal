@@ -140,3 +140,105 @@ def test_approve_freezes_the_v6_contract(client, v6_row):
     frozen = {c["check_id"]: c for c in contract["v6"]["checks"]}
     assert frozen[plan["check_id"]]["effective_option_id"] == plan["options"][1]["option_id"]
     assert client.get(f"{BASE}/{gid}/v6", headers=headers).json()["status"] == "approved"
+
+
+# ── feedback: stale after her decisions, rewritten from them ─────────────────
+
+@pytest.fixture
+def v6_row_with_feedback(client, user_a, headers_a, v6_draft):
+    from app.agents.feedback.inputs import feedback_inputs
+    from app.schemas.graded_test_draft import FeedbackBlock, FeedbackText
+    draft, bundle = v6_draft
+    draft = draft.model_copy(update={"feedback": FeedbackBlock(
+        scopes={i.scope_id: FeedbackText(text="משוב מקורי", basis_hash=i.basis)
+                for i in feedback_inputs(draft, None)},
+        summary=FeedbackText(text="סיכום"), model_version="m", prompt_version="p")})
+    rid = asyncio.run(_insert_rubric(user_a["user"]["id"], bundle.rubric_contract))
+    gid = asyncio.run(_insert_draft_row(user_a["user"]["id"], rid, draft.model_dump(mode="json")))
+    yield gid, headers_a, draft
+    asyncio.run(_delete_graded_test_row(gid))
+    asyncio.run(_delete_rubric(rid))
+
+
+def _fake_feedback_model(monkeypatch, sent: list, text: str = "משוב חדש"):
+    from app.agents.feedback.schemas import FeedbackResponse, ScopeFeedback
+    from app.config import settings
+
+    class _Runner:
+        async def ainvoke(self, messages):
+            sent.append(messages[-1].content)
+            ids = [line.split(" ", 1)[1] for line in messages[-1].content.splitlines()
+                   if line.startswith("סעיף ")]
+            return FeedbackResponse(scopes=[ScopeFeedback(scope_id=s, text=text) for s in ids],
+                                    summary="סיכום חדש")
+
+    class _LLM:
+        def with_structured_output(self, _schema, include_raw=False):
+            return _Runner()
+
+    monkeypatch.setattr(settings, "feedback_model_key", "fake-model", raising=False)
+    monkeypatch.setattr("app.agents.feedback.runner.build_feedback_model", lambda: _LLM())
+
+
+def _flip_ladder(client, gid, headers):
+    body = client.get(f"{BASE}/{gid}/v6", headers=headers).json()
+    plan = _ladder(body)
+    vt = next(t for t in body["content"]["view_terminals"]
+              if t["terminal_id"] == plan["priced_terminal_id"])
+    scope = vt["question_id"] if not vt.get("sub_question_id") else f"{vt['question_id']}.{vt['sub_question_id']}"
+    out = client.patch(f"{BASE}/{gid}/v6/draft", headers=headers, json={
+        "v6": {"checks": {plan["check_id"]: {"option_id": plan["options"][1]["option_id"]}}}})
+    assert out.status_code == 200, out.text
+    return out.json(), scope, plan
+
+
+def test_a_decision_makes_its_feedback_stale_and_a_rewrite_describes_it(client, v6_row_with_feedback,
+                                                                       monkeypatch):
+    gid, headers, _d = v6_row_with_feedback
+    assert client.get(f"{BASE}/{gid}/v6", headers=headers).json()["stale_feedback_scope_ids"] == []
+    out, scope, plan = _flip_ladder(client, gid, headers)
+    assert out["stale_feedback_scope_ids"] == [scope]
+
+    sent: list = []
+    _fake_feedback_model(monkeypatch, sent)
+    r = client.post(f"{BASE}/{gid}/feedback/regenerate", params={"target": scope}, headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json() == {"target": scope, "text": "משוב חדש", "offered_only": False, "stale": False}
+    # ONE scope asked for, described under HER decision — never «no checks»
+    assert len(sent) == 1 and sent[0].count("סעיף ") == 1
+    assert f"[{plan['options'][1]['label_he']}] {plan['description_he']}" in sent[0]
+    assert "אין בדיקות לסעיף זה" not in sent[0]
+
+    body = client.get(f"{BASE}/{gid}/v6", headers=headers).json()
+    assert body["stale_feedback_scope_ids"] == []
+    assert body["feedback"]["scopes"][scope]["text"] == "משוב חדש"
+    # her decision survived the rewrite's write
+    assert body["overlay"]["checks"][plan["check_id"]]["option_id"] == plan["options"][1]["option_id"]
+
+
+def test_a_rewrite_never_replaces_her_words(client, v6_row_with_feedback, monkeypatch):
+    gid, headers, _d = v6_row_with_feedback
+    _out, scope, _plan = _flip_ladder(client, gid, headers)
+    assert client.patch(f"{BASE}/{gid}/v6/draft", headers=headers,
+                        json={"feedback": {scope: "המשוב שלי"}}).status_code == 200
+    _fake_feedback_model(monkeypatch, [])
+    r = client.post(f"{BASE}/{gid}/feedback/regenerate", params={"target": scope}, headers=headers)
+    assert r.status_code == 200 and r.json()["offered_only"] is True
+    body = client.get(f"{BASE}/{gid}/v6", headers=headers).json()
+    assert body["overrides"]["feedback"][scope] == "המשוב שלי"
+    assert body["feedback"]["scopes"][scope]["text"] == "משוב מקורי"
+
+
+def test_a_rewrite_of_the_summary_fills_a_scope_that_has_no_text(client, v6_row, monkeypatch):
+    """Feedback failed at grade time (no block at all): «נסי שוב» on the summary
+    writes the whole test, stamped, and nothing is stale afterwards."""
+    gid, headers, _d = v6_row
+    assert client.get(f"{BASE}/{gid}/v6", headers=headers).json()["feedback"] is None
+    _fake_feedback_model(monkeypatch, [])
+    r = client.post(f"{BASE}/{gid}/feedback/regenerate", params={"target": "summary"}, headers=headers)
+    assert r.status_code == 200, r.text
+    body = client.get(f"{BASE}/{gid}/v6", headers=headers).json()
+    assert body["feedback"]["summary"]["text"] == "סיכום חדש"
+    assert body["feedback"]["scopes"] and all(
+        t["text"] == "משוב חדש" for t in body["feedback"]["scopes"].values())
+    assert body["stale_feedback_scope_ids"] == []

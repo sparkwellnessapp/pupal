@@ -907,3 +907,25 @@ def test_math_in_feedback_is_linearised_and_reads_left_to_right(label, text, for
     assert formula in rendered, (
         f"{label}: the formula does not read left to right\n"
         f"  expected inside: {formula!r}\n  rendered: {rendered!r}")
+
+
+def test_the_scope_order_is_the_one_both_renderers_pin():
+    """Points, feedback, her notes, then the breakdown (owner-ruled 2026-10-26) —
+    the same fixture the preview's test reads, and the order the page really has."""
+    import json
+    from pathlib import Path
+    import fitz
+    from app.services.returned_exam import (APPENDIX_SCOPE_ORDER, AppendixScope,
+                                            render_appendix_pdf)
+
+    fixture = Path(__file__).resolve().parents[1] / "fixtures" / "appendix_scope_order.json"
+    assert list(APPENDIX_SCOPE_ORDER) == json.loads(fixture.read_text(encoding="utf-8"))["order"]
+
+    scope = AppendixScope("q1", "שאלה 1", "7", "9", "alpha feedback",
+                          [("gamma criterion", "1", "2")], notes=[("beta", "note")])
+    pdf = render_appendix_pdf("Dan", [scope], None, True, total="7", possible="9")
+    words = fitz.open(stream=pdf, filetype="pdf")[0].get_text("words")
+    top = {w[4]: w[1] for w in words}
+    y = {"points": top["9"], "feedback": top["alpha"], "notes": top["beta:"],
+         "breakdown": top["gamma"]}
+    assert sorted(y, key=y.get) == list(APPENDIX_SCOPE_ORDER)

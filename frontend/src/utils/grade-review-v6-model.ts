@@ -56,6 +56,7 @@ import {
     type WireScope,
 } from './grade-review-model';
 import type { HighlightSpan } from './evidence-highlight';
+import type { FeedbackState } from './feedback-staleness';
 import { RV_BLOCK_GENERIC, RV_BLOCK_UNDECIDED } from '@/copy/grade-review';
 import { V6_BLOCK_FAILED } from '@/copy/grade-review-v6';
 
@@ -501,6 +502,31 @@ export interface V6Criterion {
     checks: V6Check[];
 }
 
+/**
+ * One piece of the student's feedback, as the v6 surface shows it.
+ *
+ *   fresh     Vivi's text, describing the grade as it stands — or HER text
+ *   stale     Vivi's text, written before a decision of hers moved what it describes
+ *             (the server's `stale_feedback_scope_ids`); the surface rewrites it
+ *   updating  Vivi is rewriting it now
+ *   absent    no text, and none of hers — `absentReason` says why
+ *   blank     she emptied it (or opened an empty one): no feedback goes out, by HER choice
+ *
+ * Her words are never stale: she wrote them against what she could see, and
+ * telling her they are out of date would be Vivi second-guessing the teacher.
+ */
+export interface V6Feedback {
+    text: string;
+    teacherEdited: boolean;
+    state: FeedbackState;
+    /** `failed`: Vivi tried and could not; `not_written`: nothing was ever attempted. */
+    absentReason: 'failed' | 'not_written' | null;
+    /** Vivi can write this one (a scope the model graded, or the summary). */
+    canWrite: boolean;
+    /** A rewrite of HER text, offered beside it — never applied over it. */
+    offered: string | null;
+}
+
 export interface V6Scope {
     scopeId: string;
     title: string;
@@ -512,7 +538,8 @@ export interface V6Scope {
     gradedBy: string;
     overridden: boolean;
     criteria: V6Criterion[];
-    feedback: { text: string; teacherEdited: boolean } | null;
+    /** null only for a scope the student does not get (excluded by a selection). */
+    feedback: V6Feedback | null;
     undecidedCount: number;
 }
 
@@ -521,7 +548,9 @@ export interface V6ReviewModel {
     total: string;
     possible: string;
     anyOverride: boolean;
-    summary: { text: string; teacherEdited: boolean } | null;
+    summary: V6Feedback;
+    /** Scopes the student gets that carry no feedback, and not by her choice. */
+    feedbackMissing: number;
     blockers: ApprovalBlocker[];
     undecided: string[];
     priced: PricedTest;
@@ -531,6 +560,8 @@ export interface BuildV6Options {
     /** The latest server response — `content` is Vivi's record and never changes. */
     review: Pick<GradedTestV6Response, 'content' | 'lines'> & {
         priced?: GradedTestV6Response['priced'];
+        feedback?: GradedTestV6Response['feedback'];
+        stale_feedback_scope_ids?: GradedTestV6Response['stale_feedback_scope_ids'];
     };
     /** The envelope (`GET /graded_test/{id}` → `draft`): her criterion text, the answers. */
     draft: WireDraft;
@@ -547,8 +578,37 @@ export interface BuildV6Options {
      */
     saving?: boolean;
     feedbackOverrides?: Record<string, string>;
-    /** Feedback targets whose text is hers (stored or typed this session). */
-    feedbackEdited?: ReadonlySet<string>;
+    /** Feedback targets Vivi is rewriting right now («summary» rewrites every empty scope too). */
+    rewriting?: ReadonlySet<string>;
+    /** Rewrites of HER text, offered beside it. */
+    offers?: Readonly<Record<string, string>>;
+}
+
+/** The feedback card's state — one rule for every target (see `V6Feedback`). */
+export function v6Feedback(input: {
+    vivi: string;
+    hers: string | undefined;
+    stale: boolean;
+    rewriting: boolean;
+    failed: boolean;
+    canWrite: boolean;
+    offered: string | null;
+}): V6Feedback {
+    const { vivi, hers, stale, rewriting, failed, canWrite, offered } = input;
+    if (hers !== undefined) {
+        return {
+            text: hers, teacherEdited: true, state: hers.trim() ? 'fresh' : 'blank',
+            absentReason: null, canWrite, offered,
+        };
+    }
+    const hasText = vivi.trim() !== '';
+    const state: FeedbackState = rewriting ? 'updating'
+        : !hasText ? 'absent' : stale ? 'stale' : 'fresh';
+    return {
+        text: vivi, teacherEdited: false, state,
+        absentReason: hasText ? null : failed ? 'failed' : 'not_written',
+        canWrite, offered,
+    };
 }
 
 /** terminal id → her criterion text, from the envelope (criterion or sub-criterion). */
@@ -574,8 +634,19 @@ export function criterionDescriptions(draft: WireDraft): Map<string, { descripti
 export function buildV6ReviewModel(options: BuildV6Options): V6ReviewModel {
     const {
         review, draft, overlay, questions = [], pendingLines = new Set<string>(),
-        saving = false, feedbackOverrides = {}, feedbackEdited = new Set<string>(),
+        saving = false, feedbackOverrides = {},
+        rewriting = new Set<string>(), offers = {},
     } = options;
+    // Vivi's text: the review response carries it (rewrites included); an older
+    // response without the field falls back to the envelope.
+    const viviFeedback = review.feedback !== undefined ? review.feedback : draft.feedback;
+    const staleFeedback = new Set(review.stale_feedback_scope_ids ?? []);
+    const feedbackFailed = (draft.annotations ?? []).some(
+        (a) => a.annotation_type === 'feedback_unavailable');
+    // A key in her overrides is hers — an empty string included: «no feedback», chosen.
+    const hersOf = (target: string): string | undefined =>
+        Object.prototype.hasOwnProperty.call(feedbackOverrides, target)
+            ? feedbackOverrides[target] : undefined;
     const serverAward = new Map(
         (review.priced?.terminals ?? []).map((t) => [t.terminal_id, t.awarded]));
     const content = review.content;
@@ -719,8 +790,19 @@ export function buildV6ReviewModel(options: BuildV6Options): V6ReviewModel {
             graded_by: content.scopes.find((s) => s.question_id === section.questionId
                 && (s.sub_question_id ?? null) === section.subQuestionId)?.graded_by ?? 'llm',
         };
-        const feedbackText = feedbackOverrides[section.scopeId]
-            ?? draft.feedback?.scopes?.[section.scopeId]?.text ?? '';
+        const counted = pricedScope?.counted ?? true;
+        const llm = wire.graded_by === 'llm';
+        const feedback = counted ? v6Feedback({
+            vivi: viviFeedback?.scopes?.[section.scopeId]?.text ?? '',
+            hers: hersOf(section.scopeId),
+            stale: staleFeedback.has(section.scopeId),
+            rewriting: rewriting.has(section.scopeId) || (llm && rewriting.has('summary')
+                && !(viviFeedback?.scopes?.[section.scopeId]?.text ?? '').trim()),
+            // Vivi wrote feedback for the test but not this question, or the call failed
+            failed: llm && (feedbackFailed || Boolean(viviFeedback)),
+            canWrite: llm,
+            offered: offers[section.scopeId] ?? null,
+        }) : null;
         return {
             scopeId: section.scopeId,
             title: scopeTitle(wire),
@@ -728,27 +810,33 @@ export function buildV6ReviewModel(options: BuildV6Options): V6ReviewModel {
             answer: section.wire ? answerViewOf(section.wire) : { kind: 'unavailable' },
             possible: pricedScope?.points_possible ?? wire.points_possible,
             awarded: pricedScope?.awarded ?? '0',
-            counted: pricedScope?.counted ?? true,
+            counted,
             gradedBy: wire.graded_by,
             overridden: criteria.some((c) => c.decided),
             criteria,
-            feedback: feedbackText
-                ? { text: feedbackText, teacherEdited: feedbackEdited.has(section.scopeId) }
-                : null,
+            feedback,
             undecidedCount: criteria.reduce((n, c) => n + c.undecidedCount, 0),
         };
     });
 
-    const summaryText = feedbackOverrides.summary ?? draft.feedback?.summary?.text ?? '';
+    const anyWritten = scopes.some((s) => s.feedback?.canWrite);
+    const summary = v6Feedback({
+        vivi: viviFeedback?.summary?.text ?? '',
+        hers: hersOf('summary'),
+        stale: false,                // the summary names patterns, not one question's grade
+        rewriting: rewriting.has('summary'),
+        failed: feedbackFailed,
+        canWrite: anyWritten,
+        offered: offers.summary ?? null,
+    });
     return {
         scopes,
         total: priced.total_score,
         possible: priced.total_possible,
         anyOverride: Object.keys(overlay.terminal_points).length > 0
             || Object.values(overlay.checks).some((c) => c.option_id !== null),
-        summary: summaryText
-            ? { text: summaryText, teacherEdited: feedbackEdited.has('summary') }
-            : null,
+        summary,
+        feedbackMissing: scopes.filter((s) => s.feedback?.state === 'absent').length,
         blockers: blockersV6(draft, content, overlay, undecided),
         undecided,
         priced,

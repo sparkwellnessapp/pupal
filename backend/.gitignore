@@ -219,6 +219,8 @@ gen-lang-client-*.json
 !tests/fixtures/selection_expectation_cases.json
 # [MATH_RENDERING_PLAN §4] where the math is — read by backend AND frontend tests
 !tests/fixtures/math_spans_vectors.json
+# [feedback-v6] the appendix block order, read by BOTH the PDF test and AppendixPage.render.test.tsx
+!tests/fixtures/appendix_scope_order.json
 # [D-13] the router's raw Sonnet 5 outputs the decode-once parse is tested on
 !tests/fixtures/router_sonnet5_recorded.json
 # ...except the F0 staging area (superseded by the ratified snapshot):

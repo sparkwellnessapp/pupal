@@ -19,6 +19,16 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+def build_feedback_model():
+    """The feedback chat model — ONE construction for every caller. [owner 2026-10-18]
+    Sonnet 5.5 is built only with an explicit effort and thinking (AM-G18); the
+    regenerate endpoint once built it bare, and every rewrite would have failed."""
+    from app.agents.grader.llm_factory import NATIVE_SCHEMA_MODELS, build_chat_model
+    knobs = ({"reasoning_effort": settings.feedback_effort, "thinking": settings.feedback_thinking}
+             if settings.feedback_model_key in NATIVE_SCHEMA_MODELS else {})
+    return build_chat_model(settings.feedback_model_provider, settings.feedback_model_key, **knobs)
+
+
 async def attach_feedback(draft, *, graded_test_id=None, usage: Optional[dict] = None):
     """draft -> draft (with `feedback`, or unchanged). Never raises.
 
@@ -28,39 +38,16 @@ async def attach_feedback(draft, *, graded_test_id=None, usage: Optional[dict] =
         return draft
 
     from app.agents.feedback.agent import FeedbackAgent
-    from app.agents.feedback.prompt import render_scope_for_feedback
-    from app.agents.feedback.staleness import basis_hash, flatten_checks
-    from app.agents.grader.llm_factory import build_chat_model
+    from app.agents.feedback.inputs import feedback_inputs
 
-    # only scopes the LLM actually graded have verdicts to describe — and [D-6] never one
-    # excluded by a selection group (the runner marks those first on a v6 grade)
-    scopes = [(so.question_id if so.sub_question_id is None
-               else f"{so.question_id}.{so.sub_question_id}", so)
-              for so in draft.scope_outcomes if so.graded_by == "llm"]
-    if not scopes:
+    # [D-6] only scopes the LLM graded, never one a selection group excluded (the runner
+    # marks those first); v6 scopes are described from their own block (AM-G7)
+    inputs = feedback_inputs(draft, draft.teacher_overrides)
+    if not inputs:
         return draft
 
-    # [grader-v6, AM-G7] a v6 draft is described from its own block: the option that
-    # priced, the verified quote, the absence pointer — its envelope carries no checks
-    from app.schemas.graded_test_draft_v6 import v6_content
-    content = v6_content(draft)
-    if content is not None:
-        from app.agents.feedback.prompt import render_scope_v6
-        from app.services.pricing_v6 import price
-        priced = price(content.to_view())
-
-        def render(so):
-            return render_scope_v6(content, priced, (so.question_id, so.sub_question_id))
-    else:
-        render = None
-
-    from app.agents.grader.llm_factory import NATIVE_SCHEMA_MODELS
-    # [owner 2026-10-18] Sonnet 5.5 is built only with an explicit effort and thinking (AM-G18)
-    knobs = ({"reasoning_effort": settings.feedback_effort, "thinking": settings.feedback_thinking}
-             if settings.feedback_model_key in NATIVE_SCHEMA_MODELS else {})
     try:
-        llm = build_chat_model(settings.feedback_model_provider,
-                               settings.feedback_model_key, **knobs)
+        llm = build_feedback_model()
     except Exception as exc:                        # noqa: BLE001
         logger.warning("feedback_model_unavailable",
                        extra={"exception_class": type(exc).__name__})
@@ -68,8 +55,7 @@ async def attach_feedback(draft, *, graded_test_id=None, usage: Optional[dict] =
 
     agent = FeedbackAgent(llm, model_version=settings.feedback_model_key,
                           graded_test_id=graded_test_id)
-    block, annotations = await agent.generate(
-        [(sid, render(so) if render else render_scope_for_feedback(so)) for sid, so in scopes])
+    block, annotations = await agent.generate([(i.scope_id, i.rendered) for i in inputs])
     if usage is not None:
         usage.update(model=settings.feedback_model_key, **dict(agent.last_usage))
 
@@ -80,11 +66,10 @@ async def attach_feedback(draft, *, graded_test_id=None, usage: Optional[dict] =
     # stamp each text with the verdict vector it was written for, so staleness
     # is derived later rather than remembered
     stamped = {}
-    for sid, so in scopes:
-        text = block.scopes.get(sid)
+    for i in inputs:
+        text = block.scopes.get(i.scope_id)
         if text is not None:
-            stamped[sid] = text.model_copy(
-                update={"basis_hash": basis_hash(list(flatten_checks(so)))})
+            stamped[i.scope_id] = text.model_copy(update={"basis_hash": i.basis})
     return draft.model_copy(update={
         "feedback": block.model_copy(update={"scopes": stamped}),
         "annotations": list(draft.annotations) + annotations,

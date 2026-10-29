@@ -69,6 +69,28 @@ export const V6_COMMENT_CANCEL = 'ביטול'
 export const V6_COMMENT_REMOVE = 'מחיקה'
 export const V6_COMMENT_MINE = 'הערה לתלמיד/ה:'
 
+// ── the student's feedback ────────────────────────────────────────────────
+/** Vivi is rewriting it because a decision of hers made it out of date. */
+export const V6_FB_UPDATING = 'ויוי מעדכנת את המשוב לפי השינויים שלך…'
+/** Vivi tried and could not — an admission, never an accusation of the student. */
+export const V6_FB_FAILED = 'ויוי לא הצליחה לכתוב משוב לשאלה הזו'
+export const V6_FB_NOT_WRITTEN = 'לא נכתב משוב לשאלה הזו'
+export const V6_FB_SUMMARY_FAILED = 'ויוי לא הצליחה לכתוב סיכום'
+export const V6_FB_SUMMARY_NOT_WRITTEN = 'לא נכתב סיכום'
+/** She emptied it: nothing goes out, by her choice. */
+export const V6_FB_BLANK = 'לא יישלח משוב על השאלה הזו'
+export const V6_FB_SUMMARY_BLANK = 'לא יישלח סיכום'
+export const V6_FB_WRITE = 'כתבי משוב'
+export const V6_FB_RETRY = 'נסי שוב'
+export const V6_FB_ASK_VIVI = 'בקשי נוסח מויוי'
+/** Beside the approve button — information, never a block. */
+export const V6_FB_MISSING = (n: number) =>
+    n === 1 ? 'שאלה אחת בלי משוב' : `${n} שאלות בלי משוב`
+/** She pressed approve while feedback was out of date: Vivi updated it first, for her to read. */
+export const V6_FB_UPDATED_BEFORE_SIGN =
+    'ויוי עדכנה את המשוב לפי השינויים שלך — עברי עליו ואשרי שוב'
+export const V6_FB_REWRITE_FAILED = 'עדכון המשוב לא הצליח. אפשר לנסות שוב מהכרטיס.'
+
 // ── how a deduction was charged (the pricer's charge statuses) ────────────
 export const V6_CHARGE_APPLIED = (amount: string) => `הורדה של ${amount}`
 /** BehaviorCap (AM-G13): the deductions on one requirement never cost more than it earned. */

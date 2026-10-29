@@ -108,6 +108,9 @@ describe('routing by plan_schema', () => {
                 onPin={noop}
                 onClearPin={noop}
                 onFeedbackChange={noop}
+                onRewriteFeedback={noop}
+                onAcceptFeedbackOffer={noop}
+                onDismissFeedbackOffer={noop}
             />,
         );
         expect(html).toContain('data-review-surface="v6"');
