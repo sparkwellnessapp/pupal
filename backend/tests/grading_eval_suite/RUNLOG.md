@@ -3692,3 +3692,20 @@ second exam, not another dollar on this one.**
   - outage at grade → failed after ONE round.
   - Two tests that simulated an outage to obtain a placeholder plan now use a refused output.
 
+
+## 2026-10-29 · MATH PACK v4 — owner-approved direct-API eval · REJECTED, production keeps v3 · $1.59
+
+- **Why:** owner asked for the best math grader prompt («substance over mechanism, leniency over strictness»). Vertex canary 429 → owner approved the direct API (eval key). Verifier Sonnet 5.5 low, k=1, no explainer, as registered.
+- **Also new:** the smoke answers in the notation production now transcribes (`smoke/known_answers*_latex.json`, `tools/latexify_answers.py`; intended classes unchanged).
+
+  | run | plan | answers | K1 | intended | note |
+  |---|---|---|---|---|---|
+  | R0 v3 (production) | a79166be | LaTeX smoke | 1 (phantom q1.ג.c2, excluded §2a) | 53/57 | LaTeX costs nothing: same misses as plain |
+  | R1 v4 planner+verifier | 2726fbef (new, $0.91) | smoke | **1 real: A2 q5.ד** `30x = 1000` → 1.75/7 | 53/57 | the forced partial rewarded an invalid equation |
+  | R1b v4 verifier only | a79166be | smoke | 1 (phantom) | 53/57 | identical to v3 |
+  | R2 v4 verifier only | a79166be | LaTeX smoke | 1 (phantom) | 53/57 | identical to v3 |
+  | R3 v4 verifier only | a79166be | held-out | **1 real: A3 q5.א** (wrong graph, wrong reason → 1.5/5.75) | 68/72 | v3 was 70/72, K1 0 |
+
+- **Decision:** v4 is not adopted (two real K1 events). Text + lessons: `docs/math-rendering/math_pack_v4_REJECTED.md`; the v4 planner's recording is kept as `smoke/mathematics.claude-opus-5.5.v4planner-REJECTED.recorded.json`; renders under `docs/plans/v6_smoke_*v4*`.
+- **The v3 misses stand** (all under-credit): follow-through after a valid slip (A2 q1.ד, q1.ה) and no recompute (q2.ב). A fix there must not touch the decision a check judges.
+- **Ledger:** R0 $0.1529 · R1 $1.0551 · R1b $0.1357 · R2 $0.1082 · R3 $0.1380 = **$1.5899** on the eval key.

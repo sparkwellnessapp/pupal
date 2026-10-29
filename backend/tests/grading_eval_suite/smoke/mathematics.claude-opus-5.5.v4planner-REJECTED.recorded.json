@@ -1,0 +1,1664 @@
+{
+ "config_hash": "930e6f8735b8c0c240808de8d3fa0adb771024bf0cdd32bbbe259d6284c7ed40",
+ "cost_usd": 0.9107,
+ "model_id": "claude-opus-5-5",
+ "model_key": "claude-opus-5.5",
+ "plan_hash": "2726fbef34fcb27fe592828090283a41995a641ce2f4565f74ebbae3f382d8b8",
+ "planner_prompt_version": "planner-v6.2",
+ "scopes": {
+  "q1.א": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "שטח ארגז החול לא חושב כמכפלת אורכי שתי צלעותיו, או שחושב גודל אחר כגון היקף, או שהתוצאה שגויה",
+         "component_ref": "k1",
+         "description_he": "מציאת שטח הבד המכסה את ארגז החול: מכפלת אורכי שתי צלעות המלבן",
+         "element": "non_binary",
+         "equivalence_note_he": "תשובה בכל צורה שקולה מתקבלת, גם בלי ציון יחידות מידה",
+         "full_label_he": "שטח הבד חושב כמכפלת אורכי שתי הצלעות של ארגז החול, \\( S = a \\cdot b \\), והתוצאה נכונה",
+         "partials": [],
+         "source_span": "מצאו את שטח הבד המכסה את ארגז החול"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [
+        "כותרת הסעיף מזכירה את ארגז החול הגדול, אך השאלה והפתרון לדוגמה עוסקים בשטח ארגז החול המקורי, ולכן נבדק שטח ארגז החול המקורי."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 0,
+     "cost_usd": 0.064628,
+     "input_tokens": 11267,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 978,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q1.ב": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נעשה שימוש במשפט פיתגורס על צלעות ארגז החול (למשל חיבור הצלעות או מכפלתן), או שלא נמצא אורך האלכסון",
+         "component_ref": "k1",
+         "description_he": "מציאת אורך האלכסון של ארגז החול",
+         "element": "non_binary",
+         "equivalence_note_he": "התשובה מתקבלת עם יחידות או בלעדיהן, וכל סדר הצבה של שתי הצלעות שקול",
+         "full_label_he": "צלעות ארגז החול \\( 3.6 \\) ו-\\( 4.8 \\) הוצבו במשפט פיתגורס \\( a^2 + b^2 = c^2 \\), ואורך האלכסון חושב נכון",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "צלעות ארגז החול הוצבו נכון במשפט פיתגורס, אך בחישוב אורך האלכסון נפלה טעות חשבון או העתקה",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "צלעות ארגז החול הוצבו נכון במשפט פיתגורס, אך החישוב נעצר לפני אורך האלכסון (למשל נמצא רק \\( c^2 \\) בלי הוצאת שורש)",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "מצאו את אורך האלכסון של ארגז החול"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "לפי הפתרון לדוגמה, האלכסון מחושב לארגז החול בממדיו המקוריים, לפני ההגדלה."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.036797,
+     "input_tokens": 11268,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1601,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q1.ג": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא חושב אורך הצלע של 3.6 מטרים לאחר ההגדלה, או שחושב בשיטה שגויה",
+         "component_ref": "k1",
+         "description_he": "אורך צלע a לאחר ההגדלה",
+         "element": "non_binary",
+         "equivalence_note_he": "כפל ישיר של \\( 3.6 \\cdot 1.25 \\) שקול; גם חיבור נכון של תוספת שחושבה עם טעות חשבון מקבל את מלוא הניקוד",
+         "full_label_he": "אורך הצלע של 3.6 מטרים לאחר ההגדלה חושב נכון, כאורך המקורי ועוד התוספת של 25% ממנו",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "התוספת של 25% חוברה לאורך הצלע של 3.6 מטרים, אך נפלה טעות חשבון בתוצאה",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "חושבה התוספת לצלע של 3.6 מטרים, אך לא חוברה לאורך המקורי ולא נכתב האורך החדש",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "אורך צלע a"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "צלע a היא הצלע שאורכה 3.6 מטרים, כמו בפתרון לדוגמה."
+       ],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא חושב אורך הצלע של 4.8 מטרים לאחר ההגדלה, או שחושב בשיטה שגויה",
+         "component_ref": "k2",
+         "description_he": "אורך צלע b לאחר ההגדלה",
+         "element": "non_binary",
+         "equivalence_note_he": "כפל ישיר של \\( 4.8 \\cdot 1.25 \\) שקול; גם חיבור נכון של תוספת שחושבה עם טעות חשבון מקבל את מלוא הניקוד",
+         "full_label_he": "אורך הצלע של 4.8 מטרים לאחר ההגדלה חושב נכון, כאורך המקורי ועוד התוספת של 25% ממנו",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "התוספת של 25% חוברה לאורך הצלע של 4.8 מטרים, אך נפלה טעות חשבון בתוצאה",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "חושבה התוספת לצלע של 4.8 מטרים, אך לא חוברה לאורך המקורי ולא נכתב האורך החדש",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "אורך צלע b"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "צלע b היא הצלע שאורכה 4.8 מטרים, כמו בפתרון לדוגמה."
+       ],
+       "terminal_id": "t2"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא חושבו 25% מאורך הצלע של 3.6 מטרים, או שחושב אחוז מכמות אחרת",
+         "component_ref": "n1",
+         "description_he": "חישוב התוספת של 25% לצלע של 3.6 מטרים",
+         "element": "non_binary",
+         "equivalence_note_he": "חישוב רבע מהאורך, כפל ב-0.25, או כפל ישיר של האורך ב-1.25 שקולים",
+         "full_label_he": "חושבו 25% מאורך הצלע של 3.6 מטרים, והחישוב נכון",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "נכתב ביטוי נכון ל-25% מאורך הצלע של 3.6 מטרים, אך נפלה טעות חשבון בתוצאה",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "הותאם 25% מול 100% לאורך הצלע של 3.6 מטרים, אך הביטוי לחלק לא הושלם",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "x = (3.6 * 25) / 100 = 0.9"
+        },
+        {
+         "absent_label_he": "לא חושבו 25% מאורך הצלע של 4.8 מטרים, או שחושב אחוז מכמות אחרת",
+         "component_ref": "n2",
+         "description_he": "חישוב התוספת של 25% לצלע של 4.8 מטרים",
+         "element": "non_binary",
+         "equivalence_note_he": "חישוב רבע מהאורך, כפל ב-0.25, או כפל ישיר של האורך ב-1.25 שקולים",
+         "full_label_he": "חושבו 25% מאורך הצלע של 4.8 מטרים, והחישוב נכון",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "נכתב ביטוי נכון ל-25% מאורך הצלע של 4.8 מטרים, אך נפלה טעות חשבון בתוצאה",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "הותאם 25% מול 100% לאורך הצלע של 4.8 מטרים, אך הביטוי לחלק לא הושלם",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "x = (4.8 * 25) / 100 = 1.2"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "הסעיף הזה הובן כחישוב תוספת האחוזים לכל אחת מהצלעות, כמו בטבלאות שבפתרון לדוגמה.",
+        "כפל ישיר של אורך הצלע ב-1.25 מתקבל כחישוב התוספת לאותה צלע."
+       ],
+       "terminal_id": "t3"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.072645,
+     "input_tokens": 11660,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 3315,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q1.ד": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא חושב שטח ארגז החול לאחר ההגדלה, או שחושב שטח הארגז המקורי, או שהשטח חושב בשיטה שגויה (למשל הגדלת השטח עצמו באחוז ההגדלה של הצלעות)",
+         "component_ref": "k1",
+         "description_he": "שטח ארגז החול לאחר ההגדלה",
+         "element": "non_binary",
+         "equivalence_note_he": "הכפלת השטח המקורי בריבוע מקדם ההגדלה של הצלעות שקולה; התוצאה מתקבלת עם יחידות או בלעדיהן",
+         "full_label_he": "שטח ארגז החול לאחר ההגדלה חושב כמכפלת אורכי שתי הצלעות לאחר ההגדלה, והחישוב נכון",
+         "partials": [],
+         "source_span": "שטח ארגז החול לאחר ההגדלה"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [
+        "אורכי הצלעות לאחר ההגדלה הם נתון מסעיף קודם: חישוב נכון של השטח מאורכי הצלעות שהתלמיד מצא שם בשיטה תקינה מתקבל במלואו."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.025417,
+     "input_tokens": 11283,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1029,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q1.ה": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נמצא אחוז הגידול של שטח ארגז החול, או שהשלם שנבחר אינו השטח המקורי, או שאחוזי הגדלת הצלעות חוברו במקום לחשב את גידול השטח",
+         "component_ref": "k1",
+         "description_he": "מציאת אחוז הגידול של שטח ארגז החול לאחר ההגדלה, ביחס לשטח המקורי",
+         "element": "non_binary",
+         "equivalence_note_he": "כל שיטה תקפה מתקבלת: יחס בין השטח החדש לשטח המקורי והפחתת השלם, חלוקת הפרש השטחים בשטח המקורי, או העלאה בריבוע של מקדם הגדלת הצלעות; תשובה בשבר עשרוני או בעיגול סביר שקולה",
+         "full_label_he": "השטח החדש של ארגז החול הושווה לשטח המקורי כשלם, וממנו נמצא נכון בכמה אחוזים גדל השטח",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "אחוז הגידול של שטח ארגז החול חושב ביחס לשטח המקורי בשיטה נכונה, אך נפלה טעות חישוב או עיגול",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "השטח החדש של ארגז החול בוטא נכון באחוזים מהשטח המקורי, אך לא הופחתו מכך מאה האחוזים של השטח המקורי כדי לקבל את אחוז הגידול",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "מצאו בכמה אחוזים גדל השטח של ארגז החול לאחר ההגדלה, ביחס לשטח המקורי של ארגז החול"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "האחוז הרשום ליד הסעיף מתפרש כמשקל הסעיף ולא כתשובה הנדרשת.",
+        "השטח המקורי והשטח לאחר ההגדלה שנמצאו בסעיפים קודמים משמשים כנתונים: חישוב נכון על ערכי התלמיד עצמו, כשהם נובעים משיטה תקפה עם טעות קלה, מקבל את מלוא הנקודות."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.042553,
+     "input_tokens": 11347,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1873,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q2.א": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא חושב אורך הגובה של המפית, או שחושב בפעולה אחרת על אורך הבסיס (למשל החסרה או כפל)",
+         "component_ref": "k1",
+         "description_he": "חישוב אורך הגובה של המפית: אורך הבסיס ועוד 1 ס\"מ",
+         "element": "non_binary",
+         "equivalence_note_he": "תשובה בלי ציון יחידות, או ביחידות שקולות, מתקבלת; אין חובה לכתוב את הנוסחה \\( h = a + 1 \\) אם החישוב ברור",
+         "full_label_he": "אורך הגובה של המפית חושב כאורך הבסיס ועוד 1 ס\"מ, והתוצאה נכונה",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "אורך הגובה של המפית חושב כאורך הבסיס ועוד 1 ס\"מ, אך נפלה טעות חשבון או העתקה בתוצאה",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "אורך הגובה לבסיס גדול ב- 1 ס\"מ מאורך הבסיס"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "בטקסט המחוון אין פירוט מעבר לסעיף עצמו, ולכן הבדיקה נשענת על נוסח השאלה ועל הפתרון לדוגמה.",
+        "חוסר ביחידות מידה אינו גורר הורדה, כיוון שלא נדרש במחוון."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.025385,
+     "input_tokens": 11110,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1062,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q2.ב": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "המשולש לא חולק למשולשים ישרי זווית, או שהניצבים של משולש ADC אינם הגובה ומחצית הבסיס",
+         "component_ref": "n1",
+         "description_he": "חלוקת המשולש לשני משולשים ישרי זווית והתבוננות במשולש ADC",
+         "element": "non_binary",
+         "equivalence_note_he": "התבוננות במשולש ישר הזווית השני, החופף ל-ADC, שקולה",
+         "full_label_he": "הגובה לבסיס מחלק את המפית לשני משולשים ישרי זווית, ובמשולש ADC הניצבים הם הגובה ומחצית הבסיס והיתר הוא השוק",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "המפית חולקה בגובה לשני משולשים ישרי זווית, אך צלעות משולש ADC (הגובה, מחצית הבסיס והשוק) לא זוהו במלואן",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "כדי להשתמש במשפט פיתגורס, צריך לחלק את המשולש לשני משולשים ישרי זווית.\nנסתכל על משולש ADC:"
+        },
+        {
+         "absent_label_he": "לא נעשה שימוש במשפט פיתגורס במשולש ADC, או שהשוק הוצבה כניצב, או שהוצב הבסיס כולו במקום מחציתו",
+         "component_ref": "n2",
+         "description_he": "שימוש במשפט פיתגורס במשולש ADC וחישוב אורך השוק",
+         "element": "non_binary",
+         "equivalence_note_he": "אורך השוק כשורש מדויק או כמספר עשרוני מעוגל שקולים",
+         "full_label_he": "סכום ריבועי הגובה ומחצית הבסיס הושווה לריבוע השוק, והוצא שורש לקבלת אורך השוק, והחישוב נכון",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "משפט פיתגורס במשולש ADC נכתב עם הגובה ומחצית הבסיס כניצבים, אך נפלה טעות חשבון אחת או שלא הוצא השורש לקבלת אורך השוק",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "משפט פיתגורס במשולש ADC נכתב עם הגובה ומחצית הבסיס כניצבים, אך החישוב של אורך השוק לא בוצע או מכיל כמה טעויות",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "a^2 + b^2 = c^2"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "החלוקה למשולשים ישרי זווית וזיהוי משולש ADC נבדקים כחלק אחד, והשימוש במשפט פיתגורס וחישוב השוק נבדקים כחלק שני.",
+        "טעות בחישוב הגובה מתוך נתוני השאלה, כשהשיטה נכונה, אינה פוסלת את החישוב הנבנה עליה."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.054009,
+     "input_tokens": 11331,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 2449,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q2.ג": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא חושב היקף המפית כסכום שלוש צלעותיה, או שחושב גודל אחר (כמו שטח)",
+         "component_ref": "k1",
+         "description_he": "חישוב היקף המפית: סכום שתי השוקיים והבסיס",
+         "element": "non_binary",
+         "equivalence_note_he": "כתיבה כ-\\( 2 \\cdot \\) שוק ועוד בסיס שקולה; כל עיגול סביר של התוצאה מתקבל, וכן תוצאה עם או בלי יחידות",
+         "full_label_he": "היקף המפית חושב כסכום שתי השוקיים ועוד הבסיס, והחישוב נכון",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "היקף המפית חושב כסכום שתי השוקיים והבסיס, אך נפלה טעות חשבון או עיגול",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "נרשם שהיקף המפית הוא סכום שתי השוקיים והבסיס, אך החישוב לא הושלם",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "היקף המפרש"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "«היקף המפרש» נקרא כהיקף המפית שבשאלה.",
+        "אורך השוק נלקח מהסעיף הקודם; חישוב היקף נכון על אורך שוק שהתלמיד חישב קודם בדרך נכונה עם טעות חישוב מקבל את מלוא הניקוד."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.027913,
+     "input_tokens": 11122,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1186,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q2.ד": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא חושב שטח המפית, או שחושב בפעולה אחרת שאינה בסיס כפול גובה חלקי שתיים",
+         "component_ref": "k1",
+         "description_he": "חישוב שטח המפית: מכפלת הבסיס בגובה לבסיס, חלקי שתיים",
+         "element": "non_binary",
+         "equivalence_note_he": "כל סדר כפל וחילוק שקול מתקבל, והתשובה מתקבלת עם יחידות שטח או בלעדיהן",
+         "full_label_he": "שטח המפית חושב כמכפלת אורך הבסיס בגובה לבסיס (הגדול ב-1 ס\"מ מהבסיס) חלקי שתיים, והחישוב נכון",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "שטח המפית חושב כבסיס כפול גובה לבסיס חלקי שתיים עם הנתונים הנכונים, אך נפלה טעות חשבון",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "שטח המפית חושב כבסיס כפול גובה חלקי שתיים, אך הגובה שהוצב אינו הגובה לבסיס של המפית (למשל הוצב אורך הבסיס במקום הגובה)",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "מהו שטח המפית?"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "בהנחיה נכתב «שטח המפרש»; ההנחיה נקראה כמתייחסת לשטח המפית שבשאלה.",
+        "אם הגובה לבסיס חושב בסעיף קודם, ערכו משמש כאן נתון, וחישוב נכון על ערך זה מקבל את מלוא הניקוד."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.030289,
+     "input_tokens": 11126,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1304,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q3.א.1": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נכתבה הצבה, או שנבחר יחס טריגונומטרי שאינו מתאים לצלעות הנתונה והמבוקשת",
+         "component_ref": "k1",
+         "description_he": "הצבה של הזווית הנתונה והיתר הנתון ביחס הסינוס",
+         "element": "non_binary",
+         "equivalence_note_he": "כל יחס שקול מתקבל, למשל \\( \\sin \\alpha = a/c \\) או שימוש בקוסינוס של הזווית המשלימה, וכן סימון הצלע המבוקשת באות כלשהי",
+         "full_label_he": "נכתב יחס טריגונומטרי מתאים בין הזווית הנתונה, הצלע המבוקשת והיתר, והנתונים הוצבו בו נכון",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "נכתב יחס טריגונומטרי מתאים לצלע המבוקשת וליתר, אך אחד הנתונים הועתק או הוצב בטעות",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "הצבה"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "ההצבה נבדקת לפי הנתונים שבסרטוט כפי שהם מופיעים בפתרון לדוגמה: הזווית הנתונה והיתר הנתון."
+       ],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נפתרה המשוואה לצלע המבוקשת, או שהבידוד נעשה בפעולה שגויה (למשל חילוק במקום כפל)",
+         "component_ref": "k2",
+         "description_he": "פתרון המשוואה ומציאת אורך הצלע המבוקשת",
+         "element": "non_binary",
+         "equivalence_note_he": "תוצאה מעוגלת או לא מעוגלת מתקבלת, עם יחידות או בלעדיהן",
+         "full_label_he": "הצלע המבוקשת בודדה (כפל היתר בסינוס הזווית) וחושב ערכה נכון",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "הצלע המבוקשת בודדה נכון, אך בחישוב הערך נפלה טעות חישוב או עיגול",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "הצלע המבוקשת בודדה נכון, אך ערכה לא חושב",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "פתרון"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "פתרון נכון של משוואה שנבנתה מהצבה עם טעות העתקה מקבל את מלוא הניקוד על הפתרון."
+       ],
+       "terminal_id": "t2"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.033761,
+     "input_tokens": 11169,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1469,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q3.א.2": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נכתב יחס טריגונומטרי בין הזווית alpha, היתר c והצלע b, או שנבחר יחס שאינו מתאים לצלעות אלה",
+         "component_ref": "k1",
+         "description_he": "הצבה של הנתונים ביחס הטריגונומטרי המתאים",
+         "element": "non_binary",
+         "equivalence_note_he": "כל יחס תקין שמקשר בין הזווית, היתר והצלע המבוקשת מתקבל, למשל \\( \\cos \\alpha = b/c \\) או סינוס של הזווית המשלימה",
+         "full_label_he": "נבחר יחס טריגונומטרי מתאים בין הזווית alpha, היתר c והצלע b, והנתונים הוצבו בו נכון",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "נבחר יחס טריגונומטרי מתאים לזווית alpha, ליתר c ולצלע b, אך נפלה טעות בהעתקת אחד הנתונים בהצבה",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "הצבה"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "לפי הפתרון לדוגמה, הנתונים הם הזווית alpha והיתר c, והצלע המבוקשת b היא הניצב הסמוך לזווית."
+       ],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נפתרה המשוואה לאורך הצלע b, או שהבידוד של x שגוי (פעולה לא נכונה על המשוואה)",
+         "component_ref": "k2",
+         "description_he": "פתרון המשוואה ומציאת אורך הצלע b",
+         "element": "non_binary",
+         "equivalence_note_he": "פתרון נכון של המשוואה שהתלמיד הציב בעצמו, כשבהצבה נפלה טעות העתקה בלבד, מקבל את מלוא הניקוד; כתיבת התוצאה עם או בלי יחידות מתקבלת",
+         "full_label_he": "x בודד נכון מהמשוואה (מכפלת היתר בקוסינוס הזווית) ואורך הצלע b חושב נכון",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "x בודד נכון וחושב אורך הצלע b, אך עם טעות עיגול קלה",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "x בודד נכון כמכפלת היתר בקוסינוס הזווית, אך חישוב אורך הצלע b שגוי או לא הושלם",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "פתרון"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "תוצאה שחושבה כשהמחשבון מכוון לרדיאנים נחשבת לטעות חישוב ולא לשיטה שגויה."
+       ],
+       "terminal_id": "t2"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.037497,
+     "input_tokens": 11168,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1656,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q3.א.3": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נכתבה הצבה, או שנבחר יחס טריגונומטרי שאינו מתאים לזווית ולצלעות שבסרטוט",
+         "component_ref": "k1",
+         "description_he": "הצבה של הנתונים \\( \\alpha=48 \\) ו-\\( a=6 \\) ביחס טריגונומטרי נכון בין הזווית לצלעות",
+         "element": "non_binary",
+         "equivalence_note_he": "כל יחס שקול מתקבל, למשל \\( \\tan 42 = x/6 \\) לפי הזווית המשלימה",
+         "full_label_he": "נכתב יחס טריגונומטרי נכון, למשל \\( \\tan 48 = 6 / x \\), והנתונים הוצבו בו במקומם",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "נבחר יחס טריגונומטרי נכון לזווית ולצלעות שבסרטוט, אך נפלה טעות העתקה באחד הערכים שהוצבו",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "נכתב היחס \\( \\tan \\alpha = a/b \\) הנכון, אך ההצבה בו לא הושלמה",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "הצבה"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "ההצבה נבדקת לפי הפתרון לדוגמה: הצבת הזווית והצלע הנתונה ביחס הטנגנס."
+       ],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נפתרה המשוואה עבור x, או שבידוד x נעשה בפעולה שגויה",
+         "component_ref": "k2",
+         "description_he": "פתרון המשוואה ומציאת הצלע החסרה x",
+         "element": "non_binary",
+         "equivalence_note_he": "ערך מעוגל בדיוק סביר מתקבל, עם יחידות או בלעדיהן",
+         "full_label_he": "x בודד נכון, למשל \\( x = 6 / \\tan 48 \\), וחושב ערכו המספרי",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "x בודד נכון במשוואה, אך נפלה טעות חישוב או עיגול בערך המספרי של x",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "החל בידוד x במשוואה בפעולה נכונה, אך הפתרון לא הושלם עד ערך של x",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "פתרון"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "פתרון נכון של המשוואה שהתלמיד הציב בעצמו, כשההצבה כללה טעות העתקה בלבד, מקבל את מלוא הפתרון."
+       ],
+       "terminal_id": "t2"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.039269,
+     "input_tokens": 11181,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1742,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q3.ב.1": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נכתב יחס טריגונומטרי לזווית \\( \\alpha \\), או שנבחר יחס שאינו מתאים לצלעות של הזווית",
+         "component_ref": "k1",
+         "description_he": "הצבה של נתוני הסרטוט ביחס טריגונומטרי לזווית \\( \\alpha \\)",
+         "element": "non_binary",
+         "equivalence_note_he": "כל יחס טריגונומטרי מתאים לזווית \\( \\alpha \\) מתקבל, למשל דרך חישוב היתר ושימוש ב-\\( \\sin \\) או \\( \\cos \\)",
+         "full_label_he": "נכתב יחס טריגונומטרי מתאים לזווית \\( \\alpha \\), כמו \\( \\tan \\alpha = a/b \\), והוצבו בו נכון הצלעות מהסרטוט",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "נכתב יחס טריגונומטרי מתאים לזווית \\( \\alpha \\), אך אחת הצלעות הועתקה או הוצבה בטעות",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "הצבה"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "השאלה מפנה לסרטוט בלבד, ולכן ההצבה נבדקת לפי הפתרון לדוגמה: \\( \\tan \\alpha = 15/12 \\)."
+       ],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נמצאה הזווית \\( \\alpha \\), או שנמצאה בפעולה שגויה (למשל בלי פונקציה הפוכה)",
+         "component_ref": "k2",
+         "description_he": "פתרון: מציאת הזווית \\( \\alpha \\) מהיחס שהוצב",
+         "element": "non_binary",
+         "equivalence_note_he": "כל עיגול סביר של הזווית מתקבל, עם או בלי ציון מעלות",
+         "full_label_he": "חושב ערך היחס והזווית \\( \\alpha \\) נמצאה מהפונקציה ההפוכה, נכון לפי ההצבה של התלמיד",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "הזווית \\( \\alpha \\) נמצאה מהפונקציה ההפוכה, אך עם טעות חישוב או עיגול",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "חושב ערך היחס עבור \\( \\alpha \\), אך הזווית עצמה לא נמצאה",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "פתרון"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "פתרון נכון על בסיס הצבה של התלמיד שבה נפלה טעות העתקה מקבל את מלוא הנקודות על הפתרון."
+       ],
+       "terminal_id": "t2"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.034653,
+     "input_tokens": 11147,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1518,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q3.ב.2": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נכתב יחס טריגונומטרי לזווית alpha, או שנבחר יחס שאינו מתאים לצלעות הנתונות",
+         "component_ref": "k1",
+         "description_he": "הצבה של נתוני הסרטוט ביחס הטריגונומטרי המתאים לזווית alpha",
+         "element": "non_binary",
+         "equivalence_note_he": "כל יחס נכון אחר המוביל לזווית alpha, למשל חישוב הצלע השלישית במשפט פיתגורס ושימוש ב-tan או ב-cos, מתקבל",
+         "full_label_he": "נבחר יחס טריגונומטרי נכון לזווית alpha, כמו \\( \\sin\\alpha = a/c \\), והוצבו בו נכון הערכים של a ושל c",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "נבחר יחס נכון לזווית alpha, אך אחד מערכי הצלעות הועתק או הוצב בטעות",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "הצבה"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "ההצבה הנדרשת נקבעה לפי הפתרון לדוגמה: \\( \\sin\\alpha = a/c \\) עם נתוני הסרטוט."
+       ],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא חושבה הזווית alpha, או שהיחס לא הומר לזווית בפעולה נכונה",
+         "component_ref": "k2",
+         "description_he": "פתרון המשוואה ומציאת הזווית alpha",
+         "element": "non_binary",
+         "equivalence_note_he": "תוצאה מעוגלת לדיוק סביר מתקבלת; חישוב נכון על יחס שהוצב עם טעות העתקה מתקבל במלואו",
+         "full_label_he": "הזווית alpha חושבה נכון מהיחס שהוצב, בפונקציה הטריגונומטרית ההפוכה",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "הזווית alpha חושבה בפונקציה ההפוכה מהיחס שהוצב, אך נפלה טעות חישוב או עיגול",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "פתרון"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "פתרון נכון על בסיס יחס שהוצב עם טעות העתקה נחשב פתרון מלא."
+       ],
+       "terminal_id": "t2"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.035013,
+     "input_tokens": 11147,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1536,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q3.ב.3": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "אין הצבה ביחס טריגונומטרי לזווית \\( \\alpha \\), או שנבחר יחס שאינו מתאים לצלעות שהוצבו",
+         "component_ref": "k1",
+         "description_he": "הצבה של נתוני הסרטוט ביחס הטריגונומטרי של הזווית \\( \\alpha \\)",
+         "element": "non_binary",
+         "equivalence_note_he": "כל יחס טריגונומטרי נכון לזווית \\( \\alpha \\) מקובל, למשל אחרי חישוב הצלע השלישית בפיתגורס",
+         "full_label_he": "נכתב יחס טריגונומטרי נכון לזווית \\( \\alpha \\), והוצבו בו הצלעות הנכונות מהסרטוט, כמו \\( \\cos\\alpha = \\frac{b}{c} \\)",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "נבחר יחס נכון לזווית \\( \\alpha \\), אך אחד מערכי הצלעות הועתק או הוצב בטעות",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "הצבה"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "«הצבה» נבדקת כהצבת הצלעות הנתונות ביחס הטריגונומטרי של הזווית, כפי שמופיע בפתרון לדוגמה."
+       ],
+       "terminal_id": "t1"
+      },
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נמצאה הזווית \\( \\alpha \\), או שהיא חושבה בפעולה שאינה ההפוכה ליחס",
+         "component_ref": "k2",
+         "description_he": "פתרון: מציאת הזווית \\( \\alpha \\) מתוך היחס שהוצב",
+         "element": "non_binary",
+         "equivalence_note_he": "עיגול סביר של הזווית במעלות מקובל",
+         "full_label_he": "הזווית \\( \\alpha \\) חושבה בפעולה ההפוכה ליחס שהוצב, והתוצאה נכונה לפי ההצבה של התלמיד",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "הופעלה הפעולה ההפוכה ליחס כדי למצוא את \\( \\alpha \\), אך יש טעות חישוב או עיגול קלה",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "חושב ערך היחס של \\( \\alpha \\), אך הזווית עצמה לא נמצאה",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "פתרון"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "כאשר ההצבה שגויה בשל טעות העתקה, פתרון נכון על בסיס ההצבה של התלמיד מקבל את מלוא הניקוד על הפתרון."
+       ],
+       "terminal_id": "t2"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.036585,
+     "input_tokens": 11150,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1614,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q4.א": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא חושב מחיר לפי אפשרות ב', או שחושב לפי אפשרות א', או שבוצעה פעולה אחרת שאינה כפל המחיר לשיעור במספר השיעורים",
+         "component_ref": "k1",
+         "description_he": "חישוב המחיר בעבור שיעורי השחייה לפי אפשרות ב'",
+         "element": "non_binary",
+         "equivalence_note_he": "תוצאה עם יחידת ש\"ח או בלעדיה, וחישוב בחיבור חוזר של המחיר לשיעור, מתקבלים",
+         "full_label_he": "המחיר לכל שיעור לפי אפשרות ב' הוכפל במספר השיעורים שבשאלה, והתקבל מחיר נכון",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "המחיר לשיעור לפי אפשרות ב' הוכפל במספר השיעורים שבשאלה, אך נפלה טעות חשבון בתוצאה",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "נכתב תרגיל הכפל של המחיר לשיעור לפי אפשרות ב' במספר השיעורים, אך לא חושבה תוצאה",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "שיעורי שחייה לפי אפשרות ב'"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "הניקוד בסעיף ניתן כאחוז בלבד, ולכן הבדיקה נשענת על השאלה ועל פתרון הדוגמה."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.030597,
+     "input_tokens": 11238,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1297,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q4.ב": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נבחר ביטוי, נבחר ביטוי I או III, או שנבחר יותר מביטוי אחד",
+         "component_ref": "k1",
+         "description_he": "קביעת הביטוי המתאר את העלות הכוללת עבור אפשרות א'",
+         "element": "binary",
+         "equivalence_note_he": "כתיבת הביטוי עצמו במקום מספרו, או בסדר מחובר הפוך \\( y=1620+30x \\), שקולה",
+         "full_label_he": "נבחר ביטוי II: \\( y = 30x + 1,620 \\)",
+         "partials": [],
+         "source_span": "קבעו איזה מן הביטויים הבאים מתאר את העלות הכוללת עבור אפשרות א'"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [
+        "נדרשת בחירת הביטוי בלבד; לא נדרש נימוק לבחירה."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.017961,
+     "input_tokens": 11264,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 660,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q4.ג": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נכתב ביטוי למחיר לפי אפשרות ב', או שנכתב ביטוי אחר, למשל ביטוי הכולל את מחיר המנוי או המתאים לאפשרות א'",
+         "component_ref": "k1",
+         "description_he": "ביטוי באמצעות x למחיר שתשלם דנה לפי אפשרות ב'",
+         "element": "binary",
+         "equivalence_note_he": "מתקבל עם או בלי y=, ובכל סדר של הכפל",
+         "full_label_he": "המחיר לפי אפשרות ב' נכתב כמחיר לשיעור באפשרות ב' כפול x",
+         "partials": [],
+         "source_span": "כתבו באמצעות x את המחיר שתשלם דנה בעבור שיעורי השחייה שלה לפי אפשרות ב'"
+        }
+       ],
+       "decomposition": "binary",
+       "interpretation_notes_he": [
+        "הטקסט שבמחוון לסעיף זה אינו מתאר את הנדרש, ולכן הבדיקה נקבעה לפי השאלה ולפי הפתרון לדוגמה."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.023229,
+     "input_tokens": 11236,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 929,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q4.ד": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נכתבה משוואה המשווה בין מחירי שתי האפשרויות, או שהמשוואה בנויה מביטויים שאינם מחירי האפשרויות",
+         "component_ref": "n1",
+         "description_he": "השוואת המחיר בשתי האפשרויות: ביטוי המחיר באפשרות א' שווה לביטוי המחיר באפשרות ב'",
+         "element": "non_binary",
+         "equivalence_note_he": "כל סדר אגפים שקול; מציאת x על ידי טבלה או ניסוי שבו מחירי שתי האפשרויות מחושבים ומושווים מתקבלת גם היא",
+         "full_label_he": "נכתבה משוואה שבה מחיר המנוי ועוד מחיר שיעור כפול x באפשרות א' שווה למחיר שיעור כפול x באפשרות ב'",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "נכתבה משוואה המשווה בין מחירי שתי האפשרויות במבנה הנכון, אך אחד מנתוני השאלה הועתק בטעות",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "נכתבו ביטויי המחיר של שתי האפשרויות, אך הם לא הושוו זה לזה במשוואה, או שאחד מהביטויים חסר מרכיב (מנוי או מחיר לשיעור)",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "המחיר שתשלם דנה על שיעורי השחייה שלה יהיה שווה"
+        },
+        {
+         "absent_label_he": "לא נמצא ערך של x ממשוואת השוואת המחירים, או שנעשו פעולות שגויות בפתרון",
+         "component_ref": "n2",
+         "description_he": "פתרון המשוואה ומציאת הערך של x שעבורו המחיר שווה",
+         "element": "non_binary",
+         "equivalence_note_he": "פתרון נכון של המשוואה שכתב התלמיד, כאשר בה טעות העתקה בלבד, מקבל את מלוא הניקוד על שלב זה",
+         "full_label_he": "המשוואה של השוואת המחירים נפתרה נכון (כינוס איברי x לאגף אחד וחילוק במקדם) ונמצא הערך של x",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "פתרון המשוואה של השוואת המחירים נעשה בשלבים נכונים, אך נפלה טעות חשבון אחת בערך של x",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "איברי x במשוואת השוואת המחירים כונסו נכון לאגף אחד, אך הפתרון לא הושלם לערך של x",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "מצאו את הערך של x"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "הטקסט במחוון לסעיף זה אינו מפרט את דרישות הסעיף, ולכן הבדיקה נבנתה לפי השאלה ולפי פתרון הדוגמה: בניית משוואה המשווה את המחירים ופתרונה."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.046141,
+     "input_tokens": 11289,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 2064,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q5.א": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נקבע איזה גרף מתאר את הצעה א', או שנקבע גרף II",
+         "component_ref": "n1",
+         "description_he": "קביעה איזה מן הגרפים מתאר את אפשרות א'",
+         "element": "binary",
+         "equivalence_note_he": null,
+         "full_label_he": "נקבע שגרף I מתאר את הצעה א'",
+         "partials": [],
+         "source_span": "קבעו איזה מן הגרפים I-ו II מתאר את אפשרות א'"
+        },
+        {
+         "absent_label_he": "אין נימוק, או שהנימוק אינו מתייחס לתכונה של הגרף המתאר את הצעה א'",
+         "component_ref": "n2",
+         "description_he": "נימוק הקביעה",
+         "element": "non_binary",
+         "equivalence_note_he": "נימוק באמצעות נקודת החיתוך עם ציר y, באמצעות השיפוע, או באמצעות הצבת ערך מספרי של משתתפים בשתי ההצעות והשוואה לגרפים — כולם מתקבלים",
+         "full_label_he": "הנימוק קושר את גרף הצעה א' לתשלום הקבוע של 1000 ש\"ח (הגרף אינו מתחיל בראשית הצירים) או לתשלום הקטן יותר לכל משתתף (שיפוע קטן יותר)",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "הנימוק מתייחס לנקודת ההתחלה או לשיפוע של גרף הצעה א', אך אינו מקשר אותם לתשלום הקבוע או לתשלום לכל משתתף, או שיש בו טעות",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "נמקו את קביעתכם"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "נימוק אחד תקף (התשלום הקבוע או השיפוע הקטן יותר) מספיק לניקוד מלא, אף שהפתרון לדוגמה מביא את שניהם.",
+        "הנימוק נבדק רק כשהוא מתייחס לגרף המתאר את הצעה א'."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.031645,
+     "input_tokens": 11535,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1290,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q5.ב": {
+   "errors": [
+    "q5.ב.c0: credit 'n1' is non_binary and worth 2 points or more, so it needs at least one partial (rule 7a)",
+    "q5.ב.c0: credit 'n2' is non_binary and worth 2 points or more, so it needs at least one partial (rule 7a)"
+   ],
+   "origin": "repaired",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא חושב התשלום לפי הצעה א', או שחושב בפעולה שגויה (למשל בלי התשלום הקבוע או עבור מספר משתתפים אחר)",
+         "component_ref": "n1",
+         "description_he": "חישוב התשלום לפי הצעה א' עבור מספר המשתתפים הצפוי",
+         "element": "non_binary",
+         "equivalence_note_he": "קריאת התשלום של הצעה א' מהגרף המתאים, עבור מספר המשתתפים הצפוי, מתקבלת",
+         "full_label_he": "התשלום לפי הצעה א' חושב כתשלום הקבוע ועוד התשלום לכל משתתף כפול מספר המשתתפים הצפוי",
+         "partials": [],
+         "source_span": "הצעה א'. y=1000+20*150=4000"
+        },
+        {
+         "absent_label_he": "לא חושב התשלום לפי הצעה ב', או שחושב בפעולה שגויה או עבור מספר משתתפים אחר",
+         "component_ref": "n2",
+         "description_he": "חישוב התשלום לפי הצעה ב' עבור מספר המשתתפים הצפוי",
+         "element": "non_binary",
+         "equivalence_note_he": "קריאת התשלום של הצעה ב' מהגרף המתאים, עבור מספר המשתתפים הצפוי, מתקבלת",
+         "full_label_he": "התשלום לפי הצעה ב' חושב כתשלום לכל משתתף כפול מספר המשתתפים הצפוי",
+         "partials": [],
+         "source_span": "הצעה ב'. y=30*150=4500"
+        },
+        {
+         "absent_label_he": "לא נבחרה הצעה, או שנבחרה ההצעה היקרה יותר לפי התשלומים שחושבו, או שהבחירה אינה מבוססת על השוואת התשלומים",
+         "component_ref": "n3",
+         "description_he": "בחירת ההצעה הכדאית לפי השוואת התשלומים",
+         "element": "binary",
+         "equivalence_note_he": "בחירה בהצעה הזולה יותר לפי הסכומים שהתלמיד חישב בדרך נכונה עם טעות חשבון מתקבלת",
+         "full_label_he": "נבחרה ההצעה שהתשלום לפיה נמוך יותר עבור מספר המשתתפים הצפוי, על סמך השוואת שני התשלומים",
+         "partials": [],
+         "source_span": "עדיף לבחור בהצעה א' כי היא יותר זולה עבור 150 משתתפים"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "בטקסט המחוון מופיע רק משקל הסעיף, ולכן הבדיקה נעשית לפי שלבי פתרון הדוגמה: התשלום לפי כל הצעה ובחירת ההצעה הזולה.",
+        "הבחירה נבדקת ביחס לסכומים שחושבו, כשהם התקבלו בדרך נכונה."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    },
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא חושב התשלום לפי הצעה א', או שחושב בפעולה שגויה (למשל בלי התשלום הקבוע או עבור מספר משתתפים אחר)",
+         "component_ref": "n1",
+         "description_he": "חישוב התשלום לפי הצעה א' עבור מספר המשתתפים הצפוי",
+         "element": "non_binary",
+         "equivalence_note_he": "קריאת התשלום של הצעה א' מהגרף המתאים, עבור מספר המשתתפים הצפוי, מתקבלת",
+         "full_label_he": "התשלום לפי הצעה א' חושב כתשלום הקבוע ועוד התשלום לכל משתתף כפול מספר המשתתפים הצפוי, והחישוב נכון",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "התשלום לפי הצעה א' חושב כתשלום הקבוע ועוד התשלום לכל משתתף כפול מספר המשתתפים הצפוי, אך נפלה טעות חשבון",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "נכתב ביטוי נכון לתשלום לפי הצעה א' עבור מספר המשתתפים הצפוי, אך החישוב לא הושלם",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "הצעה א'. y=1000+20*150=4000"
+        },
+        {
+         "absent_label_he": "לא חושב התשלום לפי הצעה ב', או שחושב בפעולה שגויה או עבור מספר משתתפים אחר",
+         "component_ref": "n2",
+         "description_he": "חישוב התשלום לפי הצעה ב' עבור מספר המשתתפים הצפוי",
+         "element": "non_binary",
+         "equivalence_note_he": "קריאת התשלום של הצעה ב' מהגרף המתאים, עבור מספר המשתתפים הצפוי, מתקבלת",
+         "full_label_he": "התשלום לפי הצעה ב' חושב כתשלום לכל משתתף כפול מספר המשתתפים הצפוי, והחישוב נכון",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "התשלום לפי הצעה ב' חושב כתשלום לכל משתתף כפול מספר המשתתפים הצפוי, אך נפלה טעות חשבון",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "נכתב ביטוי נכון לתשלום לפי הצעה ב' עבור מספר המשתתפים הצפוי, אך החישוב לא הושלם",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "הצעה ב'. y=30*150=4500"
+        },
+        {
+         "absent_label_he": "לא נבחרה הצעה, או שנבחרה ההצעה היקרה יותר לפי התשלומים שחושבו, או שהבחירה אינה מבוססת על השוואת התשלומים",
+         "component_ref": "n3",
+         "description_he": "בחירת ההצעה הכדאית לפי השוואת התשלומים",
+         "element": "binary",
+         "equivalence_note_he": "בחירה בהצעה הזולה יותר לפי הסכומים שחושבו בדרך נכונה עם טעות חשבון מתקבלת",
+         "full_label_he": "נבחרה ההצעה שהתשלום לפיה נמוך יותר עבור מספר המשתתפים הצפוי, על סמך השוואת שני התשלומים",
+         "partials": [],
+         "source_span": "עדיף לבחור בהצעה א' כי היא יותר זולה עבור 150 משתתפים"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "בטקסט המחוון מופיע רק משקל הסעיף, ולכן הבדיקה נעשית לפי שלבי פתרון הדוגמה: התשלום לפי כל הצעה ובחירת ההצעה הזולה.",
+        "הבחירה נבדקת ביחס לסכומים שחושבו, כשהם התקבלו בדרך נכונה."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.047425,
+     "input_tokens": 11505,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 2085,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    },
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.044289,
+     "input_tokens": 12746,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1680,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q5.ג": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נכתב ביטוי לעלות לפי הצעה א', או שנכתב ביטוי להצעה ב', או שהתשלום הקבוע והתשלום למשתתף צורפו בפעולה שגויה",
+         "component_ref": "k1",
+         "description_he": "ביטוי המתאים לעלות הכוללת שישלם הקיבוץ לפי הצעה א'",
+         "element": "non_binary",
+         "equivalence_note_he": "מתקבלות גם הצורות \\( y=1000+20x \\), \\( 20x+1000 \\) או \\( 1000+20\\cdot x \\), וכן שימוש באות אחרת למספר המשתתפים",
+         "full_label_he": "נכתב ביטוי לעלות לפי הצעה א': התשלום הקבוע 1000 ועוד 20 כפול מספר המשתתפים x",
+         "partials": [
+          {
+           "fraction": "HALF",
+           "label_he": "בביטוי לעלות לפי הצעה א' מופיע רק אחד משני חלקי התשלום: רק התשלום הקבוע 1000, או רק 20 כפול מספר המשתתפים x",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "כתבו ביטוי המתאים לעלות הכוללת שישלם הקיבוץ לפי הצעה א'"
+        }
+       ],
+       "decomposition": "ladder",
+       "interpretation_notes_he": [
+        "בכתוב של סעיף ג מופיע רק משקלו, ולכן הבדיקה נעשית לפי דרישת השאלה ולפי הביטוי בפתרון לדוגמה."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.028993,
+     "input_tokens": 11552,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1154,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  },
+  "q5.ד": {
+   "errors": [],
+   "origin": "planner",
+   "outputs": [
+    {
+     "dispositions": [],
+     "faults": [],
+     "terminals": [
+      {
+       "credits": [
+        {
+         "absent_label_he": "לא נכתבה משוואה המשווה בין התשלום בשתי ההצעות, או שהושוו גדלים אחרים",
+         "component_ref": "n1",
+         "description_he": "השוואת התשלום לפי הצעה א' לתשלום לפי הצעה ב' עבור אותה כמות משתתפים x",
+         "element": "non_binary",
+         "equivalence_note_he": "כל סידור שקול של המשוואה מתקבל, וכן מציאת נקודת החיתוך של הגרפים I ו-II כמקום שבו התשלום בשתי ההצעות שווה",
+         "full_label_he": "נכתבה משוואה שבה התשלום לפי הצעה א' (תשלום קבוע ועוד תשלום לכל משתתף) שווה לתשלום לפי הצעה ב' (תשלום לכל משתתף), עם אותו x",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "נכתבה משוואה המשווה את התשלום בהצעה א' לתשלום בהצעה ב', אך אחד הנתונים הועתק בטעות",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "רק אחת משתי ההצעות הובעה נכון כביטוי של מספר המשתתפים x בתוך המשוואה",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "1000+20x=30x"
+        },
+        {
+         "absent_label_he": "לא נפתרה המשוואה ולא נמצאה כמות המשתתפים, או שהתוצאה נובעת ממשוואה שאינה משווה בין שתי ההצעות",
+         "component_ref": "n2",
+         "description_he": "פתרון המשוואה ומציאת כמות המשתתפים בכל אחד מהקיבוצים",
+         "element": "non_binary",
+         "equivalence_note_he": "פתרון נכון של המשוואה שכתב התלמיד, כשנפלה בה טעות העתקה, מתקבל במלואו",
+         "full_label_he": "המשוואה נפתרה נכון (העברת אגפים וחלוקה במקדם x) ונכתבה כמות המשתתפים בקיבוצים",
+         "partials": [
+          {
+           "fraction": "THREE_QUARTERS",
+           "label_he": "שלבי פתרון המשוואה לכמות המשתתפים נכונים, אך נפלה טעות חשבון אחת",
+           "teacher_span": null
+          },
+          {
+           "fraction": "HALF",
+           "label_he": "בוצעה העברת אגפים נכונה במשוואה לכמות המשתתפים, אך הפתרון לא הושלם",
+           "teacher_span": null
+          }
+         ],
+         "source_span": "100 משתתפים x=100 1000=10x"
+        }
+       ],
+       "decomposition": "split",
+       "interpretation_notes_he": [
+        "הטקסט של המחוון לסעיף זה («ד. 25%») אינו תואם את סעיף ה, ולכן הבדיקה נעשית לפי פתרון הדוגמה: השוואת התשלום בשתי ההצעות ופתרון המשוואה."
+       ],
+       "terminal_id": "t1"
+      }
+     ]
+    }
+   ],
+   "telemetry": [],
+   "usage": [
+    {
+     "cache_write_input_tokens": 0,
+     "cached_input_tokens": 10604,
+     "cost_usd": 0.043957,
+     "input_tokens": 11468,
+     "model": "claude-opus-5-5",
+     "model_fallback": false,
+     "output_tokens": 1919,
+     "provider": "anthropic",
+     "served_model": "claude-opus-5-5",
+     "stop_reason": "end_turn"
+    }
+   ]
+  }
+ },
+ "stage1_version": "plan-compiler/v2.0+stage1-v6.0",
+ "subject": "mathematics",
+ "wall_s": 405.0
+}
