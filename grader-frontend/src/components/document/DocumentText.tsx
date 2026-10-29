@@ -5,6 +5,7 @@ import { detectTableRuns } from '@/utils/detect-table-runs';
 import { stripColorMarkers, groupTextBlocks, looksLikeCode } from '@/utils/document-text';
 import { CodeBlock } from './CodeBlock';
 import { BidiText, DocTable } from './DocTable';
+import { RubricFigureLine, isFigureLine } from './RubricFigure';
 
 /**
  * DocumentText — the mirror's verbatim-text renderer (Design Recovery Phase 2).
@@ -28,7 +29,15 @@ function Prose({ text }: { text: string }) {
     const paragraphs = text.split(/\n{2,}/).filter((p) => p.trim());
     return (
         <>
-            {paragraphs.map((para, pi) => (
+            {paragraphs.map((para, pi) => para.split('\n').some(isFigureLine) ? (
+                // A paragraph holding a drawing renders line by line: the drawing is a block.
+                <div key={pi}>
+                    {para.split('\n').map((line, li) => isFigureLine(line)
+                        ? <RubricFigureLine key={li} line={line} />
+                        : <p key={li} dir="auto" className="text-doc-body text-surface-800"
+                            style={{ unicodeBidi: 'plaintext' }}><BidiText text={line} /></p>)}
+                </div>
+            ) : (
                 <p key={pi} dir="auto" className="text-doc-body text-surface-800" style={{ unicodeBidi: 'plaintext' }}>
                     {para.split('\n').map((line, li, arr) => (
                         <Fragment key={li}>

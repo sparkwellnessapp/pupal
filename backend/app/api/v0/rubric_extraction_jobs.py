@@ -32,6 +32,7 @@ from ...database import get_db
 from ...models.rubric_extraction_job import ACTIVE_JOB_STATUSES, RubricExtractionJob
 from ...models.user import User
 from ...schemas.rubric_extraction_jobs import (
+    RubricFigureResponse,
     JobProvenance,
     JobResultResponse,
     JobStatusResponse,
@@ -395,6 +396,42 @@ async def get_extraction_job_result(
             llm_config=job.llm_config,
         ),
     )
+
+
+FIGURE_BOX = r"^\d{1,4},\d{1,4},\d{1,4},\d{1,4}$"
+
+
+def parse_figure_box(box: str):
+    y0, x0, y1, x1 = (int(v) for v in box.split(","))
+    if not (0 <= y0 < y1 <= 1000 and 0 <= x0 < x1 <= 1000):
+        raise HTTPException(status_code=422, detail="תיבת האיור אינה תקינה")
+    return y0, x0, y1, x1
+
+
+async def figure_response_for_job(job, page: int, box: str) -> "RubricFigureResponse":
+    """The ONE serving path for a rubric drawing (both routes call it)."""
+    import asyncio
+    import base64
+    from ...services.docx_v3.rubric_figures import figure_png_for_job
+    png = await asyncio.to_thread(figure_png_for_job, job, page, parse_figure_box(box))
+    if png is None:
+        raise HTTPException(status_code=404, detail="האיור לא נמצא במסמך המקור")
+    return RubricFigureResponse(image_base64=base64.b64encode(png).decode("ascii"))
+
+
+@router.get("/{job_id}/figure", response_model=RubricFigureResponse)
+async def get_extraction_job_figure(
+    job_id: UUID,
+    page: int = Query(..., ge=1, le=500),
+    box: str = Query(..., pattern=FIGURE_BOX),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> RubricFigureResponse:
+    """A drawing the math rubric reader located (`[איור p<page> <box>: …]`), cropped from
+    the job's own source document — her drawing, not a redraw."""
+    job = await get_owned_or_404(db, RubricExtractionJob, job_id, current_user.id)
+    await db.close()
+    return await figure_response_for_job(job, page, box)
 
 
 @router.post("/{job_id}/retry", response_model=RetryJobResponse)

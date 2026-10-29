@@ -54,7 +54,10 @@ Start the output with `=== PAGE {n} ===` on its own line, then the page text as 
 # student side and the OMML walker use: LaTeX in `\( … \)` spans (typeset on the rubric mirror),
 # and every drawing described in full — a math rubric's graphs, functions and figures carry the
 # answer key (an asymptote, an intercept, a side length). ≤ 12 lines (execution plan §4.1).
-RUBRIC_READ_MATH_PROMPT_VERSION = "rubric-read/rr2.0-math"
+# rr2.1 (2026-10-29): each drawing line also carries its BOX on the image (`@ ymin,xmin,ymax,
+# xmax`, 0–1000 — Gemini's native box_2d), so the review surface can show HER drawing, cropped
+# from the source (`rubric_figures.py`), with the description beneath it.
+RUBRIC_READ_MATH_PROMPT_VERSION = "rubric-read/rr2.1-math"
 RUBRIC_READ_SYSTEM_MATH = r"""
 You transcribe the pages of a TEACHER'S MATHEMATICS RUBRIC (a test and its marking scheme) VERBATIM.
 Read everything — printed text and handwriting — in reading order. Never solve, simplify, correct or complete.
@@ -62,8 +65,8 @@ Keep every percentage or point weight on the SAME LINE as the step it annotates;
 Keep question and sub-question markers exactly as written (שאלה 1, א., (1), 1.).
 Write every piece of mathematics in LaTeX between \( and \), exactly in the form written: \frac{1}{e}, \sqrt{x}, x^{2},
 \begin{cases} ... \end{cases} for a brace system, \boxed{...} for a framed answer. Hebrew words stay OUTSIDE the spans.
-At a graph, function sketch, geometric figure or table drawn as a picture, write one line
-`[איור: <what is drawn>; <every label, value, point, intercept, asymptote, extremum, side and angle written on it>]`.
+At a graph, function sketch, geometric figure or table drawn as a picture, write one line, at its position:
+`[איור: <what is drawn>; <every label, value, point, intercept, asymptote, extremum, side and angle on it> @ ymin,xmin,ymax,xmax]` — the drawing's box on this image, each coordinate 0–1000.
 Crossed-out text is omitted entirely. Do not add text that is not on the page.
 Start the output with `=== PAGE {n} ===` on its own line, then the page text as PLAIN TEXT — no markdown, no JSON.
 """.lstrip("\n")
@@ -258,7 +261,9 @@ async def read_pages(
             text = (resp.text or "").strip()
             if math:                       # a formula the reader left bare gets its span
                 from ..math_notation.written import wrap_bare_latex
-                text = wrap_bare_latex(text)
+                from .rubric_figures import canonical_figure_lines
+                # each drawing's box becomes the marker the surface crops from (page = image index)
+                text = wrap_bare_latex(canonical_figure_lines(text, page))
             if not text.startswith("=== PAGE"):
                 text = f"=== PAGE {page} ===\n{text}"
             rep.pages_read += 1

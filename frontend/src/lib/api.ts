@@ -2463,3 +2463,20 @@ export async function fetchReturnedExamsZip(batchId: string): Promise<Blob> {
   }
   return response.blob();
 }
+
+// ── Rubric drawings (math rubric reader, 2026-10-29) ─────────────────────────
+/** One drawing of the teacher's rubric, cropped by the server from HER source document. */
+export interface RubricFigureImage {
+  image_base64: string;
+  content_type: string;
+}
+
+export function getExtractionJobFigure(jobId: string, page: number, box: string): Promise<RubricFigureImage> {
+  return apiFetch<RubricFigureImage>(
+    `/api/v0/rubrics/extraction-jobs/${jobId}/figure?page=${page}&box=${encodeURIComponent(box)}`);
+}
+
+export function getRubricFigure(rubricId: string, page: number, box: string): Promise<RubricFigureImage> {
+  return apiFetch<RubricFigureImage>(
+    `/api/v0/rubrics/${rubricId}/figure?page=${page}&box=${encodeURIComponent(box)}`);
+}

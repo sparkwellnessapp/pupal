@@ -48,6 +48,12 @@ class JobProvenance(BaseModel):
     llm_config: Optional[Dict[str, Any]] = None
 
 
+class RubricFigureResponse(BaseModel):
+    """One drawing of the teacher's rubric, cropped from her source document (PNG)."""
+    image_base64: str
+    content_type: str = "image/png"
+
+
 class JobResultResponse(BaseModel):
     job_id: UUID
     result: Dict[str, Any]           # ExtractRubricResponse.model_dump(mode="json")

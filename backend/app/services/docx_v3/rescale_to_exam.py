@@ -242,8 +242,13 @@ def _rescale_question(
     # F-1: weights live on a per-question scale of 100; a teacher who wrote plain points
     # (Σ == the printed total) is consistent too. A group member's printed total is
     # replaced by its share, so only the 100 scale applies there.
+    # [2026-10-29] A GROUP member may carry plain points too: the 3-unit fixture's q3 is
+    # «כל סעיף 4 נקודות» (2 + 2 per part, 24 in all = its printed 24) while the rest of the
+    # exam is in percentages. With only the 100 scale accepted, 24 read as «24 of 100» and
+    # every part shrank to a quarter of what she wrote. Her printed total is the second
+    # consistent scale, exactly as for a question outside any group.
     declared = GROUP_MEMBER_SCALE
-    alt = _ZERO if grouped else q.total_points
+    alt = q.total_points
     if q.sub_questions:
         written = [_sq_weight(c) for c in q.sub_questions]
         pts, ok = split_written(written, declared, share, grid, alt_declared=alt)

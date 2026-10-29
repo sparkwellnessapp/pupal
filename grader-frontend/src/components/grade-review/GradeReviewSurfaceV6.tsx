@@ -17,6 +17,7 @@ import { revealScrollTop } from '@/utils/grade-review-highlight-machine';
 import { REVIEW_LAYOUT_STACKED } from '@/lib/flags';
 import { hasMathNotation } from '@/lib/subjects';
 import { MathInline, MathNotationContext } from '@/components/math/MathNotationContext';
+import { RubricText } from '@/components/document/RubricFigure';
 import { AnswerBlock } from './AnswerBlock';
 import { FIG_DEDUCTION_HINT } from '@/copy/math';
 import { FIGURE_LINE } from '@/utils/figure-lines';
@@ -387,10 +388,10 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
                                                     <span aria-hidden="true">▸</span>
                                                     {RV_QUESTION_TOGGLE}
                                                 </summary>
-                                                <p className="mt-1.5 rounded-grade-sm bg-grade-bar px-3 py-2.5
+                                                <div className="mt-1.5 rounded-grade-sm bg-grade-bar px-3 py-2.5
                                                     leading-relaxed">
-                                                    <MathInline text={scope.questionText} />
-                                                </p>
+                                                    <RubricText text={scope.questionText} />
+                                                </div>
                                             </details>
                                         ) : null}
 

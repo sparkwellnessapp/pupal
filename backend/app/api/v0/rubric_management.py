@@ -32,6 +32,8 @@ from ...api.deps import get_owned_or_404
 
 from ...models.user import User
 from ...models.grading import Rubric
+from ...schemas.rubric_extraction_jobs import RubricFigureResponse
+from .rubric_extraction_jobs import FIGURE_BOX, figure_response_for_job
 from ...schemas.rubric_management import (
     CompilationStatus,
     CompileRubricRequest,
@@ -502,3 +504,23 @@ async def list_rubrics_endpoint(
     
     return result
 
+
+
+@router.get("/{rubric_id}/figure", response_model=RubricFigureResponse)
+async def get_rubric_figure(
+    rubric_id: UUID,
+    page: int = Query(..., ge=1, le=500),
+    box: str = Query(..., pattern=FIGURE_BOX),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> RubricFigureResponse:
+    """A drawing of a SAVED rubric, cropped from the source document of the extraction it
+    was saved from (`rubrics.extraction_job_id`). 404 for a rubric with no source (typed in
+    by hand, or saved before the provenance FK) — the description still renders."""
+    from ...models.rubric_extraction_job import RubricExtractionJob
+    rubric = await get_owned_or_404(db, Rubric, rubric_id, current_user.id)
+    if rubric.extraction_job_id is None:
+        raise HTTPException(status_code=404, detail="למחוון זה אין מסמך מקור")
+    job = await get_owned_or_404(db, RubricExtractionJob, rubric.extraction_job_id, current_user.id)
+    await db.close()
+    return await figure_response_for_job(job, page, box)

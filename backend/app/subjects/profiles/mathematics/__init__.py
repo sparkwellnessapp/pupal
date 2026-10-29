@@ -28,6 +28,8 @@ The handwritten solution pages are the marking scheme. A percentage or point wei
 That per-question 100 scale is for CRITERIA ONLY. A question's total_points is always its points as PRINTED on the exam paper (e.g. 33⅓ when five questions share 100 and three are answered) — never the 100 its criteria are written on — and the rubric total_points is the exam's printed total. The pipeline maps the criteria onto the printed points itself.
 'Answer k of n' → a selection group choosing k; 'answer any, total capped at 100' → a selection group choosing ⌊100 / question points⌋ of n.
 A question the solution pages do not score at all: keep the question's total as PRINTED on the exam paper, keep its printed parts, and give each part points 0 with no criteria — never invent a weight; the pipeline flags it for the teacher.
+A weight beside a part that equals the SUM of the weights written beside its steps (40% beside «ג.» with 20% and 20% inside it) is that part's subtotal, not another criterion: record the step weights only.
+A line `[איור …]` is a drawing on the exam or solution page: copy the WHOLE line verbatim, unchanged, into the question_text of the question or sub-question it stands in (into example_solution when it is part of the teacher's solution). Never summarize, merge or drop one.
 """
 
 # F-3 (P1 perception). Replaces the CS ink rules.

@@ -2215,6 +2215,13 @@ async def extract_rubric_from_docx(
                 f"במחוון יש {render_report.ole_equations} משוואות שנכתבו בעורך משוואות ישן "
                 "(MathType / Equation 3), וויוי לא יכולה לקרוא אותן. כדאי לבדוק מול המסמך "
                 "את הקריטריונים ואת הפתרונות שבהם הן מופיעות.")
+        # Drawings: a `[איור p… …]` line the extraction dropped is put back on the question
+        # or part it stood in (rubric_figures.py) — a question without the figure it is ABOUT
+        # is a silent loss of the teacher's content (FC).
+        from .rubric_figures import attach_orphan_figures
+        response, _put_back = attach_orphan_figures(response, rendered)
+        if _put_back:
+            logger.info(f"[rubric_figures] {_put_back} drawing(s) the extraction dropped were put back")
         if profile.rescale_to_exam:
             # D-13 (Phase 2b): the teacher's per-question-100 weights → the exam's
             # real total on the 0.25 grid. Deterministic code, never the model.

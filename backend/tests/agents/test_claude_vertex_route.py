@@ -101,7 +101,9 @@ def test_the_provider_guard_blocks_every_claude_host(host):
 
 def test_the_guard_blocks_the_host_the_vertex_client_would_call(route):
     route("vertex", region="eu")
-    m = lf.build_chat_model("anthropic", "claude-opus-5-5", max_output_tokens=100)
+    # Opus 5.5 is a native-schema model (2026-10-29): effort and thinking are required (AM-G18)
+    m = lf.build_chat_model("anthropic", "claude-opus-5-5", max_output_tokens=100,
+                            reasoning_effort="low", thinking="adaptive")
     host = m._client.base_url.host
     assert is_provider_host(host), host
 

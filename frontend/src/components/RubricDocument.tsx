@@ -26,6 +26,7 @@ import { isClose } from '@/utils/rubric-validation';
 import { ChevronDown, ChevronLeft } from 'lucide-react';
 import { AnnotationBanner } from '@/components/AnnotationBanner';
 import { MathInline, MathNotationContext } from '@/components/math/MathNotationContext';
+import { RubricFigureSourceContext, type RubricFigureSource } from '@/components/document/RubricFigure';
 import { hasMathNotation } from '@/lib/subjects';
 import { EditableText } from '@/components/document/EditableText';
 import { EditablePoints } from '@/components/document/EditablePoints';
@@ -788,6 +789,8 @@ interface RubricDocumentProps {
      * solution — is typeset; editing still shows the source. Absent ⇒ text stays text.
      */
     subject?: string | null;
+    /** Where her source document is, so a located drawing shows as HER drawing. */
+    figureSource?: RubricFigureSource;
 }
 
 export function RubricDocument({
@@ -807,6 +810,7 @@ export function RubricDocument({
     findingActions = NO_FINDING_ACTIONS,
     advisoryScan = 'unknown',
     subject = null,
+    figureSource = null,
 }: RubricDocumentProps) {
     // E-3: which point chips just moved (glow). Diff against the previous questions.
     const prevRef = useRef<RubricQuestion[]>(questions);
@@ -1002,6 +1006,7 @@ export function RubricDocument({
 
     return (
         <MathNotationContext.Provider value={hasMathNotation(subject)}>
+        <RubricFigureSourceContext.Provider value={figureSource}>
         <DocContext.Provider value={ctx}>
             {/* §1a: rail is a SIBLING of the content column, OUTSIDE the white card.
                 In-flow spacer reserves its gutter; the rail is position:fixed over it
@@ -1084,6 +1089,7 @@ export function RubricDocument({
                 </div>
             </div>
         </DocContext.Provider>
+        </RubricFigureSourceContext.Provider>
         </MathNotationContext.Provider>
     );
 }

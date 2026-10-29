@@ -387,3 +387,22 @@ def test_exact_shares_follows_the_branch_the_pass_took():
     assert sum(got) < D("13")          # the gap is preserved, not filled
     # nothing written → nothing to aim at
     assert rx._exact_shares([D(0), D(0)], D(0), D("10")) == [D(0), D(0)]
+
+
+def test_a_group_member_written_in_plain_points_keeps_her_points():
+    """[2026-10-29] The 3-unit fixture's q3: «כל סעיף 4 נקודות» — 2 + 2 per part, six parts,
+    24 = its printed 24 — inside a choose-4-of-5 exam written otherwise in percentages. The
+    100-scale-only rule read 24 as «24 of 100» and shrank every part to a quarter."""
+    parts = [_sq(f"{i}", 4, crits=[_crit(f"q3.{i}.c0", 2), _crit(f"q3.{i}.c1", 2)], index=i)
+             for i in range(1, 7)]
+    pct = [_q(f"q{n}", crits=[_crit(f"q{n}.c0", 60), _crit(f"q{n}.c1", 40)], total="24")
+           for n in (1, 2, 4, 5)]
+    draft = _draft([pct[0], pct[1], _q("q3", subs=parts, total="24"), pct[2], pct[3]],
+                   groups=[SelectionGroup(group_id="sg0", choose_k=4,
+                                          of_question_ids=["q1", "q2", "q3", "q4", "q5"])])
+    out = rx.rescale_to_exam(draft)
+    q3 = next(q for q in out.questions if q.question_id == "q3")
+    assert q3.total_points == D("25")                              # the share of 100 over 4
+    assert sum(sq.points for sq in q3.sub_questions) == D("25")
+    assert all(c.points in (D("2"), D("2.25")) for sq in q3.sub_questions for c in sq.criteria)
+    assert not [a for a in out.annotations if a.target_id == "q3"]  # she was consistent
