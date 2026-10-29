@@ -1581,6 +1581,7 @@ export default function Home() {
                       findingActions={findingActions}
                       advisoryScan={advisoryScan}
                       subject={rubricSubject}
+                      figureSource={extractionJobId ? { kind: 'job', id: extractionJobId } : null}
                     />
                     {error && (
                       <div className="flex gap-8 justify-center mt-4" dir="rtl">

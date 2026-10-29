@@ -568,6 +568,7 @@ export default function MyRubricsPage() {
                                 findingActions={reopenedFindingActions}
                                 advisoryScan={reopenedAdvisoryScan}
                                 subject={selectedRubric?.subject ?? null}
+                                figureSource={selectedRubric ? { kind: 'rubric', id: selectedRubric.id } : null}
                             />
                         ) : (
                             <RubricEditor

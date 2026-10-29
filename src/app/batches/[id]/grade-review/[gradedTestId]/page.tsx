@@ -47,6 +47,7 @@ import { GradeReviewV6 } from '@/components/grade-review/GradeReviewV6';
 import { ScanViewer } from '@/components/grade-review/ScanViewer';
 import { etaText } from '@/utils/grade-dashboard';
 import { useGradeReview } from '@/components/grade-review/GradeReviewContext';
+import { RubricFigureSourceContext } from '@/components/document/RubricFigure';
 import type { SaveState } from '@/components/grade-review/ReviewChrome';
 import {
     advanceAfterApprove, queueState, step, type GradeCursor,
@@ -569,6 +570,8 @@ export default function GradeReviewPage() {
                 {v6 ? (
                     // grader-v6: its own overlay, autosave and approval; the
                     // frame (identity, queue, prev/next, scan, stamp) is this page's.
+                    <RubricFigureSourceContext.Provider
+                        value={batch?.rubric_id ? { kind: 'rubric', id: batch.rubric_id } : null}>
                     <GradeReviewV6
                         gradedTestId={params.gradedTestId}
                         draft={payload.draft}
@@ -600,6 +603,7 @@ export default function GradeReviewPage() {
                         modalOpen={scan !== null}
                         onApproved={afterApproval}
                     />
+                    </RubricFigureSourceContext.Provider>
                 ) : policy ? (
                 <GradeReviewSurface
                     draft={payload.draft}
