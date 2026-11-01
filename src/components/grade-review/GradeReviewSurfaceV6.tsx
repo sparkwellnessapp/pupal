@@ -10,8 +10,10 @@ import {
     criterionQuoteSpans, type V6Feedback, type V6ReviewModel, type V6Scope,
 } from '@/utils/grade-review-v6-model';
 import {
-    V6_FB_BLANK, V6_FB_FAILED, V6_FB_MISSING, V6_FB_NOT_WRITTEN, V6_FB_SUMMARY_BLANK,
-    V6_FB_SUMMARY_FAILED, V6_FB_SUMMARY_NOT_WRITTEN,
+    V6_ADD_ANSWER, V6_CORRECTED_CHIP, V6_EDIT_TRANSCRIPTION, V6_FB_BLANK, V6_FB_FAILED,
+    V6_FB_MISSING, V6_FB_NOT_WRITTEN, V6_FB_SUMMARY_BLANK, V6_FB_SUMMARY_FAILED,
+    V6_FB_SUMMARY_NOT_WRITTEN, V6_HIDE_ORIGINAL, V6_ORIGINAL_EMPTY, V6_ORIGINAL_LABEL,
+    V6_REGRADE_RETRY, V6_REGRADING, V6_SHOW_ORIGINAL,
 } from '@/copy/grade-review-v6';
 import { revealScrollTop } from '@/utils/grade-review-highlight-machine';
 import { REVIEW_LAYOUT_STACKED } from '@/lib/flags';
@@ -19,6 +21,7 @@ import { hasMathNotation } from '@/lib/subjects';
 import { MathInline, MathNotationContext } from '@/components/math/MathNotationContext';
 import { RubricText } from '@/components/document/RubricFigure';
 import { AnswerBlock } from './AnswerBlock';
+import { AnswerEditor } from './AnswerEditor';
 import { FIG_DEDUCTION_HINT } from '@/copy/math';
 import { FIGURE_LINE } from '@/utils/figure-lines';
 import { CriterionRowV6 } from './CriterionRowV6';
@@ -48,6 +51,12 @@ import { formatPoints } from '@/utils/points-display';
  * field is open, which criterion's quotations are lit. Her decisions, the save
  * and the approval live in the route (`GradeReviewV6`), so this renders the
  * same from a fixture in a test and from the route in production.
+ *
+ * CORRECTING THE TRANSCRIPTION (SRG, owner rulings 2026-11-01): «עריכת התמלול» opens
+ * the answer's raw text in place (`AnswerEditor`); «שמירה ובדיקה מחדש» hands it to the
+ * route, which regrades exactly what it changed and moves to the new version. While
+ * that runs the surface is read-only — the decisions she makes belong to the version
+ * that comes back. The affordance exists only when the route passes `onRegradeAnswer`.
  *
  * KEYBOARD: Ctrl/⌘+↵ approves (or names the blockers), Ctrl/⌘+S saves now,
  * ←/→ move between tests, Esc releases a lit quotation — the v5 keymap's
@@ -95,21 +104,38 @@ export interface GradeReviewSurfaceV6Props {
     onRewriteFeedback: (target: string) => void;
     onAcceptFeedbackOffer: (target: string) => void;
     onDismissFeedbackOffer: (target: string) => void;
+
+    /** [SRG] The row being reviewed — what the answer editor reads its source from. */
+    gradedTestId?: string;
+    /** [SRG] Save a corrected answer (or, `null`, retry a failed question as it stands)
+     * and regrade. Absent ⇒ no correction affordance at all. */
+    onRegradeAnswer?: (scope: V6Scope, answerText: string | null) => void;
+    /** [SRG] The question being regraded right now; the surface is read-only meanwhile. */
+    regradingScopeId?: string | null;
 }
 
 function AnswerPane({
-    scope, highlight, subject, onShowScan,
+    scope, highlight, subject, onShowScan, editAction = null, editor = null,
 }: {
     scope: V6Scope;
     highlight: Highlight;
     subject: string | null;
     onShowScan: (scopeId: string, title: string) => void;
+    /** [SRG] «עריכת התמלול» / «+ הוספת תשובה», when she may correct it. */
+    editAction?: React.ReactNode;
+    /** [SRG] the open editor, shown in place of the answer. */
+    editor?: React.ReactNode;
 }) {
+    const [showOriginal, setShowOriginal] = useState(false);
+    const original = scope.answer.kind === 'own' || scope.answer.kind === 'inherited'
+        ? scope.answer.original : undefined;
     return (
         <div className="gr-card__pane" data-answer-pane={scope.scopeId}>
-            <div className="mb-1 flex flex-none items-center justify-between text-gr-label
+            <div className="mb-1 flex flex-none items-center justify-between gap-3 text-gr-label
                 text-grade-pencil">
                 <span>{RV_ANSWER_LABEL}</span>
+                <span className="flex-1" />
+                {editor ? null : editAction}
                 <button
                     type="button"
                     onClick={() => onShowScan(scope.scopeId, scope.title)}
@@ -119,7 +145,7 @@ function AnswerPane({
                 </button>
             </div>
             {/* [EVD-1] the answer the grader consumed, as the server resolved it. */}
-            {scope.answer.kind === 'own' || scope.answer.kind === 'inherited' ? (
+            {editor ? editor : scope.answer.kind === 'own' || scope.answer.kind === 'inherited' ? (
                 <>
                     {scope.answer.kind === 'inherited' ? (
                         <p data-answer-inherited className="mb-1.5 flex-none text-gr-meta text-grade-ink-2">
@@ -137,6 +163,30 @@ function AnswerPane({
                             <button type="button" onClick={() => onShowScan(scope.scopeId, scope.title)}
                                 className="underline underline-offset-link">{RV_SHOW_SCAN}</button>
                         </p>
+                    ) : null}
+                    {/* [SRG] she corrected this answer: say so, and keep the transcription's
+                        own text one click away (FC — a correction is never silent). */}
+                    {original !== undefined ? (
+                        <p data-answer-corrected className="mb-1.5 flex flex-none items-center gap-2
+                            text-gr-meta text-primary-700">
+                            <span className="rounded-grade-sm border border-primary-200 px-1.5">
+                                {V6_CORRECTED_CHIP}
+                            </span>
+                            <button type="button" onClick={() => setShowOriginal((v) => !v)}
+                                className="underline underline-offset-link">
+                                {showOriginal ? V6_HIDE_ORIGINAL : V6_SHOW_ORIGINAL}
+                            </button>
+                        </p>
+                    ) : null}
+                    {original !== undefined && showOriginal ? (
+                        <div data-answer-original className="mb-2 flex-none rounded-grade-sm bg-grade-bar
+                            px-3 py-2 text-gr-meta text-grade-ink-2">
+                            <p className="mb-1 text-grade-pencil">{V6_ORIGINAL_LABEL}</p>
+                            {original === '' ? V6_ORIGINAL_EMPTY : (
+                                <AnswerBlock scopeId={`${scope.scopeId}·original`} answer={original}
+                                    highlight={NO_HIGHLIGHT} subject={subject} />
+                            )}
+                        </div>
                     ) : null}
                     <AnswerBlock
                         scopeId={scope.scopeId}
@@ -168,7 +218,17 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
         saveState, approving = false, onApprove, onSaveNow, onNotice, modalOpen = false,
         onChoose, onWithdraw, onNote, onPin, onClearPin, onFeedbackChange,
         onRewriteFeedback, onAcceptFeedbackOffer, onDismissFeedbackOffer,
+        gradedTestId, onRegradeAnswer, regradingScopeId = null,
     } = props;
+    /** [SRG] a regrade is running: every write goes inert until the new version lands. */
+    const locked = readOnly || regradingScopeId !== null;
+    const canCorrect = Boolean(onRegradeAnswer && gradedTestId) && !readOnly && !approved;
+    const [editingScope, setEditingScope] = useState<string | null>(null);
+    const titleOf = useCallback((sid: string) =>
+        model.scopes.find((s) => s.scopeId === sid)?.title ?? sid, [model.scopes]);
+    const decidedIn = useCallback((ids: readonly string[]) => model.scopes
+        .filter((s) => ids.includes(s.scopeId))
+        .reduce((n, s) => n + s.criteria.filter((c) => c.decided).length, 0), [model.scopes]);
 
     /** The box she just opened with «כתבי משוב» — it takes the caret, once. */
     const [writing, setWriting] = useState<string | null>(null);
@@ -179,7 +239,7 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
             text={fb.text}
             state={fb.state}
             teacherEdited={fb.teacherEdited}
-            readOnly={readOnly}
+            readOnly={locked}
             busy={fb.state === 'updating'}
             canAskVivi={fb.canWrite}
             absentLabel={summary
@@ -188,7 +248,7 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
             blankLabel={summary ? V6_FB_SUMMARY_BLANK : V6_FB_BLANK}
             focusOnMount={writing === target}
             onWrite={() => { setWriting(target); onFeedbackChange(target, ''); }}
-            onChange={(text) => { if (!readOnly) onFeedbackChange(target, text); }}
+            onChange={(text) => { if (!locked) onFeedbackChange(target, text); }}
             onRegenerate={() => onRewriteFeedback(target)}
             offered={fb.offered}
             onAcceptOffer={() => onAcceptFeedbackOffer(target)}
@@ -276,7 +336,7 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
             switch (resolution.action) {
                 case 'approve':
                     event.preventDefault();
-                    if (approved || readOnly) return;
+                    if (approved || locked) return;
                     if (blocked) showBlockers(); else onApprove();
                     break;
                 case 'save':
@@ -291,7 +351,7 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [approved, readOnly, blocked, showBlockers, onApprove, onSaveNow,
+    }, [approved, locked, blocked, showBlockers, onApprove, onSaveNow,
         canNext, canPrev, onNext, onPrev, modalOpen]);
 
     return (
@@ -373,10 +433,56 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
                                         highlight={highlight}
                                         subject={subject}
                                         onShowScan={onShowScan}
+                                        editAction={canCorrect && scope.answer.kind !== 'unavailable' ? (
+                                            <button
+                                                type="button"
+                                                data-edit-transcription={scope.scopeId}
+                                                disabled={regradingScopeId !== null}
+                                                onClick={() => setEditingScope(scope.scopeId)}
+                                                className="text-primary-700 underline underline-offset-link
+                                                    disabled:opacity-50"
+                                            >
+                                                {scope.answer.kind === 'missing' ? V6_ADD_ANSWER : V6_EDIT_TRANSCRIPTION}
+                                            </button>
+                                        ) : null}
+                                        editor={canCorrect && editingScope === scope.scopeId && gradedTestId ? (
+                                            <AnswerEditor
+                                                gradedTestId={gradedTestId}
+                                                questionId={scope.questionId}
+                                                subQuestionId={scope.subQuestionId}
+                                                subject={subject}
+                                                failed={scope.gradedBy === 'failed'}
+                                                busy={regradingScopeId === scope.scopeId}
+                                                titleOf={titleOf}
+                                                decidedIn={decidedIn}
+                                                onSubmit={(text) => onRegradeAnswer?.(scope, text)}
+                                                onCancel={() => setEditingScope(null)}
+                                            />
+                                        ) : null}
                                     />
                                     <div className="gr-card__criteria">
+                                        {regradingScopeId === scope.scopeId ? (
+                                            <p data-regrading className="mb-3 text-gr-body text-primary-700">
+                                                {V6_REGRADING}
+                                            </p>
+                                        ) : null}
                                         {scope.gradedBy === 'failed' ? (
-                                            <p className="mb-3 text-gr-body text-grade-red">{RV_SCOPE_FAILED}</p>
+                                            <p className="mb-3 flex items-center gap-3 text-gr-body text-grade-red">
+                                                <span>{RV_SCOPE_FAILED}</span>
+                                                {/* D10: the same action, with nothing to edit */}
+                                                {canCorrect && editingScope !== scope.scopeId ? (
+                                                    <button
+                                                        type="button"
+                                                        data-retry-scope={scope.scopeId}
+                                                        disabled={regradingScopeId !== null}
+                                                        onClick={() => onRegradeAnswer?.(scope, null)}
+                                                        className="text-primary-700 underline underline-offset-link
+                                                            disabled:opacity-50"
+                                                    >
+                                                        {regradingScopeId === scope.scopeId ? V6_REGRADING : V6_REGRADE_RETRY}
+                                                    </button>
+                                                ) : null}
+                                            </p>
                                         ) : null}
                                         {!scope.counted || scope.gradedBy === 'excluded_by_selection' ? (
                                             <p className="mb-3 text-gr-body text-grade-pencil">{RV_SCOPE_EXCLUDED}</p>
@@ -403,7 +509,7 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
                                                 subject={subject}
                                                 open={isOpen(criterion.terminalId)}
                                                 onToggle={() => toggle(criterion.terminalId)}
-                                                readOnly={readOnly}
+                                                readOnly={locked}
                                                 editingPoints={editingPoints === criterion.terminalId}
                                                 onEditingPoints={(editing) =>
                                                     setEditingPoints(editing ? criterion.terminalId : null)}
@@ -445,7 +551,7 @@ export function GradeReviewSurfaceV6(props: GradeReviewSurfaceV6Props) {
             <ReviewBottomBar
                 saveState={saveState}
                 approving={approving}
-                canApprove={!approved && !readOnly}
+                canApprove={!approved && !locked}
                 blocked={blocked}
                 onBlocked={showBlockers}
                 onApprove={onApprove}

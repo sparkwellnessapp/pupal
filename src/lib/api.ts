@@ -56,12 +56,22 @@ export const VALIDATION_ERROR_HE = 'הנתונים שנשלחו אינם תקי�
 export class ApiError extends Error {
   status: number;
   detail: string;
-  constructor(status: number, detail: string) {
+  /** A structured `detail` object (`{code, message_he, …}`), when the server sent one —
+   * so a caller can act on WHAT was refused (e.g. `superseded` + `successor_id`). */
+  info: Record<string, unknown> | null;
+  constructor(status: number, detail: string, info: Record<string, unknown> | null = null) {
     super(detail);
     this.name = 'ApiError';
     this.status = status;
     this.detail = detail;
+    this.info = info;
   }
+}
+
+/** [SRG] The newer version a refused write names, when the draft was superseded. */
+export function supersededBy(err: unknown): string | null {
+  if (!(err instanceof ApiError) || err.info?.code !== 'superseded') return null;
+  return typeof err.info.successor_id === 'string' ? err.info.successor_id : null;
 }
 
 /** 401/403 — TERMINAL for poll loops. Never retry, never back off: stop and surface. */
@@ -97,7 +107,9 @@ async function normalizeError(response: Response): Promise<ApiError> {
     (typeof data?.detail === 'string' && data.detail) ||
     (typeof data?.detail?.message_he === 'string' && data.detail.message_he) ||
     `שגיאת שרת (${response.status})`;
-  return new ApiError(response.status, detail);
+  const info = data?.detail && typeof data.detail === 'object' && !Array.isArray(data.detail)
+    ? (data.detail as Record<string, unknown>) : null;
+  return new ApiError(response.status, detail, info);
 }
 
 /** 401/403 is TERMINAL everywhere — call this from any site that owns its own
@@ -2285,6 +2297,40 @@ export async function regenerateFeedback(
     `/api/v0/grading/graded_test/${id}/feedback/regenerate?target=${encodeURIComponent(target)}`,
     jsonInit('POST', {}),
   );
+}
+
+export type AnswerSourceResponse = components['schemas']['AnswerSourceResponse'];
+export type RegradeAnswerRequest = components['schemas']['RegradeAnswerRequest'];
+export type RegradeAnswerResponse = components['schemas']['RegradeAnswerResponse'];
+
+/**
+ * [SRG] The RAW transcription answer one scope reads — what «עריכת התמלול» opens on —
+ * and every scope that shares it. Never the text on screen: that one has each figure's
+ * readings expanded under its line.
+ */
+export async function getAnswerSource(
+  id: string,
+  questionId: string,
+  subQuestionId: string | null,
+): Promise<AnswerSourceResponse> {
+  const q = new URLSearchParams({ question_id: questionId });
+  if (subQuestionId) q.set('sub_question_id', subQuestionId);
+  return apiFetch<AnswerSourceResponse>(
+    `/api/v0/grading/graded_test/${id}/answers/source?${q.toString()}`);
+}
+
+/**
+ * [SRG] Save her correction of one answer and regrade exactly the scopes it changes.
+ * Synchronous and all-or-nothing: a refusal or a failed regrade writes nothing. On
+ * success the chain has a NEW draft (`graded_test_id`) and the surface moves to it.
+ * A mutation — never retried here.
+ */
+export async function regradeAnswer(
+  id: string,
+  body: RegradeAnswerRequest,
+): Promise<RegradeAnswerResponse> {
+  return apiFetch<RegradeAnswerResponse>(
+    `/api/v0/grading/graded_test/${id}/answers/regrade`, jsonInit('POST', body));
 }
 
 /**

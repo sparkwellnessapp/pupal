@@ -529,6 +529,9 @@ export interface V6Feedback {
 
 export interface V6Scope {
     scopeId: string;
+    /** The scope's wire ids — what a grading-gate answer correction names (SRG). */
+    questionId: string;
+    subQuestionId: string | null;
     title: string;
     questionText: string | null;
     answer: ScopeAnswerView;
@@ -805,6 +808,8 @@ export function buildV6ReviewModel(options: BuildV6Options): V6ReviewModel {
         }) : null;
         return {
             scopeId: section.scopeId,
+            questionId: section.questionId,
+            subQuestionId: section.subQuestionId,
             title: scopeTitle(wire),
             questionText: questionTextForScope(wire, questions),
             answer: section.wire ? answerViewOf(section.wire) : { kind: 'unavailable' },

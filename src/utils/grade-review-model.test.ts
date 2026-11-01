@@ -105,6 +105,19 @@ describe('the answer view — read, never re-derived [EVD-1]', () => {
         expect(view).toEqual({ kind: 'inherited', text: 't', from: null });
     });
 
+    // [SRG] a correction at the grading gate travels with the answer, never instead of it
+    it('carries the transcription text she corrected, and only when she corrected it', () => {
+        expect(answerViewOf(scope({
+            student_answer: { text: 'fixed', source: 'own', original_text: 'misread' },
+        }))).toEqual({ kind: 'own', text: 'fixed', original: 'misread' });
+        expect(answerViewOf(scope({
+            student_answer: { text: 'added', source: 'own', original_text: '' },
+        }))).toEqual({ kind: 'own', text: 'added', original: '' });
+        expect(answerViewOf(scope({
+            student_answer: { text: 'never touched', source: 'own', original_text: null },
+        }))).toEqual({ kind: 'own', text: 'never touched' });
+    });
+
     it('says MISSING only when the grader itself skipped for want of an answer', () => {
         expect(answerViewOf(scope({ graded_by: 'skipped_no_answer' })))
             .toEqual({ kind: 'missing' });
