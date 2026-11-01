@@ -139,6 +139,7 @@ class ContractScopeAnswer(BaseModel):
     text: str
     source: Literal["own", "inherited"]
     inherited_from: Optional[str] = None
+    original_text: Optional[str] = Field(default=None, exclude_if=lambda v: v is None)  # [SRG]
 
 
 class ContractScopeOutcome(BaseModel):

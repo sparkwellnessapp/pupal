@@ -111,6 +111,7 @@ def scope_answer(scope) -> "Optional[ScopeAnswer]":
         # stale path here would claim an inheritance that did not happen.
         inherited_from=(getattr(scope, "answer_inherited_from", None)
                         if source == "inherited" else None),
+        original_text=getattr(scope, "student_answer_original_text", None),
     )
 
 

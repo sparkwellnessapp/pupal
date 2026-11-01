@@ -22,6 +22,13 @@ Per test:
 
 The evidence gate is the PRICER's (AM-G2, Q-8): post-validation records
 `quote_status` and keeps the claimed option.
+
+A ONE-SCOPE REGRADE [SRG] (`regrade`): the teacher corrected an answer at the grading
+gate. Only the scopes whose grader input changed are verified again; every other scope's
+check records, explanation lines and annotations are CARRIED from the prior draft, and
+the whole test is priced and enveloped again by the same code a full grade runs (SRG-2:
+a carried scope's outcome is byte-identical; `regrade` with no scopes reproduces the
+prior draft).
 """
 from __future__ import annotations
 
@@ -30,7 +37,9 @@ import logging
 import random
 import time
 from decimal import Decimal
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
+from dataclasses import dataclass
+from typing import (Any, Awaitable, Callable, Collection, Dict, List, Optional, Sequence,
+                    Tuple)
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -61,7 +70,7 @@ from app.schemas.gradable import GradableScope, GradableTest
 from app.schemas.graded_test_draft import (CriterionOutcome, GradedTestDraft, GradingAnnotation,
                                            ScopeOutcome, SubCriterionOutcome)
 from app.schemas.graded_test_draft_v6 import (CheckRecordV6, DraftV6Content, ExplanationV6,
-                                              ScopeRecordV6, UsageV6)
+                                              ScopeRecordV6, UsageV6, v6_content)
 from app.schemas.ontology_types import (AnnotationSeverity, AnswerQuotation, FlaggedOutcome,
                                         FlagReason, QuoteValidationStatus)
 from app.services.grading_inputs import scope_answer
@@ -88,14 +97,47 @@ class _Verdict:
 
 
 class _ScopeRun:
-    """One scope's result before pricing."""
+    """One scope's result before pricing. `carried` [SRG]: the scope was NOT verified
+    again — these are its check records from the prior draft, used verbatim."""
 
     def __init__(self, scope: GradableScope, checks: List[PlanCheckV6], record: ScopeRecordV6,
                  verdicts: Dict[str, _Verdict], annotations: List[GradingAnnotation],
-                 scope_flags: List[FlaggedOutcome], check_flags: Dict[str, List[str]]):
+                 scope_flags: List[FlaggedOutcome], check_flags: Dict[str, List[str]],
+                 carried: Optional[List[CheckRecordV6]] = None):
         self.scope, self.checks, self.record = scope, checks, record
         self.verdicts, self.annotations = verdicts, annotations
         self.scope_flags, self.check_flags = scope_flags, check_flags
+        self.carried = carried
+
+
+ScopeKey = Tuple[str, Optional[str]]                 # (question_id, sub_question_id)
+
+
+def _key(scope: GradableScope) -> ScopeKey:
+    return (scope.question_id, scope.sub_question_id)
+
+
+def _sum_usage(a: Optional[UsageV6], b: Optional[UsageV6]) -> Optional[UsageV6]:
+    """An additive ledger: the explainer usage of a regraded draft is what every
+    explainer call that wrote one of its lines cost, the first grade's included."""
+    if a is None or b is None:
+        return a if b is None else b
+    return a.model_copy(update={
+        "calls": a.calls + b.calls, "input_tokens": a.input_tokens + b.input_tokens,
+        "output_tokens": a.output_tokens + b.output_tokens,
+        "cached_input_tokens": a.cached_input_tokens + b.cached_input_tokens,
+        "cache_write_input_tokens": a.cache_write_input_tokens + b.cache_write_input_tokens,
+        "served_models": sorted(set(a.served_models) | set(b.served_models)),
+        "model_fallback": a.model_fallback or b.model_fallback})
+
+
+@dataclass
+class RegradeResult:
+    """[SRG] the regraded draft, and what THIS operation cost (the row's cost columns
+    record what producing that row spent; the draft records the grade as it stands)."""
+    draft: GradedTestDraft
+    verifier_usage: List[UsageV6]
+    explainer_usage: Optional[UsageV6]
 
 
 def _median_option(check: PlanCheckV6, votes: Sequence[_Verdict]) -> _Verdict:
@@ -278,6 +320,9 @@ class OptionsVerifyGrader:
                     terminal_id=tid, question_id=run.scope.question_id,
                     sub_question_id=run.scope.sub_question_id,
                     points_possible=self._plan_terminals[tid].points_possible))
+            if run.carried is not None:                    # [SRG] verbatim from the prior draft
+                records.extend(run.carried)
+                continue
             answer = run.scope.student_answer_text or ""
             for check in run.checks:
                 v = run.verdicts.get(check.check_id)
@@ -314,18 +359,31 @@ class OptionsVerifyGrader:
             view_terminals=view_terminals, selection=self._selection(), checks=records,
             scopes=[r.record for r in runs], verifier_usage=verifier)
 
-    async def grade(self, gradable_test: GradableTest) -> GradedTestDraft:
-        t0 = time.monotonic()
-        sem = asyncio.Semaphore(effective_scope_concurrency(len(gradable_test.scopes)))
+    @property
+    def model_version(self) -> str:
+        return self._model_version
+
+    @property
+    def prompt_version(self) -> str:
+        """The stamp a draft graded by this instance carries: the verifier prompt, the
+        subject (D-16) and — [D12, owner 2026-11-01] — `+priorctx` when the prior-part
+        context is rendered, because a grade is a function of its prompt and that flag
+        changes the prompt (the v3 stamp has said so since PR-G1)."""
+        from app.agents.grader.prompt import prior_context_enabled
+        from app.subjects import prompt_version as _subject_prompt_version
+        base = self._verifier_version + ("+priorctx" if prior_context_enabled() else "")
+        return _subject_prompt_version(base, self._profile)
+
+    async def _grade_scopes(self, scopes: Sequence[GradableScope]) -> List[_ScopeRun]:
+        sem = asyncio.Semaphore(effective_scope_concurrency(len(scopes)))
 
         async def _bounded(scope: GradableScope) -> _ScopeRun:
             async with sem:
                 return await self._grade_scope(scope)
 
-        raw = await asyncio.gather(*(_bounded(s) for s in gradable_test.scopes),
-                                   return_exceptions=True)
+        raw = await asyncio.gather(*(_bounded(s) for s in scopes), return_exceptions=True)
         runs: List[_ScopeRun] = []
-        for scope, r in zip(gradable_test.scopes, raw):
+        for scope, r in zip(scopes, raw):
             if isinstance(r, Exception):
                 if isinstance(r, RuntimeError) and "lacks terminals" in str(r):
                     raise r                                        # a wiring bug is never isolated
@@ -336,6 +394,11 @@ class OptionsVerifyGrader:
                                        sub_question_id=scope.sub_question_id, graded_by="failed")
                 r = self._failed(scope, checks, record, r, 0)
             runs.append(r)
+        return runs
+
+    async def grade(self, gradable_test: GradableTest) -> GradedTestDraft:
+        t0 = time.monotonic()
+        runs = await self._grade_scopes(gradable_test.scopes)
         assert len(runs) == len(gradable_test.scopes), "D3 totality violated"
 
         content = self._content(runs)
@@ -357,6 +420,96 @@ class OptionsVerifyGrader:
         content = content.model_copy(update={"explanations": explanations})
         return self._envelope(gradable_test, runs, content, priced, explanations,
                               int((time.monotonic() - t0) * 1000))
+
+    async def regrade(self, gradable_test: GradableTest, prior: GradedTestDraft,
+                      scope_keys: Collection[ScopeKey]) -> RegradeResult:
+        """[SRG] Verify ONLY `scope_keys` of `gradable_test` again and graft them into
+        `prior`, a v6 draft graded against THIS plan. Every other scope is carried: its
+        check records, its scope record, its explanation lines and its annotations come
+        from `prior` unchanged; the whole test is then priced and enveloped exactly as
+        `grade` does. `prior.feedback` and `prior.teacher_overrides` ride along untouched —
+        deciding what happens to them is the caller's (it knows her rulings).
+
+        Refuses (ValueError) a prior from another plan or with another scope set: a graft
+        across either would price checks the draft never had (SRG-3)."""
+        t0 = time.monotonic()
+        prior_content = v6_content(prior)
+        if prior_content is None:
+            raise ValueError("regrade: the prior draft is not a v6 grade")
+        if prior_content.plan_hash != self._plan.plan_hash:
+            raise ValueError(f"regrade: prior plan {prior_content.plan_hash[:12]} is not "
+                             f"this grader's {self._plan.plan_hash[:12]} (SRG-3)")
+        by_key = {_key(s): s for s in gradable_test.scopes}
+        prior_outcomes = {(so.question_id, so.sub_question_id): so for so in prior.scope_outcomes}
+        prior_records = {(r.question_id, r.sub_question_id): r for r in prior_content.scopes}
+        if set(by_key) != set(prior_outcomes) or set(by_key) != set(prior_records):
+            raise ValueError("regrade: the test's scope set is not the prior draft's (SRG-3)")
+        keys = set(scope_keys)
+        if keys - set(by_key):
+            raise ValueError(f"regrade: unknown scope(s) {sorted(keys - set(by_key), key=str)}")
+
+        fresh_scopes = [s for s in gradable_test.scopes if _key(s) in keys]   # test order
+        fresh = {_key(r.scope): r for r in await self._grade_scopes(fresh_scopes)}
+
+        records_by_tid: Dict[str, List[CheckRecordV6]] = {}
+        for rec in prior_content.checks:
+            records_by_tid.setdefault(rec.plan.priced_terminal_id, []).append(rec)
+        scope_ids = set()
+        runs: List[_ScopeRun] = []
+        for scope in gradable_test.scopes:
+            tids = list(_get_terminal_map(scope))
+            target = _scope_target_id(scope)
+            scope_ids.update([target, *tids])
+            if _key(scope) in fresh:
+                runs.append(fresh[_key(scope)])
+                continue
+            mine = {target, *tids}
+            runs.append(_ScopeRun(
+                scope, self._scope_checks(scope), prior_records[_key(scope)], {},
+                # the pricer's gate annotations are recomputed for every scope by the envelope
+                [a for a in prior.annotations
+                 if a.target_id in mine and a.annotation_type != "evidence_unverified"],
+                list(prior_outcomes[_key(scope)].flags), {},
+                carried=[rec for t in tids for rec in records_by_tid.get(t, [])]))
+
+        content = self._content(runs)
+        priced = price(content.to_view())
+
+        fresh_tids = {t for k in fresh for t in _get_terminal_map(by_key[k])}
+        new_lines: List[ExplanationV6] = []
+        explainer_usage: Optional[UsageV6] = None
+        if fresh and self._explain is not None:
+            outcome = await self._explain(content, priced, gradable_test, only=set(fresh))
+            new_lines = [e for e in outcome.explanations if e.terminal_id in fresh_tids]
+            explainer_usage = outcome.usage
+        elif fresh:
+            view = content.to_view()
+            new_lines = [ExplanationV6(terminal_id=t.terminal_id,
+                                       text_he=compose_reasoning_he(priced, view, t.terminal_id),
+                                       source="fallback")
+                         for t in priced.terminals
+                         if t.terminal_id in fresh_tids and self._is_credit_terminal(t.terminal_id)]
+        order = {t.terminal_id: i for i, t in enumerate(self._plan.terminals)}
+        explanations = sorted(
+            [e for e in prior_content.explanations if e.terminal_id not in fresh_tids] + new_lines,
+            key=lambda e: order.get(e.terminal_id, len(order)))
+        content = content.model_copy(update={
+            "explanations": explanations,
+            "explainer_usage": _sum_usage(prior_content.explainer_usage, explainer_usage),
+            "explainer_payloads": list(prior_content.explainer_payloads)})
+        draft = self._envelope(gradable_test, runs, content, priced, explanations,
+                               int((time.monotonic() - t0) * 1000))
+        # a test-level annotation (no scope of its own — `feedback_unavailable`) is carried
+        carried_global = [a for a in prior.annotations
+                          if a.target_id not in scope_ids
+                          and a.annotation_type != "evidence_unverified"]
+        draft = draft.model_copy(update={
+            "annotations": list(draft.annotations) + carried_global,
+            "feedback": prior.feedback, "teacher_overrides": prior.teacher_overrides})
+        return RegradeResult(
+            draft=draft,
+            verifier_usage=[r.record.usage for r in fresh.values() if r.record.usage is not None],
+            explainer_usage=explainer_usage)
 
     def _is_credit_terminal(self, terminal_id: str) -> bool:
         return any(c.role == "credit" and c.priced_terminal_id == terminal_id
@@ -424,12 +577,11 @@ class OptionsVerifyGrader:
                 cached_input_tokens=usage.cached_input_tokens if usage else None))
 
         v = content.verifier_usage
-        from app.subjects import prompt_version as _subject_prompt_version
         return GradedTestDraft(
             rubric_contract_version=gradable_test.rubric_contract_version,
             transcription_contract_version=gradable_test.transcription_contract_version,
             model_version=self._model_version,
-            prompt_version=_subject_prompt_version(self._verifier_version, self._profile),
+            prompt_version=self.prompt_version,
             plan_version=None,                # a v5 field (PR-G1 per-check records); v6 stamps v6.plan_hash
             served_models=(v.served_models or None) if v else None,
             llm_provider=self._provider,

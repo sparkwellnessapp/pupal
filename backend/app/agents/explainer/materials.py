@@ -31,8 +31,8 @@ def scope_materials(gradable_test) -> Dict[ScopeKey, ScopeMaterials]:
 def explain_hook(llm, *, model_id: str, profile, record_payloads: bool = False):
     from .explainer import explain_test
 
-    async def explain(content, priced, gradable_test):
+    async def explain(content, priced, gradable_test, only=None):
         return await explain_test(content, priced, scope_materials(gradable_test),
                                   llm=llm, model_id=model_id, profile=profile,
-                                  record_payloads=record_payloads)
+                                  record_payloads=record_payloads, only=only)
     return explain

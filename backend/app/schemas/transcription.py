@@ -197,6 +197,12 @@ class TranscriptionContractAnswer(BaseModel):
     #: The reviewed readings of this answer's drawings (§5), frozen with the text they
     #: belong to. Default [] — older contracts and every non-figure subject parse unchanged.
     figures: List[Figure] = Field(default_factory=list, exclude_if=lambda v: not v)
+    #: [SRG] The text as she approved it at the transcription gate, set ONLY when she later
+    #: corrected this answer at the grading gate (`services/scope_regrade.py`). None = never
+    #: corrected; "" = there was no answer and she added one. It stays the FIRST approved
+    #: text across repeated corrections, and goes back to None if she restores it exactly.
+    #: Omitted when None, so every contract frozen before this field serializes unchanged.
+    original_text: Optional[str] = Field(default=None, exclude_if=lambda v: v is None)
 
     @model_validator(mode="after")
     def _fig1_figure_line_integrity(self):

@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
-    approveGradeReview, getGradedTestV6, regenerateFeedback, saveGradedTestV6Draft,
-    type GradedTestV6Response,
+    approveGradeReview, getAnswerSource, getGradedTestV6, regenerateFeedback, regradeAnswer,
+    saveGradedTestV6Draft, supersededBy, type GradedTestV6Response,
 } from '@/lib/api';
 import { cmp, dec } from '@/lib/decimal';
 import { demoObserveScores } from '@/lib/demo';
@@ -17,13 +17,13 @@ import type { QuestionText, WireDraft } from '@/utils/grade-review-model';
 import {
     buildV6ReviewModel, chooseOption, clearPin, emptyOverlayV6, feedbackPatch,
     overlayFromWire, overlayPatch, pricingOverlayOf, setCriterionNote, setPin, touchedTerminals,
-    viewOf, withdrawOption, type OverlayV6,
+    viewOf, withdrawOption, type OverlayV6, type V6Scope,
 } from '@/utils/grade-review-v6-model';
 import { formatPoints } from '@/utils/points-display';
 import { GradeReviewSurfaceV6 } from './GradeReviewSurfaceV6';
 import type { ReviewTopBar, SaveState } from './ReviewChrome';
 import { RV_LOAD_ERROR, RV_LOADING, RV_PRICING_MISMATCH } from '@/copy/grade-review';
-import { V6_FB_REWRITE_FAILED, V6_FB_UPDATED_BEFORE_SIGN } from '@/copy/grade-review-v6';
+import { V6_FB_REWRITE_FAILED, V6_FB_UPDATED_BEFORE_SIGN, V6_REGRADED } from '@/copy/grade-review-v6';
 
 /**
  * The grader-v6 review route body (owner rulings 2026-10-17 §7) — mounted by
@@ -64,6 +64,13 @@ import { V6_FB_REWRITE_FAILED, V6_FB_UPDATED_BEFORE_SIGN } from '@/copy/grade-re
  * it — the feedback is part of what she signs, and she does not sign words she has
  * not seen. If the rewrite fails she can sign on the next press: Vivi's failure
  * never blocks the teacher.
+ *
+ * CORRECTING AN ANSWER (SRG, owner rulings 2026-11-01): «שמירה ובדיקה מחדש» flushes her
+ * decisions, then POSTs the corrected answer; the server regrades exactly what it
+ * changed and returns a NEW version of the test, and this route moves to it
+ * (`onSuperseded`). Meanwhile the surface is read-only. Any write refused as
+ * `superseded` — a second tab, an old link — moves her to the newer version too,
+ * instead of failing into a version nobody can sign.
  */
 
 const AUTOSAVE_MS = 1500;
@@ -100,6 +107,8 @@ export interface GradeReviewV6Props {
     modalOpen?: boolean;
     /** The page's after-approval sequence (cursor, stamp, toast, advance). */
     onApproved: (total: string) => Promise<void>;
+    /** [SRG] A newer version of this test exists (a correction, another tab): go to it. */
+    onSuperseded?: (gradedTestId: string) => void;
 }
 
 export function GradeReviewV6(props: GradeReviewV6Props) {
@@ -107,7 +116,7 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
         gradedTestId, draft, approved, questions, subject = null,
         studentName, identityMeta, thumbUrl = null, stampPressed = false, versionBanner = null,
         revision, queue, eta, batchHref, prevId, nextId, onNavigate, onOpenPreview,
-        onShowScan, modalOpen = false, onApproved,
+        onShowScan, modalOpen = false, onApproved, onSuperseded,
     } = props;
 
     const [response, setResponse] = useState<GradedTestV6Response | null>(null);
@@ -122,6 +131,8 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
     const [approving, setApproving] = useState(false);
     /** criterion → the edit generation that last touched it; cleared as saves land. */
     const [pending, setPending] = useState<ReadonlyMap<string, number>>(new Map());
+    /** [SRG] the question whose correction is being regraded, if any. */
+    const [regrading, setRegrading] = useState<string | null>(null);
 
     const responseRef = useRef<GradedTestV6Response | null>(null);
     /** What the server last CONFIRMED — the base every patch is diffed against. */
@@ -216,11 +227,13 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
             }
             return true;
         } catch (err) {
+            const newer = supersededBy(err);
+            if (newer && onSuperseded) { onSuperseded(newer); return false; }
             setSaveState('failed');
             surfaceError(err);
             return false;
         }
-    }, [gradedTestId]);
+    }, [gradedTestId, onSuperseded]);
 
     const scheduleSave = useCallback(() => {
         dirtyRef.current = true;
@@ -386,6 +399,31 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
         onRetry: () => { void flush().then((ok) => { if (ok) revision.onRetry(); }); },
     } : undefined), [revision, flush]);
 
+    // ── correcting an answer (SRG) ────────────────────────────────────────
+    /** `answerText` null: a FAILED question retried as it stands (D10) — the server
+     * takes the raw text, which the screen does not hold. */
+    const correct = useCallback(async (scope: V6Scope, answerText: string | null) => {
+        if (approved || regrading !== null) return;
+        if (!(await flush())) return;
+        setRegrading(scope.scopeId);
+        try {
+            const text = answerText ?? (await getAnswerSource(
+                gradedTestId, scope.questionId, scope.subQuestionId)).answer_text;
+            const out = await regradeAnswer(gradedTestId, {
+                question_id: scope.questionId, sub_question_id: scope.subQuestionId,
+                answer_text: text,
+            });
+            toast.success(V6_REGRADED(out.regraded_scope_ids.length));
+            onSuperseded?.(out.graded_test_id);
+        } catch (err) {
+            const newer = supersededBy(err);
+            if (newer && onSuperseded) onSuperseded(newer);
+            else surfaceError(err);           // her text stays in the editor; nothing was saved
+        } finally {
+            setRegrading(null);
+        }
+    }, [approved, regrading, flush, gradedTestId, onSuperseded]);
+
     // ── the model ─────────────────────────────────────────────────────────
     const policy: NumericPolicy | null = response
         ? { precision: response.content.precision, rounding_mode: 'half_up' } : null;
@@ -489,6 +527,9 @@ export function GradeReviewV6(props: GradeReviewV6Props) {
             onRewriteFeedback={(target) => { void rewrite(target, false); }}
             onAcceptFeedbackOffer={acceptOffer}
             onDismissFeedbackOffer={dismissOffer}
+            gradedTestId={gradedTestId}
+            onRegradeAnswer={onSuperseded ? (scope, text) => { void correct(scope, text); } : undefined}
+            regradingScopeId={regrading}
         />
     );
 }

@@ -180,6 +180,13 @@ export default function GradeReviewPage() {
                     pollTimer = setTimeout(load, 4000);
                     return;
                 }
+                // [SRG] a draft a newer version superseded (a correction made here or in
+                // another tab, an old link): go to the leaf, never edit the dead one.
+                const newer = (data as { regraded_to_id?: string | null }).regraded_to_id;
+                if (status === 'draft' && newer) {
+                    router.replace(`/batches/${params.id}/grade-review/${newer}`);
+                    return;
+                }
                 const typed = data as unknown as GradedTestPayload & {
                     draft?: { teacher_overrides?: GradeReviewOverlay };
                 };
@@ -602,6 +609,8 @@ export default function GradeReviewPage() {
                         onShowScan={openScan}
                         modalOpen={scan !== null}
                         onApproved={afterApproval}
+                        onSuperseded={(id) => router.replace(
+                            `/batches/${params.id}/grade-review/${id}`)}
                     />
                     </RubricFigureSourceContext.Provider>
                 ) : policy ? (

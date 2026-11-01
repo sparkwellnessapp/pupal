@@ -84,6 +84,8 @@ def _emit_leaf_scopes(
     inherited_answer: Optional[str],
     inherited_from: Optional[str],
     prior_acc: List[PriorPartContext],
+    original_index: Optional[Dict[Tuple[int, Optional[str]], str]] = None,
+    inherited_original: Optional[str] = None,
 ) -> None:
     """Emit one GradableScope per LEAF of the sub-question tree (PR-3).
 
@@ -110,10 +112,13 @@ def _emit_leaf_scopes(
     # answer it is. The path travels with the text so a leaf can say which
     # ancestor answered for it, instead of presenting a parent's words as its
     # own (FC: surface the inference, never hide it).
+    original_index = original_index or {}
     if own_answer is not None:
         answer_for_subtree, source_for_subtree = own_answer, path
+        original_for_subtree = original_index.get(own_key)
     else:
         answer_for_subtree, source_for_subtree = inherited_answer, inherited_from
+        original_for_subtree = inherited_original
 
     if sq.sub_questions:
         for child in sq.sub_questions:
@@ -129,6 +134,8 @@ def _emit_leaf_scopes(
                 inherited_answer=answer_for_subtree,
                 inherited_from=source_for_subtree,
                 prior_acc=prior_acc,
+                original_index=original_index,
+                inherited_original=original_for_subtree,
             )
         return   # a parent is NOT a scope — its criteria live on its leaves
 
@@ -161,6 +168,7 @@ def _emit_leaf_scopes(
         alignment="matched" if answer_text is not None else "answer_missing",
         answer_source=answer_source,
         answer_inherited_from=answer_inherited_from,
+        student_answer_original_text=original_for_subtree if answer_text is not None else None,
         # PR-G1 v2 (2026-08-25): the PREFIX of parts already emitted for this
         # question, in document order — a snapshot BEFORE this leaf joins it
         # (prefix-only: never current, never subsequent).
@@ -203,6 +211,14 @@ def compile(  # noqa: A001 — shadows built-in; intentional, matches ContractCo
             a.answer_text, getattr(a, "figures", None) or ())
         for a in transcription_contract.answers
     }
+    # [SRG] the text before her grading-gate correction, expanded the same way, so the
+    # "show the original" view compares like with like. Absent for every uncorrected answer.
+    original_index: Dict[Tuple[int, Optional[str]], str] = {
+        (a.question_number, a.sub_question_id): expand_figure_lines(
+            a.original_text, getattr(a, "figures", None) or ())
+        for a in transcription_contract.answers
+        if getattr(a, "original_text", None) is not None
+    }
 
     scopes: List[GradableScope] = []
     matched_answer_keys: Set[Tuple[int, Optional[str]]] = set()
@@ -238,6 +254,7 @@ def compile(  # noqa: A001 — shadows built-in; intentional, matches ContractCo
                     inherited_answer=None,
                     inherited_from=None,
                     prior_acc=prior_acc,
+                    original_index=original_index,
                 )
 
         else:
@@ -264,6 +281,8 @@ def compile(  # noqa: A001 — shadows built-in; intentional, matches ContractCo
                 # is its own, and there is no ancestor to inherit from.
                 answer_source="own" if answer_text is not None else None,
                 answer_inherited_from=None,
+                student_answer_original_text=(original_index.get(answer_key)
+                                              if answer_text is not None else None),
             ))
 
     # Sets for building human-readable orphan reason messages

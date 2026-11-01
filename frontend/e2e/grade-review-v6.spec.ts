@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
-import { BATCH_ID, TEST_A, installGradeReviewMocks } from './gradeReviewFixtures';
+import { BATCH_ID, TEST_A, TEST_B, installGradeReviewMocks } from './gradeReviewFixtures';
 
 /**
  * grader-v6 review (owner rulings 2026-10-17 §7), driven in a real browser.
@@ -304,5 +304,90 @@ test.describe('בדיקת ציונים v6 — the student\'s feedback follows he
         await expect(card).toHaveAttribute('data-feedback-state', 'blank');
         await expect(card.locator('[data-feedback-ask]')).toBeVisible();
         await card.screenshot({ path: test.info().outputPath('feedback-blank.png') });
+    });
+});
+
+/**
+ * Correcting the transcription at the grading gate (SRG, owner rulings 2026-11-01).
+ * The editor opens on the RAW answer (`…/answers/source`), «שמירה ובדיקה מחדש» POSTs it,
+ * and the surface moves to the NEW version the server returns. TEST_B stands in for that
+ * version — the shared mocks serve any id.
+ */
+test.describe('תיקון התמלול בבדיקת הציונים', () => {
+    async function installCorrection(page: Page, regrade: (body: unknown) => { status: number; body: unknown }) {
+        await installV6(page);
+        const calls = { source: 0, regrade: [] as unknown[], approve: 0 };
+        await page.route('**/api/v0/grading/graded_test/*/answers/source*', async (route) => {
+            calls.source += 1;
+            const url = new URL(route.request().url());
+            const q = url.searchParams.get('question_id') as string;
+            const sub = url.searchParams.get('sub_question_id');
+            await route.fulfill(json({
+                question_number: Number(q.replace('q', '')), sub_question_id: sub,
+                answer_text: 'התשובה הגולמית', original_text: null,
+                shared_scope_ids: [sub ? `${q}.${sub}` : q], has_figures: false,
+            }));
+        });
+        await page.route('**/api/v0/grading/graded_test/*/answers/regrade', async (route) => {
+            const body = route.request().postDataJSON();
+            calls.regrade.push(body);
+            const out = regrade(body);
+            await route.fulfill({ status: out.status, contentType: 'application/json',
+                body: JSON.stringify(out.body) });
+        });
+        await page.route('**/api/v0/grading/graded_test/*/approve', async (route) => {
+            calls.approve += 1;
+            await route.fulfill(json({}));
+        });
+        return calls;
+    }
+
+    test('edit → «שמירה ובדיקה מחדש» → the corrected answer is sent → the new version opens', async ({ page }) => {
+        const calls = await installCorrection(page, (body) => ({ status: 200, body: {
+            graded_test_id: TEST_B, regraded_scope_ids: [(body as { question_id: string }).question_id],
+            cleared_decisions: 0, feedback_rewritten: true, transcription_corrected: true,
+        } }));
+        await page.goto(REVIEW);
+        const edit = page.locator('[data-edit-transcription]').first();
+        await expect(edit).toBeVisible();
+        const scopeId = (await edit.getAttribute('data-edit-transcription')) as string;
+        await edit.click();
+
+        const editor = page.locator('[data-answer-editor]');
+        const box = editor.locator('textarea');
+        await expect(box).toHaveValue('התשובה הגולמית');               // the RAW answer, not the screen's
+        const save = editor.locator('[data-save-and-regrade]');
+        await expect(save).toBeDisabled();                               // D11: nothing changed yet
+
+        await box.fill('התשובה הגולמית — מתוקנת');
+        await editor.scrollIntoViewIfNeeded();
+        await page.screenshot({ path: test.info().outputPath('v6-correction-editor.png') });
+        // Ctrl+↵ inside the editor must never sign the test
+        await box.press('Control+Enter');
+        expect(calls.approve).toBe(0);
+        await expect(save).toBeEnabled();
+        await save.click();
+
+        await expect(page).toHaveURL(new RegExp(`/grade-review/${TEST_B}$`));
+        const [q, ...rest] = scopeId.split('.');
+        expect(calls.regrade).toEqual([{
+            question_id: q, sub_question_id: rest.length ? rest.join('.') : null,
+            answer_text: 'התשובה הגולמית — מתוקנת',
+        }]);
+    });
+
+    test('a failed regrade keeps her text in the editor and the test where it was', async ({ page }) => {
+        await installCorrection(page, () => ({ status: 502, body: { detail: {
+            code: 'regrade_failed', message_he: 'הבדיקה מחדש לא הצליחה הפעם. התיקון שלך לא נשמר — נסי שוב.',
+        } } }));
+        await page.goto(REVIEW);
+        await page.locator('[data-edit-transcription]').first().click();
+        const box = page.locator('[data-answer-editor] textarea');
+        await box.fill('תיקון שלי');
+        await page.locator('[data-save-and-regrade]').click();
+        await expect(page.getByText('הבדיקה מחדש לא הצליחה הפעם', { exact: false })).toBeVisible();
+        await expect(page).toHaveURL(new RegExp(`/grade-review/${TEST_A}$`));
+        await expect(box).toHaveValue('תיקון שלי');
+        await expect(page.locator('[data-save-and-regrade]')).toBeEnabled();
     });
 });

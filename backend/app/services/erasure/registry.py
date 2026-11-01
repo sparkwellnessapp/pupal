@@ -52,6 +52,7 @@ PII_REGISTRY: dict[tuple[str, str], Disposition] = {
     ("transcriptions", "draft_json"): D.DELETED_WITH_ROW,
     ("transcriptions", "contract_json"): D.DELETED_WITH_ROW,
     ("transcriptions", "review_json"): D.DELETED_WITH_ROW,
+    ("transcriptions", "contract_history"): D.DELETED_WITH_ROW,   # 037: superseded contracts
     ("transcriptions", "gcs_uri"): D.OBJECT_POINTER,
     ("transcriptions", "gcs_bucket"): D.OBJECT_POINTER,
     ("transcriptions", "gcs_object_path"): D.OBJECT_POINTER,

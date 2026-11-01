@@ -41,7 +41,7 @@ import random
 import time
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Collection, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -116,11 +116,17 @@ async def explain_test(content: DraftV6Content, priced: PricedTest,
                        materials: Mapping[ScopeKey, ScopeMaterials], *,
                        llm, model_id: str, profile,
                        timeout_s: float = EXPLAINER_TIMEOUT_S,
-                       record_payloads: bool = False) -> ExplainResult:
+                       record_payloads: bool = False,
+                       only: Optional[Collection[ScopeKey]] = None) -> ExplainResult:
     """Never raises on a model, transport, timeout or validation failure: those fall back
     per terminal. (A `priced` that does not belong to `content` is a caller bug and
     raises — the fallback composer could not price it either. A CancelledError from the
-    caller propagates.)"""
+    caller propagates.)
+
+    `only` [SRG]: call the model for these scopes alone — a one-scope regrade explains the
+    scope it regraded, over the WHOLE test's content and price (so `counted` is the real
+    selection), and keeps every other line it already has. Lines are still returned for
+    every credit terminal; the caller takes the ones it asked for."""
     t0 = time.monotonic()
     telemetry: List[str] = []
     view = content.to_view()
@@ -128,6 +134,8 @@ async def explain_test(content: DraftV6Content, priced: PricedTest,
 
     inputs: List[ScopeExplainerInput] = []
     for key in called_scopes(content, priced):
+        if only is not None and key not in only:
+            continue
         try:
             inp = build_scope_input(content, priced, materials, key)
         except ExplainerInputError as exc:

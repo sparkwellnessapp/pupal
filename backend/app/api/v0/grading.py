@@ -611,6 +611,7 @@ async def get_single_graded_test(
             draft=draft,
             rubric_contract_stale=rubric_contract_stale,
             regraded_from_id=row.regraded_from_id,
+            regraded_to_id=row.regraded_to_id,
         )
 
     # approved — return draft + frozen contract (S9)
@@ -641,6 +642,7 @@ async def get_single_graded_test(
         approved_at=row.approved_at.isoformat(),
         rubric_contract_stale=rubric_contract_stale,
         regraded_from_id=row.regraded_from_id,
+        regraded_to_id=row.regraded_to_id,
     )
 
 
@@ -671,6 +673,7 @@ async def save_draft_overrides(
             status_code=409,
             detail=f"Cannot save overrides: graded test is '{row.status}', expected 'draft'.",
         )
+    _refuse_superseded(row)
 
     draft = GradedTestDraft.model_validate(row.draft_json)
 
@@ -775,6 +778,99 @@ async def save_draft_overrides(
     )
 
 
+def _refuse_superseded(row: GradedTest) -> None:
+    """[SRG] A draft that a newer version superseded is read-only. Before a draft could
+    have a successor this was unreachable — every revision started from `approved` or
+    `failed` — so /approve never checked it. A one-scope regrade extends the chain FROM a
+    draft, and a stale tab must not keep saving into (or signing) the dead one."""
+    if row.regraded_to_id is not None:
+        raise HTTPException(status_code=409, detail={
+            "code": "superseded",
+            "message_he": "יש גרסה חדשה יותר של המבחן הזה — פתחי אותה ונסי שוב.",
+            "successor_id": str(row.regraded_to_id)})
+
+
+# =============================================================================
+# a teacher's correction of one answer, and the regrade of what it changes (SRG)
+# =============================================================================
+
+class RegradeAnswerRequest(BaseModel):
+    """POST /graded_test/{id}/answers/regrade — the scope she edited (the one whose card
+    she was on; the server resolves which transcription answer it reads) and the whole
+    corrected text. The same text again is a retry, allowed only on a FAILED scope (D10)."""
+    model_config = {"extra": "forbid"}
+    question_id: str
+    sub_question_id: Optional[str] = None
+    answer_text: str
+
+
+class RegradeAnswerResponse(BaseModel):
+    graded_test_id: UUID                 # the NEW row: the chain's leaf, a draft
+    regraded_scope_ids: List[str]        # SRG-1: every scope that was verified again
+    cleared_decisions: int               # D5: how many of her decisions were cleared
+    feedback_rewritten: bool             # D6: False ⇒ the surface rewrites stale scopes itself
+    transcription_corrected: bool        # False ⇒ a retry with the text unchanged (D10)
+
+
+class AnswerSourceResponse(BaseModel):
+    question_number: int
+    sub_question_id: Optional[str] = None
+    answer_text: str
+    original_text: Optional[str] = None
+    shared_scope_ids: List[str]
+    has_figures: bool
+
+
+@router.get("/graded_test/{graded_test_id}/answers/source", response_model=AnswerSourceResponse)
+async def get_answer_source(
+    graded_test_id: UUID,
+    question_id: str = Query(...),
+    sub_question_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """The raw transcription answer one scope reads — what «עריכת התמלול» opens on —
+    and every scope that shares it (D3). Read-only."""
+    from ...services.scope_regrade import RegradeRefused, answer_source
+    try:
+        src = await answer_source(db, graded_test_id=graded_test_id, user_id=current_user.id,
+                                  question_id=question_id, sub_question_id=sub_question_id)
+    except RegradeRefused as refused:
+        if refused.status == 404 and refused.code == "not_found":
+            raise HTTPException(status_code=404, detail="GradedTest not found")
+        raise HTTPException(status_code=refused.status, detail={
+            "code": refused.code, "message_he": refused.message_he})
+    return AnswerSourceResponse(**src.__dict__)
+
+
+@router.post("/graded_test/{graded_test_id}/answers/regrade",
+             response_model=RegradeAnswerResponse)
+async def regrade_answer(
+    graded_test_id: UUID,
+    body: RegradeAnswerRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Save her correction of one answer and regrade exactly the scopes it changes
+    (owner rulings 2026-11-01). Synchronous and all-or-nothing (D2): on any refusal or a
+    failed regrade nothing is written. On success the chain gains a new draft — pinned to
+    the corrected transcription — and the client moves to it."""
+    from ...services.scope_regrade import RegradeRefused, regrade_answer as run
+    try:
+        out = await run(db, graded_test_id=graded_test_id, user_id=current_user.id,
+                        question_id=body.question_id, sub_question_id=body.sub_question_id,
+                        answer_text=body.answer_text)
+    except RegradeRefused as refused:
+        if refused.status == 404:
+            raise HTTPException(status_code=404, detail="GradedTest not found")
+        raise HTTPException(status_code=refused.status, detail={
+            "code": refused.code, "message_he": refused.message_he, **refused.extra})
+    return RegradeAnswerResponse(
+        graded_test_id=out.graded_test_id, regraded_scope_ids=out.regraded_scope_ids,
+        cleared_decisions=out.cleared_decisions, feedback_rewritten=out.feedback_rewritten,
+        transcription_corrected=out.transcription_corrected)
+
+
 # =============================================================================
 # grader-v6 review (owner rulings 2026-10-17 §7, the MVC)
 # =============================================================================
@@ -840,6 +936,7 @@ async def save_draft_v6(
     if row.status != "draft":
         raise HTTPException(status_code=409,
                             detail=f"Cannot save: graded test is '{row.status}', expected 'draft'.")
+    _refuse_superseded(row)
     draft = GradedTestDraft.model_validate(row.draft_json)
     content = v6_content(draft)
     if content is None:
@@ -903,6 +1000,7 @@ async def approve_graded_test(
             status_code=409,
             detail=f"Cannot approve: graded test is '{row.status}', expected 'draft'.",
         )
+    _refuse_superseded(row)
 
     rubric = await db.get(Rubric, row.rubric_id)
     if rubric is None or rubric.contract_json is None:
@@ -1380,6 +1478,7 @@ async def regenerate_feedback(
         raise HTTPException(
             status_code=409,
             detail=f"Cannot regenerate feedback: graded test is '{row.status}'.")
+    _refuse_superseded(row)
 
     draft = GradedTestDraft.model_validate(row.draft_json)
     transcription_id = row.transcription_id
@@ -1429,6 +1528,7 @@ async def regenerate_feedback(
         raise HTTPException(
             status_code=409,
             detail=f"Cannot regenerate feedback: graded test is '{row.status}'.")
+    _refuse_superseded(row)
     draft = GradedTestDraft.model_validate(row.draft_json)
     hers = draft.teacher_overrides.feedback or {}
 

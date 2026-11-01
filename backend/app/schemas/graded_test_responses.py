@@ -91,6 +91,9 @@ class GradedTestDraftResponse(BaseModel):
     numeric_policy: Optional[NumericPolicy] = None
     rubric_contract_stale: bool = False  # S10: computed at query time
     regraded_from_id: Optional[UUID] = None  # S10: revision chain back-pointer
+    # [SRG] the chain's forward pointer: set on a row a newer version superseded, so a
+    # stale tab (or an old link) can move to the leaf instead of editing a dead draft
+    regraded_to_id: Optional[UUID] = None
 
     @field_serializer("total_score", "total_possible", "percentage", "total_cost_usd")
     def _sd(self, v: Optional[Decimal]) -> Optional[str]:
@@ -120,6 +123,9 @@ class GradedTestApprovedResponse(BaseModel):
     approved_at: str  # ISO-8601 string
     rubric_contract_stale: bool = False  # S10: computed at query time
     regraded_from_id: Optional[UUID] = None  # S10: revision chain back-pointer
+    # [SRG] the chain's forward pointer: set on a row a newer version superseded, so a
+    # stale tab (or an old link) can move to the leaf instead of editing a dead draft
+    regraded_to_id: Optional[UUID] = None
 
     @field_serializer("total_score", "total_possible", "percentage", "total_cost_usd")
     def _sd(self, v: Optional[Decimal]) -> Optional[str]:

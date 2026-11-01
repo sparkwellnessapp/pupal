@@ -95,6 +95,9 @@ export interface WireScope {
         text: string;
         source: 'own' | 'inherited';
         inherited_from?: string | null;
+        /** [SRG] the transcription's text before she corrected it at the grading gate
+         * ("" = there was no answer and she added one); absent when never corrected. */
+        original_text?: string | null;
     } | null;
 }
 
@@ -277,8 +280,8 @@ function questionNumber(questionId: string): number {
  * bare-question answer. See the module doc for why the fallback exists.
  */
 export type ScopeAnswerView =
-    | { kind: 'own'; text: string }
-    | { kind: 'inherited'; text: string; from: string | null }
+    | { kind: 'own'; text: string; original?: string }
+    | { kind: 'inherited'; text: string; from: string | null; original?: string }
     | { kind: 'missing' }
     | { kind: 'unavailable' };
 
@@ -298,9 +301,12 @@ export type ScopeAnswerView =
 export function answerViewOf(scope: WireScope): ScopeAnswerView {
     const answer = scope.student_answer;
     if (answer) {
+        // [SRG] present only when she corrected it — so an uncorrected view is unchanged
+        const corrected = typeof answer.original_text === 'string'
+            ? { original: answer.original_text } : {};
         return answer.source === 'inherited'
-            ? { kind: 'inherited', text: answer.text, from: answer.inherited_from ?? null }
-            : { kind: 'own', text: answer.text };
+            ? { kind: 'inherited', text: answer.text, from: answer.inherited_from ?? null, ...corrected }
+            : { kind: 'own', text: answer.text, ...corrected };
     }
     return scope.graded_by === 'skipped_no_answer'
         ? { kind: 'missing' }

@@ -12,7 +12,9 @@ The ordering (requires migration 010 — regraded_to_id FK DEFERRABLE INITIALLY 
   2. INSERT R2 (id=r2_id)       [flush]  → R2 sole leaf; R2→R1 immediate FK OK
   3. COMMIT                              → deferred R1→R2 FK resolved (R2 exists)
 
-Called by: regrade, manual_edit, retry endpoints in app/api/v0/grading.py.
+Called by: regrade, manual_edit, retry endpoints in app/api/v0/grading.py, and the
+one-scope regrade (services/scope_regrade.py — a correction of one answer at the grading
+gate, the only caller that moves the transcription pin forward).
 """
 import logging
 from datetime import datetime, timezone
@@ -32,6 +34,8 @@ async def extend_chain(
     new_status: str,
     new_rubric_contract_version: str,
     new_draft_json: dict | None,
+    new_transcription_contract_version: str | None = None,
+    row_fields: dict | None = None,
 ) -> GradedTest:
     """
     Insert successor row R2, link source row R1 forward, and commit — all in
@@ -47,6 +51,11 @@ async def extend_chain(
         new_status: 'pending' (regrade/retry) or 'draft' (manual_edit)
         new_rubric_contract_version: the rubric contract version to pin on R2
         new_draft_json: serialised draft dict for R2, or None
+        new_transcription_contract_version: [SRG] the transcription contract R2 was graded
+            against, when it is NOT the source's — only a teacher's answer correction
+            passes it. None carries the source's pin.
+        row_fields: [SRG] further columns of R2 (totals, cost) set before the flush, so
+            the successor lands complete in the same commit
 
     Returns:
         the newly committed R2 GradedTest instance
@@ -94,7 +103,13 @@ async def extend_chain(
         # is a parameter for. Re-reading the row here would let a successor
         # claim a provenance its predecessor never had, and would silently
         # "upgrade" a legacy NULL into a version nobody verified.
-        transcription_contract_version=source.transcription_contract_version,
+        #
+        # [SRG, owner 2026-11-01] ONE exception moves it: a teacher's correction of an
+        # answer at the grading gate freezes a new transcription contract and grades
+        # against it, and passes that version here — the VER-2 rule (a re-grade
+        # creates a new row with the new version) applied to the other input.
+        transcription_contract_version=(new_transcription_contract_version
+                                        or source.transcription_contract_version),
         # [035, AM-G6] the plan pin travels WITH the draft it describes: a
         # manual_edit successor carries its predecessor's draft verbatim, so it
         # carries that draft's plan too; a regrade / retry successor has no
@@ -108,6 +123,8 @@ async def extend_chain(
         created_at=now,
         updated_at=now,
     )
+    for column, value in (row_fields or {}).items():
+        setattr(r2, column, value)
     db.add(r2)
     await db.flush()
 

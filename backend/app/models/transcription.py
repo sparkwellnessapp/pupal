@@ -28,6 +28,11 @@ class Transcription(Base):
     # writable only while status='transcribed'; nulled in the approval
     # transition UPDATE (LCY-1: approved rows are never written).
     review_json     = Column(JSONB(none_as_null=True), nullable=True)
+    # [037, SRG] LCY-1 is APPEND-ONLY, not read-only: a teacher's correction of one answer
+    # at the grading gate (services/scope_regrade.py — the only writer) appends the
+    # contract it supersedes here, then moves `contract_json` forward. NULL = never
+    # corrected. Purged with the row (PII registry).
+    contract_history = Column(JSONB(none_as_null=True), nullable=True)
     approved_at     = Column(DateTime(timezone=True), nullable=True)
     # Valid values: 'transcribed', 'approved' — enforced by DB CHECK transcriptions_approval_consistency
     status          = Column(String(20), nullable=False, default="transcribed")

@@ -124,6 +124,10 @@ class GradableScope(BaseModel):
     # records, per scope, the one thing a reader needs to interpret the grade.
     answer_source: Optional[Literal["own", "inherited"]] = None
     answer_inherited_from: Optional[str] = None  # e.g. "א" for the leaf "א.1"
+    # [SRG] the answer's text as first approved, when the teacher corrected it at the
+    # grading gate (`TranscriptionContractAnswer.original_text`, figure lines expanded the
+    # same way). Display provenance only — never rendered into a grader prompt.
+    student_answer_original_text: Optional[str] = None
 
     # PR-G1 v2 (2026-08-25): prefix-only prior-part context — all preceding
     # parts of the same question in document order; NEVER the current part,

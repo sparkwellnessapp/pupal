@@ -316,6 +316,10 @@ class ScopeAnswer(BaseModel):
     #: The ancestor path whose answer this is, e.g. "א" for the leaf "א.1".
     #: None exactly when source == "own".
     inherited_from: Optional[str] = None
+    #: [SRG] The transcription's text before the teacher corrected it at the grading
+    #: gate — `text` is what was graded (EVD-1), this is what the transcription said.
+    #: None = never corrected; "" = there was no answer and she added one.
+    original_text: Optional[str] = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class ScopeOutcome(BaseModel):
