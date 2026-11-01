@@ -163,8 +163,8 @@ class StudentSubmissionView(BaseModel):
 
 
 class SaveResponse(BaseModel):
-    # The submission the version was saved ON — after an approval that is a
-    # NEW (late) submission (D6), and the client continues on it.
+    # The submission the version was saved on. Always the one saved since
+    # SCN-15 (a save after approval is refused); kept for the client's flow.
     submission_id: UUID
     version_no: int
     saved_at: str
@@ -255,9 +255,13 @@ class CaptureSubmissionRow(BaseModel):
     source: Literal["student_link", "teacher"]
     student: Optional[StudentRef] = None
     pending_student_name: Optional[str] = None
+    # As the teacher is asked about it, DERIVED (SCN-13): `conflict` = one of
+    # several saved sets claiming one student; else confirmed / pending.
     student_state: Literal["unassigned", "confirmed", "pending", "conflict"]
-    conflict_note: Optional[Literal["duplicate_student", "duplicate_pending_name",
-                                    "late_resubmission"]] = None
+    # The rows of one duplicate share this key (its smallest submission id);
+    # null when the row is not a duplicate.
+    duplicate_group: Optional[str] = None
+    # Pages of the SAVED version — what was sent to scanning (SCN-2).
     page_count: int
     saved_at: Optional[str] = None
     version_no: Optional[int] = None
@@ -267,7 +271,6 @@ class CaptureSubmissionRow(BaseModel):
     error_code: Optional[Literal["compile_failed", "transcription_failed"]] = None
     transcription_id: Optional[UUID] = None
     transcription_status: Optional[Literal["transcribed", "approved"]] = None
-    page1_preview_url: Optional[str] = None
 
 
 class CaptureCounter(BaseModel):
@@ -291,9 +294,19 @@ class ResolvePendingRequest(BaseModel):
         return self
 
 
-class ResolveConflictRequest(BaseModel):
-    action: Literal["keep_this", "discard_this"]
-    student_id: Optional[UUID] = None
+class VersionPagesView(BaseModel):
+    """The photos of a submission's saved version, for the teacher (the
+    «תמונות» viewer and the duplicate comparison). Pages in their frozen order
+    with their frozen corners and rotation; `preview_url` is a fresh 15-minute
+    signed GET of the EXIF-oriented display image (SCN-11)."""
+    submission_id: UUID
+    source: Literal["student_link", "teacher"]
+    student: Optional[StudentRef] = None
+    pending_student_name: Optional[str] = None
+    version_no: Optional[int] = None
+    saved_at: Optional[str] = None
+    transcription_status: Optional[Literal["transcribed", "approved"]] = None
+    pages: List[PageView]
 
 
 # ---------------------------------------------------------------------------

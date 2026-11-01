@@ -42,6 +42,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 import { acceptCleanTranscriptions, acceptOneTranscription } from '@/lib/api';
+import { CAPTURE_ENABLED } from '@/lib/flags';
 import { useBatchReview } from '@/components/batch-review/BatchReviewContext';
 import { needsUnloadGuard } from '@/components/batch-review/reviewItemController';
 import { ConfirmAcceptModal } from '@/components/batch-review/ConfirmAcceptModal';
@@ -340,6 +341,12 @@ function ReviewItemView({ batchId, item, position, counters }: {
     // text (a fixed card honestly stops anchoring — the chip shakes instead).
     const reasons = item.flag_verdict.reasons;
     const onChipClick = useCallback((reason: string) => {
+        // [SCN-14] Two sets of photos claim this student: the choice is
+        // between SETS, made on the batch page where both are shown.
+        if (reason === 'capture_conflict' && CAPTURE_ENABLED) {
+            router.push(`/batches/${batchId}?resolve=${item.transcription_id}`);
+            return;
+        }
         const anchors = reasonAnchors(
             item,
             state.editedAnswers as Record<string, string>,
@@ -367,7 +374,7 @@ function ReviewItemView({ batchId, item, position, counters }: {
         // Missing target → shake the chip, never scroll nowhere (R1 edge).
         setShakenReason(reason);
         window.setTimeout(() => setShakenReason(null), 450);
-    }, [item, state.editedAnswers]);
+    }, [batchId, item, router, state.editedAnswers]);
 
     // R3: one window listener, one pure reducer. Modal-open and IME
     // composition are dead keys (the F8 Modal also suppresses at capture).

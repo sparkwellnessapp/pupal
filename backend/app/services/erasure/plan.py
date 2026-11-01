@@ -33,10 +33,10 @@ it cannot promise a correct purge:
                       approved student back onto the submission (OD-3), so a
                       disagreement is news, and deleting the photos under it
                       would delete someone else's exam
-  capture_conflict    a capture submission naming her is an UNRESOLVED
-                      conflict (two exams claim her, or a late resubmission):
+  capture_conflict    a saved capture submission naming her is one of an
+                      UNRESOLVED duplicate (SCN-13: two saved sets claim her):
                       one of the two may well be another student's, and only
-                      the teacher can say which — she decides first. The one
+                      the teacher can say which — she keeps one first. The one
                       refusal that is hers to clear, not an operator's.
 
 Blockers (a grade `pending`/`grading`, a job `queued`/`running`) do not refuse
@@ -56,6 +56,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.capture import duplicates
 from app.services.capture.paths import split_gs_uri
 from app.services.student_signed_tests import signed_tests_count
 
@@ -149,11 +150,14 @@ async def plan_purge(db: AsyncSession, *, user_id: UUID, student_id: UUID,
 
     # --- her capture subtrees (036) -----------------------------------------
     sub_rows = await _ids(
-        db, "SELECT id, student_state, status FROM capture_submissions WHERE student_id = :s",
+        db, "SELECT id, batch_id, status FROM capture_submissions WHERE student_id = :s",
         s=student_id)
     # Discarded ones included: a discarded submission's photos are still hers.
     submissions = [r[0] for r in sub_rows]
-    conflicts = sorted(str(r[0]) for r in sub_rows if r[1] == "conflict" and r[2] != "discarded")
+    # An unresolved duplicate is DERIVED (SCN-13): any saved set of hers that
+    # another saved set in its batch also claims.
+    groups = await duplicates.groups_in(db, {r[1] for r in sub_rows if r[2] == "saved"})
+    conflicts = sorted(str(r[0]) for r in sub_rows if r[2] == "saved" and r[0] in groups)
     if conflicts:
         raise PurgeRefused("capture_conflict", f"unresolved capture submissions {conflicts}")
     version_rows = await _ids(

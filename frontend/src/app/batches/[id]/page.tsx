@@ -292,11 +292,20 @@ export default function BatchDetailPage() {
     // useSearchParams, which would force a Suspense boundary), then dropped
     // from the URL so a reload does not repeat it.
     const [focusLink, setFocusLink] = useState(false);
+    // [SCN-14] `?resolve=<transcription id>` — arrived from the review page's
+    // «שני מבחנים לאותו תלמיד» chip: open that student's duplicate here. The
+    // triage cards on THIS page set it directly (no navigation).
+    const [resolveTid, setResolveTid] = useState<string | null>(null);
+    const clearResolve = useCallback(() => setResolveTid(null), []);
     useEffect(() => {
         const query = new URLSearchParams(window.location.search);
-        if (query.get('link') !== 'new') return;
-        setFocusLink(true);
+        const link = query.get('link') === 'new';
+        const resolve = query.get('resolve');
+        if (!link && !resolve) return;
+        if (link) setFocusLink(true);
+        if (resolve) setResolveTid(resolve);
         query.delete('link');
+        query.delete('resolve');
         const rest = query.toString();
         window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''));
     }, []);
@@ -788,6 +797,8 @@ export default function BatchDetailPage() {
                 {CAPTURE_ENABLED && (
                     <CaptureSection batchId={batchId} hasClass={!!batch.class_id}
                                     focusLink={focusLink}
+                                    resolveTranscriptionId={resolveTid}
+                                    onResolveHandled={clearResolve}
                                     onChanged={() => void refresh()} />
                 )}
 
@@ -830,6 +841,7 @@ export default function BatchDetailPage() {
                             />
                         )}
                         <TranscriptionTriage
+                            onResolveDuplicate={CAPTURE_ENABLED ? setResolveTid : undefined}
                             eyesRows={eyesRows}
                             cleanRows={zones.cleanRows}
                             batchId={batchId}

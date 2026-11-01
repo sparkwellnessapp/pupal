@@ -35,8 +35,8 @@ from ...models.user import User
 from ...schemas.capture import (
     CaptureHandoffResponse, CaptureLinkCreateRequest, CaptureLinkPatchRequest,
     CaptureLinkResponse, CaptureSubmissionsResponse, HandoffExchangeRequest,
-    HandoffExchangeResponse, NameSuggestResponse, ResolveConflictRequest, ResolvePendingRequest, RosterResponse,
-    RosterStudent, StudentAssignRequest, SubmissionView, TeacherCaptureState,
+    HandoffExchangeResponse, NameSuggestResponse, ResolvePendingRequest, RosterResponse,
+    RosterStudent, StudentAssignRequest, SubmissionView, TeacherCaptureState, VersionPagesView,
 )
 from ...services.capture import handoff as handoff_svc
 from ...services.capture import links as links_svc
@@ -207,14 +207,15 @@ async def resolve_pending(batch_id: UUID, submission_id: UUID, body: ResolvePend
     return await svc.batch_rows(db, batch)
 
 
-@router.post("/batches/{batch_id}/capture-submissions/{submission_id}/resolve-conflict",
+@router.post("/batches/{batch_id}/capture-submissions/{submission_id}/keep",
              response_model=CaptureSubmissionsResponse)
-async def resolve_conflict(batch_id: UUID, submission_id: UUID, body: ResolveConflictRequest,
-                           db: AsyncSession = Depends(get_db),
-                           current_user: User = Depends(get_current_user)):
+async def keep_submission(batch_id: UUID, submission_id: UUID,
+                          db: AsyncSession = Depends(get_db),
+                          current_user: User = Depends(get_current_user)):
+    """«להשאיר את זו» — of a duplicate (SCN-13), keep THIS set and discard
+    every other set claiming the same student (SCN-14)."""
     batch = await get_owned_or_404(db, GradingBatch, batch_id, current_user.id)
-    await svc.resolve_conflict(db, TeacherActor(current_user.id, batch.id), submission_id,
-                               action=body.action, student_id=body.student_id)
+    await svc.resolve_conflict(db, TeacherActor(current_user.id, batch.id), submission_id)
     await db.commit()
     return await svc.batch_rows(db, batch)
 
@@ -275,6 +276,15 @@ async def name_suggest(submission_id: UUID, actor: TeacherActor = Depends(teache
                        db: AsyncSession = Depends(get_db)):
     """§6.9 — a pre-fill for her picker, never an assignment (SCN-10/12)."""
     return await name_suggest_svc.suggest(db, actor, submission_id)
+
+
+@capture_page_router.get("/submissions/{submission_id}/version", response_model=VersionPagesView)
+async def submission_version(submission_id: UUID, actor: TeacherActor = Depends(teacher_actor),
+                             db: AsyncSession = Depends(get_db)):
+    """The photos of the set that was SAVED — the batch panel's «תמונות», its
+    duplicate comparison, and the capture page's replace dialog (D5). Her
+    session or a capture session, within this batch only (SCN-7's scope)."""
+    return await svc.version_view(db, await svc.load_submission(db, actor, submission_id))
 
 
 add_page_routes(capture_page_router, teacher_actor, view_model=SubmissionView,

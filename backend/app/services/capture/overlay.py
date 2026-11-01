@@ -11,8 +11,10 @@ page 1:
                flagged, so it is eligible for bulk accept.
   pending    → never clean (`capture_student_pending`): the teacher approves
                the typed name as a new student or links it, one item at a time.
-  conflict   → never clean (`capture_conflict`): two submissions claim one
-               student, or a late resubmission arrived (D1/D5/D6).
+  duplicate  → never clean (`capture_conflict`), for EVERY saved set that
+               claims the same student (SCN-13 — derived here from the
+               batch's claims, never from a stored flag): she keeps one first
+               (SCN-14), and until then none of them may be approved.
 
 Nothing is WRITTEN to the transcription — the approval CHECK forbids a student
 on a `transcribed` row, and the auto-match has always been recomputed per read.
@@ -40,19 +42,20 @@ from ...models.student import Student
 from ...models.transcription import Transcription
 from ...models.transcription_job import TranscriptionJob
 from ..batch_triage import StudentMatchResult
+from . import duplicates
 
 
 @dataclass(frozen=True)
 class CaptureStudent:
     submission_id: UUID
-    state: str                       # confirmed | pending | conflict | unassigned
     student_id: Optional[UUID]
     student_name: Optional[str]
     pending_name: Optional[str]
-    conflict_note: Optional[str]
+    #: one of several saved sets claiming one student (SCN-13)
+    duplicate: bool
 
     def match(self) -> StudentMatchResult:
-        if self.state == "confirmed" and self.student_id is not None:
+        if not self.duplicate and self.student_id is not None:
             return StudentMatchResult(student_id=str(self.student_id),
                                       student_name=self.student_name,
                                       match_confidence="exact")
@@ -60,15 +63,16 @@ class CaptureStudent:
 
     def suggestion(self) -> Optional[str]:
         """The name the review surface pre-fills the picker with."""
-        if self.state == "confirmed":
-            return self.student_name
-        return self.pending_name or self.student_name
+        return self.student_name or self.pending_name
 
     @property
     def verdict_state(self) -> Optional[str]:
-        """What `compute_flag_verdict` needs to know: pending/conflict force
-        a needs-eyes reason; confirmed is already an exact match."""
-        return self.state if self.state in ("pending", "conflict") else None
+        """What `compute_flag_verdict` needs to know: a duplicate or a typed
+        name nobody confirmed forces a needs-eyes reason; a confirmed student
+        is already an exact match."""
+        if self.duplicate:
+            return "conflict"
+        return "pending" if self.student_id is None else None
 
 
 async def capture_students(
@@ -86,11 +90,11 @@ async def capture_students(
         .outerjoin(Student, Student.id == CaptureSubmission.student_id)
         .where(TranscriptionJob.transcription_id.in_(ids))
     )).all()
+    groups = await duplicates.groups_in(db, {sub.batch_id for _t, sub, _n in rows})
     return {
         tid: CaptureStudent(
-            submission_id=sub.id, state=sub.student_state, student_id=sub.student_id,
-            student_name=name, pending_name=sub.pending_student_name,
-            conflict_note=sub.conflict_note,
+            submission_id=sub.id, student_id=sub.student_id, student_name=name,
+            pending_name=sub.pending_student_name, duplicate=sub.id in groups,
         )
         for tid, sub, name in rows
     }

@@ -173,18 +173,13 @@ def test_a_student_with_nothing_attributable_is_deleted(client, headers_a, world
 def test_an_unresolved_capture_conflict_is_hers_to_clear_with_its_own_code(client, headers_a, world):
     """[036] Not the operator's «purge_refused»: the dialog tells her to decide
     the conflict first. Nothing is touched."""
-    from sqlalchemy import text
-    from tests.services.erasure.seed import add_capture, session
+    from tests.services.erasure.seed import add_capture
 
     g, _store = world
 
-    async def conflict():
-        await add_capture(g, "capc", pending_name=g.student_name)
-        async with session() as db:
-            await db.execute(text("UPDATE capture_submissions SET student_id = :st, "
-                                  "pending_student_name = NULL, student_state = 'conflict' "
-                                  "WHERE id = :s"), {"st": g.student_id, "s": g.captures["capc"]["sub"]})
-            await db.commit()
+    async def conflict():                 # SCN-13: two saved sets claim her
+        await add_capture(g, "capc", student_id=g.student_id)
+        await add_capture(g, "capd", student_id=g.student_id)
     asyncio.run(conflict())
     before = asyncio.run(row_counts(g))
     for method, url in (("get", PREVIEW), ("delete", STUDENT)):

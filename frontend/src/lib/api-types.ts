@@ -451,7 +451,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v0/batches/{batch_id}/capture-submissions/{submission_id}/resolve-conflict": {
+    "/api/v0/batches/{batch_id}/capture-submissions/{submission_id}/keep": {
         parameters: {
             query?: never;
             header?: never;
@@ -460,8 +460,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Resolve Conflict */
-        post: operations["resolve_conflict_api_v0_batches__batch_id__capture_submissions__submission_id__resolve_conflict_post"];
+        /**
+         * Keep Submission
+         * @description «להשאיר את זו» — of a duplicate (SCN-13), keep THIS set and discard
+         *     every other set claiming the same student (SCN-14).
+         */
+        post: operations["keep_submission_api_v0_batches__batch_id__capture_submissions__submission_id__keep_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -988,6 +992,28 @@ export interface paths {
         get?: never;
         /** Assign Student */
         put: operations["assign_student_api_v0_capture_teacher__batch_id__submissions__submission_id__student_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/capture/teacher/{batch_id}/submissions/{submission_id}/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Submission Version
+         * @description The photos of the set that was SAVED — the batch panel's «תמונות», its
+         *     duplicate comparison, and the capture page's replace dialog (D5). Her
+         *     session or a capture session, within this batch only (SCN-7's scope).
+         */
+        get: operations["submission_version_api_v0_capture_teacher__batch_id__submissions__submission_id__version_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -3275,14 +3301,12 @@ export interface components {
         };
         /** CaptureSubmissionRow */
         CaptureSubmissionRow: {
-            /** Conflict Note */
-            conflict_note?: ("duplicate_student" | "duplicate_pending_name" | "late_resubmission") | null;
+            /** Duplicate Group */
+            duplicate_group?: string | null;
             /** Error Code */
             error_code?: ("compile_failed" | "transcription_failed") | null;
             /** Job Id */
             job_id?: string | null;
-            /** Page1 Preview Url */
-            page1_preview_url?: string | null;
             /** Page Count */
             page_count: number;
             /** Pending Student Name */
@@ -5605,16 +5629,6 @@ export interface components {
              */
             to: "auto" | "full_frame";
         };
-        /** ResolveConflictRequest */
-        ResolveConflictRequest: {
-            /**
-             * Action
-             * @enum {string}
-             */
-            action: "keep_this" | "discard_this";
-            /** Student Id */
-            student_id?: string | null;
-        };
         /** ResolvePendingRequest */
         ResolvePendingRequest: {
             /**
@@ -7498,6 +7512,36 @@ export interface components {
              */
             email: string;
         };
+        /**
+         * VersionPagesView
+         * @description The photos of a submission's saved version, for the teacher (the
+         *     «תמונות» viewer and the duplicate comparison). Pages in their frozen order
+         *     with their frozen corners and rotation; `preview_url` is a fresh 15-minute
+         *     signed GET of the EXIF-oriented display image (SCN-11).
+         */
+        VersionPagesView: {
+            /** Pages */
+            pages: components["schemas"]["PageView"][];
+            /** Pending Student Name */
+            pending_student_name?: string | null;
+            /** Saved At */
+            saved_at?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "student_link" | "teacher";
+            student?: components["schemas"]["StudentRef"] | null;
+            /**
+             * Submission Id
+             * Format: uuid
+             */
+            submission_id: string;
+            /** Transcription Status */
+            transcription_status?: ("transcribed" | "approved") | null;
+            /** Version No */
+            version_no?: number | null;
+        };
         /** ViewTerminal */
         ViewTerminal: {
             /** Points Possible */
@@ -8231,7 +8275,7 @@ export interface operations {
             };
         };
     };
-    resolve_conflict_api_v0_batches__batch_id__capture_submissions__submission_id__resolve_conflict_post: {
+    keep_submission_api_v0_batches__batch_id__capture_submissions__submission_id__keep_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -8241,11 +8285,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ResolveConflictRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -9280,6 +9320,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubmissionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submission_version_api_v0_capture_teacher__batch_id__submissions__submission_id__version_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionPagesView"];
                 };
             };
             /** @description Validation Error */

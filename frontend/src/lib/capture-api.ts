@@ -20,6 +20,7 @@ import type {
   CaptureContentType, CaptureHandoff, CaptureLink, CaptureSubmissionsResponse,
   IdentifyResponse, NameSuggestResponse, PageCreateResponse, PageView, Quad, RosterStudent,
   Rotation, SaveResponse, StudentLinkInfo, SubmissionPages, SubmissionView, TeacherCaptureState,
+  VersionPages,
 } from '@/types/capture'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
@@ -131,6 +132,8 @@ export interface TeacherCaptureApi extends CapturePagesApi {
   assignStudent(submissionId: string, body:
     { student_id: string; replace_existing?: boolean } | { create: { name: string } }): Promise<SubmissionView>
   nameSuggest(submissionId: string): Promise<NameSuggestResponse>
+  /** The photos of a submission's SAVED version — the D5 dialog's «המבחן הקיים». */
+  version(submissionId: string): Promise<VersionPages>
 }
 
 export function teacherCaptureApi(batchId: string, auth: TeacherCaptureAuth): TeacherCaptureApi {
@@ -149,6 +152,7 @@ export function teacherCaptureApi(batchId: string, auth: TeacherCaptureAuth): Te
     createSubmission: () => call(`${base}/submissions`, { method: 'POST' }),
     assignStudent: (s, body) => call(`${base}/submissions/${s}/student`, jsonBody('PUT', body)),
     nameSuggest: (s) => call(`${base}/submissions/${s}/name-suggest`, { method: 'POST' }),
+    version: (s) => call(`${base}/submissions/${s}/version`, { method: 'GET' }),
   }
 }
 
@@ -241,10 +245,15 @@ export const resolvePending = async (batchId: string, submissionId: string,
   body: { student_id: string } | { approve_new: true }) =>
   asPanel(await authed<CaptureSubmissionsResponse>(
     `${B(batchId)}/capture-submissions/${submissionId}/resolve-pending`, jsonBody('POST', body)))
-export const resolveConflict = async (batchId: string, submissionId: string,
-  body: { action: 'keep_this' | 'discard_this'; student_id?: string }) =>
-  asPanel(await apiFetch<CaptureSubmissionsResponse>(
-    `${B(batchId)}/capture-submissions/${submissionId}/resolve-conflict`, jsonInit('POST', body)))
+/** «להשאיר את זו» (SCN-14): keep this set, discard every other set claiming
+ *  the same student. Through `authed`, so a refusal keeps its machine code
+ *  (`other_approved`, `not_conflict`) — the dialog branches on it. */
+export const keepSubmission = async (batchId: string, submissionId: string) =>
+  asPanel(await authed<CaptureSubmissionsResponse>(
+    `${B(batchId)}/capture-submissions/${submissionId}/keep`, { method: 'POST' }))
+/** The photos of the set that was SAVED (what was sent to scanning). */
+export const getSubmissionVersion = (batchId: string, submissionId: string) =>
+  authed<VersionPages>(`/api/v0/capture/teacher/${batchId}/submissions/${submissionId}/version`)
 
 // ---------------------------------------------------------------------------
 // the photo itself — straight to GCS on the signed URL (OD-S10)

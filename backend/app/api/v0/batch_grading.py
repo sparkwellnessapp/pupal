@@ -117,6 +117,9 @@ internal_router = APIRouter(prefix="/internal/transcription-jobs", tags=["intern
 #: [036, OD-2] Accept / retry of a WITHDRAWN item — a newer version of the
 #: same capture submission replaced it, or the submission was discarded.
 WITHDRAWN_DETAIL = "נשלחה גרסה חדשה של המבחן הזה — הגרסה הקודמת כבר לא חלק מהקבוצה"
+# [SCN-14] One of several saved photo sets claiming one student: she keeps one
+# first, and until then none of them is approved (no second exam per student).
+DUPLICATE_SET_DETAIL = "יש מבחן נוסף לאותו תלמיד בקבוצה — בחרי קודם איזה לשמור"
 
 async def _enqueue_transcription_or_mark_failed(job_id: UUID) -> None:
     """`services/batch_ingest.enqueue_transcription_or_mark_failed`, handed
@@ -1683,6 +1686,11 @@ async def accept_one(
         raise HTTPException(409, WITHDRAWN_DETAIL) from None
     if transcription.status != "transcribed":
         return {"accepted": 0, "message": "already accepted"}
+    # [SCN-14] Read AFTER the lock: a keep that discarded this set is seen as
+    # WITHDRAWN above; one still undecided is refused here.
+    capture = (await capture_students(db, [transcription.id])).get(transcription.id)
+    if capture is not None and capture.duplicate:
+        raise HTTPException(409, DUPLICATE_SET_DETAIL)
 
     # B2: the approval write validates no LESS than the overlay save — the
     # same full-snapshot key-multiset guard, the same 422 detail (shared

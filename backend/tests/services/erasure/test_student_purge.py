@@ -158,23 +158,18 @@ REFUSALS = [
     # submission; a disagreement means her photos are someone else's exam.
     ("a scan from her capture submission approved for another student (036)",
      lambda g: _capture_approved_for_other(g), "capture_mismatch"),
-    # [036] an unresolved conflict naming her: one of the two exams may be
-    # someone else's — the teacher decides first.
+    # [036, SCN-13] an unresolved duplicate naming her: one of the two sets
+    # may be someone else's — the teacher keeps one first.
     ("an unresolved capture conflict naming her (036)",
      lambda g: _capture_in_conflict(g), "capture_conflict"),
 ]
 
 
 async def _capture_in_conflict(g):
-    # A student-link capture (a saved TEACHER capture is always confirmed —
-    # the CHECK says so): the device confirmed her name, and so did another.
-    await add_capture(g, "capc", pending_name=g.student_name)
-    async with session() as db:
-        await db.execute(text("UPDATE capture_submissions SET student_id = :st, "
-                              "pending_student_name = NULL, student_state = 'conflict', "
-                              "conflict_note = 'duplicate_student' WHERE id = :s"),
-                         {"st": g.student_id, "s": g.captures["capc"]["sub"]})
-        await db.commit()
+    # SCN-13: two saved sets claim her — a duplicate she has not resolved.
+    # One of them may be someone else's exam, so nothing is deleted yet.
+    await add_capture(g, "capc", student_id=g.student_id)
+    await add_capture(g, "capd", student_id=g.student_id)
 
 
 async def _capture_approved_for_other(g):

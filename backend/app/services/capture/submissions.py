@@ -38,14 +38,13 @@ from ...models.transcription import Transcription
 from ...models.transcription_job import TranscriptionJob
 from ...schemas.capture import (
     CaptureCounter, CaptureSubmissionRow, CaptureSubmissionsResponse, PageView, QualityView,
-    StudentRef, StudentSubmissionView, SubmissionView,
+    StudentRef, StudentSubmissionView, SubmissionView, VersionPagesView,
 )
 from .. import classroom as classroom_service
 from ..batch_ingest import ingest_batch_pdf, refresh_test_count
-from . import paths, tokens
+from . import duplicates, paths, tokens
 from .actors import NOT_FOUND, CaptureActor, CaptureError, StudentActor, TeacherActor
 from .geometry import FULL_FRAME, InvalidCorners, validate_corners
-from ..batch_triage import normalize_name
 from .naming import identify, same_name
 from .scan_client import get_scan_client
 
@@ -210,30 +209,18 @@ async def own_submission(db: AsyncSession, link: CaptureLink,
     )).scalar_one_or_none()
 
 
-async def _competitors(db: AsyncSession, batch_id: UUID, *, exclude: Optional[UUID],
-                       student_id: Optional[UUID] = None,
-                       pending_name: Optional[str] = None,
-                       saved_only: bool = False) -> list[CaptureSubmission]:
-    """Other ACTIVE submissions in the batch claiming the same student — by
-    id, or (for an unresolved typed name) by the normalized name. In id order,
-    so a caller that locks them locks in ONE order (no deadlock between two
-    resolutions). `saved_only`: a never-saved draft (an abandoned browser, a
-    lost device secret) is not a claim and must not make a real one a
-    conflict the teacher cannot even see."""
-    q = select(CaptureSubmission).where(CaptureSubmission.batch_id == batch_id)
-    q = q.where(CaptureSubmission.status == "saved") if saved_only \
-        else q.where(CaptureSubmission.status != "discarded")
-    rows = (await db.execute(q.order_by(CaptureSubmission.id))).scalars().all()
-    out = []
-    for s in rows:
-        if exclude is not None and s.id == exclude:
-            continue
-        if student_id is not None and s.student_id == student_id:
-            out.append(s)
-        elif (pending_name and s.student_id is None
-              and same_name(s.pending_student_name, pending_name)):
-            out.append(s)
-    return out
+async def _competitors(db: AsyncSession, batch_id: UUID, *, exclude: UUID,
+                       student_id: UUID) -> list[CaptureSubmission]:
+    """Other ACTIVE submissions in the batch already assigned this student —
+    what the teacher's D5 dialog asks about. In id order, so a caller that
+    locks them locks in ONE order. (Saved duplicates between submissions are
+    a derived fact — `duplicates.py`, SCN-13 — and never judged here.)"""
+    return list((await db.execute(
+        select(CaptureSubmission)
+        .where(CaptureSubmission.batch_id == batch_id, CaptureSubmission.status != "discarded",
+               CaptureSubmission.student_id == student_id, CaptureSubmission.id != exclude)
+        .order_by(CaptureSubmission.id)
+    )).scalars().all())
 
 
 async def _lock_batch(db: AsyncSession, batch_id: UUID) -> None:
@@ -276,6 +263,9 @@ async def create_student_submission(db: AsyncSession, *, link: CaptureLink, name
         state, student_id, pending = "confirmed", match.id, None
     else:
         state, student_id, pending = "pending", None, typed
+    # SCN-15, before a single photo is taken: the save would refuse it anyway.
+    if await _approved_exam_for(db, batch.id, student_id=student_id, typed_name=pending):
+        raise _closed_for_student()
     secret = tokens.random_token()
     sub = CaptureSubmission(
         batch_id=batch.id, user_id=locked.user_id, source="student_link", link_id=locked.id,
@@ -505,6 +495,51 @@ async def _discard(db: AsyncSession, sub: CaptureSubmission) -> None:
 
 
 # ---------------------------------------------------------------------------
+# SCN-15 — one approved exam per student per batch (owner ruling 2026-11-01)
+# ---------------------------------------------------------------------------
+
+async def _approved_exam_for(db: AsyncSession, batch_id: UUID, *,
+                             student_id: Optional[UUID] = None,
+                             typed_name: Optional[str] = None) -> bool:
+    """Does this batch already hold an APPROVED exam for that student — by id,
+    or, for a name nobody has confirmed yet, by that name? Any source counts:
+    an approved uploaded PDF closes the student exactly as a capture does."""
+    rows = (await db.execute(select(Transcription.student_id, Transcription.student_name).where(
+        Transcription.batch_id == batch_id, Transcription.status == "approved"))).all()
+    return any((student_id is not None and sid == student_id)
+               or (typed_name and same_name(name, typed_name)) for sid, name in rows)
+
+
+def _closed_for_student() -> CaptureError:
+    # Student-facing, and deliberately unspecific: it must not confirm to a
+    # classmate that someone's exam under this name exists (D1).
+    return CaptureError(409, "exam_closed", "לא ניתן לשלוח את המבחן הזה — פנו למורה")
+
+
+async def _refuse_approved_student(db: AsyncSession, batch_id: UUID, student: Student) -> None:
+    """The teacher's side of SCN-15: a set cannot be attached to a student
+    whose exam she already approved here."""
+    if await _approved_exam_for(db, batch_id, student_id=student.id):
+        raise CaptureError(409, "student_already_approved",
+                           f"ל{student.full_name} כבר יש מבחן מאושר בקבוצה הזאת — "
+                           "למבחן נוסף פתחי קבוצה חדשה")
+
+
+async def _refuse_set_after_approval(db: AsyncSession, sub: CaptureSubmission) -> None:
+    """SCN-15 at a save: the claim this submission makes, against the batch's
+    approved exams. (Its OWN approved version is the caller's first check.)"""
+    if sub.student_id is not None:
+        closed = await _approved_exam_for(db, sub.batch_id, student_id=sub.student_id)
+    else:
+        closed = await _approved_exam_for(db, sub.batch_id, typed_name=sub.pending_student_name)
+    if not closed:
+        return
+    if sub.source == "student_link":
+        raise _closed_for_student()
+    await _refuse_approved_student(db, sub.batch_id, await db.get(Student, sub.student_id))
+
+
+# ---------------------------------------------------------------------------
 # save — freezing a version (§6.6; SCN-2, SCN-3, SCN-6, SCN-8; D6, D7; OD-1, OD-9)
 # ---------------------------------------------------------------------------
 
@@ -537,64 +572,6 @@ async def _unique_filename(db: AsyncSession, batch_id: UUID, name: str) -> str:
     return candidate
 
 
-def _copy_object(uri: Optional[str], new_path: str) -> Optional[str]:
-    """Server-side GCS copy (no download): a late copy's photos live under ITS
-    OWN prefix (capture/paths.py), so purging one submission never deletes the
-    other's evidence."""
-    if not uri:
-        return None
-    bucket, path = paths.split_gs_uri(uri)
-    _gcs().copy_object(path, new_path)
-    return paths.gs_uri(bucket, new_path)
-
-
-async def _late_copy_for(db: AsyncSession, sub: CaptureSubmission,
-                         pages: Sequence[CapturePage]) -> CaptureSubmission:
-    """D6: the approved version stays exactly as it is; what she sent now goes
-    on a late submission flagged for the teacher, carrying copies of her pages.
-
-    ONE live late copy per device: a second save after approval REPLACES the
-    copy's pages and versions it again, instead of breeding another conflict
-    submission each time she taps «שמירה»."""
-    late = (await db.execute(
-        select(CaptureSubmission).where(
-            CaptureSubmission.link_id == sub.link_id,
-            CaptureSubmission.device_secret_hash == sub.device_secret_hash,
-            CaptureSubmission.conflict_note == "late_resubmission",
-            CaptureSubmission.status != "discarded",
-            CaptureSubmission.id != sub.id)
-        .order_by(CaptureSubmission.created_at.desc()).limit(1)
-        .with_for_update().execution_options(populate_existing=True)
-    )).scalar_one_or_none()
-    if late is not None and await _is_approved(db, late):
-        late = None              # its version passed the gate: it is never withdrawn (D6)
-    if late is None:
-        late = CaptureSubmission(
-            batch_id=sub.batch_id, user_id=sub.user_id, source=sub.source, link_id=sub.link_id,
-            device_secret_hash=sub.device_secret_hash, student_id=sub.student_id,
-            student_state="conflict", pending_student_name=sub.pending_student_name,
-            conflict_note="late_resubmission", status="draft")
-        db.add(late)
-        await db.flush()
-    else:
-        for old in await live_pages(db, late.id):
-            old.deleted_at = _now()
-        await db.flush()
-    for p in pages:
-        new_id = uuid4()
-        raw = await asyncio.to_thread(_copy_object, p.raw_gcs_uri, paths.raw_path(late.id, new_id))
-        preview = await asyncio.to_thread(_copy_object, p.preview_gcs_uri,
-                                          paths.preview_path(late.id, new_id))
-        db.add(CapturePage(
-            id=new_id, submission_id=late.id, raw_gcs_uri=raw, preview_gcs_uri=preview,
-            content_type=p.content_type, status=p.status, image_w=p.image_w, image_h=p.image_h,
-            corners=p.corners, corners_source=p.corners_source, auto_corners=p.auto_corners,
-            auto_corners_source=p.auto_corners_source, detect_confidence=p.detect_confidence,
-            quality=p.quality, rotation=p.rotation, position=p.position))
-    await db.flush()
-    return late
-
-
 async def save(db: AsyncSession, actor: CaptureActor, submission_id: UUID) -> Saved:
     probe = await load_submission(db, actor, submission_id)
     await _lock_batch(db, probe.batch_id)                                 # LOCK ORDER: batch…
@@ -609,36 +586,23 @@ async def save(db: AsyncSession, actor: CaptureActor, submission_id: UUID) -> Sa
     if sub.source == "teacher" and sub.student_state != "confirmed":
         raise CaptureError(409, "student_not_confirmed", "יש לבחור תלמיד לפני השמירה")   # SCN-8
 
-    target = sub
-    if await _is_approved(db, sub):                                       # D6
-        if sub.source == "teacher":
-            # A teacher-source save after approval cannot become a conflict
-            # submission (SCN-8: a saved teacher capture is always confirmed),
-            # and she is the one who approved it. Refuse, plainly.
-            raise CaptureError(409, "already_approved",
-                               "התמלול של המבחן הזה כבר אושר — שינויים לא יישלחו")
-        target = await _late_copy_for(db, sub, pages)
-        pages = await live_pages(db, target.id)
-    elif (sub.source == "student_link" and sub.current_version_id is None
-          and sub.student_state in ("confirmed", "pending")):
-        # D1/D5 at the FIRST save: another SAVED submission claiming the same
-        # student (or the same typed name) makes this one a conflict for the
-        # teacher. Judged against saved submissions only, so a draft that was
-        # opened and abandoned never turns a real one into a conflict.
-        others = await _competitors(
-            db, sub.batch_id, exclude=sub.id, saved_only=True,
-            student_id=sub.student_id if sub.student_state == "confirmed" else None,
-            pending_name=sub.pending_student_name if sub.student_state == "pending" else None)
-        if others:
-            sub.conflict_note = ("duplicate_student" if sub.student_state == "confirmed"
-                                 else "duplicate_pending_name")
-            sub.student_state = "conflict"
+    # SCN-15 (owner ruling 2026-11-01): once she has approved a student's
+    # exam, no new set of photos reaches the batch for that student — not a
+    # resubmission of this one, not a second device's. Another set means a
+    # new batch. Duplicates of UNAPPROVED sets are not judged here: they are
+    # derived at read time (SCN-13), and she picks one (SCN-14).
+    if await _is_approved(db, sub):
+        raise CaptureError(409, "already_approved",
+                           "התמלול של המבחן הזה כבר אושר — שינויים לא יישלחו"
+                           if sub.source == "teacher" else
+                           "המורה כבר אישרה את המבחן הזה — אי אפשר לשלוח גרסה חדשה")
+    await _refuse_set_after_approval(db, sub)
 
-    previous = target.current_version_id
+    previous = sub.current_version_id
     version_no = (await db.scalar(select(func.max(CaptureVersion.version_no)).where(
-        CaptureVersion.submission_id == target.id)) or 0) + 1
+        CaptureVersion.submission_id == sub.id)) or 0) + 1
     version = CaptureVersion(
-        id=uuid4(), submission_id=target.id, version_no=version_no,
+        id=uuid4(), submission_id=sub.id, version_no=version_no,
         scan_pipeline_version=settings.scan_pipeline_version,
         pages_snapshot=[{"page_id": str(p.id), "raw_gcs_uri": p.raw_gcs_uri,
                          "content_type": p.content_type, "corners": p.corners,
@@ -646,19 +610,19 @@ async def save(db: AsyncSession, actor: CaptureActor, submission_id: UUID) -> Sa
     db.add(version)
     await db.flush()
     await _withdraw(db, previous)                                         # SCN-3 / D7
-    target.current_version_id = version.id
-    target.status = "saved"
-    target.updated_at = _now()
+    sub.current_version_id = version.id
+    sub.status = "saved"
+    sub.updated_at = _now()
     await db.flush()
 
-    filename = await _unique_filename(db, target.batch_id, await _display_name(db, target))
+    filename = await _unique_filename(db, sub.batch_id, await _display_name(db, sub))
     job = await ingest_batch_pdf(                                         # OD-1: ONE ingestion
-        db, batch_id=target.batch_id, user_id=target.user_id,
-        object_path=paths.pdf_path(target.id, version.id), filename=filename,
+        db, batch_id=sub.batch_id, user_id=sub.user_id,
+        object_path=paths.pdf_path(sub.id, version.id), filename=filename,
         capture_version_id=version.id)
     logger.info("capture_saved submission=%s version=%s version_no=%d pages=%d job=%s",
-                target.id, version.id, version_no, len(pages), job.id)
-    return Saved(target.id, version, job.id, len(pages))
+                sub.id, version.id, version_no, len(pages), job.id)
+    return Saved(sub.id, version, job.id, len(pages))
 
 
 # ---------------------------------------------------------------------------
@@ -720,14 +684,17 @@ async def assign_student(db: AsyncSession, actor: TeacherActor, submission_id: U
         # (OD-3) — and the purge of either student would then be wrong.
         raise CaptureError(409, "already_approved",
                            "התמלול של המבחן הזה כבר אושר — לא ניתן לשנות את התלמיד")
+    if sub.student_id != student.id:
+        await _refuse_approved_student(db, sub.batch_id, student)          # SCN-15
     others = [locked[o.id] for o in others if o.id in locked
               and locked[o.id].status != "discarded" and locked[o.id].student_id == student.id]
     if others and not replace_existing:
         raise await _already_submitted(db, others[0])           # the D5 dialog
     for other in others:
-        # D6: an approved exam is never discarded — replacing keeps it beside this one.
-        if not await _is_approved(db, other):
-            await _discard(db, other)
+        # Replacing = ONE kept, the other discarded (owner ruling 2026-11-01).
+        # An approved other cannot reach here (SCN-15 refused it above);
+        # `_discard` refuses one anyway.
+        await _discard(db, other)
     sub.student_id, sub.student_state, sub.conflict_note = student.id, "confirmed", None
     sub.updated_at = _now()
     await db.flush()
@@ -740,57 +707,64 @@ async def resolve_pending(db: AsyncSession, actor: TeacherActor, submission_id: 
     await _lock_batch(db, probe.batch_id)
     sub = await load_submission(db, actor, submission_id, lock=True)
     _editable(sub)
-    if sub.student_state != "pending":
+    # A typed name nobody has confirmed. `conflict` with no student is the
+    # pre-SCN-13 spelling of the same thing (rows saved before 2026-11-01).
+    if sub.student_id is not None or sub.student_state not in ("pending", "conflict"):
         raise CaptureError(409, "not_pending", "ההגשה הזאת כבר לא ממתינה לאישור")
+    # SCN-14 order: which set to keep comes FIRST. Naming one half of a
+    # duplicate would move it from a name claim to an id claim and could
+    # split the pair (the 2026-10-30 incident).
+    if sub.id in await duplicates.groups_in(db, [sub.batch_id]):
+        raise CaptureError(409, "duplicate_unresolved",
+                           "יש יותר מהגשה אחת בשם הזה — בחרי קודם איזו לשמור")
     if approve_new:
         student = await _create_student(db, sub.batch_id, actor.user_id, sub.pending_student_name)
     else:
         student = await _owned_student(db, actor.user_id, student_id)
-    others = await _competitors(db, sub.batch_id, exclude=sub.id, student_id=student.id,
-                                saved_only=True)
-    sub.student_id = student.id
-    # Never a silent double assignment (D5): if that student already has an
-    # exam here, this one becomes a CONFLICT she resolves with one decision.
-    sub.student_state = "conflict" if others else "confirmed"
-    sub.conflict_note = "duplicate_student" if others else None
+        await _refuse_approved_student(db, sub.batch_id, student)          # SCN-15
+    # Never a silent double assignment (D5): if that student already has a
+    # set here, the two now form a duplicate (SCN-13) she resolves with one
+    # decision — derived from the claims, not written here.
+    sub.student_id, sub.student_state, sub.conflict_note = student.id, "confirmed", None
     sub.updated_at = _now()
     await db.flush()
     return sub
 
 
-async def resolve_conflict(db: AsyncSession, actor: TeacherActor, submission_id: UUID, *,
-                           action: str, student_id: Optional[UUID]) -> CaptureSubmission:
-    sub = await load_submission(db, actor, submission_id)
-    await _lock_batch(db, sub.batch_id)
-    sid = student_id or sub.student_id
-    others = []
-    if action == "keep_this" and sid is not None:
-        others = await _competitors(db, sub.batch_id, exclude=sub.id, student_id=sid,
-                                    pending_name=sub.pending_student_name)
+async def resolve_conflict(db: AsyncSession, actor: TeacherActor,
+                           submission_id: UUID) -> CaptureSubmission:
+    """«להשאיר את זו» (SCN-14, owner ruling 2026-11-01): ONE set of a
+    duplicate is kept and every other set in its group is discarded. There is
+    no "keep both" and no "it is someone else's" — one is kept, the rest go."""
+    probe = await load_submission(db, actor, submission_id)
+    await _lock_batch(db, probe.batch_id)         # every decision between sets serializes here
+    group = (await duplicates.groups_in(db, [probe.batch_id])).get(probe.id)
+    if not group:
+        _editable(probe)                          # a discarded one says so
+        raise CaptureError(409, "not_conflict", "אין כאן כפילות — ייתכן שכבר נבחרה הגשה")
     # Every row this decision touches, locked in ONE order and read fresh: a
     # stale panel (a second tab, the 10 s poll) re-checks against the truth.
-    locked = await _lock_submissions(db, [sub.id, *(o.id for o in others)])
-    if sub.id not in locked:                      # gone since it was read (a purge)
+    locked = await _lock_submissions(db, group)
+    if probe.id not in locked:                    # gone since it was read (a purge)
         raise NOT_FOUND()
-    sub = locked[sub.id]
+    sub = locked[probe.id]
     _editable(sub)
-    if sub.student_state != "conflict":
-        raise CaptureError(409, "not_conflict", "אין כאן התנגשות לפתור")
-    if action == "discard_this":
-        await _discard(db, sub)
-        return sub
-    if sid is None:
-        raise CaptureError(422, "student_required", "יש לבחור תלמיד")
-    student = await _owned_student(db, actor.user_id, sid)
-    others = [locked[o.id] for o in others if o.id in locked and locked[o.id].status != "discarded"]
+    others = [locked[i] for i in group if i != sub.id and i in locked
+              and locked[i].status != "discarded"]
     for other in others:
-        # D6: work she already approved is never discarded — it stays, and
-        # this one is kept beside it.
-        if not await _is_approved(db, other):
-            await _discard(db, other)
-    sub.student_id, sub.student_state, sub.conflict_note = student.id, "confirmed", None
+        # Work she already approved is never discarded: with an approved set
+        # in the group, that set is the only one she can keep.
+        if await _is_approved(db, other):
+            raise CaptureError(409, "other_approved",
+                               "הגשה אחרת של התלמיד כבר אושרה — רק אותה אפשר לשמור")
+    for other in others:
+        await _discard(db, other)
+    sub.student_state = "confirmed" if sub.student_id is not None else "pending"
+    sub.conflict_note = None
     sub.updated_at = _now()
     await db.flush()
+    logger.info("capture_duplicate_resolved kept=%s discarded=%s",
+                sub.id, ",".join(str(o.id) for o in others))
     return sub
 
 
@@ -820,11 +794,24 @@ def _error_code(job: Optional[TranscriptionJob]) -> Optional[str]:
         else "transcription_failed"
 
 
+def _effective_state(sub: CaptureSubmission, duplicate: bool) -> str:
+    """What the teacher is asked about a SAVED submission: is it one of a
+    duplicate (SCN-13, derived), else has a student been confirmed? The
+    persisted `conflict` (rows saved before 2026-11-01) is not read here — a
+    legacy conflict whose pair is gone is simply confirmed or pending."""
+    if duplicate:
+        return "conflict"
+    return "confirmed" if sub.student_id is not None else "pending"
+
+
+def _snapshot_len(version: Optional[CaptureVersion]) -> int:
+    return len(version.pages_snapshot or []) if version is not None else 0
+
+
 async def batch_rows(db: AsyncSession, batch: GradingBatch) -> CaptureSubmissionsResponse:
     """The submissions panel (§6.11) — polled every 10 s while a link is open,
-    so it is a FIXED number of grouped queries, not a few per row. Previews
-    are signed only for CONFLICT rows (the side-by-side resolve dialog needs
-    them); signing is an IAM call each, and the other rows never show one."""
+    so it is a FIXED number of statements, not a few per row. It signs no
+    photo: the pictures are fetched when she opens them (`version_view`)."""
     rows_q = (await db.execute(
         select(CaptureSubmission, CaptureVersion, TranscriptionJob, Transcription.status,
                Student.full_name)
@@ -835,47 +822,80 @@ async def batch_rows(db: AsyncSession, batch: GradingBatch) -> CaptureSubmission
         .where(CaptureSubmission.batch_id == batch.id, CaptureSubmission.status == "saved")
         .order_by(CaptureSubmission.created_at)
     )).all()
-    sub_ids = [r[0].id for r in rows_q]
-    page_counts = dict((await db.execute(
-        select(CapturePage.submission_id, func.count())
-        .where(CapturePage.submission_id.in_(sub_ids), CapturePage.deleted_at.is_(None))
-        .group_by(CapturePage.submission_id))).all()) if sub_ids else {}
-
-    # The resolve dialog shows a conflict BESIDE what it conflicts with, so every
-    # row sharing a claim (a student id, or a typed name) with a conflict row
-    # gets a preview — and only those.
-    def claim(sub):
-        return ("id", sub.student_id) if sub.student_id is not None             else ("name", normalize_name(sub.pending_student_name or ""))
-    contested = {claim(r[0]) for r in rows_q if r[0].student_state == "conflict"}
+    claims = [duplicates.Claim(submission_id=sub.id, student_id=sub.student_id,
+                               pending_name=sub.pending_student_name)
+              for sub, *_rest in rows_q]
+    groups = duplicates.duplicate_groups(claims)
 
     rows: list[CaptureSubmissionRow] = []
-    confirmed: set[UUID] = set()
-    others = 0
     for sub, version, job, t_status, name in rows_q:
-        if sub.student_state == "confirmed" and sub.student_id is not None:
-            confirmed.add(sub.student_id)
-        else:
-            others += 1
-        preview = None
-        if claim(sub) in contested:
-            first = next(iter(await live_pages(db, sub.id)), None)
-            preview = (await page_view(first)).preview_url if first else None
+        group = groups.get(sub.id)
         rows.append(CaptureSubmissionRow(
             submission_id=sub.id, source=sub.source,
             student=StudentRef(student_id=sub.student_id, display_name=name)
             if sub.student_id is not None and name else None,
-            pending_student_name=sub.pending_student_name, student_state=sub.student_state,
-            conflict_note=sub.conflict_note, page_count=int(page_counts.get(sub.id, 0)),
+            pending_student_name=sub.pending_student_name,
+            student_state=_effective_state(sub, group is not None),
+            duplicate_group=str(group[0]) if group else None,
+            # What was SAVED — the frozen version she would be grading — not
+            # pages a student may be editing on her phone right now (SCN-2).
+            page_count=_snapshot_len(version),
             saved_at=version.created_at.isoformat() if version else None,
             version_no=version.version_no if version else None,
             job_id=job.id if job else None, version_status=job.status if job else None,
             error_code=_error_code(job),
             transcription_id=job.transcription_id if job else None,
-            transcription_status=t_status, page1_preview_url=preview))
+            transcription_status=t_status))
     roster_size = None
     if batch.class_id is not None:
         roster_size = int(await db.scalar(select(func.count()).select_from(ClassMembership).where(
             ClassMembership.class_id == batch.class_id)) or 0)
     return CaptureSubmissionsResponse(
-        rows=rows, counter=CaptureCounter(submitted_students=len(confirmed) + others,
+        rows=rows, counter=CaptureCounter(submitted_students=duplicates.claimant_count(claims),
                                           roster_size=roster_size))
+
+
+async def version_view(db: AsyncSession, sub: CaptureSubmission) -> VersionPagesView:
+    """The photos of the submission's CURRENT VERSION — exactly the set that
+    was sent to scanning (SCN-2), in its frozen order, with its frozen corners
+    and rotation. Never the live draft pages: a student editing after her save
+    must not change what the teacher is shown as "this exam".
+
+    Display only (SCN-11): a page whose row or preview is missing comes back
+    without a picture; nothing here refuses."""
+    version = await _current_version(db, sub)
+    snapshot = list(version.pages_snapshot or []) if version is not None else []
+    wanted: list[tuple[int, dict, UUID]] = []
+    for position, snap in enumerate(snapshot, start=1):
+        try:
+            wanted.append((position, snap, UUID(str(snap.get("page_id")))))
+        except (TypeError, ValueError):
+            logger.warning("capture_version_page_unreadable submission=%s version=%s position=%d",
+                           sub.id, version.id, position)
+    found = {p.id: p for p in (await db.execute(
+        select(CapturePage).where(CapturePage.id.in_([w[2] for w in wanted]))
+    )).scalars().all()} if wanted else {}
+
+    async def one(position: int, snap: dict, page_id: UUID) -> Optional[PageView]:
+        page = found.get(page_id)
+        if page is None or page.submission_id != sub.id:
+            logger.warning("capture_version_page_missing submission=%s page=%s", sub.id, page_id)
+            return None
+        view = await page_view(page)
+        return view.model_copy(update={
+            "position": position, "corners": snap.get("corners"),
+            "rotation": snap.get("rotation") or 0})
+
+    pages = [v for v in await asyncio.gather(*(one(*w) for w in wanted)) if v is not None]
+    job = await _version_job(db, sub.current_version_id)
+    t_status = None
+    if job is not None and job.transcription_id is not None:
+        t_status = await db.scalar(select(Transcription.status).where(
+            Transcription.id == job.transcription_id))
+    return VersionPagesView(
+        submission_id=sub.id, source=sub.source,
+        student=await _student_ref(db, sub.student_id),
+        pending_student_name=sub.pending_student_name,
+        version_no=version.version_no if version else None,
+        saved_at=version.created_at.isoformat() if version else None,
+        transcription_status=t_status, pages=pages)

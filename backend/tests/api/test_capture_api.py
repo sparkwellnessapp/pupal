@@ -8,7 +8,9 @@ In-house scanning — the capture service through its HTTP surface
   SCN-8  StudentConfirmed   a teacher capture never saves without a confirmed student
   SCN-9  NoRosterExposure   identify returns one display name or nothing
   SCN-2/3 versions          each save freezes a version and withdraws the previous job
-  D1 / D5 / D6              conflicts, the replace dialog, late resubmission
+  D1 / D5                   duplicates, the replace dialog
+  SCN-13/14                 a duplicate is derived; she keeps exactly one
+  SCN-15                    no new set for a student once one was approved
   OD-9                      the job filename, unique within the batch
   D2 / OD-5                 the handoff is single-use and batch-scoped
 
@@ -259,9 +261,13 @@ def test_the_same_name_from_a_second_device_is_a_conflict_and_never_touches_the_
     sub_b, dev_b = raw.json()["submission_id"], {"X-Capture-Device": raw.json()["device_secret"]}
     _page(client, base, sub_b, dev_b, env)
     assert client.post(f"{base}/submissions/{sub_b}/save", headers=dev_b).status_code == 200
+    # SCN-13: nothing is written onto either — the panel DERIVES the pair.
     states = dict(_sql("SELECT id::text, student_state FROM capture_submissions WHERE id IN (:a, :b)",
                        a=uuid.UUID(sub_a), b=uuid.UUID(sub_b)))
-    assert states == {sub_a: "confirmed", sub_b: "conflict"}   # judged at B's save (D1/D5)
+    assert states == {sub_a: "confirmed", sub_b: "confirmed"}
+    rows = _panel(client, headers_a, env)["rows"]
+    assert {r["student_state"] for r in rows} == {"conflict"}
+    assert len({r["duplicate_group"] for r in rows}) == 1
     # D1: the student is never told — her own view carries no state at all
     own = client.get(f"{base}/submissions/{sub_b}", headers=dev_b).json()
     assert "student_state" not in own and "student" not in own and own["display_name"] == name
@@ -367,9 +373,23 @@ def test_each_save_freezes_a_version_and_withdraws_the_last(client, headers_a, e
     assert _sql("SELECT test_count FROM grading_batches WHERE id = :b", b=env["batch"])[0][0] == 1
 
 
-def test_a_resubmission_after_approval_becomes_a_new_conflict_never_a_replacement(
-        client, headers_a, env):
-    """D6 — and the teacher sees «נשלחה גרסה חדשה» as a late_resubmission row."""
+def _approve(env, job_id, student_id):
+    tid = uuid.uuid4()
+    _sql("INSERT INTO transcriptions (id, user_id, rubric_id, batch_id, student_id, student_name, gcs_uri, "
+         "gcs_bucket, gcs_object_path, draft_json, contract_json, approved_at, status, created_at, updated_at) "
+         "SELECT :t, user_id, rubric_id, id, :s, 'x', 'gs://b/x', 'b', 'x', '{}'::jsonb, '{}'::jsonb, "
+         "now(), 'approved', now(), now() FROM grading_batches WHERE id = :b",
+         t=tid, s=student_id, b=env["batch"])
+    _sql("UPDATE transcription_jobs SET status='completed', finished_at=now(), transcription_id=:t "
+         "WHERE id = :j", t=tid, j=job_id)
+    return tid
+
+
+def test_no_new_set_reaches_a_student_whose_exam_was_approved(client, headers_a, env):
+    """SCN-15 (owner ruling 2026-11-01): after she approves a student's exam,
+    another set for that student is refused everywhere it could enter — a
+    resubmission from the same phone, a second phone, her own capture page.
+    Another set means a new batch."""
     token = _link(client, headers_a, env)
     name = _uniq("מאיה")
     (sid,) = _students(env, name)
@@ -378,35 +398,23 @@ def test_a_resubmission_after_approval_becomes_a_new_conflict_never_a_replacemen
     _page(client, base, sub, dev, env)
     client.post(f"{base}/submissions/{sub}/save", headers=dev)
     (job_id, *_rest), = _jobs(env)
-    tid = uuid.uuid4()
-    _sql("INSERT INTO transcriptions (id, user_id, rubric_id, batch_id, student_id, student_name, gcs_uri, "
-         "gcs_bucket, gcs_object_path, draft_json, contract_json, approved_at, status, created_at, updated_at) "
-         "SELECT :t, user_id, rubric_id, id, :s, 'x', 'gs://b/x', 'b', 'x', '{}'::jsonb, '{}'::jsonb, "
-         "now(), 'approved', now(), now() FROM grading_batches WHERE id = :b", t=tid, s=sid, b=env["batch"])
-    _sql("UPDATE transcription_jobs SET status='completed', finished_at=now(), transcription_id=:t "
-         "WHERE id = :j", t=tid, j=job_id)
-    r = client.post(f"{base}/submissions/{sub}/save", headers=dev)
-    assert r.status_code == 200
-    rows = _sql("SELECT id::text, student_state, conflict_note FROM capture_submissions "
-                "WHERE batch_id = :b ORDER BY created_at", b=env["batch"])
-    assert rows[0] == (sub, "confirmed", None)                 # the approved one, untouched
-    assert rows[1][1:] == ("conflict", "late_resubmission")
-    late = rows[1][0]
-    assert r.json()["submission_id"] == late                   # the client continues there
-    assert _jobs(env)[0][3] is None                            # its job was NOT withdrawn
-    # its photos are its OWN objects (a purge of one never deletes the other's)
-    late_raws = [r[0] for r in _sql("SELECT raw_gcs_uri FROM capture_pages WHERE submission_id = :s",
-                                    s=uuid.UUID(late))]
-    assert late_raws and all(f"captures/{late}/" in u for u in late_raws)
-    assert all(u.split("/", 3)[3] in env["gcs"].objects for u in late_raws)
-    # saving again from the same device re-versions THAT late copy — no third submission
-    assert client.post(f"{base}/submissions/{sub}/save", headers=dev).json()["submission_id"] == late
-    assert len(_sql("SELECT 1 FROM capture_submissions WHERE batch_id = :b", b=env["batch"])) == 2
-    panel = client.get(f"/api/v0/batches/{env['batch']}/capture-submissions", headers=headers_a).json()
-    assert {r["conflict_note"] for r in panel["rows"]} == {None, "late_resubmission"}
+    _approve(env, job_id, sid)
+
+    r = client.post(f"{base}/submissions/{sub}/save", headers=dev)        # the same phone
+    assert (r.status_code, r.json()["detail"]["code"]) == (409, "already_approved")
+    assert len(_jobs(env)) == 1 and _jobs(env)[0][3] is None               # nothing new, nothing withdrawn
+    r = client.post(f"{S}/{token}/submissions", json={"name": name, "confirm_match": True})
+    assert (r.status_code, r.json()["detail"]["code"]) == (409, "exam_closed")   # a second phone
+    assert name not in r.text                                              # D1: it says nothing about her
+    teacher = f"/api/v0/capture/teacher/{env['batch']}"
+    mine = _teacher_sub(client, headers_a, env)
+    r = client.put(f"{teacher}/submissions/{mine}/student", headers=headers_a,
+                   json={"student_id": str(sid), "replace_existing": True})   # her own page
+    assert (r.status_code, r.json()["detail"]["code"]) == (409, "student_already_approved")
+    assert len(_sql("SELECT 1 FROM capture_submissions WHERE batch_id = :b AND status = 'saved'",
+                    b=env["batch"])) == 1
     # and the approved scan is never re-attributed to someone else
     other = _students(env, _uniq("אחר"))[0]
-    teacher = f"/api/v0/capture/teacher/{env['batch']}"
     moved = client.put(f"{teacher}/submissions/{sub}/student", headers=headers_a,
                        json={"student_id": str(other)})
     assert (moved.status_code, moved.json()["detail"]["code"]) == (409, "already_approved")
@@ -549,21 +557,138 @@ def test_the_signed_put_is_write_once(client, headers_a, env):
     assert r.json()["required_headers"]["x-goog-if-generation-match"] == "0"
 
 
-def test_keep_this_resolves_a_conflict_by_discarding_the_competitor(client, headers_a, env):
+def _panel(client, headers, env):
+    r = client.get(f"/api/v0/batches/{env['batch']}/capture-submissions", headers=headers)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def _keep(client, headers, env, sub):
+    return client.post(f"/api/v0/batches/{env['batch']}/capture-submissions/{sub}/keep",
+                       headers=headers)
+
+
+def test_keep_keeps_one_set_and_discards_the_other_from_either_side(client, headers_a, env):
+    """SCN-14: «להשאיר את זו» works on EITHER set — the earlier one used to
+    have no button at all — and exactly one survives."""
     token = _link(client, headers_a, env)
     name = _uniq("אביב")
     (sid,) = _students(env, name)
     base = f"{S}/{token}"
     a, dev_a = _create(client, token, name)
-    b, dev_b = _create(client, token, name)                    # conflict (D1)
+    b, dev_b = _create(client, token, name)
     for sub, dev in ((a, dev_a), (b, dev_b)):
         _page(client, base, sub, dev, env)
         client.post(f"{base}/submissions/{sub}/save", headers=dev)
-    r = client.post(f"/api/v0/batches/{env['batch']}/capture-submissions/{b}/resolve-conflict",
-                    headers=headers_a, json={"action": "keep_this"})
+    panel = _panel(client, headers_a, env)
+    assert panel["counter"]["submitted_students"] == 1                     # one student, two sets
+    r = _keep(client, headers_a, env, a)                                   # the EARLIER one
     assert r.status_code == 200, r.text
     assert dict(_sql("SELECT id::text, status FROM capture_submissions WHERE batch_id = :b",
-                     b=env["batch"])) == {a: "discarded", b: "saved"}
+                     b=env["batch"])) == {a: "saved", b: "discarded"}
+    (row,) = r.json()["rows"]
+    assert (row["submission_id"], row["student_state"], row["duplicate_group"]) == (a, "confirmed", None)
+    assert [j[3] is None for j in _jobs(env)] == [True, False]             # b's job withdrawn (D7)
+    again = _keep(client, headers_a, env, a)
+    assert (again.status_code, again.json()["detail"]["code"]) == (409, "not_conflict")
+    gone = _keep(client, headers_a, env, b)
+    assert (gone.status_code, gone.json()["detail"]["code"]) == (409, "submission_discarded")
+
+
+def test_two_sets_under_one_typed_name_are_kept_before_the_name_is_confirmed(
+        client, headers_a, env):
+    """The 2026-10-30 production sequence. Two phones typed one name nobody
+    is called; she named the EARLIER set, the pair split, and «keep» on the
+    later one answered 422 four times. Now naming either half is refused
+    while they are a pair; keeping one first leaves a single pending name."""
+    token = _link(client, headers_a, env)
+    typed = _uniq("שם חדש")
+    base = f"{S}/{token}"
+    first, dev_1 = _create(client, token, typed, confirm=False)
+    later, dev_2 = _create(client, token, f"  {typed} ", confirm=False)
+    for sub, dev in ((first, dev_1), (later, dev_2)):
+        _page(client, base, sub, dev, env)
+        assert client.post(f"{base}/submissions/{sub}/save", headers=dev).status_code == 200
+    assert {r["student_state"] for r in _panel(client, headers_a, env)["rows"]} == {"conflict"}
+    url = f"/api/v0/batches/{env['batch']}/capture-submissions/{first}/resolve-pending"
+    r = client.post(url, headers=headers_a, json={"approve_new": True})
+    assert (r.status_code, r.json()["detail"]["code"]) == (409, "duplicate_unresolved")
+    r = _keep(client, headers_a, env, later)
+    assert r.status_code == 200, r.text
+    (row,) = r.json()["rows"]
+    assert (row["submission_id"], row["student_state"]) == (later, "pending")
+    r = client.post(f"/api/v0/batches/{env['batch']}/capture-submissions/{later}/resolve-pending",
+                    headers=headers_a, json={"approve_new": True})
+    assert r.status_code == 200 and r.json()["rows"][0]["student_state"] == "confirmed"
+
+
+def test_linking_a_typed_name_to_a_student_who_has_a_set_forms_a_duplicate(
+        client, headers_a, env):
+    """D5 on the panel: never a silent double assignment — the two are a
+    duplicate she resolves, judged from the claims."""
+    token = _link(client, headers_a, env)
+    name = _uniq("ליאור")
+    (sid,) = _students(env, name)
+    base = f"{S}/{token}"
+    known, dev_k = _create(client, token, name)
+    typed, dev_t = _create(client, token, _uniq("כינוי"), confirm=False)
+    for sub, dev in ((known, dev_k), (typed, dev_t)):
+        _page(client, base, sub, dev, env)
+        client.post(f"{base}/submissions/{sub}/save", headers=dev)
+    r = client.post(f"/api/v0/batches/{env['batch']}/capture-submissions/{typed}/resolve-pending",
+                    headers=headers_a, json={"student_id": str(sid)})
+    assert r.status_code == 200, r.text
+    rows = {x["submission_id"]: x for x in r.json()["rows"]}
+    assert rows[known]["student_state"] == rows[typed]["student_state"] == "conflict"
+    assert rows[known]["duplicate_group"] == rows[typed]["duplicate_group"]
+
+
+def test_a_legacy_conflict_without_a_twin_is_simply_pending(client, headers_a, env):
+    """Rows saved before SCN-13 may carry a stored `conflict` and no student
+    (the pair that split in production). Alone, it is a typed name awaiting
+    her — and resolve-pending accepts it."""
+    token = _link(client, headers_a, env)
+    typed = _uniq("ישן")
+    sub, dev = _create(client, token, typed, confirm=False)
+    _page(client, f"{S}/{token}", sub, dev, env)
+    client.post(f"{S}/{token}/submissions/{sub}/save", headers=dev)
+    _sql("UPDATE capture_submissions SET student_state = 'conflict', "
+         "conflict_note = 'duplicate_pending_name' WHERE id = :s", s=uuid.UUID(sub))
+    (row,) = _panel(client, headers_a, env)["rows"]
+    assert row["student_state"] == "pending"
+    r = client.post(f"/api/v0/batches/{env['batch']}/capture-submissions/{sub}/resolve-pending",
+                    headers=headers_a, json={"approve_new": True})
+    assert r.status_code == 200 and r.json()["rows"][0]["student_state"] == "confirmed"
+
+
+def test_the_teacher_sees_the_saved_sets_photos_never_a_draft_in_progress(
+        client, headers_a, headers_b, env):
+    """«תמונות»: the photos of the SAVED version, in its order, with its
+    corners and rotation — not what a student is editing on her phone now."""
+    token = _link(client, headers_a, env)
+    sub, dev = _create(client, token, _uniq("עמית"), confirm=False)
+    base = f"{S}/{token}"
+    p1 = _page(client, base, sub, dev, env)
+    p2 = _page(client, base, sub, dev, env)
+    assert client.post(f"{base}/submissions/{sub}/save", headers=dev).status_code == 200
+    # after the save, on her phone: page 2 deleted, page 1 turned — unsaved
+    assert client.delete(f"{base}/submissions/{sub}/pages/{p2}", headers=dev).status_code == 204
+    client.patch(f"{base}/submissions/{sub}/pages/{p1}", headers=dev, json={"rotation": 90})
+
+    url = f"/api/v0/capture/teacher/{env['batch']}/submissions/{sub}/version"
+    r = client.get(url, headers=headers_a)
+    assert r.status_code == 200, r.text
+    view = r.json()
+    assert view["version_no"] == 1 and view["source"] == "student_link"
+    assert [p["page_id"] for p in view["pages"]] == [p1, p2]
+    assert [p["position"] for p in view["pages"]] == [1, 2]
+    assert [p["rotation"] for p in view["pages"]] == [0, 0]
+    assert all(p["preview_url"] and p["preview_url"].startswith("https://signed.test/GET/")
+               for p in view["pages"])
+    assert _panel(client, headers_a, env)["rows"][0]["page_count"] == 2
+    # another teacher, and a student's device, see nothing
+    assert client.get(url, headers=headers_b).status_code == 404
+    assert client.get(url, headers=dev).status_code == 401
 
 
 # ---------------------------------------------------------------------------

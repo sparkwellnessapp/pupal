@@ -260,15 +260,13 @@ def test_a_confirmed_capture_student_is_a_clean_exact_match_and_bulk_acceptable(
     assert r.status_code == 200 and r.json()["accepted"] == 1, r.text
 
 
-@pytest.mark.parametrize("state,reason", [("pending", "capture_student_pending"),
-                                          ("conflict", "capture_conflict")])
-def test_pending_or_conflict_is_never_clean(client, headers_a, ids, state, reason):
+def test_a_typed_name_nobody_confirmed_is_never_clean(client, headers_a, ids):
     """Case 2: needs her eyes — counted needs-eyes, refused by bulk accept."""
     sid, _ = asyncio.run(_student(ids[0]))
-    cap = _seed(ids, state=state, pending_name="שם שהוקלד", student_id=sid if state == "conflict" else None)
+    cap = _seed(ids, state="pending", pending_name="שם שהוקלד")
     item = _item(client, headers_a, ids[2], cap["t"])
     assert item["flag_verdict"]["review_needed"] is True
-    assert reason in item["flag_verdict"]["reasons"]
+    assert "capture_student_pending" in item["flag_verdict"]["reasons"]
     assert item["matched_student_id"] is None
     assert item["student_name_suggestion"] == "שם שהוקלד"
     assert _detail(client, headers_a, ids[2])["rollup"]["needs_eyes"] == 1
@@ -277,6 +275,57 @@ def test_pending_or_conflict_is_never_clean(client, headers_a, ids, state, reaso
     assert r.status_code == 200
     assert r.json()["accepted"] == 0
     assert r.json()["skipped"][0]["skipped_reason"] == "flagged"
+
+
+def test_every_set_of_a_duplicate_is_flagged_and_none_can_be_approved(client, headers_a, ids,
+                                                                     monkeypatch):
+    """SCN-13/14: BOTH sets claiming one student need her eyes — the earlier
+    one too (it used to read clean and could be bulk-accepted beside its
+    twin) — and neither can be approved until she keeps one."""
+    from app.api.v0.batch_grading import DUPLICATE_SET_DETAIL
+
+    sid, name = asyncio.run(_student(ids[0]))
+    first = _seed(ids, state="confirmed", student_id=sid)
+    second = _seed(ids, state="confirmed", student_id=sid)
+    for cap in (first, second):
+        item = _item(client, headers_a, ids[2], cap["t"])
+        assert item["flag_verdict"]["review_needed"] is True
+        assert "capture_conflict" in item["flag_verdict"]["reasons"]
+        assert item["matched_student_id"] is None
+        assert item["student_name_suggestion"] == name
+    assert _detail(client, headers_a, ids[2])["rollup"]["needs_eyes"] == 2
+    r = client.post(f"/api/v0/batches/{ids[2]}/accept_clean", headers=headers_a, json={
+        "items": [{"transcription_id": str(c["t"]), "student_id": str(sid)} for c in (first, second)]})
+    assert r.status_code == 200 and r.json()["accepted"] == 0
+    answers = [{"question_number": 1, "sub_question_id": None, "answer_text": "x = 1"}]
+    with patch("app.api.v0.batch_grading.enqueue_grading_task_or_log", new=AsyncMock()) as enq:
+        r = client.post(f"/api/v0/batches/{ids[2]}/accept/{first['t']}", headers=headers_a,
+                        json={"student_id": str(sid), "answers": answers})
+    assert (r.status_code, r.json()["detail"]) == (409, DUPLICATE_SET_DETAIL)
+    enq.assert_not_called()
+
+    # She keeps the SECOND: the first is discarded and leaves the batch, and
+    # the kept one is an ordinary clean, exact match again.
+    from app.config import settings
+    monkeypatch.setattr(settings, "capture_enabled", True)       # the keep route is a capture route
+    kept = client.post(f"/api/v0/batches/{ids[2]}/capture-submissions/{second['sub']}/keep",
+                       headers=headers_a)
+    assert kept.status_code == 200, kept.text
+    detail = _detail(client, headers_a, ids[2])
+    assert [t["transcription_id"] for t in detail["transcriptions"]] == [str(second["t"])]
+    item = _item(client, headers_a, ids[2], second["t"])
+    assert item["flag_verdict"] == {"review_needed": False, "reasons": []}
+    assert item["matched_student_id"] == str(sid)
+
+
+def test_a_legacy_conflict_whose_twin_is_gone_is_an_ordinary_match(client, headers_a, ids):
+    """Rows saved before SCN-13 carry a stored `conflict`. Alone, it is no
+    duplicate: the stored flag is not read, the claim is."""
+    sid, _ = asyncio.run(_student(ids[0]))
+    cap = _seed(ids, state="conflict", pending_name="שם שהוקלד", student_id=sid)
+    item = _item(client, headers_a, ids[2], cap["t"])
+    assert item["flag_verdict"] == {"review_needed": False, "reasons": []}
+    assert item["matched_student_id"] == str(sid)
 
 
 def test_after_approval_the_transcription_is_the_truth_and_is_written_back(client, headers_a, ids):
