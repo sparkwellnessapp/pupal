@@ -112,3 +112,32 @@ export const V6_CHARGE_MOVED = (otherCriterion: string) =>
 /** An `llm_failure` she has not yet resolved — named by the question's title. */
 export const V6_BLOCK_FAILED = (scopeTitle: string) =>
     `הבדיקה האוטומטית נכשלה ב${scopeTitle} — קבעי בעצמך את כל הבדיקות שבה כדי לאשר`
+
+// ── correcting the transcription at the grading gate (SRG, owner rulings 2026-11-01) ──
+export const V6_EDIT_TRANSCRIPTION = 'עריכת התמלול'
+/** D4: the transcription missed an answer the student wrote. */
+export const V6_ADD_ANSWER = '+ הוספת תשובה'
+export const V6_SAVE_AND_REGRADE = 'שמירה ובדיקה מחדש'
+/** D10: a question whose automatic check failed — the same action, with nothing to edit. */
+export const V6_REGRADE_RETRY = 'בדיקה מחדש'
+export const V6_EDIT_CANCEL = 'ביטול'
+export const V6_REGRADING = 'בודקת מחדש את הסעיף…'
+export const V6_EDIT_LOADING = 'טוענת את התמלול…'
+/** D3: the answer is shared — every part that reads it is checked again. */
+export const V6_SHARED_ANSWER = (titles: string) =>
+    `התשובה הזו משותפת ל${titles} — כולם ייבדקו מחדש.`
+/** D9: figure lines are read-only in this editor. */
+export const V6_FIGURE_LINES_LOCKED = 'שורות «[איור …]» נשארות כפי שהן — אפשר לתקן את שאר הטקסט.'
+/** D5: what a regrade clears. Never «החלטות» on this surface (copy gate §2.3). */
+export const V6_REGRADE_CONFIRM = (n: number) => (n === 1
+    ? 'בסעיף הזה יש קריטריון אחד שקבעת בעצמך. הבדיקה מחדש תבטל את מה שקבעת בו — ההערות והמשוב שכתבת יישמרו.'
+    : `בסעיף הזה יש ${n} קריטריונים שקבעת בעצמך. הבדיקה מחדש תבטל את מה שקבעת בהם — ההערות והמשוב שכתבת יישמרו.`)
+export const V6_REGRADE_CONFIRM_GO = 'בדיקה מחדש'
+export const V6_REGRADED = (n: number) =>
+    n === 1 ? 'הסעיף נבדק מחדש' : `${n} סעיפים נבדקו מחדש`
+/** The answer on screen is one she corrected; the original is one click away. */
+export const V6_CORRECTED_CHIP = 'תמלול שתיקנת'
+export const V6_SHOW_ORIGINAL = 'הצגת המקור'
+export const V6_HIDE_ORIGINAL = 'הסתרת המקור'
+export const V6_ORIGINAL_LABEL = 'התמלול המקורי'
+export const V6_ORIGINAL_EMPTY = 'בתמלול המקורי לא הייתה תשובה לסעיף הזה.'

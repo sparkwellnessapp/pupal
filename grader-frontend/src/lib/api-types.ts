@@ -1246,6 +1246,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/grading/graded_test/{graded_test_id}/answers/regrade": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regrade Answer
+         * @description Save her correction of one answer and regrade exactly the scopes it changes
+         *     (owner rulings 2026-11-01). Synchronous and all-or-nothing (D2): on any refusal or a
+         *     failed regrade nothing is written. On success the chain gains a new draft — pinned to
+         *     the corrected transcription — and the client moves to it.
+         */
+        post: operations["regrade_answer_api_v0_grading_graded_test__graded_test_id__answers_regrade_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/grading/graded_test/{graded_test_id}/answers/source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Answer Source
+         * @description The raw transcription answer one scope reads — what «עריכת התמלול» opens on —
+         *     and every scope that shares it (D3). Read-only.
+         */
+        get: operations["get_answer_source_api_v0_grading_graded_test__graded_test_id__answers_source_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v0/grading/graded_test/{graded_test_id}/approve": {
         parameters: {
             query?: never;
@@ -1740,6 +1784,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v0/rubrics/extraction-jobs/{job_id}/figure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Extraction Job Figure
+         * @description A drawing the math rubric reader located (`[איור p<page> <box>: …]`), cropped from
+         *     the job's own source document — her drawing, not a redraw.
+         */
+        get: operations["get_extraction_job_figure_api_v0_rubrics_extraction_jobs__job_id__figure_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v0/rubrics/extraction-jobs/{job_id}/result": {
         parameters: {
             query?: never;
@@ -1913,6 +1978,28 @@ export interface paths {
          *         - `edit_summary`: Optional description of changes made
          */
         put: operations["update_draft_endpoint_api_v0_rubrics__rubric_id__draft_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v0/rubrics/{rubric_id}/figure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Rubric Figure
+         * @description A drawing of a SAVED rubric, cropped from the source document of the extraction it
+         *     was saved from (`rubrics.extraction_job_id`). 404 for a rubric with no source (typed in
+         *     by hand, or saved before the provenance FK) — the description still renders.
+         */
+        get: operations["get_rubric_figure_api_v0_rubrics__rubric_id__figure_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2618,6 +2705,21 @@ export interface components {
             span_pointer?: components["schemas"]["SpanPointer"] | null;
             /** @description Result of validating quote against student answer (v2.0) */
             validation_status?: string | null;
+        };
+        /** AnswerSourceResponse */
+        AnswerSourceResponse: {
+            /** Answer Text */
+            answer_text: string;
+            /** Has Figures */
+            has_figures: boolean;
+            /** Original Text */
+            original_text?: string | null;
+            /** Question Number */
+            question_number: number;
+            /** Shared Scope Ids */
+            shared_scope_ids: string[];
+            /** Sub Question Id */
+            sub_question_id?: string | null;
         };
         /**
          * AnswerSpaceSelectionGroup
@@ -3643,6 +3745,8 @@ export interface components {
         ContractScopeAnswer: {
             /** Inherited From */
             inherited_from?: string | null;
+            /** Original Text */
+            original_text?: string | null;
             /**
              * Source
              * @enum {string}
@@ -4295,6 +4399,8 @@ export interface components {
             percentage?: string | null;
             /** Regraded From Id */
             regraded_from_id?: string | null;
+            /** Regraded To Id */
+            regraded_to_id?: string | null;
             /**
              * Rubric Contract Stale
              * @default false
@@ -4449,6 +4555,8 @@ export interface components {
             pricing_mismatch: boolean;
             /** Regraded From Id */
             regraded_from_id?: string | null;
+            /** Regraded To Id */
+            regraded_to_id?: string | null;
             /**
              * Rubric Contract Stale
              * @default false
@@ -5433,6 +5541,36 @@ export interface components {
             text: string;
         };
         /**
+         * RegradeAnswerRequest
+         * @description POST /graded_test/{id}/answers/regrade — the scope she edited (the one whose card
+         *     she was on; the server resolves which transcription answer it reads) and the whole
+         *     corrected text. The same text again is a retry, allowed only on a FAILED scope (D10).
+         */
+        RegradeAnswerRequest: {
+            /** Answer Text */
+            answer_text: string;
+            /** Question Id */
+            question_id: string;
+            /** Sub Question Id */
+            sub_question_id?: string | null;
+        };
+        /** RegradeAnswerResponse */
+        RegradeAnswerResponse: {
+            /** Cleared Decisions */
+            cleared_decisions: number;
+            /** Feedback Rewritten */
+            feedback_rewritten: boolean;
+            /**
+             * Graded Test Id
+             * Format: uuid
+             */
+            graded_test_id: string;
+            /** Regraded Scope Ids */
+            regraded_scope_ids: string[];
+            /** Transcription Corrected */
+            transcription_corrected: boolean;
+        };
+        /**
          * Requirement
          * @description A constraint or rule (vs a teachable skill).
          *
@@ -5649,6 +5787,19 @@ export interface components {
             subject: string;
             /** Updated At */
             updated_at?: string | null;
+        };
+        /**
+         * RubricFigureResponse
+         * @description One drawing of the teacher's rubric, cropped from her source document (PNG).
+         */
+        RubricFigureResponse: {
+            /**
+             * Content Type
+             * @default image/png
+             */
+            content_type: string;
+            /** Image Base64 */
+            image_base64: string;
         };
         /**
          * RubricFormat
@@ -6020,6 +6171,8 @@ export interface components {
         ScopeAnswer: {
             /** Inherited From */
             inherited_from?: string | null;
+            /** Original Text */
+            original_text?: string | null;
             /**
              * Source
              * @enum {string}
@@ -9722,6 +9875,75 @@ export interface operations {
             };
         };
     };
+    regrade_answer_api_v0_grading_graded_test__graded_test_id__answers_regrade_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                graded_test_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegradeAnswerRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegradeAnswerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_answer_source_api_v0_grading_graded_test__graded_test_id__answers_source_get: {
+        parameters: {
+            query: {
+                question_id: string;
+                sub_question_id?: string | null;
+            };
+            header?: never;
+            path: {
+                graded_test_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnswerSourceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     approve_graded_test_api_v0_grading_graded_test__graded_test_id__approve_post: {
         parameters: {
             query?: never;
@@ -10396,6 +10618,40 @@ export interface operations {
             };
         };
     };
+    get_extraction_job_figure_api_v0_rubrics_extraction_jobs__job_id__figure_get: {
+        parameters: {
+            query: {
+                page: number;
+                box: string;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RubricFigureResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_extraction_job_result_api_v0_rubrics_extraction_jobs__job_id__result_get: {
         parameters: {
             query?: never;
@@ -10625,6 +10881,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_rubric_figure_api_v0_rubrics__rubric_id__figure_get: {
+        parameters: {
+            query: {
+                page: number;
+                box: string;
+            };
+            header?: never;
+            path: {
+                rubric_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RubricFigureResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
