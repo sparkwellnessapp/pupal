@@ -115,8 +115,8 @@ export default function StudentCapturePage() {
     try {
       const r = await api.save(sub.submission_id)
       setSentPages(r.page_count)
-      // After an approval the server saved onto a NEW submission (D6): every
-      // later edit continues there. The flow remounts on the id.
+      // The id the server saved on (always this submission since SCN-15: a
+      // save after the teacher's approval is refused, never re-homed).
       setSub({ ...sub, submission_id: r.submission_id, status: 'saved', saved_at: r.saved_at,
                version_no: r.version_no })
       setStep('done')
