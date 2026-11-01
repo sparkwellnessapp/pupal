@@ -27,6 +27,8 @@ export type IdentifyResponse = S['IdentifyResponse']
 export type CaptureSubmissionRow = S['CaptureSubmissionRow']
 export type CaptureSubmissionsResponse = S['CaptureSubmissionsResponse']
 export type NameSuggestResponse = S['NameSuggestResponse']
+/** The photos of a submission's saved version (teacher only). */
+export type VersionPages = S['VersionPagesView']
 export type CaptureContentType = S['PageCreateRequest']['content_type']
 export type Rotation = 0 | 90 | 180 | 270
 /** [[x, y] × 4], normalized 0..1, TL, TR, BR, BL. */

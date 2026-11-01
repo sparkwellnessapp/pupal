@@ -25,6 +25,7 @@
 import Link from 'next/link';
 
 import { ZoneCard } from '@/components/batch/ZoneCard';
+import { P } from '@/copy/capture';
 import { usePageThumbnails } from '@/components/grade-review/usePageThumbnails';
 import {
     CLEAN_CARD_BADGE, CLEAN_PENDING_STUDENTS, CLEAN_PRIMARY, CLEAN_SECONDARY,
@@ -42,10 +43,13 @@ const COLLAPSED_CARDS = 12;
 
 /** What a card needs, independent of which section it is in. */
 function CardShell({
-    item, href, testId, caption, footer, fresh, dimmed, registerThumb, thumbUrl,
+    item, href, testId, caption, footer, fresh, dimmed, registerThumb, thumbUrl, onActivate,
 }: {
     item: BatchTranscriptionItem;
     href: string;
+    /** Handles the click in place instead of navigating to `href` (which
+     *  stays the target of a middle-click / new tab). */
+    onActivate?: () => void;
     testId: string;
     /** The line(s) under the name — a reason rail or the completeness sentence. */
     caption: React.ReactNode;
@@ -64,6 +68,7 @@ function CardShell({
     return (
         <Link
             href={href}
+            onClick={onActivate ? (e) => { e.preventDefault(); onActivate(); } : undefined}
             data-testid={testId}
             className={[
                 'group block rounded-zone-sm border border-batch-line bg-white p-2.5',
@@ -136,13 +141,17 @@ export interface TranscriptionTriageProps {
     /** On her first batch the sample sits BESIDE the primary; later it is a
      *  quieter text link, because by then she knows what a transcription is. */
     isFirstBatch: boolean;
+    /** [SCN-14] A card flagged `capture_conflict` opens the «בחירת הגשה»
+     *  dialog in place: the decision is between SETS, which the review page
+     *  of one transcription cannot make. Absent ⇒ the card opens the review. */
+    onResolveDuplicate?: (transcriptionId: string) => void;
 }
 
 export function TranscriptionTriage(props: TranscriptionTriageProps) {
     const {
         eyesRows, cleanRows, batchId, selectionGroups, firstReviewId, sampleCleanId,
         acceptableCount, pendingCount, accepting, bulkBusy, onAcceptAll,
-        skipNotice, showAll, onShowAll, newIds, isFirstBatch,
+        skipNotice, showAll, onShowAll, newIds, isFirstBatch, onResolveDuplicate,
     } = props;
     // ONE thumbnail cache across both sections: the page polls, and a per-card
     // fetch would re-allocate a blob per card per tick.
@@ -177,12 +186,15 @@ export function TranscriptionTriage(props: TranscriptionTriageProps) {
                         {eyesRows.map((item) => {
                             const id = String(item.transcription_id);
                             const lines = reasonLinesFor(item, selectionGroups);
+                            const duplicate = !!onResolveDuplicate
+                                && item.flag_verdict.reasons.includes('capture_conflict');
                             return (
                                 <CardShell
                                     key={id}
                                     item={item}
                                     testId="eyes-row"
                                     href={`/batches/${batchId}/review/${id}`}
+                                    onActivate={duplicate ? () => onResolveDuplicate!(id) : undefined}
                                     fresh={newIds.has(id)}
                                     dimmed={false}
                                     registerThumb={register}
@@ -201,7 +213,7 @@ export function TranscriptionTriage(props: TranscriptionTriageProps) {
                                         <span className="mt-1.5 inline-block rounded-[8px] bg-[#F3F0E9]
                                             px-2.5 py-1 text-[12px] font-semibold text-batch-ink
                                             group-hover:brightness-95">
-                                            {EYES_ROW_CTA}
+                                            {duplicate ? P.chooseSet : EYES_ROW_CTA}
                                         </span>
                                     }
                                 />

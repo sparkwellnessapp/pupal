@@ -10,13 +10,15 @@
  *  * The link panel — one link per class (R6): a date, a class if the batch
  *    has none, then the link's state, a full-screen QR for the board (D3),
  *    copy, WhatsApp, close / reopen (same day only, R5).
- *  * The submissions panel — what arrived, with its badges, the pending (R1)
- *    and conflict resolutions, retry on a failed one; polled every 10 s while
- *    the link is open or anything is processing, else every 60 s (R7).
+ *  * The submissions panel — what arrived, with its badges; «תמונות» on every
+ *    row (the photos of the SAVED set); the pending (R1) resolutions; and, for
+ *    one student with several sets (SCN-13), «בחירת הגשה» — she keeps exactly
+ *    one (SCN-14). Retry on a failed one. Polled every 10 s while the link is
+ *    open or anything is processing, else every 60 s (R7).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Camera, Copy, Link2, Loader2, MessageCircle, QrCode as QrIcon, RotateCcw, X } from 'lucide-react'
+import { Camera, Copy, Images, Link2, Loader2, MessageCircle, QrCode as QrIcon, RotateCcw, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Modal } from '@/components/batch/Modal'
@@ -26,12 +28,14 @@ import { listClasses, listStudents, retryBatchJob } from '@/lib/api'
 import { addStudentsToClass } from '@/lib/class-membership'
 import {
   CaptureApiError, closeCaptureLink, createCaptureHandoff, createCaptureLink, getCaptureLink,
-  listCaptureSubmissions, reopenCaptureLink, resolveConflict, resolvePending,
+  listCaptureSubmissions, reopenCaptureLink, resolvePending,
 } from '@/lib/capture-api'
 import type { CaptureLink, CaptureSubmissionRow, CaptureSubmissionsResponse } from '@/types/capture'
-import { normalizeName } from '@/utils/batch-partition'
+import { claimName, duplicateRows, groupOfTranscription } from '@/utils/capture-duplicates'
 
+import { DuplicateDialog } from './DuplicateDialog'
 import { NewClassStudents, type RosterOption } from './NewClassStudents'
+import { PhotosDialog } from './PhotosDialog'
 import { QrCode } from './QrCode'
 
 /** The class dropdown's «create one here» entry. */
@@ -41,12 +45,17 @@ function todayIsrael(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(new Date())
 }
 
-export function CaptureSection({ batchId, hasClass, onChanged, focusLink = false }: {
+export function CaptureSection({ batchId, hasClass, onChanged, focusLink = false,
+                                resolveTranscriptionId = null, onResolveHandled }: {
   batchId: string
   hasClass: boolean
   onChanged: () => void
   /** Arrived to create the student link (the home page's card): open on its form. */
   focusLink?: boolean
+  /** A duplicate to open (a triage card or the review page's chip named its
+   *  transcription); cleared through `onResolveHandled` once looked up. */
+  resolveTranscriptionId?: string | null
+  onResolveHandled?: () => void
 }) {
   const [link, setLink] = useState<CaptureLink | null | undefined>(undefined)
   const [panel, setPanel] = useState<CaptureSubmissionsResponse | null>(null)
@@ -77,7 +86,8 @@ export function CaptureSection({ batchId, hasClass, onChanged, focusLink = false
       )}
       {panel && (panel.rows.length > 0 || link) && (
         <SubmissionsPanel batchId={batchId} panel={panel} onPanel={(p) => { setPanel(p); onChanged() }}
-                          onRefresh={refreshAll} />
+                          onRefresh={refreshAll} resolveTranscriptionId={resolveTranscriptionId}
+                          onResolveHandled={onResolveHandled} />
       )}
     </section>
   )
@@ -344,15 +354,16 @@ function badgeOf(r: CaptureSubmissionRow): { label: string; tone: string } {
   return { label: P.badge.processing, tone: 'bg-surface-100 text-batch-muted' }
 }
 
-const claimOf = (r: CaptureSubmissionRow) =>
-  r.student ? `id:${r.student.student_id}` : `name:${normalizeName(r.pending_student_name ?? '')}`
-
-function SubmissionsPanel({ batchId, panel, onPanel, onRefresh }: {
+function SubmissionsPanel({ batchId, panel, onPanel, onRefresh, resolveTranscriptionId, onResolveHandled }: {
   batchId: string; panel: CaptureSubmissionsResponse
   onPanel: (p: CaptureSubmissionsResponse) => void; onRefresh: () => void
+  /** arrived from a triage card / review chip: open that set's duplicate */
+  resolveTranscriptionId?: string | null
+  onResolveHandled?: () => void
 }) {
   const [linking, setLinking] = useState<string | null>(null)
-  const [conflict, setConflict] = useState<string | null>(null)
+  const [groupKey, setGroupKey] = useState<string | null>(null)
+  const [photosOf, setPhotosOf] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
   const run = async (fn: () => Promise<CaptureSubmissionsResponse>) => {
@@ -360,10 +371,17 @@ function SubmissionsPanel({ batchId, panel, onPanel, onRefresh }: {
     try { onPanel(await fn()) } catch (e) { setNotice((e as Error).message) }
   }
 
-  const group = useMemo(() => {
-    const row = panel.rows.find((r) => r.submission_id === conflict)
-    return row ? panel.rows.filter((r) => claimOf(r) === claimOf(row)) : []
-  }, [conflict, panel.rows])
+  // The rows come from the poll, so the dialog always shows the group as it
+  // is NOW — a set kept in another tab drops out, and an empty group closes.
+  const group = useMemo(() => duplicateRows(panel.rows, groupKey), [groupKey, panel.rows])
+  const photosRow = panel.rows.find((r) => r.submission_id === photosOf) ?? null
+
+  useEffect(() => {
+    if (!resolveTranscriptionId) return
+    const key = groupOfTranscription(panel.rows, resolveTranscriptionId)
+    if (key) setGroupKey(key)
+    onResolveHandled?.()
+  }, [resolveTranscriptionId, panel.rows, onResolveHandled])
 
   return (
     <div className="space-y-3 rounded-zone border border-batch-line bg-white p-4" data-testid="capture-submissions">
@@ -381,24 +399,31 @@ function SubmissionsPanel({ batchId, panel, onPanel, onRefresh }: {
           {panel.rows.map((r) => {
             const badge = badgeOf(r)
             return (
-              <li key={r.submission_id} className="flex flex-wrap items-center gap-2 py-2.5 text-sm">
+              <li key={r.submission_id} className="flex flex-wrap items-center gap-2 py-2.5 text-sm"
+                  data-testid="capture-row">
                 <span className="min-w-0 flex-1 truncate text-batch-ink">
-                  {r.student?.display_name ?? r.pending_student_name}
+                  {claimName(r)}
                   <span className="mr-2 text-batch-muted">{P.pages(r.page_count)}</span>
                   {(r.version_no ?? 1) > 1 && r.saved_at && (
                     <span className="mr-2 text-batch-muted">{P.updatedAt(hhmm(r.saved_at))}</span>
                   )}
-                  {r.conflict_note === 'late_resubmission' && (
-                    <span className="mr-2 text-batch-amber-ink">{P.lateResubmission}</span>
-                  )}
                 </span>
                 <span className={`rounded-full px-2.5 py-0.5 text-xs ${badge.tone}`}>{badge.label}</span>
+                {r.page_count > 0 && (
+                  <button type="button" className="flex items-center gap-1 text-primary-700 underline"
+                          data-testid="capture-photos" onClick={() => setPhotosOf(r.submission_id)}>
+                    <Images size={14} />{P.photos}
+                  </button>
+                )}
                 {r.version_status === 'failed' && r.job_id && (
                   <button type="button" className="text-primary-700 underline"
                           onClick={() => { setNotice(null); void retryBatchJob(batchId, r.job_id!).then(onRefresh)
                             .catch((e) => setNotice((e as Error).message || P.retryFailed)) }}>{P.retry}</button>
                 )}
-                {r.student_state === 'pending' && (
+                {r.duplicate_group ? (
+                  <button type="button" className="font-medium text-primary-700 underline" data-testid="choose-set"
+                          onClick={() => setGroupKey(r.duplicate_group ?? null)}>{P.chooseSet}</button>
+                ) : r.student_state === 'pending' && (
                   <>
                     <button type="button" className="text-primary-700 underline" onClick={() => {
                       setNotice(null)
@@ -413,9 +438,6 @@ function SubmissionsPanel({ batchId, panel, onPanel, onRefresh }: {
                             onClick={() => setLinking(linking === r.submission_id ? null : r.submission_id)}>{P.linkExisting}</button>
                   </>
                 )}
-                {r.student_state === 'conflict' && (
-                  <button type="button" className="text-primary-700 underline" onClick={() => setConflict(r.submission_id)}>{P.resolve}</button>
-                )}
                 {linking === r.submission_id && (
                   <div className="w-full">
                     <StudentPicker value={null} autoOpen suggestedName={r.pending_student_name}
@@ -428,34 +450,9 @@ function SubmissionsPanel({ batchId, panel, onPanel, onRefresh }: {
         </ul>
       )}
 
-      <Modal open={conflict !== null} onClose={() => setConflict(null)} labelledBy="conflict-title" size="lg">
-        <div className="space-y-4 p-5" dir="rtl">
-          <h2 id="conflict-title" className="text-lg font-semibold text-gray-900">{P.conflictTitle}</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {group.map((r) => (
-              <div key={r.submission_id} className="space-y-2 rounded-lg border border-surface-200 p-2 text-sm">
-                {r.page1_preview_url
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={r.page1_preview_url} alt="" className="w-full rounded" />
-                  : <div className="aspect-[1/1.414] w-full rounded bg-surface-100" />}
-                <p>{P.pages(r.page_count)}{r.saved_at ? ` · ${hhmm(r.saved_at)}` : ''}</p>
-                {r.student_state === 'conflict' && (
-                  <div className="flex flex-col gap-1">
-                    <button type="button" className="rounded bg-primary-600 py-1.5 text-white" onClick={() => {
-                      setConflict(null)
-                      void run(() => resolveConflict(batchId, r.submission_id, { action: 'keep_this' }))
-                    }}>{P.keepThis}</button>
-                    <button type="button" className="rounded border border-surface-300 py-1.5 text-gray-700" onClick={() => {
-                      setConflict(null)
-                      void run(() => resolveConflict(batchId, r.submission_id, { action: 'discard_this' }))
-                    }}>{P.discardThis}</button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </Modal>
+      <PhotosDialog batchId={batchId} row={photosRow} onClose={() => setPhotosOf(null)} />
+      <DuplicateDialog batchId={batchId} group={group} onClose={() => setGroupKey(null)}
+                       onKept={(p) => { setGroupKey(null); onPanel(p) }} onRefresh={onRefresh} />
     </div>
   )
 }

@@ -23,13 +23,14 @@ import { toast } from 'sonner'
 
 import { Modal } from '@/components/batch/Modal'
 import { CaptureFlow, type CaptureFlowState } from '@/components/capture/CaptureFlow'
+import { BrowsableSet, SetStatus, useSavedSet } from '@/components/capture/CapturedSet'
 import { StudentPicker, type StudentSource } from '@/components/StudentPicker'
 import { T, TEACHER_FLOW, hhmm } from '@/copy/capture'
 import { useAuth } from '@/lib/auth'
 import {
   CaptureApiError, exchangeHandoff, teacherCaptureApi, type TeacherCaptureAuth,
 } from '@/lib/capture-api'
-import type { NameSuggestResponse, SubmissionView } from '@/types/capture'
+import type { NameSuggestResponse, SubmissionView, VersionPages } from '@/types/capture'
 
 const sessionKey = (batchId: string) => `vivi.capture.session.${batchId}`
 
@@ -41,7 +42,7 @@ function dropSession(batchId: string): void {
   try { sessionStorage.removeItem(sessionKey(batchId)) } catch { /* nothing kept */ }
 }
 
-type Duplicate = { studentId: string; name: string; pages: number; savedAt: string | null }
+type Duplicate = { studentId: string; name: string; pages: number; savedAt: string | null; existingId: string }
 
 export default function TeacherCapturePageRoute() {
   // useSearchParams needs a Suspense boundary in the App Router.
@@ -173,6 +174,7 @@ function CaptureSession({ api, batchId, desktopBack, onSessionLost }: {
         setDuplicate({
           studentId, name: roster.find((r) => r.student_id === studentId)?.display_name ?? '',
           pages: Number(e.extra.page_count ?? 0), savedAt: (e.extra.saved_at as string) ?? null,
+          existingId: String(e.extra.existing_submission_id ?? ''),
         })
       } else fail(e)
     }
@@ -341,12 +343,22 @@ function CaptureSession({ api, batchId, desktopBack, onSessionLost }: {
         </button>
       </div>
 
-      <Modal open={duplicate !== null} onClose={() => setDuplicate(null)} labelledBy="dup-title">
+      <Modal open={duplicate !== null} onClose={() => setDuplicate(null)} labelledBy="dup-title" size="lg">
         {duplicate && (
-          <div className="space-y-4 p-5" dir="rtl">
+          <div className="max-h-[calc(100dvh-9rem)] overflow-y-auto space-y-4 p-1" dir="rtl">
             <p id="dup-title" className="text-gray-900">
               {T.duplicateTitle(duplicate.name, duplicate.pages, duplicate.savedAt ? hhmm(duplicate.savedAt) : null)}
             </p>
+            {/* Both sets, side by side — the replace is a choice between photos
+                (decision 9, 2026-11-01), so she sees what she is replacing. */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ExistingSet load={() => api.version(duplicate.existingId)} id={duplicate.existingId} />
+              <section className="space-y-2 rounded-lg border border-surface-200 p-3">
+                <p className="text-sm font-semibold text-gray-900">{T.currentSet}</p>
+                {group && <BrowsableSet pages={group.pages} width={96} />}
+              </section>
+            </div>
+            <p className="text-sm text-gray-600">{T.replaceExplain}</p>
             <div className="flex gap-2">
               <button type="button" data-autofocus onClick={() => setDuplicate(null)}
                       className="flex-1 rounded-lg border border-surface-300 py-2 text-gray-700">{T.cancel}</button>
@@ -359,6 +371,17 @@ function CaptureSession({ api, batchId, desktopBack, onSessionLost }: {
         )}
       </Modal>
     </Shell>
+  )
+}
+
+function ExistingSet({ load, id }: { load: () => Promise<VersionPages>; id: string }) {
+  const saved = useSavedSet(load, id)
+  return (
+    <section className="space-y-2 rounded-lg border border-surface-200 p-3">
+      <p className="text-sm font-semibold text-gray-900">{T.existingSet}</p>
+      <SetStatus saved={saved} />
+      {saved.state === 'ready' && <BrowsableSet pages={saved.set.pages} width={96} />}
+    </section>
   )
 }
 
