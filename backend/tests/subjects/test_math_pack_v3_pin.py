@@ -1,5 +1,9 @@
 """[owner rulings 2026-10-18 16:15 §3] the Math pack ships with the EXACT bytes that were evaluated.
 
+v5 (2026-11-02, owner-requested + owner-approved direct-API eval, RUNLOG): ONE MISTAKE, ONE
+CHARGE replaces R2 (planner + verifier) — held-out K1 0, 70/72; smoke 54/57, its one K1 (q5.ד,
+credit for solving her own wrong equation) ACCEPTED by the owner as the ruled behaviour.
+
 v4 (2026-10-29, owner-approved direct-API eval, RUNLOG): verifier only — held-out K1 0, 70/72
 (v3 re-run 69/72); smoke 54/57 (v3 53/57), the one K1 the §2a phantom. Planner unchanged (v3).
 The shipped bytes differ from the evaluated run by ONE line join (whitespace, the 12-line guard).
@@ -16,9 +20,9 @@ import hashlib
 from app.subjects.profiles.mathematics import PACK_VERSION, PLANNER_FRAGMENT, VERIFIER_FRAGMENT
 
 EVALUATED = {
-    "pack_version": "v4",
-    "planner_fragment_sha256": "5bf1367e35d661c07009b6333faef11514c09492531ced027770dea36e75287c",
-    "verifier_fragment_sha256": "7ab44c8f68fbffc2535a23ebb41023e99c5990604a0c21410827df4483117f1d",
+    "pack_version": "v5",
+    "planner_fragment_sha256": "ed1a16773b0f79efa7c822d00e17f57493e0364d7d2c262ac9126e4ff5a42180",
+    "verifier_fragment_sha256": "4431aca485a3ad74c7304b0360304130e4a78f739fdbba823fdce0f51047a7e5",
 }
 
 

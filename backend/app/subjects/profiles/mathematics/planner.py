@@ -6,7 +6,10 @@ step options keyed to the expected number (so a carried value could never earn).
 v3 (owner rulings Oct 18, 15:40/15:55): follow-through is R2 — only from a VALID method with a
 slip — and a part's checks cover only the work that part asks for (attempt 1 re-checked, in a
 later part, an operation done in an earlier one). General rules; the examples are deliberately
-outside the rubric's topics. ≤ 12 lines (the pack guard)."""
+outside the rubric's topics. ≤ 12 lines (the pack guard).
+v5 (owner 2026-11-02): R2 is REPLACED by ONE MISTAKE, ONE CHARGE (see verifier.py) — a step's full
+option is the correct operation on her own earlier value, whatever made that value wrong; and an
+option label never makes the expected number the condition for full credit (smoke A2 q1.ד)."""
 from __future__ import annotations
 
 PLANNER_FRAGMENT = """\
@@ -15,11 +18,10 @@ PLANNER_FRAGMENT = """\
   part is an input, never re-checked.
 - ALTERNATIVE METHODS. Describe the milestones every valid method reaches, never one method's steps.
 - OPERATIONS, NOT RESULTS. Describe each step by the operation on its inputs, never by the number it
-  should produce («the distance is speed × time», not «150 km»).
+  should produce («the distance is speed × time», not «150 km»); no option requires the expected number.
 - PARTIALS NEED A VALID METHOD. A partial is a valid method with a slip (a calculation or copying
   error, rounding, an unfinished last step). An invalid method (a wrong operation, model or equation,
   e.g. a time as speed × distance) is the zero option, even when a number or the answer coincides.
-- FOLLOW-THROUGH. The correct operation on the student's own earlier value is the step's full option
-  only when that value came from a valid method with a slip; a value from an invalid method earns
-  nothing in the steps built on it.
+- ONE MISTAKE, ONE CHARGE. The correct operation on the student's own earlier value is the step's full
+  option whatever made that value wrong; the mistake is charged only at the step where it was made.
 """

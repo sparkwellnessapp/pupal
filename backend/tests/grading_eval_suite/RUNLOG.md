@@ -3725,3 +3725,29 @@ second exam, not another dollar on this one.**
 - **Remaining misses:** smoke A2 q1.ד (follow-through, the plan's option labels name the expected sides) and q2.ב (no recompute); held-out q4.ג (copy slip), q4.ד. All under-credit except q2.ב.
 - **Shipped bytes = evaluated bytes + ONE line join** (whitespace only, to meet the 12-line guard). Pin updated (`test_math_pack_v3_pin.py`). PACK_VERSION v4 moves every Math plan's config hash: each math rubric's plan rebuilds on its next save/grade.
 - **Ledger:** v4b $0.1421 + $0.1571 · v3 repro $0.1744 · v4c $0.1587 + $0.1357 = $0.768.
+
+## 2026-11-02 · MATH PACK v5 «one mistake, one charge» — owner-requested, direct API (owner-approved, cap $12) · NOT SHIPPED (awaits owner)
+
+- **Owner's brief:** a world-class math teacher's grader — never deduct one root mistake on several criteria; be more lenient.
+- **v5 = R2 REPLACED** (planner + verifier): a wrong value from her earlier work (an earlier part OR an earlier line) is an input
+  whatever caused it — slip, misread datum, wrong formula; the mistake is charged once, where made; a step earns less only when
+  her wrong value removed what it tests. Leniency scoped to FORM only (equivalent forms, the Israeli 12.500, units, a routine
+  step done mentally) — no doubt rule (v4 lesson). ONE CHARGE carries numbers, never claims.
+- **Gate** (verifier Sonnet 5.5 low, k=1, plan `d771a5fa` $0.97):
+
+  | run | answers | K1 | intended | note |
+  |---|---|---|---|---|
+  | v5 | smoke | 1 (q5.ד) | 53/57 | |
+  | v5 | held-out | **1 real: q5.א** (wrong graph, wrong reason → 1.5) | 69/72 | the compressed fragment had dropped the justification clause |
+  | **v5b** (clause restored) | **held-out** | **0** | **70/72** | = v4 (same misses q4.ג, q4.ד) |
+  | **v5b** | **smoke** | 1 = **q5.ד by ruling** | **54/57** | = v4; q1.ד (follow-through) and q2.ב fixed; q1.ג slip charged on the phantom c2 |
+
+  q5.ד: A2 «30x = 1000, x = 33» — the equation check is zero (the one charge); solving HER equation earns 2.75/7. That is the
+  ruled behaviour (טעות נגררת within a part); the GT, written under R2, says zero. GT is the owner's — awaiting ruling.
+- **13 real exams** (batch 192d4743, rubric 00679d99, verifier claude-opus-5-5 as production, no explainer, off production —
+  nothing written): production drafts (v4) **66.94** · v4 control re-run **66.25** · v5 (plan `0557c2b2`, $0.99) **67.29**.
+  +1.0 vs the same-day control, inside the run-to-run noise (per-exam ±8.5 between the two v4 runs). The rule fires where it
+  should (e15eb448 q1.ה: a misread 10% charged once, 5 → 8) but root-mistake cascades are rare in this class; most lost
+  points are absent work and genuine method errors, which v5 deliberately does not forgive.
+- **Ledger:** gate $1.16 + $0.13 + $0.22 + $0.11; 13-exam runs: v5 plan $0.99 + two gradings (see Anthropic eval usage).
+- Recording kept at `smoke/mathematics.claude-opus-5.5.v5planner.recorded.json`; the committed v4 recording restored.
