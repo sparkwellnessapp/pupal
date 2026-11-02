@@ -2,7 +2,7 @@
  "exam_id": "hobby_tvshow",
  "rubric_contract_sha256": "480c15cff2face1ee4a2eb9536f3d2b9907a124ae9c6e86654b3100abd314007",
  "precision": "0.25",
- "compiler_version": "plan-compiler/v2.0",
+ "compiler_version": "plan-compiler/v2.1",
  "terminals": [
   {
    "terminal_id": "q1.א.c0",

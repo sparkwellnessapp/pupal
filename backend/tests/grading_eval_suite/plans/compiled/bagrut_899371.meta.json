@@ -11,8 +11,8 @@
  ],
  "contract_sha256": "5d58b7eab86bca2993ee17a56614cef3f79efbcf24d874a229168393f1b23b0e",
  "precision": "0.25",
- "compiler_version": "plan-compiler/v2.0",
- "plan_version": "bagrut_899371/compiled-918b9f5babae",
+ "compiler_version": "plan-compiler/v2.1",
+ "plan_version": "bagrut_899371/compiled-24e0e52704b8",
  "terminals": 61,
  "slots": 96,
  "kinds": {

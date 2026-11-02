@@ -1,5 +1,5 @@
 {
- "plan_version": "bagrut_899371/compiled-918b9f5babae",
+ "plan_version": "bagrut_899371/compiled-24e0e52704b8",
  "exam_id": "bagrut_899371",
  "rubric_contract_sha256": "5d58b7eab86bca2993ee17a56614cef3f79efbcf24d874a229168393f1b23b0e",
  "terminals": [
@@ -1618,7 +1618,7 @@
    ]
   }
  ],
- "compiler_version": "plan-compiler/v2.0",
+ "compiler_version": "plan-compiler/v2.1",
  "segmenter_prompt_version": null,
  "segmenter_model": null,
  "router_model": null

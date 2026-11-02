@@ -136,7 +136,7 @@ def test_faithful_wording_assembles_a_plan_the_validator_accepts(hobby):
     assert abs(run.cost_usd - 0.001 * len(run.calls)) < 1e-9
     plan = assemble_plan(hobby["skeleton"], run.wording, segmenter_prompt_version="segmenter/v1",
                          segmenter_model="fake")
-    assert plan.segmenter_model == "fake" and plan.compiler_version == "plan-compiler/v2.0"
+    assert plan.segmenter_model == "fake" and plan.compiler_version == "plan-compiler/v2.1"
     errors = validate_plan(plan, contract_terminal_points=hobby["points"], terminal_scopes=hobby["scopes"],
                            precision=hobby["precision"], scope_corpora=hobby["corpora"])
     assert errors == [], errors

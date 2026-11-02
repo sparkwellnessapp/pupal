@@ -1,5 +1,5 @@
 {
- "plan_version": "hobby_tvshow/compiled-e112cbf52b0d",
+ "plan_version": "hobby_tvshow/compiled-1a87c4b844b5",
  "exam_id": "hobby_tvshow",
  "rubric_contract_sha256": "480c15cff2face1ee4a2eb9536f3d2b9907a124ae9c6e86654b3100abd314007",
  "terminals": [
@@ -1129,7 +1129,7 @@
    ]
   }
  ],
- "compiler_version": "plan-compiler/v2.0",
+ "compiler_version": "plan-compiler/v2.1",
  "segmenter_prompt_version": null,
  "segmenter_model": null,
  "router_model": null

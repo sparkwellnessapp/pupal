@@ -56,7 +56,7 @@ from app.agents.plan_gen.prompt import (_DEDUCT_AMOUNTLESS_PATTERNS, _DEDUCT_PAT
 
 from .skeleton import CompilerBug, Flag, PlanSkeleton, Slot, TerminalSkeleton
 
-COMPILER_VERSION = "plan-compiler/v2.0"
+COMPILER_VERSION = "plan-compiler/v2.1"     # v2.1: f(0) is not a points marker
 ROUTE_MIN_POINTS = Decimal("4")        # OD-11, ratified: monoliths at P ≥ 4 with a solution route
 
 FLAG_CODES = (
@@ -329,7 +329,17 @@ def _counted(prose: str) -> Optional[Tuple[int, Optional[Decimal], str]]:
 _TOTAL_CLAIM = re.compile(
     rf"\(?\s*סה[\"״']?כ\s+(?:[֐-׿\"״']+\s+){{0,3}}({_NUM})\s*(?:נקודות|נק['׳]?)?\s*\)?\s*:?")
 _DETAIL_CLAIM = re.compile(rf"פירוט\s*ל-?\s*{_NUM}\s*:?")
-_PAREN_BARE = re.compile(rf"\(\s*({_NUM})\s*({_UNIT})?\s*\)")
+# Not a thousands separator: «עיגול למספר שלם (4,977)» is the number 4977, not
+# 4.977 points (no rubric prices to three decimals; «(1,5)» is still 1.5).
+_PAREN_BARE = re.compile(rf"\(\s*(?!\d{{1,3}},\d{{3}}(?!\d))({_NUM})\s*({_UNIT})?\s*\)")
+# A UNITLESS bracket right after a Latin identifier, digit or prime — `f(0)`,
+# `sum(5)`, `f'(2)` — is call / function notation, never a points marker.
+# «הצבת f(0) = 2000» (2 pts) read as a 0-point component, and «הצבת f(1) = 2400»
+# was silently split 1+1 (2026-11-02, the first math rubric to say f of a
+# number). A bracket that names its unit stays a marker wherever it sits
+# («שונה מ- null(1 נקודות)», bagrut q4.ב), and so does a Hebrew word glued to
+# a bare one, «נכון(2)».
+_CALL_BEFORE = re.compile(r"[A-Za-z0-9_'′]$")
 _PAREN_WORDED = re.compile(rf"\(\s*[^()\d]*?{_HEB}[^()\d]*?\s({_NUM})\s*({_UNIT})\s*\)")
 _INLINE = re.compile(rf"(?<![\w.,/*%=<>!+\-–])[-–~]?\s*ב?\s?({_NUM})\s{{0,2}}({_UNIT})(?![\w])")
 _INLINE_REV = re.compile(rf"({_UNIT})\s*({_NUM})(?![\w.])")
@@ -385,6 +395,8 @@ def _markers(masked: str) -> List[Tuple[int, int, Decimal, bool]]:
         taken.append(m.span())
 
     for m in _PAREN_BARE.finditer(work):
+        if m.group(2) is None and _CALL_BEFORE.search(work[:m.start()]):
+            continue                                  # f(0): a call, not points
         claim(m, m.group(1), m.group(2))
     work = _mask(work, taken)
     for m in _PAREN_WORDED.finditer(work):
@@ -775,7 +787,10 @@ def compile_terminal(*, terminal_id: str, scope: str, text: str, points: Decimal
                 comps = valued
     comps = [c for c in comps if c.value and c.value > 0]
     if not comps:
+        # The whole criterion becomes the one component, so there is no "rest of"
+        # it left over: a Case-2 remainder here would count P twice.
         comps = [Component(0, len(masked), _clean(masked) or _clean(text), points)]
+        remainder_slot = None
 
     # ── C1 tariffs / C2 notes, attached to components ──────────────────────
     tariffs: List[Slot] = []

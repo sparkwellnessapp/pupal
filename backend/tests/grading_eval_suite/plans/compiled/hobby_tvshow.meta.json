@@ -9,8 +9,8 @@
  ],
  "contract_sha256": "480c15cff2face1ee4a2eb9536f3d2b9907a124ae9c6e86654b3100abd314007",
  "precision": "0.25",
- "compiler_version": "plan-compiler/v2.0",
- "plan_version": "hobby_tvshow/compiled-e112cbf52b0d",
+ "compiler_version": "plan-compiler/v2.1",
+ "plan_version": "hobby_tvshow/compiled-1a87c4b844b5",
  "terminals": 38,
  "slots": 69,
  "kinds": {

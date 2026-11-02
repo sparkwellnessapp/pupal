@@ -8,12 +8,12 @@ Miss classes: `routed` — a C7 monolith, A2 closes it (OD-13) · `ruling` — t
 
 | exam | compiler | terminals | slots | kinds | validator | expressible | bar | misses by class |
 |---|---|---|---|---|---|---|---|---|
-| bagrut_899371 | `plan-compiler/v2.0` | 61 | 96 | `{'counted': 1, 'required': 84, 'note_only': 2, 'tariff': 9}` | 0 errors | **284/298** | ≥295 | `{'decomposition': 7, 'granularity-floor': 2, 'routed': 4, 'granularity-ladder': 1}` |
-| hobby_tvshow | `plan-compiler/v2.0` | 38 | 69 | `{'required': 56, 'tariff': 12, 'note_only': 1}` | 0 errors | **184/190** | ≥189 | `{'routed': 5, 'ruling': 1}` |
+| bagrut_899371 | `plan-compiler/v2.1` | 61 | 96 | `{'counted': 1, 'required': 84, 'note_only': 2, 'tariff': 9}` | 0 errors | **284/298** | ≥295 | `{'decomposition': 7, 'granularity-floor': 2, 'routed': 4, 'granularity-ladder': 1}` |
+| hobby_tvshow | `plan-compiler/v2.1` | 38 | 69 | `{'required': 56, 'tariff': 12, 'note_only': 1}` | 0 errors | **184/190** | ≥189 | `{'routed': 5, 'ruling': 1}` |
 
 ## bagrut_899371
 
-plan `bagrut_899371/compiled-918b9f5babae` · contract sha256 `5d58b7eab86b…` · precision 0.25
+plan `bagrut_899371/compiled-24e0e52704b8` · contract sha256 `5d58b7eab86b…` · precision 0.25
 
 ### Verdict
 
@@ -140,7 +140,7 @@ plan `bagrut_899371/compiled-918b9f5babae` · contract sha256 `5d58b7eab86b…` 
 
 ## hobby_tvshow
 
-plan `hobby_tvshow/compiled-e112cbf52b0d` · contract sha256 `480c15cff2fa…` · precision 0.25
+plan `hobby_tvshow/compiled-1a87c4b844b5` · contract sha256 `480c15cff2fa…` · precision 0.25
 
 ### Verdict
 

@@ -219,7 +219,7 @@ def test_run_plan_build_lands_a_ready_row_and_is_idempotent(hobby):
             ready = await plan_store.get_ready(db, sha, config_hash=V5)
             assert ready is not None and ready.wording_source == "placeholder"
             assert ready.plan_version.startswith(f"{rubric_id}/compiled-")
-            assert ready.compiler_version == "plan-compiler/v2.0"
+            assert ready.compiler_version == "plan-compiler/v2.1"
             assert ready.error_message and "provider down" in ready.error_message
             assert ready.skeleton_json and "terminals" in ready.skeleton_json
     try:

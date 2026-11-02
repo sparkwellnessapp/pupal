@@ -431,3 +431,43 @@ def test_bagrut_every_terminal_sums_and_sits_on_the_grid(bagrut):
     for t in bagrut.terminals:
         assert sum(s.points for s in t.earn_slots) == t.points_possible, t.terminal_id
     assert len(bagrut.terminals) == 61
+
+
+# ── 2026-11-02: mathematics wording is not a points marker ─────────────────
+# The first math rubric with «f of a number» failed every plan build (4/4,
+# rubric 00679d99, q1.ג.c0): «(0)» in f(0) read as a 0-point component, and the
+# all-zero fallback then counted P twice (Σ earn-side 4 ≠ 2). Its q1.ד.c3 read
+# the thousands-separated «(4,977)» as 4.977 points (Case-3 residual off the grid).
+
+@pytest.mark.parametrize("text", [
+    "הצבת f(0) = 2000",
+    "הצבה בפונקציה: f(5) = 2000·1.2⁵",
+    "זיהוי f(0) = 2000 ו-f(2) = 2880 (t = 2 לתחילת 2022)",
+    "חישוב היחס f(4) ÷ g(4) ≈ 2.44",
+    "גזירה: f'(2) = 0",
+    "עיגול למספר שלם (4,977) וכתיבת תשובה מילולית",
+])
+def test_function_notation_and_thousands_are_not_points(text):
+    t = _compile_one(text, "2")
+    assert _alg(t) == [("required", "2")], text
+
+
+def test_f_of_one_is_no_longer_split_silently():
+    """«f(1)» on a 2-point criterion used to compile WITHOUT error to 1 + a
+    1-point remainder — a wrong plan nobody would notice."""
+    assert _alg(_compile_one("הצבת f(1) = 2400", "2")) == [("required", "2")]
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("נכון(2) והסבר (1)", [("required", "2"), ("required", "1")]),
+    ("בדיקה שונה מ- null(1 נקודות) והשמה (2 נק')", [("required", "1"), ("required", "2")]),
+    ("חישוב (1,5) והסבר (1,5)", [("required", "1.5"), ("required", "1.5")]),
+])
+def test_real_points_brackets_still_read(text, expected):
+    assert _alg(_compile_one(text, "3")) == expected, text
+
+
+def test_an_all_zero_marker_does_not_count_the_criterion_twice():
+    """The only stated value is 0: the whole criterion becomes the component,
+    and no Case-2 remainder may be added on top (was Σ 2P → CompilerBug)."""
+    assert _alg(_compile_one("סימון נקודת המוצא (0)", "2")) == [("required", "2")]

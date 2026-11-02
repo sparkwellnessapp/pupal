@@ -135,5 +135,5 @@ def test_the_committed_artefact_is_what_the_compiler_makes(compiled, exam):
     _c, _s, plan = compiled[exam]
     committed = json.loads((COMPILED / f"{exam}.plan.json").read_text(encoding="utf-8"))
     assert committed == plan.model_dump(mode="json")
-    assert committed["compiler_version"] == "plan-compiler/v2.0"
+    assert committed["compiler_version"] == "plan-compiler/v2.1"
     assert committed["plan_version"].startswith(f"{exam}/compiled-")

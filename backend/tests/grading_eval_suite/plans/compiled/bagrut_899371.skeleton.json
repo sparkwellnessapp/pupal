@@ -2,7 +2,7 @@
  "exam_id": "bagrut_899371",
  "rubric_contract_sha256": "5d58b7eab86bca2993ee17a56614cef3f79efbcf24d874a229168393f1b23b0e",
  "precision": "0.25",
- "compiler_version": "plan-compiler/v2.0",
+ "compiler_version": "plan-compiler/v2.1",
  "terminals": [
   {
    "terminal_id": "q1.א.1.c0",
