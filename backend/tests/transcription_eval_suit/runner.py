@@ -43,6 +43,7 @@ from dotenv import load_dotenv
 from app.services.transcription.scheduler import ProviderLimit, ProviderScheduler
 from app.services.transcription.two_phase.trust import run_with_trust
 
+from . import corpus
 from .critical_tokens import CriticalProfile
 from . import diagnostics as diag
 from .exam_resolution import ResolvedExam, resolve_exam
@@ -132,6 +133,12 @@ class RunPlan:
     #: latency from a concurrency=1 run, and every record carries its
     #: queue_wait_ms_total so the two can always be separated.
     concurrency: int = 1
+    #: [corpus] The scope the fixtures were DISCOVERED in ("cs", "math/ori_yefet"; "" =
+    #: the whole corpus or an explicit --fixtures list) and the docs the per-trial cap
+    #: left out — recorded so a capped run is never mistaken for the whole scope.
+    scope: str = ""
+    max_fixtures: int = corpus.DEFAULT_MAX_FIXTURES
+    dropped: tuple[str, ...] = ()
 
 
 @dataclass
@@ -192,13 +199,36 @@ class RunRecord:
 # --- fixture resolution -----------------------------------------------------------
 
 def _find_pdf(doc_id: str, pdf_dir_name: str = "pdfs") -> Path | None:
-    pdf_dir = SUITE_DIR / pdf_dir_name
-    if not pdf_dir.exists():
-        return None
-    for p in pdf_dir.glob("*.pdf"):
-        if p.stem.lower() == doc_id.lower():
-            return p
-    return None
+    """[corpus] at any depth: pdfs/<subject>[/<user>]/<doc_id>.pdf, or a flat variant."""
+    return corpus.pdf_path(doc_id, pdf_dir_name)
+
+
+#: The artifacts each mode needs — what discovery filters on (resolve_fixtures refuses the same).
+_NEEDS = {
+    "per_doc": ("pdf", "raw", "draft"), "batch": ("pdf", "raw", "draft"),
+    "p1_only": ("pdf", "raw"), "p2_only": ("raw", "draft"),
+}
+
+
+def discover_fixtures(mode: str, *, subject: str | None = None, user: str | None = None,
+                      pdf_dir: str = "pdfs") -> tuple[list[str], dict[str, list[str]]]:
+    """(runnable, skipped-by-missing-artifact) for a scope. A doc missing what `mode`
+    needs (a PDF with no ground truth yet) is skipped and NAMED — never an error, so a
+    scope can hold documents that are still waiting for their GT."""
+    have = {
+        "pdf": lambda d: corpus.pdf_path(d, pdf_dir) is not None,
+        "raw": lambda d: corpus.raw_path(d) is not None,
+        "draft": lambda d: corpus.draft_path(d) is not None,
+    }
+    runnable, skipped = [], {}
+    for d in corpus.docs_in_scope(subject, user, pdf_dir):
+        missing = [k for k in _NEEDS[mode] if not have[k](d)]
+        if missing:
+            for k in missing:
+                skipped.setdefault(k, []).append(d)
+        else:
+            runnable.append(d)
+    return runnable, skipped
 
 
 def resolve_fixtures(plan: RunPlan) -> list[Fixture]:
@@ -210,8 +240,8 @@ def resolve_fixtures(plan: RunPlan) -> list[Fixture]:
     mode = plan.mode
     fixtures: list[Fixture] = []
     for doc_id in plan.fixtures:
-        raw_p = SUITE_DIR / "raw_benchmarks" / f"{doc_id}.md"
-        draft_p = SUITE_DIR / "draft_benchmarks" / f"{doc_id}.md"
+        raw_p = corpus.raw_path(doc_id) or SUITE_DIR / "raw_benchmarks" / f"{doc_id}.md"
+        draft_p = corpus.draft_path(doc_id) or SUITE_DIR / "draft_benchmarks" / f"{doc_id}.md"
         exam = resolve_exam(doc_id, fallback_spec_path=plan.exam_spec_path)
         if exam is None and mode != "p1_only":
             raise ValueError(
@@ -654,6 +684,10 @@ async def execute(plan: RunPlan, pipeline: Pipeline) -> tuple[dict, dict]:
         # results — the "which input produced this scoreboard?" ambiguity that
         # B-30f already cost once. `pdfs` is the champion.
         "pdf_dir": plan.pdf_dir,
+        # [corpus] which slice of the corpus this run is, and what the per-trial cap left out
+        "scope": plan.scope,
+        "max_fixtures": plan.max_fixtures,
+        "dropped_by_cap": list(plan.dropped),
         "models": {
             k: {"model_id": model_spec(k).model_id, "tier": model_spec(k).tier}
             for k in {plan.config.p1_model_key, plan.config.p2_model_key,
@@ -761,7 +795,16 @@ def main() -> None:
     ap.add_argument("--mode", default="per_doc",
                     choices=["per_doc", "p1_only", "p2_only", "batch"])
     ap.add_argument("--fixtures", default="",
-                    help="comma-separated doc_ids; default = all in raw_benchmarks/")
+                    help="comma-separated doc_ids, run exactly as given (no cap); default = "
+                         "every doc in the scope that has what --mode needs")
+    ap.add_argument("--subject", default=None, choices=corpus.SUBJECTS,
+                    help="[corpus] run one subject: pdfs/<subject>/ + draft_benchmarks/<subject>/")
+    ap.add_argument("--user", default=None,
+                    help="[corpus] narrow --subject to one teacher folder, e.g. ori_yefet")
+    ap.add_argument("--max-fixtures", type=int, default=corpus.DEFAULT_MAX_FIXTURES,
+                    help="fixtures per trial when discovering (default %(default)s; 0 = all). "
+                         "Deterministic and interleaved across exams; every repeat runs the "
+                         "same set; the dropped doc_ids are logged and written to results.json")
     ap.add_argument("--exam-spec", default=None,
                     help="FALLBACK exam spec (canonical or rubric draft_json), relative "
                          "to the suite dir. Used only for fixtures with no "
@@ -778,12 +821,28 @@ def main() -> None:
                          "against the SAME ground truth and the SAME scorer.")
     args = ap.parse_args()
 
+    scope, dropped = "", ()
     if args.fixtures:
+        if args.subject or args.user:
+            ap.error("--fixtures names its docs exactly; drop --subject/--user")
         fixtures = tuple(f.strip() for f in args.fixtures.split(",") if f.strip())
     else:
-        fixtures = tuple(sorted(
-            p.stem for p in (SUITE_DIR / "raw_benchmarks").glob("*.md")
-        ))
+        try:
+            runnable, skipped = discover_fixtures(args.mode, subject=args.subject,
+                                                  user=args.user, pdf_dir=args.pdf_dir)
+        except corpus.CorpusError as e:
+            ap.error(str(e))
+        scope = "/".join(x for x in (args.subject, args.user) if x)
+        for what, docs in sorted(skipped.items()):
+            log.info("skipped %d doc(s) with no %s for mode=%s: %s",
+                     len(docs), what, args.mode, ", ".join(docs))
+        kept, dropped_l = corpus.cap(runnable, args.max_fixtures)
+        if dropped_l:
+            log.warning("--max-fixtures %d: running %d of %d; dropped: %s",
+                        args.max_fixtures, len(kept), len(runnable), ", ".join(dropped_l))
+        if not kept:
+            ap.error(f"no runnable fixtures in scope {scope or '<all>'} for mode={args.mode}")
+        fixtures, dropped = tuple(kept), tuple(dropped_l)
 
     plan = RunPlan(
         config=_load_config(args.config), config_name=args.config,
@@ -791,9 +850,10 @@ def main() -> None:
         batch_size=args.batch_size, exam_spec_path=args.exam_spec,
         pdf_dir=args.pdf_dir, concurrency=args.concurrency,
         isolate_failures=args.isolate_failures,
+        scope=scope, max_fixtures=args.max_fixtures, dropped=dropped,
     )
-    log.info("config=%s mode=%s repeats=%d pdf_dir=%s fixtures=[%s]",
-             args.config, args.mode, args.repeats, args.pdf_dir,
+    log.info("config=%s mode=%s repeats=%d pdf_dir=%s scope=%s fixtures=[%s]",
+             args.config, args.mode, args.repeats, args.pdf_dir, scope or "<all>",
              ", ".join(fixtures))
     out = run_plan(plan)
     print(f"Run complete -> {out}")

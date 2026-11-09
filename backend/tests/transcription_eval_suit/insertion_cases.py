@@ -31,6 +31,7 @@ from app.services.transcription.two_phase.relocation import (
 )
 
 from .ground_truth import load_ground_truth, load_page_ground_truth
+from . import corpus
 from .keys import normalize_key
 
 SUITE_DIR = Path(__file__).parent
@@ -95,7 +96,7 @@ def _draft_answer(fixture: str, answer_key: str) -> str | None:
     if not m:
         return None
     want = normalize_key((int(m.group(1)), m.group(2)))
-    doc = load_ground_truth(SUITE_DIR / "draft_benchmarks" / f"{fixture}.md")
+    doc = load_ground_truth(corpus.draft_path(fixture))
     for a in doc.answers:
         if normalize_key(a.key) == want:
             return a.answer_text

@@ -20,6 +20,7 @@ import json
 import sys
 from pathlib import Path
 
+from . import corpus
 from . import diagnostics as diag
 from .exam_resolution import resolve_exam
 from .ground_truth import load_ground_truth, load_page_ground_truth
@@ -43,9 +44,9 @@ def rescore_dir(d: Path) -> Path:
             out_records.append(dict(rec, rescored=False))
             continue
         o = json.loads(src.read_text(encoding="utf-8"))
-        raw = load_page_ground_truth(SUITE_DIR / "raw_benchmarks" / f"{doc}.md")
-        draft_p = SUITE_DIR / "draft_benchmarks" / f"{doc}.md"
-        draft = load_ground_truth(draft_p) if draft_p.exists() else None
+        raw = load_page_ground_truth(corpus.raw_path(doc) or SUITE_DIR / "raw_benchmarks" / f"{doc}.md")
+        draft_p = corpus.draft_path(doc)
+        draft = load_ground_truth(draft_p) if draft_p else None
         # the runner's own profile resolution (default profile when no exam)
         profile = Fixture(doc_id=doc, pdf_path=None, raw_gold=raw, draft_gold=draft,
                           exam=resolve_exam(doc, fallback_spec_path=None)).profile

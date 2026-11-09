@@ -33,6 +33,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from .critical_tokens import extract_signature
+from . import corpus
 from .exam_resolution import resolve_exam
 from .ground_truth import load_ground_truth
 from .keys import normalize_key
@@ -123,7 +124,7 @@ def attribute_record(doc: str, outputs: dict) -> dict:
     p1_str = _stripped(p1_text)
     p1_norm = ["".join(x.split()) for x in p1_lines]
     gold = {normalize_key(a.key): a.answer_text for a in load_ground_truth(
-        SUITE_DIR / "draft_benchmarks" / f"{doc}.md").answers}
+        corpus.draft_path(doc)).answers}
     pred = {_key(k): v for k, v in outputs.get("answers", {}).items()}
     pred_lines = {k: {ln.strip() for ln in v.split("\n") if ln.strip()} for k, v in pred.items()}
     g_sym = {k: symbols(v, profile) for k, v in gold.items()}

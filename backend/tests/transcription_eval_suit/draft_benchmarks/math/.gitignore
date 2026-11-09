@@ -1,0 +1,8 @@
+# Mathematics ground truth holds real students' answers, and both git remotes are PUBLIC.
+# Like the math-rendering private evidence (C:\Users\ariel\vivi-private\math-rendering\),
+# it stays on disk only: the folder structure is committed, its contents never are.
+# Committing math GT is an owner decision — remove this file deliberately, never with -f.
+*
+!*/
+!.gitignore
+!**/.gitkeep

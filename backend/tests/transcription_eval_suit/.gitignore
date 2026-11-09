@@ -1,1 +1,4 @@
 pdfs-variants/
+# Source scans (real students) and their local manifests — never committed (*.pdf is
+# also ignored backend-wide; this keeps MANIFEST.local.json and friends out too).
+pdfs/

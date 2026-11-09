@@ -4,6 +4,7 @@ from pathlib import Path
 
 from .diag_hebrew import hebrew_words, project, score_hebrew, score_units
 from .ground_truth import load_ground_truth, load_page_ground_truth
+from . import corpus
 
 SUITE = Path(__file__).parent
 LINE = "int x = 0; // אם ספורטיבי מוסיפים עוד שעה"
@@ -20,7 +21,7 @@ def test_every_gt_page_and_answer_scores_one_against_itself():
         r = score_units(pages, pages)
         assert r["doc"]["ratio"] in (None, 1.0) and r["doc"]["word_errors"] == 0
         answers = {a.key: a.answer_text
-                   for a in load_ground_truth(SUITE / "draft_benchmarks" / p.name).answers}
+                   for a in load_ground_truth(corpus.draft_path(p.stem)).answers}
         r = score_units(answers, answers)
         assert r["doc"]["ratio"] in (None, 1.0) and r["doc"]["word_errors"] == 0
 

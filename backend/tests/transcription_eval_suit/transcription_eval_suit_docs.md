@@ -189,7 +189,8 @@ target (never refuse / never all-empty). Output includes a `segmentation_plan`,
 | `exam_resolution.py` | **Which exam does a fixture answer, and which profile scores it.** Per-doc: `fixtures/<doc_id>.json` manifest → `exams/<exam_id>.json`, else the run-level `--exam-spec` fallback (today's behaviour). Every failure is loud. Also `spec_keys(spec)` — the answer keys an exam declares, which the GT must match. |
 | `profiles.py` | The critical-token profile registry: name → `CriticalProfile` (`java_bagrut`). Separate from `critical_tokens.py` on purpose — that file is §17.7 STOP-listed; a name→object map is plumbing, not measurement. |
 | `configs/*.json` | Named `PipelineConfig` presets (`v0`, `v0_p1_only`, `v0_p2_correct_spec`). |
-| `pdfs/`, `raw_benchmarks/`, `draft_benchmarks/` | The fixtures: source PDF + raw GT + draft GT, one file each, stem = `doc_id`. |
+| `pdfs/<subject>[/<user>]/`, `draft_benchmarks/<subject>[/<user>]/`, `raw_benchmarks/` | The fixtures: source PDF + draft GT + raw GT, one file each, stem = `doc_id` (unique corpus-wide). Subjects `cs`, `math`; an optional teacher folder (`math/ori_yefet`). `raw_benchmarks/` is still flat. |
+| `corpus.py` | **Where a fixture's files live** — the one place that spells the layout: lookup by `doc_id` at any depth (a duplicate is refused), the scope a file's folder names, `docs_in_scope`, and the per-trial `cap`. Every consumer resolves through it. |
 | `exams/<exam_id>.json` | The exam artifacts — ONE per exam, shared by all its fixtures (a rubric `draft_json` export, or a canonical harness spec). |
 | `fixtures/<doc_id>.json` | Per-fixture manifest: which exam this fixture answers, and (optionally) which profile scores it. Absent ⇒ the `--exam-spec` fallback. Carries only what the tree cannot state. |
 | `draft.json` | The seed corpus's exam spec, still the `--exam-spec` fallback (`check_goal.sh` default). Copied to `exams/hobby_tvshow.json`; both are kept so every historical invocation stays reproducible. |
@@ -438,10 +439,26 @@ python -m tests.transcription_eval_suit.runner --config v0 --mode per_doc --exam
 
 # Throughput/latency under load (replicate the 5 fixtures to 25, concurrent):
 python -m tests.transcription_eval_suit.runner --config v0 --mode batch --batch-size 25 --exam-spec draft.json
+
+# [corpus] One subject, or one teacher's folder, at most N fixtures per trial:
+python -m tests.transcription_eval_suit.runner --config v0 --mode per_doc --subject cs
+python -m tests.transcription_eval_suit.runner --config v0 --mode p1_only --subject math --user ori_yefet --max-fixtures 5
 ```
+**Scope and cap (2026-11-09).** With no `--fixtures`, the runner DISCOVERS: `--subject`
+(`cs`|`math`) takes the docs under `pdfs/<subject>/` and `draft_benchmarks/<subject>/`,
+`--user` narrows to one teacher folder, and no scope means the whole corpus. Discovery then
+keeps only docs that carry what `--mode` needs (per_doc/batch: PDF + raw + draft GT;
+p1_only: PDF + raw; p2_only: raw + draft) and logs the rest by name — a PDF still waiting
+for its GT is skipped, never an error. `--max-fixtures` (default **20**, `0` = all) caps one
+trial: deterministic, interleaved across exams, the SAME set for every repeat, and the
+dropped doc_ids are logged and written to `results.json` (`scope`, `max_fixtures`,
+`dropped_by_cap`). An explicit `--fixtures` list runs exactly as given (no cap, no scope).
+Unscoped discovery equals the old «every doc in `raw_benchmarks/`» set (10 today), so
+`check_goal.sh` is unchanged — ⚠ once more than 20 docs carry full GT, its «all» is capped:
+pass `GOAL_FIXTURES` or rule how the gate should scope before that happens.
 Flags: `--config` (required), `--mode` (`per_doc`|`p1_only`|`p2_only`|`batch`),
 `--exam-spec` (required for every mode except `p1_only`; `draft.json` is parsed via
-the tolerant rubric-draft loader), `--fixtures` (comma-sep `doc_id`s; default = all),
+the tolerant rubric-draft loader), `--fixtures` (comma-sep `doc_id`s; default = discovered, see above), `--subject`/`--user`/`--max-fixtures`,
 `--repeats` (default 1), `--batch-size` (default 25).
 
 ⚠️ **One exam per run:** the single `--exam-spec` is applied to EVERY fixture in the
@@ -505,8 +522,16 @@ Pure parts are tested with **zero mocks**; provider/LLM paths inject fakes (a
 ## 14. Fixtures
 
 **n = 10, across TWO exams** (2026-09-27). Every fixture is four files sharing a
-`doc_id` of `<exam_id>.<student>`: `pdfs/<id>.pdf` + `raw_benchmarks/<id>.md` (raw GT)
-+ `draft_benchmarks/<id>.md` (draft GT) + `fixtures/<id>.json` (which exam it answers).
+`doc_id` of `<exam_id>.<student>`: `pdfs/cs/<id>.pdf` + `raw_benchmarks/<id>.md` (raw GT)
++ `draft_benchmarks/cs/<id>.md` (draft GT) + `fixtures/<id>.json` (which exam it answers).
+
+**Waiting for GT (2026-11-09), discovered but skipped:** 23 CS PDFs in `pdfs/cs/`
+(`recursion_oct26.*` and the other `bagrut_899371` students) and 13 MATH scans in
+`pdfs/math/ori_yefet/` — teacher אורי יפת's «מבחן – גדילה ודעיכה» (rubric `00679d99`, batch
+`192d4743`), doc_ids `growth_decay.s01`–`s13`, PSEUDONYMOUS on purpose: doc_ids reach the
+committed RUNLOG and both remotes are public. The student mapping is
+`pdfs/math/ori_yefet/MANIFEST.local.json` (ignored with all of `pdfs/`). Math GT is local-only
+too: `draft_benchmarks/math/.gitignore` commits the folders, never their contents.
 
 | exam | fixtures | shape |
 |---|---|---|
@@ -535,8 +560,8 @@ author, never model findings.
 
 ## 15. Extending the suite
 
-- **Add a fixture (same exam):** drop `pdfs/<id>.pdf`, author `raw_benchmarks/<id>.md`
-  (per-page, `=== PAGE n ===`, all ink verbatim) and `draft_benchmarks/<id>.md`
+- **Add a fixture (same exam):** drop `pdfs/<subject>[/<user>]/<id>.pdf`, author `raw_benchmarks/<id>.md`
+  (per-page, `=== PAGE n ===`, all ink verbatim) and `draft_benchmarks/<subject>[/<user>]/<id>.md`
   (per-answer, `=== Q1.א ===`, gradeable content only), add `<id>` to `ALL_FIXTURES`.
   The parsers enforce contiguity/uniqueness.
 - **Add a fixture on a NEW exam:** the above, plus `exams/<exam_id>.json` (once per exam)

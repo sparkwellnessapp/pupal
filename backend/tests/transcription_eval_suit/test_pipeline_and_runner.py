@@ -285,8 +285,8 @@ def test_runner_p2_only_writes_artifacts(tmp_path, monkeypatch):
     from .ground_truth import load_ground_truth
     from .runner import RunPlan, run_plan
 
-    draft_path = runner_mod.SUITE_DIR / "draft_benchmarks" / "hobby_tvshow.moran_aharon.md"
-    if not draft_path.exists():
+    draft_path = runner_mod.corpus.draft_path("hobby_tvshow.moran_aharon")
+    if draft_path is None:
         pytest.skip("fixtures not on disk")
     gold = load_ground_truth(draft_path)
 
@@ -496,8 +496,8 @@ def test_runner_stamps_exam_and_profile_per_fixture(tmp_path):
     from .ground_truth import load_ground_truth
     from .runner import RunPlan, run_plan
 
-    draft_path = runner_mod.SUITE_DIR / "draft_benchmarks" / "hobby_tvshow.moran_aharon.md"
-    if not draft_path.exists():
+    draft_path = runner_mod.corpus.draft_path("hobby_tvshow.moran_aharon")
+    if draft_path is None:
         pytest.skip("fixtures not on disk")
     gold = load_ground_truth(draft_path)
     fake = FakeProvider(script=[_p2_response([

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from . import corpus
 from .diag_tables import parse_tables, score_tables, table_looking_rows_refused
 from .ground_truth import load_ground_truth, load_page_ground_truth
 
@@ -49,7 +50,7 @@ def test_raw_and_draft_gt_tables_agree_cell_for_cell():
     for p in sorted((SUITE / "raw_benchmarks").glob("bagrut*.md")):
         raw_tables = [t for text in load_page_ground_truth(p).as_dict().values()
                       for t in parse_tables(text)]
-        draft_tables = [t for a in load_ground_truth(SUITE / "draft_benchmarks" / p.name).answers
+        draft_tables = [t for a in load_ground_truth(corpus.draft_path(p.stem)).answers
                         for t in parse_tables(a.answer_text)]
         assert [t.rows for t in raw_tables] == [t.rows for t in draft_tables], p.stem
 

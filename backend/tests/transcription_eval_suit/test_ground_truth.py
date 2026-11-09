@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from . import corpus
 from .ground_truth import load_ground_truth, parse_ground_truth
 
 DRAFT_BENCHMARKS = Path(__file__).parent / "draft_benchmarks"
@@ -48,12 +49,12 @@ def test_as_dict_and_order():
 
 
 @pytest.mark.skipif(
-    not (DRAFT_BENCHMARKS / "hobby_tvshow.moran_aharon.md").exists(),
+    corpus.draft_path("hobby_tvshow.moran_aharon") is None,
     reason="benchmark fixture not present (real student data lives outside git)",
 )
 def test_moran_aharon_fixture_structure():
     """The real converted fixture parses into the six expected answers."""
-    doc = load_ground_truth(DRAFT_BENCHMARKS / "hobby_tvshow.moran_aharon.md")
+    doc = load_ground_truth(corpus.draft_path("hobby_tvshow.moran_aharon"))
     assert doc.doc_id == "hobby_tvshow.moran_aharon"
     assert doc.keys_in_order() == [
         (1, "א"), (1, "ב"), (1, "ג"),
@@ -139,8 +140,7 @@ def test_all_raw_fixtures_parse():
 
 
 @pytest.mark.skipif(
-    not (Path(__file__).parent / "draft_benchmarks").exists()
-    or not list((Path(__file__).parent / "draft_benchmarks").glob("*.md")),
+    not corpus.draft_paths(),
     reason="draft benchmark fixtures not present (real student data lives outside git)",
 )
 def test_all_draft_fixtures_conform_to_their_exam_spec():
@@ -165,8 +165,8 @@ def test_all_draft_fixtures_conform_to_their_exam_spec():
     from .keys import normalize_key
 
     for name in ALL_FIXTURES:
-        path = DRAFT_BENCHMARKS / f"{name}.md"
-        assert path.exists(), f"missing draft fixture {name}"
+        path = corpus.draft_path(name)
+        assert path is not None, f"missing draft fixture {name}"
         doc = load_ground_truth(path)
 
         exam = resolve_exam(name, fallback_spec_path="draft.json")

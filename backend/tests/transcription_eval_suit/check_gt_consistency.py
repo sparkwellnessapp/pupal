@@ -48,6 +48,7 @@ from pathlib import Path
 from app.services.transcription.normalize import normalize
 
 from .ground_truth import load_ground_truth, load_page_ground_truth
+from . import corpus
 
 SUITE_DIR = Path(__file__).parent
 RAW_DIR = SUITE_DIR / "raw_benchmarks"
@@ -89,7 +90,7 @@ def _raw_ink(doc_id: str) -> str:
     same text once the gold relocation has run; comparing them unrelocated reports
     every moved block as a DROPPED + ADDED pair."""
     from .diagnostics import gold_relocation
-    raw = load_page_ground_truth(RAW_DIR / f"{doc_id}.md").as_dict()
+    raw = load_page_ground_truth(corpus.raw_path(doc_id) or RAW_DIR / f"{doc_id}.md").as_dict()
     moved, _ = gold_relocation(doc_id, raw)
     kept = [
         "\n".join(_PART_EDGE_RE.sub(r"\1", l) for l in moved[n].splitlines()
@@ -108,7 +109,7 @@ def check_doc(doc_id: str) -> list[tuple[str, str, str, str]]:
     raw = _raw_ink(doc_id)
     findings: list[tuple[str, str, str, str]] = []
 
-    for answer in load_ground_truth(DRAFT_DIR / f"{doc_id}.md").answers:
+    for answer in load_ground_truth(corpus.draft_path(doc_id) or DRAFT_DIR / f"{doc_id}.md").answers:
         body = normalize(answer.answer_text, strip_illegible=False)
         if not body:
             continue
@@ -141,7 +142,7 @@ def check_doc(doc_id: str) -> list[tuple[str, str, str, str]]:
 
 
 def main(argv: list[str]) -> int:
-    doc_ids = argv[1:] or sorted(p.stem for p in DRAFT_DIR.glob("*.md"))
+    doc_ids = argv[1:] or [p.stem for p in corpus.draft_paths()]
     total = 0
 
     for doc_id in doc_ids:
@@ -159,7 +160,7 @@ def main(argv: list[str]) -> int:
     if total:
         print(
             f"\n{total} divergence(s). Each is a defect in ONE of the two corpora — "
-            "adjudicate against pdfs/<doc_id>.pdf.\nGT edits are the author's call "
+            "adjudicate against pdfs/<subject>/…/<doc_id>.pdf.\nGT edits are the author's call "
             "(CLAUDE.md §17.7): surface with evidence, never silently fix."
         )
     return 1 if total else 0
