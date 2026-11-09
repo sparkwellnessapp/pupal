@@ -240,8 +240,8 @@ def resolve_fixtures(plan: RunPlan) -> list[Fixture]:
     mode = plan.mode
     fixtures: list[Fixture] = []
     for doc_id in plan.fixtures:
-        raw_p = corpus.raw_path(doc_id) or SUITE_DIR / "raw_benchmarks" / f"{doc_id}.md"
-        draft_p = corpus.draft_path(doc_id) or SUITE_DIR / "draft_benchmarks" / f"{doc_id}.md"
+        raw_p = corpus.raw_path(doc_id)
+        draft_p = corpus.draft_path(doc_id)
         exam = resolve_exam(doc_id, fallback_spec_path=plan.exam_spec_path)
         if exam is None and mode != "p1_only":
             raise ValueError(
@@ -251,8 +251,8 @@ def resolve_fixtures(plan: RunPlan) -> list[Fixture]:
         fx = Fixture(
             doc_id=doc_id,
             pdf_path=_find_pdf(doc_id, plan.pdf_dir),
-            raw_gold=load_page_ground_truth(raw_p) if raw_p.exists() else None,
-            draft_gold=load_ground_truth(draft_p) if draft_p.exists() else None,
+            raw_gold=load_page_ground_truth(raw_p) if raw_p else None,
+            draft_gold=load_ground_truth(draft_p) if draft_p else None,
             exam=exam,
         )
         if mode in ("per_doc", "p1_only", "batch") and fx.pdf_path is None:

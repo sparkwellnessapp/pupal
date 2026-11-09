@@ -37,7 +37,7 @@ def test_reads_every_table_exactly_as_the_review_ui_does(case):
 
 def test_every_gt_table_scores_one_against_itself():
     n = 0
-    for p in sorted((SUITE / "raw_benchmarks").glob("*.md")):
+    for p in corpus.raw_paths():
         for text in load_page_ground_truth(p).as_dict().values():
             s = score_tables(text, text)
             assert s.shape_rate == 1.0 and s.cell_rate == 1.0
@@ -47,7 +47,7 @@ def test_every_gt_table_scores_one_against_itself():
 
 def test_raw_and_draft_gt_tables_agree_cell_for_cell():
     """The same ink at two scopes: every draft table equals its raw table."""
-    for p in sorted((SUITE / "raw_benchmarks").glob("bagrut*.md")):
+    for p in [p for p in corpus.raw_paths() if p.stem.startswith("bagrut")]:
         raw_tables = [t for text in load_page_ground_truth(p).as_dict().values()
                       for t in parse_tables(text)]
         draft_tables = [t for a in load_ground_truth(corpus.draft_path(p.stem)).answers

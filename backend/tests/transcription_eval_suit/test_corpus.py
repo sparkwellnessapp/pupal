@@ -5,7 +5,8 @@ Built on a temporary corpus (no real student file is read):
     pdfs/cs/hobby.a.pdf  pdfs/cs/hobby.b.pdf  pdfs/cs/rec.c.pdf (no GT yet)
     pdfs/math/ori/gd.s01.pdf  pdfs/math/ori/gd.s02.pdf  pdfs/math/other/alg.x.pdf
     draft_benchmarks/cs/hobby.{a,b}.md  draft_benchmarks/math/ori/gd.s01.md
-    raw_benchmarks/hobby.{a,b}.md  raw_benchmarks/gd.s01.md  raw_benchmarks/alg.x.md
+    raw_benchmarks/cs/hobby.{a,b}.md  raw_benchmarks/math/ori/gd.s01.md
+    raw_benchmarks/math/other/alg.x.md  raw_benchmarks/math/ori/gd.s03.md (raw GT only)
 """
 from __future__ import annotations
 
@@ -22,8 +23,9 @@ def suite(tmp_path, monkeypatch):
         "pdfs/math/ori/gd.s01.pdf", "pdfs/math/ori/gd.s02.pdf", "pdfs/math/other/alg.x.pdf",
         "draft_benchmarks/cs/hobby.a.md", "draft_benchmarks/cs/hobby.b.md",
         "draft_benchmarks/math/ori/gd.s01.md",
-        "raw_benchmarks/hobby.a.md", "raw_benchmarks/hobby.b.md",
-        "raw_benchmarks/gd.s01.md", "raw_benchmarks/alg.x.md",
+        "raw_benchmarks/cs/hobby.a.md", "raw_benchmarks/cs/hobby.b.md",
+        "raw_benchmarks/math/ori/gd.s01.md", "raw_benchmarks/math/other/alg.x.md",
+        "raw_benchmarks/math/ori/gd.s03.md",
     ]
     for f in files:
         p = tmp_path / f
@@ -36,7 +38,7 @@ def suite(tmp_path, monkeypatch):
 def test_lookup_is_by_doc_id_at_any_depth(suite):
     assert corpus.pdf_path("gd.s01") == suite / "pdfs/math/ori/gd.s01.pdf"
     assert corpus.draft_path("hobby.a") == suite / "draft_benchmarks/cs/hobby.a.md"
-    assert corpus.raw_path("hobby.a") == suite / "raw_benchmarks/hobby.a.md"
+    assert corpus.raw_path("hobby.a") == suite / "raw_benchmarks/cs/hobby.a.md"
     assert corpus.draft_path("rec.c") is None
 
 
@@ -49,13 +51,17 @@ def test_a_doc_id_found_twice_is_refused(suite):
 def test_scope_is_the_folder(suite):
     assert corpus.scope_of(suite / "pdfs/math/ori/gd.s01.pdf", "pdfs") == ("math", "ori")
     assert corpus.scope_of(suite / "draft_benchmarks/cs/hobby.a.md", "draft_benchmarks") == ("cs", None)
+    assert corpus.scope_of(suite / "raw_benchmarks/math/ori/gd.s03.md", "raw_benchmarks") == ("math", "ori")
 
 
 def test_docs_in_scope(suite):
     assert corpus.docs_in_scope("cs") == ["hobby.a", "hobby.b", "rec.c"]
-    assert corpus.docs_in_scope("math", "ori") == ["gd.s01", "gd.s02"]
-    assert corpus.docs_in_scope("math") == ["alg.x", "gd.s01", "gd.s02"]
-    assert len(corpus.docs_in_scope()) == 6
+    # raw_benchmarks/ is a scope root too: gd.s03 has only raw GT and still belongs to math/ori
+    assert corpus.docs_in_scope("math", "ori") == ["gd.s01", "gd.s02", "gd.s03"]
+    assert corpus.docs_in_scope("math") == ["alg.x", "gd.s01", "gd.s02", "gd.s03"]
+    assert len(corpus.docs_in_scope()) == 7
+    assert [p.stem for p in corpus.raw_paths("math")] == ["alg.x", "gd.s01", "gd.s03"]
+    assert [p.stem for p in corpus.raw_paths()] == ["alg.x", "gd.s01", "gd.s03", "hobby.a", "hobby.b"]
 
 
 def test_bad_scopes_are_refused(suite):
@@ -72,7 +78,8 @@ def test_discovery_keeps_what_the_mode_needs_and_names_the_rest(suite):
     assert run == ["hobby.a", "hobby.b"]
     assert skipped == {"raw": ["rec.c"], "draft": ["rec.c"]}
     run, skipped = runner.discover_fixtures("per_doc", subject="math", user="ori")
-    assert run == ["gd.s01"] and skipped == {"raw": ["gd.s02"], "draft": ["gd.s02"]}
+    assert run == ["gd.s01"]
+    assert skipped == {"pdf": ["gd.s03"], "raw": ["gd.s02"], "draft": ["gd.s02", "gd.s03"]}
     # p1_only needs no draft GT; p2_only needs no PDF
     assert runner.discover_fixtures("p1_only", subject="math")[0] == ["alg.x", "gd.s01"]
     assert runner.discover_fixtures("p2_only")[0] == ["gd.s01", "hobby.a", "hobby.b"]

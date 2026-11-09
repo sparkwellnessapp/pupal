@@ -16,7 +16,7 @@ def test_projection_keeps_only_hebrew_script():
 
 
 def test_every_gt_page_and_answer_scores_one_against_itself():
-    for p in sorted((SUITE / "raw_benchmarks").glob("*.md")):
+    for p in corpus.raw_paths():
         pages = load_page_ground_truth(p).as_dict()
         r = score_units(pages, pages)
         assert r["doc"]["ratio"] in (None, 1.0) and r["doc"]["word_errors"] == 0

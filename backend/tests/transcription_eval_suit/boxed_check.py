@@ -18,6 +18,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from . import corpus
 from .ground_truth import load_page_ground_truth
 
 SUITE = Path(__file__).parent
@@ -48,7 +49,7 @@ def _errors(d: Path) -> dict[str, set]:
     out: dict[str, set] = {}
     for f in sorted((d / "outputs").glob("*.json")):
         doc = f.name.split("__")[0]
-        gold = load_page_ground_truth(SUITE / "raw_benchmarks" / f"{doc}.md").as_dict()
+        gold = load_page_ground_truth(corpus.raw_path(doc)).as_dict()
         pages = json.loads(f.read_text(encoding="utf-8"))["pages"]
         for n, gt in gold.items():
             for t, a, b in check_page(gt, pages.get(str(n), ""))["detail"]:
@@ -75,7 +76,7 @@ def main(dirs: list[str]) -> None:
         print(f"\n== {d}")
         for f in sorted((Path(d) / "outputs").glob("*.json")):
             doc = f.name.split("__")[0]
-            gold = load_page_ground_truth(SUITE / "raw_benchmarks" / f"{doc}.md").as_dict()
+            gold = load_page_ground_truth(corpus.raw_path(doc)).as_dict()
             pages = json.loads(f.read_text(encoding="utf-8"))["pages"]
             row = Counter()
             details = []

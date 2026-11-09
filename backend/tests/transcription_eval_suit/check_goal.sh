@@ -48,6 +48,20 @@
 #                                      benchmark. The STOP gate is the FULL
 #                                      partition — you cannot "pass" by fixing a
 #                                      subset while breaking the rest.
+#   GOAL_SUBJECT   (default: all)      cs | math — gate one subject's corpus
+#                                      (pdfs/ raw_benchmarks/ draft_benchmarks/
+#                                      <subject>/). Excludes GOAL_FIXTURES.
+#   GOAL_USER      (default: all)      a teacher folder under GOAL_SUBJECT
+#                                      (e.g. ori_yefet). Needs GOAL_SUBJECT.
+#   GOAL_MAX_FIXTURES (default 0 = no cap) passed to the runner's --max-fixtures.
+#                                      The runner's own default (20) is for
+#                                      iteration; the gate runs the FULL partition
+#                                      of its scope, and a run whose cap dropped
+#                                      any doc is a VALIDITY failure, never a pass.
+#
+# Every scope admits only docs carrying a PDF + raw GT + draft GT (per_doc's needs);
+# docs missing GT are skipped and named by the runner — they are not part of the
+# benchmark until their GT lands.
 # =============================================================================
 
 set -euo pipefail
@@ -60,6 +74,9 @@ REPEATS="${GOAL_REPEATS:-5}"
 CONFIG="${GOAL_CONFIG:-v0}"
 EXAM_SPEC="${GOAL_EXAM_SPEC:-draft.json}"
 FIXTURES="${GOAL_FIXTURES:-}"
+SUBJECT="${GOAL_SUBJECT:-}"
+USER_DIR="${GOAL_USER:-}"
+MAX_FIXTURES="${GOAL_MAX_FIXTURES:-0}"
 
 cd "$BACKEND_DIR"
 export PYTHONPATH=.
@@ -67,13 +84,19 @@ export PYTHONPATH=.
 echo "=============================================================="
 echo " check_goal — authoritative end-to-end stop gate"
 echo "   config=$CONFIG  mode=per_doc  repeats=$REPEATS  exam_spec=$EXAM_SPEC"
-echo "   fixtures=${FIXTURES:-<all>}"
+echo "   fixtures=${FIXTURES:-<all>}  subject=${SUBJECT:-<all>}  user=${USER_DIR:-<all>}  max_fixtures=$MAX_FIXTURES"
 echo "   (this is the expensive, authoritative confirmation run)"
 echo "=============================================================="
 
-FIXTURE_ARG=()
+FIXTURE_ARG=(--max-fixtures "$MAX_FIXTURES")
 if [ -n "$FIXTURES" ]; then
-  FIXTURE_ARG=(--fixtures "$FIXTURES")
+  FIXTURE_ARG+=(--fixtures "$FIXTURES")
+fi
+if [ -n "$SUBJECT" ]; then
+  FIXTURE_ARG+=(--subject "$SUBJECT")
+fi
+if [ -n "$USER_DIR" ]; then
+  FIXTURE_ARG+=(--user "$USER_DIR")
 fi
 
 # --- run the canonical k=N end-to-end eval; capture stdout to recover the dir ---
@@ -127,6 +150,13 @@ if not records:
 by_doc = {}
 for r in records:
     by_doc.setdefault(r["doc_id"], []).append(r)
+
+# the gate is the FULL partition of its scope: a doc the per-trial cap dropped is a
+# doc the benchmark did not measure, so the run cannot be a pass.
+dropped = data.get("dropped_by_cap") or []
+if dropped:
+    validity.append(f"--max-fixtures dropped {len(dropped)} doc(s) ({', '.join(dropped)}) — "
+                    f"the STOP gate is the full partition; rerun with GOAL_MAX_FIXTURES=0")
 
 # global validity
 pf_total = agg.get("parse_failure_total")
@@ -191,6 +221,7 @@ if agg_pass is not True:
     sys.exit(2)
 
 n_docs = len(by_doc)
+print(f"Scope: {data.get('scope') or '<whole corpus>'}")
 print(f"All {n_docs} fixtures pass the conjunctive end-to-end gate on all {min_repeats} repeats.")
 print("Validity clean: 0 parse failures, coverage 1.0 everywhere, no truncation.")
 print("Independent read and runner aggregate AGREE.")

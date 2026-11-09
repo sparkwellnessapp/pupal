@@ -22,6 +22,8 @@ from pathlib import Path
 
 import pytest
 
+from . import corpus
+
 SUITE_DIR = Path(__file__).parent
 LATENCY_TOL = 0.25
 
@@ -32,7 +34,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def _fixtures_present() -> tuple[str, ...]:
-    return tuple(sorted(p.stem for p in (SUITE_DIR / "raw_benchmarks").glob("*.md")))
+    return tuple(sorted(p.stem for p in corpus.raw_paths()))
 
 
 @pytest.mark.parametrize("config_name", ["v0"])

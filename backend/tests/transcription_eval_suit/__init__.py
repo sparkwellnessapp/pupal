@@ -8,7 +8,7 @@ Layer 1 (pure, offline, runs in `pytest -q`):
 Later layers (API-touching, run opt-in only):
     instrument / vlm_provider adapters / pipelines / runner / report / gate.
 
-raw_benchmarks/ + draft_benchmarks/<subject>/ hold ground-truth markdown; pdfs/<subject>/
+raw_benchmarks/<subject>/ + draft_benchmarks/<subject>/ hold ground-truth markdown; pdfs/<subject>/
 holds source PDFs (layout: corpus.py).
 Both contain real student data — see the integration notes; long-term they move
 to a private bucket and are git-ignored.

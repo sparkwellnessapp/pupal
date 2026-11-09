@@ -51,7 +51,6 @@ from .ground_truth import load_ground_truth, load_page_ground_truth
 from . import corpus
 
 SUITE_DIR = Path(__file__).parent
-RAW_DIR = SUITE_DIR / "raw_benchmarks"
 DRAFT_DIR = SUITE_DIR / "draft_benchmarks"
 
 # Lines the draft format excludes by design: "שאלה 1", "א.", "שאלה 2 ג", and
@@ -90,7 +89,7 @@ def _raw_ink(doc_id: str) -> str:
     same text once the gold relocation has run; comparing them unrelocated reports
     every moved block as a DROPPED + ADDED pair."""
     from .diagnostics import gold_relocation
-    raw = load_page_ground_truth(corpus.raw_path(doc_id) or RAW_DIR / f"{doc_id}.md").as_dict()
+    raw = load_page_ground_truth(corpus.raw_path(doc_id)).as_dict()
     moved, _ = gold_relocation(doc_id, raw)
     kept = [
         "\n".join(_PART_EDGE_RE.sub(r"\1", l) for l in moved[n].splitlines()

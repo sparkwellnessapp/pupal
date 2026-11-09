@@ -22,6 +22,7 @@ from collections import Counter
 from pathlib import Path
 
 from .diag_hebrew import hebrew_words, is_hebrew, strip_marker_lines
+from . import corpus
 from .ground_truth import load_page_ground_truth
 
 SUITE = Path(__file__).parent
@@ -99,7 +100,7 @@ def main(dirs: list[str]) -> None:
             if not src.exists():
                 continue
             outputs = json.loads(src.read_text(encoding="utf-8"))
-            gold = load_page_ground_truth(SUITE / "raw_benchmarks" / f"{doc}.md").as_dict()
+            gold = load_page_ground_truth(corpus.raw_path(doc)).as_dict()
             for n, gtext in gold.items():
                 ptext = outputs["pages"].get(str(n), "")
                 # the prose view: section-marker lines are not Hebrew text

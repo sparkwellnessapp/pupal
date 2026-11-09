@@ -136,7 +136,7 @@ def validate(path: Path = CASES_PATH) -> Report:
             continue
         if c.raw.get("marker") not in MARKERS:
             rep.fail(cid, f"marker {c.raw.get('marker')!r} not in {MARKERS}")
-        raw_p = SUITE_DIR / "raw_benchmarks" / f"{c.fixture}.md"
+        raw_p = corpus.raw_path(c.fixture)
         if not raw_p.exists():
             rep.fail(cid, f"fixture {c.fixture!r} has no raw GT")
             continue
@@ -220,7 +220,7 @@ def validate(path: Path = CASES_PATH) -> Report:
         if not live:
             continue
         pages = load_page_ground_truth(
-            SUITE_DIR / "raw_benchmarks" / f"{fixture}.md").as_dict()
+            corpus.raw_path(fixture)).as_dict()
         try:
             res = relocate(pages, [c.instruction() for c in live])
         except (KeyError, TypeError, ValueError) as e:

@@ -3,16 +3,16 @@ corpus.py — where a fixture's files live: the ONE place that spells the corpus
 
     pdfs/<subject>[/<user>]/<doc_id>.pdf
     draft_benchmarks/<subject>[/<user>]/<doc_id>.md
-    raw_benchmarks/<doc_id>.md          (not mirrored yet; any depth resolves the same)
+    raw_benchmarks/<subject>[/<user>]/<doc_id>.md
 
 `<subject>` is one of SUBJECTS; `<user>` is an optional teacher folder (`math/ori_yefet`).
 A doc_id is UNIQUE across the whole corpus — every lookup is by doc_id at any depth, so a
 file can move between folders without its fixtures, exams or results changing, and a
 doc_id found twice is refused rather than guessed (two ground truths for one document).
 
-The scope (subject, user) is read from the folder a doc's PDF or draft GT sits in.
-raw_benchmarks/ is flat, so it never decides a scope — a scoped run takes its docs from
-pdfs/ and draft_benchmarks/, then keeps only those carrying the GT its mode needs.
+The scope (subject, user) is read from the folder a doc's PDF or GT sits in; all three
+roots mirror one another. A run takes the docs in its scope from all three, then keeps only
+those carrying the GT its mode needs (runner.discover_fixtures).
 """
 from __future__ import annotations
 
@@ -58,10 +58,19 @@ def raw_path(doc_id: str) -> Optional[Path]:
     return _one(SUITE_DIR / "raw_benchmarks", doc_id, ".md")
 
 
-def draft_paths() -> list[Path]:
-    """Every draft GT in the corpus, sorted by doc_id."""
-    root = SUITE_DIR / "draft_benchmarks"
+def _all_md(root_name: str, subject: Optional[str] = None) -> list[Path]:
+    root = _scope_root(root_name, subject, None)
     return sorted(root.rglob("*.md"), key=lambda p: p.stem) if root.exists() else []
+
+
+def draft_paths(subject: Optional[str] = None) -> list[Path]:
+    """Every draft GT in the corpus (or one subject), sorted by doc_id."""
+    return _all_md("draft_benchmarks", subject)
+
+
+def raw_paths(subject: Optional[str] = None) -> list[Path]:
+    """Every raw GT in the corpus (or one subject), sorted by doc_id."""
+    return _all_md("raw_benchmarks", subject)
 
 
 def scope_of(path: Path, root_name: str) -> tuple[Optional[str], Optional[str]]:
@@ -81,18 +90,16 @@ def _scope_root(root_name: str, subject: Optional[str], user: Optional[str]) -> 
 
 def docs_in_scope(subject: Optional[str] = None, user: Optional[str] = None,
                   pdf_dir: str = "pdfs") -> list[str]:
-    """Every doc_id in the scope: no scope = the whole corpus (PDFs, draft and raw GT);
-    a scope = the docs whose PDF or draft GT sits under <root>/<subject>[/<user>]."""
+    """Every doc_id in the scope: the docs whose PDF, draft or raw GT sits under
+    <root>/<subject>[/<user>] (no scope = the whole corpus)."""
     if user and not subject:
         raise CorpusError("a user folder needs its subject (e.g. --subject math --user ori_yefet)")
     if subject and subject not in SUBJECTS:
         raise CorpusError(f"unknown subject {subject!r}; known: {', '.join(SUBJECTS)}")
-    roots = [_scope_root(pdf_dir, subject, user), _scope_root("draft_benchmarks", subject, user)]
-    if not subject:
-        roots.append(SUITE_DIR / "raw_benchmarks")
+    roots = [_scope_root(r, subject, user) for r in (pdf_dir, "draft_benchmarks", "raw_benchmarks")]
     if subject and not any(r.exists() for r in roots):
         raise CorpusError(f"no corpus folder for {'/'.join(x for x in (subject, user) if x)} "
-                          f"under {pdf_dir}/ or draft_benchmarks/")
+                          f"under {pdf_dir}/, draft_benchmarks/ or raw_benchmarks/")
     ids = {p.stem for r in roots if r.exists() for p in r.rglob("*")
            if p.suffix.lower() in (".pdf", ".md") and p.is_file()}
     return sorted(ids)

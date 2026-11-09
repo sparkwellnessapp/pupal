@@ -20,6 +20,7 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from . import corpus
 from .critical_tokens import extract_signature
 from .exam_resolution import resolve_exam
 from .ground_truth import load_page_ground_truth
@@ -59,7 +60,7 @@ def main(d: str) -> None:
         profile = Fixture(doc_id=doc, pdf_path=None, raw_gold=None, draft_gold=None,
                           exam=resolve_exam(doc, fallback_spec_path=None)).profile
         o = json.loads(out.read_text(encoding="utf-8"))
-        raw = load_page_ground_truth(SUITE_DIR / "raw_benchmarks" / f"{doc}.md").as_dict()
+        raw = load_page_ground_truth(corpus.raw_path(doc)).as_dict()
         gold_c = _sig_counts("\n".join(raw.values()), profile)
         p1_c = _sig_counts("\n".join(o["pages"].values()), profile)
         for a in rec["e2e"]["answers"]:

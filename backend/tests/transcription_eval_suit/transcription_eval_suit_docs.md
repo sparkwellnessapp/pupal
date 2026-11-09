@@ -189,7 +189,7 @@ target (never refuse / never all-empty). Output includes a `segmentation_plan`,
 | `exam_resolution.py` | **Which exam does a fixture answer, and which profile scores it.** Per-doc: `fixtures/<doc_id>.json` manifest → `exams/<exam_id>.json`, else the run-level `--exam-spec` fallback (today's behaviour). Every failure is loud. Also `spec_keys(spec)` — the answer keys an exam declares, which the GT must match. |
 | `profiles.py` | The critical-token profile registry: name → `CriticalProfile` (`java_bagrut`). Separate from `critical_tokens.py` on purpose — that file is §17.7 STOP-listed; a name→object map is plumbing, not measurement. |
 | `configs/*.json` | Named `PipelineConfig` presets (`v0`, `v0_p1_only`, `v0_p2_correct_spec`). |
-| `pdfs/<subject>[/<user>]/`, `draft_benchmarks/<subject>[/<user>]/`, `raw_benchmarks/` | The fixtures: source PDF + draft GT + raw GT, one file each, stem = `doc_id` (unique corpus-wide). Subjects `cs`, `math`; an optional teacher folder (`math/ori_yefet`). `raw_benchmarks/` is still flat. |
+| `pdfs/<subject>[/<user>]/`, `draft_benchmarks/<subject>[/<user>]/`, `raw_benchmarks/<subject>[/<user>]/` | The fixtures: source PDF + draft GT + raw GT, one file each, stem = `doc_id` (unique corpus-wide). Subjects `cs`, `math`; an optional teacher folder (`math/ori_yefet`). All three roots mirror one another; math GT folders commit only their `.gitkeep` (real student answers stay off the public remotes). |
 | `corpus.py` | **Where a fixture's files live** — the one place that spells the layout: lookup by `doc_id` at any depth (a duplicate is refused), the scope a file's folder names, `docs_in_scope`, and the per-trial `cap`. Every consumer resolves through it. |
 | `exams/<exam_id>.json` | The exam artifacts — ONE per exam, shared by all its fixtures (a rubric `draft_json` export, or a canonical harness spec). |
 | `fixtures/<doc_id>.json` | Per-fixture manifest: which exam this fixture answers, and (optionally) which profile scores it. Absent ⇒ the `--exam-spec` fallback. Carries only what the tree cannot state. |
@@ -207,7 +207,7 @@ The single most important conceptual point: **two GTs score two different surfac
 
 | GT | Folder | Format | Scores | Contains |
 |---|---|---|---|---|
-| **Raw GT** | `raw_benchmarks/` | `=== PAGE n ===` (`GoldPageDocument`) | **Phase 1** (perception) | ALL ink: code, comments, section markers, margin notes. Verbatim. |
+| **Raw GT** | `raw_benchmarks/<subject>[/<user>]/` | `=== PAGE n ===` (`GoldPageDocument`) | **Phase 1** (perception) | ALL ink: code, comments, section markers, margin notes. Verbatim. |
 | **Draft GT** | `draft_benchmarks/` | `=== Q1.א ===` (`GoldDocument`) | **Phase 2 / end-to-end** (answer content) | ONLY gradeable answer content per `(question, sub)`. **Deliberately excludes** section markers, margin notes, identity. |
 
 This asymmetry is **intentional**. An answer that lacks a margin note is *correct*,
@@ -453,9 +453,11 @@ for its GT is skipped, never an error. `--max-fixtures` (default **20**, `0` = a
 trial: deterministic, interleaved across exams, the SAME set for every repeat, and the
 dropped doc_ids are logged and written to `results.json` (`scope`, `max_fixtures`,
 `dropped_by_cap`). An explicit `--fixtures` list runs exactly as given (no cap, no scope).
-Unscoped discovery equals the old «every doc in `raw_benchmarks/`» set (10 today), so
-`check_goal.sh` is unchanged — ⚠ once more than 20 docs carry full GT, its «all» is capped:
-pass `GOAL_FIXTURES` or rule how the gate should scope before that happens.
+Unscoped discovery equals the old «every doc in `raw_benchmarks/`» set (10 today).
+`check_goal.sh` takes `GOAL_SUBJECT` / `GOAL_USER` to gate one scope and passes
+`GOAL_MAX_FIXTURES` (default **0** — the gate is the FULL partition of its scope, never the
+runner's iteration default of 20); a gate run whose cap dropped any doc is a VALIDITY failure,
+so a capped run can never read as a pass.
 Flags: `--config` (required), `--mode` (`per_doc`|`p1_only`|`p2_only`|`batch`),
 `--exam-spec` (required for every mode except `p1_only`; `draft.json` is parsed via
 the tolerant rubric-draft loader), `--fixtures` (comma-sep `doc_id`s; default = discovered, see above), `--subject`/`--user`/`--max-fixtures`,
@@ -522,7 +524,7 @@ Pure parts are tested with **zero mocks**; provider/LLM paths inject fakes (a
 ## 14. Fixtures
 
 **n = 10, across TWO exams** (2026-09-27). Every fixture is four files sharing a
-`doc_id` of `<exam_id>.<student>`: `pdfs/cs/<id>.pdf` + `raw_benchmarks/<id>.md` (raw GT)
+`doc_id` of `<exam_id>.<student>`: `pdfs/cs/<id>.pdf` + `raw_benchmarks/cs/<id>.md` (raw GT)
 + `draft_benchmarks/cs/<id>.md` (draft GT) + `fixtures/<id>.json` (which exam it answers).
 
 **Waiting for GT (2026-11-09), discovered but skipped:** 23 CS PDFs in `pdfs/cs/`
@@ -560,7 +562,7 @@ author, never model findings.
 
 ## 15. Extending the suite
 
-- **Add a fixture (same exam):** drop `pdfs/<subject>[/<user>]/<id>.pdf`, author `raw_benchmarks/<id>.md`
+- **Add a fixture (same exam):** drop `pdfs/<subject>[/<user>]/<id>.pdf`, author `raw_benchmarks/<subject>[/<user>]/<id>.md`
   (per-page, `=== PAGE n ===`, all ink verbatim) and `draft_benchmarks/<subject>[/<user>]/<id>.md`
   (per-answer, `=== Q1.א ===`, gradeable content only), add `<id>` to `ALL_FIXTURES`.
   The parsers enforce contiguity/uniqueness.

@@ -99,8 +99,8 @@ def summarize(dirs: list[str], rescored: bool = False) -> dict:
     # VALIDITY (2026-09-28): an optional pass that silently failed (a lost strike
     # check: timeouts / 429 / a dead local network) leaves a record that LOOKS like a
     # result. Count records whose strike check covered every nonempty page.
+    from . import corpus
     from .ground_truth import load_page_ground_truth
-    suite = Path(__file__).parent
     sc_total = sc_full = 0
     for r in recs:
         sc = (r.get("tokens") or {}).get("strike_check")
@@ -108,7 +108,7 @@ def summarize(dirs: list[str], rescored: bool = False) -> dict:
             continue
         sc_total += 1
         pages = sum(1 for t in load_page_ground_truth(
-            suite / "raw_benchmarks" / f"{r['doc_id']}.md").as_dict().values() if t.strip())
+            corpus.raw_path(r['doc_id'])).as_dict().values() if t.strip())
         sc_full += sc.get("calls", 0) >= pages
     walls = [w for r in doc_rows.values() for w in r["wall_s"]]
     costs = [r["cost"] for r in doc_rows.values() if r["cost"] is not None]

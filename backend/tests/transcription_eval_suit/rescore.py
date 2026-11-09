@@ -44,7 +44,7 @@ def rescore_dir(d: Path) -> Path:
             out_records.append(dict(rec, rescored=False))
             continue
         o = json.loads(src.read_text(encoding="utf-8"))
-        raw = load_page_ground_truth(corpus.raw_path(doc) or SUITE_DIR / "raw_benchmarks" / f"{doc}.md")
+        raw = load_page_ground_truth(corpus.raw_path(doc))
         draft_p = corpus.draft_path(doc)
         draft = load_ground_truth(draft_p) if draft_p else None
         # the runner's own profile resolution (default profile when no exam)

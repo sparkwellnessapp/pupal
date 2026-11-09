@@ -7,7 +7,6 @@ from . import corpus
 from .ground_truth import load_ground_truth, parse_ground_truth
 
 DRAFT_BENCHMARKS = Path(__file__).parent / "draft_benchmarks"
-RAW_BENCHMARKS = Path(__file__).parent / "raw_benchmarks"
 
 
 def test_parses_two_answers_with_keys_and_bodies():
@@ -123,14 +122,13 @@ ALL_FIXTURES = [
 
 
 @pytest.mark.skipif(
-    not (Path(__file__).parent / "raw_benchmarks").exists()
-    or not list((Path(__file__).parent / "raw_benchmarks").glob("*.md")),
+    not corpus.raw_paths(),
     reason="raw benchmark fixtures not present (real student data lives outside git)",
 )
 def test_all_raw_fixtures_parse():
     for name in ALL_FIXTURES:
-        path = RAW_BENCHMARKS / f"{name}.md"
-        assert path.exists(), f"missing raw fixture {name}"
+        path = corpus.raw_path(name)
+        assert path is not None, f"missing raw fixture {name}"
         doc = load_page_ground_truth(path)
         assert len(doc.pages) >= 3
         # Canonical vocabulary: author-marks converted, only [?] remains.
@@ -186,12 +184,12 @@ def test_all_draft_fixtures_conform_to_their_exam_spec():
 
 
 def test_all_fixtures_list_matches_the_raw_benchmarks_folder():
-    """`raw_benchmarks/` IS the runner's fixture registry — the default eval run
-    globs it (runner.main), so a raw GT landing there joins every run and the
+    """`raw_benchmarks/` (every subject) IS the runner's default fixture registry — an
+    unscoped eval run takes every doc with full GT (runner.discover_fixtures), so a raw GT landing there joins every run and the
     /goal STOP gate the moment it is written. Requiring the list and the folder
     to agree turns a half-landed fixture into a loud `pytest -q` failure instead
     of a silent change to what the benchmark means."""
-    on_disk = {p.stem for p in RAW_BENCHMARKS.glob("*.md")}
+    on_disk = {p.stem for p in corpus.raw_paths()}
     if not on_disk:
         pytest.skip("raw benchmark fixtures not present")
     assert set(ALL_FIXTURES) == on_disk, (
